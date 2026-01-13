@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 export default function Navbar({ activePanel, setActivePanel }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -21,19 +22,20 @@ export default function Navbar({ activePanel, setActivePanel }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14">
           
-          {/* Logo/Brand */}
           <div className="flex-shrink-0">
-            <button 
+            <Link 
+              href="/"
               onClick={() => setActivePanel(null)}
               className="text-white text-lg font-bold hover:text-blue-200 transition-colors tracking-wide"
             >
               KUCET PORTAL
-            </button>
+            </Link>
           </div>
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-6">
-            <button 
+            <Link 
+              href="/"
               onClick={() => setActivePanel(null)}
               className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
                 activePanel === null ? 'text-blue-200' : ''
@@ -43,7 +45,7 @@ export default function Navbar({ activePanel, setActivePanel }) {
               <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
                 activePanel === null ? 'w-full' : 'w-0 group-hover:w-full'
               }`}></span>
-            </button>
+            </Link>
             <button 
               onClick={() => handleNavClick('student')}
               className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
@@ -55,85 +57,44 @@ export default function Navbar({ activePanel, setActivePanel }) {
                 isActive('student') ? 'w-full' : 'w-0 group-hover:w-full'
               }`}></span>
             </button>
-            <button 
-              onClick={() => handleNavClick('clerk')}
-              className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
-                isActive('clerk') ? 'text-blue-200' : ''
-              }`}
+            <Link 
+              href="/clerk/login"
+              className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group`}
             >
               CLERK LOGIN
-              <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                isActive('clerk') ? 'w-full' : 'w-0 group-hover:w-full'
-              }`}></span>
-            </button>
-            <button 
-              onClick={() => handleNavClick('admin')}
-              className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
-                isActive('admin') ? 'text-blue-200' : ''
-              }`}
+              <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full`}></span>
+            </Link>
+            <Link 
+              href="/admin/login"
+              className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group`}
             >
               SUPER ADMIN
-              <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                isActive('admin') ? 'w-full' : 'w-0 group-hover:w-full'
-              }`}></span>
-            </button>
+              <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full`}></span>
+            </Link>
           </div>
 
-          {/* Mobile Menu Button - Animated Hamburger */}
+          {/* Mobile Menu Button */}
           <div className="md:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-white hover:text-blue-200 focus:outline-none p-2 relative w-10 h-10 flex items-center justify-center"
+              className="text-white hover:text-blue-200 focus:outline-none p-2"
               aria-label="Toggle menu"
             >
-              <div className="w-6 h-5 relative flex flex-col justify-between">
-                {/* Top bar */}
-                <span 
-                  className={`block h-0.5 w-full bg-current rounded-full transform transition-all duration-300 ease-in-out origin-center ${
-                    mobileMenuOpen ? 'rotate-45 translate-y-2' : ''
-                  }`}
-                />
-                {/* Middle bar */}
-                <span 
-                  className={`block h-0.5 w-full bg-current rounded-full transition-all duration-300 ease-in-out ${
-                    mobileMenuOpen ? 'opacity-0 scale-x-0' : 'opacity-100 scale-x-100'
-                  }`}
-                />
-                {/* Bottom bar */}
-                <span 
-                  className={`block h-0.5 w-full bg-current rounded-full transform transition-all duration-300 ease-in-out origin-center ${
-                    mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''
-                  }`}
-                />
-              </div>
+              {/* Icon */}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu with Animation */}
+      {/* Mobile Menu */}
       <div 
-        className={`md:hidden bg-[#0a2d66] overflow-hidden transition-all duration-300 ease-in-out ${
-          mobileMenuOpen ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'
-        }`}
+        className={`md:hidden bg-[#0a2d66] ${mobileMenuOpen ? 'block' : 'hidden'}`}
       >
         <div className="px-4 pt-2 pb-3 space-y-1">
-          <button 
-            onClick={() => { setActivePanel(null); setMobileMenuOpen(false); }}
-            className={`text-white block w-full text-left px-3 py-2.5 text-sm tracking-wide uppercase transform transition-all duration-300 ease-in-out border-b border-transparent hover:border-white ${
-              mobileMenuOpen ? 'translate-x-0 opacity-100 delay-100' : '-translate-x-4 opacity-0'
-            }`}
-          >
-            HOME
-          </button>
-          <button 
-            onClick={() => handleNavClick('student')}
-            className={`text-white block w-full text-left px-3 py-2.5 text-sm tracking-wide uppercase transform transition-all duration-300 ease-in-out border-b border-transparent hover:border-white ${
-              mobileMenuOpen ? 'translate-x-0 opacity-100 delay-150' : '-translate-x-4 opacity-0'
-            } ${isActive('student') ? 'text-blue-200 border-white' : ''}`}
-          >
-            STUDENT LOGIN
-          </button>
+          <Link href="/" onClick={() => { setActivePanel(null); setMobileMenuOpen(false); }} className="text-white block px-3 py-2.5 text-sm">HOME</Link>
+          <button onClick={() => handleNavClick('student')} className={`text-white block w-full text-left px-3 py-2.5 text-sm ${isActive('student') ? 'text-blue-200' : ''}`}>STUDENT LOGIN</button>
+          <Link href="/clerk/login" onClick={() => setMobileMenuOpen(false)} className="text-white block px-3 py-2.5 text-sm">CLERK LOGIN</Link>
+          <Link href="/admin/login" onClick={() => setMobileMenuOpen(false)} className="text-white block px-3 py-2.5 text-sm">SUPER ADMIN</Link>
         </div>
       </div>
     </nav>

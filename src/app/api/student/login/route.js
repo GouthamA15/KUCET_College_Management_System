@@ -1,19 +1,20 @@
 import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server'; // Import NextResponse
 
 export async function POST(req) {
   try {
     const body = await req.json();
     const { rollno, dob } = body;
     if (!rollno || !dob) {
-      return new Response(JSON.stringify({ error: 'Missing rollno or dob' }), { status: 400 });
+      return NextResponse.json({ error: 'Missing rollno or dob' }, { status: 400 });
     }
     const db = getDb();
     const [rows] = await db.execute(
-      'SELECT rollno, student_name, father_name, gender, category, phone_no, dob FROM cse_third_year_students WHERE rollno = ?',
+      'SELECT rollno, student_name, father_name, gender, category, phone_no, dob FROM cse_2023_students WHERE rollno = ?',
       [rollno]
     );
     if (rows.length === 0) {
-      return new Response(JSON.stringify({ error: 'Student not found' }), { status: 404 });
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
     const student = rows[0];
     // Convert input dob (yyyy-mm-dd) to dd-mm-yyyy for comparison
@@ -32,12 +33,22 @@ export async function POST(req) {
     }
     const dbDobFormatted = dbToDDMMYYYY(student.dob);
     if (dbDobFormatted !== String(dobInput).trim()) {
-      return new Response(JSON.stringify({ error: 'Invalid credentials' }), { status: 401 });
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
     const { dob: _dob, ...profile } = student;
-    return new Response(JSON.stringify({ student: profile }), { status: 200 });
+    
+    // Set a student authentication cookie upon successful login
+    const response = NextResponse.json({ student: profile, success: true }, { status: 200 });
+    response.cookies.set('student_auth', 'true', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== 'development',
+        maxAge: 60 * 60, // 1 hour
+        path: '/',
+    });
+    return response;
+
   } catch (err) {
      console.error(err)
-    return new Response(JSON.stringify({ error: 'Server error', details: err.message }), { status: 500 });
+    return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
   }
 }
