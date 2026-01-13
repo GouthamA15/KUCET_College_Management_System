@@ -2,27 +2,47 @@
 
 import { useState } from 'react';
 
-export default function LoginPanel({ activePanel, onClose }) {
+
+export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
   const [clerkForm, setClerkForm] = useState({ email: '', password: '' });
   const [adminForm, setAdminForm] = useState({ email: '', password: '' });
+  const [studentLoading, setStudentLoading] = useState(false);
+  const [studentError, setStudentError] = useState('');
 
-  const handleStudentSubmit = (e) => {
+  const handleStudentSubmit = async (e) => {
     e.preventDefault();
-    console.log('Student Login:', studentForm);
-    // UI only - no backend implementation
+    setStudentLoading(true);
+    setStudentError('');
+    try {
+      const res = await fetch('/api/student/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rollno: studentForm.rollNumber, dob: studentForm.dob }),
+      });
+      const data = await res.json();
+      if (res.ok && data.student) {
+        // Store in localStorage and redirect
+        localStorage.setItem('logged_in_student', JSON.stringify(data.student));
+        window.location.href = '/student/profile';
+      } else {
+        setStudentError(data.error || 'Login failed');
+      }
+    } catch (err) {
+      setStudentError('Network error');
+    } finally {
+      setStudentLoading(false);
+    }
   };
 
   const handleClerkSubmit = (e) => {
     e.preventDefault();
-    console.log('Clerk Login:', clerkForm);
-    // UI only - no backend implementation
+    // Clerk login not implemented
   };
 
   const handleAdminSubmit = (e) => {
     e.preventDefault();
-    console.log('Admin Login:', adminForm);
-    // UI only - no backend implementation
+    // Admin login not implemented
   };
 
   if (!activePanel) return null;
@@ -92,9 +112,13 @@ export default function LoginPanel({ activePanel, onClose }) {
                   <button
                     type="submit"
                     className="w-full bg-[#0b3578] text-white py-3 rounded-lg font-semibold hover:bg-[#0a2d66] transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
+                    disabled={studentLoading}
                   >
-                    Login
+                    {studentLoading ? 'Logging in...' : 'Login'}
                   </button>
+                  {studentError && (
+                    <div className="text-red-600 text-sm mt-2 text-center">{studentError}</div>
+                  )}
                 </form>
                 
                 <p className="text-center text-xs text-gray-500 mt-4">
