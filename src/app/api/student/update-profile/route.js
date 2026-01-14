@@ -1,22 +1,31 @@
 import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
 
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { rollno, phone_no } = body;
-    if (!rollno || !phone_no) {
-      return new Response(JSON.stringify({ error: 'Missing rollno or phone_no' }), { status: 400 });
+    // The client sends 'phone', not 'phone_no'. Let's match the client.
+    const { rollno, phone } = body; 
+
+    // The backend validation should also check for 'phone'.
+    if (!rollno || !phone) {
+      return NextResponse.json({ error: 'Missing rollno or phone number' }, { status: 400 });
     }
+
     const db = getDb();
+    // The table name should be 'cse_2023_students' to be consistent with the rest of the app.
     const [result] = await db.execute(
-      'UPDATE cse_third_year_students SET phone_no = ? WHERE rollno = ?',
-      [phone_no, rollno]
+      'UPDATE cse_2023_students SET phone_no = ? WHERE rollno = ?',
+      [phone, rollno]
     );
+
     if (result.affectedRows === 0) {
-      return new Response(JSON.stringify({ error: 'Student not found' }), { status: 404 });
+      return NextResponse.json({ error: 'Student not found or data is the same' }, { status: 404 });
     }
-    return new Response(JSON.stringify({ success: true }), { status: 200 });
+
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'Server error', details: err.message }), { status: 500 });
+    console.error("Update profile error:", err);
+    return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
   }
 }

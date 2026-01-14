@@ -9,10 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.2.3",
+    "jose": "^6.1.3",
+    "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.16.0",
     "next": "16.1.1",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
