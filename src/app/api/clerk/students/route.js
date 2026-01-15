@@ -37,7 +37,7 @@ export async function GET(req) {
     
     // This is a workaround for the DB connection issue, should be removed if the root cause is fixed
     const db = getDb();
-    const [rows] = await db.execute('SELECT * FROM cse_2023_students');
+    const [rows] = await db.execute('SELECT * FROM cse_students');
 
     const cohortYear = parseInt(year.slice(-2)); // e.g., 23 from "2023"
     const lateralAdmissionYearPrefix = (cohortYear + 1).toString(); // e.g., "24"

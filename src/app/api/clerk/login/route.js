@@ -37,6 +37,12 @@ export async function POST(request) {
       maxAge: 60 * 60, // 1 hour
       path: '/',
     });
+    response.cookies.set('clerk_logged_in', 'true', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60, // 1 hour
+      path: '/',
+    });
 
     return response;
   } catch (error) {

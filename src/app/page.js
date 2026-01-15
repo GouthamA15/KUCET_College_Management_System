@@ -1,27 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
-import Navbar from '@/components/Navbar';
-import LoginPanel from '@/components/LoginPanel'; // Re-import LoginPanel
+// import { useRouter } from 'next/navigation';
+// import Header from '@/components/Header';
+// import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
 import AboutSection from '@/components/AboutSection';
-import Footer from '@/components/Footer';
+import LoginPanel from '@/components/LoginPanel'; // Re-import LoginPanel
+import Header from '@/app/components/Header/Header';
+import Navbar from '@/app/components/Navbar/Navbar';
+import Footer from '@/app/components/Footer/Footer';
 
 export default function Home() {
   const [activePanel, setActivePanel] = useState(null); // Re-add activePanel state
-  const router = useRouter();
+  // const router = useRouter();
 
   // Restore the useEffect for redirecting logged-in students
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('logged_in_student');
-      if (stored) {
-        router.replace('/student/profile');
-      }
-    }
-  }, [router]);
+  // Remove auto-redirect for login panels
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -37,7 +32,7 @@ export default function Home() {
       <div className={`transition-all duration-500 ease-out ${
         activePanel ? 'opacity-50 pointer-events-none' : 'opacity-100'
       }`}>
-        <div className="flex-grow">
+        <div className="grow">
           <Hero />
           <AboutSection />
         </div>

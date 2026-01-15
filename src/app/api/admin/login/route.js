@@ -18,6 +18,12 @@ export async function POST(request) {
         maxAge: 60 * 60, // 1 hour
         path: '/',
       });
+      response.cookies.set('admin_logged_in', 'true', {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60, // 1 hour
+        path: '/',
+      });
       return response;
     } else {
       return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 });
