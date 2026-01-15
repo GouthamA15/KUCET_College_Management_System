@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-export default function Navbar({ activePanel, setActivePanel, clerkMode = false }) {
+export default function Navbar({ activePanel, setActivePanel, clerkMode = false, studentProfileMode = false, onLogout }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavClick = (panel) => {
@@ -27,6 +27,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-6">
             {clerkMode ? (
+              // ...existing clerkMode nav...
               <>
                 <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                   Departments
@@ -47,8 +48,28 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false 
                 <button onClick={() => {
                   document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
                   document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
+                  sessionStorage.removeItem('clerk_authenticated');
                   window.location.href = '/';
                 }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Logout
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </button>
+              </>
+            ) : studentProfileMode ? (
+              <>
+                <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Timetable
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </button>
+                <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Updates
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </button>
+                <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Requests
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </button>
+                <button onClick={onLogout} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                   Logout
                   <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                 </button>
@@ -57,7 +78,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false 
               <>
                 <Link 
                   href="/"
-                  onClick={() => setActivePanel(null)}
+                  onClick={() => setActivePanel && setActivePanel(null)}
                   className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
                     activePanel === null ? 'text-blue-200' : ''
                   }`}
@@ -69,38 +90,38 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false 
                 </Link>
                 <button 
                   type="button"
-                  onClick={() => handleNavClick('student')}
+                  onClick={() => handleNavClick && handleNavClick('student')}
                   className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
-                    isActive('student') ? 'text-blue-200' : ''
+                    isActive && isActive('student') ? 'text-blue-200' : ''
                   }`}
                 >
                   STUDENT LOGIN
                   <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                    isActive('student') ? 'w-full' : 'w-0 group-hover:w-full'
+                    isActive && isActive('student') ? 'w-full' : 'w-0 group-hover:w-full'
                   }`}></span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleNavClick('clerk')}
+                  onClick={() => handleNavClick && handleNavClick('clerk')}
                   className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
-                    isActive('clerk') ? 'text-blue-200' : ''
+                    isActive && isActive('clerk') ? 'text-blue-200' : ''
                   }`}
                 >
                   CLERK LOGIN
                   <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                    isActive('clerk') ? 'w-full' : 'w-0 group-hover:w-full'
+                    isActive && isActive('clerk') ? 'w-full' : 'w-0 group-hover:w-full'
                   }`}></span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleNavClick('admin')}
+                  onClick={() => handleNavClick && handleNavClick('admin')}
                   className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
-                    isActive('admin') ? 'text-blue-200' : ''
+                    isActive && isActive('admin') ? 'text-blue-200' : ''
                   }`}
                 >
                   SUPER ADMIN
                   <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                    isActive('admin') ? 'w-full' : 'w-0 group-hover:w-full'
+                    isActive && isActive('admin') ? 'w-full' : 'w-0 group-hover:w-full'
                   }`}></span>
                 </button>
               </>
@@ -110,10 +131,10 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false 
           <div className="md:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-white hover:text-blue-200 focus:outline-none p-2"
+              className="text-white hover:text-blue-200 focus:outline-none p-2 transition-transform duration-300 ease-in-out"
               aria-label="Toggle menu"
             >
-              <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className={`h-6 w-6 transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'rotate-90' : 'rotate-0'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
               </svg>
             </button>
@@ -122,7 +143,9 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false 
       </div>
       {/* Mobile Menu */}
       <div 
-        className={`md:hidden bg-[#0a2d66] ${mobileMenuOpen ? 'block' : 'hidden'}`}
+        className={`md:hidden bg-[#0a2d66] overflow-hidden transition-all duration-300 ease-in-out ${
+          mobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+        }`}
       >
         <div className="px-4 pt-2 pb-3 space-y-1">
           {clerkMode ? (
@@ -133,6 +156,8 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false 
               <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Faculties<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
               <button onClick={() => {
                 document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
+                document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
+                sessionStorage.removeItem('clerk_authenticated');
                 window.location.href = '/';
               }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
             </>
