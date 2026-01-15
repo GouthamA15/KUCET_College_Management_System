@@ -67,19 +67,32 @@ export default function ClerkDashboard() {
     }
   };
 
-  // JWT Clerk Auth Check
+  // Prevent browser back navigation after login
   useEffect(() => {
-    const token = Cookies.get('clerk_logged_in');
-    if (token !== 'true') {
-      router.replace('/');
-    }
-    // Prevent browser back to Home after login
-    window.history.pushState(null, '', window.location.href);
-    window.onpopstate = function () {
-      window.history.go(1);
+    const handlePopState = (event) => {
+      // Check if user is authenticated before allowing back navigation
+      const isAuthenticated = sessionStorage.getItem('clerk_authenticated') === 'true';
+      if (!isAuthenticated) {
+        router.replace('/');
+        return;
+      }
+
+      // If authenticated, prevent going back to login/home
+      const currentPath = window.location.pathname;
+      if (currentPath.startsWith('/clerk')) {
+        // Push current state again to prevent back navigation
+        window.history.pushState(null, '', currentPath);
+      }
     };
+
+    // Set initial state
+    window.history.pushState(null, '', window.location.href);
+
+    // Listen for popstate events (back/forward button)
+    window.addEventListener('popstate', handlePopState);
+
     return () => {
-      window.onpopstate = null;
+      window.removeEventListener('popstate', handlePopState);
     };
   }, [router]);
   const handleEditClick = (student) => {
@@ -160,64 +173,75 @@ export default function ClerkDashboard() {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
       <Navbar clerkMode={true} />
-      <main className="flex-1 p-8">
-        <h1 className="text-3xl font-bold mb-8">Clerk Dashboard</h1>
+      <main className="flex-1 p-4 md:p-8">
+        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Clerk Dashboard</h1>
         {/* Search Controls */}
-        <div className="flex space-x-4 mb-8 bg-white p-4 rounded-lg shadow">
-          <div>
-            <label htmlFor="branch" className="block text-sm font-medium text-gray-700">Branch</label>
-            <select
-              id="branch"
-              value={branch}
-              onChange={(e) => setBranch(e.target.value)}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            >
-              <option value="">Select Branch</option>
-              <option value="09">CSE</option>
-              <option value="30">CSD</option>
-              <option value="15">ECE</option>
-              <option value="12">EEE</option>
-              <option value="00">CIVIL</option>
-              <option value="18">IT</option>
-              <option value="03">MECH</option>
-            </select>
+        <div className="bg-white p-4 rounded-lg shadow mb-8">
+          {/* Branch and Year Search Row */}
+          <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 mb-6">
+            <div className="flex-1">
+              <label htmlFor="branch" className="block text-sm font-medium text-gray-700">Branch</label>
+              <select
+                id="branch"
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              >
+                <option value="">Select Branch</option>
+                <option value="09">CSE</option>
+                <option value="30">CSD</option>
+                <option value="15">ECE</option>
+                <option value="12">EEE</option>
+                <option value="00">CIVIL</option>
+                <option value="18">IT</option>
+                <option value="03">MECH</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label htmlFor="year" className="block text-sm font-medium text-gray-700">Year of Admission</label>
+              <input
+                type="text"
+                id="year"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                placeholder="e.g., 2023"
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              />
+            </div>
+            <div className="flex-shrink-0 flex items-end">
+              <button
+                onClick={handleFetchStudents}
+                className="w-full md:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                disabled={loading || !branch || !year}
+              >
+                {loading ? 'Loading...' : 'Fetch Students'}
+              </button>
+            </div>
           </div>
-          <div>
-            <label htmlFor="year" className="block text-sm font-medium text-gray-700">Year of Admission</label>
-            <input
-              type="text"
-              id="year"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              placeholder="e.g., 2023"
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            />
+          
+          {/* Roll Number Search Row */}
+          <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 md:items-end">
+            <div className="flex-1">
+              <label htmlFor="rollno" className="block text-sm font-medium text-gray-700">Search by Roll Number</label>
+              <input
+                type="text"
+                id="rollno"
+                value={rollNo}
+                onChange={(e) => setRollNo(e.target.value)}
+                placeholder="Enter Roll Number"
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              />
+            </div>
+            <div className="flex-shrink-0">
+              <button
+                onClick={handleFetchSingleStudent}
+                className="w-full md:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                disabled={singleLoading || !rollNo.trim()}
+              >
+                {singleLoading ? 'Loading...' : 'Fetch Student'}
+              </button>
+            </div>
           </div>
-          <button
-            onClick={handleFetchStudents}
-            className="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            disabled={loading || !branch || !year}
-          >
-            {loading ? 'Loading...' : 'Fetch Students'}
-          </button>
-          <div>
-            <label htmlFor="rollno" className="block text-sm font-medium text-gray-700">Search by Roll Number</label>
-            <input
-              type="text"
-              id="rollno"
-              value={rollNo}
-              onChange={(e) => setRollNo(e.target.value)}
-              placeholder="Enter Roll Number"
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            />
-          </div>
-          <button
-            onClick={handleFetchSingleStudent}
-            className="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            disabled={singleLoading || !rollNo.trim()}
-          >
-            {singleLoading ? 'Loading...' : 'Fetch Student'}
-          </button>
         </div>
         {(!branch || !year) && (
           <div className="text-center text-gray-500 mb-4">{hint}</div>
@@ -321,44 +345,94 @@ export default function ClerkDashboard() {
         )}
         {/* Student List */}
         <div className="mt-8">
-          <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father Name</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone No</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DOB</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {(singleStudent ? [singleStudent] : students).map((student) => (
-                  <tr key={student.rollno} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.rollno}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.student_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.father_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.gender}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.phone_no}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleEditClick(student)}
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        Edit
-                      </button>
-                    </td>
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 rounded-lg">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father Name</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone No</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DOB</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {(singleStudent ? [singleStudent] : students).map((student) => (
+                    <tr key={student.rollno} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.rollno}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.student_name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.father_name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.gender}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.category}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.phone_no}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleEditClick(student)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {students.length === 0 && branch && year && !loading && !hint && (
+                <div className="text-center py-10 text-gray-500">
+                  No students found for selected branch and year.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-4">
+            {(singleStudent ? [singleStudent] : students).map((student) => (
+              <div key={student.rollno} className="bg-white rounded-lg shadow p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{student.student_name}</h3>
+                    <p className="text-sm text-gray-600">Roll No: {student.rollno}</p>
+                  </div>
+                  <button
+                    onClick={() => handleEditClick(student)}
+                    className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Father:</span>
+                    <p className="text-gray-600">{student.father_name}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Gender:</span>
+                    <p className="text-gray-600">{student.gender}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Category:</span>
+                    <p className="text-gray-600">{student.category}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Phone:</span>
+                    <p className="text-gray-600">{student.phone_no}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-medium text-gray-700">Date of Birth:</span>
+                    <p className="text-gray-600">{student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
             {students.length === 0 && branch && year && !loading && !hint && (
-              <div className="text-center py-10 text-gray-500">
+              <div className="text-center py-10 text-gray-500 bg-white rounded-lg">
                 No students found for selected branch and year.
               </div>
             )}

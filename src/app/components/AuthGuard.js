@@ -9,25 +9,42 @@ export default function AuthGuard({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Function to check if JWT exists and is valid
+    // Function to check authentication
     const checkAuth = () => {
       const isClerkRoute = pathname.startsWith('/clerk');
       const isAdminRoute = pathname.startsWith('/admin');
       const isStudentRoute = pathname.startsWith('/student');
-      const isHomeRoute = pathname === '/';
 
       if (isClerkRoute) {
-        // Check if clerk is logged in
+        // Check if clerk JWT token exists
+        const clerkToken = Cookies.get('clerk_auth');
         const clerkLoggedIn = Cookies.get('clerk_logged_in') === 'true';
-        if (!clerkLoggedIn) {
+
+        if (!clerkToken || !clerkLoggedIn) {
+          // Clear any partial auth state
+          Cookies.remove('clerk_auth');
+          Cookies.remove('clerk_logged_in');
+          sessionStorage.removeItem('clerk_authenticated');
           router.replace('/');
+          return;
         }
+
+        // Set session storage to track auth state
+        sessionStorage.setItem('clerk_authenticated', 'true');
       } else if (isAdminRoute) {
-        // Check if admin is logged in
+        // Check if admin JWT token exists
+        const adminToken = Cookies.get('admin_auth');
         const adminLoggedIn = Cookies.get('admin_logged_in') === 'true';
-        if (!adminLoggedIn) {
+
+        if (!adminToken || !adminLoggedIn) {
+          Cookies.remove('admin_auth');
+          Cookies.remove('admin_logged_in');
+          sessionStorage.removeItem('admin_authenticated');
           router.replace('/');
+          return;
         }
+
+        sessionStorage.setItem('admin_authenticated', 'true');
       } else if (isStudentRoute) {
         // Check if student is logged in
         const studentLoggedIn = localStorage.getItem('logged_in_student');
@@ -35,7 +52,6 @@ export default function AuthGuard({ children }) {
           router.replace('/');
         }
       }
-      // For home and other routes, allow access
     };
 
     checkAuth();
