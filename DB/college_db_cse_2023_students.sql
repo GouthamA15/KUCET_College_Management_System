@@ -54,7 +54,7 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `cse_2023_students`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `cse_2023_students` (
+CREATE TABLE `cse_students` (
   `id` int NOT NULL AUTO_INCREMENT,
   `rollno` varchar(20) NOT NULL,
   `student_name` varchar(50) NOT NULL,

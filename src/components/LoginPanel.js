@@ -52,6 +52,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       const data = await res.json(); // Parse JSON to get error message
 
       if (res.ok) {
+        // Optionally set a cookie here if backend does not set it
+        // document.cookie = `clerk_auth=${data.token}; path=/;`;
         window.location.href = '/clerk/dashboard';
       } else {
         setClerkError(data.message || 'Clerk login failed');
