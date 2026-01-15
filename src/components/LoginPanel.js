@@ -9,6 +9,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [adminForm, setAdminForm] = useState({ email: '', password: '' });
   const [studentLoading, setStudentLoading] = useState(false);
   const [studentError, setStudentError] = useState('');
+  const [clerkError, setClerkError] = useState('');
+  const [adminError, setAdminError] = useState('');
 
   const handleStudentSubmit = async (e) => {
     e.preventDefault();
@@ -35,14 +37,58 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
     }
   };
 
-  const handleClerkSubmit = (e) => {
+  const handleClerkSubmit = async (e) => {
     e.preventDefault();
-    // Clerk login not implemented
+    setClerkError('');
+    try {
+      const res = await fetch('/api/clerk/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(clerkForm),
+      });
+
+      const data = await res.json(); // Parse JSON to get error message
+
+      if (res.ok) {
+        // Optionally set a cookie here if backend does not set it
+        // document.cookie = `clerk_auth=${data.token}; path=/;`;
+        window.location.href = '/clerk/dashboard';
+      } else {
+        setClerkError(data.message || 'Clerk login failed');
+        console.error('Clerk login failed:', data.message);
+      }
+    } catch (error) {
+      setClerkError('An unexpected error occurred');
+      console.error('An error occurred during clerk login:', error);
+    }
   };
 
-  const handleAdminSubmit = (e) => {
+  const handleAdminSubmit = async (e) => {
     e.preventDefault();
-    // Admin login not implemented
+    setAdminError('');
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(adminForm),
+      });
+      
+      const data = await res.json();
+
+      if (res.ok) {
+        window.location.href = '/admin/dashboard';
+      } else {
+        setAdminError(data.message || 'Admin login failed');
+        console.error('Admin login failed');
+      }
+    } catch (error) {
+      setAdminError('An unexpected error occurred');
+      console.error('An error occurred during admin login:', error);
+    }
   };
 
   if (!activePanel) return null;
@@ -183,6 +229,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   >
                     Login
                   </button>
+                  {clerkError && (
+                    <div className="text-red-600 text-sm mt-2 text-center">{clerkError}</div>
+                  )}
                 </form>
                 
                 <p className="text-center text-xs text-gray-500 mt-4">
@@ -247,6 +296,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   >
                     Login
                   </button>
+                  {adminError && (
+                    <div className="text-red-600 text-sm mt-2 text-center">{adminError}</div>
+                  )}
                 </form>
                 
                 <p className="text-center text-xs text-gray-500 mt-4">

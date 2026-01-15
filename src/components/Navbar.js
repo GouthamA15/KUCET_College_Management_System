@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
-export default function Navbar({ activePanel, setActivePanel }) {
+export default function Navbar({ activePanel, setActivePanel, clerkMode = false }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavClick = (panel) => {
@@ -20,120 +21,129 @@ export default function Navbar({ activePanel, setActivePanel }) {
     <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14">
-          
-          {/* Logo/Brand */}
           <div className="flex-shrink-0">
-            <button 
-              onClick={() => setActivePanel(null)}
-              className="text-white text-lg font-bold hover:text-blue-200 transition-colors tracking-wide"
-            >
-              KUCET PORTAL
-            </button>
+            <span className="text-white text-lg font-bold tracking-wide">KUCET PORTAL</span>
           </div>
-
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-6">
-            <button 
-              onClick={() => setActivePanel(null)}
-              className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
-                activePanel === null ? 'text-blue-200' : ''
-              }`}
-            >
-              HOME
-              <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                activePanel === null ? 'w-full' : 'w-0 group-hover:w-full'
-              }`}></span>
-            </button>
-            <button 
-              onClick={() => handleNavClick('student')}
-              className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
-                isActive('student') ? 'text-blue-200' : ''
-              }`}
-            >
-              STUDENT LOGIN
-              <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                isActive('student') ? 'w-full' : 'w-0 group-hover:w-full'
-              }`}></span>
-            </button>
-            <button 
-              onClick={() => handleNavClick('clerk')}
-              className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
-                isActive('clerk') ? 'text-blue-200' : ''
-              }`}
-            >
-              CLERK LOGIN
-              <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                isActive('clerk') ? 'w-full' : 'w-0 group-hover:w-full'
-              }`}></span>
-            </button>
-            <button 
-              onClick={() => handleNavClick('admin')}
-              className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
-                isActive('admin') ? 'text-blue-200' : ''
-              }`}
-            >
-              SUPER ADMIN
-              <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                isActive('admin') ? 'w-full' : 'w-0 group-hover:w-full'
-              }`}></span>
-            </button>
+            {clerkMode ? (
+              <>
+                <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Departments
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </Link>
+                <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Admissions
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </Link>
+                <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Time Tables
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </Link>
+                <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Faculties
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </Link>
+                <button onClick={() => {
+                  document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
+                  document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
+                  window.location.href = '/';
+                }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Logout
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link 
+                  href="/"
+                  onClick={() => setActivePanel(null)}
+                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
+                    activePanel === null ? 'text-blue-200' : ''
+                  }`}
+                >
+                  HOME
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
+                    activePanel === null ? 'w-full' : 'w-0 group-hover:w-full'
+                  }`}></span>
+                </Link>
+                <button 
+                  type="button"
+                  onClick={() => handleNavClick('student')}
+                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
+                    isActive('student') ? 'text-blue-200' : ''
+                  }`}
+                >
+                  STUDENT LOGIN
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
+                    isActive('student') ? 'w-full' : 'w-0 group-hover:w-full'
+                  }`}></span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavClick('clerk')}
+                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
+                    isActive('clerk') ? 'text-blue-200' : ''
+                  }`}
+                >
+                  CLERK LOGIN
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
+                    isActive('clerk') ? 'w-full' : 'w-0 group-hover:w-full'
+                  }`}></span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavClick('admin')}
+                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
+                    isActive('admin') ? 'text-blue-200' : ''
+                  }`}
+                >
+                  SUPER ADMIN
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
+                    isActive('admin') ? 'w-full' : 'w-0 group-hover:w-full'
+                  }`}></span>
+                </button>
+              </>
+            )}
           </div>
-
-          {/* Mobile Menu Button - Animated Hamburger */}
+          {/* Mobile Menu Button */}
           <div className="md:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-white hover:text-blue-200 focus:outline-none p-2 relative w-10 h-10 flex items-center justify-center"
+              className="text-white hover:text-blue-200 focus:outline-none p-2"
               aria-label="Toggle menu"
             >
-              <div className="w-6 h-5 relative flex flex-col justify-between">
-                {/* Top bar */}
-                <span 
-                  className={`block h-0.5 w-full bg-current rounded-full transform transition-all duration-300 ease-in-out origin-center ${
-                    mobileMenuOpen ? 'rotate-45 translate-y-2' : ''
-                  }`}
-                />
-                {/* Middle bar */}
-                <span 
-                  className={`block h-0.5 w-full bg-current rounded-full transition-all duration-300 ease-in-out ${
-                    mobileMenuOpen ? 'opacity-0 scale-x-0' : 'opacity-100 scale-x-100'
-                  }`}
-                />
-                {/* Bottom bar */}
-                <span 
-                  className={`block h-0.5 w-full bg-current rounded-full transform transition-all duration-300 ease-in-out origin-center ${
-                    mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''
-                  }`}
-                />
-              </div>
+              <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+              </svg>
             </button>
           </div>
         </div>
       </div>
-
-      {/* Mobile Menu with Animation */}
+      {/* Mobile Menu */}
       <div 
-        className={`md:hidden bg-[#0a2d66] overflow-hidden transition-all duration-300 ease-in-out ${
-          mobileMenuOpen ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'
-        }`}
+        className={`md:hidden bg-[#0a2d66] ${mobileMenuOpen ? 'block' : 'hidden'}`}
       >
         <div className="px-4 pt-2 pb-3 space-y-1">
-          <button 
-            onClick={() => { setActivePanel(null); setMobileMenuOpen(false); }}
-            className={`text-white block w-full text-left px-3 py-2.5 text-sm tracking-wide uppercase transform transition-all duration-300 ease-in-out border-b border-transparent hover:border-white ${
-              mobileMenuOpen ? 'translate-x-0 opacity-100 delay-100' : '-translate-x-4 opacity-0'
-            }`}
-          >
-            HOME
-          </button>
-          <button 
-            onClick={() => handleNavClick('student')}
-            className={`text-white block w-full text-left px-3 py-2.5 text-sm tracking-wide uppercase transform transition-all duration-300 ease-in-out border-b border-transparent hover:border-white ${
-              mobileMenuOpen ? 'translate-x-0 opacity-100 delay-150' : '-translate-x-4 opacity-0'
-            } ${isActive('student') ? 'text-blue-200 border-white' : ''}`}
-          >
-            STUDENT LOGIN
-          </button>
+          {clerkMode ? (
+            <>
+              <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Departments<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
+              <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Admissions<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
+              <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Time Tables<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
+              <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Faculties<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
+              <button onClick={() => {
+                document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
+                window.location.href = '/';
+              }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
+            </>
+          ) : (
+            <>
+              <Link href="/" onClick={() => { setActivePanel(null); setMobileMenuOpen(false); }} className="text-white block px-3 py-2.5 text-sm">HOME</Link>
+              <button type="button" onClick={() => { handleNavClick('student'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm ${isActive('student') ? 'text-blue-200' : ''}`}>STUDENT LOGIN</button>
+              <button type="button" onClick={() => { handleNavClick('clerk'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm ${isActive('clerk') ? 'text-blue-200' : ''}`}>CLERK LOGIN</button>
+              <button type="button" onClick={() => { handleNavClick('admin'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm ${isActive('admin') ? 'text-blue-200' : ''}`}>SUPER ADMIN</button>
+            </>
+          )}
         </div>
       </div>
     </nav>
