@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
@@ -16,6 +17,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
     e.preventDefault();
     setStudentLoading(true);
     setStudentError('');
+    const toastId = toast.loading('Logging in...');
     try {
       const res = await fetch('/api/student/login', {
         method: 'POST',
@@ -24,13 +26,16 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       });
       const data = await res.json();
       if (res.ok && data.student) {
+        toast.success('Login successful!', { id: toastId });
         // Store in localStorage and redirect
         localStorage.setItem('logged_in_student', JSON.stringify(data.student));
         window.location.href = '/student/profile';
       } else {
+        toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
       }
     } catch (err) {
+      toast.error('Network error', { id: toastId });
       setStudentError('Network error');
     } finally {
       setStudentLoading(false);
@@ -40,6 +45,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const handleClerkSubmit = async (e) => {
     e.preventDefault();
     setClerkError('');
+    const toastId = toast.loading('Logging in...');
     try {
       const res = await fetch('/api/clerk/login', {
         method: 'POST',
@@ -52,14 +58,15 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       const data = await res.json(); // Parse JSON to get error message
 
       if (res.ok) {
-        // Optionally set a cookie here if backend does not set it
-        // document.cookie = `clerk_auth=${data.token}; path=/;`;
+        toast.success('Login successful!', { id: toastId });
         window.location.href = '/clerk/dashboard';
       } else {
+        toast.error(data.message || 'Clerk login failed', { id: toastId });
         setClerkError(data.message || 'Clerk login failed');
         console.error('Clerk login failed:', data.message);
       }
     } catch (error) {
+      toast.error('An unexpected error occurred', { id: toastId });
       setClerkError('An unexpected error occurred');
       console.error('An error occurred during clerk login:', error);
     }
@@ -68,6 +75,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const handleAdminSubmit = async (e) => {
     e.preventDefault();
     setAdminError('');
+    const toastId = toast.loading('Logging in...');
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
@@ -80,12 +88,15 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       const data = await res.json();
 
       if (res.ok) {
+        toast.success('Login successful!', { id: toastId });
         window.location.href = '/admin/dashboard';
       } else {
+        toast.error(data.message || 'Admin login failed', { id: toastId });
         setAdminError(data.message || 'Admin login failed');
         console.error('Admin login failed');
       }
     } catch (error) {
+      toast.error('An unexpected error occurred', { id: toastId });
       setAdminError('An unexpected error occurred');
       console.error('An error occurred during admin login:', error);
     }

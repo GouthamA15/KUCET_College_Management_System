@@ -7,35 +7,6 @@ import { useEffect } from 'react';
 export default function AdminDashboardPage() {
   const router = useRouter();
 
-  // Prevent browser back navigation after login
-  useEffect(() => {
-    const handlePopState = (event) => {
-      // Check if user is authenticated before allowing back navigation
-      const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
-      if (!isAuthenticated) {
-        router.replace('/');
-        return;
-      }
-
-      // If authenticated, prevent going back to login/home
-      const currentPath = window.location.pathname;
-      if (currentPath.startsWith('/admin')) {
-        // Push current state again to prevent back navigation
-        window.history.pushState(null, '', currentPath);
-      }
-    };
-
-    // Set initial state
-    window.history.pushState(null, '', window.location.href);
-
-    // Listen for popstate events (back/forward button)
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [router]);
-
   // The middleware protects this route, so if we reach here, the user is authenticated.
   // No client-side auth check is strictly necessary for redirection, but keeping
   // a basic check pattern can be useful for rendering conditional UI elements.

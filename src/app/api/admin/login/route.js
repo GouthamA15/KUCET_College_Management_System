@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { SignJWT } from 'jose';
 
 export async function POST(request) {
   try {
@@ -7,9 +7,12 @@ export async function POST(request) {
 
     // Hardcoded super admin credentials
     if (email === 'admin@test.com' && password === 'password') {
-      const token = jwt.sign({ email: 'admin@test.com', role: 'super_admin' }, process.env.JWT_SECRET, {
-        expiresIn: '1h',
-      });
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+      const token = await new SignJWT({ email: 'admin@test.com', role: 'super_admin' })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('1h')
+        .sign(secret);
 
       const response = NextResponse.json({ success: true, message: 'Super Admin login successful' });
       response.cookies.set('admin_auth', token, {

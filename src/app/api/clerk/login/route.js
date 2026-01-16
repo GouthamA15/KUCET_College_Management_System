@@ -1,6 +1,6 @@
 import { query } from '@/lib/db';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import { SignJWT } from 'jose';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -26,9 +26,12 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 });
     }
 
-    const token = jwt.sign({ id: clerk.id, email: clerk.email }, process.env.JWT_SECRET, {
-      expiresIn: '1h',
-    });
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const token = await new SignJWT({ id: clerk.id, email: clerk.email })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .sign(secret);
 
     const response = NextResponse.json({ success: true, message: 'Login successful' });
     response.cookies.set('clerk_auth', token, {

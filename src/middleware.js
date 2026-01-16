@@ -5,7 +5,9 @@ import { jwtVerify } from 'jose';
 async function verifyJwt(token, secret) {
   try {
     const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey);
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ['HS256'],
+    });
     return payload;
   } catch (error) {
     console.error('JWT Verification failed:', error);
@@ -43,7 +45,7 @@ export async function middleware(request) {
       return NextResponse.redirect(loginUrl);
     }
 
-    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+    const decoded = await jwtVerify(token, process.env.JWT_SECRET);
     if (!decoded) {
       const loginUrl = new URL('/', request.url);
       return NextResponse.redirect(loginUrl);

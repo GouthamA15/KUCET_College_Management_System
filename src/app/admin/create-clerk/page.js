@@ -1,19 +1,17 @@
 "use client";
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 export default function CreateClerkPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [isError, setIsError] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('');
-    setIsError(false);
+    const toastId = toast.loading('Creating clerk...');
 
     try {
       const res = await fetch('/api/admin/create-clerk', {
@@ -27,23 +25,21 @@ export default function CreateClerkPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setMessage(`Clerk created successfully! Clerk ID: ${data.clerkId}`);
+        toast.success(`Clerk created successfully! Clerk ID: ${data.clerkId}`, { id: toastId });
         setName('');
         setEmail('');
         setEmployeeId('');
         setPassword('');
       } else {
         if (res.status === 409) {
-           setMessage('A clerk with this email or Employee ID already exists.');
+           toast.error('A clerk with this email or Employee ID already exists.', { id: toastId });
         } else {
-           setMessage(data.error || 'Failed to create clerk.');
+           toast.error(data.error || 'Failed to create clerk.', { id: toastId });
         }
-        setIsError(true);
       }
     } catch (error) {
       console.error('Error creating clerk:', error);
-      setMessage('An unexpected error occurred.');
-      setIsError(true);
+      toast.error('An unexpected error occurred.', { id: toastId });
     }
   };
 
@@ -111,12 +107,6 @@ export default function CreateClerkPage() {
               className="block w-full px-3 py-2 mt-1 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
-
-          {message && (
-            <p className={`text-sm text-center ${isError ? 'text-red-600' : 'text-green-600'}`}>
-              {message}
-            </p>
-          )}
 
           <div>
             <button

@@ -5,6 +5,7 @@ import Cookies from 'js-cookie';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
+import toast from 'react-hot-toast';
 
 export default function ClerkDashboard() {
   const router = useRouter();
@@ -26,7 +27,6 @@ export default function ClerkDashboard() {
     dob: ''
   });
   const [updateLoading, setUpdateLoading] = useState(false);
-  const [updateMessage, setUpdateMessage] = useState('');
 
   // Roll Number Search State
   const [rollNo, setRollNo] = useState('');
@@ -67,34 +67,6 @@ export default function ClerkDashboard() {
     }
   };
 
-  // Prevent browser back navigation after login
-  useEffect(() => {
-    const handlePopState = (event) => {
-      // Check if user is authenticated before allowing back navigation
-      const isAuthenticated = sessionStorage.getItem('clerk_authenticated') === 'true';
-      if (!isAuthenticated) {
-        router.replace('/');
-        return;
-      }
-
-      // If authenticated, prevent going back to login/home
-      const currentPath = window.location.pathname;
-      if (currentPath.startsWith('/clerk')) {
-        // Push current state again to prevent back navigation
-        window.history.pushState(null, '', currentPath);
-      }
-    };
-
-    // Set initial state
-    window.history.pushState(null, '', window.location.href);
-
-    // Listen for popstate events (back/forward button)
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [router]);
   const handleEditClick = (student) => {
     setEditingStudent(student.rollno);
     setEditForm({
@@ -105,13 +77,12 @@ export default function ClerkDashboard() {
       phone_no: student.phone_no,
       dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : ''
     });
-    setUpdateMessage('');
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
     setUpdateLoading(true);
-    setUpdateMessage('');
+    const toastId = toast.loading('Updating student...');
 
     try {
       const res = await fetch(`/api/clerk/students/${editingStudent}`, {
@@ -123,18 +94,18 @@ export default function ClerkDashboard() {
       const data = await res.json();
 
       if (res.ok) {
-        setUpdateMessage('Student updated successfully!');
+        toast.success('Student updated successfully!', { id: toastId });
         // Update local state to reflect changes without re-fetching
         setStudents(students.map(s => 
           s.rollno === editingStudent ? { ...s, ...editForm } : s
         ));
         setTimeout(() => setEditingStudent(null), 1500);
       } else {
-        setUpdateMessage(data.error || 'Failed to update student.');
+        toast.error(data.error || 'Failed to update student.', { id: toastId });
       }
     } catch (err) {
       console.error('Update error:', err);
-      setUpdateMessage('An unexpected error occurred.');
+      toast.error('An unexpected error occurred.', { id: toastId });
     } finally {
       setUpdateLoading(false);
     }
@@ -331,11 +302,6 @@ export default function ClerkDashboard() {
                     {updateLoading ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
-                {updateMessage && (
-                  <div className={`md:col-span-2 text-center text-sm font-medium ${updateMessage.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
-                    {updateMessage}
-                  </div>
-                )}
               </form>
             </div>
           </div>
@@ -443,3 +409,4 @@ export default function ClerkDashboard() {
     </div>
   );
 }
+
