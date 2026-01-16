@@ -45,7 +45,7 @@ export async function middleware(request) {
       return NextResponse.redirect(loginUrl);
     }
 
-    const decoded = await jwtVerify(token, process.env.JWT_SECRET);
+    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
     if (!decoded) {
       const loginUrl = new URL('/', request.url);
       return NextResponse.redirect(loginUrl);
