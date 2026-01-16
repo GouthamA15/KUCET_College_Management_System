@@ -51,7 +51,7 @@ export default function AboutSection() {
             KU College of Engineering and Technology (KUCET) is a premier engineering institution 
             affiliated with Kakatiya University, Warangal. Established with a vision to provide 
             quality technical education, KUCET has been at the forefront of producing skilled 
-            engineers and technologists who contribute significantly to the nation's technological 
+            engineers and technologists who contribute significantly to the nation&rsquo;s technological 
             advancement. The college is accredited with NAAC A+ grade, reflecting its commitment 
             to academic excellence and quality education.
           </p>

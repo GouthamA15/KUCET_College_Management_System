@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
-
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import toast from "react-hot-toast";
 
 
 export default function StudentProfilePage() {
@@ -14,8 +14,6 @@ export default function StudentProfilePage() {
   const [editing, setEditing] = useState(false);
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
 
   useEffect(() => {
@@ -27,26 +25,6 @@ export default function StudentProfilePage() {
     const stu = JSON.parse(stored);
     setStudent(stu);
     setPhone(stu.phone_no || "");
-
-    // Prevent browser back navigation after login
-    const handlePopState = () => {
-      const studentData = localStorage.getItem("logged_in_student");
-      if (!studentData) {
-        router.replace("/");
-        return;
-      }
-      // If authenticated, prevent going back to login/home
-      const currentPath = window.location.pathname;
-      if (currentPath.startsWith('/student')) {
-        window.history.pushState(null, '', currentPath);
-      }
-    };
-    // Overwrite the previous history entry so back does not go to home/login
-    window.history.replaceState(null, '', window.location.href);
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
   }, [router]);
 
   const handleLogout = () => {
@@ -57,21 +35,16 @@ export default function StudentProfilePage() {
 
   const handleEdit = () => {
     setEditing(true);
-    setSuccess(false);
-    setError("");
   };
 
   const handleCancel = () => {
     setEditing(false);
     setPhone(student.phone_no || "");
-    setError("");
-    setSuccess(false);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    setError("");
-    setSuccess(false);
+    const toastId = toast.loading("Saving...");
     try {
       const res = await fetch("/api/student/update-profile", {
         method: "POST",
@@ -80,17 +53,17 @@ export default function StudentProfilePage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setSuccess(true);
+        toast.success("Phone updated successfully!", { id: toastId });
         setEditing(false);
         // Update localStorage and state
         const updated = { ...student, phone_no: phone };
         setStudent(updated);
         localStorage.setItem("logged_in_student", JSON.stringify(updated));
       } else {
-        setError(data.error || "Update failed");
+        toast.error(data.error || "Update failed", { id: toastId });
       }
     } catch {
-      setError("Network error");
+      toast.error("Network error", { id: toastId });
     } finally {
       setSaving(false);
     }
@@ -161,8 +134,6 @@ export default function StudentProfilePage() {
                 <span className="ml-2 font-mono">{student.phone_no || <span className='text-gray-400'>Not set</span>}</span>
               )}
             </div>
-            {success && <div className="text-green-600 text-sm mt-2">Phone updated successfully!</div>}
-            {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
           </div>
         </section>
       </main>

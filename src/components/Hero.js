@@ -1,4 +1,6 @@
+
 'use client';
+import Image from 'next/image';
 
 import { useEffect, useState } from 'react';
 
@@ -13,16 +15,18 @@ export default function Hero() {
   return (
     <section className="relative w-full">
       {/* Hero Image */}
-      <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px] overflow-hidden">
-        <img
+      <div className="relative w-full h-75 md:h-100 lg:h-125 overflow-hidden">
+        <Image
           src="/assets/college-campus.jpg"
           alt="KU College of Engineering and Technology Campus"
-          className={`w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
+          fill
+          className={`object-cover transition-opacity duration-1000 ease-in-out ${
             imageLoaded ? 'opacity-100' : 'opacity-0'
           }`}
           onLoad={() => setImageLoaded(true)}
+          priority
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+        <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent"></div>
         
         {/* Overlay Text with gray transparent background - only show on md+ screens */}
         <div className={`hidden md:block absolute bottom-0 left-0 right-0 p-10 transition-all duration-700 ease-out ${

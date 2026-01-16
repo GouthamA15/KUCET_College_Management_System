@@ -1,4 +1,6 @@
+
 'use client';
+import Image from 'next/image';
 
 export default function Header() {
   const handlePhoneClick = () => {
@@ -14,26 +16,32 @@ export default function Header() {
         {/* Left Section with Logos */}
         <div className="flex items-center gap-2">
           <div className="bg-blue-100 p-1.5 rounded-lg">
-            <img 
+            <Image 
               src="/assets/Naac_A+.png" 
               alt="NAAC Logo" 
+              width={56} height={56}
               className="h-14 w-auto object-contain"
+              priority
             />
           </div>
           
           <div className="bg-blue-100 p-1.5 rounded-lg">
-            <img 
+            <Image 
               src="/assets/ku-logo.png" 
               alt="KU Logo" 
+              width={56} height={56}
               className="h-14 w-auto object-contain"
+              priority
             />
           </div>
           
           <div className="bg-blue-100 p-1.5 rounded-lg">
-            <img 
+            <Image 
               src="/assets/kakatiya-kala-thoranam.png" 
               alt="Kakatiya Kala Thoranam" 
+              width={56} height={56}
               className="h-14 w-auto object-contain"
+              priority
             />
           </div>
         </div>
@@ -54,18 +62,22 @@ export default function Header() {
         {/* Right Side Block */}
         <div className="flex items-start gap-2">
           <div className="bg-blue-100 p-1.5 rounded-lg">
-            <img 
+            <Image 
               src="/assets/rudramadevi_statue.jpg" 
               alt="Rudramadevi Statue" 
+              width={56} height={56}
               className="h-14 w-auto object-contain"
+              priority
             />
           </div>
           
           <div className="bg-blue-100 p-1.5 rounded-lg">
-            <img 
+            <Image 
               src="/assets/ku-college-logo.png" 
               alt="College Logo" 
+              width={56} height={56}
               className="h-14 w-auto object-contain"
+              priority
             />
           </div>
           
@@ -93,24 +105,30 @@ export default function Header() {
         {/* Top Row - Logos */}
         <div className="flex items-center justify-center gap-2 mb-3">
           <div className="bg-blue-100 p-1 rounded-lg">
-            <img 
+            <Image 
               src="/assets/Naac_A+.png" 
               alt="NAAC Logo" 
+              width={40} height={40}
               className="h-10 w-auto object-contain"
+              priority
             />
           </div>
           <div className="bg-blue-100 p-1 rounded-lg">
-            <img 
+            <Image 
               src="/assets/ku-logo.png" 
               alt="KU Logo" 
+              width={40} height={40}
               className="h-10 w-auto object-contain"
+              priority
             />
           </div>
           <div className="bg-blue-100 p-1 rounded-lg">
-            <img 
+            <Image 
               src="/assets/ku-college-logo.png" 
               alt="College Logo" 
+              width={40} height={40}
               className="h-10 w-auto object-contain"
+              priority
             />
           </div>
         </div>

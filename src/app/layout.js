@@ -1,5 +1,5 @@
 import "./globals.css";
-import AuthGuard from "./components/AuthGuard";
+import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: "KUCET - KU College of Engineering and Technology",
@@ -10,7 +10,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased">
-        <AuthGuard>{children}</AuthGuard>
+        <Toaster position="top-center" reverseOrder={false} />
+        {children}
       </body>
     </html>
   );
