@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function Navbar({ activePanel, setActivePanel, clerkMode = false, studentProfileMode = false, onLogout }) {
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavClick = (panel) => {
@@ -49,7 +51,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                   document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
                   document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
                   sessionStorage.removeItem('clerk_authenticated');
-                  window.location.href = '/';
+                router.replace('/');
                 }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                   Logout
                   <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
@@ -158,8 +160,16 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                 document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
                 document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
                 sessionStorage.removeItem('clerk_authenticated');
-                window.location.href = '/';
+                router.replace('/');
+                setMobileMenuOpen(false);
               }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
+            </>
+          ) : studentProfileMode ? (
+            <>
+              <button className="text-white block w-full text-left px-3 py-2.5 text-sm">Timetable</button>
+              <button className="text-white block w-full text-left px-3 py-2.5 text-sm">Updates</button>
+              <button className="text-white block w-full text-left px-3 py-2.5 text-sm">Requests</button>
+              <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Logout</button>
             </>
           ) : (
             <>
