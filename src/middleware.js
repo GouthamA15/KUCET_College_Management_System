@@ -29,7 +29,7 @@ export async function middleware(request) {
     }
 
     const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-    if (!decoded || decoded.role !== 'super_admin') {
+    if (!decoded || decoded.role !== 'admin') {
       const loginUrl = new URL('/', request.url);
       return NextResponse.redirect(loginUrl);
     }
@@ -71,5 +71,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/clerk/admission/dashboard/:path*', '/clerk/scholarship/dashboard/:path*', '/student/profile/:path*'],
+  matcher: ['/admin/:path*', '/clerk/:path*', '/student/profile/:path*'],
 };
