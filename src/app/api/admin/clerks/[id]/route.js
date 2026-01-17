@@ -1,8 +1,9 @@
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-export async function PUT(req, { params }) {
+export async function PUT(req, context) {
   try {
+    const params = await context.params;
     const { id } = params;
     const { name, email, employee_id, role, is_active } = await req.json();
 
@@ -25,10 +26,10 @@ export async function PUT(req, { params }) {
   }
 }
 
-export async function DELETE(req, { params }) {
+export async function DELETE(req, context) {
   try {
+    const params = await context.params;
     const { id } = params;
-
     const result = await query('DELETE FROM clerks WHERE id = ?', [id]);
 
     if (result.affectedRows === 0) {

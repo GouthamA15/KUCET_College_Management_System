@@ -3,18 +3,18 @@ import bcrypt from 'bcrypt';
 
 export async function POST(req) {
   try {
-    const { name, email, password, role } = await req.json();
+    const { name, email, password, employee_id, role } = await req.json();
 
-    if (!name || !email || !password || !role) {
-      return new Response(JSON.stringify({ error: 'Name, email, password, and role are required' }), { status: 400 });
+    if (!name || !email || !password || !employee_id || !role) {
+      return new Response(JSON.stringify({ error: 'Name, email, password, employee_id, and role are required' }), { status: 400 });
     }
 
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     const result = await query(
-      'INSERT INTO clerks (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [name, email, passwordHash, role]
+      'INSERT INTO clerks (name, email, password_hash, employee_id, role) VALUES (?, ?, ?, ?, ?)',
+      [name, email, passwordHash, employee_id, role]
     );
 
     return new Response(JSON.stringify({ success: true, clerkId: result.insertId }), { status: 201 });
