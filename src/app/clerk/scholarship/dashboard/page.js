@@ -1,125 +1,176 @@
-
-'use client';
+"use client";
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
-export default function ScholarshipDashboardPage() {
-  const [rollno, setRollno] = useState('');
-  const [student, setStudent] = useState(null);
-  const [scholarshipData, setScholarshipData] = useState([]);
-  const [error, setError] = useState(null);
+export default function ScholarshipDashboard() {
+  const [rollNo, setRollNo] = useState('');
+  const [studentData, setStudentData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    setError(null);
-    setStudent(null);
-    setScholarshipData([]);
+    setLoading(true);
+    setStudentData(null);
+    const toastId = toast.loading('Searching for student...');
 
     try {
-      const response = await fetch(`/api/clerk/scholarship/${rollno}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch student data');
+      const res = await fetch(`/api/clerk/scholarship/${rollNo}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to fetch student data');
       }
-      const data = await response.json();
-      setStudent(data.student);
-      setScholarshipData(data.scholarship);
+
+      setStudentData(data);
+      toast.success('Student found!', { id: toastId });
     } catch (error) {
-      setError(error.message);
+      toast.error(error.message, { id: toastId });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleScholarshipChange = (e, year) => {
-    const { name, value } = e.target;
-    setScholarshipData((prevData) =>
-      prevData.map((item) => (item.year === year ? { ...item, [name]: value } : item))
-    );
-  };
+  const handleUpdate = async () => {
+    setLoading(true);
+    const toastId = toast.loading('Updating student data...');
 
-  const handleUpdateScholarship = async (year) => {
     try {
-      const dataToUpdate = scholarshipData.find((item) => item.year === year);
-      const response = await fetch(`/api/clerk/scholarship/${rollno}`, {
+      const res = await fetch(`/api/clerk/scholarship/${rollNo}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dataToUpdate),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(studentData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update scholarship data');
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update student data');
       }
+
+      toast.success('Student data updated successfully!', { id: toastId });
+      setEditing(false);
     } catch (error) {
-      setError(error.message);
+      toast.error(error.message, { id: toastId });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleChange = (e, section, index) => {
+    const { name, value } = e.target;
+    const updatedData = { ...studentData };
+    updatedData[section][index][name] = value;
+    setStudentData(updatedData);
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-6">Scholarship Dashboard</h1>
-        <form onSubmit={handleSearch} className="mb-6 flex">
-          <input
-            type="text"
-            value={rollno}
-            onChange={(e) => setRollno(e.target.value)}
-            placeholder="Enter Student Roll No."
-            className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          />
-          <button
-            type="submit"
-            className="ml-4 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Search
-          </button>
-        </form>
+    <>
+      <Header />
+      <main className="min-h-screen bg-gray-100 flex flex-col items-center py-8">
+        <div className="w-full max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
+          <h1 className="text-2xl font-bold text-[#0b3578] mb-6">Scholarship Dashboard</h1>
+          <form onSubmit={handleSearch} className="flex gap-4 mb-8">
+            <input
+              type="text"
+              value={rollNo}
+              onChange={(e) => setRollNo(e.target.value)}
+              placeholder="Enter Roll Number"
+              className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#0b3578] hover:bg-[#0a2d66] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {loading ? 'Searching...' : 'Search'}
+            </button>
+          </form>
 
-        {error && <p className="text-red-500 mb-4">{error}</p>}
-
-        {student && (
-          <div>
-            <h2 className="text-xl font-bold mb-4">Student Details</h2>
-            <p><strong>Name:</strong> {student.name}</p>
-            <p><strong>Roll No:</strong> {student.roll_no}</p>
-
-            <h2 className="text-xl font-bold mt-8 mb-4">Scholarship Details</h2>
-            <div className="space-y-6">
-              {[1, 2, 3, 4].map((year) => {
-                const yearData = scholarshipData.find((item) => item.year === year) || { year };
-                return (
-                  <div key={year} className="p-4 border border-gray-200 rounded-md">
-                    <h3 className="text-lg font-bold mb-2">Year {year}</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {['proceedings_no', 'amount_sanctioned', 'amount_disbursed', 'ch_no', 'date'].map((field) => (
-                        <div key={field}>
-                          <label className="block text-sm font-medium text-gray-700 capitalize">
-                            {field.replace('_', ' ')}
-                          </label>
-                          <input
-                            type={field === 'date' ? 'date' : 'text'}
-                            name={field}
-                            value={yearData[field] || ''}
-                            onChange={(e) => handleScholarshipChange(e, year)}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
+          {studentData && (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-[#0b3578]">
+                  Student: {studentData.student.name} ({studentData.student.roll_no})
+                </h2>
+                {!editing ? (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Edit
+                  </button>
+                ) : (
+                  <div className="flex gap-4">
                     <button
-                      onClick={() => handleUpdateScholarship(year)}
-                      className="mt-4 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                      onClick={handleUpdate}
+                      disabled={loading}
+                      className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
                     >
-                      Update Year {year}
+                      {loading ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => setEditing(false)}
+                      className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      Cancel
                     </button>
                   </div>
-                );
-              })}
+                )}
+              </div>
+
+              {/* Fees Section */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold mb-2">Fee Details</h3>
+                {studentData.fees.map((fee, index) => (
+                  <div key={fee.id} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 p-4 border rounded-md">
+                    {Object.keys(fee).map((key) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 capitalize">{key.replace(/_/g, ' ')}</label>
+                        <input
+                          type="text"
+                          name={key}
+                          value={fee[key]}
+                          onChange={(e) => handleChange(e, 'fees', index)}
+                          disabled={!editing || key === 'id' || key === 'student_id'}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              {/* Scholarship Section */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Scholarship Details</h3>
+                {studentData.scholarship.map((scholarship, index) => (
+                  <div key={scholarship.id} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 p-4 border rounded-md">
+                    {Object.keys(scholarship).map((key) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 capitalize">{key.replace(/_/g, ' ')}</label>
+                        <input
+                          type="text"
+                          name={key}
+                          value={scholarship[key]}
+                          onChange={(e) => handleChange(e, 'scholarship', index)}
+                          disabled={!editing || key === 'id' || key === 'student_id'}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+        </div>
+      </main>
+      <Footer />
+    </>
   );
 }

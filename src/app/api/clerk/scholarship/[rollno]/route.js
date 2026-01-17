@@ -1,4 +1,3 @@
-
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
@@ -6,69 +5,52 @@ export async function GET(req, { params }) {
   try {
     const { rollno } = params;
 
-    const studentSql = 'SELECT * FROM students WHERE roll_no = ?';
-    const studentResult = await query(studentSql, [rollno]);
+    const [student] = await query('SELECT * FROM students WHERE roll_no = ?', [rollno]);
 
-    if (studentResult.length === 0) {
-      return NextResponse.json({ message: 'Student not found' }, { status: 404 });
+    if (!student) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    const student = studentResult[0];
+    const fees = await query('SELECT * FROM fees WHERE student_id = ?', [student.id]);
+    const scholarship = await query('SELECT * FROM scholarship WHERE student_id = ?', [student.id]);
 
-    const scholarshipSql = 'SELECT * FROM scholarship WHERE student_id = ?';
-    const scholarshipResult = await query(scholarshipSql, [student.id]);
-
-    return NextResponse.json({ student, scholarship: scholarshipResult });
+    return NextResponse.json({ student, fees, scholarship });
   } catch (error) {
     console.error('Error fetching student data:', error);
-    return NextResponse.json({ message: 'Failed to fetch student data', error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 export async function PUT(req, { params }) {
   try {
     const { rollno } = params;
-    const data = await req.json();
-    const { year, proceedings_no, amount_sanctioned, amount_disbursed, ch_no, date } = data;
+    const { fees, scholarship } = await req.json();
 
-    const studentSql = 'SELECT id FROM students WHERE roll_no = ?';
-    const studentResult = await query(studentSql, [rollno]);
+    const [student] = await query('SELECT id FROM students WHERE roll_no = ?', [rollno]);
 
-    if (studentResult.length === 0) {
-      return NextResponse.json({ message: 'Student not found' }, { status: 404 });
+    if (!student) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    const studentId = studentResult[0].id;
-
-    // Check if scholarship data for the year already exists
-    const existingScholarshipSql = 'SELECT id FROM scholarship WHERE student_id = ? AND year = ?';
-    const existingScholarshipResult = await query(existingScholarshipSql, [studentId, year]);
-
-    let sql;
-    let queryParams;
-
-    if (existingScholarshipResult.length > 0) {
-      // Update existing record
-      sql = `
-        UPDATE scholarship
-        SET proceedings_no = ?, amount_sanctioned = ?, amount_disbursed = ?, ch_no = ?, date = ?
-        WHERE student_id = ? AND year = ?
-      `;
-      queryParams = [proceedings_no, amount_sanctioned, amount_disbursed, ch_no, date, studentId, year];
-    } else {
-      // Insert new record
-      sql = `
-        INSERT INTO scholarship (student_id, year, proceedings_no, amount_sanctioned, amount_disbursed, ch_no, date)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `;
-      queryParams = [studentId, year, proceedings_no, amount_sanctioned, amount_disbursed, ch_no, date];
+    // Update fees
+    for (const fee of fees) {
+      await query(
+        'UPDATE fees SET challan_type = ?, challan_no = ?, date = ?, amount = ?, bank_name_branch = ?, upit_no = ? WHERE id = ? AND student_id = ?',
+        [fee.challan_type, fee.challan_no, fee.date, fee.amount, fee.bank_name_branch, fee.upit_no, fee.id, student.id]
+      );
     }
 
-    await query(sql, queryParams);
+    // Update scholarship
+    for (const s of scholarship) {
+      await query(
+        'UPDATE scholarship SET proceedings_no = ?, amount_sanctioned = ?, amount_disbursed = ?, ch_no = ?, date = ?, bank_status = ?, utr_no = ?, utr_date = ? WHERE id = ? AND student_id = ?',
+        [s.proceedings_no, s.amount_sanctioned, s.amount_disbursed, s.ch_no, s.date, s.bank_status, s.utr_no, s.utr_date, s.id, student.id]
+      );
+    }
 
-    return NextResponse.json({ message: 'Scholarship data updated successfully' });
+    return NextResponse.json({ success: true, message: 'Student data updated successfully' });
   } catch (error) {
-    console.error('Error updating scholarship data:', error);
-    return NextResponse.json({ message: 'Failed to update scholarship data', error: error.message }, { status: 500 });
+    console.error('Error updating student data:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

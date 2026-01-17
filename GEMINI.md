@@ -51,15 +51,26 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
-*   **Student Data Fields:** Removed `nationality`, `course`, `branch`, and `academic_year` columns from the `students` table related code (API endpoints and frontend forms/displays). Users need to manually update the database schema.
-*   **Clerk Management:**
-    *   Fixed `Unknown column 'employee_id'` errors in clerk management APIs (`/api/admin/clerks` and `/api/admin/create-clerk`) and the `create-clerk` frontend form by removing all references to `employee_id`.
-    *   Resolved `Table 'college_db.clerk' doesn't exist` (likely a transient issue; code now correctly uses `clerks` table).
-*   **Student API Enhancements:**
-    *   Implemented a `GET` handler for `/api/clerk/students` to allow filtering students by year and branch, resolving previous 405 "Method Not Allowed" errors.
-    *   Updated student filtering logic in the `/api/clerk/students` GET handler to correctly identify both regular and lateral entry students based on roll number patterns and admission year logic.
-    *   Corrected inconsistent column names (`student_name` to `name`, `phone_no` to `mobile`, `dob` to `date_of_birth`) in the student update API (`/api/clerk/students/[rollno]`) and the clerk dashboard frontend for student editing.
-    *   Addressed a `params` promise error in dynamic route handlers (`/api/clerk/students/[rollno]`) by modifying the access to `context.params` to ensure parameters are correctly resolved.
+*   **Super Admin Student Data Visibility:**
+    *   Created new API endpoints for super admin to fetch student data: `/api/admin/students` (for all students filtered by year/branch) and `/api/admin/students/[rollno]` (for a single student).
+    *   Updated `src/app/admin/dashboard/page.js` to use these new admin-specific API endpoints and to fetch/display all available student data fields.
+    *   Updated `src/components/StudentProfileCard.js` to display a comprehensive set of student information, including `admission_no`, `mother_name`, `date_of_birth`, `nationality`, `religion`, `caste`, `sub_caste`, `address`, `email`, `qualifying_exam`, `scholarship_status`, and `fee_payment_details`.
+    *   Fixed import statements in `src/app/api/admin/students/route.js` and `src/app/api/admin/students/[rollno]/route.js` to correctly use named exports from `src/lib/db.js`.
+    *   Corrected the `params` handling in `src/app/api/admin/students/[rollno]/route.js` to properly destructure route parameters.
+*   **Clerk Management API Enhancement:**
+    *   Updated the `GET` handler in `src/app/api/admin/clerks/route.js` to include the `employee_id` column in the returned clerk data.
+*   **Admission and Scholarship Clerk Features:**
+    *   **Database Schema Update:** Created `db_schema_update.sql` to:
+        *   Add new columns to the `students` table (`course`, `branch`, `admission_type`, `mother_tongue`, `place_of_birth`, `father_occupation`, `student_aadhar_no`, `father_guardian_mobile_no`, `fee_reimbursement_category`, `identification_marks`, `present_address`, `permanent_address`, `apaar_id`, `is_tc_taken`, `tc_taken_date`, `is_bonafide_issued`, `bonafide_issued_date`, `photo_path`).
+        *   Create a new `academics` table to store scholastic and extra-curricular information.
+        *   Create a new `fees` table to store detailed fee particulars for students.
+        *   Create a new `scholarship` table to store detailed scholarship particulars for students.
+    *   **Admission Clerk Dashboard:**
+        *   Created `src/app/clerk/admission/dashboard/page.js` with a form for adding new student data, encompassing all fields from the updated `students` and new `academics` tables.
+        *   Created `src/app/api/clerk/admission/students/route.js` with a `POST` method to handle the submission of new student data, including basic roll number generation.
+    *   **Scholarship Clerk Dashboard:**
+        *   Created `src/app/clerk/scholarship/dashboard/page.js` with functionality to search for a student by roll number and display/edit their fee and scholarship details for all years.
+        *   Created `src/app/api/clerk/scholarship/[rollno]/route.js` with `GET` and `PUT` methods to fetch and update student-specific fee and scholarship information.
 
 ## Development Conventions
 

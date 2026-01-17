@@ -53,18 +53,11 @@ export default function AdminDashboardPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/clerk/students/${encodeURIComponent(searchRoll.trim())}`);
+      const res = await fetch(`/api/admin/students/${encodeURIComponent(searchRoll.trim())}`);
       if (res.ok) {
         const data = await res.json();
-        if (data && data.student && data.student.rollno) {
-          setSearchedStudent({
-            roll_no: data.student.rollno,
-            name: data.student.student_name,
-            father_name: data.student.father_name,
-            gender: data.student.gender,
-            category: data.student.category,
-            phone: data.student.phone_no
-          });
+        if (data && data.student) {
+          setSearchedStudent(data.student);
         } else {
           setSearchError('No student found for this roll number.');
         }
@@ -81,18 +74,11 @@ export default function AdminDashboardPage() {
     setAllError('');
     setAllStudents([]);
     try {
-      const res = await fetch(`/api/clerk/students?year=${selectedYear}&branch=${selectedBranch}`);
+      const res = await fetch(`/api/admin/students?year=${selectedYear}&branch=${selectedBranch}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.students) && data.students.length > 0) {
-          setAllStudents(data.students.map(s => ({
-            roll_no: s.rollno,
-            name: s.student_name,
-            father_name: s.father_name,
-            gender: s.gender,
-            category: s.category,
-            phone: s.phone_no
-          })));
+          setAllStudents(data.students);
         } else {
           setAllError('No students found.');
         }
