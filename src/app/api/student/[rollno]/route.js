@@ -2,8 +2,9 @@
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-export async function GET(req, { params }) {
+export async function GET(req, context) {
   try {
+    const params = await context.params;
     const { rollno } = params;
 
     const studentSql = 'SELECT * FROM students WHERE roll_no = ?';
@@ -15,6 +16,11 @@ export async function GET(req, { params }) {
 
     const student = studentResult[0];
     const studentId = student.id;
+
+    // Convert pfp BLOB to base64 data URL if exists
+    if (student.pfp) {
+      student.pfp = `data:image/jpeg;base64,${student.pfp.toString('base64')}`;
+    }
 
     const scholarshipSql = 'SELECT * FROM scholarship WHERE student_id = ? ORDER BY year';
     const scholarship = await query(scholarshipSql, [studentId]);
