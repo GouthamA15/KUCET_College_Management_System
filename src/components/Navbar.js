@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function Navbar({ activePanel, setActivePanel, clerkMode = false, studentProfileMode = false, onLogout }) {
+export default function Navbar({ activePanel, setActivePanel, clerkMode = false, studentProfileMode = false, onLogout, clerkMinimal = false }) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -29,36 +29,60 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-6">
             {clerkMode ? (
-              // ...existing clerkMode nav...
-              <>
-                <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Departments
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                </Link>
-                <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Admissions
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                </Link>
-                <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Time Tables
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                </Link>
-                <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Faculties
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                </Link>
-                <button onClick={() => {
-                  document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
-                  document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
-                  sessionStorage.removeItem('clerk_authenticated');
-                router.replace('/');
-                }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Logout
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                </button>
-              </>
+              clerkMinimal ? (
+                <>
+                  <Link href="/clerk/admission/dashboard" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                    Dashboard
+                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                  </Link>
+                  <button onClick={() => {
+                    if (onLogout) onLogout();
+                    else {
+                      document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
+                      document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
+                      sessionStorage.removeItem('clerk_authenticated');
+                      router.replace('/');
+                    }
+                  }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                    Logout
+                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                    Departments
+                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                  </Link>
+                  <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                    Admissions
+                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                  </Link>
+                  <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                    Time Tables
+                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                  </Link>
+                  <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                    Faculties
+                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                  </Link>
+                  <button onClick={() => {
+                    document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
+                    document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
+                    sessionStorage.removeItem('clerk_authenticated');
+                    router.replace('/');
+                  }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                    Logout
+                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                  </button>
+                </>
+              )
             ) : studentProfileMode ? (
               <>
+                <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Academic
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </button>
                 <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                   Timetable
                   <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
@@ -151,19 +175,35 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
       >
         <div className="px-4 pt-2 pb-3 space-y-1">
           {clerkMode ? (
-            <>
-              <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Departments<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-              <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Admissions<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-              <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Time Tables<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-              <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Faculties<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-              <button onClick={() => {
-                document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
-                document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
-                sessionStorage.removeItem('clerk_authenticated');
-                router.replace('/');
-                setMobileMenuOpen(false);
-              }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
-            </>
+            clerkMinimal ? (
+              <>
+                <Link href="/clerk/admission/dashboard" className="text-white block px-3 py-2.5 text-sm relative group">Dashboard<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
+                <button onClick={() => {
+                  if (onLogout) onLogout();
+                  else {
+                    document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
+                    document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
+                    sessionStorage.removeItem('clerk_authenticated');
+                    router.replace('/');
+                  }
+                  setMobileMenuOpen(false);
+                }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
+              </>
+            ) : (
+              <>
+                <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Departments<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
+                <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Admissions<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
+                <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Time Tables<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
+                <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Faculties<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
+                <button onClick={() => {
+                  document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
+                  document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
+                  sessionStorage.removeItem('clerk_authenticated');
+                  router.replace('/');
+                  setMobileMenuOpen(false);
+                }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
+              </>
+            )
           ) : studentProfileMode ? (
             <>
               <button className="text-white block w-full text-left px-3 py-2.5 text-sm">Timetable</button>

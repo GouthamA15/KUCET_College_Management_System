@@ -1,9 +1,14 @@
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-export async function GET(req, { params }) {
+export async function GET(req, ctx) {
   try {
+    const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
     const { rollno } = params;
+
+    if (!rollno) {
+      return NextResponse.json({ error: 'Missing rollno parameter' }, { status: 400 });
+    }
 
     const [student] = await query('SELECT * FROM students WHERE roll_no = ?', [rollno]);
 
@@ -21,10 +26,15 @@ export async function GET(req, { params }) {
   }
 }
 
-export async function PUT(req, { params }) {
+export async function PUT(req, ctx) {
   try {
+    const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
     const { rollno } = params;
     const { fees, scholarship } = await req.json();
+
+    if (!rollno) {
+      return NextResponse.json({ error: 'Missing rollno parameter' }, { status: 400 });
+    }
 
     const [student] = await query('SELECT id FROM students WHERE roll_no = ?', [rollno]);
 

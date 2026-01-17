@@ -3,9 +3,16 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import Header from '@/components/Header';
+import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export default function AdmissionDashboard() {
+  const handleLogout = () => {
+    document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
+    document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
+    sessionStorage.removeItem('clerk_authenticated');
+    window.location.replace('/');
+  };
   const [formData, setFormData] = useState({
     // Initialize with all the fields from the images
     name: '',
@@ -106,9 +113,11 @@ export default function AdmissionDashboard() {
   return (
     <>
       <Header />
+      <Navbar clerkMode={true} clerkMinimal={true} onLogout={handleLogout} />
       <main className="min-h-screen bg-gray-100 flex flex-col items-center py-8">
         <div className="w-full max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-[#0b3578] mb-6">Add New Student</h1>
+          <h1 className="text-2xl font-bold text-[#0b3578] mb-6">Admission Dashboard</h1>
+          <h2 className="text-xl font-semibold text-[#0b3578] mb-4">Add New Student</h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Render form fields based on formData state */}
             {Object.keys(formData).map((key) => (
