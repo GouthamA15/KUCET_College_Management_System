@@ -4,20 +4,29 @@ import { NextResponse } from 'next/server';
 export async function POST(req) {
   try {
     const body = await req.json();
-    // The client sends 'phone', not 'phone_no'. Let's match the client.
-    const { rollno, phone } = body; 
+    const { rollno, phone, email } = body; 
 
-    // The backend validation should also check for 'phone'.
-    if (!rollno || !phone) {
-      return NextResponse.json({ error: 'Missing rollno or phone number' }, { status: 400 });
+    if (!rollno || (!phone && !email)) {
+      return NextResponse.json({ error: 'Missing rollno or at least one field to update' }, { status: 400 });
     }
 
     const db = getDb();
-    // The table name should be 'cse_2023_students' to be consistent with the rest of the app.
-    const [result] = await db.execute(
-      'UPDATE students SET phone_no = ? WHERE rollno = ?',
-      [phone, rollno]
-    );
+    let query = 'UPDATE students SET ';
+    let params = [];
+    let updates = [];
+
+    if (phone) {
+      updates.push('mobile = ?');
+      params.push(phone);
+    }
+    if (email) {
+      updates.push('email = ?');
+      params.push(email);
+    }
+    query += updates.join(', ') + ' WHERE roll_no = ?';
+    params.push(rollno);
+
+    const [result] = await db.execute(query, params);
 
     if (result.affectedRows === 0) {
       return NextResponse.json({ error: 'Student not found or data is the same' }, { status: 404 });
