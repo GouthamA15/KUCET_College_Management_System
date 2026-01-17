@@ -114,10 +114,6 @@ export default function AdminDashboardPage() {
               <StudentProfileCard student={searchedStudent} />
             </div>
           )}
-          <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <a href="/admin/manage-clerks" className="bg-blue-100 text-blue-900 px-4 py-2 rounded-lg font-semibold hover:bg-blue-200 transition-all cursor-pointer text-center">Manage Clerks</a>
-            <a href="/admin/create-clerk" className="bg-green-100 text-green-900 px-4 py-2 rounded-lg font-semibold hover:bg-green-200 transition-all cursor-pointer text-center">Create Clerk</a>
-          </div>
           <div className="w-full grid grid-cols-1 gap-4 mb-6">
             <div className="bg-blue-50 rounded-lg p-4 flex justify-between items-center">
               <span className="font-semibold text-blue-900">Total Clerks</span>

@@ -10,8 +10,9 @@ import toast from 'react-hot-toast';
 export default function CreateClerkPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-      const [password, setPassword] = useState('');
-      const [role, setRole] = useState('scholarship'); // Default to scholarship
+  const [password, setPassword] = useState('');
+  const [employee_id, setEmployeeId] = useState('');
+  const [role, setRole] = useState('scholarship'); // Default to scholarship
   
     const handleSubmit = async (e) => {
       e.preventDefault();
@@ -23,7 +24,7 @@ export default function CreateClerkPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name, email, password, role }),
+          body: JSON.stringify({ name, email, password, employee_id, role }),
         });
   
         const data = await res.json();
@@ -33,6 +34,7 @@ export default function CreateClerkPage() {
           setName('');
           setEmail('');
           setPassword('');
+          setEmployeeId('');
           setRole('scholarship'); // Reset role to default after creation
         } else {
           if (res.status === 409) {
@@ -68,10 +70,14 @@ export default function CreateClerkPage() {
                 <input id="password" name="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="block w-full px-3 py-2 mt-1 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
               </div>
               <div>
+              <label htmlFor="name" className="text-sm font-medium text-gray-700">Employee ID</label>
+                <input id="employee_id" name="employee_id" type="text" required value={employee_id} onChange={(e) => setEmployeeId(e.target.value)} className="block w-full px-3 py-2 mt-1 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+              </div>
+              <div>
                 <label htmlFor="role" className="text-sm font-medium text-gray-700">Role</label>
                 <select id="role" name="role" value={role} onChange={(e) => setRole(e.target.value)} className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                   <option value="scholarship">Scholarship Clerk</option>
-                  <option value="admission">Admission Clerk</option>
+                  <option value="admission">Administrative  Clerk</option>
                 </select>
               </div>            <div>
               <button type="submit" className="flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Create Clerk</button>
