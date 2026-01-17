@@ -58,6 +58,10 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
             ) : studentProfileMode ? (
               <>
                 <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Academic
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </button>
+                <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                   Timetable
                   <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                 </button>
