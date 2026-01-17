@@ -15,7 +15,7 @@ export async function POST(req) {
     const db = getDb();
     // The table name should be 'cse_2023_students' to be consistent with the rest of the app.
     const [result] = await db.execute(
-      'UPDATE cse_students SET phone_no = ? WHERE rollno = ?',
+      'UPDATE students SET phone_no = ? WHERE rollno = ?',
       [phone, rollno]
     );
 

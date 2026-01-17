@@ -1,4 +1,5 @@
 import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
 
 const BRANCH_CODES = {
   '09': 'CSE',
@@ -32,12 +33,12 @@ export async function GET(req) {
 
     if (!year || !branch) {
       // Use NextResponse for proper JSON responses
-      return new Response(JSON.stringify({ error: 'Year and branch are required' }), { status: 400 });
+      return NextResponse.json({ error: 'Year and branch are required' }, { status: 400 });
     }
     
     // This is a workaround for the DB connection issue, should be removed if the root cause is fixed
     const db = getDb();
-    const [rows] = await db.execute('SELECT * FROM cse_students');
+    const [rows] = await db.execute('SELECT * FROM students');
 
     const cohortYear = parseInt(year.slice(-2)); // e.g., 23 from "2023"
     const lateralAdmissionYearPrefix = (cohortYear + 1).toString(); // e.g., "24"
@@ -61,10 +62,10 @@ export async function GET(req) {
         }
     });
 
-    return new Response(JSON.stringify({ students: filteredStudents }), { status: 200 });
+    return NextResponse.json({ students: filteredStudents }, { status: 200 });
   } catch (err) {
     console.error('API Route Error:', err);
     // Provide a more structured error response
-    return new Response(JSON.stringify({ error: 'Server error', details: err.message }), { status: 500 });
+    return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
   }
 }

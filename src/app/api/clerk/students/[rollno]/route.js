@@ -1,3 +1,6 @@
+import { getDb } from '@/lib/db';
+import { NextResponse } from 'next/server';
+
 export async function GET(req, { params }) {
   try {
     const { rollno } = await params;
@@ -6,7 +9,7 @@ export async function GET(req, { params }) {
     }
     const db = getDb();
     // Use prepared statement for safety
-    const [rows] = await db.execute('SELECT * FROM cse_students WHERE rollno = ?', [rollno]);
+    const [rows] = await db.execute('SELECT * FROM students WHERE rollno = ?', [rollno]);
     if (!rows || rows.length === 0) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
@@ -16,8 +19,6 @@ export async function GET(req, { params }) {
     return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
   }
 }
-import { getDb } from '@/lib/db';
-import { NextResponse } from 'next/server';
 
 export async function PUT(req, { params }) {
   try {
@@ -32,14 +33,14 @@ export async function PUT(req, { params }) {
     const db = getDb();
 
     // Check if student exists first
-    const [checkRows] = await db.execute('SELECT rollno FROM cse_students WHERE rollno = ?', [rollno]);
+    const [checkRows] = await db.execute('SELECT rollno FROM students WHERE rollno = ?', [rollno]);
     if (checkRows.length === 0) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
     // Update query
     const [result] = await db.execute(
-      `UPDATE cse_students 
+      `UPDATE students 
        SET student_name = ?, father_name = ?, gender = ?, category = ?, phone_no = ?, dob = ? 
        WHERE rollno = ?`,
       [student_name, father_name, gender, category, phone_no, dob, rollno]
