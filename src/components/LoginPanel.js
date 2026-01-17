@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
+  const router = useRouter();
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
   const [clerkForm, setClerkForm] = useState({ email: '', password: '' });
   const [adminForm, setAdminForm] = useState({ email: '', password: '' });
@@ -29,7 +31,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
         toast.success('Login successful!', { id: toastId });
         // Store in localStorage and redirect
         localStorage.setItem('logged_in_student', JSON.stringify(data.student));
-        window.location.href = '/student/profile';
+        router.replace('/student/profile');
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
@@ -59,7 +61,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        window.location.href = '/clerk/dashboard';
+        router.replace('/clerk/dashboard');
       } else {
         toast.error(data.message || 'Clerk login failed', { id: toastId });
         setClerkError(data.message || 'Clerk login failed');
@@ -89,7 +91,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        window.location.href = '/admin/dashboard';
+        router.replace('/admin/dashboard');
       } else {
         toast.error(data.message || 'Admin login failed', { id: toastId });
         setAdminError(data.message || 'Admin login failed');

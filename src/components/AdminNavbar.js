@@ -6,12 +6,30 @@ import { useRouter } from 'next/navigation';
 export default function AdminNavbar() {
   const router = useRouter();
 
-  const handleLogout = () => {
-    // Clear admin JWT/localStorage and redirect to home
-    localStorage.removeItem('admin_jwt');
-    localStorage.removeItem('admin_authenticated');
-    document.cookie = 'admin_auth=; Max-Age=0; path=/;';
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      // Call logout API to clear cookies server-side
+      const response = await fetch('/api/admin/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        // Clear any client-side storage
+        localStorage.removeItem('admin_jwt');
+        localStorage.removeItem('admin_authenticated');
+        // Redirect to home
+        router.replace('/');
+      } else {
+        console.error('Logout failed');
+        // Force redirect anyway
+        router.replace('/');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force redirect even if API call fails
+      router.replace('/');
+    }
   };
 
   return (
@@ -26,7 +44,7 @@ export default function AdminNavbar() {
               Dashboard
               <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-white scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
             </Link>
-            <Link href="/admin/clerks" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+            <Link href="/admin/manage-clerks" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
               Manage Clerks
               <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-white scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
             </Link>

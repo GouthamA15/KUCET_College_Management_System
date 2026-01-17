@@ -10,7 +10,7 @@ export async function POST(req) {
     }
     const db = getDb();
     const [rows] = await db.execute(
-      'SELECT rollno, student_name, father_name, gender, category, phone_no, dob FROM cse_students WHERE rollno = ?',
+      'SELECT roll_no, name, father_name, gender, category, mobile, date_of_birth FROM students WHERE roll_no = ?',
       [rollno]
     );
     if (rows.length === 0) {
@@ -31,11 +31,11 @@ export async function POST(req) {
       const y = date.getFullYear();
       return `${d}-${m}-${y}`;
     }
-    const dbDobFormatted = dbToDDMMYYYY(student.dob);
+    const dbDobFormatted = dbToDDMMYYYY(student.date_of_birth);
     if (dbDobFormatted !== String(dobInput).trim()) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
-    const { dob: _dob, ...profile } = student;
+    const { date_of_birth: _dob, ...profile } = student;
     
     // Set a student authentication cookie upon successful login
     const response = NextResponse.json({ student: profile, success: true }, { status: 200 });

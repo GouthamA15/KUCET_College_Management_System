@@ -1,12 +1,16 @@
-export async function GET(req, { params }) {
+import { query } from '@/lib/db';
+import { NextResponse } from 'next/server';
+
+export async function GET(req, context) {
   try {
-    const { rollno } = await params;
+    const params = await context.params;
+    const { rollno } = params;
     if (!rollno) {
       return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
     }
-    const db = getDb();
-    // Use prepared statement for safety
-    const [rows] = await db.execute('SELECT * FROM cse_students WHERE rollno = ?', [rollno]);
+
+    const rows = await query('SELECT * FROM students WHERE roll_no = ?', [rollno]);
+
     if (!rows || rows.length === 0) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
@@ -16,33 +20,28 @@ export async function GET(req, { params }) {
     return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
   }
 }
-import { getDb } from '@/lib/db';
-import { NextResponse } from 'next/server';
 
-export async function PUT(req, { params }) {
+export async function PUT(req, context) {
   try {
-    const { rollno } = await params;
+    const params = await context.params;
+    const { rollno } = params;
     const body = await req.json();
-    const { student_name, father_name, gender, category, phone_no, dob } = body;
+    const { name, father_name, gender, category, mobile, date_of_birth } = body;
 
     if (!rollno) {
       return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
     }
 
-    const db = getDb();
-
-    // Check if student exists first
-    const [checkRows] = await db.execute('SELECT rollno FROM cse_students WHERE rollno = ?', [rollno]);
+    const checkRows = await query('SELECT roll_no FROM students WHERE roll_no = ?', [rollno]);
     if (checkRows.length === 0) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // Update query
-    const [result] = await db.execute(
-      `UPDATE cse_students 
-       SET student_name = ?, father_name = ?, gender = ?, category = ?, phone_no = ?, dob = ? 
-       WHERE rollno = ?`,
-      [student_name, father_name, gender, category, phone_no, dob, rollno]
+    const result = await query(
+      `UPDATE students 
+       SET name = ?, father_name = ?, gender = ?, category = ?, mobile = ?, date_of_birth = ? 
+       WHERE roll_no = ?`,
+      [name, father_name, gender, category, mobile, date_of_birth, rollno]
     );
 
     if (result.affectedRows === 0) {
