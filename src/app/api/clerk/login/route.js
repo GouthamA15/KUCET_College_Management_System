@@ -11,7 +11,7 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Email and password are required' }, { status: 400 });
     }
 
-    const results = await query('SELECT * FROM clerk WHERE email = ?', [email]);
+    const results = await query('SELECT * FROM clerks WHERE email = ?', [email]);
 
     if (results.length === 0) {
       console.log(`[Clerk Login] User not found for email: ${email}`);
@@ -27,7 +27,7 @@ export async function POST(request) {
     }
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    const token = await new SignJWT({ id: clerk.id, email: clerk.email })
+    const token = await new SignJWT({ id: clerk.id, email: clerk.email, role: clerk.role })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime('1h')

@@ -49,6 +49,18 @@ JWT_SECRET=a_strong_random_secret_key_for_jwt_signing
 
 A `college_db_cse_2023_students.sql` file is present, suggesting the database schema can be initialized from this file.
 
+## Recent Changes
+
+*   **Student Data Fields:** Removed `nationality`, `course`, `branch`, and `academic_year` columns from the `students` table related code (API endpoints and frontend forms/displays). Users need to manually update the database schema.
+*   **Clerk Management:**
+    *   Fixed `Unknown column 'employee_id'` errors in clerk management APIs (`/api/admin/clerks` and `/api/admin/create-clerk`) and the `create-clerk` frontend form by removing all references to `employee_id`.
+    *   Resolved `Table 'college_db.clerk' doesn't exist` (likely a transient issue; code now correctly uses `clerks` table).
+*   **Student API Enhancements:**
+    *   Implemented a `GET` handler for `/api/clerk/students` to allow filtering students by year and branch, resolving previous 405 "Method Not Allowed" errors.
+    *   Updated student filtering logic in the `/api/clerk/students` GET handler to correctly identify both regular and lateral entry students based on roll number patterns and admission year logic.
+    *   Corrected inconsistent column names (`student_name` to `name`, `phone_no` to `mobile`, `dob` to `date_of_birth`) in the student update API (`/api/clerk/students/[rollno]`) and the clerk dashboard frontend for student editing.
+    *   Addressed a `params` promise error in dynamic route handlers (`/api/clerk/students/[rollno]`) by modifying the access to `context.params` to ensure parameters are correctly resolved.
+
 ## Development Conventions
 
 *   **Code Formatting & Linting:** ESLint is configured using `eslint-config-next/core-web-vitals` to maintain code quality and consistency.

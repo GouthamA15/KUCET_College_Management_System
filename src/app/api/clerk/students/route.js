@@ -1,71 +1,94 @@
-import { getDb } from '@/lib/db';
+import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
-
-const BRANCH_CODES = {
-  '09': 'CSE',
-  '30': 'CSD',
-  '15': 'ECE',
-  '12': 'EEE',
-  '00': 'CIVIL',
-  '18': 'IT',
-  '03': 'MECH',
-};
-
-function getBranchFromRoll(rollno) {
-    // For lateral entry, branch code is in the last 5 digits (e.g., ...XX...L)
-    if (rollno.endsWith('L')) {
-        const branchCode = rollno.slice(-5, -3);
-        return BRANCH_CODES[branchCode];
-    }
-    // For regular students, branch code is in the last 4 digits (e.g., ...TXX..)
-    else if (rollno.includes('T')) {
-        const branchCode = rollno.slice(-4, -2);
-        return BRANCH_CODES[branchCode];
-    }
-    return null;
-}
 
 export async function GET(req) {
   try {
-    const { searchParams } = new URL(req.url);
-    const year = searchParams.get('year'); // This is the "cohort year"
-    const branch = searchParams.get('branch');
+    const year = req.nextUrl.searchParams.get('year');
+    const branch = req.nextUrl.searchParams.get('branch');
 
     if (!year || !branch) {
-      // Use NextResponse for proper JSON responses
-      return NextResponse.json({ error: 'Year and branch are required' }, { status: 400 });
+      return NextResponse.json({ message: 'Year and branch are required' }, { status: 400 });
     }
-    
-    // This is a workaround for the DB connection issue, should be removed if the root cause is fixed
-    const db = getDb();
-    const [rows] = await db.execute('SELECT * FROM students');
 
-    const cohortYear = parseInt(year.slice(-2)); // e.g., 23 from "2023"
-    const lateralAdmissionYearPrefix = (cohortYear + 1).toString(); // e.g., "24"
-    const regularAdmissionYearPrefix = cohortYear.toString(); // e.g., "23"
+    const yearShort = year.slice(-2);
+    const lateralYearShort = (parseInt(year, 10) + 1).toString().slice(-2);
 
-    const filteredStudents = rows.filter(student => {
-        const studentBranch = getBranchFromRoll(student.rollno);
-        const branchMatch = studentBranch === BRANCH_CODES[branch];
+    const sql = `
+      SELECT * FROM students
+      WHERE 
+        -- Regular students
+        (roll_no LIKE '%T%' AND SUBSTR(roll_no, 1, 2) = ? AND SUBSTR(roll_no, -4, 2) = ?)
+        OR
+        -- Lateral entry students
+        (roll_no LIKE '%L' AND SUBSTR(roll_no, 1, 2) = ? AND SUBSTR(roll_no, -5, 2) = ?)
+    `;
 
-        if (!branchMatch) {
-            return false;
-        }
+    const students = await query(sql, [yearShort, branch, lateralYearShort, branch]);
 
-        const isLateral = student.rollno.endsWith('L');
-        const rollNoPrefix = student.rollno.substring(0, 2);
+    return NextResponse.json({ students });
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    return NextResponse.json({ message: 'Failed to fetch students', error: error.message }, { status: 500 });
+  }
+}
 
-        if (isLateral) {
-            return rollNoPrefix === lateralAdmissionYearPrefix;
-        } else {
-            return rollNoPrefix === regularAdmissionYearPrefix;
-        }
-    });
+export async function POST(req) {
+  try {
+    const data = await req.json();
+    const {
+      admission_no,
+      roll_no,
+      name,
+      father_name,
+      mother_name,
+      date_of_birth,
+      gender,
+      religion,
+      caste,
+      sub_caste,
+      category,
+      address,
+      mobile,
+      email,
+      qualifying_exam,
+      scholarship_status,
+      fee_payment_details,
+    } = data;
 
-    return NextResponse.json({ students: filteredStudents }, { status: 200 });
-  } catch (err) {
-    console.error('API Route Error:', err);
-    // Provide a more structured error response
-    return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
+    const sql = `
+      INSERT INTO students (
+        admission_no, roll_no, name, father_name, mother_name, date_of_birth,
+        gender, religion, caste, sub_caste, category, address,
+        mobile, email, qualifying_exam,
+        scholarship_status, fee_payment_details
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const params = [
+      admission_no,
+      roll_no,
+      name,
+      father_name,
+      mother_name,
+      date_of_birth,
+      gender,
+      religion,
+      caste,
+      sub_caste,
+      category,
+      address,
+      mobile,
+      email,
+      qualifying_exam,
+      scholarship_status,
+      fee_payment_details,
+    ];
+
+    await query(sql, params);
+
+    return NextResponse.json({ message: 'Student added successfully' }, { status: 201 });
+  } catch (error) {
+    console.error('Error adding student:', error);
+    return NextResponse.json({ message: 'Failed to add student', error: error.message }, { status: 500 });
   }
 }

@@ -19,12 +19,12 @@ export default function ClerkDashboard() {
   // Edit State
   const [editingStudent, setEditingStudent] = useState(null);
   const [editForm, setEditForm] = useState({
-    student_name: '',
+    name: '',
     father_name: '',
     gender: '',
     category: '',
-    phone_no: '',
-    dob: ''
+    mobile: '',
+    date_of_birth: ''
   });
   const [updateLoading, setUpdateLoading] = useState(false);
 
@@ -68,14 +68,14 @@ export default function ClerkDashboard() {
   };
 
   const handleEditClick = (student) => {
-    setEditingStudent(student.rollno);
+    setEditingStudent(student.roll_no);
     setEditForm({
-      student_name: student.student_name,
+      name: student.name,
       father_name: student.father_name,
       gender: student.gender,
       category: student.category,
-      phone_no: student.phone_no,
-      dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : ''
+      mobile: student.mobile,
+      date_of_birth: student.date_of_birth ? new Date(student.date_of_birth).toISOString().split('T')[0] : ''
     });
   };
 
@@ -97,7 +97,7 @@ export default function ClerkDashboard() {
         toast.success('Student updated successfully!', { id: toastId });
         // Update local state to reflect changes without re-fetching
         setStudents(students.map(s => 
-          s.rollno === editingStudent ? { ...s, ...editForm } : s
+          s.roll_no === editingStudent ? { ...s, ...editForm } : s
         ));
         setTimeout(() => setEditingStudent(null), 1500);
       } else {
@@ -230,8 +230,8 @@ export default function ClerkDashboard() {
                   <label className="block text-sm font-medium text-gray-700">Student Name</label>
                   <input
                     type="text"
-                    value={editForm.student_name}
-                    onChange={(e) => setEditForm({...editForm, student_name: e.target.value})}
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     required
                   />
@@ -271,8 +271,8 @@ export default function ClerkDashboard() {
                   <label className="block text-sm font-medium text-gray-700">Phone No</label>
                   <input
                     type="text"
-                    value={editForm.phone_no}
-                    onChange={(e) => setEditForm({...editForm, phone_no: e.target.value})}
+                    value={editForm.mobile}
+                    onChange={(e) => setEditForm({...editForm, mobile: e.target.value})}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
@@ -280,8 +280,8 @@ export default function ClerkDashboard() {
                   <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
                   <input
                     type="date"
-                    value={editForm.dob}
-                    onChange={(e) => setEditForm({...editForm, dob: e.target.value})}
+                    value={editForm.date_of_birth}
+                    onChange={(e) => setEditForm({...editForm, date_of_birth: e.target.value})}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     required
                   />
@@ -329,14 +329,14 @@ export default function ClerkDashboard() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {(singleStudent ? [singleStudent] : students).map((student) => (
-                    <tr key={student.rollno} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.rollno}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.student_name}</td>
+                    <tr key={student.roll_no} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.roll_no}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.father_name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.gender}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.category}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.phone_no}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.mobile}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : 'N/A'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => handleEditClick(student)}
@@ -360,11 +360,11 @@ export default function ClerkDashboard() {
           {/* Mobile Card View */}
           <div className="md:hidden space-y-4">
             {(singleStudent ? [singleStudent] : students).map((student) => (
-              <div key={student.rollno} className="bg-white rounded-lg shadow p-4">
+              <div key={student.roll_no} className="bg-white rounded-lg shadow p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{student.student_name}</h3>
-                    <p className="text-sm text-gray-600">Roll No: {student.rollno}</p>
+                    <h3 className="text-lg font-semibold text-gray-900">{student.name}</h3>
+                    <p className="text-sm text-gray-600">Roll No: {student.roll_no}</p>
                   </div>
                   <button
                     onClick={() => handleEditClick(student)}
@@ -388,11 +388,11 @@ export default function ClerkDashboard() {
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Phone:</span>
-                    <p className="text-gray-600">{student.phone_no}</p>
+                    <p className="text-gray-600">{student.mobile}</p>
                   </div>
                   <div className="col-span-2">
                     <span className="font-medium text-gray-700">Date of Birth:</span>
-                    <p className="text-gray-600">{student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A'}</p>
+                    <p className="text-gray-600">{student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : 'N/A'}</p>
                   </div>
                 </div>
               </div>
@@ -409,4 +409,3 @@ export default function ClerkDashboard() {
     </div>
   );
 }
-

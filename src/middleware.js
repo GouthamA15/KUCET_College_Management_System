@@ -35,20 +35,25 @@ export async function middleware(request) {
     }
   }
 
-  // Protect the clerk dashboard route
-  if (pathname.startsWith('/clerk/dashboard')) {
+  // Protect Clerk routes
+  if (pathname.startsWith('/clerk/')) {
     const clerkAuthCookie = request.cookies.get('clerk_auth');
     const token = clerkAuthCookie ? clerkAuthCookie.value : null;
 
     if (!token) {
-      const loginUrl = new URL('/', request.url);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(new URL('/', request.url));
     }
 
     const decoded = await verifyJwt(token, process.env.JWT_SECRET);
     if (!decoded) {
-      const loginUrl = new URL('/', request.url);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+
+    const { role } = decoded;
+    const requestedDashboard = pathname.split('/')[2];
+
+    if (requestedDashboard !== role) {
+      return NextResponse.redirect(new URL(`/clerk/${role}/dashboard`, request.url));
     }
   }
 
@@ -66,5 +71,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/clerk/dashboard/:path*', '/student/profile/:path*'],
+  matcher: ['/admin/:path*', '/clerk/admission/dashboard/:path*', '/clerk/scholarship/dashboard/:path*', '/student/profile/:path*'],
 };

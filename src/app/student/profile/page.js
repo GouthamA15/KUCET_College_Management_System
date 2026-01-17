@@ -1,145 +1,130 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Header from "@/components/Header";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import toast from "react-hot-toast";
-
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Header from '@/components/Header';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import toast from 'react-hot-toast';
 
 export default function StudentProfilePage() {
   const router = useRouter();
-  const [student, setStudent] = useState(null);
-  const [editing, setEditing] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [saving, setSaving] = useState(false);
-
+  const [studentData, setStudentData] = useState(null);
+  const [activeTab, setActiveTab] = useState('basic');
 
   useEffect(() => {
-    const stored = localStorage.getItem("logged_in_student");
+    const stored = localStorage.getItem('logged_in_student');
     if (!stored) {
-      router.replace("/");
+      router.replace('/');
       return;
     }
     const stu = JSON.parse(stored);
-    setStudent(stu);
-    setPhone(stu.phone_no || "");
+    fetchProfile(stu.rollno);
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("logged_in_student");
-    sessionStorage.clear();
-    router.replace("/");
-  };
-
-  const handleEdit = () => {
-    setEditing(true);
-  };
-
-  const handleCancel = () => {
-    setEditing(false);
-    setPhone(student.phone_no || "");
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    const toastId = toast.loading("Saving...");
+  const fetchProfile = async (rollno) => {
     try {
-      const res = await fetch("/api/student/update-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rollno: student.rollno, phone }),
-      });
+      const res = await fetch(`/api/student/${rollno}`);
       const data = await res.json();
       if (res.ok) {
-        toast.success("Phone updated successfully!", { id: toastId });
-        setEditing(false);
-        // Update localStorage and state
-        const updated = { ...student, phone_no: phone };
-        setStudent(updated);
-        localStorage.setItem("logged_in_student", JSON.stringify(updated));
+        setStudentData(data);
       } else {
-        toast.error(data.error || "Update failed", { id: toastId });
+        toast.error(data.message || 'Failed to fetch profile');
       }
-    } catch {
-      toast.error("Network error", { id: toastId });
-    } finally {
-      setSaving(false);
+    } catch (error) {
+      toast.error('Network error');
     }
   };
 
-  if (!student) return null;
+  const handleLogout = () => {
+    localStorage.removeItem('logged_in_student');
+    sessionStorage.clear();
+    router.replace('/');
+  };
+
+  if (!studentData) return null;
+
+  const { student, scholarship, fees, academics } = studentData;
+
+  const renderTable = (title, data, columns) => (
+    <div className="mt-6">
+      <h3 className="text-lg font-bold mb-2">{title}</h3>
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border">
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th key={col} className="py-2 px-4 border-b text-left">{col.replace('_', ' ')}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, index) => (
+              <tr key={index}>
+                {columns.map((col) => (
+                  <td key={col} className="py-2 px-4 border-b">{row[col]}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       <Navbar studentProfileMode={true} onLogout={handleLogout} />
 
-      {/* Centered Profile Card */}
-      <main className="flex-1 flex flex-col items-center justify-center py-10 animate-slideDown">
-        <section className="bg-white rounded-xl shadow-xl border border-blue-100 flex flex-row items-center px-12 py-8 min-w-[440px] max-w-xl mx-auto relative" style={{minHeight: 220}}>
-          {/* Edit Icon */}
-          {!editing && (
-            <button
-              onClick={handleEdit}
-              className="absolute top-4 right-4 text-gray-400 hover:text-blue-700 transition-colors"
-              title="Edit Phone Number"
-              aria-label="Edit Phone Number"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.1 2.1 0 1 1 2.97 2.97L7.5 19.789l-4 1 1-4 14.362-14.302ZM19 7l-2-2" />
-              </svg>
-            </button>
-          )}
-          {/* Avatar */}
-          <div className="flex-shrink-0 flex items-center justify-center mr-8">
-            <div className="w-28 h-28 rounded-full border-2 border-blue-200 bg-gray-100 flex items-center justify-center overflow-hidden">
-              <img
-                src="/assets/default-avatar.svg"
-                alt="Profile Pic"
-                className="w-24 h-24 object-cover rounded-full"
-                draggable="false"
-              />
+      <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto bg-white rounded-lg shadow-lg p-8">
+          <div className="flex items-center space-x-6">
+            <img
+              src="/assets/default-avatar.svg"
+              alt="Profile Pic"
+              className="w-24 h-24 object-cover rounded-full border-2 border-blue-200"
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">{student.name}</h1>
+              <p className="text-gray-600">{student.roll_no}</p>
             </div>
           </div>
-          {/* Info */}
-          <div className="flex flex-col justify-center text-left text-[#222] gap-1 w-full">
-            <div className="font-mono text-base font-semibold tracking-wide">{student.rollno}</div>
-            <div className="font-bold text-lg leading-tight">{student.student_name}</div>
-            <div className="text-base text-gray-700">{student.father_name}</div>
-            <div className="text-base text-gray-700 mb-2">Academic Year: <span className="font-semibold">2023–27</span></div>
-            <div className="font-medium text-base mt-2 flex items-center">
-              Phone: {editing ? (
-                <>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    className="ml-2 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#0b3578] focus:border-transparent text-gray-800 w-36"
-                  />
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="ml-2 px-3 py-1 bg-[#0b3578] text-white rounded hover:bg-[#0a2d66] text-sm"
-                  >
-                    {saving ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="ml-2 px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
-                  >Cancel</button>
-                </>
-              ) : (
-                <span className="ml-2 font-mono">{student.phone_no || <span className='text-gray-400'>Not set</span>}</span>
-              )}
-            </div>
+
+          <div className="mt-8 border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+              <button onClick={() => setActiveTab('basic')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'basic' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                Basic Information
+              </button>
+              <button onClick={() => setActiveTab('scholarship')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'scholarship' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                Scholarship
+              </button>
+              <button onClick={() => setActiveTab('fees')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'fees' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                Fees
+              </button>
+              <button onClick={() => setActiveTab('academics')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'academics' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                Academics
+              </button>
+            </nav>
           </div>
-        </section>
+
+          <div className="mt-8">
+            {activeTab === 'basic' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                {Object.entries(student).map(([key, value]) => (
+                  <div key={key}>
+                    <span className="font-semibold capitalize">{key.replace('_', ' ')}:</span> {value}
+                  </div>
+                ))}
+              </div>
+            )}
+            {activeTab === 'scholarship' && renderTable('Scholarship Details', scholarship, ['year', 'proceedings_no', 'amount_sanctioned', 'amount_disbursed', 'ch_no', 'date'])}
+            {activeTab === 'fees' && renderTable('Fee Details', fees, ['year', 'challan_type', 'challan_no', 'date', 'amount'])}
+            {activeTab === 'academics' && renderTable('Academic Details', academics, ['year', 'marks_secured', 'total_marks', 'percentage', 'division'])}
+          </div>
+        </div>
       </main>
       <Footer />
     </div>
   );
 }
-
-  // ...all logic and UI moved above...
