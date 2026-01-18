@@ -65,8 +65,8 @@ export default function StudentProfilePage() {
         toast.error('Only JPG, JPEG, and PNG files are allowed.');
         return;
       }
-      if (file.size > 250 * 1024) {
-        toast.error('Image size must be less than 250KB. Please compress and try again.');
+      if (file.size > 65 * 1024) {
+        toast.error('Image size must be less than 65KB. Please compress and try again.');
         return;
       }
       const reader = new FileReader();
