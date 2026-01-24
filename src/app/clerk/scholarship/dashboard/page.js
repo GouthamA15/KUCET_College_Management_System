@@ -5,6 +5,9 @@ import toast from 'react-hot-toast';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import NonScholarshipView from './NonScholarshipView';
+import FullScholarshipView from './FullScholarshipView';
+import PartialScholarshipView from './PartialScholarshipView';
 
 export default function ScholarshipDashboard() {
   const handleLogout = () => {
@@ -16,12 +19,28 @@ export default function ScholarshipDashboard() {
   const [rollNo, setRollNo] = useState('');
   const [studentData, setStudentData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [scholarshipType, setScholarshipType] = useState(null);
+
+  const getBranchFromRollNo = (rollNo) => {
+    const lastPart = rollNo.includes('T') ? rollNo.slice(-4) : rollNo.slice(-5);
+    const branchCode = lastPart.substring(0, 2);
+    const branchMap = {
+      '09': 'CSE',
+      '30': 'CSD',
+      '15': 'ECE',
+      '12': 'EEE',
+      '00': 'CIVIL',
+      '18': 'IT',
+      '03': 'MECH',
+    };
+    return branchMap[branchCode] || 'Unknown';
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
     setLoading(true);
     setStudentData(null);
+    setScholarshipType(null);
     const toastId = toast.loading('Searching for student...');
 
     try {
@@ -33,6 +52,20 @@ export default function ScholarshipDashboard() {
       }
 
       setStudentData(data);
+      
+      if (data.scholarship.length === 0 || data.scholarship[0]?.application_no === data.student.roll_no) {
+        setScholarshipType('non');
+      } else {
+        const branch = getBranchFromRollNo(data.student.roll_no);
+        if (['CSE', 'ECE', 'EEE', 'MECH'].includes(branch)) {
+          setScholarshipType('full');
+        } else if (['CSD', 'CIVIL', 'IT'].includes(branch)) {
+          setScholarshipType('partial');
+        } else {
+            setScholarshipType('unknown');
+        }
+      }
+
       toast.success('Student found!', { id: toastId });
     } catch (error) {
       toast.error(error.message, { id: toastId });
@@ -41,7 +74,7 @@ export default function ScholarshipDashboard() {
     }
   };
 
-  const handleUpdate = async () => {
+  const handleUpdate = async (updatedData) => {
     setLoading(true);
     const toastId = toast.loading('Updating student data...');
 
@@ -49,7 +82,7 @@ export default function ScholarshipDashboard() {
       const res = await fetch(`/api/clerk/scholarship/${rollNo}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(studentData),
+        body: JSON.stringify(updatedData),
       });
 
       const data = await res.json();
@@ -59,7 +92,8 @@ export default function ScholarshipDashboard() {
       }
 
       toast.success('Student data updated successfully!', { id: toastId });
-      setEditing(false);
+      // Refresh data
+      handleSearch(new Event('submit'));
     } catch (error) {
       toast.error(error.message, { id: toastId });
     } finally {
@@ -67,11 +101,32 @@ export default function ScholarshipDashboard() {
     }
   };
 
-  const handleChange = (e, section, index) => {
-    const { name, value } = e.target;
-    const updatedData = { ...studentData };
-    updatedData[section][index][name] = value;
-    setStudentData(updatedData);
+  const renderDashboard = () => {
+    if (!studentData) return null;
+
+    switch (scholarshipType) {
+      case 'non':
+        return <NonScholarshipView student={studentData.student} />;
+      case 'full':
+        return (
+          <FullScholarshipView
+            student={studentData.student}
+            scholarshipData={studentData.scholarship}
+            onUpdate={(data) => handleUpdate({ scholarship: data })}
+          />
+        );
+      case 'partial':
+        return (
+          <PartialScholarshipView
+            student={studentData.student}
+            scholarshipData={studentData.scholarship}
+            feeData={studentData.fees}
+            onUpdate={(data) => handleUpdate(data)}
+          />
+        );
+      default:
+        return <p>Could not determine scholarship type for this student.</p>;
+    }
   };
 
   return (
@@ -99,83 +154,7 @@ export default function ScholarshipDashboard() {
             </button>
           </form>
 
-          {studentData && (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-[#0b3578]">
-                  Student: {studentData.student.name} ({studentData.student.roll_no})
-                </h2>
-                {!editing ? (
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    Edit
-                  </button>
-                ) : (
-                  <div className="flex gap-4">
-                    <button
-                      onClick={handleUpdate}
-                      disabled={loading}
-                      className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-                    >
-                      {loading ? 'Saving...' : 'Save'}
-                    </button>
-                    <button
-                      onClick={() => setEditing(false)}
-                      className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Fees Section */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold mb-2">Fee Details</h3>
-                {studentData.fees.map((fee, index) => (
-                  <div key={fee.id} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 p-4 border rounded-md">
-                    {Object.keys(fee).map((key) => (
-                      <div key={key}>
-                        <label className="block text-sm font-medium text-gray-700 capitalize">{key.replace(/_/g, ' ')}</label>
-                        <input
-                          type="text"
-                          name={key}
-                          value={fee[key]}
-                          onChange={(e) => handleChange(e, 'fees', index)}
-                          disabled={!editing || key === 'id' || key === 'student_id'}
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-
-              {/* Scholarship Section */}
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Scholarship Details</h3>
-                {studentData.scholarship.map((scholarship, index) => (
-                  <div key={scholarship.id} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 p-4 border rounded-md">
-                    {Object.keys(scholarship).map((key) => (
-                      <div key={key}>
-                        <label className="block text-sm font-medium text-gray-700 capitalize">{key.replace(/_/g, ' ')}</label>
-                        <input
-                          type="text"
-                          name={key}
-                          value={scholarship[key]}
-                          onChange={(e) => handleChange(e, 'scholarship', index)}
-                          disabled={!editing || key === 'id' || key === 'student_id'}
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {renderDashboard()}
         </div>
       </main>
       <Footer />

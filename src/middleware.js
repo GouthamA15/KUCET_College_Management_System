@@ -17,9 +17,32 @@ async function verifyJwt(token, secret) {
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+  
+  // Redirect root paths to their dashboards
+  if (pathname === '/admin') {
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+  }
+
+  if (pathname === '/clerk') {
+    const clerkAuthCookie = request.cookies.get('clerk_auth');
+    const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+    if (token) {
+      const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+      if (decoded) {
+        return NextResponse.redirect(new URL(`/clerk/${decoded.role}/dashboard`, request.url));
+      }
+    }
+    // If no token or invalid token, redirect to home
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  if (pathname === '/student') {
+    return NextResponse.redirect(new URL('/student/profile', request.url));
+  }
+
 
   // Protect Admin routes
-  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
+  if (pathname.startsWith('/admin/') && !pathname.startsWith('/admin/login')) {
     const adminAuthCookie = request.cookies.get('admin_auth');
     const token = adminAuthCookie ? adminAuthCookie.value : null;
 
@@ -71,5 +94,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/clerk/:path*', '/student/profile/:path*'],
+  matcher: ['/admin/:path*', '/clerk/:path*', '/student/:path*'],
 };
