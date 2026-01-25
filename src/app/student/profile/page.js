@@ -354,7 +354,7 @@ export default function StudentProfile() {
                         <span className="text-sm font-medium text-gray-500">Gender</span>
                         <p className="text-lg font-semibold text-gray-800">{student.gender}</p>
                       </div>
-                      <div className="bg-white p-4 rounded shadow-sm md:col-span-2">     
+                        <div className="bg-white p-4 rounded shadow-sm md:col-span-2">     
                         <span className="text-sm font-medium text-gray-500">Address</span>
                         <p className="text-lg font-semibold text-gray-800">{address}</p>
                       </div>
@@ -442,10 +442,7 @@ export default function StudentProfile() {
                           <span className="text-sm font-medium text-gray-500">Gender</span>
                           <p className="text-lg font-semibold text-gray-800">{student.gender}</p>
                         </div>
-                        <div className="bg-white p-4 rounded shadow-sm md:col-span-2">   
-                          <span className="text-sm font-medium text-gray-500">Address</span>
-                          <p className="text-lg font-semibold text-gray-800">{student.address}</p>
-                        </div>
+                        
                         <div className="bg-white p-4 rounded shadow-sm">
                           <label className="text-sm font-medium text-gray-500 block">Mobile</label>
                           <input
