@@ -1,154 +1,72 @@
-"use client";
-
+'use client';
 import { useState } from 'react';
-import toast from 'react-hot-toast';
-import Header from '@/components/Header';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import Header from '@/app/components/Header/Header';
+import Navbar from '@/app/components/Navbar/Navbar';
+import Footer from '@/app/components/Footer/Footer';
+import ClerkStudentManagement from '@/components/ClerkStudentManagement';
 
-export default function AdmissionDashboard() {
-  const handleLogout = () => {
-    document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
-    document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
-    sessionStorage.removeItem('clerk_authenticated');
-    window.location.replace('/');
-  };
-  const [formData, setFormData] = useState({
-    // Initialize with all the fields from the images
-    name: '',
-    father_name: '',
-    mother_name: '',
-    date_of_birth: '',
-    place_of_birth: '',
-    gender: '',
-    nationality: '',
-    religion: '',
-    caste: '',
-    sub_caste: '',
-    category: '',
-    address: '',
-    mobile: '',
-    email: '',
-    qualifying_exam: '',
-    scholarship_status: 'Not Applied',
-    fee_payment_details: '',
-    course: '',
-    branch: '',
-    admission_type: 'regular',
-    mother_tongue: '',
-    father_occupation: '',
-    student_aadhar_no: '',
-    father_guardian_mobile_no: '',
-    fee_reimbursement_category: 'No',
-    identification_marks: '',
-    present_address: '',
-    permanent_address: '',
-    apaar_id: '',
-  });
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    const toastId = toast.loading('Adding new student...');
-
-    try {
-      const res = await fetch('/api/clerk/admission/students', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to add student');
-      }
-
-      toast.success('Student added successfully!', { id: toastId });
-      // Clear form
-      setFormData({
-        name: '',
-        father_name: '',
-        mother_name: '',
-        date_of_birth: '',
-        place_of_birth: '',
-        gender: '',
-        nationality: '',
-        religion: '',
-        caste: '',
-        sub_caste: '',
-        category: '',
-        address: '',
-        mobile: '',
-        email: '',
-        qualifying_exam: '',
-        scholarship_status: 'Not Applied',
-        fee_payment_details: '',
-        course: '',
-        branch: '',
-        admission_type: 'regular',
-        mother_tongue: '',
-        father_occupation: '',
-        student_aadhar_no: '',
-        father_guardian_mobile_no: '',
-        fee_reimbursement_category: 'No',
-        identification_marks: '',
-        present_address: '',
-        permanent_address: '',
-        apaar_id: '',
-      });
-    } catch (error) {
-      toast.error(error.message, { id: toastId });
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function ClerkDashboard(){
+  const [openModule, setOpenModule] = useState(null); // 'student' or null
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
-      <Navbar clerkMode={true} clerkMinimal={true} onLogout={handleLogout} />
-      <main className="min-h-screen bg-gray-100 flex flex-col items-center py-8">
-        <div className="w-full max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-[#0b3578] mb-6">Admission Dashboard</h1>
-          <h2 className="text-xl font-semibold text-[#0b3578] mb-4">Add New Student</h2>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Render form fields based on formData state */}
-            {Object.keys(formData).map((key) => (
-              <div key={key}>
-                <label htmlFor={key} className="block text-sm font-medium text-gray-700 capitalize">
-                  {key.replace(/_/g, ' ')}
-                </label>
-                <input
-                  type={key.includes('date') ? 'date' : key.includes('email') ? 'email' : 'text'}
-                  name={key}
-                  id={key}
-                  value={formData[key]}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  required
-                />
+      <Navbar clerkMode={true} />
+      <main className="flex-1 p-4 md:p-8">
+        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Clerk Dashboard</h1>
+
+        {!openModule && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div onClick={() => setOpenModule('student')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-indigo-50 rounded flex items-center justify-center">🎓</div>
+                <div>
+                  <h3 className="font-semibold">Student Management</h3>
+                  <p className="text-sm text-gray-600">Add, fetch and edit students in one screen</p>
+                </div>
               </div>
-            ))}
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#0b3578] hover:bg-[#0a2d66] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                {loading ? 'Adding...' : 'Add Student'}
-              </button>
             </div>
-          </form>
-        </div>
+
+            <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow flex flex-col">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">📜</div>
+                <div>
+                  <h3 className="font-semibold">Certificates</h3>
+                  <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow flex flex-col">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">⚠️</div>
+                <div>
+                  <h3 className="font-semibold">Attendance Alerts</h3>
+                  <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow flex flex-col">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">📈</div>
+                <div>
+                  <h3 className="font-semibold">Reports</h3>
+                  <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {openModule==='student' && (
+          <div className="mt-6">
+            <button onClick={()=>setOpenModule(null)} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
+            <ClerkStudentManagement />
+          </div>
+        )}
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

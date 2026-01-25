@@ -46,7 +46,7 @@ export default function StudentProfile({ student, onLogout }) {
             <span className="font-medium">Academic Year:</span> 2023–27
           </div>
           <div><span className="font-medium">Name:</span> {student.name}</div>
-          <div><span className="font-medium">Father Name:</span> {student.father_name}</div>
+          <div><span className="font-medium">Father Name:</span> {(student.personal_details && student.personal_details.father_name) || student.father_name}</div>
           <div><span className="font-medium">Gender:</span> {student.gender}</div>
           <div><span className="font-medium">Category:</span> {student.category}</div>
         </div>

@@ -10,7 +10,10 @@ export async function POST(req) {
     }
     const db = getDb();
     const [rows] = await db.execute(
-      'SELECT roll_no, name, father_name, gender, category, mobile, date_of_birth FROM students WHERE roll_no = ?',
+      `SELECT s.roll_no, s.name, sp.father_name, sp.category, s.mobile, s.date_of_birth
+       FROM students s
+       LEFT JOIN student_personal_details sp ON s.id = sp.student_id
+       WHERE s.roll_no = ?`,
       [rollno]
     );
     if (rows.length === 0) {
