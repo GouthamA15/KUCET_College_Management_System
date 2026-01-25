@@ -227,26 +227,18 @@ export default function ClerkStudentManagement() {
 
   const formatDate = (input) => {
     if (!input) return '';
-    // If already in YYYY-MM-DD, convert directly
-    if (typeof input === 'string') {
-      const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m) return `${m[3]}-${m[2]}-${m[1]}`;
-      const dt = new Date(input);
-      if (!isNaN(dt)) {
-        const dd = String(dt.getDate()).padStart(2, '0');
-        const mm = String(dt.getMonth() + 1).padStart(2, '0');
-        const yyyy = dt.getFullYear();
-        return `${dd}-${mm}-${yyyy}`;
+    try {
+      const date = new Date(input);
+      if (isNaN(date.getTime())) {
+        return input; // Return original input if it's not a valid date
       }
-      return input;
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch (error) {
+      return input; // Return original input in case of an error
     }
-    if (input instanceof Date && !isNaN(input)) {
-      const dd = String(input.getDate()).padStart(2, '0');
-      const mm = String(input.getMonth() + 1).padStart(2, '0');
-      const yyyy = input.getFullYear();
-      return `${dd}-${mm}-${yyyy}`;
-    }
-    return String(input);
   };
 
   const sanitizeDigits = (input, maxLen = 10) => {
