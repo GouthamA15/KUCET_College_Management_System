@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
 
 const courses = ['CSE','CSD','IT','EEE','ECE','CIVIL','MECH'];
 const genders = ['Male','Female'];
@@ -378,7 +379,7 @@ export default function ClerkStudentManagement() {
                 <h4 className="font-semibold mb-3">Profile</h4>
                 <div className="w-28 h-28 rounded-full bg-gray-100 overflow-hidden mb-3 flex items-center justify-center">
                   {fetchedStudent.pfp ? (
-                    <img src={fetchedStudent.pfp} alt="Profile" className="w-full h-full object-cover" />
+                    <Image src={fetchedStudent.pfp} alt="Profile" width={112} height={112} className="w-full h-full object-cover" />
                   ) : (
                     <div className="text-gray-500">No Photo</div>
                   )}
