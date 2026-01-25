@@ -58,6 +58,14 @@ export async function POST(req) {
     // Use provided roll_no (manual entry). If none provided, accept null and let DB constraints handle it.
     const providedRoll = roll_no || studentData.rollno || null;
 
+    // Check if a student with this roll number already exists
+    if (providedRoll) {
+      const [existingStudent] = await query('SELECT id FROM students WHERE roll_no = ?', [providedRoll]);
+      if (existingStudent) {
+        return NextResponse.json({ error: `Student with Roll Number ${providedRoll} already exists.` }, { status: 409 });
+      }
+    }
+
     // Insert into `students` table (core student record)
     const studentResult = await query(
       `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email, course) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import Image from 'next/image';
 
 export default function StudentProfile() {
   const router = useRouter();
@@ -26,22 +27,12 @@ export default function StudentProfile() {
   const fileInputRef = useRef(null);
   const [photoProcessing, setPhotoProcessing] = useState(false);
 
-  useEffect(() => {
-    const stored = localStorage.getItem('logged_in_student');
-    if (!stored) {
-      router.replace('/');
-      return;
-    }
-    const stu = JSON.parse(stored);
-    fetchProfile(stu.roll_no);
-  }, [router]);
-
   const sanitizeDigits = (val, maxLen = 12) => {
     if (val == null) return '';
     return String(val).replace(/\D/g, '').slice(0, maxLen);
   };
 
-  const fetchProfile = async (rollno) => {
+  const fetchProfile = useCallback(async (rollno) => {
     try {
       const res = await fetch(`/api/student/${rollno}`);
       const data = await res.json();
@@ -56,12 +47,22 @@ export default function StudentProfile() {
         setOriginalAddress(pdAddress);
         setProfilePhoto(data.student.pfp);
       } else {
-        toast.error(data.message || 'Unable to load profile. Please try again.');        
+        toast.error(data.message || 'Unable to load profile. Please try again.');
       }
     } catch (error) {
       toast.error('Network error');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('logged_in_student');
+    if (!stored) {
+      router.replace('/');
+      return;
+    }
+    const stu = JSON.parse(stored);
+    fetchProfile(stu.roll_no);
+  }, [router, fetchProfile]);
 
   const handleLogout = () => {
     localStorage.removeItem('logged_in_student');
@@ -80,7 +81,7 @@ export default function StudentProfile() {
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (event) => {
-          const img = new Image();
+          const img = new window.Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -286,7 +287,7 @@ export default function StudentProfile() {
             {isMobileMenuOpen && (
               <div className="md:hidden bg-white border-t border-gray-200">
                 <button
-                  onClick={() => { setActiveTab('basic'); setIsMobileMenuOpen(false); }} 
+                  onClick={() => { setActiveTab('basic'); setIsMobileMenuOpen(false); }}
                   className={`w-full text-left py-3 px-4 text-sm font-medium ${activeTab === 'basic' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                 >
                   Basic Information
@@ -298,7 +299,7 @@ export default function StudentProfile() {
                   Scholarship Details
                 </button>
                 <button
-                  onClick={() => { setActiveTab('fees'); setIsMobileMenuOpen(false); }}  
+                  onClick={() => { setActiveTab('fees'); setIsMobileMenuOpen(false); }}
                   className={`w-full text-left py-3 px-4 text-sm font-medium ${activeTab === 'fees' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                 >
                   Fee Details
@@ -327,9 +328,11 @@ export default function StudentProfile() {
                 {!isEditing ? (
                   <div className="bg-gray-50 rounded-lg p-6">
                     <div className="flex items-center space-x-6 mb-6">
-                      <img
+                      <Image
                         src={profilePhoto || '/assets/default-avatar.svg'}
                         alt="Profile Pic"
+                        width={96}
+                        height={96}
                         className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-full border-2 border-gray-300"
                       />
                       <div>
@@ -354,17 +357,17 @@ export default function StudentProfile() {
                         <span className="text-sm font-medium text-gray-500">Gender</span>
                         <p className="text-lg font-semibold text-gray-800">{student.gender}</p>
                       </div>
-                        <div className="bg-white p-4 rounded shadow-sm md:col-span-2">     
+                        <div className="bg-white p-4 rounded shadow-sm md:col-span-2">
                         <span className="text-sm font-medium text-gray-500">Address</span>
                         <p className="text-lg font-semibold text-gray-800">{address}</p>
                       </div>
                       <div className="bg-white p-4 rounded shadow-sm">
                         <span className="text-sm font-medium text-gray-500">Mobile</span>
-                        <p className="text-lg font-semibold text-gray-800">{mobile}</p>  
+                        <p className="text-lg font-semibold text-gray-800">{mobile}</p>
                       </div>
                       <div className="bg-white p-4 rounded shadow-sm">
-                        <span className="text-sm font-medium text-gray-500">Email</span> 
-                        <p className="text-lg font-semibold text-gray-800">{email}</p>   
+                        <span className="text-sm font-medium text-gray-500">Email</span>
+                        <p className="text-lg font-semibold text-gray-800">{email}</p>
                       </div>
                     </div>
                   </div>
@@ -373,9 +376,11 @@ export default function StudentProfile() {
                     <div className="flex flex-col md:flex-row md:items-start md:space-x-6">
                       <div className="relative">
                       <div className="relative">
-                        <img
+                        <Image
                           src={previewPhoto || profilePhoto || '/assets/default-avatar.svg'}
                           alt="Profile Pic"
+                          width={96}
+                          height={96}
                           className={`w-20 h-20 md:w-24 md:h-24 object-cover rounded-full border-2 border-gray-300 ${isPhotoRemoved ? 'grayscale' : ''}`}
                         />
                         {isPhotoRemoved && (
@@ -425,7 +430,7 @@ export default function StudentProfile() {
                           Note: Your profile photo will be used across Examination Branch, Scholarship records, ID verification, and official college documents. Please upload a clear passport-size photograph only.
                         </p>
                       </div>
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">     
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="bg-white p-4 rounded shadow-sm">
                           <span className="text-sm font-medium text-gray-500">Father Name</span>
                             <p className="text-lg font-semibold text-gray-800">{(student.personal_details && student.personal_details.father_name) || student.father_name}</p>
@@ -442,7 +447,7 @@ export default function StudentProfile() {
                           <span className="text-sm font-medium text-gray-500">Gender</span>
                           <p className="text-lg font-semibold text-gray-800">{student.gender}</p>
                         </div>
-                        
+
                         <div className="bg-white p-4 rounded shadow-sm">
                           <label className="text-sm font-medium text-gray-500 block">Mobile</label>
                           <input
@@ -547,7 +552,7 @@ export default function StudentProfile() {
                     <span className="font-semibold">Pending:</span> ₹0
                   </div>
                   <div className="p-4 bg-gray-100 rounded shadow">
-                    <span className="font-semibold">Last Payment Date:</span> Pending    
+                    <span className="font-semibold">Last Payment Date:</span> Pending
                   </div>
                 </div>
               </div>

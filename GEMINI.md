@@ -51,26 +51,24 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
-*   **Super Admin Student Data Visibility:**
-    *   Created new API endpoints for super admin to fetch student data: `/api/admin/students` (for all students filtered by year/branch) and `/api/admin/students/[rollno]` (for a single student).
-    *   Updated `src/app/admin/dashboard/page.js` to use these new admin-specific API endpoints and to fetch/display all available student data fields.
-    *   Updated `src/components/StudentProfileCard.js` to display a comprehensive set of student information, including `admission_no`, `mother_name`, `date_of_birth`, `nationality`, `religion`, `caste`, `sub_caste`, `address`, `email`, `qualifying_exam`, `scholarship_status`, and `fee_payment_details`.
-    *   Fixed import statements in `src/app/api/admin/students/route.js` and `src/app/api/admin/students/[rollno]/route.js` to correctly use named exports from `src/lib/db.js`.
-    *   Corrected the `params` handling in `src/app/api/admin/students/[rollno]/route.js` to properly destructure route parameters.
-*   **Clerk Management API Enhancement:**
-    *   Updated the `GET` handler in `src/app/api/admin/clerks/route.js` to include the `employee_id` column in the returned clerk data.
-*   **Admission and Scholarship Clerk Features:**
-    *   **Database Schema Update:** Created `db_schema_update.sql` to:
-        *   Add new columns to the `students` table (`course`, `branch`, `admission_type`, `mother_tongue`, `place_of_birth`, `father_occupation`, `student_aadhar_no`, `father_guardian_mobile_no`, `fee_reimbursement_category`, `identification_marks`, `present_address`, `permanent_address`, `apaar_id`, `is_tc_taken`, `tc_taken_date`, `is_bonafide_issued`, `bonafide_issued_date`, `photo_path`).
-        *   Create a new `academics` table to store scholastic and extra-curricular information.
-        *   Create a new `fees` table to store detailed fee particulars for students.
-        *   Create a new `scholarship` table to store detailed scholarship particulars for students.
-    *   **Admission Clerk Dashboard:**
-        *   Created `src/app/clerk/admission/dashboard/page.js` with a form for adding new student data, encompassing all fields from the updated `students` and new `academics` tables.
-        *   Created `src/app/api/clerk/admission/students/route.js` with a `POST` method to handle the submission of new student data, including basic roll number generation.
-    *   **Scholarship Clerk Dashboard:**
-        *   Created `src/app/clerk/scholarship/dashboard/page.js` with functionality to search for a student by roll number and display/edit their fee and scholarship details for all years.
-        *   Created `src/app/api/clerk/scholarship/[rollno]/route.js` with `GET` and `PUT` methods to fetch and update student-specific fee and scholarship information.
+*   **Scholarship Clerk Dashboard Enhancements:**
+    *   Implemented UI components (`NonScholarshipView.js`, `FullScholarshipView.js`, `PartialScholarshipView.js`) to dynamically display student scholarship and fee information based on scholarship type and branch.
+    *   Added functionality for scholarship clerks to add new scholarship and fee entries for students.
+    *   Updated `college_db.sql` to include `application_no` in the `scholarship` table and `bank_name_branch`, `upit_no` in the `fees` table.
+    *   Populated `college_db.sql` with sample data for non-scholarship, full scholarship, and partial scholarship students.
+    *   Modified the API handler (`src/app/api/clerk/scholarship/[rollno]/route.js`) to support both `INSERT` (for new entries) and `UPDATE` (for existing entries) operations for scholarship and fee details, and to correctly handle `undefined` or empty string values by converting them to `null` for database insertion.
+    *   Implemented logic in `src/app/clerk/scholarship/dashboard/page.js` to derive student branch (e.g., CSE, CSD) from their roll number and determine scholarship type (full, partial, non-scholarship).
+    *   Fixed a React warning related to `null` values in input fields within `FullScholarshipView.js` and `PartialScholarshipView.js` by ensuring empty strings are used instead of `null`.
+    *   Resolved "Encountered two children with the same key" React error by assigning unique temporary IDs to newly added scholarship entries in `FullScholarshipView.js` and `PartialScholarshipView.js`, and adjusted the API handler to correctly process these temporary IDs.
+*   **Page Redirects and Middleware Refinements:**
+    *   Implemented redirects in `src/middleware.js` for base paths: `/admin` now redirects to `/admin/dashboard`, `/clerk` to the respective clerk's dashboard, and `/student` to `/student/profile`.
+    *   Refined the middleware logic in `src/middleware.js` to ensure robust protection for all clerk routes (`/clerk/:path*`) and simplified the associated redirection handling.
+*   **Student Profile Page Fixes:**
+    *   Resolved `ReferenceError: useState is not defined` in `src/app/student/profile/page.js` by adding the necessary React import statements.
+*   **Clerk Personal Details API:**
+    *   Created a new API endpoint `src/app/api/clerk/personal-details/route.js` to handle the creation and updating of student personal details by clerks.
+*   **Student Search API for Clerks:**
+    *   Created a new API endpoint `src/app/api/clerk/students/search/route.js` that allows clerks to search for students by name, admission number, or roll number.
 
 ## Development Conventions
 

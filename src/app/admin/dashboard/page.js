@@ -22,7 +22,7 @@ const YEARS = ['2022', '2023', '2024', '2025'];
 export default function AdminDashboardPage() {
   const [totalClerks, setTotalClerks] = useState(0);
   const [activeClerks, setActiveClerks] = useState(0);
-  const [studentCounts, setStudentCounts] = useState({ '22': 0, '23': 0, '24': 0, '25': 0, total: 0 });
+  const [studentCounts, setStudentCounts] = useState({ '22': 120, '23': 130, '24': 110, '25': 100, total: 460 });
   const [searchRoll, setSearchRoll] = useState('');
   const [searchedStudent, setSearchedStudent] = useState(null);
   const [searchError, setSearchError] = useState('');
@@ -40,8 +40,6 @@ export default function AdminDashboardPage() {
         setTotalClerks(data.length || 0);
         setActiveClerks(data.filter(c => c.is_active).length || 0);
       });
-    // Fetch student stats (simulate for now)
-    setStudentCounts({ '22': 120, '23': 130, '24': 110, '25': 100, total: 460 });
   }, []);
 
   const handleSearch = async (e) => {

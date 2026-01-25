@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
 
 const courses = ['CSE','CSD','IT','EEE','ECE','CIVIL','MECH'];
 const genders = ['Male','Female'];
@@ -226,26 +227,18 @@ export default function ClerkStudentManagement() {
 
   const formatDate = (input) => {
     if (!input) return '';
-    // If already in YYYY-MM-DD, convert directly
-    if (typeof input === 'string') {
-      const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m) return `${m[3]}-${m[2]}-${m[1]}`;
-      const dt = new Date(input);
-      if (!isNaN(dt)) {
-        const dd = String(dt.getDate()).padStart(2, '0');
-        const mm = String(dt.getMonth() + 1).padStart(2, '0');
-        const yyyy = dt.getFullYear();
-        return `${dd}-${mm}-${yyyy}`;
+    try {
+      const date = new Date(input);
+      if (isNaN(date.getTime())) {
+        return input; // Return original input if it's not a valid date
       }
-      return input;
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch (error) {
+      return input; // Return original input in case of an error
     }
-    if (input instanceof Date && !isNaN(input)) {
-      const dd = String(input.getDate()).padStart(2, '0');
-      const mm = String(input.getMonth() + 1).padStart(2, '0');
-      const yyyy = input.getFullYear();
-      return `${dd}-${mm}-${yyyy}`;
-    }
-    return String(input);
   };
 
   const sanitizeDigits = (input, maxLen = 10) => {
@@ -378,7 +371,7 @@ export default function ClerkStudentManagement() {
                 <h4 className="font-semibold mb-3">Profile</h4>
                 <div className="w-28 h-28 rounded-full bg-gray-100 overflow-hidden mb-3 flex items-center justify-center">
                   {fetchedStudent.pfp ? (
-                    <img src={fetchedStudent.pfp} alt="Profile" className="w-full h-full object-cover" />
+                    <Image src={fetchedStudent.pfp} alt="Profile" width={112} height={112} className="w-full h-full object-cover" />
                   ) : (
                     <div className="text-gray-500">No Photo</div>
                   )}
