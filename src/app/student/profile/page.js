@@ -1,27 +1,30 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import toast from 'react-hot-toast';
 
-export default function StudentProfilePage() {
+export default function StudentProfile() {
   const router = useRouter();
   const [studentData, setStudentData] = useState(null);
-  const [activeTab, setActiveTab] = useState('basic');
+  const [isEditing, setIsEditing] = useState(false);
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
-  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [address, setAddress] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState('');
   const [previewPhoto, setPreviewPhoto] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [photoChanged, setPhotoChanged] = useState(false);
   const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [originalMobile, setOriginalMobile] = useState('');
   const [originalEmail, setOriginalEmail] = useState('');
+  const [originalAddress, setOriginalAddress] = useState('');
   const fileInputRef = useRef(null);
+  const [photoProcessing, setPhotoProcessing] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('logged_in_student');
@@ -33,19 +36,27 @@ export default function StudentProfilePage() {
     fetchProfile(stu.roll_no);
   }, [router]);
 
+  const sanitizeDigits = (val, maxLen = 12) => {
+    if (val == null) return '';
+    return String(val).replace(/\D/g, '').slice(0, maxLen);
+  };
+
   const fetchProfile = async (rollno) => {
     try {
       const res = await fetch(`/api/student/${rollno}`);
       const data = await res.json();
       if (res.ok) {
         setStudentData(data);
-        setMobile(data.student.mobile);
+        setMobile(sanitizeDigits(data.student.mobile, 12));
         setEmail(data.student.email);
-        setOriginalMobile(data.student.mobile);
+        const pdAddress = data.student.personal_details && data.student.personal_details.address ? data.student.personal_details.address : (data.student.address || '');
+        setAddress(pdAddress);
+        setOriginalMobile(sanitizeDigits(data.student.mobile, 12));
         setOriginalEmail(data.student.email);
+        setOriginalAddress(pdAddress);
         setProfilePhoto(data.student.pfp);
       } else {
-        toast.error(data.message || 'Unable to load profile. Please try again.');
+        toast.error(data.message || 'Unable to load profile. Please try again.');        
       }
     } catch (error) {
       toast.error('Network error');
@@ -65,17 +76,62 @@ export default function StudentProfilePage() {
         toast.error('Only JPG, JPEG, and PNG files are allowed.');
         return;
       }
-      if (file.size > 65 * 1024) {
-        toast.error('Image size must be less than 65KB. Please compress and try again.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPreviewPhoto(reader.result);
-        setPhotoChanged(true);
-        setIsPhotoRemoved(false);
-      };
-      reader.readAsDataURL(file);
+
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            const size = Math.min(img.width, img.height);
+            canvas.width = 150;
+            canvas.height = 150;
+
+            const x = (img.width - size) / 2;
+            const y = (img.height - size) / 2;
+
+            ctx.drawImage(img, x, y, size, size, 0, 0, 150, 150);
+
+            canvas.toBlob(
+              (blob) => {
+                if (blob.size > 60 * 1024) {
+                  // Compress the image further
+                  const quality = (60 * 1024) / blob.size;
+                  canvas.toBlob(
+                    (compressedBlob) => {
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        setPreviewPhoto(reader.result);
+                        setPhotoChanged(true);
+                        setIsPhotoRemoved(false);
+                        resolve(reader.result);
+                      };
+                      reader.readAsDataURL(compressedBlob);
+                    },
+                    'image/jpeg',
+                    quality
+                  );
+                } else {
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setPreviewPhoto(reader.result);
+                    setPhotoChanged(true);
+                    setIsPhotoRemoved(false);
+                    resolve(reader.result);
+                  };
+                  reader.readAsDataURL(blob);
+                }
+              },
+              'image/jpeg',
+              0.9
+            );
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
@@ -113,6 +169,10 @@ export default function StudentProfilePage() {
 
   const handleSave = async () => {
     try {
+      if (photoProcessing) {
+        toast.error('Please wait for the photo to be processed.');
+        return;
+      }
       // Handle photo change or remove
       if (photoChanged) {
         const pfpToSend = previewPhoto || null;
@@ -140,14 +200,32 @@ export default function StudentProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rollno: studentData.student.roll_no,
-          phone: mobile,
+          phone: sanitizeDigits(mobile, 12),
           email: email,
         }),
       });
       const result = await response.json();
       if (response.ok) {
+        // Also persist address via clerk personal-details endpoint
+        try {
+          const pdRes = await fetch('/api/clerk/personal-details', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roll_no: studentData.student.roll_no, address: address }),
+          });
+          const pdJson = await pdRes.json();
+          if (!pdRes.ok) throw new Error(pdJson.error || 'Failed to save personal details');
+        } catch (err) {
+          console.error('Save personal details error:', err);
+          toast.error('Failed to save address.');
+          return;
+        }
+
         toast.success('Profile updated successfully!');
         setIsEditing(false);
+        setOriginalMobile(sanitizeDigits(mobile, 12));
+        setOriginalEmail(email);
+        setOriginalAddress(address);
         fetchProfile(studentData.student.roll_no);
       } else {
         toast.error(result.message || 'Failed to update contact details.');
@@ -161,7 +239,7 @@ export default function StudentProfilePage() {
 
   const { student } = studentData;
 
-  const hasChanges = mobile !== originalMobile || email !== originalEmail || photoChanged;
+  const hasChanges = mobile !== originalMobile || email !== originalEmail || address !== originalAddress || photoChanged;
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -208,7 +286,7 @@ export default function StudentProfilePage() {
             {isMobileMenuOpen && (
               <div className="md:hidden bg-white border-t border-gray-200">
                 <button
-                  onClick={() => { setActiveTab('basic'); setIsMobileMenuOpen(false); }}
+                  onClick={() => { setActiveTab('basic'); setIsMobileMenuOpen(false); }} 
                   className={`w-full text-left py-3 px-4 text-sm font-medium ${activeTab === 'basic' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                 >
                   Basic Information
@@ -220,7 +298,7 @@ export default function StudentProfilePage() {
                   Scholarship Details
                 </button>
                 <button
-                  onClick={() => { setActiveTab('fees'); setIsMobileMenuOpen(false); }}
+                  onClick={() => { setActiveTab('fees'); setIsMobileMenuOpen(false); }}  
                   className={`w-full text-left py-3 px-4 text-sm font-medium ${activeTab === 'fees' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                 >
                   Fee Details
@@ -262,11 +340,11 @@ export default function StudentProfilePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-white p-4 rounded shadow-sm">
                         <span className="text-sm font-medium text-gray-500">Father Name</span>
-                        <p className="text-lg font-semibold text-gray-800">{student.father_name}</p>
+                        <p className="text-lg font-semibold text-gray-800">{(student.personal_details && student.personal_details.father_name) || student.father_name}</p>
                       </div>
                       <div className="bg-white p-4 rounded shadow-sm">
                         <span className="text-sm font-medium text-gray-500">Mother Name</span>
-                        <p className="text-lg font-semibold text-gray-800">{student.mother_name}</p>
+                        <p className="text-lg font-semibold text-gray-800">{(student.personal_details && student.personal_details.mother_name) || student.mother_name}</p>
                       </div>
                       <div className="bg-white p-4 rounded shadow-sm">
                         <span className="text-sm font-medium text-gray-500">Date of Birth</span>
@@ -276,17 +354,17 @@ export default function StudentProfilePage() {
                         <span className="text-sm font-medium text-gray-500">Gender</span>
                         <p className="text-lg font-semibold text-gray-800">{student.gender}</p>
                       </div>
-                      <div className="bg-white p-4 rounded shadow-sm md:col-span-2">
+                        <div className="bg-white p-4 rounded shadow-sm md:col-span-2">     
                         <span className="text-sm font-medium text-gray-500">Address</span>
-                        <p className="text-lg font-semibold text-gray-800">{student.address}</p>
+                        <p className="text-lg font-semibold text-gray-800">{address}</p>
                       </div>
                       <div className="bg-white p-4 rounded shadow-sm">
                         <span className="text-sm font-medium text-gray-500">Mobile</span>
-                        <p className="text-lg font-semibold text-gray-800">{mobile}</p>
+                        <p className="text-lg font-semibold text-gray-800">{mobile}</p>  
                       </div>
                       <div className="bg-white p-4 rounded shadow-sm">
-                        <span className="text-sm font-medium text-gray-500">Email</span>
-                        <p className="text-lg font-semibold text-gray-800">{email}</p>
+                        <span className="text-sm font-medium text-gray-500">Email</span> 
+                        <p className="text-lg font-semibold text-gray-800">{email}</p>   
                       </div>
                     </div>
                   </div>
@@ -308,7 +386,11 @@ export default function StudentProfilePage() {
                           type="file"
                           accept="image/jpeg,image/png,image/jpg"
                           ref={fileInputRef}
-                          onChange={handlePhotoChange}
+                          onChange={async (e) => {
+                            setPhotoProcessing(true);
+                            await handlePhotoChange(e);
+                            setPhotoProcessing(false);
+                          }}
                           className="hidden"
                         />
                         <div className="flex space-x-2 mt-2">
@@ -343,14 +425,14 @@ export default function StudentProfilePage() {
                           Note: Your profile photo will be used across Examination Branch, Scholarship records, ID verification, and official college documents. Please upload a clear passport-size photograph only.
                         </p>
                       </div>
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">     
                         <div className="bg-white p-4 rounded shadow-sm">
                           <span className="text-sm font-medium text-gray-500">Father Name</span>
-                          <p className="text-lg font-semibold text-gray-800">{student.father_name}</p>
+                            <p className="text-lg font-semibold text-gray-800">{(student.personal_details && student.personal_details.father_name) || student.father_name}</p>
                         </div>
                         <div className="bg-white p-4 rounded shadow-sm">
                           <span className="text-sm font-medium text-gray-500">Mother Name</span>
-                          <p className="text-lg font-semibold text-gray-800">{student.mother_name}</p>
+                            <p className="text-lg font-semibold text-gray-800">{(student.personal_details && student.personal_details.mother_name) || student.mother_name}</p>
                         </div>
                         <div className="bg-white p-4 rounded shadow-sm">
                           <span className="text-sm font-medium text-gray-500">Date of Birth</span>
@@ -360,16 +442,15 @@ export default function StudentProfilePage() {
                           <span className="text-sm font-medium text-gray-500">Gender</span>
                           <p className="text-lg font-semibold text-gray-800">{student.gender}</p>
                         </div>
-                        <div className="bg-white p-4 rounded shadow-sm md:col-span-2">
-                          <span className="text-sm font-medium text-gray-500">Address</span>
-                          <p className="text-lg font-semibold text-gray-800">{student.address}</p>
-                        </div>
+                        
                         <div className="bg-white p-4 rounded shadow-sm">
                           <label className="text-sm font-medium text-gray-500 block">Mobile</label>
                           <input
-                            type="text"
+                            type="tel"
+                            inputMode="numeric"
+                            maxLength={12}
                             value={mobile}
-                            onChange={(e) => setMobile(e.target.value)}
+                            onChange={(e) => setMobile(sanitizeDigits(e.target.value, 12))}
                             className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
                         </div>
@@ -380,6 +461,14 @@ export default function StudentProfilePage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div className="bg-white p-4 rounded shadow-sm md:col-span-2">
+                          <label className="text-sm font-medium text-gray-500 block">Address</label>
+                          <textarea
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            className="mt-1 border rounded px-3 py-2 w-full h-24 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
                         </div>
                       </div>
@@ -400,14 +489,14 @@ export default function StudentProfilePage() {
                       </button>
                       <button
                         onClick={handleSave}
-                        disabled={!hasChanges}
+                        disabled={!hasChanges || photoProcessing}
                         className={`px-6 py-2 rounded font-medium ${
-                          hasChanges
+                          hasChanges && !photoProcessing
                             ? 'bg-green-500 text-white hover:bg-green-600'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        Save Changes
+                        {photoProcessing ? 'Processing...' : 'Save Changes'}
                       </button>
                     </div>
                   </div>
@@ -451,13 +540,14 @@ export default function StudentProfilePage() {
                     <span className="font-semibold">Total Fee:</span> ₹70000
                   </div>
                   <div className="p-4 bg-gray-100 rounded shadow">
+.
                     <span className="font-semibold">Paid:</span> ₹70000
                   </div>
                   <div className="p-4 bg-gray-100 rounded shadow">
                     <span className="font-semibold">Pending:</span> ₹0
                   </div>
                   <div className="p-4 bg-gray-100 rounded shadow">
-                    <span className="font-semibold">Last Payment Date:</span> Pending
+                    <span className="font-semibold">Last Payment Date:</span> Pending    
                   </div>
                 </div>
               </div>
