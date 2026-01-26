@@ -12,6 +12,7 @@ export async function POST(req) {
 
     const {
       admission_no,
+      admission_type,
       roll_no,
       name,
       father_name,
@@ -21,27 +22,18 @@ export async function POST(req) {
       gender,
       nationality,
       religion,
-      caste,
       sub_caste,
       category,
       address,
       mobile,
       email,
       qualifying_exam,
-      scholarship_status,
-      fee_payment_details,
       course,
-      branch,
-      admission_type,
       mother_tongue,
       father_occupation,
       student_aadhar_no,
       father_guardian_mobile_no,
-      fee_reimbursement_category,
       identification_marks,
-      present_address,
-      permanent_address,
-      apaar_id,
       // additional personal/academic fields
       annual_income,
       aadhaar_no,
@@ -58,6 +50,52 @@ export async function POST(req) {
     // Use provided roll_no (manual entry). If none provided, accept null and let DB constraints handle it.
     const providedRoll = roll_no || studentData.rollno || null;
 
+    // Determine allowed admission_type values from DB enum (if present)
+    let admissionTypeToSave = null;
+    try {
+      const col = await query(
+        `SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'students' AND COLUMN_NAME = 'admission_type'`
+      );
+      let allowedAdmissionTypes = ['Regular', 'Lateral']; // fallback
+      let isNullable = 'YES';
+      let columnDefault = null;
+      if (Array.isArray(col) && col.length > 0 && col[0].COLUMN_TYPE) {
+        const columnType = col[0].COLUMN_TYPE; // e.g. "enum('regular','Lateral Entry')"
+        const matches = Array.from(columnType.matchAll(/'([^']+)'/g)).map(m => m[1]);
+        if (matches.length) allowedAdmissionTypes = matches;
+        if (typeof col[0].IS_NULLABLE !== 'undefined') isNullable = col[0].IS_NULLABLE;
+        if (typeof col[0].COLUMN_DEFAULT !== 'undefined') columnDefault = col[0].COLUMN_DEFAULT;
+      }
+
+      if (typeof admission_type !== 'undefined' && admission_type !== null && admission_type !== '') {
+        // Try to map incoming value to one of the allowedAdmissionTypes (case/spacing insensitive)
+        const normalize = v => (v + '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const incomingNorm = normalize(admission_type);
+        const found = allowedAdmissionTypes.find(opt => normalize(opt) === incomingNorm);
+        if (found) {
+          admissionTypeToSave = found;
+        } else {
+          console.warn(`Admission type '${admission_type}' not matched to DB enum options: ${allowedAdmissionTypes.join(', ')}; will attempt sensible default if column forbids NULL.`);
+          admissionTypeToSave = null;
+        }
+        // If DB column forbids NULL, prefer 'Regular' explicitly; otherwise fall back to column default or first allowed option
+        if (admissionTypeToSave === null && isNullable === 'NO') {
+          if (allowedAdmissionTypes.includes('Regular')) admissionTypeToSave = 'Regular';
+          else admissionTypeToSave = columnDefault || (allowedAdmissionTypes.length ? allowedAdmissionTypes[0] : null);
+          console.warn(`admission_type is NOT NULL in DB — using default '${admissionTypeToSave}'`);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to read admission_type column definition, falling back to fallback list;', err);
+      if (typeof admission_type !== 'undefined' && admission_type !== null && admission_type !== '') {
+        // map common variants to fallback
+        const lower = (admission_type + '').toLowerCase();
+        if (lower.includes('lateral')) admissionTypeToSave = 'Lateral';
+        else if (lower.includes('regular')) admissionTypeToSave = 'Regular';
+        else admissionTypeToSave = null;
+      }
+    }
+
     // Check if a student with this roll number already exists
     if (providedRoll) {
       const [existingStudent] = await query('SELECT id FROM students WHERE roll_no = ?', [providedRoll]);
@@ -68,8 +106,8 @@ export async function POST(req) {
 
     // Insert into `students` table (core student record)
     const studentResult = await query(
-      `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email, course) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [admission_no || null, providedRoll, name || null, date_of_birth || null, gender || null, mobile || null, email || null, course || branch || null]
+      `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email, course, admission_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [admission_no || null, providedRoll, name || null, date_of_birth || null, gender || null, mobile || null, email || null, course || null, admissionTypeToSave]
     );
 
     const studentId = studentResult.insertId;

@@ -26,7 +26,7 @@ export async function PUT(req, context) {
     const params = await context.params;
     const { rollno } = params;
     const body = await req.json();
-    const { name, father_name, gender, category, mobile, date_of_birth } = body;
+    const { name, gender, mobile, email, date_of_birth, course } = body;
 
     if (!rollno) {
       return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
@@ -37,12 +37,22 @@ export async function PUT(req, context) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    const result = await query(
-      `UPDATE students 
-       SET name = ?, father_name = ?, gender = ?, category = ?, mobile = ?, date_of_birth = ? 
-       WHERE roll_no = ?`,
-      [name, father_name, gender, category, mobile, date_of_birth, rollno]
-    );
+    // Build dynamic update for only allowed students columns
+    const updates = [];
+    const paramsArr = [];
+    if (typeof name !== 'undefined') { updates.push('name = ?'); paramsArr.push(name === '' ? null : name); }
+    if (typeof gender !== 'undefined') { updates.push('gender = ?'); paramsArr.push(gender === '' ? null : gender); }
+    if (typeof mobile !== 'undefined') { updates.push('mobile = ?'); paramsArr.push(mobile === '' ? null : mobile); }
+    if (typeof email !== 'undefined') { updates.push('email = ?'); paramsArr.push(email === '' ? null : email); }
+    if (typeof date_of_birth !== 'undefined') { updates.push('date_of_birth = ?'); paramsArr.push(date_of_birth === '' ? null : date_of_birth); }
+    if (typeof course !== 'undefined') { updates.push('course = ?'); paramsArr.push(course === '' ? null : course); }
+
+    if (updates.length === 0) {
+      return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 });
+    }
+
+    const sql = `UPDATE students SET ${updates.join(', ')} WHERE roll_no = ?`;
+    const result = await query(sql, [...paramsArr, rollno]);
 
     if (result.affectedRows === 0) {
       return NextResponse.json({ error: 'No changes made or update failed' }, { status: 400 });

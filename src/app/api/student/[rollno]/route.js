@@ -1,6 +1,7 @@
 
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { computeAcademicYear } from '@/app/lib/academicYear';
 
 export async function GET(req, context) {
   try {
@@ -23,7 +24,8 @@ export async function GET(req, context) {
     }
 
     const scholarshipSql = 'SELECT * FROM scholarship WHERE student_id = ? ORDER BY year';
-    const scholarship = await query(scholarshipSql, [studentId]);
+    let scholarship = await query(scholarshipSql, [studentId]);
+    scholarship = scholarship.map(s => ({ ...s, academic_year: computeAcademicYear(student.roll_no, student.admission_type, s.year) }));
 
     const feesSql = 'SELECT * FROM student_fee_transactions WHERE student_id = ? ORDER BY year, date';
     const fees = await query(feesSql, [studentId]);
