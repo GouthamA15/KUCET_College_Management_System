@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { computeAcademicYear, computeTotalAcademicSpan } from '@/app/lib/academicYear';
 import Image from 'next/image';
 
 export default function StudentProfile() {
@@ -281,10 +282,19 @@ export default function StudentProfile() {
                   )}
                 </svg>
               </button>
-            </div>
-
-            {/* Mobile Menu Dropdown */}
-            {isMobileMenuOpen && (
+                <div>
+                  <div className="text-sm text-gray-500">Academic Year</div>
+                  <div className="font-medium">{(() => {
+                    const val = computeTotalAcademicSpan(student.roll_no, student.admission_type);
+                    if (val) return val;
+                    // fallback to per-year if needed
+                    const academics = (studentData && studentData.academics) || [];
+                    if (academics.length === 0) return '-';
+                    const years = academics.map(a => Number(a.year || 1)).filter(Boolean);
+                    const chosen = years.length ? Math.max(...years) : 1;
+                    return computeAcademicYear(student.roll_no, student.admission_type, chosen) || '-';
+                  })()}</div>
+                </div>
               <div className="md:hidden bg-white border-t border-gray-200">
                 <button
                   onClick={() => { setActiveTab('basic'); setIsMobileMenuOpen(false); }}
@@ -524,14 +534,16 @@ export default function StudentProfile() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td className="py-2 px-4 border-b whitespace-nowrap">2023-24</td>
-                        <td className="py-2 px-4 border-b whitespace-nowrap">Pending</td>
-                        <td className="py-2 px-4 border-b whitespace-nowrap">Pending</td>
-                        <td className="py-2 px-4 border-b whitespace-nowrap">Pending</td>
-                        <td className="py-2 px-4 border-b whitespace-nowrap">Pending</td>
-                        <td className="py-2 px-4 border-b whitespace-nowrap">Pending</td>
-                      </tr>
+                        { (studentData.scholarship || []).map((s, i) => (
+                          <tr key={s.id || i}>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{computeAcademicYear(student.roll_no, student.admission_type, s.year) || `Year ${s.year}`}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{s.proceedings_no || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{s.amount_sanctioned ?? '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{s.amount_disbursed ?? '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{s.ch_no || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{s.date || '-'}</td>
+                          </tr>
+                        )) }
                     </tbody>
                   </table>
                 </div>
