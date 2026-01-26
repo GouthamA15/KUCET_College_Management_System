@@ -35,7 +35,6 @@ export default function PartialScholarshipView({ student, scholarshipData, feeDa
       proceedings_no: '',
       scholarship_type: 'Partial',
       status: 'Applied',
-      academic_year: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
       remarks: '',
       amount_sanctioned: 0,
       amount_disbursed: 0,

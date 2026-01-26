@@ -27,7 +27,6 @@ export default function FullScholarshipView({ student, scholarshipData, onUpdate
       proceedings_no: '',
       scholarship_type: 'Full',
       status: 'Applied',
-      academic_year: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
       remarks: '',
       amount_sanctioned: 0,
       amount_disbursed: 0,
