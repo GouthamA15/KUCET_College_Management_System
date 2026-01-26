@@ -22,7 +22,7 @@ export default function ClerkDashboard(){
                 <div className="w-12 h-12 bg-indigo-50 rounded flex items-center justify-center">🎓</div>
                 <div>
                   <h3 className="font-semibold">Student Management</h3>
-                  <p className="text-sm text-gray-600">Add, fetch and edit students in one screen</p>
+                  <p className="text-sm text-gray-600">Add, fetch and edit students.</p>
                 </div>
               </div>
             </div>
