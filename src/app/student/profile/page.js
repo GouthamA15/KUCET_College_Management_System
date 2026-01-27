@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { formatDate } from '@/lib/date';
 import { computeAcademicYear, computeTotalAcademicSpan } from '@/app/lib/academicYear';
 import Image from 'next/image';
 
@@ -160,14 +161,7 @@ export default function StudentProfile() {
     }
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
+
 
   const handleSave = async () => {
     try {

@@ -1,4 +1,5 @@
 import { query } from '@/lib/db';
+import { toMySQLDate } from '@/lib/date';
 import { NextResponse } from 'next/server';
 
 export async function POST(req) {
@@ -107,7 +108,7 @@ export async function POST(req) {
     // Insert into `students` table (core student record)
     const studentResult = await query(
       `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email, course, admission_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [admission_no || null, providedRoll, name || null, date_of_birth || null, gender || null, mobile || null, email || null, course || null, admissionTypeToSave]
+      [admission_no || null, providedRoll, name || null, toMySQLDate(date_of_birth) || null, gender || null, mobile || null, email || null, course || null, admissionTypeToSave]
     );
 
     const studentId = studentResult.insertId;

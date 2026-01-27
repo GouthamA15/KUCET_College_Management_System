@@ -1,4 +1,5 @@
-import { getDb } from '@/lib/db';
+import { query } from '@/lib/db';
+import { toMySQLDate } from '@/lib/date';
 import { NextResponse } from 'next/server'; // Import NextResponse
 
 export async function POST(req) {
@@ -8,34 +9,28 @@ export async function POST(req) {
     if (!rollno || !dob) {
       return NextResponse.json({ error: 'Missing rollno or dob' }, { status: 400 });
     }
-    const db = getDb();
-    const [rows] = await db.execute(
+    
+    const rows = await query(
       `SELECT s.roll_no, s.name, sp.father_name, sp.category, s.mobile, s.date_of_birth
        FROM students s
        LEFT JOIN student_personal_details sp ON s.id = sp.student_id
        WHERE s.roll_no = ?`,
       [rollno]
     );
+
     if (rows.length === 0) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
+
     const student = rows[0];
-    // Convert input dob (yyyy-mm-dd) to dd-mm-yyyy for comparison
-    function toDDMMYYYY(dateStr) {
-      const [y, m, d] = dateStr.split('-');
-      return `${d}-${m}-${y}`;
-    }
-    const dobInput = dob.includes('-') && dob.length === 10 ? toDDMMYYYY(dob) : dob;
-    // Convert DB value to dd-mm-yyyy (ignore time and timezone)
-    function dbToDDMMYYYY(dbDob) {
-      const date = new Date(dbDob);
-      const d = String(date.getDate()).padStart(2, '0');
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const y = date.getFullYear();
-      return `${d}-${m}-${y}`;
-    }
-    const dbDobFormatted = dbToDDMMYYYY(student.date_of_birth);
-    if (dbDobFormatted !== String(dobInput).trim()) {
+
+    const dobInputMySQL = toMySQLDate(dob);
+
+    // Convert database date to YYYY-MM-DD string for comparison
+    const dbDate = new Date(student.date_of_birth);
+    const dbDateString = dbDate.getFullYear() + '-' + String(dbDate.getMonth() + 1).padStart(2, '0') + '-' + String(dbDate.getDate()).padStart(2, '0');
+
+    if (dbDateString !== dobInputMySQL) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
     const { date_of_birth: _dob, ...profile } = student;
@@ -44,7 +39,7 @@ export async function POST(req) {
     const response = NextResponse.json({ student: profile, success: true }, { status: 200 });
     response.cookies.set('student_auth', 'true', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_.ENV === 'production',
         maxAge: 60 * 60, // 1 hour
         path: '/',
     });

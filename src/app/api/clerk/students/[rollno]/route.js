@@ -1,4 +1,5 @@
 import { query } from '@/lib/db';
+import { toMySQLDate } from '@/lib/date';
 import { NextResponse } from 'next/server';
 
 export async function GET(req, context) {
@@ -44,7 +45,7 @@ export async function PUT(req, context) {
     if (typeof gender !== 'undefined') { updates.push('gender = ?'); paramsArr.push(gender === '' ? null : gender); }
     if (typeof mobile !== 'undefined') { updates.push('mobile = ?'); paramsArr.push(mobile === '' ? null : mobile); }
     if (typeof email !== 'undefined') { updates.push('email = ?'); paramsArr.push(email === '' ? null : email); }
-    if (typeof date_of_birth !== 'undefined') { updates.push('date_of_birth = ?'); paramsArr.push(date_of_birth === '' ? null : date_of_birth); }
+    if (typeof date_of_birth !== 'undefined') { updates.push('date_of_birth = ?'); paramsArr.push(date_of_birth === '' ? null : toMySQLDate(date_of_birth)); }
     if (typeof course !== 'undefined') { updates.push('course = ?'); paramsArr.push(course === '' ? null : course); }
 
     if (updates.length === 0) {

@@ -1,8 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { formatDate, parseDate } from '@/lib/date';
+
+
+const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
+  <input
+    onClick={onClick}
+    ref={ref}
+    value={value}
+    {...props}
+  />
+));
+DatePickerInput.displayName = 'DatePickerInput';
 
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
@@ -159,12 +173,16 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         (used as password for first login)
                       </span>
                     </label>
-                    <input
-                      type="date"
-                      value={studentForm.dob}
-                      onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
+                    <DatePicker
+                      selected={parseDate(studentForm.dob)}
+                      onChange={(date) => setStudentForm({ ...studentForm, dob: formatDate(date) })}
+                      dateFormat="dd-MM-yyyy"
+                      placeholderText="DD-MM-YYYY"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
                       required
+                      showYearDropdown
+                      dropdownMode="select"
+                      customInput={<DatePickerInput />}
                     />
                   </div>
                   

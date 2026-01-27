@@ -1,3 +1,5 @@
+import { formatDate } from '@/lib/date';
+
 // A compact student profile card for admin view
 'use client';
 
@@ -13,7 +15,7 @@ export default function StudentProfileCard({ student }) {
       <div><span className="font-medium">Phone:</span> {student.mobile}</div>
       <div><span className="font-medium">Admission No:</span> {student.admission_no}</div>
       <div><span className="font-medium">Mother Name:</span> {(student.personal_details && student.personal_details.mother_name) || student.mother_name}</div>
-      <div><span className="font-medium">DOB:</span> {student.date_of_birth}</div>
+      <div><span className="font-medium">DOB:</span> {formatDate(student.date_of_birth)}</div>
       <div><span className="font-medium">Nationality:</span> {student.nationality}</div>
       <div><span className="font-medium">Religion:</span> {student.religion}</div>
       <div><span className="font-medium">Caste:</span> {student.caste}</div>

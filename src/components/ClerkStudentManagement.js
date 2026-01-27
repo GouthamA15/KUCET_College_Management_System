@@ -1,7 +1,20 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import toast from 'react-hot-toast';
+import { formatDate, parseDate } from '@/lib/date';
 import Image from 'next/image';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+
+const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
+  <input
+    onClick={onClick}
+    ref={ref}
+    value={value}
+    {...props}
+  />
+));
+DatePickerInput.displayName = 'DatePickerInput';
 
       const courses = ['CSE','CSD','IT','EEE','ECE','CIVIL','MECH'];
       const genders = ['Male','Female'];
@@ -51,17 +64,7 @@ import Image from 'next/image';
           return fetchRoll.trim() || fetchAdmission.trim() || fetchName.trim();
         };
 
-        const formatDate = (input) => {
-          if (!input) return '';
-          try {
-            const date = new Date(input);
-            if (isNaN(date.getTime())) return input;
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}-${month}-${year}`;
-          } catch (e) { return input; }
-        };
+
 
         const sanitizeDigits = (input, maxLen = 10) => {
           if (input == null) return '';
@@ -77,19 +80,7 @@ import Image from 'next/image';
           return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
         };
 
-        // Normalize various date formats to YYYY-MM-DD for input[type=date]
-        const toInputDate = (val) => {
-          if (!val) return '';
-          if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-          try {
-            const d = new Date(val);
-            if (!isNaN(d)) return d.toISOString().slice(0,10);
-          } catch (e) {}
-          // try dd-mm-yyyy or dd/mm/yyyy
-          const m = String(val).match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/);
-          if (m) return `${m[3]}-${m[2]}-${m[1]}`;
-          return '';
-        };
+
 
         // Add Student
         const handleAddStudent = async (e) => {
@@ -186,7 +177,7 @@ import Image from 'next/image';
               admission_no: student.admission_no || null,
               roll_no: student.roll_no || null,
               name: student.name || null,
-              date_of_birth: toInputDate(student.date_of_birth) || null,
+              date_of_birth: formatDate(student.date_of_birth) || null,
               gender: student.gender || 'Male',
               admission_type: student.admission_type || null,
               course: student.course || null,
@@ -269,9 +260,7 @@ import Image from 'next/image';
             try {
               const payload = {
                 name: editValues.name || null,
-                father_name: personalFull.father_name || null,
                 gender: editValues.gender || null,
-                category: personalFull.category || null,
                 mobile: editValues.mobile || null,
                 date_of_birth: editValues.date_of_birth || null
               };
@@ -381,7 +370,16 @@ import Image from 'next/image';
                       {savedRollLocked && (<span className="absolute right-2 top-2 text-sm">🔒</span>)}
                     </div>
                     <input placeholder="Student Name*" value={basic.name} onChange={e=>setBasic({...basic, name:e.target.value})} className="p-2 border rounded" />
-                    <input type="date" value={basic.date_of_birth} onChange={e=>setBasic({...basic, date_of_birth:e.target.value})} className="p-2 border rounded" />
+                    <DatePicker
+                      selected={parseDate(basic.date_of_birth)}
+                      onChange={(date) => setBasic({ ...basic, date_of_birth: formatDate(date) })}
+                      dateFormat="dd-MM-yyyy"
+                      placeholderText="DD-MM-YYYY"
+                      className="p-2 border rounded w-full"
+                      showYearDropdown
+                      dropdownMode="select"
+                      customInput={<DatePickerInput className="p-2 border rounded w-full" />}
+                    />
                     <select value={basic.gender} onChange={e=>setBasic({...basic, gender:e.target.value})} className="p-2 border rounded">
                       {genders.map(g=> <option key={g} value={g}>{g}</option>)}
                     </select>
@@ -513,7 +511,16 @@ import Image from 'next/image';
                             <span title="Roll number cannot be edited" className="absolute right-2 top-2 text-sm">🔒</span>
                           </div>
                           <input placeholder="Student Name" value={editValues.name || ''} onChange={e=>setEditValues({...editValues, name:e.target.value})} className="p-2 border rounded" />
-                          <input type="date" value={editValues.date_of_birth || ''} onChange={e=>setEditValues({...editValues, date_of_birth:e.target.value})} className="p-2 border rounded" />
+                          <DatePicker
+                            selected={parseDate(editValues.date_of_birth)}
+                            onChange={(date) => setEditValues({ ...editValues, date_of_birth: formatDate(date) })}
+                            dateFormat="dd-MM-yyyy"
+                            placeholderText="DD-MM-YYYY"
+                            className="p-2 border rounded w-full"
+                            showYearDropdown
+                            dropdownMode="select"
+                            customInput={<DatePickerInput className="p-2 border rounded w-full" />}
+                          />
                           <select value={editValues.gender || 'Male'} onChange={e=>setEditValues({...editValues, gender:e.target.value})} className="p-2 border rounded">
                             {genders.map(g=> <option key={g} value={g}>{g}</option>)}
                           </select>
