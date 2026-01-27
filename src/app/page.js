@@ -35,7 +35,14 @@ export default function Home() {
       }
 
       if (clerkAuth) {
-        router.replace('/clerk/dashboard');
+        // Read clerk role from cookie (set at login)
+        const roleCookie = document.cookie.split('; ').find(row => row.startsWith('clerk_role='));
+        const role = roleCookie ? roleCookie.split('=')[1].toLowerCase() : '';
+        if (role.includes('scholar')) {
+          router.replace('/clerk/scholarship/dashboard');
+        } else {
+          router.replace('/clerk/admission/dashboard');
+        }
         return;
       }
 
