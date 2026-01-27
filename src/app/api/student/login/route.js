@@ -39,7 +39,7 @@ export async function POST(req) {
     const response = NextResponse.json({ student: profile, success: true }, { status: 200 });
     response.cookies.set('student_auth', 'true', {
         httpOnly: true,
-        secure: process.env.NODE_.ENV === 'production',
+        secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60, // 1 hour
         path: '/',
     });

@@ -276,19 +276,22 @@ export default function StudentProfile() {
                   )}
                 </svg>
               </button>
-                <div>
-                  <div className="text-sm text-gray-500">Academic Year</div>
-                  <div className="font-medium">{(() => {
-                    const val = computeTotalAcademicSpan(student.roll_no, student.admission_type);
-                    if (val) return val;
-                    // fallback to per-year if needed
-                    const academics = (studentData && studentData.academics) || [];
-                    if (academics.length === 0) return '-';
-                    const years = academics.map(a => Number(a.year || 1)).filter(Boolean);
-                    const chosen = years.length ? Math.max(...years) : 1;
-                    return computeAcademicYear(student.roll_no, student.admission_type, chosen) || '-';
-                  })()}</div>
-                </div>
+            </div>
+            <div className="flex justify-end pr-4">
+              <div>
+                <div className="text-sm text-gray-500">Academic Year</div>
+                <div className="font-medium">{(() => {
+                  const val = computeTotalAcademicSpan(student.roll_no, student.admission_type);
+                  if (val) return val;
+                  const academics = (studentData && studentData.academics) || [];
+                  if (academics.length === 0) return '-';
+                  const years = academics.map(a => Number(a.year || 1)).filter(Boolean);
+                  const chosen = years.length ? Math.max(...years) : 1;
+                  return computeAcademicYear(student.roll_no, student.admission_type, chosen) || '-';
+                })()}</div>
+              </div>
+            </div>
+            {isMobileMenuOpen && (
               <div className="md:hidden bg-white border-t border-gray-200">
                 <button
                   onClick={() => { setActiveTab('basic'); setIsMobileMenuOpen(false); }}
