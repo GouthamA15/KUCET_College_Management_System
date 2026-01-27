@@ -2,6 +2,7 @@ import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { computeAcademicYear } from '@/app/lib/academicYear';
+import { getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
 
 export async function GET(req, context) {
   const cookieStore = await cookies();
@@ -30,9 +31,13 @@ export async function GET(req, context) {
       student.pfp = `data:image/jpeg;base64,${student.pfp.toString('base64')}`;
     }
 
+    // Derive course and admission type
+    student.course = getBranchFromRoll(student.roll_no);
+    student.admission_type = getAdmissionTypeFromRoll(student.roll_no);
+
     const scholarshipSql = 'SELECT * FROM scholarship WHERE student_id = ? ORDER BY year';
     let scholarship = await query(scholarshipSql, [studentId]);
-    scholarship = scholarship.map(s => ({ ...s, academic_year: computeAcademicYear(student.roll_no, student.admission_type, s.year) }));
+    scholarship = scholarship.map(s => ({ ...s, academic_year: computeAcademicYear(student.roll_no, s.year) }));
 
     const feesSql = 'SELECT * FROM student_fee_transactions WHERE student_id = ? ORDER BY year, date';
     const fees = await query(feesSql, [studentId]);

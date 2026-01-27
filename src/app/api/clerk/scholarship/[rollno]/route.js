@@ -31,6 +31,7 @@ const normalizeStatus = (value) => {
   return 'Pending';
 };
 
+  export async function GET(req, ctx) {
   const cookieStore = await cookies();
   const clerkAuthCookie = cookieStore.get('clerk_auth');
   const token = clerkAuthCookie ? clerkAuthCookie.value : null;
@@ -90,7 +91,7 @@ const normalizeStatus = (value) => {
     }
 
     scholarship = scholarship.map(s => {
-      const row = { ...s, academic_year: computeAcademicYear(student.roll_no, student.admission_type, s.year) };
+      const row = { ...s, academic_year: computeAcademicYear(student.roll_no, s.year) };
       const ub = row.updated_by;
       if (ub) {
         const su = String(ub);

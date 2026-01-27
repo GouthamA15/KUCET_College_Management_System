@@ -7,7 +7,8 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { formatDate } from '@/lib/date';
-import { computeAcademicYear, computeTotalAcademicSpan } from '@/app/lib/academicYear';
+import { getBranchFromRoll, getCurrentStudyingYear, getAcademicYear } from '@/lib/rollNumber';
+import { computeAcademicYear } from '@/app/lib/academicYear';
 import Image from 'next/image';
 
 export default function StudentProfile() {
@@ -280,15 +281,7 @@ export default function StudentProfile() {
             <div className="flex justify-end pr-4">
               <div>
                 <div className="text-sm text-gray-500">Academic Year</div>
-                <div className="font-medium">{(() => {
-                  const val = computeTotalAcademicSpan(student.roll_no, student.admission_type);
-                  if (val) return val;
-                  const academics = (studentData && studentData.academics) || [];
-                  if (academics.length === 0) return '-';
-                  const years = academics.map(a => Number(a.year || 1)).filter(Boolean);
-                  const chosen = years.length ? Math.max(...years) : 1;
-                  return computeAcademicYear(student.roll_no, student.admission_type, chosen) || '-';
-                })()}</div>
+                <div className="font-medium">{getAcademicYear(student.roll_no) || '-'}</div>
               </div>
             </div>
             {isMobileMenuOpen && (
@@ -533,7 +526,7 @@ export default function StudentProfile() {
                     <tbody>
                         { (studentData.scholarship || []).map((s, i) => (
                           <tr key={s.id || i}>
-                            <td className="py-2 px-4 border-b whitespace-nowrap">{computeAcademicYear(student.roll_no, student.admission_type, s.year) || `Year ${s.year}`}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{computeAcademicYear(student.roll_no, s.year) || `Year ${s.year}`}</td>
                             <td className="py-2 px-4 border-b whitespace-nowrap">{s.proceedings_no || '-'}</td>
                             <td className="py-2 px-4 border-b whitespace-nowrap">{s.amount_sanctioned ?? '-'}</td>
                             <td className="py-2 px-4 border-b whitespace-nowrap">{s.amount_disbursed ?? '-'}</td>
@@ -571,13 +564,10 @@ export default function StudentProfile() {
                 <h2 className="text-xl font-bold mb-4">Academic Details</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <span className="font-semibold">Course:</span> B.Tech
+                    <span className="font-semibold">Branch:</span> {getBranchFromRoll(student.roll_no)}
                   </div>
                   <div>
-                    <span className="font-semibold">Branch:</span> CSE
-                  </div>
-                  <div>
-                    <span className="font-semibold">Current Year:</span> 2
+                    <span className="font-semibold">Current Year:</span> {getCurrentStudyingYear(student.roll_no)}
                   </div>
                   <div>
                     <span className="font-semibold">Attendance:</span> 78%

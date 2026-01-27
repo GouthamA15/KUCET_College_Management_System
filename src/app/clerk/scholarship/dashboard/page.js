@@ -5,7 +5,8 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import toast from 'react-hot-toast';
-import { computeAcademicYear, computeTotalAcademicSpan } from '@/app/lib/academicYear';
+import { computeAcademicYear } from '@/app/lib/academicYear';
+import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear } from '@/lib/rollNumber';
 
 export default function ScholarshipDashboard() {
   const [roll, setRoll] = useState('');
@@ -55,13 +56,12 @@ export default function ScholarshipDashboard() {
       setFeeDetails(data.feeDetails || {});
       setScholarshipRecords(Array.isArray(data.scholarship) ? data.scholarship : []);
 
-      const adm = data.student.admission_type || data.student.admissionType || (data.personal && data.personal.admission_type);
-      if (adm) {
-        const lower = String(adm).toLowerCase();
-        if (lower.includes('lateral')) setYearCount(3);
-        else setYearCount(4);
+      const academicYear = getAcademicYear(data.student.roll_no);
+      if (academicYear) {
+        const [start, end] = academicYear.split('-').map(Number);
+        setYearCount(end - start);
       } else {
-        setYearCount(4);
+        setYearCount(4); // Default to 4 years if academic year is not available
       }
 
       toast.success('Student loaded', { id });
@@ -189,7 +189,7 @@ export default function ScholarshipDashboard() {
             <div className="bg-white p-6 rounded-lg shadow">
               <div className="flex justify-between items-start">
                 <h2 className="text-xl font-semibold">Student Information</h2>
-                <div className="text-sm text-gray-700">Admission Type: <span className="font-medium">{student.admission_type || (personal && personal.admission_type) || 'Regular'}</span> ({yearCount} Years)</div>
+                <div className="text-sm text-gray-700">Admission Type: <span className="font-medium">{getAdmissionTypeFromRoll(student.roll_no) || 'Regular'}</span> ({yearCount} Years)</div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                 <div>
@@ -216,21 +216,18 @@ export default function ScholarshipDashboard() {
                   <div className="text-sm text-gray-500 mt-2">Qualifying Exam</div>
                   <div className="font-medium">{academic?.qualifying_exam || '-'}</div>
                   <div className="text-sm text-gray-500 mt-2">Course</div>
-                  <div className="font-medium">{student.course || '-'}</div>
+                  <div className="font-medium">{getBranchFromRoll(student.roll_no) || '-'}</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
                   <div className="text-sm text-gray-500">Academic Year</div>
-                  <div className="font-medium">{(() => {
-                    const val = computeTotalAcademicSpan(student.roll_no, student.admission_type || (personal && personal.admission_type));
-                    return val || '-';
-                  })()}</div>
+                  <div className="font-medium">{getAcademicYear(student.roll_no) || '-'}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">Admission Type (detailed)</div>
-                  <div className="font-medium">{student.admission_type || '-'}</div>
+                  <div className="font-medium">{getAdmissionTypeFromRoll(student.roll_no) || '-'}</div>
                 </div>
               </div>
 
@@ -257,7 +254,7 @@ export default function ScholarshipDashboard() {
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
                         <h3 className="font-semibold">Year {year}</h3>
-                        <div className="text-sm text-gray-500">{computeAcademicYear(student.roll_no, student.admission_type, year) || ''}</div>
+                        <div className="text-sm text-gray-500">{computeAcademicYear(student.roll_no, year) || ''}</div>
                         {(() => {
                           // prefer server-provided status color if available
                           const recStatus = rec && rec.status ? String(rec.status).trim() : null;

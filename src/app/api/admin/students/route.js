@@ -40,10 +40,12 @@ export async function GET(request) {
   }
 
   try {
-    const studentsQuery = 'SELECT * FROM students WHERE roll_no LIKE ?';
-    // This is a simplified logic. You might need a more robust way to determine the roll number pattern
-    const rollNumberPattern = `${year.slice(-2)}%T${branch}%`; 
-    const students = await query(studentsQuery, [rollNumberPattern]);
+    const yearShort = year.slice(-2);
+    const regularRollPattern = `${yearShort}567T${branch}%`;
+    const lateralRollPattern = `${yearShort}567${branch}%L`;
+    
+    const studentsQuery = 'SELECT * FROM students WHERE roll_no LIKE ? OR roll_no LIKE ?';
+    const students = await query(studentsQuery, [regularRollPattern, lateralRollPattern]);
 
     return NextResponse.json({ students });
   } catch (error) {

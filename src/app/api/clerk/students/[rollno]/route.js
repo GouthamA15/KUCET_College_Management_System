@@ -69,7 +69,7 @@ export async function PUT(req, context) {
     const params = await context.params;
     const { rollno } = params;
     const body = await req.json();
-    const { name, gender, mobile, email, date_of_birth, course } = body;
+    const { name, gender, mobile, email, date_of_birth } = body;
 
     if (!rollno) {
       return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
@@ -88,7 +88,6 @@ export async function PUT(req, context) {
     if (typeof mobile !== 'undefined') { updates.push('mobile = ?'); paramsArr.push(mobile === '' ? null : mobile); }
     if (typeof email !== 'undefined') { updates.push('email = ?'); paramsArr.push(email === '' ? null : email); }
     if (typeof date_of_birth !== 'undefined') { updates.push('date_of_birth = ?'); paramsArr.push(date_of_birth === '' ? null : toMySQLDate(date_of_birth)); }
-    if (typeof course !== 'undefined') { updates.push('course = ?'); paramsArr.push(course === '' ? null : course); }
 
     if (updates.length === 0) {
       return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 });

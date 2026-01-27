@@ -40,19 +40,17 @@ export async function GET(req) {
     }
 
     const yearShort = year.slice(-2);
-    const lateralYearShort = (parseInt(year, 10) + 1).toString().slice(-2);
+
+    const regularRollPattern = `${yearShort}567T${branch}%`;
+    const lateralRollPattern = `${yearShort}567${branch}%L`;
 
     const sql = `
       SELECT * FROM students
       WHERE 
-        -- Regular students
-        (roll_no LIKE '%T%' AND SUBSTR(roll_no, 1, 2) = ? AND SUBSTR(roll_no, -4, 2) = ?)
-        OR
-        -- Lateral entry students
-        (roll_no LIKE '%L' AND SUBSTR(roll_no, 1, 2) = ? AND SUBSTR(roll_no, -5, 2) = ?)
+        roll_no LIKE ? OR roll_no LIKE ?
     `;
 
-    const students = await query(sql, [yearShort, branch, lateralYearShort, branch]);
+    const students = await query(sql, [regularRollPattern, lateralRollPattern]);
 
     return NextResponse.json({ students });
   } catch (error) {
