@@ -67,8 +67,12 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   Resolved `ReferenceError: useState is not defined` in `src/app/student/profile/page.js` by adding the necessary React import statements.
 *   **Clerk Personal Details API:**
     *   Created a new API endpoint `src/app/api/clerk/personal-details/route.js` to handle the creation and updating of student personal details by clerks.
-*   **Student Search API for Clerks:**
-    *   Created a new API endpoint `src/app/api/clerk/students/search/route.js` that allows clerks to search for students by name, admission number, or roll number.
+*   **Date Format Standardization and Date Picker Integration:**
+    *   Implemented `DD-MM-YYYY` date format across the frontend for displaying and inputting dates of birth.
+    *   Integrated `react-datepicker` into student login and clerk student management forms to provide an intuitive date selection UI.
+    *   Created and utilized new utility functions (`formatDate`, `toMySQLDate`, `parseDate`) in `src/lib/date.js` for consistent date handling across the application.
+    *   Fixed backend API routes (`src/app/api/clerk/students/[rollno]/route.js`, `src/app/api/clerk/admission/students/route.js`, `src/app/api/student/login/route.js`) to correctly parse and store `DD-MM-YYYY` dates in the MySQL database as `YYYY-MM-DD`, resolving `ER_TRUNCATED_WRONG_VALUE` errors.
+    *   A new git branch `testvanilla` was created and pushed to include all these changes.
 
 ## Development Conventions
 
