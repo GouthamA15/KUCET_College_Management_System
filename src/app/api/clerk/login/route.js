@@ -33,7 +33,7 @@ export async function POST(request) {
       .setExpirationTime('1h')
       .sign(secret);
 
-    const response = NextResponse.json({ success: true, message: 'Login successful' });
+    const response = NextResponse.json({ success: true, message: 'Login successful', role: clerk.role });
     response.cookies.set('clerk_auth', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -44,6 +44,13 @@ export async function POST(request) {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60, // 1 hour
+      path: '/',
+    });
+    // Expose the clerk role in a non-httpOnly cookie so client-side code can route appropriately
+    response.cookies.set('clerk_role', clerk.role || '', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60,
       path: '/',
     });
 
