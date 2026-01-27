@@ -1,9 +1,16 @@
-
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { computeAcademicYear } from '@/app/lib/academicYear';
 
 export async function GET(req, context) {
+  const cookieStore = await cookies();
+  const studentAuthCookie = cookieStore.get('student_auth');
+
+  if (!studentAuthCookie || studentAuthCookie.value !== 'true') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const params = await context.params;
     const { rollno } = params;

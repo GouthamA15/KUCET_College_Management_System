@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { jwtVerify } from 'jose';
 
@@ -16,18 +16,33 @@ async function verifyJwt(token, secret) {
   }
 }
 
-export default async function AdminLayout({ children }) {
+export default async function ClerkLayout({ children }) {
   const cookieStore = await cookies();
-  const adminAuthCookie = cookieStore.get('admin_auth');
-  const token = adminAuthCookie ? adminAuthCookie.value : null;
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
 
   if (!token) {
     redirect('/');
   }
 
   const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded || decoded.role !== 'admin') {
+  if (!decoded) {
     redirect('/');
+  }
+
+  const { role } = decoded;
+  const headersList = await headers();
+  const pathname = headersList.get('x-next-pathname');
+
+  if (pathname === '/clerk') {
+    redirect(`/clerk/${role}/dashboard`);
+  }
+
+  if (pathname && pathname.startsWith('/clerk/')) {
+    const requestedDashboard = pathname.split('/')[2];
+    if (requestedDashboard !== role) {
+      redirect(`/clerk/${role}/dashboard`);
+    }
   }
 
   return <>{children}</>;

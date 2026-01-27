@@ -1,8 +1,23 @@
 // src/app/api/clerk/scholarship/[rollno]/route.js
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { computeAcademicYear } from '@/app/lib/academicYear';
+
+// Helper function to verify JWT using jose (Edge compatible)
+async function verifyJwt(token, secret) {
+  try {
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ['HS256'],
+    });
+    return payload;
+  } catch (error) {
+    console.error('JWT Verification failed:', error);
+    return null;
+  }
+}
 
 // Helper function to handle undefined values
 const toNull = (value) => (value === undefined || value === '' ? null : value);
@@ -16,22 +31,19 @@ const normalizeStatus = (value) => {
   return 'Pending';
 };
 
-function parseCookies(cookieHeader) {
-  const obj = {};
-  if (!cookieHeader) return obj;
-  const parts = cookieHeader.split(';').map(p => p.trim());
-  for (const part of parts) {
-    const idx = part.indexOf('=');
-    if (idx > -1) {
-      const k = part.slice(0, idx);
-      const v = decodeURIComponent(part.slice(idx + 1));
-      obj[k] = v;
-    }
-  }
-  return obj;
-}
+  const cookieStore = await cookies();
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
 
-export async function GET(req, ctx) {
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
     const { rollno } = params;
@@ -100,6 +112,19 @@ export async function GET(req, ctx) {
 }
 
 export async function PUT(req, ctx) {
+  const cookieStore = cookies();
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
     const { rollno } = params;
@@ -115,19 +140,7 @@ export async function PUT(req, ctx) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // Determine clerk username from JWT cookie if available
-    let updatedBy = null;
-    try {
-      const cookieHeader = req.headers.get('cookie') || '';
-      const cookies = parseCookies(cookieHeader);
-      const token = cookies['clerk_auth'];
-      if (token && process.env.JWT_SECRET) {
-        const { payload } = await jwtVerify(token, new TextEncoder().encode(process.env.JWT_SECRET));
-        updatedBy = payload.email || (payload.id ? `clerk:${payload.id}` : null);
-      }
-    } catch (err) {
-      console.warn('Could not decode clerk token for updated_by:', err);
-    }
+    const updatedBy = decoded.email || (decoded.id ? `clerk:${decoded.id}` : null);
 
     // Update fees (if any)
     if (fees) {
