@@ -5,8 +5,7 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import toast from 'react-hot-toast';
-import { computeAcademicYear } from '@/app/lib/academicYear';
-import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear } from '@/lib/rollNumber';
+import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
 
 export default function ScholarshipDashboard() {
   const [roll, setRoll] = useState('');
@@ -254,7 +253,7 @@ export default function ScholarshipDashboard() {
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
                         <h3 className="font-semibold">Year {year}</h3>
-                        <div className="text-sm text-gray-500">{computeAcademicYear(student.roll_no, year) || ''}</div>
+                        <div className="text-sm text-gray-500">{getAcademicYearForStudyYear(student.roll_no, year) || ''}</div>
                         {(() => {
                           // prefer server-provided status color if available
                           const recStatus = rec && rec.status ? String(rec.status).trim() : null;

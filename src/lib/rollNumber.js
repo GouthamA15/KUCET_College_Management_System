@@ -101,6 +101,18 @@ function getCurrentStudyingYear(rollNo) {
   return null;
 }
 
+function getAcademicYearForStudyYear(rollNo, yearOfStudy) {
+  const entryYear = getEntryYearFromRoll(rollNo);
+  if (!entryYear) {
+    return null;
+  }
+
+  const startYear = parseInt(entryYear, 10) + (yearOfStudy - 1);
+  const endYear = startYear + 1;
+
+  return `${startYear}-${String(endYear).slice(-2)}`;
+}
+
 export {
   validateRollNo,
   getEntryYearFromRoll,
@@ -108,5 +120,6 @@ export {
   getAdmissionTypeFromRoll,
   getAcademicYear,
   getCurrentStudyingYear,
+  getAcademicYearForStudyYear,
   branchCodes,
 };
