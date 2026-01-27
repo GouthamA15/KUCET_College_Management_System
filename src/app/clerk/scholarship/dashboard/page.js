@@ -22,6 +22,10 @@ export default function ScholarshipDashboard() {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
 
+  // Calculate these once before the render loop if student data is available
+  const admissionType = student ? getAdmissionTypeFromRoll(student.roll_no) : null;
+  const displayYearOffset = (admissionType === 'Lateral') ? 1 : 0;
+
   const handleLogout = () => {
     document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
     document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
@@ -245,15 +249,17 @@ export default function ScholarshipDashboard() {
             {/* Year-wise cards */}
             <div className="space-y-4">
               {Array.from({ length: yearCount }).map((_, idx) => {
-                const year = idx + 1;
-                const rec = scholarshipRecords.find(r => Number(r.year) === Number(year));
-                const status = yearStatus(year);
-                return (
-                  <div key={year} className="bg-white rounded-lg shadow p-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-4">
-                        <h3 className="font-semibold">Year {year}</h3>
-                        <div className="text-sm text-gray-500">{getAcademicYearForStudyYear(student.roll_no, year) || ''}</div>
+                  const collegeYear = idx + 1; // Year relative to college admission (1, 2, 3...)
+                  const btechYear = collegeYear + displayYearOffset; // Year relative to B.Tech (1, 2, 3...)
+
+                  const rec = scholarshipRecords.find(r => Number(r.year) === Number(collegeYear));
+                  const status = yearStatus(collegeYear);
+                  return (
+                    <div key={collegeYear} className="bg-white rounded-lg shadow p-4">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-4">
+                          <h3 className="font-semibold">Year {btechYear}</h3>
+                          <div className="text-sm text-gray-500">{getAcademicYearForStudyYear(student.roll_no, collegeYear) || ''}</div>
                         {(() => {
                           // prefer server-provided status color if available
                           const recStatus = rec && rec.status ? String(rec.status).trim() : null;
@@ -287,11 +293,11 @@ export default function ScholarshipDashboard() {
                       </div>
                       <div className="flex items-center gap-2">
                         {!rec && (() => {
-                          const prevRec = scholarshipRecords.find(r => Number(r.year) === Number(year - 1));
-                          const allowAdd = year === 1 || !!prevRec;
+                          const prevRec = scholarshipRecords.find(r => Number(r.year) === Number(collegeYear - 1));
+                          const allowAdd = collegeYear === 1 || !!prevRec;
                           return (
                             <button
-                              onClick={() => allowAdd && openModalForYear(year)}
+                              onClick={() => allowAdd && openModalForYear(collegeYear)}
                               disabled={!allowAdd}
                               title={!allowAdd ? 'Please add previous year record first' : ''}
                               className={`px-3 py-1 rounded ${allowAdd ? 'bg-indigo-600 text-white cursor-pointer' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
@@ -302,14 +308,14 @@ export default function ScholarshipDashboard() {
                         })()}
                         {rec && (
                           <>
-                            <button onClick={() => { setExpandedYear(expandedYear === year ? null : year); }} className={`px-3 py-1 border rounded cursor-pointer transition transform duration-150 ${expandedYear === year ? 'scale-105' : ''}`}>{expandedYear === year ? 'Collapse' : 'Expand'}</button>
-                            <button onClick={() => openModalForYear(year, rec)} className="px-3 py-1 bg-yellow-600 text-white rounded cursor-pointer transition duration-150 hover:scale-105">Edit Record</button>
+                            <button onClick={() => { setExpandedYear(expandedYear === collegeYear ? null : collegeYear); }} className={`px-3 py-1 border rounded cursor-pointer transition transform duration-150 ${expandedYear === collegeYear ? 'scale-105' : ''}`}>{expandedYear === collegeYear ? 'Collapse' : 'Expand'}</button>
+                            <button onClick={() => openModalForYear(collegeYear, rec)} className="px-3 py-1 bg-yellow-600 text-white rounded cursor-pointer transition duration-150 hover:scale-105">Edit Record</button>
                           </>
                         )}
                       </div>
                     </div>
 
-                    {expandedYear === year && rec && (
+                    {expandedYear === collegeYear && rec && (
                       <div className="mt-4 border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4 animate-slideDown">
                         {String(rec.application_no) === String(student.roll_no) ? (
                           <div>
