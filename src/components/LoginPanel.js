@@ -75,7 +75,14 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        router.replace('/clerk/dashboard');
+        // Prefer explicit role from response; fallback to generic
+        const role = (data.role || '').toString().toLowerCase();
+        if (role.includes('scholar')) {
+          router.replace('/clerk/scholarship/dashboard');
+        } else {
+          // Treat everything else as admission/administrative by default
+          router.replace('/clerk/admission/dashboard');
+        }
       } else {
         toast.error(data.message || 'Clerk login failed', { id: toastId });
         setClerkError(data.message || 'Clerk login failed');

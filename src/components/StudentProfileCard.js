@@ -1,7 +1,7 @@
+'use client';
 import { formatDate } from '@/lib/date';
 
 // A compact student profile card for admin view
-'use client';
 
 export default function StudentProfileCard({ student }) {
   if (!student) return null;
