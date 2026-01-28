@@ -72,9 +72,17 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
               )
             ) : studentProfileMode ? (
               <>
-                <button onClick={() => setActiveTab('basic')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'basic' ? 'text-blue-200' : ''}`}>
-                  Basic
-                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'basic' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                <button onClick={() => setActiveTab('academics')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'academics' ? 'text-blue-200' : ''}`}>
+                  Academics
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'academics' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                </button>
+                <button onClick={() => { router.push('/student/timetable'); }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Time Table
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                </button>
+                <button onClick={() => { router.push('/student/requests'); }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  Requests
+                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                 </button>
                 <button onClick={() => setActiveTab('scholarship')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'scholarship' ? 'text-blue-200' : ''}`}>
                   Scholarship
@@ -84,9 +92,9 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                   Fees
                   <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'fees' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                 </button>
-                <button onClick={() => setActiveTab('academics')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'academics' ? 'text-blue-200' : ''}`}>
-                  Academics
-                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'academics' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                <button onClick={() => setActiveTab('basic')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'basic' ? 'text-blue-200' : ''}`}>
+                  Profile
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'basic' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                 </button>
                 <button onClick={onLogout} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                   Logout
