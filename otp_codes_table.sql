@@ -1,3 +1,9 @@
+-- This script adds an index to the 'roll_no' column of the 'students' table.
+-- This is required to create a foreign key constraint from the 'otp_codes' table.
+-- Run this script before creating the 'otp_codes' table.
+
+ALTER TABLE `students` ADD INDEX `idx_roll_no` (`roll_no`);
+
 CREATE TABLE `otp_codes` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `roll_no` VARCHAR(255) NOT NULL,

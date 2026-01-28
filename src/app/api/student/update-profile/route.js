@@ -12,27 +12,15 @@ export async function POST(req) {
 
   try {
     const body = await req.json();
-    const { rollno, phone, email } = body; 
+    const { rollno, phone } = body; 
 
-    if (!rollno || (!phone && !email)) {
-      return NextResponse.json({ error: 'Missing rollno or at least one field to update' }, { status: 400 });
+    if (!rollno || !phone) {
+      return NextResponse.json({ error: 'Missing rollno or phone number' }, { status: 400 });
     }
 
     const db = getDb();
-    let query = 'UPDATE students SET ';
-    let params = [];
-    let updates = [];
-
-    if (phone) {
-      updates.push('mobile = ?');
-      params.push(phone);
-    }
-    if (email) {
-      updates.push('email = ?');
-      params.push(email);
-    }
-    query += updates.join(', ') + ' WHERE roll_no = ?';
-    params.push(rollno);
+    let query = 'UPDATE students SET mobile = ? WHERE roll_no = ?';
+    let params = [phone, rollno];
 
     const [result] = await db.execute(query, params);
 
