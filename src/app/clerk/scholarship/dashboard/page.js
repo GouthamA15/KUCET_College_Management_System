@@ -22,6 +22,30 @@ export default function ScholarshipDashboard() {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
 
+  // Fee constants and helpers
+  const SELF_FINANCE_BRANCHES = ['CSD', 'IT', 'CIVIL'];
+
+  const isSelfFinanceBranch = (branch) => {
+    if (!branch) return false;
+    return SELF_FINANCE_BRANCHES.includes(String(branch).toUpperCase());
+  };
+
+  const computeTotalFee = (rollNo, application_no) => {
+    const branch = getBranchFromRoll(rollNo);
+    const isSelf = isSelfFinanceBranch(branch);
+    const isScholar = (() => {
+      if (!application_no) return false;
+      return String(application_no).trim() !== String(rollNo);
+    })();
+
+    if (!isSelf) {
+      return 35000;
+    }
+
+    // self finance
+    return isScholar ? 35000 : 70000;
+  };
+
   // Calculate these once before the render loop if student data is available
   const admissionType = student ? getAdmissionTypeFromRoll(student.roll_no) : null;
   const displayYearOffset = (admissionType === 'Lateral') ? 1 : 0;
@@ -78,8 +102,8 @@ export default function ScholarshipDashboard() {
   const openModalForYear = (year, existing = null) => {
     setEditingYear(year);
     const base = existing
-      ? { ...existing }
-      : { year, application_no: '' };
+      ? { ...existing, amount_paid: existing.amount_paid ?? '', utr_no: existing.utr_no ?? '', utr_date: existing.utr_date ?? '' }
+      : { year, application_no: '', amount_paid: '', utr_no: '', utr_date: '' };
     setForm(base);
     setModalOpen(true);
   };
@@ -115,12 +139,28 @@ export default function ScholarshipDashboard() {
     const id = toast.loading('Saving record...');
     try {
       const dataToSave = { ...form };
-      // If proceedings number is provided (scholar), mark as Success.
-      if (dataToSave.proceedings_no && String(dataToSave.proceedings_no).trim() !== '') {
-        dataToSave.status = 'Success';
-      } else if (type === 'non' && dataToSave.amount_paid && String(dataToSave.amount_paid).trim() !== '') {
-        // For non-scholars, if Amount Paid is provided, mark status as Success
-        dataToSave.status = 'Success';
+
+      // Compute fee, pending and status based on roll & application
+      const totalFee = computeTotalFee(student.roll_no, dataToSave.application_no);
+      const amountPaid = Number(String(dataToSave.amount_paid || '').trim() || 0);
+      const pending = Math.max(0, Number(totalFee) - Number(amountPaid));
+      dataToSave.total_fee = totalFee;
+      dataToSave.pending_fee = pending;
+      dataToSave.status = pending > 0 ? 'Pending' : 'Success';
+
+      // If payment provided, ensure transaction id/date exist
+      if (amountPaid > 0) {
+        if (!dataToSave.utr_no || String(dataToSave.utr_no).trim() === '') {
+          dataToSave.utr_no = 'TX' + Date.now().toString() + Math.random().toString(36).slice(2,6);
+        }
+        if (!dataToSave.utr_date || String(dataToSave.utr_date).trim() === '') {
+          dataToSave.utr_date = new Date().toISOString().slice(0,10);
+        }
+      }
+
+      // For scholarship records, keep amount_disbursed in sync with clerk-entered amount_paid when provided
+      if (type === 'scholar') {
+        if (!dataToSave.amount_disbursed && amountPaid > 0) dataToSave.amount_disbursed = amountPaid;
       }
 
       const payload = { scholarship: [ dataToSave ] };
@@ -163,9 +203,9 @@ export default function ScholarshipDashboard() {
           <div className="bg-white p-4 rounded-lg shadow border-2 border-indigo-50 flex flex-col">
             <h3 className="font-semibold">Fetch Student</h3>
             <p className="text-sm text-gray-600">Primary action: fetch a student by roll number</p>
-            <form onSubmit={fetchStudent} className="mt-3 flex gap-2">
-              <input value={roll} onChange={(e) => setRoll(e.target.value)} placeholder="Roll Number" className="flex-grow px-3 py-2 border rounded" />
-              <button type="submit" disabled={!roll || loading} className="px-4 py-2 bg-indigo-700 text-white rounded disabled:opacity-60">{loading ? 'Fetching...' : 'Fetch'}</button>
+              <form onSubmit={fetchStudent} className="mt-3 flex gap-2 items-center">
+              <input value={roll} onChange={(e) => setRoll(e.target.value)} placeholder="Roll Number" className="flex-grow min-w-0 px-3 py-2 border rounded" />
+              <button type="submit" disabled={!roll || loading} className="px-4 py-2 bg-indigo-700 text-white rounded disabled:opacity-60 whitespace-nowrap flex-shrink-0 min-w-[90px] text-center">{loading ? 'Fetching...' : 'Fetch'}</button>
             </form>
           </div>
 
@@ -342,10 +382,24 @@ export default function ScholarshipDashboard() {
 
                         <div>
                           <h4 className="font-semibold">Fee Particulars</h4>
-                          <div className="text-sm">Total Fee: {feeDetails?.total_fee ?? '-'}</div>
-                          <div className="text-sm">Total Paid: {feeDetails?.total_paid ?? '-'}</div>
-                          <div className="text-sm">Pending Fee: {feeDetails?.pending_fee ?? '-'}</div>
-                          <div className="text-sm">Fee Reimbursement: {feeDetails?.fee_reimbursement ?? '-'}</div>
+                          {(() => {
+                            const totalFee = computeTotalFee(student.roll_no, rec.application_no);
+                            const totalPaid = Number(rec.amount_paid ?? rec.amount_disbursed ?? 0);
+                            const pendingFee = Math.max(0, totalFee - totalPaid);
+                            const txn = rec.utr_no || rec.ch_no || '-';
+                            const txnDate = rec.utr_date || rec.date || '-';
+                            const statusAuto = pendingFee > 0 ? 'Pending' : 'Success';
+                            return (
+                              <>
+                                <div className="text-sm">Total Fee: {totalFee}</div>
+                                <div className="text-sm">Total Paid: {totalPaid ?? '-'}</div>
+                                <div className="text-sm">Pending Fee: {pendingFee}</div>
+                                <div className="text-sm">Transaction ID: {txn}</div>
+                                <div className="text-sm">Date: {txnDate}</div>
+                                <div className="text-sm">Status: {rec.status || statusAuto}</div>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
@@ -362,59 +416,68 @@ export default function ScholarshipDashboard() {
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
               <h3 className="text-lg font-semibold mb-3">{form.id ? 'Edit' : 'Add'} Record — Year {editingYear}</h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-gray-600">Application Number *</label>
-                  <input value={form.application_no || ''} onChange={(e) => setForm({ ...form, application_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Fee Particulars */}
+                <div className="p-4 bg-gray-50 rounded">
+                  <h4 className="font-semibold mb-2">Fee Particulars</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-gray-600">Total Fee (auto)</label>
+                      <div className="mt-1 px-3 py-2 border rounded w-full bg-white">{student ? computeTotalFee(student.roll_no, form.application_no) : '-'}</div>
+                    </div>
 
-                {/* show remaining fields only for Scholarship students (application_no != roll_no) */}
-                {evaluateType(form.application_no) === 'scholar' && (
-                  <div>
-                    <label className="block text-sm text-gray-600">Proceedings Number</label>
-                    <input value={form.proceedings_no || ''} onChange={(e) => setForm({ ...form, proceedings_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                  </div>
-                )}
-
-                {/* Scholarship fields (visible if scholar) */}
-                {evaluateType(form.application_no) === 'scholar' && (
-                  <>
-                    <div>
-                      <label className="block text-sm text-gray-600">Amount Sanctioned</label>
-                      <input value={form.amount_sanctioned || ''} onChange={(e) => setForm({ ...form, amount_sanctioned: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600">Amount Distributed</label>
-                      <input value={form.amount_disbursed || ''} onChange={(e) => setForm({ ...form, amount_disbursed: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600">Challan Number</label>
-                      <input value={form.ch_no || ''} onChange={(e) => setForm({ ...form, ch_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600">Date</label>
-                      <input type="date" value={form.date || ''} onChange={(e) => setForm({ ...form, date: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
-                  </>
-                )}
-
-                {/* Non-scholar fields */}
-                {evaluateType(form.application_no) === 'non' && (
-                  <>
-                    <div>
-                      <label className="block text-sm text-gray-600">UTR Number</label>
-                      <input value={form.utr_no || ''} onChange={(e) => setForm({ ...form, utr_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600">UTR Date</label>
-                      <input type="date" value={form.utr_date || ''} onChange={(e) => setForm({ ...form, utr_date: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
                     <div>
                       <label className="block text-sm text-gray-600">Amount Paid</label>
                       <input value={form.amount_paid || ''} onChange={(e) => setForm({ ...form, amount_paid: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
                     </div>
-                  </>
-                )}
+
+                    <div>
+                      <label className="block text-sm text-gray-600">UTR / Transaction ID</label>
+                      <input value={form.utr_no || ''} onChange={(e) => setForm({ ...form, utr_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-gray-600">UTR Date</label>
+                      <input type="date" value={form.utr_date || ''} onChange={(e) => setForm({ ...form, utr_date: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scholarship Particulars */}
+                <div className="p-4 bg-gray-50 rounded">
+                  <h4 className="font-semibold mb-2">Scholarship Particulars</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-gray-600">Application Number *</label>
+                      <input value={form.application_no || ''} onChange={(e) => setForm({ ...form, application_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
+                    </div>
+
+                    {evaluateType(form.application_no) === 'scholar' && (
+                      <>
+                        <div>
+                          <label className="block text-sm text-gray-600">Proceedings Number</label>
+                          <input value={form.proceedings_no || ''} onChange={(e) => setForm({ ...form, proceedings_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600">Amount Sanctioned</label>
+                          <input value={form.amount_sanctioned || ''} onChange={(e) => setForm({ ...form, amount_sanctioned: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600">Amount Distributed</label>
+                          <input value={form.amount_disbursed || ''} onChange={(e) => setForm({ ...form, amount_disbursed: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600">Challan Number</label>
+                          <input value={form.ch_no || ''} onChange={(e) => setForm({ ...form, ch_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600">Date</label>
+                          <input type="date" value={form.date || ''} onChange={(e) => setForm({ ...form, date: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="mt-4 flex justify-end gap-2">
