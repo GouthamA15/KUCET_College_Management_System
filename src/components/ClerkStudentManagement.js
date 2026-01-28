@@ -255,92 +255,75 @@ export default function ClerkStudentManagement() {
     if (!fetchedStudent) return;
     setSaving(true);
     const toastId = toast.loading('Saving changes...');
-    try { try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} } catch (e) {}
-    try{
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+
+    try {
       const roll = fetchedStudent.roll_no;
-      const errors = [];
-      const warnings = [];
 
-      // 1) Update students core fields where API supports it
-      try {
-        const payload = {
-          name: editValues.name || null,
-          gender: editValues.gender || null,
-          mobile: editValues.mobile || null,
-          date_of_birth: editValues.date_of_birth || null
-        };
-        const resStu = await fetch(`/api/clerk/students/${roll}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-        const dStu = await resStu.json();
-        if (!resStu.ok) errors.push(dStu.error || dStu.message || 'Failed to update student core details');
-      } catch (e) { errors.push(e.message || 'Student update request failed'); }
+      const updatedData = {
+        // Basic Details (from editValues)
+        name: editValues.name,
+        admission_no: editValues.admission_no,
+        date_of_birth: editValues.date_of_birth,
+        gender: editValues.gender,
+        mobile: editValues.mobile,
+        email: editValues.email,
 
-      // 2) Update contact info via existing student update endpoint
-      try {
-        const updateProfile = { rollno: roll };
-        if (editValues.mobile) updateProfile.phone = editValues.mobile;
-        if (editValues.email) updateProfile.email = editValues.email;
-        if (updateProfile.phone || updateProfile.email) {
-          const res1 = await fetch('/api/student/update-profile', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(updateProfile)});
-          const d1 = await res1.json();
-          if (!res1.ok) errors.push(d1.error || 'Failed to update contact info');
-        }
-      } catch (e) { errors.push(e.message || 'Update-profile request failed'); }
+        // Personal Details (from personalFull)
+        father_name: personalFull.father_name,
+        mother_name: personalFull.mother_name,
+        nationality: personalFull.nationality,
+        religion: personalFull.religion,
+        category: personalFull.category,
+        sub_caste: personalFull.sub_caste,
+        area_status: personalFull.area_status,
+        mother_tongue: personalFull.mother_tongue,
+        place_of_birth: personalFull.place_of_birth,
+        father_occupation: personalFull.father_occupation,
+        annual_income: personalFull.annual_income,
+        aadhaar_no: personalFull.aadhaar_no,
+        guardian_mobile: personalFull.guardian_mobile,
+        address: personalFull.address,
+        seat_allotted_category: personalFull.seat_allotted_category,
+        identification_marks: personalFull.identification_marks,
+        ncc_nss_details: personalFull.ncc_nss_details,
 
-      // 3) Persist personal details
-      try {
-        // Build personal payload that uses null for empty values to match DB schema
-        const pdFields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','annual_income','aadhaar_no','guardian_mobile','address','seat_allotted_category','identification_marks','ncc_nss_details'];
-        const personalPayload = { roll_no: roll };
-        pdFields.forEach(f => { personalPayload[f] = personalFull[f] ? personalFull[f] : null; });
-        const res2 = await fetch('/api/clerk/personal-details', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(personalPayload) });
-        const d2 = await res2.json();
-        if (!res2.ok) errors.push(d2.error || d2.message || 'Failed to save personal details');
-      } catch (e) { errors.push(e.message || 'Personal-details request failed'); }
+        // Academic Background (from academicsList[0])
+        qualifying_exam: academicsList[0]?.qualifying_exam,
+        previous_college_details: academicsList[0]?.previous_college_details,
+        medium_of_instruction: academicsList[0]?.medium_of_instruction,
+        total_marks: academicsList[0]?.total_marks,
+        marks_secured: academicsList[0]?.marks_secured,
+      };
 
-      // 4) Attempt to persist academics (best-effort). Skip if empty; treat 404 as a warning.
-      try {
-        if (academicsList && academicsList.length > 0) {
-          const acadPayload = { roll_no: roll, academics: academicsList };
-          const resA = await fetch('/api/clerk/academics', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(acadPayload) });
-          if (resA.status === 404) {
-            warnings.push('Academics endpoint not available; academic changes were not saved.');
-          } else {
-            const dA = await resA.json();
-            if (!resA.ok) errors.push(dA.error || dA.message || 'Failed to save academics');
-          }
-        }
-      } catch (e) { errors.push('Academics update request failed or endpoint missing'); }
+      const res = await fetch(`/api/clerk/admission/students/${roll}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
+      });
 
-      // Update local copy for immediate UX
-      fetchedStudent.name = editValues.name || fetchedStudent.name;
-      fetchedStudent.date_of_birth = editValues.date_of_birth || fetchedStudent.date_of_birth;
-      fetchedStudent.gender = editValues.gender || fetchedStudent.gender;
-      fetchedStudent.mobile = editValues.mobile || fetchedStudent.mobile;
-      fetchedStudent.email = editValues.email || fetchedStudent.email;
-      fetchedStudent.admission_no = editValues.admission_no || fetchedStudent.admission_no;
-      
-      fetchedStudent.personal_details = { ...(fetchedStudent.personal_details || {}), ...personalFull };
+      const data = await res.json();
 
-      if (errors.length === 0) {
-        // Update originals so Save button hides after successful save
-        setOriginalEditValues(JSON.parse(JSON.stringify(editValues)));
-        setOriginalPersonalFull(JSON.parse(JSON.stringify(personalFull)));
-        setOriginalAcademicsList(JSON.parse(JSON.stringify(academicsList)));
-
-        if (warnings.length === 0) {
-          toast.success('Saved changes successfully', { id: toastId });
-        } else {
-          toast.success('Saved changes (with warnings)', { id: toastId });
-          toast('Warnings: ' + warnings.join(' | '));
-        }
-        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
-      } else {
-        toast.error('Save failed: ' + errors.join(' | '), { id: toastId });
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update student details');
       }
-    }catch(err){
+
+      toast.success('Saved changes successfully', { id: toastId });
+
+      // After successful save, refresh the student data to ensure UI reflects latest DB state
+      await loadFullProfileByRoll(roll);
+
+      // Reset original values to hide Save button
+      setOriginalEditValues(JSON.parse(JSON.stringify(editValues)));
+      setOriginalPersonalFull(JSON.parse(JSON.stringify(personalFull)));
+      setOriginalAcademicsList(JSON.parse(JSON.stringify(academicsList)));
+
+    } catch (err) {
       console.error(err);
       toast.error(err.message || 'Save failed', { id: toastId });
-    }finally{ setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const hasEdits = () => {
