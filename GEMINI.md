@@ -51,6 +51,8 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **`281827b` - chore: sync remaining changes**
+*   **`5c21a37` - fix: resolve email update OTP verification flow**
 *   **`425d88a` - docs: Update GEMINI.md with latest changes and refactoring**
 *   **`166d582` - Updated Student Login using DOB Functionality**
 *   **`78f7e86` - Updated Componenets**

@@ -1,7 +1,15 @@
 import { getDb } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 export async function POST(req) {
+  const cookieStore = await cookies();
+  const studentAuthCookie = cookieStore.get('student_auth');
+
+  if (!studentAuthCookie || studentAuthCookie.value !== 'true') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
   try {
     const { rollno, otp, email } = await req.json();
 

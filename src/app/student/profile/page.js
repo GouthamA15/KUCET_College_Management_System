@@ -245,25 +245,13 @@ export default function StudentProfile() {
         body: JSON.stringify({
           rollno: studentData.student.roll_no,
           phone: sanitizeDigits(mobile, 12),
-          // Email is now updated via OTP verification
+          address: address,
+          // Email is now updated via OTP verification, so not sent here
         }),
       });
+
       const result = await response.json();
       if (response.ok) {
-        try {
-          const pdRes = await fetch('/api/clerk/personal-details', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roll_no: studentData.student.roll_no, address: address }),
-          });
-          const pdJson = await pdRes.json();
-          if (!pdRes.ok) throw new Error(pdJson.error || 'Failed to save personal details');
-        } catch (err) {
-          console.error('Save personal details error:', err);
-          toast.error('Failed to save address.');
-          return;
-        }
-
         toast.success('Profile updated successfully!');
         setIsEditing(false);
         setOriginalMobile(sanitizeDigits(mobile, 12));
@@ -280,7 +268,7 @@ export default function StudentProfile() {
 
         fetchProfile(studentData.student.roll_no);
       } else {
-        toast.error(result.message || 'Failed to update contact details.');
+        toast.error(result.error || 'Failed to update profile.');
       }
     } catch (error) {
       toast.error('Network error. Please try again.');
@@ -477,6 +465,7 @@ export default function StudentProfile() {
                                 onClick={() => {
                                   setIsPhotoRemoved(true);
                                   setPhotoChanged(true);
+                                  setPreviewPhoto(null);
                                 }}
                                 className="text-sm text-red-600 hover:underline cursor-pointer"
                               >
@@ -651,16 +640,22 @@ export default function StudentProfile() {
                       </tr>
                     </thead>
                     <tbody>
-                        { (studentData.scholarship || []).map((s, i) => (
+                      {(studentData.scholarship || []).length > 0 ? (
+                        studentData.scholarship.map((s, i) => (
                           <tr key={s.id || i}>
                             <td className="py-2 px-4 border-b whitespace-nowrap">{computeAcademicYear(student.roll_no, s.year) || `Year ${s.year}`}</td>
                             <td className="py-2 px-4 border-b whitespace-nowrap">{s.proceedings_no || '-'}</td>
                             <td className="py-2 px-4 border-b whitespace-nowrap">{s.amount_sanctioned ?? '-'}</td>
                             <td className="py-2 px-4 border-b whitespace-nowrap">{s.amount_disbursed ?? '-'}</td>
                             <td className="py-2 px-4 border-b whitespace-nowrap">{s.ch_no || '-'}</td>
-                            <td className="py-2 px-4 border-b whitespace-nowrap">{s.date || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{formatDate(s.date) || '-'}</td>
                           </tr>
-                        )) }
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="6" className="py-4 px-4 text-center text-gray-500">No scholarship records found.</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -669,35 +664,96 @@ export default function StudentProfile() {
             {activeTab === 'fees' && (
               <div>
                 <h2 className="text-xl font-bold mb-4">Fee Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-gray-100 rounded shadow">
-                    <span className="font-semibold">Total Fee:</span> ₹70000
+                
+                {/* Fee Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="p-4 bg-blue-50 rounded-lg shadow">
+                    <span className="text-sm font-medium text-blue-800">Total Fee</span>
+                    <p className="text-2xl font-bold text-blue-900">₹70,000</p>
                   </div>
-                  <div className="p-4 bg-gray-100 rounded shadow">
-                    <span className="font-semibold">Paid:</span> ₹70000
+                  <div className="p-4 bg-green-50 rounded-lg shadow">
+                    <span className="text-sm font-medium text-green-800">Total Paid</span>
+                    <p className="text-2xl font-bold text-green-900">
+                      ₹{studentData.fees.reduce((acc, fee) => acc + (fee.amount || 0), 0).toLocaleString()}
+                    </p>
                   </div>
-                  <div className="p-4 bg-gray-100 rounded shadow">
-                    <span className="font-semibold">Pending:</span> ₹0
+                  <div className="p-4 bg-red-50 rounded-lg shadow">
+                    <span className="text-sm font-medium text-red-800">Pending Fee</span>
+                    <p className="text-2xl font-bold text-red-900">
+                      ₹{(70000 - studentData.fees.reduce((acc, fee) => acc + (fee.amount || 0), 0)).toLocaleString()}
+                    </p>
                   </div>
-                  <div className="p-4 bg-gray-100 rounded shadow">
-                    <span className="font-semibold">Last Payment Date:</span> Pending
-                  </div>
+                </div>
+
+                {/* Fee Transactions Table */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Academic Year</th>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Transaction ID</th>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Amount</th>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Date</th>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(studentData.fees || []).length > 0 ? (
+                        studentData.fees.map((fee, i) => (
+                          <tr key={fee.id || i}>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{computeAcademicYear(student.roll_no, fee.year) || `Year ${fee.year}`}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{fee.transaction_id || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">₹{fee.amount ? fee.amount.toLocaleString() : '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{formatDate(fee.date) || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${fee.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                {fee.status || 'N/A'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="py-4 px-4 text-center text-gray-500">No fee records found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
             {activeTab === 'academics' && (
               <div>
-                <h2 className="text-xl font-bold mb-4">Academic Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-semibold">Branch:</span> {getBranchFromRoll(student.roll_no)}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Current Year:</span> {getCurrentStudyingYear(student.roll_no)}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Attendance:</span> 78%
-                  </div>
+                <h2 className="text-xl font-bold mb-4">Academic Performance</h2>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Academic Year</th>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Semester</th>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">SGPA</th>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">CGPA</th>
+                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Backlogs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(studentData.academics || []).length > 0 ? (
+                        studentData.academics.map((acad, i) => (
+                          <tr key={acad.id || i}>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{computeAcademicYear(student.roll_no, acad.year) || `Year ${acad.year}`}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{acad.semester || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{acad.sgpa || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{acad.cgpa || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{acad.backlogs || '0'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="py-4 px-4 text-center text-gray-500">No academic records found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
