@@ -14,7 +14,7 @@ This project is a "KUCET College Management System" built using Next.js. It prov
     *   **Clerk:** Authenticates against a `clerk` table in the MySQL database, verifying email and hashed password. JWTs are used for session management, stored in a `clerk_auth` HTTP-only cookie.
     *   **Student:** Authentication is implied against a student database, with session managed by a `student_auth` cookie.
 *   **API Routes:** Next.js API Routes are used for backend logic, including user authentication, clerk creation, and clerk management.
-*   **Middleware:** `src/middleware.js` centralizes authentication and route protection logic. It verifies JWTs for `admin_auth` and `clerk_auth` cookies to secure routes such as `/admin/*`, `/clerk/dashboard`, and `/student/profile`.
+*   **Proxy:** `src/proxy.js` handles routing, rewrites, and redirects, now free of direct authentication logic.
 *   **Performance:** Utilizes `babel-plugin-react-compiler` for React Compiler optimization.
 
 ## Building and Running
@@ -51,6 +51,26 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **Consolidated Roll Number and Academic Year Logic:**
+    *   Implemented a robust roll number validation and derivation system for both regular (e.g., `22567T3053`) and lateral entry (e.g., `225673072L`) students.
+    *   Created new utility functions in `src/lib/rollNumber.js` to extract entry year, determine academic year ranges (e.g., "2023-2027"), and calculate the current studying year based on the roll number and admission type.
+    *   Added `getAcademicYearForStudyYear` to `src/lib/rollNumber.js` to provide the academic year for a specific study year (e.g., "Year 2" for a lateral student's first year in college).
+    *   **Frontend Updates:**
+        *   `src/components/ClerkStudentManagement.js`: Refactored to derive 'Course' and 'Admission Type' directly from the roll number, removing manual inputs. The 'Year of Study' input was also removed as it is now dynamically determined.
+        *   `src/app/student/profile/page.js`: Updated to display derived 'Academic Year', 'Current Year', and 'Branch' using the new utility functions. The redundant 'Course' display was removed.
+        *   `src/app/clerk/scholarship/dashboard/page.js`: Enhanced the scholarship dashboard to display B.Tech years (e.g., "Year 2", "Year 3", "Year 4") for lateral entry students, aligning the display with their academic progression. The component was refactored to use `getAcademicYearForStudyYear` and simplify JSX.
+    *   **Backend API Updates:**
+        *   `src/app/api/student/[rollno]/route.js`: Verified to correctly use `getBranchFromRoll` and `getAdmissionTypeFromRoll`.
+        *   `src/app/api/clerk/students/route.js` & `src/app/api/admin/students/route.js`: Updated GET endpoints to correctly filter students by year and branch for both regular and lateral entry types using `LIKE` patterns.
+        *   `src/app/api/clerk/scholarship/[rollno]/route.js`: Corrected the structure of the GET function and ensured proper usage of academic year calculation.
+        *   `src/app/api/clerk/admission/students/route.js`: Removed `year_of_study` from the incoming payload and the `INSERT` statement for `student_academic_background` as it's now dynamically derived.
+    *   **Database Schema Updates:**
+        *   `college_db_patch_v2.sql`: The `year_of_study` column was removed from the `student_academic_background` table definition.
+    *   **Academic Year Utility Refinements:**
+        *   `src/app/lib/academicYear.js`: Refactored to utilize the new roll number derivation functions from `src/lib/rollNumber.js`.
+    *   **Admin Dashboard Enhancements:**
+        *   `src/app/admin/dashboard/page.js`: The `YEARS` array for filtering was dynamically generated, replacing the hardcoded version.
+
 *   **Student Login and Profile Page Fixes:**
     *   Corrected `TypeError` in `src/app/api/student/login/route.js` by updating `process.env.NODE_.ENV` to `process.env.NODE_ENV` for secure cookie handling.
     *   Resolved JSX parsing error in `src/app/student/profile/page.js` by restructuring mobile menu logic, moving the "Academic Year" display, wrapping the mobile menu dropdown in a conditional rendering block, and removing an extraneous `)}`.
@@ -83,4 +103,4 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Path Aliases:** The `jsconfig.json` file defines a path alias: `@/*` resolves to the `./src/*` directory, simplifying import paths.
 *   **Component-Based Architecture:** Follows React's component-based development paradigm, with UI components located in the `src/components` directory.
 *   **API Route Structure:** API endpoints are organized within `src/app/api`, following Next.js API Routes conventions.
-*   **Middleware for Security:** `src/middleware.js` is used for centralized authentication and route protection, ensuring that only authorized users can access specific parts of the application.
+*   **Middleware for Security:** `src/proxy.js` is used for centralized route protection, ensuring that only authorized users can access specific parts of the application.
