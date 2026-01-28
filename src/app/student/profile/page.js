@@ -7,7 +7,7 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { formatDate } from '@/lib/date';
-import { getBranchFromRoll, getCurrentStudyingYear, getAcademicYear } from '@/lib/rollNumber';
+import { getBranchFromRoll, getCurrentStudyingYear, getAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
 import { computeAcademicYear } from '@/app/lib/academicYear';
 import Image from 'next/image';
 
@@ -42,6 +42,25 @@ export default function StudentProfile() {
   const sanitizeDigits = (val, maxLen = 12) => {
     if (val == null) return '';
     return String(val).replace(/\D/g, '').slice(0, maxLen);
+  };
+
+  // Fee helpers (roll-number based)
+  const SELF_FINANCE_BRANCHES = ['CSD', 'IT', 'CIVIL'];
+  const isSelfFinanceBranch = (branch) => {
+    if (!branch) return false;
+    return SELF_FINANCE_BRANCHES.includes(String(branch).toUpperCase());
+  };
+
+  const computeTotalFee = (rollNo, application_no) => {
+    const branch = getBranchFromRoll(rollNo);
+    const isSelf = isSelfFinanceBranch(branch);
+    const isScholar = (() => {
+      if (!application_no) return false;
+      return String(application_no).trim() !== String(rollNo);
+    })();
+
+    if (!isSelf) return 35000;
+    return isScholar ? 35000 : 70000;
   };
 
   const fetchProfile = useCallback(async (rollno) => {
@@ -284,6 +303,57 @@ export default function StudentProfile() {
   if (!studentData) return null;
 
   const { student } = studentData;
+
+  // Compute current studying year and fee aggregates for that year
+  const currentStudyingYear = getCurrentStudyingYear(student.roll_no) || 1;
+  const scholarshipForCurrentYear = (studentData.scholarship || []).find(s => Number(s.year) === Number(currentStudyingYear));
+  const totalFeeForCurrentYear = computeTotalFee(student.roll_no, scholarshipForCurrentYear?.application_no);
+
+  // Robust fees handling: accept fees array, and include rows without `year` if their date falls into the academic year range.
+  const feesArray = Array.isArray(studentData.fees) ? studentData.fees : [];
+
+  const academicYearLabel = getAcademicYear(student.roll_no) || null;
+  // derive academic year start for current studying year
+  const academicYearForStudy = getAcademicYear(student.roll_no) ? getAcademicYearForStudyYear(student.roll_no, currentStudyingYear) : null;
+  let yearStart = null;
+  if (academicYearForStudy) {
+    const m = academicYearForStudy.match(/^(\d{4})/);
+    if (m) yearStart = Number(m[1]);
+  }
+
+  const dateInAcademicYear = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(String(dateStr));
+    if (isNaN(d)) return false;
+    if (!yearStart) return false;
+    // Academic year considered from June 1 of yearStart to May 31 of yearStart+1
+    const start = new Date(yearStart, 5, 1);
+    const end = new Date(yearStart + 1, 5, 1);
+    return d >= start && d < end;
+  };
+
+  const totalPaidFromFees = feesArray.reduce((acc, fee) => {
+    const feeYearMatches = fee && fee.year !== undefined && fee.year !== null && String(fee.year).trim() !== '' && Number(fee.year) === Number(currentStudyingYear);
+    const feeDateMatches = !feeYearMatches && (dateInAcademicYear(fee.date ?? fee.transaction_date ?? fee.paid_at));
+    if (feeYearMatches || feeDateMatches) {
+      const amt = Number(fee.amount ?? fee.amount_paid ?? fee.paid_amount ?? 0);
+      return acc + (isNaN(amt) ? 0 : amt);
+    }
+    return acc;
+  }, 0);
+
+  // Also include scholarship disbursed/amount_paid for the same year as payment
+  const scholarshipPaid = (studentData.scholarship || []).filter(s => Number(s.year) === Number(currentStudyingYear)).reduce((acc, s) => {
+    const a = Number(s.amount_disbursed ?? s.amount_paid ?? 0);
+    return acc + (isNaN(a) ? 0 : a);
+  }, 0);
+
+  const totalPaidForCurrentYear = Number(totalPaidFromFees) + Number(scholarshipPaid);
+  const pendingForCurrentYear = Math.max(0, Number(totalFeeForCurrentYear) - Number(totalPaidForCurrentYear));
+
+  // If there are scholarship records but none for current year, prepare a short note
+  const scholarshipYears = (studentData.scholarship || []).map(s => Number(s.year)).filter(y => !isNaN(y));
+  const hasScholarshipOtherYears = scholarshipYears.length > 0 && !scholarshipYears.includes(Number(currentStudyingYear));
 
   const emailChanged = newEmail !== originalEmail;
   const trimmedEmail = (newEmail || '').trim();
@@ -674,47 +744,56 @@ export default function StudentProfile() {
                 {/* Fee Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <div className="p-4 bg-blue-50 rounded-lg shadow">
-                    <span className="text-sm font-medium text-blue-800">Total Fee</span>
-                    <p className="text-2xl font-bold text-blue-900">₹70,000</p>
+                    <span className="text-sm font-medium text-blue-800">Total Fee ({computeAcademicYear(student.roll_no, currentStudyingYear) || `Year ${currentStudyingYear}`})</span>
+                    <p className="text-2xl font-bold text-blue-900">₹{Number(totalFeeForCurrentYear).toLocaleString('en-IN')}</p>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg shadow">
-                    <span className="text-sm font-medium text-green-800">Total Paid</span>
-                    <p className="text-2xl font-bold text-green-900">
-                      ₹{studentData.fees.reduce((acc, fee) => acc + (fee.amount || 0), 0).toLocaleString()}
-                    </p>
+                    <span className="text-sm font-medium text-green-800">Paid Fee</span>
+                    <p className="text-2xl font-bold text-green-900">₹{Number(totalPaidForCurrentYear).toLocaleString('en-IN')}</p>
                   </div>
                   <div className="p-4 bg-red-50 rounded-lg shadow">
                     <span className="text-sm font-medium text-red-800">Pending Fee</span>
-                    <p className="text-2xl font-bold text-red-900">
-                      ₹{(70000 - studentData.fees.reduce((acc, fee) => acc + (fee.amount || 0), 0)).toLocaleString()}
-                    </p>
+                    <p className="text-2xl font-bold text-red-900">₹{Number(pendingForCurrentYear).toLocaleString('en-IN')}</p>
                   </div>
                 </div>
 
-                {/* Fee Transactions Table */}
-                <div className="overflow-x-auto">
-                  <table className="min-w-full bg-white border">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Academic Year</th>
-                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Transaction ID</th>
-                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Amount</th>
-                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Date</th>
-                        <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(studentData.fees || []).length > 0 ? (
-                        studentData.fees.map((fee, i) => (
+                {hasScholarshipOtherYears && (
+                  <div className="mb-4 p-3 rounded bg-yellow-50 border border-yellow-100 text-yellow-800">
+                    Scholarship records exist for {scholarshipYears.map(y => `Year ${y}`).join(', ')} but none apply to the current year (Year {currentStudyingYear}). These earlier scholarships do not affect this year's fee calculation.
+                  </div>
+                )}
+
+                  {/* Fee Transactions Table */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white border">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Academic Year</th>
+                          <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Transaction ID</th>
+                          <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Amount</th>
+                          <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Date</th>
+                          <th className="py-2 px-4 border-b text-left whitespace-nowrap font-semibold text-gray-600">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      {feesArray.length > 0 ? (
+                        feesArray.map((fee, i) => (
                           <tr key={fee.id || i}>
-                            <td className="py-2 px-4 border-b whitespace-nowrap">{computeAcademicYear(student.roll_no, fee.year) || `Year ${fee.year}`}</td>
-                            <td className="py-2 px-4 border-b whitespace-nowrap">{fee.transaction_id || '-'}</td>
-                            <td className="py-2 px-4 border-b whitespace-nowrap">₹{fee.amount ? fee.amount.toLocaleString() : '-'}</td>
-                            <td className="py-2 px-4 border-b whitespace-nowrap">{formatDate(fee.date) || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{computeAcademicYear(student.roll_no, fee.year) || (fee.date ? computeAcademicYear(student.roll_no, fee.year) : `Year ${fee.year ?? '-'}`)}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{fee.upit_no || fee.challan_no || fee.ch_no || fee.transaction_id || fee.id || '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{(fee.amount ?? fee.amount_paid ?? fee.paid_amount) ? `₹${Number(fee.amount ?? fee.amount_paid ?? fee.paid_amount).toLocaleString('en-IN')}` : '-'}</td>
+                            <td className="py-2 px-4 border-b whitespace-nowrap">{formatDate(fee.date ?? fee.transaction_date ?? fee.paid_at) || '-'}</td>
                             <td className="py-2 px-4 border-b whitespace-nowrap">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${fee.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                {fee.status || 'N/A'}
-                              </span>
+                              {(() => {
+                                const status = fee.status ? String(fee.status) : ((fee.amount ?? fee.amount_paid ?? fee.paid_amount) ? 'Success' : 'Pending');
+                                const stLower = String(status).toLowerCase();
+                                const isSuccess = stLower.startsWith('s') || stLower === 'paid' || stLower === 'success';
+                                return (
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isSuccess ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                    {status}
+                                  </span>
+                                );
+                              })()}
                             </td>
                           </tr>
                         ))
