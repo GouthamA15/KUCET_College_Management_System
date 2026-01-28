@@ -17,7 +17,8 @@ function lastTwoDigits(y) {
 }
 
 function computeAcademicYear(roll_no, year) {
-  const admYear = getEntryYearFromRoll(roll_no);
+  const admYearRaw = getEntryYearFromRoll(roll_no);
+  const admYear = admYearRaw ? parseInt(admYearRaw, 10) : null;
   if (!admYear) return null;
   const yr = Number(year);
   if (!Number.isInteger(yr) || yr < 1) return null;
