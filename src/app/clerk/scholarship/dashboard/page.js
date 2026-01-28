@@ -21,6 +21,9 @@ export default function ScholarshipDashboard() {
   const [editingYear, setEditingYear] = useState(null);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [pendingSaveData, setPendingSaveData] = useState(null);
 
   // Fee constants and helpers
   const SELF_FINANCE_BRANCHES = ['CSD', 'IT', 'CIVIL'];
@@ -130,8 +133,11 @@ export default function ScholarshipDashboard() {
       const existingType = existing.application_no === student.roll_no ? 'non' : 'scholar';
       const newType = type;
       if (existingType !== newType) {
-        const ok = confirm('Changing the Application Number will change record type (Scholar ↔ Non-Scholar). Proceed?');
-        if (!ok) return;
+        // Open custom confirmation modal instead of native confirm
+        setConfirmMessage('Changing the Application Number will change record type (Scholar ↔ Non‑Scholar). Proceed?');
+        setPendingSaveData({ ...form });
+        setConfirmOpen(true);
+        return;
       }
     }
 
@@ -181,6 +187,94 @@ export default function ScholarshipDashboard() {
       toast.error(err.message || 'Failed to save', { id });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const deleteRecord = async () => {
+    // require form.id to delete
+    if (!form || !form.id) {
+      toast.error('No record selected to delete');
+      return;
+    }
+    // Use custom confirmation modal
+    setConfirmMessage(`Delete scholarship record for year ${editingYear}? This action cannot be undone.`);
+    setPendingSaveData({ action: 'delete', scholarship_id: form.id, delete_related_fees: false });
+    setConfirmOpen(true);
+  };
+
+  // Called when user confirms type-change warning
+  const confirmAndSave = async () => {
+    setConfirmOpen(false);
+    if (!pendingSaveData) return;
+    const snapshot = { ...pendingSaveData };
+    // handle delete action separately
+    if (snapshot.action === 'delete') {
+      setSaving(true);
+      const id = toast.loading('Deleting record...');
+      try {
+        const payload = { scholarship_id: snapshot.scholarship_id, delete_related_fees: !!snapshot.delete_related_fees };
+        const res = await fetch(`/api/clerk/scholarship/${encodeURIComponent(roll)}`, {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Delete failed');
+        toast.success('Record deleted', { id });
+        setModalOpen(false);
+        await fetchStudent();
+      } catch (err) {
+        toast.error(err.message || 'Failed to delete', { id });
+      } finally {
+        setSaving(false);
+        setPendingSaveData(null);
+      }
+      return;
+    }
+
+    // Otherwise, treat as a pending save (type-change confirmation) — reuse existing save logic
+    try {
+      setSaving(true);
+      const id = toast.loading('Saving record...');
+
+      const dataToSave = { ...snapshot };
+      const type = evaluateType(dataToSave.application_no);
+      const totalFee = computeTotalFee(student.roll_no, dataToSave.application_no);
+      const amountPaid = Number(String(dataToSave.amount_paid || '').trim() || 0);
+      const pending = Math.max(0, Number(totalFee) - Number(amountPaid));
+      dataToSave.total_fee = totalFee;
+      dataToSave.pending_fee = pending;
+      dataToSave.status = pending > 0 ? 'Pending' : 'Success';
+
+      if (amountPaid > 0) {
+        if (!dataToSave.utr_no || String(dataToSave.utr_no).trim() === '') {
+          dataToSave.utr_no = 'TX' + Date.now().toString() + Math.random().toString(36).slice(2,6);
+        }
+        if (!dataToSave.utr_date || String(dataToSave.utr_date).trim() === '') {
+          dataToSave.utr_date = new Date().toISOString().slice(0,10);
+        }
+      }
+
+      if (type === 'scholar') {
+        if (!dataToSave.amount_disbursed && amountPaid > 0) dataToSave.amount_disbursed = amountPaid;
+      }
+
+      const payload = { scholarship: [ dataToSave ] };
+      const existing = scholarshipRecords.find(s => Number(s.year) === Number(editingYear));
+      if (existing && existing.id) payload.scholarship[0].id = existing.id;
+
+      const res = await fetch(`/api/clerk/scholarship/${encodeURIComponent(roll)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+
+      toast.success('Record saved', { id });
+      setModalOpen(false);
+      await fetchStudent();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+      setPendingSaveData(null);
     }
   };
 
@@ -482,7 +576,24 @@ export default function ScholarshipDashboard() {
 
               <div className="mt-4 flex justify-end gap-2">
                 <button onClick={() => setModalOpen(false)} className="px-4 py-2 border rounded cursor-pointer">Cancel</button>
+                {form && form.id && (
+                  <button onClick={deleteRecord} disabled={saving} className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-60">Delete</button>
+                )}
                 <button onClick={saveRecord} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded disabled:opacity-60 cursor-pointer">{saving ? 'Saving...' : 'Save'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation dialog for type changes */}
+        {confirmOpen && (
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-3">Confirm Change</h3>
+              <p className="text-sm text-gray-700 mb-4">{confirmMessage}</p>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => { setConfirmOpen(false); setPendingSaveData(null); }} className="px-4 py-2 border rounded">Cancel</button>
+                <button onClick={confirmAndSave} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded">Proceed</button>
               </div>
             </div>
           </div>
