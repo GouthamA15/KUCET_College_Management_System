@@ -51,6 +51,12 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **`425d88a` - docs: Update GEMINI.md with latest changes and refactoring**
+*   **`166d582` - Updated Student Login using DOB Functionality**
+*   **`78f7e86` - Updated Componenets**
+*   **`f401920` - Updated pages**
+*   **`81f919c` - updated clerk login api call**
+
 *   **Consolidated Roll Number and Academic Year Logic:**
     *   Implemented a robust roll number validation and derivation system for both regular (e.g., `22567T3053`) and lateral entry (e.g., `225673072L`) students.
     *   Created new utility functions in `src/lib/rollNumber.js` to extract entry year, determine academic year ranges (e.g., "2023-2027"), and calculate the current studying year based on the roll number and admission type.
@@ -70,6 +76,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
         *   `src/app/lib/academicYear.js`: Refactored to utilize the new roll number derivation functions from `src/lib/rollNumber.js`.
     *   **Admin Dashboard Enhancements:**
         *   `src/app/admin/dashboard/page.js`: The `YEARS` array for filtering was dynamically generated, replacing the hardcoded version.
+
 
 *   **Student Login and Profile Page Fixes:**
     *   Corrected `TypeError` in `src/app/api/student/login/route.js` by updating `process.env.NODE_.ENV` to `process.env.NODE_ENV` for secure cookie handling.
