@@ -35,7 +35,9 @@ export default function StudentProfile() {
   const [otp, setOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isOtpVerified, setIsOtpVerified] = useState(false);
+  const [emailLocked, setEmailLocked] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
 
   const sanitizeDigits = (val, maxLen = 12) => {
     if (val == null) return '';
@@ -55,6 +57,8 @@ export default function StudentProfile() {
         setAddress(pdAddress);
         setOriginalMobile(sanitizeDigits(data.student.mobile, 12));
         setOriginalEmail(data.student.email);
+          // start with email locked = false; if backend provides a flag in future, derive from that
+          setEmailLocked(false);
         setOriginalAddress(pdAddress);
         setProfilePhoto(data.student.pfp);
       } else {
@@ -192,6 +196,8 @@ export default function StudentProfile() {
         toast.success(data.message);
         setIsOtpVerified(true);
         setEmail(newEmail); // Update the main email state
+        // Lock email after successful verification; user may explicitly choose to edit again
+        setEmailLocked(true);
       } else {
         toast.error(data.message || 'OTP verification failed.');
       }
@@ -264,6 +270,8 @@ export default function StudentProfile() {
         setOriginalAddress(address);
         if (isOtpVerified) {
           setOriginalEmail(newEmail);
+          // keep email locked after saving a verified email
+          setEmailLocked(true);
         }
         // Reset OTP state
         setIsOtpSent(false);
@@ -284,6 +292,18 @@ export default function StudentProfile() {
   const { student } = studentData;
 
   const emailChanged = newEmail !== originalEmail;
+  const trimmedEmail = (newEmail || '').trim();
+  const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+  const isEmailValid = emailRegex.test(trimmedEmail);
+  let emailValidationMessage = '';
+  if (emailTouched) {
+    if (!trimmedEmail) {
+      emailValidationMessage = 'Email cannot be empty.';
+    } else if (!isEmailValid) {
+      emailValidationMessage = 'Please enter a valid email address.';
+    }
+  }
+
   const hasChanges = mobile !== originalMobile || address !== originalAddress || photoChanged || (emailChanged && isOtpVerified);
 
   return (
@@ -513,14 +533,33 @@ export default function StudentProfile() {
                               value={newEmail}
                               onChange={(e) => {
                                 setNewEmail(e.target.value);
+                                setEmailTouched(true);
                                 setIsOtpVerified(false);
                                 setIsOtpSent(false);
                                 setOtp('');
                               }}
-                              disabled={isOtpSent && !isOtpVerified}
+                              onBlur={() => setEmailTouched(true)}
+                              disabled={(isOtpSent && !isOtpVerified) || emailLocked}
                               className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
-                            {emailChanged && !isOtpVerified && (
+                            {emailValidationMessage && (
+                              <p className="text-sm text-red-600 mt-2">{emailValidationMessage}</p>
+                            )}
+                                  {emailLocked ? (
+                                    <button
+                                      onClick={() => {
+                                        // allow user to edit again
+                                        setEmailLocked(false);
+                                        setIsOtpVerified(false);
+                                        setIsOtpSent(false);
+                                        setNewEmail(originalEmail);
+                                        setOtp('');
+                                      }}
+                                      className="px-3 py-1 mt-1 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-md hover:bg-indigo-200"
+                                    >
+                                      Edit Email
+                                    </button>
+                                  ) : (emailChanged && !isOtpVerified && isEmailValid && (
                               <button
                                 onClick={handleSendOtp}
                                 disabled={isVerifying}
@@ -528,7 +567,7 @@ export default function StudentProfile() {
                               >
                                 {isVerifying ? 'Sending...' : 'Verify'}
                               </button>
-                            )}
+                                  ))}
                           </div>
                            {isOtpSent && !isOtpVerified && (
                             <div className="mt-2">
