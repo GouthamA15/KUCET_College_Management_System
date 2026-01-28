@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function Navbar({ activePanel, setActivePanel, clerkMode = false, studentProfileMode = false, onLogout, clerkMinimal = false }) {
+export default function Navbar({ activePanel, setActivePanel, clerkMode = false, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab }) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -35,14 +35,9 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                     Dashboard
                     <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                   </Link>
-                  <button onClick={() => {
-                    if (onLogout) onLogout();
-                    else {
-                      document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
-                      document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
-                      sessionStorage.removeItem('clerk_authenticated');
-                      router.replace('/');
-                    }
+                  <button onClick={async () => {
+                    await fetch('/api/clerk/logout', { method: 'POST' });
+                    router.replace('/');
                   }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                     Logout
                     <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
@@ -66,10 +61,8 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                     Faculties
                     <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                   </Link>
-                  <button onClick={() => {
-                    document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
-                    document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
-                    sessionStorage.removeItem('clerk_authenticated');
+                  <button onClick={async () => {
+                    await fetch('/api/clerk/logout', { method: 'POST' });
                     router.replace('/');
                   }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                     Logout
@@ -79,21 +72,21 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
               )
             ) : studentProfileMode ? (
               <>
-                <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Academic
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                <button onClick={() => setActiveTab('basic')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'basic' ? 'text-blue-200' : ''}`}>
+                  Basic
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'basic' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                 </button>
-                <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Timetable
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                <button onClick={() => setActiveTab('scholarship')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'scholarship' ? 'text-blue-200' : ''}`}>
+                  Scholarship
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'scholarship' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                 </button>
-                <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Updates
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                <button onClick={() => setActiveTab('fees')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'fees' ? 'text-blue-200' : ''}`}>
+                  Fees
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'fees' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                 </button>
-                <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Requests
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                <button onClick={() => setActiveTab('academics')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'academics' ? 'text-blue-200' : ''}`}>
+                  Academics
+                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'academics' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                 </button>
                 <button onClick={onLogout} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                   Logout
@@ -178,14 +171,9 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
             clerkMinimal ? (
               <>
                 <Link href="/clerk/admission/dashboard" className="text-white block px-3 py-2.5 text-sm relative group">Dashboard<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-                <button onClick={() => {
-                  if (onLogout) onLogout();
-                  else {
-                    document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
-                    document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
-                    sessionStorage.removeItem('clerk_authenticated');
-                    router.replace('/');
-                  }
+                <button onClick={async () => {
+                  await fetch('/api/clerk/logout', { method: 'POST' });
+                  router.replace('/');
                   setMobileMenuOpen(false);
                 }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
               </>
@@ -195,10 +183,8 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                 <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Admissions<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
                 <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Time Tables<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
                 <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Faculties<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-                <button onClick={() => {
-                  document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
-                  document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
-                  sessionStorage.removeItem('clerk_authenticated');
+                <button onClick={async () => {
+                  await fetch('/api/clerk/logout', { method: 'POST' });
                   router.replace('/');
                   setMobileMenuOpen(false);
                 }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
@@ -206,9 +192,10 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
             )
           ) : studentProfileMode ? (
             <>
-              <button className="text-white block w-full text-left px-3 py-2.5 text-sm">Timetable</button>
-              <button className="text-white block w-full text-left px-3 py-2.5 text-sm">Updates</button>
-              <button className="text-white block w-full text-left px-3 py-2.5 text-sm">Requests</button>
+              <button onClick={() => { setActiveTab('basic'); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Basic</button>
+              <button onClick={() => { setActiveTab('scholarship'); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Scholarship</button>
+              <button onClick={() => { setActiveTab('fees'); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Fees</button>
+              <button onClick={() => { setActiveTab('academics'); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Academics</button>
               <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Logout</button>
             </>
           ) : (

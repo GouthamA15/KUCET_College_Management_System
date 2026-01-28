@@ -75,10 +75,16 @@ export default function StudentProfile() {
     fetchProfile(stu.roll_no);
   }, [router, fetchProfile]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('logged_in_student');
-    sessionStorage.clear();
-    router.replace('/');
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/student/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout failed', error);
+    } finally {
+      localStorage.removeItem('logged_in_student');
+      sessionStorage.clear();
+      router.replace('/');
+    }
   };
 
   const handlePhotoChange = (e) => {
@@ -277,7 +283,7 @@ export default function StudentProfile() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
-      <Navbar studentProfileMode={true} onLogout={handleLogout} />
+      <Navbar studentProfileMode={true} onLogout={handleLogout} activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto bg-white rounded-lg shadow-lg p-8">
