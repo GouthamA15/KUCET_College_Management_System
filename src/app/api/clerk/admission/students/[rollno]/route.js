@@ -36,7 +36,7 @@ export async function PUT(req, context) {
   }
 
   try {
-    const params = context.params;
+    const params = await context.params;
     const { rollno } = params;
 
     if (!rollno) {
