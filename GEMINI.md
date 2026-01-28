@@ -57,6 +57,24 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **`f401920` - Updated pages**
 *   **`81f919c` - updated clerk login api call**
 
+*   **Email Sending Functionality:**
+    *   Implemented email sending using Nodemailer.
+    *   New file: `src/lib/email.js` (Nodemailer configuration and sending logic).
+    *   Example API route: `src/app/api/send-student-email/route.js` (for testing email sending).
+
+*   **Cryptographically Secure OTP Functionality:**
+    *   Implemented secure OTP generation and verification.
+    *   New database migration: `otp_codes_table.sql` (SQL for `otp_codes` table).
+    *   Utility function: `src/lib/student-utils.js` (for fetching student email by roll number).
+    *   API endpoint for sending OTP: `src/app/api/auth/send-otp/route.js` (generates, stores, and sends OTP).
+    *   API endpoint for verifying OTP: `src/app/api/auth/verify-otp/route.js` (verifies, checks expiration, and invalidates OTP).
+
+*   **Admission Clerk Student Management Enhancements:**
+    *   **Authorization Update**: `src/app/api/student/[rollno]/route.js` modified to allow `admission` role clerks to access student details (via `clerk_auth` cookie verification).
+    *   **Student Update API**: New API route `src/app/api/clerk/admission/students/[rollno]/route.js` with a `PUT` endpoint for Admission Clerks to update student details (core, personal, academic background).
+    *   **Frontend Integration**: `src/components/ClerkStudentManagement.js` refactored to use the new centralized `PUT` endpoint for saving student edits, consolidating multiple previous fetch calls.
+    *   **Fix**: Resolved `params` Promise unwrapping issue in `src/app/api/clerk/admission/students/[rollno]/route.js`.
+
 *   **Consolidated Roll Number and Academic Year Logic:**
     *   Implemented a robust roll number validation and derivation system for both regular (e.g., `22567T3053`) and lateral entry (e.g., `225673072L`) students.
     *   Created new utility functions in `src/lib/rollNumber.js` to extract entry year, determine academic year ranges (e.g., "2023-2027"), and calculate the current studying year based on the roll number and admission type.
