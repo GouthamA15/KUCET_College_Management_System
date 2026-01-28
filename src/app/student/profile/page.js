@@ -30,6 +30,13 @@ export default function StudentProfile() {
   const fileInputRef = useRef(null);
   const [photoProcessing, setPhotoProcessing] = useState(false);
 
+  // New state for email verification
+  const [newEmail, setNewEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const sanitizeDigits = (val, maxLen = 12) => {
     if (val == null) return '';
     return String(val).replace(/\D/g, '').slice(0, maxLen);
@@ -43,6 +50,7 @@ export default function StudentProfile() {
         setStudentData(data);
         setMobile(sanitizeDigits(data.student.mobile, 12));
         setEmail(data.student.email);
+        setNewEmail(data.student.email);
         const pdAddress = data.student.personal_details && data.student.personal_details.address ? data.student.personal_details.address : (data.student.address || '');
         setAddress(pdAddress);
         setOriginalMobile(sanitizeDigits(data.student.mobile, 12));
@@ -101,7 +109,6 @@ export default function StudentProfile() {
             canvas.toBlob(
               (blob) => {
                 if (blob.size > 60 * 1024) {
-                  // Compress the image further
                   const quality = (60 * 1024) / blob.size;
                   canvas.toBlob(
                     (compressedBlob) => {
@@ -139,38 +146,73 @@ export default function StudentProfile() {
     }
   };
 
-  const handlePhotoUpload = async () => {
-    if (!previewPhoto) return;
+  const handleSendOtp = async () => {
+    if (newEmail === originalEmail) {
+      toast.error("You haven't changed your email address.");
+      return;
+    }
+    setIsVerifying(true);
     try {
-      const response = await fetch('/api/student/upload-photo', {
+      const res = await fetch('/api/student/send-update-email-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          roll_no: studentData.student.roll_no,
-          pfp: previewPhoto,
+          rollno: studentData.student.roll_no,
+          email: newEmail,
         }),
       });
-      const result = await response.json();
-      if (response.ok) {
-        toast.success('Profile photo updated successfully!');
-        setPreviewPhoto(null);
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        setIsOtpSent(true);
       } else {
-        toast.error(result.message || 'Photo upload failed. Try again.');
+        toast.error(data.message || 'Failed to send OTP.');
       }
     } catch (error) {
-      toast.error('Photo upload failed. Try again.');
+      toast.error('Network error. Please try again.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+  
+  const handleVerifyOtp = async () => {
+    setIsVerifying(true);
+    try {
+      const res = await fetch('/api/student/verify-update-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rollno: studentData.student.roll_no,
+          otp,
+          email: newEmail,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        setIsOtpVerified(true);
+        setEmail(newEmail); // Update the main email state
+      } else {
+        toast.error(data.message || 'OTP verification failed.');
+      }
+    } catch (error) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
 
-
   const handleSave = async () => {
+    if (newEmail !== originalEmail && !isOtpVerified) {
+      toast.error('Please verify your new email address before saving.');
+      return;
+    }
     try {
       if (photoProcessing) {
         toast.error('Please wait for the photo to be processed.');
         return;
       }
-      // Handle photo change or remove
       if (photoChanged) {
         const pfpToSend = previewPhoto || null;
         const response = await fetch('/api/student/upload-photo', {
@@ -191,19 +233,17 @@ export default function StudentProfile() {
         setIsPhotoRemoved(false);
       }
 
-      // Update mobile and email
       const response = await fetch('/api/student/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rollno: studentData.student.roll_no,
           phone: sanitizeDigits(mobile, 12),
-          email: email,
+          // Email is now updated via OTP verification
         }),
       });
       const result = await response.json();
       if (response.ok) {
-        // Also persist address via clerk personal-details endpoint
         try {
           const pdRes = await fetch('/api/clerk/personal-details', {
             method: 'POST',
@@ -221,8 +261,15 @@ export default function StudentProfile() {
         toast.success('Profile updated successfully!');
         setIsEditing(false);
         setOriginalMobile(sanitizeDigits(mobile, 12));
-        setOriginalEmail(email);
         setOriginalAddress(address);
+        if (isOtpVerified) {
+          setOriginalEmail(newEmail);
+        }
+        // Reset OTP state
+        setIsOtpSent(false);
+        setIsOtpVerified(false);
+        setOtp('');
+
         fetchProfile(studentData.student.roll_no);
       } else {
         toast.error(result.message || 'Failed to update contact details.');
@@ -236,7 +283,8 @@ export default function StudentProfile() {
 
   const { student } = studentData;
 
-  const hasChanges = mobile !== originalMobile || email !== originalEmail || address !== originalAddress || photoChanged;
+  const emailChanged = newEmail !== originalEmail;
+  const hasChanges = mobile !== originalMobile || address !== originalAddress || photoChanged || (emailChanged && isOtpVerified);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -246,7 +294,6 @@ export default function StudentProfile() {
       <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto bg-white rounded-lg shadow-lg p-8">
           <div className="border-b border-gray-200 relative">
-            {/* Desktop Tabs */}
             <nav className="hidden md:flex -mb-px space-x-8" aria-label="Tabs">
               <button onClick={() => setActiveTab('basic')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'basic' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
                 Basic Information
@@ -262,7 +309,6 @@ export default function StudentProfile() {
               </button>
             </nav>
 
-            {/* Mobile Hamburger Menu */}
             <div className="md:hidden flex justify-between items-center py-4">
               <span className="text-lg font-semibold text-gray-800">Menu</span>
               <button
@@ -326,7 +372,7 @@ export default function StudentProfile() {
                   </button>
                 </div>
                 {!isEditing ? (
-                  <div className="bg-gray-50 rounded-lg p-6">
+                   <div className="bg-gray-50 rounded-lg p-6">
                     <div className="flex items-center space-x-6 mb-6">
                       <Image
                         src={profilePhoto || '/assets/default-avatar.svg'}
@@ -430,7 +476,7 @@ export default function StudentProfile() {
                           Note: Your profile photo will be used across Examination Branch, Scholarship records, ID verification, and official college documents. Please upload a clear passport-size photograph only.
                         </p>
                       </div>
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="bg-white p-4 rounded shadow-sm">
                           <span className="text-sm font-medium text-gray-500">Father Name</span>
                             <p className="text-lg font-semibold text-gray-800">{(student.personal_details && student.personal_details.father_name) || student.father_name}</p>
@@ -459,14 +505,52 @@ export default function StudentProfile() {
                             className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
                         </div>
-                        <div className="bg-white p-4 rounded shadow-sm">
+                        <div className="bg-white p-4 rounded shadow-sm md:col-span-2">
                           <label className="text-sm font-medium text-gray-500 block">Email</label>
-                          <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="email"
+                              value={newEmail}
+                              onChange={(e) => {
+                                setNewEmail(e.target.value);
+                                setIsOtpVerified(false);
+                                setIsOtpSent(false);
+                                setOtp('');
+                              }}
+                              disabled={isOtpSent && !isOtpVerified}
+                              className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            {emailChanged && !isOtpVerified && (
+                              <button
+                                onClick={handleSendOtp}
+                                disabled={isVerifying}
+                                className="px-4 py-2 mt-1 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
+                              >
+                                {isVerifying ? 'Sending...' : 'Verify'}
+                              </button>
+                            )}
+                          </div>
+                           {isOtpSent && !isOtpVerified && (
+                            <div className="mt-2">
+                              <label className="text-sm font-medium text-gray-500 block">Enter OTP</label>
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="text"
+                                  value={otp}
+                                  onChange={(e) => setOtp(e.target.value)}
+                                  className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <button
+                                  onClick={handleVerifyOtp}
+                                  disabled={isVerifying}
+                                  className="px-4 py-2 mt-1 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400"
+                                >
+                                  {isVerifying ? 'Verifying...' : 'Verify OTP'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {isOtpVerified && <p className="text-green-600 text-sm mt-2">Email verified successfully!</p>}
                         </div>
                         <div className="bg-white p-4 rounded shadow-sm md:col-span-2">
                           <label className="text-sm font-medium text-gray-500 block">Address</label>
@@ -484,9 +568,13 @@ export default function StudentProfile() {
                           setIsEditing(false);
                           setMobile(originalMobile);
                           setEmail(originalEmail);
+                          setNewEmail(originalEmail);
                           setPreviewPhoto(null);
                           setPhotoChanged(false);
                           setIsPhotoRemoved(false);
+                          setIsOtpSent(false);
+                          setIsOtpVerified(false);
+                          setOtp('');
                         }}
                         className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 font-medium"
                       >
@@ -494,9 +582,9 @@ export default function StudentProfile() {
                       </button>
                       <button
                         onClick={handleSave}
-                        disabled={!hasChanges || photoProcessing}
+                        disabled={!hasChanges || photoProcessing || (emailChanged && !isOtpVerified)}
                         className={`px-6 py-2 rounded font-medium ${
-                          hasChanges && !photoProcessing
+                          hasChanges && !photoProcessing && !(emailChanged && !isOtpVerified)
                             ? 'bg-green-500 text-white hover:bg-green-600'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
@@ -547,7 +635,6 @@ export default function StudentProfile() {
                     <span className="font-semibold">Total Fee:</span> ₹70000
                   </div>
                   <div className="p-4 bg-gray-100 rounded shadow">
-.
                     <span className="font-semibold">Paid:</span> ₹70000
                   </div>
                   <div className="p-4 bg-gray-100 rounded shadow">
