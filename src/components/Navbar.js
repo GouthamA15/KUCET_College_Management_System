@@ -80,10 +80,31 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                   Time Table
                   <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                 </button>
-                <button onClick={() => { router.push('/student/requests'); }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                  Requests
-                  <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                </button>
+                {/* Requests Dropdown */}
+                <div className="relative group">
+                  <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative flex items-center">
+                    Requests
+                    {/* Added: transition-transform duration-300 group-hover:rotate-180 */}
+                    <svg 
+                      className="w-4 h-4 ml-1 transition-transform duration-300 group-hover:rotate-180" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                  </button>
+                  {/* Dropdown Menu */}
+                  <div className="absolute left-0 top-full w-56 bg-white rounded-b-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform z-50">
+                    <Link href="/student/requests/bonafide" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">
+                      Bonafide Certificate
+                    </Link>
+                    <Link href="/student/requests/nodues" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">
+                      No Dues Certificate
+                    </Link>
+                  </div>
+                </div>
                 <button onClick={() => setActiveTab('scholarship')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'scholarship' ? 'text-blue-200' : ''}`}>
                   Scholarship
                   <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'scholarship' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
