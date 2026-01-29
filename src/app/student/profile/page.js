@@ -35,6 +35,7 @@ export default function StudentProfile() {
   const [otp, setOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isOtpVerified, setIsOtpVerified] = useState(false);
+  const [emailVerifiedPendingSave, setEmailVerifiedPendingSave] = useState(false);
   const [emailLocked, setEmailLocked] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
@@ -184,10 +185,7 @@ export default function StudentProfile() {
   };
 
   const handleSendOtp = async () => {
-    if (newEmail === originalEmail) {
-      toast.error("You haven't changed your email address.");
-      return;
-    }
+    // Always send OTP to the current `newEmail` (this covers clerk-added emails too)
     setIsVerifying(true);
     try {
       const res = await fetch('/api/student/send-update-email-otp', {
@@ -231,6 +229,14 @@ export default function StudentProfile() {
         setEmail(newEmail); // Update the main email state
         // Lock email after successful verification; user may explicitly choose to edit again
         setEmailLocked(true);
+        // Mark that a verification happened and user may need to save other changes
+        setEmailVerifiedPendingSave(true);
+        // Refresh profile to pick up verified flag from server (do not rely solely on this for enabling Save)
+        try {
+          await fetchProfile(studentData.student.roll_no);
+        } catch (e) {
+          // ignore fetchProfile errors here
+        }
       } else {
         toast.error(data.message || 'OTP verification failed.');
       }
@@ -284,7 +290,7 @@ export default function StudentProfile() {
       });
 
       const result = await response.json();
-      if (response.ok) {
+        if (response.ok) {
         toast.success('Profile updated successfully!');
         setIsEditing(false);
         setOriginalMobile(sanitizeDigits(mobile, 12));
@@ -294,6 +300,8 @@ export default function StudentProfile() {
           // keep email locked after saving a verified email
           setEmailLocked(true);
         }
+          // clear pending verified-save flag
+          setEmailVerifiedPendingSave(false);
         // Reset OTP state
         setIsOtpSent(false);
         setIsOtpVerified(false);
@@ -377,6 +385,8 @@ export default function StudentProfile() {
   }
 
   const hasChanges = mobile !== originalMobile || address !== originalAddress || photoChanged || (emailChanged && isOtpVerified);
+  // Allow save if verification completed but profile refresh cleared change flags
+  const effectiveHasChanges = hasChanges || emailVerifiedPendingSave;
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -505,7 +515,44 @@ export default function StudentProfile() {
                       </div>
                       <div className="bg-white p-4 rounded shadow-sm">
                         <span className="text-sm font-medium text-gray-500">Email</span>
-                        <p className="text-lg font-semibold text-gray-800">{email}</p>
+                        <div className="flex items-center space-x-3">
+                          <p className="text-lg font-semibold text-gray-800">{email}</p>
+                          {!student.is_email_verified && (
+                            <div className="ml-2 inline-flex items-center space-x-2">
+                              <span className="text-yellow-700 bg-yellow-100 px-2 py-1 rounded text-sm">UNVERIFIED</span>
+                              <button
+                                onClick={handleSendOtp}
+                                className="px-3 py-1 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700"
+                                disabled={isVerifying}
+                              >
+                                {isVerifying ? 'Sending...' : 'Verify'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {!student.is_email_verified && (
+                          <p className="text-sm text-yellow-800 mt-2">Your email is not verified. College notifications will not be sent.</p>
+                        )}
+                        {isOtpSent && !isOtpVerified && (
+                          <div className="mt-2">
+                            <label className="text-sm font-medium text-gray-500 block">Enter OTP</label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="text"
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value)}
+                                className="mt-1 border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
+                              <button
+                                onClick={handleVerifyOtp}
+                                disabled={isVerifying}
+                                className="px-4 py-2 mt-1 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400"
+                              >
+                                {isVerifying ? 'Verifying...' : 'Verify OTP'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -632,7 +679,7 @@ export default function StudentProfile() {
                                     >
                                       Edit Email
                                     </button>
-                                  ) : (emailChanged && !isOtpVerified && isEmailValid && (
+                                  ) : (((!student.is_email_verified) || emailChanged) && !isOtpVerified && isEmailValid && (
                               <button
                                 onClick={handleSendOtp}
                                 disabled={isVerifying}
@@ -687,6 +734,7 @@ export default function StudentProfile() {
                           setIsOtpSent(false);
                           setIsOtpVerified(false);
                           setOtp('');
+                          setEmailVerifiedPendingSave(false);
                         }}
                         className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 font-medium"
                       >
@@ -694,9 +742,9 @@ export default function StudentProfile() {
                       </button>
                       <button
                         onClick={handleSave}
-                        disabled={!hasChanges || photoProcessing || (emailChanged && !isOtpVerified)}
+                        disabled={!effectiveHasChanges || photoProcessing || (emailChanged && !isOtpVerified)}
                         className={`px-6 py-2 rounded font-medium ${
-                          hasChanges && !photoProcessing && !(emailChanged && !isOtpVerified)
+                          effectiveHasChanges && !photoProcessing && !(emailChanged && !isOtpVerified)
                             ? 'bg-green-500 text-white hover:bg-green-600'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
