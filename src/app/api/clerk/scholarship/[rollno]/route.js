@@ -74,6 +74,31 @@ const normalizeStatus = (value) => {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
+    // Convert pfp BLOB to base64 data URL if present (clerk API should return same shape as student API)
+    try {
+      if (student && student.pfp) {
+        // If it's a Buffer (node mysql returns Buffer), convert directly
+        if (typeof Buffer !== 'undefined' && Buffer.isBuffer(student.pfp)) {
+          student.pfp = `data:image/jpeg;base64,${student.pfp.toString('base64')}`;
+        } else if (typeof student.pfp === 'object' && student.pfp.data) {
+          // Some mysql libs return object with `data` property (Uint8Array-like)
+          try {
+            const b = Buffer.from(student.pfp.data);
+            student.pfp = `data:image/jpeg;base64,${b.toString('base64')}`;
+          } catch (e) {
+            // fallback: stringify
+            student.pfp = String(student.pfp);
+          }
+        } else if (typeof student.pfp === 'string') {
+          // if already a string, keep as-is
+        } else {
+          student.pfp = String(student.pfp);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to normalize student.pfp', err);
+    }
+
     const personal = (await query('SELECT * FROM student_personal_details WHERE student_id = ?', [student.id]))[0] || null;
     const academic = (await query('SELECT * FROM student_academic_background WHERE student_id = ?', [student.id]))[0] || null;
     const feeDetails = (await query('SELECT * FROM student_fee_details WHERE student_id = ?', [student.id]))[0] || null;

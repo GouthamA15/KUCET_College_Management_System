@@ -55,8 +55,8 @@ export async function POST(req) {
       return NextResponse.json({ message: 'OTP has expired. Please request a new one.' }, { status: 400 });
     }
     
-    // OTP is valid, update the student's email
-    await db.execute('UPDATE students SET email = ? WHERE roll_no = ?', [email, rollno]);
+    // OTP is valid, update the student's email and mark it verified
+    await db.execute('UPDATE students SET email = ?, is_email_verified = ?, email_verified_at = ? WHERE roll_no = ?', [email, true, new Date(), rollno]);
     
     // Clean up the used OTP
     await db.execute('DELETE FROM otp_codes WHERE id = ?', [otpData.id]);
