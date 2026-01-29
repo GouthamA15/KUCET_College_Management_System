@@ -467,11 +467,16 @@ export default function ClerkStudentManagement() {
                 <div className="md:col-span-1 bg-gray-50 p-4 rounded">
                   <h4 className="font-semibold mb-3">Profile</h4>
                   <div className="w-28 h-28 rounded-full bg-gray-100 overflow-hidden mb-3 flex items-center justify-center">
-                    {fetchedStudent.pfp ? (
-                      <Image src={fetchedStudent.pfp} alt="Profile" width={112} height={112} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="text-gray-500">No Photo</div>
-                    )}
+                    {(() => {
+                      const p = fetchedStudent.pfp;
+                      const has = p && String(p).trim() !== '';
+                      const isData = has && String(p).startsWith('data:');
+                      const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
+                      if (has && dataHasBody) {
+                        return <Image src={String(p)} alt="Profile" width={112} height={112} className="w-full h-full object-cover" />;
+                      }
+                      return <div className="text-gray-500">No Photo</div>;
+                    })()}
                   </div>
                   <div className="text-sm">
                     <div className="font-medium">{fetchedStudent.name}</div>
@@ -511,7 +516,7 @@ export default function ClerkStudentManagement() {
                     </div>
                     <input placeholder="Mobile Number" value={editValues.mobile || ''} onChange={e=>setEditValues({...editValues, mobile: sanitizeDigits(e.target.value, 10)})} className="p-2 border rounded" />
                     <input type="email" placeholder="Email" value={editValues.email || ''} onChange={e=>setEditValues({...editValues, email:e.target.value})} className="p-2 border rounded" />
-                    <div className="col-span-1 md:col-span-3 text-sm text-gray-500">Profile Picture is view-only here.</div>
+                    <div className="col-span-1 md:col-span-3 text-sm text-gray-500">Profile Picture is view-only here. Inform Students to Upload their Profile Picture Through Their Student Login.</div>
                   </div>
 
                   {/* Section B: Personal Details */}
