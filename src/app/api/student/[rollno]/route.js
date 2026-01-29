@@ -27,8 +27,12 @@ export async function GET(req, context) {
   let isAuthenticated = false;
 
   // Check student authentication
-  if (studentAuthCookie && studentAuthCookie.value === 'true') {
-    isAuthenticated = true;
+  if (studentAuthCookie) {
+    const token = studentAuthCookie.value;
+    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+    if (decoded) {
+      isAuthenticated = true;
+    }
   }
 
   // If not authenticated as student, check clerk authentication

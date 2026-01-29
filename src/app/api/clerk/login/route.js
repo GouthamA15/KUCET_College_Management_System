@@ -34,6 +34,11 @@ export async function POST(request) {
       .sign(secret);
 
     const response = NextResponse.json({ success: true, message: 'Login successful', role: clerk.role });
+
+    // Clear other auth cookies
+    response.cookies.delete('admin_auth');
+    response.cookies.delete('student_auth');
+
     response.cookies.set('clerk_auth', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

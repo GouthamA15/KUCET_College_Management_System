@@ -89,13 +89,21 @@ export default function StudentProfile() {
   }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem('logged_in_student');
-    if (!stored) {
-      router.replace('/');
-      return;
-    }
-    const stu = JSON.parse(stored);
-    fetchProfile(stu.roll_no);
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/student/me');
+        if (res.ok) {
+          const data = await res.json();
+          fetchProfile(data.roll_no);
+        } else {
+          // Handle case where user is not authenticated
+          router.replace('/');
+        }
+      } catch (error) {
+        console.error('Failed to fetch user', error);
+      }
+    };
+    fetchUser();
   }, [router, fetchProfile]);
 
   const handleLogout = async () => {

@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
-import { NextResponse } from 'next/server'; // Import NextResponse
+import { NextResponse } from 'next/server';
+import { SignJWT } from 'jose';
 
 export async function POST(req) {
   try {
@@ -26,18 +27,29 @@ export async function POST(req) {
 
     const dobInputMySQL = toMySQLDate(dob);
 
-    // Convert database date to YYYY-MM-DD string for comparison
     const dbDate = new Date(student.date_of_birth);
     const dbDateString = dbDate.getFullYear() + '-' + String(dbDate.getMonth() + 1).padStart(2, '0') + '-' + String(dbDate.getDate()).padStart(2, '0');
 
     if (dbDateString !== dobInputMySQL) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
-    const { date_of_birth: _dob, ...profile } = student;
     
-    // Set a student authentication cookie upon successful login
+    const { date_of_birth: _dob, ...profile } = student;
+
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const token = await new SignJWT({ roll_no: student.roll_no, name: student.name })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .sign(secret);
+
     const response = NextResponse.json({ student: profile, success: true }, { status: 200 });
-    response.cookies.set('student_auth', 'true', {
+
+    // Clear other auth cookies
+    response.cookies.delete('admin_auth');
+    response.cookies.delete('clerk_auth');
+
+    response.cookies.set('student_auth', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60, // 1 hour

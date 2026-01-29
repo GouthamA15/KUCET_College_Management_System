@@ -51,6 +51,12 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **`29bde60` - Student Profile Changes**
+*   **`204545b` - academic Year modified**
+*   **`657db79` - Create to Deleted Button to cancle scholarship records**
+*   **`4c287d6` - Improved and enchanced API call**
+*   **`18da2b6` - Fixed Navbar Misleadings**
+*   **`d3d605e` - chore: sync remaining changes**
 *   **`281827b` - chore: sync remaining changes**
 *   **`5c21a37` - fix: resolve email update OTP verification flow**
 *   **`425d88a` - docs: Update GEMINI.md with latest changes and refactoring**
@@ -58,6 +64,23 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **`78f7e86` - Updated Componenets**
 *   **`f401920` - Updated pages**
 *   **`81f919c` - updated clerk login api call**
+
+*   **Student Profile and Scholarship Management Enhancements:**
+    *   **Student Profile Fee Display:**
+        *   The student profile page (`src/app/student/profile/page.js`) now provides a more accurate and detailed fee summary for the current academic year.
+        *   Fee calculations now account for self-financed branches and scholarship status to determine the total fee.
+        *   The fee transaction list is more robust, correctly identifying transaction IDs, amounts, and statuses from various data fields.
+        *   A notification has been added to inform students if they have scholarship records from previous years that do not apply to the current year.
+    *   **Scholarship Record Deletion:**
+        *   Scholarship clerks can now delete scholarship records via the dashboard (`src/app/clerk/scholarship/dashboard/page.js`).
+        *   A confirmation modal has been implemented to prevent accidental deletions and other critical actions.
+    *   **Scholarship API and Dashboard:**
+        *   The scholarship API (`src/app/api/clerk/scholarship/[rollno]/route.js`) now includes a `DELETE` endpoint to handle record deletions.
+        *   Date handling has been improved with a `formatDateForSQL` helper to ensure consistent date formatting.
+        *   The API now correctly updates the `year` field in `student_fee_transactions`.
+    *   **Navbar Updates:**
+        *   The student profile navigation (`src/components/Navbar.js`) has been reorganized. "Academics" is now the primary tab, and the "Basic" info tab has been renamed to "Profile".
+        *   New tabs for "Time Table" and "Requests" have been added, linking to their respective pages.
 
 *   **Email Sending Functionality:**
     *   Implemented email sending using Nodemailer.
@@ -123,6 +146,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   Created and utilized new utility functions (`formatDate`, `toMySQLDate`, `parseDate`) in `src/lib/date.js` for consistent date handling across the application.
     *   Fixed backend API routes (`src/app/api/clerk/students/[rollno]/route.js`, `src/app/api/clerk/admission/students/route.js`, `src/app/api/student/login/route.js`) to correctly parse and store `DD-MM-YYYY` dates in the MySQL database as `YYYY-MM-DD`, resolving `ER_TRUNCATED_WRONG_VALUE` errors.
     *   A new git branch `testvanilla` was created and pushed to include all these changes.
+
 
 ## Development Conventions
 

@@ -44,9 +44,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       const data = await res.json();
       if (res.ok && data.student) {
         toast.success('Login successful!', { id: toastId });
-        // Store in localStorage and redirect
-        localStorage.setItem('logged_in_student', JSON.stringify(data.student));
-        router.replace('/student/profile');
+                router.replace('/student/profile');
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
