@@ -127,7 +127,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   if (!activePanel) return null;
 
   return (
-    <div 
+    <div id="login-panels"
       className={`overflow-hidden transition-all duration-500 ease-out ${
         activePanel ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
       }`}

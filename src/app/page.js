@@ -14,6 +14,17 @@ import Footer from '@/app/components/Footer/Footer';
 export default function Home() {
   const [activePanel, setActivePanel] = useState(null); // Re-add activePanel state
 
+  useEffect(() => {
+    if (!activePanel) return;
+    // scroll to login panel area (account for sticky navbar height ~56-72px)
+    const el = document.getElementById('login-panels');
+    if (el) {
+      const navbarHeight = 70; // safe offset
+      const y = el.getBoundingClientRect().top + window.scrollY - navbarHeight;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  }, [activePanel]);
+
 
 
   // Remove auto-redirect for login panels
