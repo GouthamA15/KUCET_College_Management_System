@@ -3,6 +3,7 @@ import React, { useState, useEffect, forwardRef } from 'react';
 import toast from 'react-hot-toast';
 import { formatDate, parseDate } from '@/lib/date';
 import Image from 'next/image';
+import ImagePreviewModal from '@/components/ImagePreviewModal';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
@@ -37,6 +38,8 @@ export default function ClerkStudentManagement() {
   const [fetchedStudent, setFetchedStudent] = useState(null);
   const [fetchError, setFetchError] = useState('');
   const [fetchedList, setFetchedList] = useState([]);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
 
   // View/Edit state
   const [editValues, setEditValues] = useState({ address:'', mobile:'', email:'', guardian_mobile:'', father_occupation:'', annual_income:'' });
@@ -473,7 +476,7 @@ export default function ClerkStudentManagement() {
                       const isData = has && String(p).startsWith('data:');
                       const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
                       if (has && dataHasBody) {
-                        return <Image src={String(p)} alt="Profile" width={112} height={112} className="w-full h-full object-cover" />;
+                        return <Image src={String(p)} alt="Profile" width={112} height={112} onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} className="w-full h-full object-cover cursor-pointer" />;
                       }
                       return <div className="text-gray-500">No Photo</div>;
                     })()}
@@ -593,6 +596,7 @@ export default function ClerkStudentManagement() {
           )}
         </div>
       )}
+      <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />
     </div>
   );
 }

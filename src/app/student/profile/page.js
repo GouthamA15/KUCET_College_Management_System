@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import Header from '@/components/Header';
-import Navbar from '@/components/Navbar';
+import Header from '@/app/components/Header/Header';
+import Navbar from '@/app/components/Navbar/Navbar';
+import ImagePreviewModal from '@/components/ImagePreviewModal';
 import Footer from '@/components/Footer';
 import { formatDate } from '@/lib/date';
 import { getBranchFromRoll, getCurrentStudyingYear, getAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
@@ -39,6 +40,8 @@ export default function StudentProfile() {
   const [emailLocked, setEmailLocked] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
 
   const sanitizeDigits = (val, maxLen = 12) => {
     if (val == null) return '';
@@ -481,7 +484,8 @@ export default function StudentProfile() {
                         alt="Profile Pic"
                         width={96}
                         height={96}
-                        className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-full border-2 border-gray-300"
+                        onClick={(e) => { e.stopPropagation(); setImagePreviewOpen(true); setImagePreviewSrc(profilePhoto || '/assets/default-avatar.svg'); }}
+                        className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-full border-2 border-gray-300 cursor-pointer"
                       />
                       <div>
                         <h3 className="text-xl font-semibold text-gray-800">{student.name}</h3>
@@ -566,7 +570,8 @@ export default function StudentProfile() {
                           alt="Profile Pic"
                           width={96}
                           height={96}
-                          className={`w-20 h-20 md:w-24 md:h-24 object-cover rounded-full border-2 border-gray-300 ${isPhotoRemoved ? 'grayscale' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); setImagePreviewOpen(true); setImagePreviewSrc(previewPhoto || profilePhoto || '/assets/default-avatar.svg'); }}
+                          className={`w-20 h-20 md:w-24 md:h-24 object-cover rounded-full border-2 border-gray-300 ${isPhotoRemoved ? 'grayscale' : ''} cursor-pointer`}
                         />
                         {isPhotoRemoved && (
                           <span className="absolute inset-0 flex items-center justify-center text-red-500 text-4xl font-bold">✕</span>
@@ -901,6 +906,7 @@ export default function StudentProfile() {
           </div>
         </div>
       </main>
+      <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />
       <Footer />
     </div>
   );

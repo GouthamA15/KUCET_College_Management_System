@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ImagePreviewModal from '@/components/ImagePreviewModal';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
@@ -18,7 +19,10 @@ export default function ScholarshipDashboard() {
   const [scholarshipRecords, setScholarshipRecords] = useState([]);
   const [yearCount, setYearCount] = useState(4);
   const [expandedYear, setExpandedYear] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false); // scholarship add/edit modal
+  // image preview state (kept separate from scholarship modal state)
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [editingYear, setEditingYear] = useState(null);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -339,7 +343,7 @@ export default function ScholarshipDashboard() {
                     if (has && dataHasBody) {
                       return (
                         <div className="mb-3">
-                          <Image src={String(p)} alt="Profile Pic" width={96} height={96} className="w-24 h-24 object-cover rounded-full border-2 border-gray-300" />
+                          <Image src={String(p)} alt="Profile Pic" width={96} height={96} onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} className="w-24 h-24 object-cover rounded-full border-2 border-gray-300 cursor-pointer" />
                         </div>
                       );
                     }
@@ -592,7 +596,7 @@ export default function ScholarshipDashboard() {
               <div className="mt-4 flex justify-end gap-2">
                 <button onClick={() => setModalOpen(false)} className="px-4 py-2 border rounded cursor-pointer">Cancel</button>
                 {form && form.id && (
-                  <button onClick={deleteRecord} disabled={saving} className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-60">Delete</button>
+                  <button onClick={deleteRecord} disabled={saving} className="px-4 py-2 bg-red-600 cursor-pointer text-white rounded disabled:opacity-60">Delete</button>
                 )}
                 <button onClick={saveRecord} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded disabled:opacity-60 cursor-pointer">{saving ? 'Saving...' : 'Save'}</button>
               </div>
@@ -615,6 +619,7 @@ export default function ScholarshipDashboard() {
         )}
       </main>
       <Footer />
+      <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />
     </div>
   );
 }
