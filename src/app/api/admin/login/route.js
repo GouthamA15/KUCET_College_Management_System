@@ -11,7 +11,7 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
     }
 
-    const [rows] = await query(
+    const rows = await query(
       'SELECT email, password_hash FROM principal WHERE email = ?',
       [email]
     );

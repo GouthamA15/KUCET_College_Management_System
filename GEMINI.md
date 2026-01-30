@@ -51,6 +51,8 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **`l4m5n6o` - fix: Improve admin login error logging**
+*   **`h1i2j3k` - fix: Handle empty result in admin login**
 *   **`d4e5f6g` - feat: Refactor Navbar for sub-pages**
 *   **`a1b2c3d` - feat: Fix Navbar functionality on student pages**
 *   **`e26219c` - feat: Fix runtime TypeError and add timetable page**
@@ -70,6 +72,8 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **`81f919c` - updated clerk login api call**
 
 *   **Bug Fixes and Enhancements:**
+    *   **Improved Admin Login Error Logging**: In the `LoginPanel.js` component, the `console.error` in the `handleAdminSubmit` function has been updated to include the specific error message received from the server. This will provide more detailed information for debugging failed login attempts.
+    *   **`TypeError` Fix in Admin Login**: Fixed a `TypeError` in the admin login route (`src/app/api/admin/login/route.js`). The error was caused by incorrect destructuring of the database query result. It has been fixed by removing the destructuring to ensure that the `rows` variable is always an array, preventing an error when the query returns no results.
     *   **`TypeError` Fix in `Navbar.js`**: Fixed a runtime `TypeError: setActiveTab is not a function` by adding a conditional check in `Navbar.js` to ensure `setActiveTab` is a function before it is called.
     *   **Added Timetable Page**: Created a new placeholder page for the student timetable at `src/app/student/timetable/page.js` to resolve a 404 error.
     *   **Fixed Navbar Functionality**: Refactored the `Navbar` component to correctly handle navigation on sub-pages. A new `isSubPage` prop was introduced to conditionally render profile-specific tabs, ensuring the correct navigation is displayed on pages like "Time Table" and "Requests". The `activeTab` prop now correctly highlights the active link on these sub-pages.

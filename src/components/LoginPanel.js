@@ -115,7 +115,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       } else {
         toast.error(data.message || 'Admin login failed', { id: toastId });
         setAdminError(data.message || 'Admin login failed');
-        console.error('Admin login failed');
+        console.error('Admin login failed:', data.message);
       }
     } catch (error) {
       toast.error('An unexpected error occurred', { id: toastId });
