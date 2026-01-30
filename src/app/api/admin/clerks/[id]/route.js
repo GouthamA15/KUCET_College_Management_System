@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 
-// Helper function to verify JWT using jose (Edge compatible)
+// Helper function to verify JWT using jose (Edge compatible)   
 async function verifyJwt(token, secret) {
   try {
     const secretKey = new TextEncoder().encode(secret);
