@@ -12,7 +12,7 @@ export default function Footer() {
         {/* Bottom Footer */}
         <div className="text-center ">
           <p className="text-blue-50 text-sm">
-            © 2026 All Rights Reserved, Vibe coded by CSE Department
+            © 2026. All rights reserved. Developed by the Department of Computer Science & Engineering.
           </p>
 
         </div>
