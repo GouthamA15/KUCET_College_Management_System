@@ -26,6 +26,12 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 });
     }
 
+    // Block login for deactivated clerks before issuing tokens/sessions
+    if (!clerk.is_active) {
+      console.log(`[Clerk Login] Attempt to login to deactivated account: ${email}`);
+      return NextResponse.json({ success: false, message: 'Your account has been deactivated. Please contact the administrator.' }, { status: 403 });
+    }
+
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     const token = await new SignJWT({ id: clerk.id, email: clerk.email, role: clerk.role })
       .setProtectedHeader({ alg: 'HS256' })
