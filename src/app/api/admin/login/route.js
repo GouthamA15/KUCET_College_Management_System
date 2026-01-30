@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
 import bcrypt from 'bcrypt';
-import { getDb } from '@/lib/db';
+import { query } from '@/lib/db';
 
 export async function POST(request) {
   try {
@@ -11,8 +11,7 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
     }
 
-    const db = getDb();
-    const [rows] = await db.execute(
+    const rows = await query(
       'SELECT email, password_hash FROM principal WHERE email = ?',
       [email]
     );
@@ -36,14 +35,13 @@ export async function POST(request) {
       .sign(secret);
 
     const response = NextResponse.json({ success: true, message: 'Admin login successful' });
+
+    // Clear other auth cookies
+    response.cookies.delete('clerk_auth');
+    response.cookies.delete('student_auth');
+
     response.cookies.set('admin_auth', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60, // 1 hour
-      path: '/',
-    });
-    response.cookies.set('admin_logged_in', 'true', {
-      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60, // 1 hour
       path: '/',

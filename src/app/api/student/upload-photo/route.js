@@ -1,7 +1,35 @@
 import { getDb } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
+
+async function verifyJwt(token, secret) {
+  try {
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ['HS256'],
+    });
+    return payload;
+  } catch (error) {
+    console.error('JWT Verification failed:', error);
+    return null;
+  }
+}
 
 export async function POST(req) {
+  const cookieStore = await cookies();
+  const studentAuthCookie = cookieStore.get('student_auth');
+  const token = studentAuthCookie ? studentAuthCookie.value : null;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const { roll_no, pfp } = body;

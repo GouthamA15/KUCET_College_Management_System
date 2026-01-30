@@ -16,9 +16,7 @@ export default function AdminNavbar() {
 
       if (response.ok) {
         // Clear any client-side storage
-        localStorage.removeItem('admin_jwt');
-        localStorage.removeItem('admin_authenticated');
-        // Redirect to home
+                // Redirect to home
         router.replace('/');
       } else {
         console.error('Logout failed');

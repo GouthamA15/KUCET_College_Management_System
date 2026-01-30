@@ -26,6 +26,12 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 });
     }
 
+    // Block login for deactivated clerks before issuing tokens/sessions
+    if (!clerk.is_active) {
+      console.log(`[Clerk Login] Attempt to login to deactivated account: ${email}`);
+      return NextResponse.json({ success: false, message: 'Your account has been deactivated. Please contact the administrator.' }, { status: 403 });
+    }
+
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     const token = await new SignJWT({ id: clerk.id, email: clerk.email, role: clerk.role })
       .setProtectedHeader({ alg: 'HS256' })
@@ -33,7 +39,12 @@ export async function POST(request) {
       .setExpirationTime('1h')
       .sign(secret);
 
-    const response = NextResponse.json({ success: true, message: 'Login successful' });
+    const response = NextResponse.json({ success: true, message: 'Login successful', role: clerk.role });
+
+    // Clear other auth cookies
+    response.cookies.delete('admin_auth');
+    response.cookies.delete('student_auth');
+
     response.cookies.set('clerk_auth', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -44,6 +55,13 @@ export async function POST(request) {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60, // 1 hour
+      path: '/',
+    });
+    // Expose the clerk role in a non-httpOnly cookie so client-side code can route appropriately
+    response.cookies.set('clerk_role', clerk.role || '', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60,
       path: '/',
     });
 

@@ -1,11 +1,41 @@
 // src/app/api/clerk/scholarship/[rollno]/route.js
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { computeAcademicYear } from '@/app/lib/academicYear';
 
+// Helper function to verify JWT using jose (Edge compatible)
+async function verifyJwt(token, secret) {
+  try {
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ['HS256'],
+    });
+    return payload;
+  } catch (error) {
+    console.error('JWT Verification failed:', error);
+    return null;
+  }
+}
+
 // Helper function to handle undefined values
 const toNull = (value) => (value === undefined || value === '' ? null : value);
+
+// Normalize various date inputs to SQL DATE string 'YYYY-MM-DD' or null
+const formatDateForSQL = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  // If it's already a Date
+  if (value instanceof Date && !isNaN(value)) return value.toISOString().slice(0, 10);
+  const s = String(value);
+  // If looks like YYYY-MM-DD at start
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return m[1];
+  // Try parsing as date
+  const d = new Date(s);
+  if (!isNaN(d)) return d.toISOString().slice(0, 10);
+  return null;
+};
 
 // Normalize status to DB enum: only 'Pending' or 'Success'
 const normalizeStatus = (value) => {
@@ -16,22 +46,20 @@ const normalizeStatus = (value) => {
   return 'Pending';
 };
 
-function parseCookies(cookieHeader) {
-  const obj = {};
-  if (!cookieHeader) return obj;
-  const parts = cookieHeader.split(';').map(p => p.trim());
-  for (const part of parts) {
-    const idx = part.indexOf('=');
-    if (idx > -1) {
-      const k = part.slice(0, idx);
-      const v = decodeURIComponent(part.slice(idx + 1));
-      obj[k] = v;
-    }
-  }
-  return obj;
-}
+  export async function GET(req, ctx) {
+  const cookieStore = await cookies();
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
 
-export async function GET(req, ctx) {
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
     const { rollno } = params;
@@ -44,6 +72,31 @@ export async function GET(req, ctx) {
 
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+
+    // Convert pfp BLOB to base64 data URL if present (clerk API should return same shape as student API)
+    try {
+      if (student && student.pfp) {
+        // If it's a Buffer (node mysql returns Buffer), convert directly
+        if (typeof Buffer !== 'undefined' && Buffer.isBuffer(student.pfp)) {
+          student.pfp = `data:image/jpeg;base64,${student.pfp.toString('base64')}`;
+        } else if (typeof student.pfp === 'object' && student.pfp.data) {
+          // Some mysql libs return object with `data` property (Uint8Array-like)
+          try {
+            const b = Buffer.from(student.pfp.data);
+            student.pfp = `data:image/jpeg;base64,${b.toString('base64')}`;
+          } catch (e) {
+            // fallback: stringify
+            student.pfp = String(student.pfp);
+          }
+        } else if (typeof student.pfp === 'string') {
+          // if already a string, keep as-is
+        } else {
+          student.pfp = String(student.pfp);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to normalize student.pfp', err);
     }
 
     const personal = (await query('SELECT * FROM student_personal_details WHERE student_id = ?', [student.id]))[0] || null;
@@ -78,7 +131,7 @@ export async function GET(req, ctx) {
     }
 
     scholarship = scholarship.map(s => {
-      const row = { ...s, academic_year: computeAcademicYear(student.roll_no, student.admission_type, s.year) };
+      const row = { ...s, academic_year: computeAcademicYear(student.roll_no, s.year) };
       const ub = row.updated_by;
       if (ub) {
         const su = String(ub);
@@ -100,6 +153,19 @@ export async function GET(req, ctx) {
 }
 
 export async function PUT(req, ctx) {
+  const cookieStore = await cookies();
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
     const { rollno } = params;
@@ -115,32 +181,23 @@ export async function PUT(req, ctx) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // Determine clerk username from JWT cookie if available
-    let updatedBy = null;
-    try {
-      const cookieHeader = req.headers.get('cookie') || '';
-      const cookies = parseCookies(cookieHeader);
-      const token = cookies['clerk_auth'];
-      if (token && process.env.JWT_SECRET) {
-        const { payload } = await jwtVerify(token, new TextEncoder().encode(process.env.JWT_SECRET));
-        updatedBy = payload.email || (payload.id ? `clerk:${payload.id}` : null);
-      }
-    } catch (err) {
-      console.warn('Could not decode clerk token for updated_by:', err);
-    }
+    const updatedBy = decoded.email || (decoded.id ? `clerk:${decoded.id}` : null);
 
     // Update fees (if any)
     if (fees) {
       for (const fee of fees) {
+        const feeDate = formatDateForSQL(fee.date);
+        // include optional `year` when present so student-side can aggregate per study year
+        const feeYear = toNull(fee.year);
         if (fee.id && !String(fee.id).startsWith('new-')) {
           await query(
-            'UPDATE student_fee_transactions SET challan_type = ?, challan_no = ?, date = ?, amount = ?, bank_name_branch = ?, upit_no = ? WHERE id = ? AND student_id = ?',
-            [toNull(fee.challan_type), toNull(fee.challan_no), toNull(fee.date), toNull(fee.amount), toNull(fee.bank_name_branch), toNull(fee.upit_no), fee.id, student.id]
+            'UPDATE student_fee_transactions SET year = ?, challan_type = ?, challan_no = ?, date = ?, amount = ?, bank_name_branch = ?, upit_no = ? WHERE id = ? AND student_id = ?',
+            [feeYear, toNull(fee.challan_type), toNull(fee.challan_no), toNull(feeDate), toNull(fee.amount), toNull(fee.bank_name_branch), toNull(fee.upit_no), fee.id, student.id]
           );
         } else {
           await query(
-            'INSERT INTO student_fee_transactions (student_id, challan_type, challan_no, date, amount, bank_name_branch, upit_no) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [student.id, toNull(fee.challan_type), toNull(fee.challan_no), toNull(fee.date), toNull(fee.amount), toNull(fee.bank_name_branch), toNull(fee.upit_no)]
+            'INSERT INTO student_fee_transactions (student_id, year, challan_type, challan_no, date, amount, bank_name_branch, upit_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [student.id, feeYear, toNull(fee.challan_type), toNull(fee.challan_no), toNull(feeDate), toNull(fee.amount), toNull(fee.bank_name_branch), toNull(fee.upit_no)]
           );
         }
       }
@@ -164,15 +221,19 @@ export async function PUT(req, ctx) {
           // ignore comparison errors and keep normalized status
         }
 
+        // Normalize date fields to SQL DATE format
+        const scholarshipDate = formatDateForSQL(s.date);
+        const scholarshipUtrDate = formatDateForSQL(s.utr_date);
+
         if (s.id && !String(s.id).startsWith('new-')) {
           await query(
             `UPDATE scholarship SET application_no = ?, proceedings_no = ?, amount_sanctioned = ?, amount_disbursed = ?, ch_no = ?, date = ?, utr_no = ?, utr_date = ?, amount_paid = ?, status = ?, year = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND student_id = ?`,
-            [toNull(s.application_no), toNull(s.proceedings_no), toNull(s.amount_sanctioned), toNull(s.amount_disbursed), toNull(s.ch_no), toNull(s.date), toNull(s.utr_no), toNull(s.utr_date), toNull(s.amount_paid), status, toNull(s.year), updatedBy, s.id, student.id]
+            [toNull(s.application_no), toNull(s.proceedings_no), toNull(s.amount_sanctioned), toNull(s.amount_disbursed), toNull(s.ch_no), toNull(scholarshipDate), toNull(s.utr_no), toNull(scholarshipUtrDate), toNull(s.amount_paid), status, toNull(s.year), updatedBy, s.id, student.id]
           );
         } else {
           await query(
             `INSERT INTO scholarship (student_id, year, application_no, proceedings_no, amount_sanctioned, amount_disbursed, ch_no, date, utr_no, utr_date, amount_paid, status, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [student.id, toNull(s.year), toNull(s.application_no), toNull(s.proceedings_no), toNull(s.amount_sanctioned), toNull(s.amount_disbursed), toNull(s.ch_no), toNull(s.date), toNull(s.utr_no), toNull(s.utr_date), toNull(s.amount_paid), status, updatedBy]
+            [student.id, toNull(s.year), toNull(s.application_no), toNull(s.proceedings_no), toNull(s.amount_sanctioned), toNull(s.amount_disbursed), toNull(s.ch_no), toNull(scholarshipDate), toNull(s.utr_no), toNull(scholarshipUtrDate), toNull(s.amount_paid), status, updatedBy]
           );
         }
       }
@@ -181,6 +242,59 @@ export async function PUT(req, ctx) {
     return NextResponse.json({ success: true, message: 'Student data updated successfully' });
   } catch (error) {
     console.error('Error updating student data:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req, ctx) {
+  const cookieStore = await cookies();
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
+    const { rollno } = params;
+    const body = await req.json();
+    const { scholarship_id, delete_related_fees } = body || {};
+
+    if (!rollno) return NextResponse.json({ error: 'Missing rollno parameter' }, { status: 400 });
+    if (!scholarship_id) return NextResponse.json({ error: 'Missing scholarship_id' }, { status: 400 });
+
+    const [student] = await query('SELECT id FROM students WHERE roll_no = ?', [rollno]);
+    if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+
+    // Fetch the scholarship row to get any identifiers (ch_no, utr_no)
+    const rows = await query('SELECT * FROM scholarship WHERE id = ? AND student_id = ?', [scholarship_id, student.id]);
+    if (!rows || rows.length === 0) return NextResponse.json({ error: 'Scholarship record not found' }, { status: 404 });
+    const sch = rows[0];
+
+    // Optionally delete related fee transactions that reference this scholarship's challan/utr
+    if (delete_related_fees) {
+      const vals = [];
+      const clauses = [];
+      if (sch.ch_no) { clauses.push('challan_no = ?'); vals.push(sch.ch_no); }
+      if (sch.utr_no) { clauses.push('upit_no = ?'); vals.push(sch.utr_no); }
+      if (clauses.length) {
+        const where = `student_id = ? AND (${clauses.join(' OR ')})`;
+        await query(`DELETE FROM student_fee_transactions WHERE ${where}`, [student.id, ...vals]);
+      }
+    }
+
+    // Delete scholarship row
+    await query('DELETE FROM scholarship WHERE id = ? AND student_id = ?', [scholarship_id, student.id]);
+
+    return NextResponse.json({ success: true, message: 'Scholarship record deleted' });
+  } catch (error) {
+    console.error('Error deleting scholarship record:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

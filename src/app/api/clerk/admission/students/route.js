@@ -1,18 +1,46 @@
 import { query } from '@/lib/db';
+import { toMySQLDate } from '@/lib/date';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
+import { validateRollNo } from '@/lib/rollNumber';
+
+// Helper function to verify JWT using jose (Edge compatible)
+async function verifyJwt(token, secret) {
+  try {
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ['HS256'],
+    });
+    return payload;
+  } catch (error) {
+    console.error('JWT Verification failed:', error);
+    return null;
+  }
+}
 
 export async function POST(req) {
+  const cookieStore = await cookies();
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const studentData = await req.json();
-
-    // TODO: Add validation for the student data
 
     // Log incoming payload for debugging
     console.log('Admission payload received:', JSON.stringify(studentData));
 
     const {
       admission_no,
-      admission_type,
       roll_no,
       name,
       father_name,
@@ -28,7 +56,6 @@ export async function POST(req) {
       mobile,
       email,
       qualifying_exam,
-      course,
       mother_tongue,
       father_occupation,
       student_aadhar_no,
@@ -42,58 +69,20 @@ export async function POST(req) {
       area_status,
       previous_college_details,
       medium_of_instruction,
-      year_of_study,
       total_marks,
       marks_secured,
     } = studentData;
 
-    // Use provided roll_no (manual entry). If none provided, accept null and let DB constraints handle it.
     const providedRoll = roll_no || studentData.rollno || null;
 
-    // Determine allowed admission_type values from DB enum (if present)
-    let admissionTypeToSave = null;
-    try {
-      const col = await query(
-        `SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'students' AND COLUMN_NAME = 'admission_type'`
-      );
-      let allowedAdmissionTypes = ['Regular', 'Lateral']; // fallback
-      let isNullable = 'YES';
-      let columnDefault = null;
-      if (Array.isArray(col) && col.length > 0 && col[0].COLUMN_TYPE) {
-        const columnType = col[0].COLUMN_TYPE; // e.g. "enum('regular','Lateral Entry')"
-        const matches = Array.from(columnType.matchAll(/'([^']+)'/g)).map(m => m[1]);
-        if (matches.length) allowedAdmissionTypes = matches;
-        if (typeof col[0].IS_NULLABLE !== 'undefined') isNullable = col[0].IS_NULLABLE;
-        if (typeof col[0].COLUMN_DEFAULT !== 'undefined') columnDefault = col[0].COLUMN_DEFAULT;
-      }
+    if (!providedRoll) {
+      return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
+    }
 
-      if (typeof admission_type !== 'undefined' && admission_type !== null && admission_type !== '') {
-        // Try to map incoming value to one of the allowedAdmissionTypes (case/spacing insensitive)
-        const normalize = v => (v + '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
-        const incomingNorm = normalize(admission_type);
-        const found = allowedAdmissionTypes.find(opt => normalize(opt) === incomingNorm);
-        if (found) {
-          admissionTypeToSave = found;
-        } else {
-          console.warn(`Admission type '${admission_type}' not matched to DB enum options: ${allowedAdmissionTypes.join(', ')}; will attempt sensible default if column forbids NULL.`);
-          admissionTypeToSave = null;
-        }
-        // If DB column forbids NULL, prefer 'Regular' explicitly; otherwise fall back to column default or first allowed option
-        if (admissionTypeToSave === null && isNullable === 'NO') {
-          if (allowedAdmissionTypes.includes('Regular')) admissionTypeToSave = 'Regular';
-          else admissionTypeToSave = columnDefault || (allowedAdmissionTypes.length ? allowedAdmissionTypes[0] : null);
-          console.warn(`admission_type is NOT NULL in DB — using default '${admissionTypeToSave}'`);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to read admission_type column definition, falling back to fallback list;', err);
-      if (typeof admission_type !== 'undefined' && admission_type !== null && admission_type !== '') {
-        // map common variants to fallback
-        const lower = (admission_type + '').toLowerCase();
-        if (lower.includes('lateral')) admissionTypeToSave = 'Lateral';
-        else if (lower.includes('regular')) admissionTypeToSave = 'Regular';
-        else admissionTypeToSave = null;
-      }
+    const { isValid } = validateRollNo(providedRoll);
+
+    if (!isValid) {
+      return NextResponse.json({ error: 'Invalid roll number format' }, { status: 400 });
     }
 
     // Check if a student with this roll number already exists
@@ -106,8 +95,8 @@ export async function POST(req) {
 
     // Insert into `students` table (core student record)
     const studentResult = await query(
-      `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email, course, admission_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [admission_no || null, providedRoll, name || null, date_of_birth || null, gender || null, mobile || null, email || null, course || null, admissionTypeToSave]
+      `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [admission_no || null, providedRoll, name || null, toMySQLDate(date_of_birth) || null, gender || null, mobile || null, email || null]
     );
 
     const studentId = studentResult.insertId;
@@ -148,14 +137,13 @@ export async function POST(req) {
       // Insert academic background into `student_academic_background`
       await query(
         `INSERT INTO student_academic_background (
-          student_id, qualifying_exam, previous_college_details, medium_of_instruction, year_of_study, total_marks, marks_secured
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          student_id, qualifying_exam, previous_college_details, medium_of_instruction, total_marks, marks_secured
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
         [
           studentId,
           qualifying_exam || null,
           previous_college_details || null,
           medium_of_instruction || null,
-          year_of_study ? Number(year_of_study) : null,
           total_marks ? Number(total_marks) : null,
           marks_secured ? Number(marks_secured) : null
         ]

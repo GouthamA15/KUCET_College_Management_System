@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+// DOB will be a controlled numeric text input (DD-MM-YYYY)
 
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
@@ -21,17 +22,29 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
     setStudentError('');
     const toastId = toast.loading('Logging in...');
     try {
+      // convert DD-MM-YYYY -> YYYY-MM-DD for server
+      let dobForServer = '';
+      if (studentForm.dob) {
+        const p = studentForm.dob.split('-');
+        if (p.length === 3) {
+          const dd = p[0].padStart(2, '0');
+          const mm = p[1].padStart(2, '0');
+          const yyyy = p[2];
+          dobForServer = `${yyyy}-${mm}-${dd}`;
+        } else {
+          dobForServer = studentForm.dob;
+        }
+      }
+
       const res = await fetch('/api/student/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollno: studentForm.rollNumber, dob: studentForm.dob }),
+        body: JSON.stringify({ rollno: studentForm.rollNumber, dob: dobForServer }),
       });
       const data = await res.json();
       if (res.ok && data.student) {
         toast.success('Login successful!', { id: toastId });
-        // Store in localStorage and redirect
-        localStorage.setItem('logged_in_student', JSON.stringify(data.student));
-        router.replace('/student/profile');
+                router.replace('/student/profile');
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
@@ -61,7 +74,14 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        router.replace('/clerk/dashboard');
+        // Prefer explicit role from response; fallback to generic
+        const role = (data.role || '').toString().toLowerCase();
+        if (role.includes('scholar')) {
+          router.replace('/clerk/scholarship/dashboard');
+        } else {
+          // Treat everything else as admission/administrative by default
+          router.replace('/clerk/admission/dashboard');
+        }
       } else {
         toast.error(data.message || 'Clerk login failed', { id: toastId });
         setClerkError(data.message || 'Clerk login failed');
@@ -95,7 +115,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       } else {
         toast.error(data.message || 'Admin login failed', { id: toastId });
         setAdminError(data.message || 'Admin login failed');
-        console.error('Admin login failed');
+        console.error('Admin login failed:', data.message);
       }
     } catch (error) {
       toast.error('An unexpected error occurred', { id: toastId });
@@ -107,7 +127,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   if (!activePanel) return null;
 
   return (
-    <div 
+    <div id="login-panels"
       className={`overflow-hidden transition-all duration-500 ease-out ${
         activePanel ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
       }`}
@@ -159,10 +179,48 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         (used as password for first login)
                       </span>
                     </label>
+                    {/* Numeric-only DD-MM-YYYY input with auto-inserted, locked hyphens */}
                     <input
-                      type="date"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="DD-MM-YYYY"
+                      maxLength={10}
                       value={studentForm.dob}
-                      onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
+                      onKeyDown={(e) => {
+                        const allowedKeys = [
+                          'Backspace', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Delete', 'Home', 'End'
+                        ];
+                        if (allowedKeys.includes(e.key)) return;
+                        // allow only digits
+                        if (/^[0-9]$/.test(e.key)) return;
+                        e.preventDefault();
+                      }}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        // strip non-digits
+                        const digits = raw.replace(/\D/g, '').slice(0, 8);
+                        let formatted = digits;
+                        if (digits.length >= 5) {
+                          formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
+                        } else if (digits.length >= 3) {
+                          formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
+                        } else if (digits.length >= 1) {
+                          formatted = digits;
+                        }
+                        setStudentForm({ ...studentForm, dob: formatted });
+                      }}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
+                        const digits = paste.replace(/\D/g, '').slice(0, 8);
+                        let formatted = digits;
+                        if (digits.length >= 5) {
+                          formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
+                        } else if (digits.length >= 3) {
+                          formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
+                        }
+                        setStudentForm({ ...studentForm, dob: formatted });
+                      }}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
                       required
                     />
