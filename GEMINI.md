@@ -51,6 +51,10 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **`d4e5f6g` - feat: Refactor Navbar for sub-pages**
+*   **`a1b2c3d` - feat: Fix Navbar functionality on student pages**
+*   **`e26219c` - feat: Fix runtime TypeError and add timetable page**
+*   **`0e7c8e3` - feat: Implement Student Requests feature for Bonafide and No Dues certificates**
 *   **`29bde60` - Student Profile Changes**
 *   **`204545b` - academic Year modified**
 *   **`657db79` - Create to Deleted Button to cancle scholarship records**
@@ -64,6 +68,24 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **`78f7e86` - Updated Componenets**
 *   **`f401920` - Updated pages**
 *   **`81f919c` - updated clerk login api call**
+
+*   **Bug Fixes and Enhancements:**
+    *   **`TypeError` Fix in `Navbar.js`**: Fixed a runtime `TypeError: setActiveTab is not a function` by adding a conditional check in `Navbar.js` to ensure `setActiveTab` is a function before it is called.
+    *   **Added Timetable Page**: Created a new placeholder page for the student timetable at `src/app/student/timetable/page.js` to resolve a 404 error.
+    *   **Fixed Navbar Functionality**: Refactored the `Navbar` component to correctly handle navigation on sub-pages. A new `isSubPage` prop was introduced to conditionally render profile-specific tabs, ensuring the correct navigation is displayed on pages like "Time Table" and "Requests". The `activeTab` prop now correctly highlights the active link on these sub-pages.
+
+*   **Student Requests Feature:**
+    *   New pages for "Bonafide Certificate" and "No Dues Certificate" requests have been added under `/student/requests`.
+    *   The "Bonafide" page (`src/app/student/requests/bonafide/page.js`) allows students to request a bonafide certificate and view the status of their requests.
+    *   The "No Dues" page (`src/app/student/requests/nodues/page.js`) allows students to view their fee status and request a no-dues certificate. It utilizes new components `DuesSection` and `TuitionFeeStatus`.
+    *   The main student `Navbar` (`src/components/Navbar.js`) has been updated with a "Requests" dropdown menu that links to the new "Bonafide" and "No Dues" pages.
+
+*   **New Components:**
+    *   `DuesSection.js`: A reusable component to display a section with a title and a status (e.g., "Paid," "Pending").
+    *   `TuitionFeeStatus.js`: A component that displays the student's tuition fee status, including total expected fee, total cleared fee, and pending fee.
+
+*   **Footer Update:**
+    *   The `Footer.js` component has been updated with a more concise design.
 
 *   **Student Profile and Scholarship Management Enhancements:**
     *   **Student Profile Fee Display:**

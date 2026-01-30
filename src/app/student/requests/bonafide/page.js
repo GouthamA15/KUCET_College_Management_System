@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-// import Navbar from '../../../../components/Navbar';
 import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 export default function BonafideRequestPage() {
+  const router = useRouter();
+
   // Mock data - Replace with API fetch
   const [requests, setRequests] = useState([
     {
@@ -57,7 +59,15 @@ export default function BonafideRequestPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <Navbar studentProfileMode={true} activePanel="requests" />
+      <Navbar 
+        studentProfileMode={true} 
+        isSubPage={true}
+        activeTab="requests"
+        onLogout={async () => {
+          await fetch('/api/student/logout', { method: 'POST' });
+          router.replace('/');
+        }}
+      />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="flex justify-between items-center mb-8">

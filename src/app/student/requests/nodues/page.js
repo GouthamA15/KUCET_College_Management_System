@@ -5,8 +5,11 @@ import Navbar from '../../../../components/Navbar';
 import DuesSection from '../../../../components/DuesSection';
 import TuitionFeeStatus from '../../../../components/TuitionFeeStatus';
 import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 export default function NoDuesRequestPage() {
+  const router = useRouter();
+
   const [studentData, setStudentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [requestStatus, setRequestStatus] = useState('idle');
@@ -63,7 +66,15 @@ export default function NoDuesRequestPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar studentProfileMode={true} activePanel="requests" />
+      <Navbar 
+        studentProfileMode={true} 
+        isSubPage={true}
+        activeTab="requests"
+        onLogout={async () => {
+          await fetch('/api/student/logout', { method: 'POST' });
+          router.replace('/');
+        }}
+      />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">No Dues Certificate</h1>
 
