@@ -1,5 +1,6 @@
 'use client';
 
+import imageCompression from 'browser-image-compression';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -122,68 +123,40 @@ export default function StudentProfile() {
     }
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
         toast.error('Only JPG, JPEG, and PNG files are allowed.');
         return;
       }
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit for original file
+        toast.error('Original file size should be less than 2MB.');
+        return;
+      }
 
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new window.Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-
-            const size = Math.min(img.width, img.height);
-            canvas.width = 150;
-            canvas.height = 150;
-
-            const x = (img.width - size) / 2;
-            const y = (img.height - size) / 2;
-
-            ctx.drawImage(img, x, y, size, size, 0, 0, 150, 150);
-
-            canvas.toBlob(
-              (blob) => {
-                if (blob.size > 60 * 1024) {
-                  const quality = (60 * 1024) / blob.size;
-                  canvas.toBlob(
-                    (compressedBlob) => {
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        setPreviewPhoto(reader.result);
-                        setPhotoChanged(true);
-                        setIsPhotoRemoved(false);
-                        resolve(reader.result);
-                      };
-                      reader.readAsDataURL(compressedBlob);
-                    },
-                    'image/jpeg',
-                    quality
-                  );
-                } else {
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    setPreviewPhoto(reader.result);
-                    setPhotoChanged(true);
-                    setIsPhotoRemoved(false);
-                    resolve(reader.result);
-                  };
-                  reader.readAsDataURL(blob);
-                }
-              },
-              'image/jpeg',
-              0.9
-            );
-          };
-          img.src = event.target.result;
+      try {
+        const options = {
+          maxSizeMB: 0.06, // Target 60KB
+          maxWidthOrHeight: 150, // Resizes to 150x150 (smallest dimension is 150)
+          useWebWorker: true,
+          fileType: "image/jpeg", // Ensure JPEG output for consistent size
         };
-        reader.readAsDataURL(file);
-      });
+        const compressedFile = await imageCompression(file, options);
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          setPreviewPhoto(reader.result);
+          setPhotoChanged(true);
+          setIsPhotoRemoved(false);
+        };
+        reader.readAsDataURL(compressedFile);
+
+        toast.success(`Image compressed to ${(compressedFile.size / 1024).toFixed(2)} KB.`);
+      } catch (error) {
+        toast.error('Image compression failed. Please try another image.');
+        setPreviewPhoto(null);
+      }
     }
   };
 
