@@ -111,6 +111,9 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                     <Link href="/student/requests/nodues" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">
                       No Dues Certificate
                     </Link>
+                    <Link href="/student/requests/certificates" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">
+                      Other Certificates
+                    </Link>
                   </div>
                 </div>
                 {!isSubPage && (
@@ -229,10 +232,11 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
             )
           ) : studentProfileMode ? (
             <>
-              <button onClick={() => { setActiveTab && setActiveTab('basic'); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Basic</button>
-              <button onClick={() => { setActiveTab && setActiveTab('scholarship'); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Scholarship</button>
-              <button onClick={() => { setActiveTab && setActiveTab('fees'); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Fees</button>
-              <button onClick={() => { setActiveTab && setActiveTab('academics'); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Academics</button>
+              <Link href="/student/profile" className="text-white block w-full text-left px-3 py-2.5 text-sm">Profile</Link>
+              <Link href="/student/timetable" className="text-white block w-full text-left px-3 py-2.5 text-sm">Time Table</Link>
+              <Link href="/student/requests/bonafide" className="text-white block w-full text-left px-3 py-2.5 text-sm">Bonafide Certificate</Link>
+              <Link href="/student/requests/nodues" className="text-white block w-full text-left px-3 py-2.5 text-sm">No Dues Certificate</Link>
+              <Link href="/student/requests/certificates" className="text-white block w-full text-left px-3 py-2.5 text-sm">Other Certificates</Link>
               <button onClick={() => { onLogout && onLogout(); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Logout</button>
             </>
           ) : (
