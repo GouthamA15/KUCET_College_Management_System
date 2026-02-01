@@ -2,9 +2,11 @@
 import { useState, useEffect } from 'react';
 import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
+import Header from '../../../../components/Header';
+import Footer from '../../../../components/Footer';
+import Navbar from '../../../../components/Navbar';
 
 const certificateTypes = {
-  "Bonafide Certificate": { fee: 100, clerk: "scholarship" },
   "Course Completion Certificate": { fee: 100, clerk: "admission" },
   "Income Tax (IT) Certificate": { fee: 0, clerk: "scholarship" },
   "Custodian Certificate": { fee: 100, clerk: "scholarship" },
@@ -18,6 +20,8 @@ export default function CertificateRequestsPage() {
   const [transactionId, setTransactionId] = useState('');
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [requests, setRequests] = useState([]);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [downloadErrors, setDownloadErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
   const fee = certificateTypes[selectedCertificate].fee;
@@ -109,8 +113,11 @@ export default function CertificateRequestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
+    <>
+      <Header />
+      <Navbar studentProfileMode={true} activeTab="requests" />
+      <main className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Certificate Requests</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -199,24 +206,96 @@ export default function CertificateRequestsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{req.certificate_type}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            req.status === 'Completed' ? 'bg-green-100 text-green-800' : 
+                            req.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 
                             req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
                           }`}>
                             {req.status}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {req.certificate_type === 'Bonafide Certificate' && req.status === 'Completed' ? (
-                            <a 
-                              href={`/api/student/requests/download/${req.request_id}`} 
-                              download={`Bonafide_${req.roll_number}.pdf`}
-                              className="text-indigo-600 hover:text-indigo-900"
-                            >
-                              Download
-                            </a>
-                          ) : (
-                            '-'
-                          )}
+                          {req.status === 'APPROVED' ? (
+                              <div className="flex items-center space-x-2">
+                                {downloadingId === req.request_id ? (
+                                  <>
+                                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                    </svg>
+                                    <span className="text-sm text-gray-600">Generating certificate...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={async (e) => {
+                                        e.preventDefault();
+                                        // prevent duplicate clicks
+                                        if (downloadingId) return;
+                                        setDownloadErrors(prev => ({ ...prev, [req.request_id]: null }));
+                                        setDownloadingId(req.request_id);
+                                        try {
+                                          const res = await fetch(`/api/student/requests/download/${req.request_id}`, {
+                                            method: 'GET',
+                                            credentials: 'same-origin',
+                                          });
+                                          if (!res.ok) {
+                                            const err = await res.json().catch(() => ({}));
+                                            throw new Error(err.error || 'Failed to generate certificate');
+                                          }
+                                          const blob = await res.blob();
+                                          const url = window.URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = url;
+                                          // Try to get filename from Content-Disposition header (supports filename* and filename)
+                                          const contentDisp = res.headers.get('Content-Disposition') || res.headers.get('content-disposition');
+                                          let filename = `Certificate_${req.roll_number || 'certificate'}.pdf`;
+                                          if (contentDisp) {
+                                            // Prefer filename* (RFC5987) which may be encoded
+                                            const filenameStarMatch = contentDisp.match(/filename\*\s*=\s*([^;]+)/i);
+                                            if (filenameStarMatch) {
+                                              let val = filenameStarMatch[1].trim();
+                                              val = val.replace(/^\"/, '').replace(/\"$/, '');
+                                              const parts = val.split("''");
+                                              if (parts.length === 2) {
+                                                try {
+                                                  filename = decodeURIComponent(parts[1]);
+                                                } catch (e) {
+                                                  filename = parts[1];
+                                                }
+                                              } else {
+                                                try { filename = decodeURIComponent(val); } catch (e) { filename = val; }
+                                              }
+                                            } else {
+                                              const filenameMatch = contentDisp.match(/filename\s*=\s*\"?(.*?)\"?(?:;|$)/i);
+                                              if (filenameMatch) filename = filenameMatch[1];
+                                            }
+                                          }
+                                          a.download = filename || `Certificate_${req.roll_number || 'certificate'}.pdf`;
+                                          // helpful debug when filenames are still wrong
+                                          console.debug('Certificate download filename chosen:', a.download, 'Content-Disposition:', contentDisp);
+                                          document.body.appendChild(a);
+                                          a.click();
+                                          a.remove();
+                                          window.URL.revokeObjectURL(url);
+                                        } catch (error) {
+                                          console.error('Download error', error);
+                                          setDownloadErrors(prev => ({ ...prev, [req.request_id]: 'Failed to generate certificate. Try again.' }));
+                                        } finally {
+                                          setDownloadingId(null);
+                                        }
+                                      }}
+                                      className="text-indigo-600 hover:text-indigo-900 disabled:text-gray-400 cursor-pointer"
+                                    >
+                                      Download
+                                    </button>
+                                    {downloadErrors[req.request_id] && (
+                                      <span className="text-sm text-red-600">{downloadErrors[req.request_id]}</span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            ) : (
+                              '-'
+                            )}
                         </td>
                       </tr>
                     )) : (
@@ -231,7 +310,9 @@ export default function CertificateRequestsPage() {
           </div>
 
         </div>
-      </div>
-    </div>
+        </div>
+      </main>
+      <Footer />
+    </>
   );
 }
