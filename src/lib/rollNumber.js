@@ -81,24 +81,20 @@ function getCurrentStudyingYear(rollNo) {
     return null;
   }
 
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
   const entryYearInt = parseInt(entryYear, 10);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-12
 
-  let yearDiff = currentYear - entryYearInt;
+  // Effective academic base year: if before June, academic year belongs to previous calendar year
+  const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
 
-  if (currentMonth < 6) {
-    // Before June, student is in the previous academic year's session.
-    yearDiff -= 1;
-  }
+  const academicYearIndex = effectiveYear - entryYearInt + 1;
 
-  if (admissionType === 'Regular') {
-    return yearDiff + 1;
-  } else if (admissionType === 'Lateral') {
-    return yearDiff + 2;
-  }
+  const maxYears = (admissionType && admissionType.toLowerCase() === 'lateral') ? 3 : 4;
+  if (!Number.isInteger(academicYearIndex) || academicYearIndex < 1 || academicYearIndex > maxYears) return null;
 
-  return null;
+  return academicYearIndex;
 }
 
 function getAcademicYearForStudyYear(rollNo, yearOfStudy) {
@@ -121,5 +117,27 @@ export {
   getAcademicYear,
   getCurrentStudyingYear,
   getAcademicYearForStudyYear,
+  getCurrentAcademicYear,
   branchCodes,
 };
+
+function getCurrentAcademicYear(rollNo) {
+  const entryYear = getEntryYearFromRoll(rollNo);
+  const admissionType = getAdmissionTypeFromRoll(rollNo);
+  if (!entryYear) return null;
+
+  const admissionYear = parseInt(entryYear, 10);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
+  const academicYearIndex = effectiveYear - admissionYear + 1;
+
+  const maxYears = (admissionType && admissionType.toLowerCase() === 'lateral') ? 3 : 4;
+  if (!Number.isInteger(academicYearIndex) || academicYearIndex < 1 || academicYearIndex > maxYears) return null;
+
+  const startYear = admissionYear + (academicYearIndex - 1);
+  const endYear = startYear + 1;
+  return `${startYear}-${String(endYear).slice(-2)}`;
+}
