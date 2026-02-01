@@ -8,7 +8,7 @@ import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateRequests from '@/components/CertificateRequests';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
+import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear, getCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
 
 export default function ScholarshipDashboard() {
   const [roll, setRoll] = useState('');
@@ -387,7 +387,7 @@ export default function ScholarshipDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
                       <div className="text-sm text-gray-500">Academic Year</div>
-                      <div className="font-medium">{getAcademicYear(student.roll_no) || '-'}</div>
+                      <div className="font-medium">{getCurrentAcademicYear(student.roll_no) || '-'}</div>
                     </div>
                     <div>
                       <div className="text-sm text-gray-500">Admission Type (detailed)</div>
@@ -536,7 +536,7 @@ export default function ScholarshipDashboard() {
 
         {/* Modal for Add/Edit */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
               <h3 className="text-lg font-semibold mb-3">{form.id ? 'Edit' : 'Add'} Record — Year {editingYear}</h3>
 
@@ -617,7 +617,7 @@ export default function ScholarshipDashboard() {
 
         {/* Confirmation dialog for type changes */}
         {confirmOpen && (
-          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <h3 className="text-lg font-semibold mb-3">Confirm Change</h3>
               <p className="text-sm text-gray-700 mb-4">{confirmMessage}</p>
