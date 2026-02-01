@@ -9,7 +9,7 @@ import Navbar from '@/app/components/Navbar/Navbar';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import Footer from '@/components/Footer';
 import { formatDate } from '@/lib/date';
-import { getBranchFromRoll, getCurrentStudyingYear, getAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
+import { getBranchFromRoll, getCurrentStudyingYear, getCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
 import { computeAcademicYear } from '@/app/lib/academicYear';
 import Image from 'next/image';
 
@@ -304,9 +304,9 @@ export default function StudentProfile() {
   // Robust fees handling: accept fees array, and include rows without `year` if their date falls into the academic year range.
   const feesArray = Array.isArray(studentData.fees) ? studentData.fees : [];
 
-  const academicYearLabel = getAcademicYear(student.roll_no) || null;
+  const academicYearLabel = getCurrentAcademicYear(student.roll_no) || null;
   // derive academic year start for current studying year
-  const academicYearForStudy = getAcademicYear(student.roll_no) ? getAcademicYearForStudyYear(student.roll_no, currentStudyingYear) : null;
+  const academicYearForStudy = getAcademicYearForStudyYear(student.roll_no, currentStudyingYear);
   let yearStart = null;
   if (academicYearForStudy) {
     const m = academicYearForStudy.match(/^(\d{4})/);
@@ -405,7 +405,7 @@ export default function StudentProfile() {
             <div className="flex justify-end pr-4">
               <div>
                 <div className="text-sm text-gray-500">Academic Year</div>
-                <div className="font-medium">{getAcademicYear(student.roll_no) || '-'}</div>
+                <div className="font-medium">{getCurrentAcademicYear(student.roll_no) || '-'}</div>
               </div>
             </div>
             {isMobileMenuOpen && (
