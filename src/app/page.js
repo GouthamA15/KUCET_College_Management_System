@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 // import { useRouter } from 'next/navigation';
 // import Header from '@/components/Header';
 // import Navbar from '@/components/Navbar';
@@ -13,41 +12,20 @@ import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
 
 export default function Home() {
-  const router = useRouter();
   const [activePanel, setActivePanel] = useState(null); // Re-add activePanel state
-  // const router = useRouter();
 
-  // Restore the useEffect for redirecting logged-in students
   useEffect(() => {
-    const checkAuth = async () => {
-      // Check if user is already logged in and redirect accordingly
-      const studentData = localStorage.getItem('logged_in_student');
-      const clerkAuth = sessionStorage.getItem('clerk_authenticated');
+    if (!activePanel) return;
+    // scroll to login panel area (account for sticky navbar height ~56-72px)
+    const el = document.getElementById('login-panels');
+    if (el) {
+      const navbarHeight = 70; // safe offset
+      const y = el.getBoundingClientRect().top + window.scrollY - navbarHeight;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  }, [activePanel]);
 
-      // Check admin auth via non-httpOnly cookie
-      const adminLoggedIn = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('admin_logged_in='));
 
-      if (studentData) {
-        router.replace('/student/profile');
-        return;
-      }
-
-      if (clerkAuth) {
-        router.replace('/clerk/dashboard');
-        return;
-      }
-
-      if (adminLoggedIn && adminLoggedIn.split('=')[1] === 'true') {
-        // Admin is logged in, redirect to dashboard
-        router.replace('/admin/dashboard');
-        return;
-      }
-    };
-
-    checkAuth();
-  }, [router]);
 
   // Remove auto-redirect for login panels
 

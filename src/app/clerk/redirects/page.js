@@ -14,6 +14,7 @@ export default function ClerkRedirects() {
     } else if (role) {
       router.replace('/clerk/admission/dashboard');
     } else {
+      // No role found — send to login/home
       router.replace('/');
     }
   }, [router]);

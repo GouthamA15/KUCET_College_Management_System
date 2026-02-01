@@ -1,7 +1,36 @@
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
+
+// Helper function to verify JWT using jose (Edge compatible)
+async function verifyJwt(token, secret) {
+  try {
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ['HS256'],
+    });
+    return payload;
+  } catch (error) {
+    console.error('JWT Verification failed:', error);
+    return null;
+  }
+}
 
 export async function GET(req) {
+  const cookieStore = await cookies();
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const year = req.nextUrl.searchParams.get('year');
     const branch = req.nextUrl.searchParams.get('branch');
@@ -11,19 +40,17 @@ export async function GET(req) {
     }
 
     const yearShort = year.slice(-2);
-    const lateralYearShort = (parseInt(year, 10) + 1).toString().slice(-2);
+
+    const regularRollPattern = `${yearShort}567T${branch}%`;
+    const lateralRollPattern = `${yearShort}567${branch}%L`;
 
     const sql = `
       SELECT * FROM students
       WHERE 
-        -- Regular students
-        (roll_no LIKE '%T%' AND SUBSTR(roll_no, 1, 2) = ? AND SUBSTR(roll_no, -4, 2) = ?)
-        OR
-        -- Lateral entry students
-        (roll_no LIKE '%L' AND SUBSTR(roll_no, 1, 2) = ? AND SUBSTR(roll_no, -5, 2) = ?)
+        roll_no LIKE ? OR roll_no LIKE ?
     `;
 
-    const students = await query(sql, [yearShort, branch, lateralYearShort, branch]);
+    const students = await query(sql, [regularRollPattern, lateralRollPattern]);
 
     return NextResponse.json({ students });
   } catch (error) {
@@ -33,6 +60,19 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const cookieStore = cookies();
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const data = await req.json();
     const {

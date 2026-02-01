@@ -17,7 +17,8 @@ const BRANCHES = [
   { code: '03', name: 'MECH' },
 ];
 
-const YEARS = ['2022', '2023', '2024', '2025'];
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 4 }, (_, i) => (currentYear - i).toString()).reverse();
 
 export default function AdminDashboardPage() {
   const [totalClerks, setTotalClerks] = useState(0);

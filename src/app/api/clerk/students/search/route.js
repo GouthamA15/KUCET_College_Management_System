@@ -1,7 +1,36 @@
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
+
+// Helper function to verify JWT using jose (Edge compatible)
+async function verifyJwt(token, secret) {
+  try {
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ['HS256'],
+    });
+    return payload;
+  } catch (error) {
+    console.error('JWT Verification failed:', error);
+    return null;
+  }
+}
 
 export async function GET(req) {
+  const cookieStore = await cookies();
+  const clerkAuthCookie = cookieStore.get('clerk_auth');
+  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const url = req.nextUrl;
     const name = url.searchParams.get('name');
