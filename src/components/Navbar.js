@@ -24,7 +24,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14">
           <div className="flex-shrink-0">
-            <span className="text-white text-lg font-bold tracking-wide">KUCET PORTAL</span>
+            <span className="text-white text-lg font-bold tracking-wide">LOGIN PORTAL</span>
           </div>
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-6">
@@ -142,7 +142,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                     isActive && isActive('clerk') ? 'text-blue-200' : ''
                   }`}
                 >
-                  CLERK LOGIN
+                  EMPLOYEE LOGIN
                   <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
                     isActive && isActive('clerk') ? 'w-full' : 'w-0 group-hover:w-full'
                   }`}></span>
