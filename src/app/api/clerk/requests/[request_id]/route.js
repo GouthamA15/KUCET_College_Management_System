@@ -25,29 +25,57 @@ export async function PUT(request, { params }) {
 
     const resolvedParams = await params;
     const { request_id } = resolvedParams;
-    const { status } = await request.json();
-
+    let { status } = await request.json();
     if (!status) {
         return NextResponse.json({ error: 'Status is required' }, { status: 400 });
     }
+    status = String(status).toUpperCase();
+    const allowed = ['APPROVED', 'REJECTED', 'PENDING'];
+    if (!allowed.includes(status)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
 
     try {
-        // First, verify the clerk is authorized to update this request
-        const requests = await query('SELECT clerk_type FROM student_requests WHERE request_id = ?', [request_id]);
-        if (requests.length === 0) {
-            return NextResponse.json({ error: 'Request not found' }, { status: 404 });
-        }
+                // First, verify the clerk is authorized to update this request
+                const requests = await query('SELECT certificate_type FROM student_requests WHERE request_id = ?', [request_id]);
+                if (requests.length === 0) {
+                        return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+                }
 
-        const requestToUpdate = requests[0];
-        if (requestToUpdate.clerk_type !== clerk.role) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
+                const requestToUpdate = requests[0];
+                // Map clerk roles to certificate types (must match mapping used in listing)
+                const clerkToTypes = {
+                    admission: [
+                        'Bonafide Certificate',
+                        'Course Completion Certificate',
+                        'Transfer Certificate (TC)',
+                        'Migration Certificate',
+                        'Study Conduct Certificate',
+                    ],
+                    scholarship: [
+                        'Income Tax (IT) Certificate',
+                        'Custodian Certificate',
+                    ],
+                };
+                const allowedTypes = clerkToTypes[clerk.role] || [];
+                if (!allowedTypes.includes(requestToUpdate.certificate_type)) {
+                        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                }
 
-        // Now, update the status
-        const result = await query(
-            'UPDATE student_requests SET status = ?, completed_at = NOW() WHERE request_id = ?',
-            [status, request_id]
-        );
+        // Now, update the status. Only set completed_at when marking final states.
+        let result;
+        if (status === 'APPROVED' || status === 'REJECTED') {
+            result = await query(
+                'UPDATE student_requests SET status = ?, completed_at = NOW() WHERE request_id = ?',
+                [status, request_id]
+            );
+        } else {
+            // PENDING or other non-final state: don't set completed_at
+            result = await query(
+                'UPDATE student_requests SET status = ? WHERE request_id = ?',
+                [status, request_id]
+            );
+        }
 
         if (result.affectedRows === 1) {
             return NextResponse.json({ success: true });

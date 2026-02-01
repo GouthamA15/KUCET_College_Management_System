@@ -37,7 +37,7 @@ export async function POST(req) {
     const { date_of_birth: _dob, ...profile } = student;
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    const token = await new SignJWT({ roll_no: student.roll_no, name: student.name })
+    const token = await new SignJWT({ student_id: student.id, roll_no: student.roll_no, name: student.name })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime('1h')

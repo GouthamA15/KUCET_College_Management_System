@@ -32,25 +32,48 @@ export async function GET(request) {
   }
 
   try {
-    const rows = await query(
-      `SELECT 
-         sr.request_id, 
-         sr.roll_number, 
-         s.name as student_name,
-         sr.certificate_type, 
-         sr.status,
-         sr.payment_amount,
-         sr.transaction_id,
-         sr.payment_screenshot,
-         sr.created_at 
-       FROM student_requests sr
-       JOIN students s ON sr.roll_number = s.roll_no
-       WHERE sr.clerk_type = ? AND sr.status = 'pending' 
-       ORDER BY sr.created_at ASC`,
-      [clerkType]
-    );
+    // Map clerk roles to certificate types (keeps logic consistent with frontend)
+    const clerkToTypes = {
+      admission: [
+        'Bonafide Certificate',
+        'Course Completion Certificate',
+        'Transfer Certificate (TC)',
+        'Migration Certificate',
+        'Study Conduct Certificate',
+      ],
+      scholarship: [
+        'Income Tax (IT) Certificate',
+        'Custodian Certificate',
+      ],
+    };
+
+    const certTypes = clerkToTypes[clerkType];
+    if (!certTypes || certTypes.length === 0) {
+      return NextResponse.json({ error: 'No certificate types configured for this clerk' }, { status: 400 });
+    }
+
+    // Build placeholders for IN clause
+    const placeholders = certTypes.map(() => '?').join(',');
+    const sql = `SELECT
+        sr.request_id,
+        s.roll_no as roll_number,
+        s.name as student_name,
+        sr.certificate_type,
+        sr.status,
+        sr.payment_amount,
+        sr.transaction_id,
+        sr.payment_screenshot,
+        sr.academic_year,
+        sr.created_at
+      FROM student_requests sr
+      JOIN students s ON sr.student_id = s.id
+      WHERE sr.certificate_type IN (${placeholders}) AND sr.status = 'PENDING'
+      ORDER BY sr.created_at ASC`;
+
+    const rows = await query(sql, certTypes);
     return NextResponse.json(rows);
   } catch (error) {
+    console.error('Error fetching clerk requests:', error);
     return NextResponse.json({ error: 'Failed to fetch requests' }, { status: 500 });
   }
 }
