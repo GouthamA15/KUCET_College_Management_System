@@ -51,6 +51,19 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **`ed27d45` - feat: Refactor Navbar and fix navigation issues**
+*   **`03898d6` - Add Feature for Requesting Bonafide & No Dues Certificate**
+*   **`a4decbf` - Customized API's**
+*   **`b287835` - Profile Picture Fetching Available**
+*   **`2888315` - Student Email Verfication Now Improved**
+*   **`01ea70d` - UPDATE README:** The `README.md` file has been updated with detailed information about the project, including its objective, core features, role-based workflow, tech stack, and future enhancements.
+*   **`a2bb1bb` - Added screenshots:** New screenshots have been added to the `screenshots` directory, showcasing the home page, student dashboard, admission clerk dashboard, and scholarship clerk dashboard.
+*   **`cf23d18` - Edited Footer:** The footer text has been updated to be more professional.
+*   **`b9fddd8`, `98dd4ef` - Added Image Preview:** An image preview modal has been added to allow users to view larger versions of profile pictures.
+*   **`e31d248` - UX Enhancement - Scroll To the Login Panels:** The application now automatically scrolls to the login panels when they are activated.
+*   **`765bb91` - Fixed - Deactivated Clerk Accounts are no longer able to login now:** Deactivated clerk accounts are now prevented from logging in.
+*   **`9c2046d`, `583c596` - Fixed Role Switching in Admin Panel:** A bug that caused the `DELETE` and `PUT` methods to be swapped in the admin panel has been fixed.
+*   **`c92fbb6` - fix: Improve admin login error logging**
 *   **`l4m5n6o` - fix: Improve admin login error logging**
 *   **`h1i2j3k` - fix: Handle empty result in admin login**
 *   **`d4e5f6g` - feat: Refactor Navbar for sub-pages**
@@ -71,26 +84,28 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **`f401920` - Updated pages**
 *   **`81f919c` - updated clerk login api call**
 
-*   **Bug Fixes and Enhancements:**
-    *   **Improved Admin Login Error Logging**: In the `LoginPanel.js` component, the `console.error` in the `handleAdminSubmit` function has been updated to include the specific error message received from the server. This will provide more detailed information for debugging failed login attempts.
-    *   **`TypeError` Fix in Admin Login**: Fixed a `TypeError` in the admin login route (`src/app/api/admin/login/route.js`). The error was caused by incorrect destructuring of the database query result. It has been fixed by removing the destructuring to ensure that the `rows` variable is always an array, preventing an error when the query returns no results.
-    *   **`TypeError` Fix in `Navbar.js`**: Fixed a runtime `TypeError: setActiveTab is not a function` by adding a conditional check in `Navbar.js` to ensure `setActiveTab` is a function before it is called.
-    *   **Added Timetable Page**: Created a new placeholder page for the student timetable at `src/app/student/timetable/page.js` to resolve a 404 error.
-    *   **Fixed Navbar Functionality**: Refactored the `Navbar` component to correctly handle navigation on sub-pages. A new `isSubPage` prop was introduced to conditionally render profile-specific tabs, ensuring the correct navigation is displayed on pages like "Time Table" and "Requests". The `activeTab` prop now correctly highlights the active link on these sub-pages.
-
+*   **UPDATE README:** The `README.md` file has been updated with detailed information about the project, including its objective, core features, role-based workflow, tech stack, and future enhancements.
+*   **Added screenshots:** New screenshots have been added to the `screenshots` directory, showcasing the home page, student dashboard, admission clerk dashboard, and scholarship clerk dashboard.
+*   **Edited Footer:** The footer text has been updated to be more professional.
+*   **Added Image Preview:** An image preview modal has been added to allow users to view larger versions of profile pictures.
+*   **UX Enhancement - Scroll To the Login Panels:** The application now automatically scrolls to the login panels when they are activated.
+*   **Deactivated Clerk Accounts Cannot Login:** Deactivated clerk accounts are now prevented from logging in.
+*   **Fixed Role Switching in Admin Panel:** A bug that caused the `DELETE` and `PUT` methods to be swapped in the admin panel has been fixed.
+*   **Improved Admin Login Error Logging**: In the `LoginPanel.js` component, the `console.error` in the `handleAdminSubmit` function has been updated to include the specific error message received from the server. This will provide more detailed information for debugging failed login attempts.
+*   **`TypeError` Fix in Admin Login**: Fixed a `TypeError` in the admin login route (`src/app/api/admin/login/route.js`). The error was caused by incorrect destructuring of the database query result. It has been fixed by removing the destructuring to ensure that the `rows` variable is always an array, preventing an error when the query returns no results.
+*   **`TypeError` Fix in `Navbar.js`**: Fixed a runtime `TypeError: setActiveTab is not a function` by adding a conditional check in `Navbar.js` to ensure `setActiveTab` is a function before it is called.
+*   **Added Timetable Page**: Created a new placeholder page for the student timetable at `src/app/student/timetable/page.js` to resolve a 404 error.
+*   **Fixed Navbar Functionality**: Refactored the `Navbar` component to correctly handle navigation on sub-pages. A new `isSubPage` prop was introduced to conditionally render profile-specific tabs, ensuring the correct navigation is displayed on pages like "Time Table" and "Requests". The `activeTab` prop now correctly highlights the active link on these sub-pages.
 *   **Student Requests Feature:**
     *   New pages for "Bonafide Certificate" and "No Dues Certificate" requests have been added under `/student/requests`.
     *   The "Bonafide" page (`src/app/student/requests/bonafide/page.js`) allows students to request a bonafide certificate and view the status of their requests.
     *   The "No Dues" page (`src/app/student/requests/nodues/page.js`) allows students to view their fee status and request a no-dues certificate. It utilizes new components `DuesSection` and `TuitionFeeStatus`.
     *   The main student `Navbar` (`src/components/Navbar.js`) has been updated with a "Requests" dropdown menu that links to the new "Bonafide" and "No Dues" pages.
-
 *   **New Components:**
     *   `DuesSection.js`: A reusable component to display a section with a title and a status (e.g., "Paid," "Pending").
     *   `TuitionFeeStatus.js`: A component that displays the student's tuition fee status, including total expected fee, total cleared fee, and pending fee.
-
 *   **Footer Update:**
     *   The `Footer.js` component has been updated with a more concise design.
-
 *   **Student Profile and Scholarship Management Enhancements:**
     *   **Student Profile Fee Display:**
         *   The student profile page (`src/app/student/profile/page.js`) now provides a more accurate and detailed fee summary for the current academic year.
@@ -107,25 +122,21 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Navbar Updates:**
         *   The student profile navigation (`src/components/Navbar.js`) has been reorganized. "Academics" is now the primary tab, and the "Basic" info tab has been renamed to "Profile".
         *   New tabs for "Time Table" and "Requests" have been added, linking to their respective pages.
-
 *   **Email Sending Functionality:**
     *   Implemented email sending using Nodemailer.
     *   New file: `src/lib/email.js` (Nodemailer configuration and sending logic).
     *   Example API route: `src/app/api/send-student-email/route.js` (for testing email sending).
-
 *   **Cryptographically Secure OTP Functionality:**
     *   Implemented secure OTP generation and verification.
     *   New database migration: `otp_codes_table.sql` (SQL for `otp_codes` table).
     *   Utility function: `src/lib/student-utils.js` (for fetching student email by roll number).
     *   API endpoint for sending OTP: `src/app/api/auth/send-otp/route.js` (generates, stores, and sends OTP).
     *   API endpoint for verifying OTP: `src/app/api/auth/verify-otp/route.js` (verifies, checks expiration, and invalidates OTP).
-
 *   **Admission Clerk Student Management Enhancements:**
     *   **Authorization Update**: `src/app/api/student/[rollno]/route.js` modified to allow `admission` role clerks to access student details (via `clerk_auth` cookie verification).
     *   **Student Update API**: New API route `src/app/api/clerk/admission/students/[rollno]/route.js` with a `PUT` endpoint for Admission Clerks to update student details (core, personal, academic background).
     *   **Frontend Integration**: `src/components/ClerkStudentManagement.js` refactored to use the new centralized `PUT` endpoint for saving student edits, consolidating multiple previous fetch calls.
     *   **Fix**: Resolved `params` Promise unwrapping issue in `src/app/api/clerk/admission/students/[rollno]/route.js`.
-
 *   **Consolidated Roll Number and Academic Year Logic:**
     *   Implemented a robust roll number validation and derivation system for both regular (e.g., `22567T3053`) and lateral entry (e.g., `225673072L`) students.
     *   Created new utility functions in `src/lib/rollNumber.js` to extract entry year, determine academic year ranges (e.g., "2023-2027"), and calculate the current studying year based on the roll number and admission type.
@@ -145,8 +156,6 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
         *   `src/app/lib/academicYear.js`: Refactored to utilize the new roll number derivation functions from `src/lib/rollNumber.js`.
     *   **Admin Dashboard Enhancements:**
         *   `src/app/admin/dashboard/page.js`: The `YEARS` array for filtering was dynamically generated, replacing the hardcoded version.
-
-
 *   **Student Login and Profile Page Fixes:**
     *   Corrected `TypeError` in `src/app/api/student/login/route.js` by updating `process.env.NODE_.ENV` to `process.env.NODE_ENV` for secure cookie handling.
     *   Resolved JSX parsing error in `src/app/student/profile/page.js` by restructuring mobile menu logic, moving the "Academic Year" display, wrapping the mobile menu dropdown in a conditional rendering block, and removing an extraneous `)}`.
@@ -155,7 +164,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   Added functionality for scholarship clerks to add new scholarship and fee entries for students.
     *   Updated `college_db.sql` to include `application_no` in the `scholarship` table and `bank_name_branch`, `upit_no` in the `fees` table.
     *   Populated `college_db.sql` with sample data for non-scholarship, full scholarship, and partial scholarship students.
-    *   Modified the API handler (`src/app/api/clerk/scholarship/[rollno]/route.js`) to support both `INSERT` (for new entries) and `UPDATE` (for existing entries) operations for scholarship and fee details, and to correctly handle `undefined` or empty string values by converting them to `null` for database insertion.
+    *   Modified the API handler (`src/app/api/clerk/scholarship/[rollno]/route.js`) to support both `INSERT` (for new entries) and `UPDATE` (for existing entries) for scholarship and fee details, and to correctly handle `undefined` or empty string values by converting them to `null` for database insertion.
     *   Implemented logic in `src/app/clerk/scholarship/dashboard/page.js` to derive student branch (e.g., CSE, CSD) from their roll number and determine scholarship type (full, partial, non-scholarship).
     *   Fixed a React warning related to `null` values in input fields within `FullScholarshipView.js` and `PartialScholarshipView.js` by ensuring empty strings are used instead of `null`.
     *   Resolved "Encountered two children with the same key" React error by assigning unique temporary IDs to newly added scholarship entries in `FullScholarshipView.js` and `PartialScholarshipView.js`, and adjusted the API handler to correctly process these temporary IDs.

@@ -5,9 +5,10 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
+import CertificateRequests from '@/components/CertificateRequests';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
+import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear, getCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
 
 export default function ScholarshipDashboard() {
   const [roll, setRoll] = useState('');
@@ -29,6 +30,7 @@ export default function ScholarshipDashboard() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [pendingSaveData, setPendingSaveData] = useState(null);
+  const [view, setView] = useState('dashboard'); // 'dashboard' or 'certificates'
 
   // Fee constants and helpers
   const SELF_FINANCE_BRANCHES = ['CSD', 'IT', 'CIVIL'];
@@ -296,236 +298,245 @@ export default function ScholarshipDashboard() {
       <Navbar clerkMode={true} onLogout={handleLogout} />
       <main className="flex-1 p-4 md:p-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Scholarship Clerk Dashboard</h1>
-
-        {/* Dashboard Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-4 rounded-lg shadow border-2 border-indigo-50 flex flex-col">
-            <h3 className="font-semibold">Fetch Student</h3>
-            <p className="text-sm text-gray-600">Primary action: fetch a student by roll number</p>
-              <form onSubmit={fetchStudent} className="mt-3 flex gap-2 items-center">
-              <input value={roll} onChange={(e) => setRoll(e.target.value)} placeholder="Roll Number" className="flex-grow min-w-0 px-3 py-2 border rounded" />
-              <button type="submit" disabled={!roll || loading} className="px-4 py-2 bg-indigo-700 text-white rounded disabled:opacity-60 whitespace-nowrap flex-shrink-0 min-w-[90px] text-center">{loading ? 'Fetching...' : 'Fetch'}</button>
-            </form>
+        {view === 'certificates' ? (
+          <div>
+            <button onClick={() => setView('dashboard')} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
+            <CertificateRequests clerkType="scholarship" />
           </div>
-
-          <div className={`${student ? 'bg-white' : 'bg-white opacity-60 pointer-events-none'} p-4 rounded-lg shadow border`}>
-            <h3 className="font-semibold">Scholarship Records</h3>
-            <p className="text-sm text-gray-600">Available after fetching a student</p>
-          </div>
-
-          <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow">
-            <h3 className="font-semibold">Reports</h3>
-            <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
-          </div>
-
-          <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow">
-            <h3 className="font-semibold">Notifications</h3>
-            <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
-          </div>
-        </div>
-
-        {/* After fetch: Student Info + Year Cards */}
-        {student && (
-          <section className="space-y-6">
-            {/* Student Info Card */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex justify-between items-start">
-                <h2 className="text-xl font-semibold">Student Information</h2>
-                <div className="text-sm text-gray-700">Admission Type: <span className="font-medium">{getAdmissionTypeFromRoll(student.roll_no) || 'Regular'}</span> ({yearCount} Years)</div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <div>
-                  {(() => {
-                    const p = student?.pfp;
-                    const has = p && String(p).trim() !== '';
-                    const isData = has && String(p).startsWith('data:');
-                    const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
-                    if (has && dataHasBody) {
-                      return (
-                        <div className="mb-3">
-                          <Image src={String(p)} alt="Profile Pic" width={96} height={96} onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} className="w-24 h-24 object-cover rounded-full border-2 border-gray-300 cursor-pointer" />
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                  <div className="text-sm text-gray-500">Roll Number</div>
-                  <div className="font-medium">{student.roll_no}</div>
-                  <div className="text-sm text-gray-500 mt-2">Student Name</div>
-                  <div className="font-medium">{student.name}</div>
-                  <div className="text-sm text-gray-500 mt-2">Father Name</div>
-                  <div className="font-medium">{personal?.father_name || '-'}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm text-gray-500">Religion</div>
-                  <div className="font-medium">{personal?.religion || '-'}</div>
-                  <div className="text-sm text-gray-500 mt-2">Category</div>
-                  <div className="font-medium">{personal?.category || '-'}</div>
-                  <div className="text-sm text-gray-500 mt-2">Annual Income</div>
-                  <div className="font-medium">{personal?.annual_income ?? '-'}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm text-gray-500">Area Status</div>
-                  <div className="font-medium">{personal?.area_status || '-'}</div>
-                  <div className="text-sm text-gray-500 mt-2">Qualifying Exam</div>
-                  <div className="font-medium">{academic?.qualifying_exam || '-'}</div>
-                  <div className="text-sm text-gray-500 mt-2">Course</div>
-                  <div className="font-medium">{getBranchFromRoll(student.roll_no) || '-'}</div>
-                </div>
+        ) : (
+          <>
+            {/* Dashboard Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="bg-white p-4 rounded-lg shadow border-2 border-indigo-50 flex flex-col">
+                <h3 className="font-semibold">Fetch Student</h3>
+                <p className="text-sm text-gray-600">Primary action: fetch a student by roll number</p>
+                <form onSubmit={fetchStudent} className="mt-3 flex gap-2 items-center">
+                  <input value={roll} onChange={(e) => setRoll(e.target.value)} placeholder="Roll Number" className="flex-grow min-w-0 px-3 py-2 border rounded" />
+                  <button type="submit" disabled={!roll || loading} className="px-4 py-2 bg-indigo-700 text-white rounded disabled:opacity-60 whitespace-nowrap flex-shrink-0 min-w-[90px] text-center">{loading ? 'Fetching...' : 'Fetch'}</button>
+                </form>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <div className="text-sm text-gray-500">Academic Year</div>
-                  <div className="font-medium">{getAcademicYear(student.roll_no) || '-'}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Admission Type (detailed)</div>
-                  <div className="font-medium">{getAdmissionTypeFromRoll(student.roll_no) || '-'}</div>
-                </div>
+              <div onClick={() => setView('certificates')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
+                <h3 className="font-semibold">Certificate Requests</h3>
+                <p className="text-sm text-gray-600">View and process student certificate requests.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <div className="text-sm text-gray-500">Email</div>
-                  <div className="font-medium">{student.email || '-'}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Address</div>
-                  <div className="font-medium">{personal?.address || '-'}</div>
-                </div>
+              <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow">
+                <h3 className="font-semibold">Reports</h3>
+                <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
+              </div>
+
+              <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow">
+                <h3 className="font-semibold">Notifications</h3>
+                <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
               </div>
             </div>
 
-            {/* Year-wise cards */}
-            <div className="space-y-4">
-              {Array.from({ length: yearCount }).map((_, idx) => {
-                  const collegeYear = idx + 1; // Year relative to college admission (1, 2, 3...)
-                  const btechYear = collegeYear + displayYearOffset; // Year relative to B.Tech (1, 2, 3...)
-
-                  const rec = scholarshipRecords.find(r => Number(r.year) === Number(collegeYear));
-                  const status = yearStatus(collegeYear);
-                  return (
-                    <div key={collegeYear} className="bg-white rounded-lg shadow p-4">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                          <h3 className="font-semibold">Year {btechYear}</h3>
-                          <div className="text-sm text-gray-500">{getAcademicYearForStudyYear(student.roll_no, collegeYear) || ''}</div>
-                        {(() => {
-                          // prefer server-provided status color if available
-                          const recStatus = rec && rec.status ? String(rec.status).trim() : null;
-                          const isSuccess = recStatus && recStatus.toLowerCase() === 'success';
-                          const isPending = recStatus && recStatus.toLowerCase() === 'pending';
-                          let badgeClasses = 'px-2 py-1 text-xs rounded flex items-center';
-                          let dotClasses = 'w-3 h-3 rounded-full mr-2 bg-gray-300';
-                          if (isSuccess) {
-                            badgeClasses += ' bg-green-100 text-green-800';
-                            dotClasses = 'w-3 h-3 rounded-full mr-2 bg-green-500';
-                          } else if (isPending) {
-                            badgeClasses += ' bg-yellow-100 text-yellow-800';
-                            dotClasses = 'w-3 h-3 rounded-full mr-2 bg-yellow-500';
-                          } else if (status.type === 'none') {
-                            badgeClasses += ' bg-gray-100 text-gray-700';
-                            dotClasses = 'w-3 h-3 rounded-full mr-2 bg-gray-400';
-                          } else if (status.type === 'non') {
-                            badgeClasses += ' bg-yellow-100 text-yellow-800';
-                            dotClasses = 'w-3 h-3 rounded-full mr-2 bg-yellow-500';
-                          } else {
-                            badgeClasses += ' bg-green-100 text-green-800';
-                            dotClasses = 'w-3 h-3 rounded-full mr-2 bg-green-500';
-                          }
+            {/* After fetch: Student Info + Year Cards */}
+            {student && (
+              <section className="space-y-6">
+                {/* Student Info Card */}
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <div className="flex justify-between items-start">
+                    <h2 className="text-xl font-semibold">Student Information</h2>
+                    <div className="text-sm text-gray-700">Admission Type: <span className="font-medium">{getAdmissionTypeFromRoll(student.roll_no) || 'Regular'}</span> ({yearCount} Years)</div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                      {(() => {
+                        const p = student?.pfp;
+                        const has = p && String(p).trim() !== '';
+                        const isData = has && String(p).startsWith('data:');
+                        const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
+                        if (has && dataHasBody) {
                           return (
-                            <span className={badgeClasses}>
-                              <span className={dotClasses} />
-                              <span>{status.label}</span>
-                            </span>
+                            <div className="mb-3">
+                              <Image src={String(p)} alt="Profile Pic" width={96} height={96} onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} className="w-24 h-24 object-cover rounded-full border-2 border-gray-300 cursor-pointer" />
+                            </div>
                           );
-                        })()}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!rec && (() => {
-                          const prevRec = scholarshipRecords.find(r => Number(r.year) === Number(collegeYear - 1));
-                          const allowAdd = collegeYear === 1 || !!prevRec;
-                          return (
-                            <button
-                              onClick={() => allowAdd && openModalForYear(collegeYear)}
-                              disabled={!allowAdd}
-                              title={!allowAdd ? 'Please add previous year record first' : ''}
-                              className={`px-3 py-1 rounded ${allowAdd ? 'bg-indigo-600 text-white cursor-pointer' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
-                            >
-                              Add Record
-                            </button>
-                          );
-                        })()}
-                        {rec && (
-                          <>
-                            <button onClick={() => { setExpandedYear(expandedYear === collegeYear ? null : collegeYear); }} className={`px-3 py-1 border rounded cursor-pointer transition transform duration-150 ${expandedYear === collegeYear ? 'scale-105' : ''}`}>{expandedYear === collegeYear ? 'Collapse' : 'Expand'}</button>
-                            <button onClick={() => openModalForYear(collegeYear, rec)} className="px-3 py-1 bg-yellow-600 text-white rounded cursor-pointer transition duration-150 hover:scale-105">Edit Record</button>
-                          </>
-                        )}
-                      </div>
+                        }
+                        return null;
+                      })()}
+                      <div className="text-sm text-gray-500">Roll Number</div>
+                      <div className="font-medium">{student.roll_no}</div>
+                      <div className="text-sm text-gray-500 mt-2">Student Name</div>
+                      <div className="font-medium">{student.name}</div>
+                      <div className="text-sm text-gray-500 mt-2">Father Name</div>
+                      <div className="font-medium">{personal?.father_name || '-'}</div>
                     </div>
 
-                    {expandedYear === collegeYear && rec && (
-                      <div className="mt-4 border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4 animate-slideDown">
-                        {String(rec.application_no) === String(student.roll_no) ? (
-                          <div>
-                            <h4 className="font-semibold">Non-Scholar Payment</h4>
-                            <div className="text-sm">UTR: {rec.utr_no || '-'}</div>
-                            <div className="text-sm">UTR Date: {rec.utr_date || '-'}</div>
-                            <div className="text-sm">Amount Paid: {rec.amount_paid ?? '-'}</div>
-                            <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
-                            <div className="text-sm">Updated on: {rec.updated_at || rec.created_at || '-'}</div>
+                    <div>
+                      <div className="text-sm text-gray-500">Religion</div>
+                      <div className="font-medium">{personal?.religion || '-'}</div>
+                      <div className="text-sm text-gray-500 mt-2">Category</div>
+                      <div className="font-medium">{personal?.category || '-'}</div>
+                      <div className="text-sm text-gray-500 mt-2">Annual Income</div>
+                      <div className="font-medium">{personal?.annual_income ?? '-'}</div>
+                    </div>
+
+                    <div>
+                      <div className="text-sm text-gray-500">Area Status</div>
+                      <div className="font-medium">{personal?.area_status || '-'}</div>
+                      <div className="text-sm text-gray-500 mt-2">Qualifying Exam</div>
+                      <div className="font-medium">{academic?.qualifying_exam || '-'}</div>
+                      <div className="text-sm text-gray-500 mt-2">Course</div>
+                      <div className="font-medium">{getBranchFromRoll(student.roll_no) || '-'}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <div className="text-sm text-gray-500">Academic Year</div>
+                      <div className="font-medium">{getCurrentAcademicYear(student.roll_no) || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">Admission Type (detailed)</div>
+                      <div className="font-medium">{getAdmissionTypeFromRoll(student.roll_no) || '-'}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <div className="text-sm text-gray-500">Email</div>
+                      <div className="font-medium">{student.email || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">Address</div>
+                      <div className="font-medium">{personal?.address || '-'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Year-wise cards */}
+                <div className="space-y-4">
+                  {Array.from({ length: yearCount }).map((_, idx) => {
+                    const collegeYear = idx + 1; // Year relative to college admission (1, 2, 3...)
+                    const btechYear = collegeYear + displayYearOffset; // Year relative to B.Tech (1, 2, 3...)
+
+                    const rec = scholarshipRecords.find(r => Number(r.year) === Number(collegeYear));
+                    const status = yearStatus(collegeYear);
+                    return (
+                      <div key={collegeYear} className="bg-white rounded-lg shadow p-4">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-4">
+                            <h3 className="font-semibold">Year {btechYear}</h3>
+                            <div className="text-sm text-gray-500">{getAcademicYearForStudyYear(student.roll_no, collegeYear) || ''}</div>
+                            {(() => {
+                              // prefer server-provided status color if available
+                              const recStatus = rec && rec.status ? String(rec.status).trim() : null;
+                              const isSuccess = recStatus && recStatus.toLowerCase() === 'success';
+                              const isPending = recStatus && recStatus.toLowerCase() === 'pending';
+                              let badgeClasses = 'px-2 py-1 text-xs rounded flex items-center';
+                              let dotClasses = 'w-3 h-3 rounded-full mr-2 bg-gray-300';
+                              if (isSuccess) {
+                                badgeClasses += ' bg-green-100 text-green-800';
+                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-green-500';
+                              } else if (isPending) {
+                                badgeClasses += ' bg-yellow-100 text-yellow-800';
+                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-yellow-500';
+                              } else if (status.type === 'none') {
+                                badgeClasses += ' bg-gray-100 text-gray-700';
+                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-gray-400';
+                              } else if (status.type === 'non') {
+                                badgeClasses += ' bg-yellow-100 text-yellow-800';
+                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-yellow-500';
+                              } else {
+                                badgeClasses += ' bg-green-100 text-green-800';
+                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-green-500';
+                              }
+                              return (
+                                <span className={badgeClasses}>
+                                  <span className={dotClasses} />
+                                  <span>{status.label}</span>
+                                </span>
+                              );
+                            })()}
                           </div>
-                        ) : (
-                          <div>
-                            <h4 className="font-semibold">Scholarship Particulars</h4>
-                            <div className="text-sm">Application No: {rec.application_no}</div>
-                            <div className="text-sm">Proceeding No: {rec.proceedings_no || '-'}</div>
-                            <div className="text-sm">Amount Sanctioned: {rec.amount_sanctioned ?? '-'}</div>
-                            <div className="text-sm">Amount Distributed: {rec.amount_disbursed ?? '-'}</div>
-                            <div className="text-sm">Challan No: {rec.ch_no || '-'}</div>
-                            <div className="text-sm">Date: {rec.date || '-'}</div>
-                            <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
-                            <div className="text-sm">Updated on: {rec.updated_at || rec.created_at || '-'}</div>
+                          <div className="flex items-center gap-2">
+                            {!rec && (() => {
+                              const prevRec = scholarshipRecords.find(r => Number(r.year) === Number(collegeYear - 1));
+                              const allowAdd = collegeYear === 1 || !!prevRec;
+                              return (
+                                <button
+                                  onClick={() => allowAdd && openModalForYear(collegeYear)}
+                                  disabled={!allowAdd}
+                                  title={!allowAdd ? 'Please add previous year record first' : ''}
+                                  className={`px-3 py-1 rounded ${allowAdd ? 'bg-indigo-600 text-white cursor-pointer' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
+                                >
+                                  Add Record
+                                </button>
+                              );
+                            })()}
+                            {rec && (
+                              <>
+                                <button onClick={() => { setExpandedYear(expandedYear === collegeYear ? null : collegeYear); }} className={`px-3 py-1 border rounded cursor-pointer transition transform duration-150 ${expandedYear === collegeYear ? 'scale-105' : ''}`}>{expandedYear === collegeYear ? 'Collapse' : 'Expand'}</button>
+                                <button onClick={() => openModalForYear(collegeYear, rec)} className="px-3 py-1 bg-yellow-600 text-white rounded cursor-pointer transition duration-150 hover:scale-105">Edit Record</button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {expandedYear === collegeYear && rec && (
+                          <div className="mt-4 border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4 animate-slideDown">
+                            {String(rec.application_no) === String(student.roll_no) ? (
+                              <div>
+                                <h4 className="font-semibold">Non-Scholar Payment</h4>
+                                <div className="text-sm">UTR: {rec.utr_no || '-'}</div>
+                                <div className="text-sm">UTR Date: {rec.utr_date || '-'}</div>
+                                <div className="text-sm">Amount Paid: {rec.amount_paid ?? '-'}</div>
+                                <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
+                                <div className="text-sm">Updated on: {rec.updated_at || rec.created_at || '-'}</div>
+                              </div>
+                            ) : (
+                              <div>
+                                <h4 className="font-semibold">Scholarship Particulars</h4>
+                                <div className="text-sm">Application No: {rec.application_no}</div>
+                                <div className="text-sm">Proceeding No: {rec.proceedings_no || '-'}</div>
+                                <div className="text-sm">Amount Sanctioned: {rec.amount_sanctioned ?? '-'}</div>
+                                <div className="text-sm">Amount Distributed: {rec.amount_disbursed ?? '-'}</div>
+                                <div className="text-sm">Challan No: {rec.ch_no || '-'}</div>
+                                <div className="text-sm">Date: {rec.date || '-'}</div>
+                                <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
+                                <div className="text-sm">Updated on: {rec.updated_at || rec.created_at || '-'}</div>
+                              </div>
+                            )}
+
+                            <div>
+                              <h4 className="font-semibold">Fee Particulars</h4>
+                              {(() => {
+                                const totalFee = computeTotalFee(student.roll_no, rec.application_no);
+                                const totalPaid = Number(rec.amount_paid ?? rec.amount_disbursed ?? 0);
+                                const pendingFee = Math.max(0, totalFee - totalPaid);
+                                const txn = rec.utr_no || rec.ch_no || '-';
+                                const txnDate = rec.utr_date || rec.date || '-';
+                                const statusAuto = pendingFee > 0 ? 'Pending' : 'Success';
+                                return (
+                                  <>
+                                    <div className="text-sm">Total Fee: {totalFee}</div>
+                                    <div className="text-sm">Total Paid: {totalPaid ?? '-'}</div>
+                                    <div className="text-sm">Pending Fee: {pendingFee}</div>
+                                    <div className="text-sm">Transaction ID: {txn}</div>
+                                    <div className="text-sm">Date: {txnDate}</div>
+                                    <div className="text-sm">Status: {rec.status || statusAuto}</div>
+                                  </>
+                                );
+                              })()}
+                            </div>
                           </div>
                         )}
-
-                        <div>
-                          <h4 className="font-semibold">Fee Particulars</h4>
-                          {(() => {
-                            const totalFee = computeTotalFee(student.roll_no, rec.application_no);
-                            const totalPaid = Number(rec.amount_paid ?? rec.amount_disbursed ?? 0);
-                            const pendingFee = Math.max(0, totalFee - totalPaid);
-                            const txn = rec.utr_no || rec.ch_no || '-';
-                            const txnDate = rec.utr_date || rec.date || '-';
-                            const statusAuto = pendingFee > 0 ? 'Pending' : 'Success';
-                            return (
-                              <>
-                                <div className="text-sm">Total Fee: {totalFee}</div>
-                                <div className="text-sm">Total Paid: {totalPaid ?? '-'}</div>
-                                <div className="text-sm">Pending Fee: {pendingFee}</div>
-                                <div className="text-sm">Transaction ID: {txn}</div>
-                                <div className="text-sm">Date: {txnDate}</div>
-                                <div className="text-sm">Status: {rec.status || statusAuto}</div>
-                              </>
-                            );
-                          })()}
-                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+          </>
         )}
+
 
         {/* Modal for Add/Edit */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
               <h3 className="text-lg font-semibold mb-3">{form.id ? 'Edit' : 'Add'} Record — Year {editingYear}</h3>
 
@@ -606,7 +617,7 @@ export default function ScholarshipDashboard() {
 
         {/* Confirmation dialog for type changes */}
         {confirmOpen && (
-          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <h3 className="text-lg font-semibold mb-3">Confirm Change</h3>
               <p className="text-sm text-gray-700 mb-4">{confirmMessage}</p>
