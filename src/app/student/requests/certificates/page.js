@@ -146,16 +146,34 @@ export default function CertificateRequestsPage() {
                 {fee > 0 && (
                   <>
                     <div className="p-4 border rounded-lg bg-gray-50">
+                      <div className="flex justify-center">
                         <h3 className="text-lg font-semibold mb-2">Payment Information</h3>
-                        <p className="text-sm text-gray-600 mb-4">Scan the QR code to complete the payment. Enter the Transaction ID and upload a screenshot of the payment confirmation.</p>
+                      </div>
+                        <div className="flex justify-center">
+                        <p className="text-red-600 text-sm font-semibold mb-3 bg-red-50 px-3 py-1 rounded-full border border-red-100">
+                          Only UPI payments are accepted at the moment
+                        </p>
+                        </div>
+                        <div className="flex justify-center">
+                        <p className="text-l font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
+                        </div>
+                        <div className="flex items-center justify-center space-x-2 mb-4">
+            <img 
+              src="/assets/Payment QR/kucet-logo.jpg" 
+              alt="PRINCIPAL KU" 
+              className="h-9 w-auto object-contain" 
+              onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
+            />
+            <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
+            </div>
                         <div className="flex justify-center">
                             <img src="/assets/Payment QR/principal_ku_qr.png" alt="Payment QR Code" className="w-48 h-48" />
                         </div>
                     </div>
                     <div>
-                      <label htmlFor="transaction-id" className="block text-sm font-medium text-gray-700">Transaction ID</label>
+                      <label htmlFor="transaction-id" className="block text-sm font-medium text-gray-700">Transaction ID / UTR</label>
                       <input
-                        type="text"
+                        type="number"
                         id="transaction-id"
                         value={transactionId}
                         onChange={(e) => setTransactionId(e.target.value)}

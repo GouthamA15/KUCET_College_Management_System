@@ -187,20 +187,33 @@ export default function BonafideRequestPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-gray-900">Bonafide Certificate</h1>
-          <p className="mt-1 text-sm text-gray-600">Request and manage your bonafide certificate</p>
+          <p className="mt-1 text-sm text-gray-600">Request and download your bonafide certificate</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch" style={{ minHeight: 'calc(100vh - 220px)' }}>
           {/* Left Card: QR + Payment Inputs */}
           <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">SCAN & PAY</h3>
-            <div className="flex-1 flex items-center justify-center">
-              <img src="/assets/Payment QR/principal_ku_qr.png" alt="QR" className="w-56 h-56 bg-white rounded-md shadow-lg" />
+            <h3 className="text-lg font-semibold mb-2">Payment Information</h3>
+            <p className="text-red-600 text-sm font-semibold mb-3 bg-red-50 px-3 py-1 rounded-full border border-red-100">
+              Only UPI payments are accepted at the moment
+            </p>
+            <p className="text-s font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
+            <div className="flex items-center justify-center space-x-2 mb-4">
+            <img 
+              src="/assets/Payment QR/kucet-logo.jpg" 
+              alt="PRINCIPAL KU" 
+              className="h-8 w-auto object-contain" 
+              onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
+            />
+            <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
+            </div>
+             <div className="flex items-center justify-center">
+              <img src="/assets/Payment QR/principal_ku_qr.png" alt="QR" className="w-40 h-40 bg-white rounded-md shadow-lg" />
             </div>
             <div className="w-full mt-4">
               <p className="text-sm text-gray-700 mb-2">Payment Fee: <span className="font-bold text-indigo-600">₹{FEE}</span></p>
-              <label htmlFor="transaction-id" className="block text-sm font-medium text-gray-700">Transaction ID</label>
-              <input type="text" id="transaction-id" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm cursor-pointer" />
+              <label htmlFor="transaction-id" className="block text-sm font-medium text-gray-700">Transaction ID / UTR</label>
+              <input type="number" id="transaction-id" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm cursor" />
 
               <label htmlFor="payment-screenshot" className="block text-sm font-medium text-gray-700 mt-4">Payment Screenshot</label>
               <input
