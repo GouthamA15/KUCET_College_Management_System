@@ -38,7 +38,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                   <button onClick={async () => {
                     await fetch('/api/clerk/logout', { method: 'POST' });
                     router.replace('/');
-                  }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
                     Logout
                     <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                   </button>
@@ -64,7 +64,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                   <button onClick={async () => {
                     await fetch('/api/clerk/logout', { method: 'POST' });
                     router.replace('/');
-                  }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                  }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
                     Logout
                     <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                   </button>
@@ -72,18 +72,6 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
               )
             ) : studentProfileMode ? (
               <>
-                {!isSubPage && (
-                  <>
-                    <button onClick={() => setActiveTab && setActiveTab('academics')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'academics' ? 'text-blue-200' : ''}`}>
-                      Academics
-                      <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'academics' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-                    </button>
-                  </>
-                )}
-                <Link href="/student/profile" className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'profile' ? 'text-blue-200' : ''}`}>
-                  Profile
-                  <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'profile' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-                </Link>
                 <Link href="/student/timetable" className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'timetable' ? 'text-blue-200' : ''}`}>
                   Time Table
                   <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'timetable' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
@@ -116,19 +104,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                     </Link>
                   </div>
                 </div>
-                {!isSubPage && (
-                  <>
-                    <button onClick={() => setActiveTab && setActiveTab('scholarship')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'scholarship' ? 'text-blue-200' : ''}`}>
-                      Scholarship
-                      <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'scholarship' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-                    </button>
-                    <button onClick={() => setActiveTab && setActiveTab('fees')} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'fees' ? 'text-blue-200' : ''}`}>
-                      Fees
-                      <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'fees' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-                    </button>
-                  </>
-                )}
-                <button onClick={onLogout} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                <button onClick={onLogout} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
                   Logout
                   <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                 </button>
@@ -138,7 +114,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                 <Link
                   href="/"
                   onClick={() => setActivePanel && setActivePanel(null)}
-                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
+                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${
                     activePanel === null ? 'text-blue-200' : ''
                   }`}
                 >
@@ -150,7 +126,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                 <button
                   type="button"
                   onClick={() => handleNavClick && handleNavClick('student')}
-                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
+                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${
                     isActive && isActive('student') ? 'text-blue-200' : ''
                   }`}
                 >
@@ -162,7 +138,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                 <button
                   type="button"
                   onClick={() => handleNavClick && handleNavClick('clerk')}
-                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
+                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${
                     isActive && isActive('clerk') ? 'text-blue-200' : ''
                   }`}
                 >
@@ -174,7 +150,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                 <button
                   type="button"
                   onClick={() => handleNavClick && handleNavClick('admin')}
-                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${
+                  className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${
                     isActive && isActive('admin') ? 'text-blue-200' : ''
                   }`}
                 >
@@ -215,7 +191,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                   await fetch('/api/clerk/logout', { method: 'POST' });
                   router.replace('/');
                   setMobileMenuOpen(false);
-                }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
+                }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group cursor-pointer">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
               </>
             ) : (
               <>
@@ -232,19 +208,18 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
             )
           ) : studentProfileMode ? (
             <>
-              <Link href="/student/profile" className="text-white block w-full text-left px-3 py-2.5 text-sm">Profile</Link>
               <Link href="/student/timetable" className="text-white block w-full text-left px-3 py-2.5 text-sm">Time Table</Link>
               <Link href="/student/requests/bonafide" className="text-white block w-full text-left px-3 py-2.5 text-sm">Bonafide Certificate</Link>
               <Link href="/student/requests/nodues" className="text-white block w-full text-left px-3 py-2.5 text-sm">No Dues Certificate</Link>
               <Link href="/student/requests/certificates" className="text-white block w-full text-left px-3 py-2.5 text-sm">Other Certificates</Link>
-              <button onClick={() => { onLogout && onLogout(); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm">Logout</button>
+              <button onClick={() => { onLogout && onLogout(); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Logout</button>
             </>
           ) : (
             <>
-              <Link href="/" onClick={() => { setActivePanel && setActivePanel(null); setMobileMenuOpen(false); }} className="text-white block px-3 py-2.5 text-sm">HOME</Link>
-              <button type="button" onClick={() => { handleNavClick && handleNavClick('student'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm ${isActive('student') ? 'text-blue-200' : ''}`}>STUDENT LOGIN</button>
-              <button type="button" onClick={() => { handleNavClick && handleNavClick('clerk'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm ${isActive('clerk') ? 'text-blue-200' : ''}`}>CLERK LOGIN</button>
-              <button type="button" onClick={() => { handleNavClick && handleNavClick('admin'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm ${isActive('admin') ? 'text-blue-200' : ''}`}>SUPER ADMIN</button>
+              <Link href="/" onClick={() => { setActivePanel && setActivePanel(null); setMobileMenuOpen(false); }} className="text-white block px-3 py-2.5 text-sm cursor-pointer">HOME</Link>
+              <button type="button" onClick={() => { handleNavClick && handleNavClick('student'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer ${isActive('student') ? 'text-blue-200' : ''}`}>STUDENT LOGIN</button>
+              <button type="button" onClick={() => { handleNavClick && handleNavClick('clerk'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer ${isActive('clerk') ? 'text-blue-200' : ''}`}>CLERK LOGIN</button>
+              <button type="button" onClick={() => { handleNavClick && handleNavClick('admin'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer ${isActive('admin') ? 'text-blue-200' : ''}`}>SUPER ADMIN</button>
             </>
           )}
         </div>
