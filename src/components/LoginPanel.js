@@ -165,7 +165,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <input
                       type="text"
                       value={studentForm.rollNumber}
-                      onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value })}
+                      onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value.toUpperCase() })}
                       placeholder="Enter your Roll Number"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
                       required
@@ -174,53 +174,16 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Date of Birth
+                      Password
                       <span className="block text-xs text-gray-500 font-normal mt-0.5">
-                        (used as password for first login)
+                        First time user ? Use your DOB in the format : DD-MM-YYYY
                       </span>
                     </label>
-                    {/* Numeric-only DD-MM-YYYY input with auto-inserted, locked hyphens */}
                     <input
                       type="text"
-                      inputMode="numeric"
-                      placeholder="DD-MM-YYYY"
-                      maxLength={10}
                       value={studentForm.dob}
-                      onKeyDown={(e) => {
-                        const allowedKeys = [
-                          'Backspace', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Delete', 'Home', 'End'
-                        ];
-                        if (allowedKeys.includes(e.key)) return;
-                        // allow only digits
-                        if (/^[0-9]$/.test(e.key)) return;
-                        e.preventDefault();
-                      }}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        // strip non-digits
-                        const digits = raw.replace(/\D/g, '').slice(0, 8);
-                        let formatted = digits;
-                        if (digits.length >= 5) {
-                          formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
-                        } else if (digits.length >= 3) {
-                          formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
-                        } else if (digits.length >= 1) {
-                          formatted = digits;
-                        }
-                        setStudentForm({ ...studentForm, dob: formatted });
-                      }}
-                      onPaste={(e) => {
-                        e.preventDefault();
-                        const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
-                        const digits = paste.replace(/\D/g, '').slice(0, 8);
-                        let formatted = digits;
-                        if (digits.length >= 5) {
-                          formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
-                        } else if (digits.length >= 3) {
-                          formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
-                        }
-                        setStudentForm({ ...studentForm, dob: formatted });
-                      }}
+                      onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
+                      placeholder="Enter Password"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
                       required
                     />
@@ -238,8 +201,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   )}
                 </form>
                 
-                <p className="text-center text-xs text-gray-500 mt-4">
-                  First time user? Use your Date of Birth as password
+                <p className="text-center text-xs text-gray-700 mt-4">
+                  Note : Login by DOB will work only for the students who haven't set their password yet
                 </p>
               </div>
             )}
