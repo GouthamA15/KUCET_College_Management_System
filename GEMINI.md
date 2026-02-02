@@ -51,6 +51,16 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **`bddc82e` - UI/UX - Slight Reduction in Navbar height**
+*   **`e5b451a` - Modify 'Requests' pages and minor UI Enhancements**
+*   **`f8c8e76` - Minor Changes in Bona**
+*   **`9b676ca` - Deleted - No longer needed**
+*   **`43d2e8a` - Edited QR Image**
+*   **`2fcd6c1` - Removed Sannith's Blessings**
+*   **`f12f806` - Improved API routing and Data Handlings**
+*   **`8fcf1c2` - Displays Current  Academic Year Of the Student**
+*   **`9d40e78` - Student Profile Now Displays Current Academic Year**
+*   **`14dccc2` - Certificate Requests**
 *   **`ed27d45` - feat: Refactor Navbar and fix navigation issues**
 *   **`03898d6` - Add Feature for Requesting Bonafide & No Dues Certificate**
 *   **`a4decbf` - Customized API's**
@@ -68,6 +78,19 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **`h1i2j3k` - fix: Handle empty result in admin login**
 *   **`d4e5f6g` - feat: Refactor Navbar for sub-pages**
 *   **`a1b2c3d` - feat: Fix Navbar functionality on student pages**
+*   **UI/UX Enhancements:**
+    *   The height of the navbar has been slightly reduced for a more compact look.
+    *   The "Requests" pages have been modified and received minor UI enhancements.
+    *   The "Bonafide" certificate request page has been updated.
+    *   The QR image has been edited.
+*   **Backend Improvements:**
+    *   API routing and data handling have been improved.
+*   **Feature Updates:**
+    *   The student's current academic year is now displayed on their profile.
+    *   The certificate requests feature has been updated.
+*   **Code Cleanup:**
+    *   A file that was no longer needed has been deleted.
+    *   A non-functional comment has been removed.
 *   **`e26219c` - feat: Fix runtime TypeError and add timetable page**
 *   **`0e7c8e3` - feat: Implement Student Requests feature for Bonafide and No Dues certificates**
 *   **`29bde60` - Student Profile Changes**
