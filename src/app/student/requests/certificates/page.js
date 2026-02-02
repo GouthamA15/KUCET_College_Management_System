@@ -15,6 +15,9 @@ const certificateTypes = {
   "Study Conduct Certificate": { fee: 100, clerk: "admission" },
 };
 
+const UPI_VPA = 'kuengineeringcollege@sbi'; 
+const PAYEE_NAME = 'PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY';
+
 export default function CertificateRequestsPage() {
   const [selectedCertificate, setSelectedCertificate] = useState(Object.keys(certificateTypes)[0]);
   const [transactionId, setTransactionId] = useState('');
@@ -26,6 +29,8 @@ export default function CertificateRequestsPage() {
 
   const fee = certificateTypes[selectedCertificate].fee;
 
+  const upiLink = `upi://pay?pa=${UPI_VPA}&pn=${encodeURIComponent(PAYEE_NAME)}&am=${fee}&cu=INR`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -159,7 +164,7 @@ export default function CertificateRequestsPage() {
                         </div>
                         <div className="flex items-center justify-center space-x-2 mb-4">
             <img 
-              src="/assets/Payment QR/kucet-logo.jpg" 
+              src="/assets/Payment QR/kucet-logo.png" 
               alt="PRINCIPAL KU" 
               className="h-9 w-auto object-contain" 
               onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
@@ -167,7 +172,12 @@ export default function CertificateRequestsPage() {
             <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
             </div>
                         <div className="flex justify-center">
-                            <img src="/assets/Payment QR/principal_ku_qr.png" alt="Payment QR Code" className="w-48 h-48" />
+                            {/* DYNAMIC QR CODE REPLACEMENT */}
+                            <img 
+                                src={qrCodeUrl} 
+                                alt={`Pay ₹${fee}`} 
+                                className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" 
+                            />
                         </div>
                     </div>
                     <div>
