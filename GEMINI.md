@@ -51,6 +51,32 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **`7fd13d2` - docs: Update GEMINI.md with latest changes**
+*   **UI/UX Improvements In Certificates Viewing - Clerk Dashboard (`ef939f7`)**
+*   **Fixed Navbar - Removed Unnecessary Tabs (`a7d03c2`)**
+*   **Optimized Academic Year Calculations (`12ba8a1`)**
+*   **PDF Generator using Puppeteer (`82cd61d`)**
+*   **Database Schema Updates (`college_db_patch_v7.sql`):**
+    *   The `course` and `admission_type` columns have been removed from the `students` table. These are now dynamically derived from the roll number using `src/lib/rollNumber.js`.
+    *   A `UNIQUE KEY` `roll_no` has been added to the `students` table, enforcing uniqueness for student roll numbers.
+*   **Clerk Request Management:**
+    *   New API endpoints (`src/app/api/clerk/requests/route.js`, `src/app/api/clerk/requests/[request_id]/route.js`) for clerks to fetch pending student requests (with role-based filtering) and update their status (approve/reject) with authorization.
+    *   `src/components/CertificateRequests.js`: Clerk-side component to view, approve, and reject student certificate requests, including payment screenshot preview (converted from BLOB to base64).
+*   **Student Login & Profile Enhancements:**
+    *   `src/app/api/student/login/route.js`: Refined student login process with improved Date of Birth (DOB) input handling and secure cookie management.
+    *   `src/components/LoginPanel.js`: Client-side input formatting for DD-MM-YYYY DOB for student login.
+    *   `src/app/student/profile/page.js`: Significant update with tabbed navigation, profile editing (mobile, email, address), profile picture management (upload, compress, remove), and a crucial OTP-based email verification flow. Enhanced fee details display, academic year information.
+*   **Student Certificate Request System:**
+    *   `src/app/api/student/requests/download/[request_id]/route.js`: API for secure PDF generation and download of approved certificates, dynamically populating HTML templates with student data.
+    *   `src/app/api/student/requests/route.js`: API for students to view their request history and submit new certificate requests, including payment details, image compression, and robust handling for duplicate/rejected requests.
+    *   `src/app/student/requests/bonafide/page.js`: Dedicated student-facing page for Bonafide certificate requests, including payment, image compression, and request history.
+    *   `src/app/student/requests/certificates/page.js`: General student-facing page for requesting various other certificates with dynamic fees and clerk assignments.
+*   **UI/UX Components Refinements:**
+    *   `src/components/Header.js`: Responsive design, enhanced college branding, and contact information with a copy-to-clipboard feature for the phone number.
+    *   `src/components/Navbar.js`: Refactored for dynamic role-based navigation, including a new "Requests" dropdown for students, active tab highlighting, and improved mobile responsiveness.
+*   **New/Enhanced Utilities:**
+    *   `src/lib/pdf-generator.js`: A new utility leveraging Puppeteer for server-side HTML to PDF conversion, used for certificate generation.
+    *   `src/lib/rollNumber.js`: Centralized and enhanced logic for roll number validation, parsing, and derivation of comprehensive academic information (entry year, branch, admission type, current studying year, academic year ranges), now used across multiple components and API routes.
 *   **`bddc82e` - UI/UX - Slight Reduction in Navbar height**
 *   **`e5b451a` - Modify 'Requests' pages and minor UI Enhancements**
 *   **`f8c8e76` - Minor Changes in Bona**
