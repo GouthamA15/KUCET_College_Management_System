@@ -15,6 +15,7 @@ export default function BonafideRequestPage() {
   const [requests, setRequests] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
   const [downloadErrors, setDownloadErrors] = useState({});
+  const [selectedRejectedRequest, setSelectedRejectedRequest] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewAspect, setPreviewAspect] = useState(9/16); // default portrait 9:16
@@ -293,7 +294,9 @@ export default function BonafideRequestPage() {
                             )}
                           </div>
                         ) : req.status === 'REJECTED' ? (
-                          <div className="text-sm text-gray-500">N/A</div>
+                          <div className="flex items-center justify-center">
+                            <button onClick={() => setSelectedRejectedRequest(req)} className="text-indigo-600 hover:text-indigo-900 cursor-pointer">View Details</button>
+                          </div>
                         ) : (
                           <div className="text-sm text-gray-500">Processing</div>
                         )}
@@ -314,6 +317,32 @@ export default function BonafideRequestPage() {
           </div>
         </div>
       </main>
+
+      {/* Rejection reason modal (read-only) */}
+      {selectedRejectedRequest && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col relative">
+            <button onClick={() => setSelectedRejectedRequest(null)} aria-label="Close" className="cursor-pointer absolute right-3 top-3 text-gray-500 hover:text-gray-800">✕</button>
+            <div className="p-6">
+              <h3 className="text-xl font-semibold mb-4">Reason for Rejection</h3>
+              <div className="space-y-3 text-sm text-gray-800">
+                <p><strong>Certificate Type:</strong> {selectedRejectedRequest.certificate_type || '-'}</p>
+                <p><strong>Academic Year:</strong> {selectedRejectedRequest.academic_year || '-'}</p>
+                <p><strong>Status:</strong> <span className="text-red-700 font-semibold">Rejected</span></p>
+                <div>
+                  <h4 className="font-medium">Rejection Reason</h4>
+                  <div className="mt-2 p-3 border rounded bg-gray-50 text-sm text-gray-900" style={{ whiteSpace: 'pre-wrap' }}>
+                    {selectedRejectedRequest.reject_reason || 'No reason provided.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 border-t flex justify-end">
+              <button onClick={() => setSelectedRejectedRequest(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
