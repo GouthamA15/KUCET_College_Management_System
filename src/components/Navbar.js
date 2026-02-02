@@ -22,7 +22,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
   return (
     <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-14">
+        <div className="flex justify-between items-center h-13">
           <div className="flex-shrink-0">
             <span className="text-white text-lg font-bold tracking-wide">LOGIN PORTAL</span>
           </div>
