@@ -25,7 +25,9 @@ export async function PUT(request, { params }) {
 
     const resolvedParams = await params;
     const { request_id } = resolvedParams;
-    let { status } = await request.json();
+    const body = await request.json();
+    let { status } = body;
+    const reject_reason = body.reject_reason;
     if (!status) {
         return NextResponse.json({ error: 'Status is required' }, { status: 400 });
     }
@@ -62,15 +64,23 @@ export async function PUT(request, { params }) {
                         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
                 }
 
-        // Now, update the status. Only set completed_at when marking final states.
+        // Now, update the status. Require non-empty reject_reason when rejecting.
         let result;
-        if (status === 'APPROVED' || status === 'REJECTED') {
+        if (status === 'REJECTED') {
+            if (!reject_reason || String(reject_reason).trim().length === 0) {
+                return NextResponse.json({ error: 'Rejection reason is required' }, { status: 400 });
+            }
+            result = await query(
+                'UPDATE student_requests SET status = ?, reject_reason = ?, completed_at = NOW() WHERE request_id = ?',
+                [status, String(reject_reason).trim(), request_id]
+            );
+        } else if (status === 'APPROVED') {
             result = await query(
                 'UPDATE student_requests SET status = ?, completed_at = NOW() WHERE request_id = ?',
                 [status, request_id]
             );
         } else {
-            // PENDING or other non-final state: don't set completed_at
+            // PENDING or other non-final state: don't set completed_at or reject_reason
             result = await query(
                 'UPDATE student_requests SET status = ? WHERE request_id = ?',
                 [status, request_id]

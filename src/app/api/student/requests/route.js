@@ -33,7 +33,7 @@ export async function GET(request) {
 
   try {
     const rows = await query(
-      `SELECT sr.request_id, sr.certificate_type, sr.status, sr.academic_year, sr.created_at, s.roll_no as roll_number
+      `SELECT sr.request_id, sr.certificate_type, sr.status, sr.academic_year, sr.created_at, sr.reject_reason, s.roll_no as roll_number
        FROM student_requests sr
        JOIN students s ON sr.student_id = s.id
        WHERE sr.student_id = ?
