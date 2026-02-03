@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import Header from '../../../../components/Header';
@@ -15,9 +16,6 @@ const certificateTypes = {
   "Study Conduct Certificate": { fee: 100, clerk: "admission" },
 };
 
-const UPI_VPA = 'kuengineeringcollege@sbi'; 
-const PAYEE_NAME = 'PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY';
-
 export default function CertificateRequestsPage() {
   const [selectedCertificate, setSelectedCertificate] = useState(Object.keys(certificateTypes)[0]);
   const [transactionId, setTransactionId] = useState('');
@@ -29,8 +27,6 @@ export default function CertificateRequestsPage() {
 
   const fee = certificateTypes[selectedCertificate].fee;
 
-  const upiLink = `upi://pay?pa=${UPI_VPA}&pn=${encodeURIComponent(PAYEE_NAME)}&am=${fee}&cu=INR`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -163,21 +159,20 @@ export default function CertificateRequestsPage() {
                         <p className="text-l font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
                         </div>
                         <div className="flex items-center justify-center space-x-2 mb-4">
-            <img 
-              src="/assets/Payment QR/kucet-logo.png" 
-              alt="PRINCIPAL KU" 
-              className="h-9 w-auto object-contain" 
+            <Image
+              src="/assets/Payment QR/kucet-logo.png"
+              alt="PRINCIPAL KU"
+              width={36}
+              height={36}
+              className="h-9 w-auto object-contain"
               onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
             />
             <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
             </div>
                         <div className="flex justify-center">
-                            {/* DYNAMIC QR CODE REPLACEMENT */}
-                            <img 
-                                src={qrCodeUrl} 
-                                alt={`Pay ₹${fee}`} 
-                                className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" 
-                            />
+                            {fee === 100 && <Image src="/assets/Payment QR/ku_payment_100.png" alt="Pay ₹100" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                            {fee === 150 && <Image src="/assets/Payment QR/ku_payment_150.png" alt="Pay ₹150" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                            {fee === 200 && <Image src="/assets/Payment QR/ku_payment_200.png" alt="Pay ₹200" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
                         </div>
                     </div>
                     <div>
