@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Header from '../../../../components/Header';
 import Footer from '../../../../components/Footer';
 import Navbar from '../../../../components/Navbar';
+import NextImage from 'next/image';
 
 const certificateTypes = {
   "Course Completion Certificate": { fee: 100, clerk: "admission" },
@@ -181,7 +182,7 @@ export default function CertificateRequestsPage() {
                         <p className="text-l font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
                         </div>
                         <div className="flex items-center justify-center space-x-2 mb-4">
-            <Image
+            <NextImage
               src="/assets/Payment QR/kucet-logo.png"
               alt="PRINCIPAL KU"
               width={36}
@@ -192,9 +193,9 @@ export default function CertificateRequestsPage() {
             <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
             </div>
                         <div className="flex justify-center">
-                            {fee === 100 && <Image src="/assets/Payment QR/ku_payment_100.png" alt="Pay ₹100" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
-                            {fee === 150 && <Image src="/assets/Payment QR/ku_payment_150.png" alt="Pay ₹150" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
-                            {fee === 200 && <Image src="/assets/Payment QR/ku_payment_200.png" alt="Pay ₹200" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                          {fee === 100 && <NextImage src="/assets/Payment QR/ku_payment_100.png" alt="Pay ₹100" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                          {fee === 150 && <NextImage src="/assets/Payment QR/ku_payment_150.png" alt="Pay ₹150" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                          {fee === 200 && <NextImage src="/assets/Payment QR/ku_payment_200.png" alt="Pay ₹200" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
                         </div>
                     </div>
                     <div>

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import NextImage from 'next/image';
 
 const BONAFIDE = 'Bonafide Certificate';
 const FEE = 100; // matches certificateTypes mapping
@@ -73,7 +74,8 @@ export default function BonafideRequestPage() {
     setPreviewUrl(url);
 
     // measure image natural size to set aspect ratio dynamically
-    const img = new Image();
+    // Use the DOM Image constructor to measure aspect, not next/image
+    const img = new window.Image();
     img.src = url;
     img.onload = () => {
       if (img.naturalWidth && img.naturalHeight) {
@@ -223,7 +225,7 @@ export default function BonafideRequestPage() {
             </p>
             <p className="text-s font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
             <div className="flex items-center justify-center space-x-2 mb-4">
-            <Image
+            <NextImage
               src="/assets/Payment QR/kucet-logo.png"
               alt="PRINCIPAL KU"
               width={32}
@@ -234,7 +236,7 @@ export default function BonafideRequestPage() {
             <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
             </div>
              <div className="flex items-center justify-center">
-              <Image src="/assets/Payment QR/ku_payment_100.png" alt="QR" width={160} height={160} className="w-40 h-40 bg-white rounded-md shadow-lg" />
+              <NextImage src="/assets/Payment QR/ku_payment_100.png" alt="QR" width={160} height={160} className="w-40 h-40 bg-white rounded-md shadow-lg" />
             </div>
             <div className="w-full mt-4">
               <p className="text-sm text-gray-700 mb-2">Payment Fee: <span className="font-bold text-indigo-600">₹{FEE}</span></p>
@@ -259,7 +261,7 @@ export default function BonafideRequestPage() {
           <div className="bg-white p-6 rounded-lg shadow-md flex flex-col">
             <div className="flex-1 flex items-center justify-center border border-dashed rounded-md p-4" style={{ aspectRatio: previewAspect, maxHeight: '28rem', width: '100%' }}>
                 {previewUrl ? (
-                  <Image src={previewUrl} alt="preview" width={500} height={500} className="w-full h-full object-contain rounded" />
+                  <NextImage src={previewUrl} alt="preview" width={500} height={500} className="w-full h-full object-contain rounded" unoptimized />
               ) : (
                 <div className="text-center text-gray-500">No Screenshot Uploaded</div>
               )}
