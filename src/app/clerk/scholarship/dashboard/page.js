@@ -82,6 +82,31 @@ export default function ScholarshipDashboard() {
     return isScholar ? 35000 : 70000;
   };
 
+  // Safe date formatter: renders DD-MM-YYYY without timezone shifts
+  const toDmy = (val) => {
+    if (!val) return '-';
+    try {
+      const s = String(val);
+      const datePart = s.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        const [y, m, d] = datePart.split('-');
+        return `${d}-${m}-${y}`;
+      }
+      const ddmmyyyy = s.split('-');
+      if (ddmmyyyy.length === 3 && ddmmyyyy[0].length === 2 && ddmmyyyy[1].length === 2 && ddmmyyyy[2].length === 4) {
+        return s; // already DD-MM-YYYY
+      }
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return s;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch {
+      return String(val);
+    }
+  };
+
   // Calculate these once before the render loop if student data is available
   const admissionType = student ? getAdmissionTypeFromRoll(student.roll_no) : null;
   const displayYearOffset = (admissionType === 'Lateral') ? 1 : 0;
@@ -508,10 +533,10 @@ export default function ScholarshipDashboard() {
                               <div>
                                 <h4 className="font-semibold">Non-Scholar Payment</h4>
                                 <div className="text-sm">UTR: {rec.utr_no || '-'}</div>
-                                <div className="text-sm">UTR Date: {rec.utr_date || '-'}</div>
+                                <div className="text-sm">UTR Date: {toDmy(rec.utr_date) || '-'}</div>
                                 <div className="text-sm">Amount Paid: {rec.amount_paid ?? '-'}</div>
                                 <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
-                                <div className="text-sm">Updated on: {rec.updated_at || rec.created_at || '-'}</div>
+                                <div className="text-sm">Updated on: {toDmy(rec.updated_at) || toDmy(rec.created_at) || '-'}</div>
                               </div>
                             ) : (
                               <div>
@@ -521,9 +546,9 @@ export default function ScholarshipDashboard() {
                                 <div className="text-sm">Amount Sanctioned: {rec.amount_sanctioned ?? '-'}</div>
                                 <div className="text-sm">Amount Distributed: {rec.amount_disbursed ?? '-'}</div>
                                 <div className="text-sm">Challan No: {rec.ch_no || '-'}</div>
-                                <div className="text-sm">Date: {rec.date || '-'}</div>
+                                <div className="text-sm">Date: {toDmy(rec.date) || '-'}</div>
                                 <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
-                                <div className="text-sm">Updated on: {rec.updated_at || rec.created_at || '-'}</div>
+                                <div className="text-sm">Updated on: {toDmy(rec.updated_at) || toDmy(rec.created_at) || '-'}</div>
                               </div>
                             )}
 
@@ -534,7 +559,7 @@ export default function ScholarshipDashboard() {
                                 const totalPaid = Number(rec.amount_paid ?? rec.amount_disbursed ?? 0);
                                 const pendingFee = Math.max(0, totalFee - totalPaid);
                                 const txn = rec.utr_no || rec.ch_no || '-';
-                                const txnDate = rec.utr_date || rec.date || '-';
+                                const txnDate = (toDmy(rec.utr_date) !== '-' ? toDmy(rec.utr_date) : (toDmy(rec.date) !== '-' ? toDmy(rec.date) : '-'));
                                 const statusAuto = pendingFee > 0 ? 'Pending' : 'Success';
                                 return (
                                   <>
