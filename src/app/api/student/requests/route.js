@@ -31,6 +31,28 @@ export async function GET(request) {
   const auth = await getStudentFromToken(request);
   if (!auth || !auth.student_id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // Block if not verified: email present, verified, and password set
+  try {
+    const rows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
+    const s = rows && rows[0];
+    if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
+      return NextResponse.json({ error: 'Verification required' }, { status: 403 });
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'Unable to validate verification status' }, { status: 500 });
+  }
+
+  // Enforce verification: email present, verified, and password set
+  try {
+    const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
+    const ver = verRows && verRows[0];
+    if (!ver || !ver.email || !ver.is_email_verified || !ver.password_hash) {
+      return NextResponse.json({ error: 'Verification required: verify email and set password to access requests.' }, { status: 403 });
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });
+  }
+
   try {
     const rows = await query(
       `SELECT sr.request_id, sr.certificate_type, sr.status, sr.academic_year, sr.created_at, sr.reject_reason, s.roll_no as roll_number
@@ -50,6 +72,28 @@ export async function GET(request) {
 export async function POST(request) {
   const auth = await getStudentFromToken(request);
   if (!auth || !auth.student_id || !auth.roll_no) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Block if not verified: email present, verified, and password set
+  try {
+    const rows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
+    const s = rows && rows[0];
+    if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
+      return NextResponse.json({ error: 'Verification required' }, { status: 403 });
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'Unable to validate verification status' }, { status: 500 });
+  }
+
+  // Enforce verification: email present, verified, and password set
+  try {
+    const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
+    const ver = verRows && verRows[0];
+    if (!ver || !ver.email || !ver.is_email_verified || !ver.password_hash) {
+      return NextResponse.json({ error: 'Verification required: verify email and set password to create requests.' }, { status: 403 });
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });
+  }
 
   try {
     const formData = await request.formData();

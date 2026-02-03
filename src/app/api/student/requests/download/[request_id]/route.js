@@ -48,6 +48,17 @@ export async function GET(request, { params }) {
     const auth = await getStudentFromToken(request);
     if (!auth || !auth.student_id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // Enforce verification: email present, verified, and password set
+    try {
+        const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
+        const ver = verRows && verRows[0];
+        if (!ver || !ver.email || !ver.is_email_verified || !ver.password_hash) {
+            return NextResponse.json({ error: 'Verification required: verify email and set password to download certificates.' }, { status: 403 });
+        }
+    } catch (e) {
+        return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });
+    }
+
     const { request_id } = await params;
 
     try {
