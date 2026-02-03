@@ -83,15 +83,20 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                 )
               ) : studentProfileMode ? (
                 <>
-                  <Link href="/student/timetable" className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group ${activeTab === 'timetable' ? 'text-blue-200' : ''}`}>
+                  {/* Profile (active) */}
+                  <Link href="/student/profile" className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${activeTab === 'profile' ? 'text-blue-200' : ''}`}>
+                    Profile
+                    <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'profile' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                  </Link>
+                  {/* Time Table */}
+                  <Link href="/student/timetable" className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${activeTab === 'timetable' ? 'text-blue-200' : ''}`}>
                     Time Table
                     <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'timetable' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                   </Link>
                   {/* Requests Dropdown */}
                   <div className="relative group">
-                    <button className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative flex items-center ${activeTab === 'requests' ? 'text-blue-200' : ''}`}>
+                    <button className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative flex items-center cursor-pointer ${activeTab === 'requests' ? 'text-blue-200' : ''}`}>
                       Requests
-                      {/* Added: transition-transform duration-300 group-hover:rotate-180 */}
                       <svg
                         className="w-4 h-4 ml-1 transition-transform duration-300 group-hover:rotate-180"
                         fill="none"
@@ -115,14 +120,26 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                       </Link>
                     </div>
                   </div>
-                  <button onClick={() => setShowChangePasswordModal(true)} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
-                    Change Password
-                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                  </button>
-                  <button onClick={onLogout} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
-                    Logout
-                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                  </button>
+                  {/* Menu dropdown with settings + logout */}
+                  <div className="relative group">
+                    <button className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative flex items-center cursor-pointer ${activeTab === 'menu' ? 'text-blue-200' : ''}`}>
+                      Menu
+                      <svg
+                        className="w-4 h-4 ml-1 transition-transform duration-300 group-hover:rotate-180"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'menu' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                    </button>
+                    <div className="absolute left-0 top-full w-60 bg-white rounded-b-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform z-50">
+                      <Link href="/student/settings/edit-profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">Edit Profile</Link>
+                      <Link href="/student/settings/security" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">Security & Privacy</Link>
+                      <button onClick={onLogout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">Logout</button>
+                    </div>
+                  </div>
                 </>
               ) : (
                 <>
@@ -225,12 +242,19 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
               )
             ) : studentProfileMode ? (
               <>
-                <Link href="/student/timetable" className="text-white block w-full text-left px-3 py-2.5 text-sm">Time Table</Link>
-                <Link href="/student/requests/bonafide" className="text-white block w-full text-left px-3 py-2.5 text-sm">Bonafide Certificate</Link>
-                <Link href="/student/requests/nodues" className="text-white block w-full text-left px-3 py-2.5 text-sm">No Dues Certificate</Link>
-                <Link href="/student/requests/certificates" className="text-white block w-full text-left px-3 py-2.5 text-sm">Other Certificates</Link>
-                <button onClick={() => {setShowChangePasswordModal(true); setMobileMenuOpen(false);}} className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Change Password</button>
-                <button onClick={() => { onLogout && onLogout(); setMobileMenuOpen(false); }} className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Logout</button>
+                <Link href="/student/profile" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Profile</Link>
+                <Link href="/student/timetable" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Time Table</Link>
+                <Link href="/student/requests/bonafide" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Bonafide Certificate</Link>
+                <Link href="/student/requests/nodues" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">No Dues Certificate</Link>
+                <Link href="/student/requests/certificates" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Other Certificates</Link>
+                <div className="px-3 pt-1">
+                  <div className="text-white/90 text-xs uppercase tracking-wide">Menu</div>
+                  <div className="pl-2">
+                    <Link href="/student/settings/edit-profile" className="text-white block w-full text-left py-1.5 text-sm opacity-90">Edit Profile</Link>
+                    <Link href="/student/settings/security" className="text-white block w-full text-left py-1.5 text-sm opacity-90">Security & Privacy</Link>
+                    <button onClick={() => { onLogout && onLogout(); setMobileMenuOpen(false); }} className="text-white block w-full text-left py-1.5 text-sm opacity-90 text-left">Logout</button>
+                  </div>
+                </div>
               </>
             ) : (
               <>
