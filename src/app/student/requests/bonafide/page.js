@@ -223,16 +223,18 @@ export default function BonafideRequestPage() {
             </p>
             <p className="text-s font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
             <div className="flex items-center justify-center space-x-2 mb-4">
-            <img 
-              src="/assets/Payment QR/kucet-logo.png" 
-              alt="PRINCIPAL KU" 
-              className="h-8 w-auto object-contain" 
+            <Image
+              src="/assets/Payment QR/kucet-logo.png"
+              alt="PRINCIPAL KU"
+              width={32}
+              height={32}
+              className="h-8 w-auto object-contain"
               onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
             />
             <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
             </div>
              <div className="flex items-center justify-center">
-              <img src="/assets/Payment QR/ku_payment_100.png" alt="QR" className="w-40 h-40 bg-white rounded-md shadow-lg" />
+              <Image src="/assets/Payment QR/ku_payment_100.png" alt="QR" width={160} height={160} className="w-40 h-40 bg-white rounded-md shadow-lg" />
             </div>
             <div className="w-full mt-4">
               <p className="text-sm text-gray-700 mb-2">Payment Fee: <span className="font-bold text-indigo-600">₹{FEE}</span></p>
@@ -257,7 +259,7 @@ export default function BonafideRequestPage() {
           <div className="bg-white p-6 rounded-lg shadow-md flex flex-col">
             <div className="flex-1 flex items-center justify-center border border-dashed rounded-md p-4" style={{ aspectRatio: previewAspect, maxHeight: '28rem', width: '100%' }}>
                 {previewUrl ? (
-                  <img src={previewUrl} alt="preview" className="w-full h-full object-contain rounded" />
+                  <Image src={previewUrl} alt="preview" width={500} height={500} className="w-full h-full object-contain rounded" />
               ) : (
                 <div className="text-center text-gray-500">No Screenshot Uploaded</div>
               )}

@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
 
 export default function CertificateRequests({ clerkType }) {
   const [requests, setRequests] = useState([]);
@@ -10,11 +11,7 @@ export default function CertificateRequests({ clerkType }) {
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectDialog, setShowRejectDialog] = useState(false);
 
-  useEffect(() => {
-    fetchRequests();
-  }, [clerkType]);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/clerk/requests?clerkType=${clerkType}`, { credentials: 'same-origin' });
@@ -29,7 +26,11 @@ export default function CertificateRequests({ clerkType }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [clerkType]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
 
   function formatDateDDMMYYYY(dateStr) {
     if (!dateStr) return '';
@@ -163,9 +164,11 @@ export default function CertificateRequests({ clerkType }) {
                   <h4 className="font-medium mb-3">Payment Screenshot</h4>
                   <div className="w-full h-full flex items-center justify-center border rounded-lg bg-gray-50 p-4">
                     {selectedRequest.payment_screenshot ? (
-                      <img
+                      <Image
                         src={`data:image/jpeg;base64,${arrayBufferToBase64(selectedRequest.payment_screenshot.data)}`}
                         alt="Payment Screenshot"
+                        width={500}
+                        height={500}
                         className="max-w-full max-h-[60vh] object-contain rounded-md shadow"
                       />
                     ) : (

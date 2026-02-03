@@ -51,6 +51,26 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **Password Management:**
+    *   **Forgot/Reset Password:**
+        *   New API routes for handling forgot password requests for admin, clerk, and student roles (`src/app/api/auth/forgot-password/...`).
+        *   New API route for resetting the password using a token (`src/app/api/auth/reset-password/[token]/route.js`).
+        *   New pages for users to initiate the forgot password process (`src/app/forgot-password/...`).
+        *   New page for users to reset their password (`src/app/reset-password/[token]/page.js`).
+        *   New database table `password_reset_tokens` to store password reset tokens (`college_db_patch_v9.sql`).
+    *   **Change Password:**
+        *   New API routes for handling password changes for admin, clerk, and student roles (`src/app/api/auth/change-password/...`).
+        *   A new `ChangePasswordModal.js` component to provide the UI for changing the password.
+        *   The `AdminNavbar.js` and `Navbar.js` components have been updated to include a "Change Password" button that triggers the new modal.
+*   **Database Schema Updates (`college_db_patch_v8.sql`, `college_db_patch_v9.sql`):**
+    *   `college_db_patch_v8.sql` contains the database schema.
+    *   `college_db_patch_v9.sql`: A new `password_reset_tokens` table has been added to store password reset tokens.
+*   **Environment Variables:**
+    *   The `.env.example` file has been updated with `EMAIL_USER`, `EMAIL_PASS`, and `NEXT_PUBLIC_BASE_URL` for email and base URL configuration.
+*   **Faculty Role:**
+    *   The `admin/create-clerk/page.js` is updated to include a "Faculty" role.
+    *   A new dashboard page for faculty (`src/app/clerk/faculty/dashboard/page.js`).
+    *   The redirects page is updated to handle faculty role.
 *   **`0ab5a03` - Add Set Password feature in Student Login**
     ```diff
     diff --git a/src/app/api/student/login/route.js b/src/app/api/student/login/route.js
@@ -1079,6 +1099,51 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   Fixed backend API routes (`src/app/api/clerk/students/[rollno]/route.js`, `src/app/api/clerk/admission/students/route.js`, `src/app/api/student/login/route.js`) to correctly parse and store `DD-MM-YYYY` dates in the MySQL database as `YYYY-MM-DD`, resolving `ER_TRUNCATED_WRONG_VALUE` errors.
     *   A new git branch `testvanilla` was created and pushed to include all these changes.
 
+
+## Code Documentation
+
+### Password Management
+
+#### Forgot/Reset Password
+
+*   **API Routes:**
+    *   `src/app/api/auth/forgot-password/admin/route.js`: Handles forgot password requests for admins.
+    *   `src/app/api/auth/forgot-password/clerk/route.js`: Handles forgot password requests for clerks.
+    *   `src/app/api/auth/forgot-password/student/route.js`: Handles forgot password requests for students.
+    *   `src/app/api/auth/reset-password/[token]/route.js`: Handles password reset using a token.
+*   **Frontend Pages:**
+    *   `src/app/forgot-password/admin/page.js`: Page for admins to initiate the forgot password process.
+    *   `src/app/forgot-password/clerk/page.js`: Page for clerks to initiate the forgot password process.
+    *   `src/app/forgot-password/student/page.js`: Page for students to initiate the forgot password process.
+    *   `src/app/reset-password/[token]/page.js`: Page for users to reset their password.
+*   **Database:**
+    *   `password_reset_tokens` table: Stores password reset tokens.
+
+#### Change Password
+
+*   **API Routes:**
+    *   `src/app/api/auth/change-password/admin/route.js`: Handles password changes for admins.
+    *   `src/app/api/auth/change-password/clerk/route.js`: Handles password changes for clerks.
+    *   `src/app/api/auth/change-password/student/route.js`: Handles password changes for students.
+*   **Frontend Components:**
+    *   `src/components/ChangePasswordModal.js`: A modal component for changing the password.
+
+### Faculty Role
+
+*   **API Routes:**
+    *   `src/app/api/clerk/me/route.js`: Fetches the details of the logged-in clerk, including their role.
+*   **Frontend Pages:**
+    *   `src/app/admin/create-clerk/page.js`: Updated to include "Faculty" as a role option.
+    *   `src/app/clerk/faculty/dashboard/page.js`: Dashboard page for faculty members.
+    *   `src/app/clerk/redirects/page.js`: Updated to redirect faculty members to their dashboard.
+
+### Database Schema
+
+*   `college_db_patch_v9.sql`: Adds the `password_reset_tokens` table.
+
+### Environment Variables
+
+*   `.env.example`: Updated with `EMAIL_USER`, `EMAIL_PASS`, and `NEXT_PUBLIC_BASE_URL` for email and base URL configuration.
 
 ## Development Conventions
 

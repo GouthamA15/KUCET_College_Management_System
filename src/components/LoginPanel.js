@@ -235,7 +235,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                 </form>
                 
                 <p className="text-center text-xs text-gray-700 mt-4">
-                  Note : Login by DOB will work only for the students who haven't set their password yet
+                  Note : Login by DOB will work only for the students who haven&apos;t set their password yet
                 </p>
               </div>
             )}
