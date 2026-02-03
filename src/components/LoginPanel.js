@@ -16,6 +16,10 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [studentError, setStudentError] = useState('');
   const [clerkError, setClerkError] = useState('');
   const [adminError, setAdminError] = useState('');
+  // Password visibility toggles for all panels
+  const [studentPasswordVisible, setStudentPasswordVisible] = useState(false);
+  const [clerkPasswordVisible, setClerkPasswordVisible] = useState(false);
+  const [adminPasswordVisible, setAdminPasswordVisible] = useState(false);
 
   const handleStudentSubmit = async (e) => {
     e.preventDefault();
@@ -45,7 +49,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       const data = await res.json();
       if (res.ok && data.student) {
         toast.success('Login successful!', { id: toastId });
-                router.replace('/student/profile');
+        // Redirect to the student profile page
+        router.replace('/student/profile');
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
@@ -180,14 +185,36 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         First time user ? Use your DOB in the format : DD-MM-YYYY
                       </span>
                     </label>
-                    <input
-                      type="text"
-                      value={studentForm.dob}
-                      onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
-                      placeholder="Enter Password"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={studentPasswordVisible ? 'text' : 'password'}
+                        value={studentForm.dob}
+                        onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
+                        placeholder="Enter Password"
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setStudentPasswordVisible((v) => !v)}
+                        aria-label={studentPasswordVisible ? 'Hide password' : 'Show password'}
+                        className="absolute inset-y-0 right-2 flex items-center justify-center px-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                      >
+                        {studentPasswordVisible ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          // eye icon
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                     <div className="text-right mt-2">
                       <Link href="/forgot-password/student" className="text-xs text-blue-500 hover:text-blue-700">
                         Forgot Password?
@@ -253,14 +280,35 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password
                     </label>
-                    <input
-                      type="password"
-                      value={clerkForm.password}
-                      onChange={(e) => setClerkForm({ ...clerkForm, password: e.target.value })}
-                      placeholder="Enter your password"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={clerkPasswordVisible ? 'text' : 'password'}
+                        value={clerkForm.password}
+                        onChange={(e) => setClerkForm({ ...clerkForm, password: e.target.value })}
+                        placeholder="Enter your password"
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setClerkPasswordVisible((v) => !v)}
+                        aria-label={clerkPasswordVisible ? 'Hide password' : 'Show password'}
+                        className="absolute inset-y-0 right-2 flex items-center justify-center px-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                      >
+                        {clerkPasswordVisible ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                     <div className="text-right mt-2">
                       <Link href="/forgot-password/clerk" className="text-xs text-blue-500 hover:text-blue-700">
                         Forgot Password?
@@ -325,14 +373,35 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password
                     </label>
-                    <input
-                      type="password"
-                      value={adminForm.password}
-                      onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                      placeholder="Enter admin password"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={adminPasswordVisible ? 'text' : 'password'}
+                        value={adminForm.password}
+                        onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                        placeholder="Enter admin password"
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAdminPasswordVisible((v) => !v)}
+                        aria-label={adminPasswordVisible ? 'Hide password' : 'Show password'}
+                        className="absolute inset-y-0 right-2 flex items-center justify-center px-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                      >
+                        {adminPasswordVisible ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                     <div className="text-right mt-2">
                       <Link href="/forgot-password/admin" className="text-xs text-blue-500 hover:text-blue-700">
                         Forgot Password?
