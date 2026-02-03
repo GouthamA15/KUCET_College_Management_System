@@ -17,6 +17,7 @@ export default function SecurityPrivacyPage() {
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [emailMessage, setEmailMessage] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [emailEditing, setEmailEditing] = useState(false);
 
   // Password section state
   const [pwExpanded, setPwExpanded] = useState(false);
@@ -224,65 +225,132 @@ export default function SecurityPrivacyPage() {
                 </div>
               </section>
 
-              {/* Section 2: Email Setup & Verification */}
+              {/* Section 2: Email Setup (unverified) or Edit Email (verified) */}
               <section className="border rounded-md p-4">
-                <h2 className="text-sm font-semibold text-gray-700 mb-3">Email Setup & Verification</h2>
-                {(() => {
-                  const emailChanged = (emailInput || '').trim() !== (student?.email || '').trim();
-                  const canSend = !!emailInput && emailValid && !emailSending;
-                  const showOtpArea = otpSent === true; // Show OTP only after successful send
-                  const buttonLabel = isEmailMissing ? 'Send OTP' : (!isEmailVerified ? (emailChanged ? 'Send OTP' : 'Resend OTP') : 'Send OTP');
-                  return (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-gray-600">Email</label>
-                        <input
-                          className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-                          type="email"
-                          value={emailInput}
-                          onChange={(e) => { setEmailInput(e.target.value); setOtpSent(false); setOtpInput(''); }}
-                          placeholder="Enter your email"
-                        />
-                        {emailError && (
-                          <div className="mt-1 text-xs text-red-600">{emailError}</div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={sendOtp} disabled={!canSend} className={`px-3 py-2 rounded text-white ${!canSend ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}>{emailSending ? 'Sending...' : buttonLabel}</button>
-                        {!isEmailVerified && (
-                          <span className="text-xs text-gray-500">Enter the OTP sent to your email</span>
-                        )}
-                        {isEmailVerified && emailChanged && (
-                          <span className="text-xs text-gray-500">Changing email requires verification</span>
-                        )}
-                      </div>
-                      {showOtpArea && (
-                        <>
+                {(!isEmailVerified) ? (
+                  <>
+                    <h2 className="text-sm font-semibold text-gray-700 mb-3">Email Setup & Verification</h2>
+                    {(() => {
+                      const emailChanged = (emailInput || '').trim() !== (student?.email || '').trim();
+                      const canSend = !!emailInput && emailValid && !emailSending;
+                      const showOtpArea = otpSent === true;
+                      const buttonLabel = isEmailMissing ? 'Send OTP' : (emailChanged ? 'Send OTP' : 'Resend OTP');
+                      return (
+                        <div className="space-y-3">
                           <div>
-                            <label className="text-xs text-gray-600">OTP</label>
+                            <label className="text-xs text-gray-600">Email</label>
                             <input
                               className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              maxLength={6}
-                              value={otpInput}
-                              onChange={(e) => {
-                                const v = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                setOtpInput(v);
-                              }}
-                              placeholder="Enter 6-digit OTP"
+                              type="email"
+                              value={emailInput}
+                              onChange={(e) => { setEmailInput(e.target.value); setOtpSent(false); setOtpInput(''); }}
+                              placeholder="Enter your email"
                             />
+                            {emailError && (
+                              <div className="mt-1 text-xs text-red-600">{emailError}</div>
+                            )}
                           </div>
-                          {(otpInput.trim().length === 6) && (
-                            <button onClick={verifyOtp} disabled={otpVerifying} className={`px-4 py-2 rounded text-white ${otpVerifying ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>{otpVerifying ? 'Verifying...' : 'Verify'}</button>
+                          <div className="flex items-center gap-2">
+                            <button onClick={sendOtp} disabled={!canSend} className={`px-3 py-2 rounded text-white ${!canSend ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}>{emailSending ? 'Sending...' : buttonLabel}</button>
+                            <span className="text-xs text-gray-500">Enter the OTP sent to your email</span>
+                          </div>
+                          {showOtpArea && (
+                            <>
+                              <div>
+                                <label className="text-xs text-gray-600">OTP</label>
+                                <input
+                                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={6}
+                                  value={otpInput}
+                                  onChange={(e) => {
+                                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                    setOtpInput(v);
+                                  }}
+                                  placeholder="Enter 6-digit OTP"
+                                />
+                              </div>
+                              {(otpInput.trim().length === 6) && (
+                                <button onClick={verifyOtp} disabled={otpVerifying} className={`px-4 py-2 rounded text-white ${otpVerifying ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>{otpVerifying ? 'Verifying...' : 'Verify'}</button>
+                              )}
+                            </>
                           )}
-                        </>
-                      )}
-                      {emailMessage && <div className="text-xs text-gray-600">{emailMessage}</div>}
-                    </div>
-                  );
-                })()}
+                          {emailMessage && <div className="text-xs text-gray-600">{emailMessage}</div>}
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-sm font-semibold text-gray-700 mb-3">Edit Email</h2>
+                    {(() => {
+                      const emailChanged = (emailInput || '').trim() !== (student?.email || '').trim();
+                      const canSendEdit = emailEditing && emailValid && emailChanged && !emailSending;
+                      const showOtpArea = emailEditing && otpSent === true;
+                      return (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-xs text-gray-600">Email</label>
+                            <input
+                              className={`mt-1 w-full border rounded-md px-3 py-2 text-sm ${!emailEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                              type="email"
+                              value={emailInput}
+                              onChange={(e) => { setEmailInput(e.target.value); setOtpSent(false); setOtpInput(''); }}
+                              placeholder="Your email"
+                              readOnly={!emailEditing}
+                              disabled={!emailEditing}
+                            />
+                            {!emailEditing && (
+                              <div className="mt-1 text-xs text-gray-500">Click Edit to change your email</div>
+                            )}
+                            {emailError && emailEditing && (
+                              <div className="mt-1 text-xs text-red-600">{emailError}</div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!emailEditing ? (
+                              <button type="button" onClick={() => { setEmailEditing(true); setOtpSent(false); setOtpInput(''); }} className="px-3 py-2 rounded text-white bg-blue-600 hover:bg-blue-700">Edit</button>
+                            ) : (
+                              <>
+                                <button type="button" onClick={() => { setEmailEditing(false); setEmailInput(student?.email || ''); setOtpSent(false); setOtpInput(''); }} className="px-3 py-2 rounded border bg-white hover:bg-gray-50">Cancel</button>
+                                <button onClick={sendOtp} disabled={!canSendEdit} className={`px-3 py-2 rounded text-white ${!canSendEdit ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}>{emailSending ? 'Sending...' : 'Send OTP'}</button>
+                                {emailChanged && (
+                                  <span className="text-xs text-gray-500">Changing email requires verification</span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          {showOtpArea && (
+                            <>
+                              <div>
+                                <label className="text-xs text-gray-600">OTP</label>
+                                <input
+                                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={6}
+                                  value={otpInput}
+                                  onChange={(e) => {
+                                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                    setOtpInput(v);
+                                  }}
+                                  placeholder="Enter 6-digit OTP"
+                                />
+                              </div>
+                              {(otpInput.trim().length === 6) && (
+                                <button onClick={async () => { await verifyOtp(); setEmailEditing(false); }} disabled={otpVerifying} className={`px-4 py-2 rounded text-white ${otpVerifying ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>{otpVerifying ? 'Verifying...' : 'Verify'}</button>
+                              )}
+                            </>
+                          )}
+                          {emailMessage && <div className="text-xs text-gray-600">{emailMessage}</div>}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
               </section>
 
               {/* Section 3: Password Setup / Change */}
