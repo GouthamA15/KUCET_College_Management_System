@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import Header from '@/components/Header';
@@ -10,6 +11,7 @@ const BONAFIDE = 'Bonafide Certificate';
 const FEE = 100; // matches certificateTypes mapping
 
 export default function BonafideRequestPage() {
+  const router = useRouter();
   const [transactionId, setTransactionId] = useState('');
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [requests, setRequests] = useState([]);
@@ -22,7 +24,28 @@ export default function BonafideRequestPage() {
   const historyRef = useRef(null);
 
   useEffect(() => {
-    fetchRequests();
+    // Route-level guard: block unverified accounts from accessing requests
+    const init = async () => {
+      try {
+        const meRes = await fetch('/api/student/me');
+        if (!meRes.ok) return; // if unauthorized, let other guards handle
+        const { roll_no } = await meRes.json();
+        if (!roll_no) return;
+        const studentRes = await fetch(`/api/student/${roll_no}`);
+        if (!studentRes.ok) return;
+        const data = await studentRes.json();
+        const s = data?.student;
+        const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
+        if (!verified) {
+          router.replace('/student/requests/verification-required');
+          return;
+        }
+        await fetchRequests();
+      } catch (e) {
+        // ignore guard errors
+      }
+    };
+    init();
   }, []);
 
   const fetchRequests = async () => {
@@ -267,9 +290,9 @@ export default function BonafideRequestPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {requests.length > 0 ? requests.map(req => (
                     <tr key={req.request_id}>
-                      <td className="px-4 py-3 break-words whitespace-normal text-sm text-gray-800">{formatDate(req.created_at || req.createdAt || req.request_date)}</td>
-                      <td className="px-4 py-3 break-words whitespace-normal text-sm text-gray-800">{req.academic_year || '-'}</td>
-                      <td className="px-4 py-3 break-words whitespace-normal text-sm">
+                      <td className="px-4 py-3 whitespace-normal wrap-break-word text-sm text-gray-800">{formatDate(req.created_at || req.createdAt || req.request_date)}</td>
+                      <td className="px-4 py-3 whitespace-normal wrap-break-word text-sm text-gray-800">{req.academic_year || '-'}</td>
+                      <td className="px-4 py-3 whitespace-normal wrap-break-word text-sm">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${req.status === 'APPROVED' ? 'bg-green-100 text-green-800' : req.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
                           {req.status}
                         </span>

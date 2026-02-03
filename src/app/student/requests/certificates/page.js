@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import Header from '../../../../components/Header';
@@ -19,6 +20,7 @@ const UPI_VPA = 'kuengineeringcollege@sbi';
 const PAYEE_NAME = 'PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY';
 
 export default function CertificateRequestsPage() {
+  const router = useRouter();
   const [selectedCertificate, setSelectedCertificate] = useState(Object.keys(certificateTypes)[0]);
   const [transactionId, setTransactionId] = useState('');
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
@@ -32,7 +34,28 @@ export default function CertificateRequestsPage() {
   const upiLink = `upi://pay?pa=${UPI_VPA}&pn=${encodeURIComponent(PAYEE_NAME)}&am=${fee}&cu=INR`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
   useEffect(() => {
-    fetchRequests();
+    // Route-level guard: block unverified accounts from accessing requests
+    const init = async () => {
+      try {
+        const meRes = await fetch('/api/student/me');
+        if (!meRes.ok) return; // if unauthorized, let other guards handle
+        const { roll_no } = await meRes.json();
+        if (!roll_no) return;
+        const studentRes = await fetch(`/api/student/${roll_no}`);
+        if (!studentRes.ok) return;
+        const data = await studentRes.json();
+        const s = data?.student;
+        const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
+        if (!verified) {
+          router.replace('/student/requests/verification-required');
+          return;
+        }
+        await fetchRequests();
+      } catch (e) {
+        // ignore guard errors
+      }
+    };
+    init();
   }, []);
 
   const fetchRequests = async () => {

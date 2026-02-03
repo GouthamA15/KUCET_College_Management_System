@@ -31,6 +31,14 @@ export default function NoDuesRequestPage() {
           const data = await studentRes.json();
           setStudentData(data);
 
+          // Route-level guard: block unverified accounts from accessing requests
+          const s = data?.student;
+          const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
+          if (!verified) {
+            router.replace('/student/requests/verification-required');
+            return;
+          }
+
           // TODO: Implement actual logic to calculate totalExpectedFee
           // For now, using a placeholder.
           // This should likely involve `data.student.admission_type`, `data.student.course`, `data.scholarship`, etc.
