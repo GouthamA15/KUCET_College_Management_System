@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
 // DOB will be a controlled numeric text input (DD-MM-YYYY)
 
 
@@ -187,6 +188,11 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
                       required
                     />
+                    <div className="text-right mt-2">
+                      <Link href="/forgot-password/student" className="text-xs text-blue-500 hover:text-blue-700">
+                        Forgot Password?
+                      </Link>
+                    </div>
                   </div>
                   
                   <button
@@ -255,6 +261,11 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
                       required
                     />
+                    <div className="text-right mt-2">
+                      <Link href="/forgot-password/clerk" className="text-xs text-blue-500 hover:text-blue-700">
+                        Forgot Password?
+                      </Link>
+                    </div>
                   </div>
                   
                   <button
@@ -322,6 +333,11 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
                       required
                     />
+                    <div className="text-right mt-2">
+                      <Link href="/forgot-password/admin" className="text-xs text-blue-500 hover:text-blue-700">
+                        Forgot Password?
+                      </Link>
+                    </div>
                   </div>
                   
                   <button

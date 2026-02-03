@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -31,6 +32,31 @@ export default function ScholarshipDashboard() {
   const [confirmMessage, setConfirmMessage] = useState('');
   const [pendingSaveData, setPendingSaveData] = useState(null);
   const [view, setView] = useState('dashboard'); // 'dashboard' or 'certificates'
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchClerkData = async () => {
+      try {
+        const res = await fetch('/api/clerk/me');
+        const data = await res.json();
+        if (res.ok) {
+          if (data.role !== 'scholarship') {
+            toast.error('Access Denied');
+            router.push('/');
+          }
+        } else {
+          toast.error(data.error || 'Failed to fetch clerk data.');
+          router.push('/');
+        }
+      } catch (error) {
+        toast.error('An unexpected error occurred while fetching clerk data.');
+        console.error('Error fetching clerk data:', error);
+        router.push('/');
+      }
+    };
+    fetchClerkData();
+  }, [router]);
 
   // Fee constants and helpers
   const SELF_FINANCE_BRANCHES = ['CSD', 'IT', 'CIVIL'];

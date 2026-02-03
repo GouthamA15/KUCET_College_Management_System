@@ -1,13 +1,54 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
 import ClerkStudentManagement from '@/components/ClerkStudentManagement';
 import CertificateRequests from '@/components/CertificateRequests';
+import toast from 'react-hot-toast';
 
-export default function ClerkDashboard(){
+export default function ClerkDashboard() {
   const [openModule, setOpenModule] = useState(null); // 'student', 'certificates', or null
+  const router = useRouter();
+  const [clerk, setClerk] = useState(null);
+
+  useEffect(() => {
+    const fetchClerkData = async () => {
+      try {
+        const res = await fetch('/api/clerk/me');
+        const data = await res.json();
+        if (res.ok) {
+          if (data.role !== 'admission') {
+            toast.error('Access Denied');
+            router.push('/');
+          } else {
+            setClerk(data);
+          }
+        } else {
+          toast.error(data.error || 'Failed to fetch clerk data.');
+          router.push('/');
+        }
+      } catch (error) {
+        toast.error('An unexpected error occurred while fetching clerk data.');
+        console.error('Error fetching clerk data:', error);
+        router.push('/');
+      }
+    };
+    fetchClerkData();
+  }, [router]);
+
+  if (!clerk) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col">
+        <Header />
+        <main className="flex-1 p-4 md:p-8">
+          <p>Loading...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">

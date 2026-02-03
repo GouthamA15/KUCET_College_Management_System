@@ -51,6 +51,854 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **`0ab5a03` - Add Set Password feature in Student Login**
+    ```diff
+    diff --git a/src/app/api/student/login/route.js b/src/app/api/student/login/route.js
+    index c2a7c7b..2c2859c 100644
+    --- a/src/app/api/student/login/route.js
+    +++ b/src/app/api/student/login/route.js
+    @@ -2,17 +2,18 @@ import { query } from '@/lib/db';
+     import { toMySQLDate } from '@/lib/date';
+     import { NextResponse } from 'next/server';
+     import { SignJWT } from 'jose';
+    +import bcrypt from'bcrypt'
+     
+     export async function POST(req) {
+       try {
+         const body = await req.json();
+    -    const { rollno, dob } = body;
+    +    const { rollno, dob } = body; //dob used as password input field
+         if (!rollno || !dob) {
+           return NextResponse.json({ error: 'Missing rollno or dob' }, { status: 400 });
+         }
+         
+         const rows = await query(
+    -      `SELECT s.roll_no, s.name, sp.father_name, sp.category, s.mobile, s.date_of_birth
+    +      `SELECT s.roll_no, s.name, sp.father_name, sp.category, s.mobile, s.date_of_birth, s.password_hash
+            FROM students s
+            LEFT JOIN student_personal_details sp ON s.id = sp.student_id
+            WHERE s.roll_no = ?`,
+    @@ -24,17 +25,46 @@ export async function POST(req) {
+         }
+     
+         const student = rows[0];
+    +    let isAuthenticated = false
+    +
+    +    // 1. CHECK PASSWORD (If set)
+    +    if (student.password_hash) {
+    +      // The user entered a password in the 'dob' field
+    +      const match = await bcrypt.compare(dob, student.password_hash);
+    +      if (match) {
+    +        isAuthenticated = true;
+    +      } else {
+    +        return NextResponse.json({ error: 'Invalid Password' }, { status: 401 });
+    +      }
+    +    }
+    +    else {
+         const dobInputMySQL = toMySQLDate(dob);
+     
+         const dbDate = new Date(student.date_of_birth);
+         const dbDateString = dbDate.getFullYear() + '-' + String(dbDate.getMonth() + 1).padStart(2, '0') + '-' + String(dbDate.getDate()).padStart(2, '0');
+    +    // Helper: Normalize Input to YYYY-MM-DD
+    +      // This handles if frontend sends "15-08-2005" OR "2005-08-15"
+    +      let inputDateString = dob;
+    +      if (dob.includes('-')) {
+    +        const parts = dob.split('-');
+    +        if (parts[0].length === 2 && parts[2].length === 4) {
+    +           // It's DD-MM-YYYY -> Convert to YYYY-MM-DD
+    +           inputDateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    +        }
+    +      }
+    +
+    +    if (dbDateString === inputDateString) {
+    +        isAuthenticated = true;
+    +      } else {
+    +        return NextResponse.json({ error: 'Invalid Date of Birth' }, { status: 401 });
+    +      }
+    +    }
+     
+    -    if (dbDateString !== dobInputMySQL) {
+    -      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    +    if (!isAuthenticated) {
+    +        return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
+         }
+     
+    -    const { date_of_birth: _dob, ...profile } = student;
+    +    const { date_of_birth: _dob, password_hash = _ph, ...profile } = student;
+     
+         const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+         const token = await new SignJWT({ student_id: student.id, roll_no: student.roll_no, name: student.name })
+    diff --git a/src/app/api/student/set-password/route.js b/src/app/api/student/set-password/route.js
+    new file mode 100644
+    index 0000000..8ac67b4
+    --- /dev/null
+    +++ b/src/app/api/student/set-password/route.js
+    @@ -0,0 +1,52 @@
+    +import { query } from '@/lib/db';
+    +import { NextResponse } from 'next/server';
+    +import bcrypt from 'bcrypt';
+    +
+    +// GET: Check if password is set
+    +export async function GET(req) {
+    +  try {
+    +    const { searchParams } = new URL(req.url);
+    +    const rollno = searchParams.get('rollno');
+    +
+    +    if (!rollno) return NextResponse.json({ error: 'Roll number required' }, { status: 400 });
+    +
+    +    const rows = await query(
+    +      'SELECT password_hash FROM students WHERE roll_no = ?',
+    +      [rollno]
+    +    );
+    +
+    +    if (rows.length === 0) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    +
+    +    const isPasswordSet = !!rows[0].password_hash;
+    +
+    +    return NextResponse.json({ isPasswordSet }, { status: 200 });
+    +  } catch (err) {
+    +    console.error(err);
+    +    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    +  }
+    +}
+    +
+    +// POST: Set new password
+    +export async function POST(req) {
+    +  try {
+    +    const body = await req.json();
+    +    const { rollno, password } = body;
+    +
+    +    if (!rollno || !password) {
+    +      return NextResponse.json({ error: 'Missing details' }, { status: 400 });
+    +    }
+    +
+    +    const saltRounds = 10;
+    +    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    +
+    +    await query(
+    +      'UPDATE students SET password_hash = ? WHERE roll_no = ?',
+    +      [hashedPassword, rollno]
+    +    );
+    +
+    +    return NextResponse.json({ success: true, message: 'Password set successfully' }, { status: 200 });
+    +  } catch (err) {
+    +    console.error('Password set error:', err);
+    +    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    +  }
+    +}
+    +\ No newline at end of file
+    diff --git a/src/app/layout.js b/src/app/layout.js
+    index e51e894..fb7715b 100644
+    --- a/src/app/layout.js
+    +++ b/src/app/layout.js
+    @@ -2,7 +2,7 @@ import "./globals.css";
+     import { Toaster } from 'react-hot-toast';
+     
+     export const metadata = {
+    -  title: "KUCET - KU College of Engineering and Technology",
+    +  title: "KUCET - Login Portal",
+       description: "KU College of Engineering and Technology - A premier engineering institution affiliated with Kakatiya University, Warangal",
+     };
+     
+    diff --git a/src/app/student/profile/page.js b/src/app/student/profile/page.js
+    index 5e3b5ce..280e55b 100644
+    --- a/src/app/student/profile/page.js
+    +++ b/src/app/student/profile/page.js
+    @@ -44,6 +44,12 @@ export default function StudentProfile() {
+       const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+       const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
+     
+    +  // PASSWORD SETTING STATES
+    +  const [isPasswordSet, setIsPasswordSet] = useState(true); // Default true to prevent flash
+    +  const [newPassword, setNewPassword] = useState('');
+    +  const [confirmPassword, setConfirmPassword] = useState('');
+    +  const [passwordSaving, setPasswordSaving] = useState(false);
+    +
+       const sanitizeDigits = (val, maxLen = 12) => {
+         if (val == null) return '';
+         return String(val).replace(/\D/g, '').slice(0, maxLen);
+    @@ -85,6 +91,17 @@ export default function StudentProfile() {
+               setEmailLocked(false);
+             setOriginalAddress(pdAddress);
+             setProfilePhoto(data.student.pfp);
+    +
+    +        // CHECK IF PASSWORD IS SET
+    +        try {
+    +          const passRes = await fetch(`/api/student/set-password?rollno=${rollno}`);
+    +          if (passRes.ok) {
+    +            const passData = await passRes.json();
+    +            setIsPasswordSet(passData.isPasswordSet);
+    +          }
+    +        } catch (e) {
+    +          console.error("Error checking password status", e);
+    +        }
+           } else {
+             toast.error(data.message || 'Unable to load profile. Please try again.');
+           }
+    @@ -292,6 +309,41 @@ export default function StudentProfile() {
+         }
+       };
+     
+    +  const handlePasswordSave = async () => {
+    +    if (newPassword !== confirmPassword) {
+    +      toast.error('Passwords do not match');
+    +      return;
+    +    }
+    +    if (newPassword.length < 6) {
+    +      toast.error('Password must be at least 6 characters long');
+    +      return;
+    +    }
+    +    setPasswordSaving(true);
+    +    try {
+    +      const res = await fetch('/api/student/set-password', {
+    +        method: 'POST',
+    +        headers: { 'Content-Type': 'application/json' },
+    +        body: JSON.stringify({
+    +          rollno: studentData.student.roll_no,
+    +          password: newPassword
+    +        })
+    +      });
+    +      const data = await res.json();
+    +      if (res.ok) {
+    +        toast.success('Password set successfully! Please use this for future logins.');
+    +        setIsPasswordSet(true);
+    +        setNewPassword('');
+    +        setConfirmPassword('');
+    +      } else {
+    +        toast.error(data.error || 'Failed to set password');
+    +      }
+    +    } catch (e) {
+    +      toast.error('Network error');
+    +    } finally {
+    +      setPasswordSaving(false);
+    +    }
+    +  };
+    +
+       if (!studentData) return null;
+     
+       const { student } = studentData;
+    @@ -370,7 +422,61 @@ export default function StudentProfile() {
+           <Navbar studentProfileMode={true} onLogout={handleLogout} activeTab={activeTab} setActiveTab={setActiveTab} />
+     
+           <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8">
+    -        <div className="max-w-5xl mx-auto bg-white rounded-lg shadow-lg p-8">
+    +  <div className="max-w-5xl mx-auto">
+    +    
+    +    {/* --- START OF NEW WARNING SECTION --- */}
+    +    {!isPasswordSet && (
+    +      <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-8 shadow-md rounded-r-lg">
+    +        <div className="flex items-start">
+    +          <div className="flex-shrink-0">
+    +            <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    +              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    +            </svg>
+    +          </div>
+    +          <div className="ml-3 w-full">
+    +            <h3 className="text-lg font-medium text-red-800">Security Warning: Please set your password ASAP</h3>
+    +            <p className="text-sm text-red-700 mt-1">You are currently logged in using your Date of Birth. For better security, please set a custom password immediately.</p>
+    +
+    +            <div className="mt-4 bg-white p-4 rounded-md shadow-sm border border-red-100 max-w-md">
+    +              <h4 className="text-sm font-semibold text-gray-700 mb-3">Set New Password</h4>
+    +              <div className="space-y-3">
+    +                <div>
+    +                  <label className="block text-xs font-medium text-gray-500 mb-1">New Password</label>
+    +                  <input 
+    +                    type="password" 
+    +                    value={newPassword}
+    +                    onChange={(e) => setNewPassword(e.target.value)}
+    +                    className="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none"
+    +                    placeholder="Enter new password"
+    +                  />
+    +                </div>
+    +                <div>
+    +                  <label className="block text-xs font-medium text-gray-500 mb-1">Confirm Password</label>
+    +                  <input 
+    +                    type="password" 
+    +                    value={confirmPassword}
+    +                    onChange={(e) => setConfirmPassword(e.target.value)}
+    +                    className="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none"
+    +                    placeholder="Confirm new password"
+    +                  />
+    +                </div>
+    +                <button 
+    +                  onClick={handlePasswordSave}
+    +                  disabled={!newPassword || newPassword !== confirmPassword || passwordSaving}
+    +                  className={`w-full py-2 px-4 rounded text-sm font-medium text-white transition-colors
+    +                    ${(!newPassword || newPassword !== confirmPassword || passwordSaving) 
+    +                      ? 'bg-gray-400 cursor-not-allowed' 
+    +                      : 'bg-red-600 hover:bg-red-700'}`}
+    +                >
+    +                  {passwordSaving ? 'Saving...' : 'Set Password'}
+    +                </button>
+    +              </div>
+    +            </div>
+    +          </div>
+    +        </div>
+    +      </div>
+    +    )}
+    +    {/* --- END OF NEW WARNING SECTION --- */}
+               <div className="border-b border-gray-200 relative">
+                 <nav className="hidden md:flex -mb-px space-x-8" aria-label="Tabs">
+                   <button onClick={() => setActiveTab('basic')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'basic' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+    diff --git a/src/components/LoginPanel.js b/src/components/LoginPanel.js
+    index fd6aaa4..27ab56b 100644
+    --- a/src/components/LoginPanel.js
+    +++ b/src/components/LoginPanel.js
+    @@ -165,7 +165,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
+                         <input
+                           type="text"
+                           value={studentForm.rollNumber}
+    -                      onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value })}
+    +                      onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value.toUpperCase() })}
+                           placeholder="Enter your Roll Number"
+                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                           required
+    @@ -174,53 +174,16 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
+     
+                       <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">
+    -                      Date of Birth
+    +                      Password
+                           <span className="block text-xs text-gray-500 font-normal mt-0.5">
+    -                        (used as password for first login)
+    +                        First time user ? Use your DOB in the format : DD-MM-YYYY
+                           </span>
+                         </label>
+    -                    {/* Numeric-only DD-MM-YYYY input with auto-inserted, locked hyphens */}
+                         <input
+                           type="text"
+    -                      inputMode="numeric"
+    -                      placeholder="DD-MM-YYYY"
+    -                      maxLength={10}
+                           value={studentForm.dob}
+    -                      onKeyDown={(e) => {
+    -                        const allowedKeys = [
+    -                          'Backspace', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Delete', 'Home', 'End'
+    -                        ];
+    -                        if (allowedKeys.includes(e.key)) return;
+    -                        // allow only digits
+    -                        if (/^[0-9]$/.test(e.key)) return;
+    -                        e.preventDefault();
+    -                      }}
+    -                      onChange={(e) => {
+    -                        const raw = e.target.value;
+    -                        // strip non-digits
+    -                        const digits = raw.replace(/\D/g, '').slice(0, 8);
+    -                        let formatted = digits;
+    -                        if (digits.length >= 5) {
+    -                          formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
+    -                        } else if (digits.length >= 3) {
+    -                          formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
+    -                        } else if (digits.length >= 1) {
+    -                          formatted = digits;
+    -                        }
+    -                        setStudentForm({ ...studentForm, dob: formatted });
+    -                      }}
+    -                      onPaste={(e) => {
+    -                        e.preventDefault();
+    -                        const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
+    -                        const digits = paste.replace(/\D/g, '').slice(0, 8);
+    -                        let formatted = digits;
+    -                        if (digits.length >= 5) {
+    -                          formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
+    -                        } else if (digits.length >= 3) {
+    -                          formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
+    -                        }
+    -                        setStudentForm({ ...studentForm, dob: formatted });
+    -                      }}
+    +                      onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
+    +                      placeholder="Enter Password"
+                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
+                           required
+                         />
+    @@ -238,8 +201,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
+                       )}
+                     </form>
+     
+    -                <p className="text-center text-xs text-gray-500 mt-4">
+    -                  First time user? Use your Date of Birth as password
+    +                <p className="text-center text-xs text-gray-700 mt-4">
+    +                  Note : Login by DOB will work only for the students who haven't set their password yet
+                     </p>
+                   </div>
+                 )}
+    ```
+*   **`000b98d` - Added Rejection Reason Overview**
+    ```diff
+    diff --git a/src/app/student/requests/bonafide/page.js b/src/app/student/requests/bonafide/page.js
+    index 27f51e3..d70320f 100644
+    --- a/src/app/student/requests/bonafide/page.js
+    +++ b/src/app/student/requests/bonafide/page.js
+    @@ -15,6 +15,7 @@ export default function BonafideRequestPage() {
+       const [requests, setRequests] = useState([]);
+       const [downloadingId, setDownloadingId] = useState(null);
+       const [downloadErrors, setDownloadErrors] = useState({});
+    +  const [selectedRejectedRequest, setSelectedRejectedRequest] = useState(null);
+       const [isSubmitting, setIsSubmitting] = useState(false);
+       const [previewUrl, setPreviewUrl] = useState(null);
+       const [previewAspect, setPreviewAspect] = useState(9/16); // default portrait 9:16
+    @@ -293,7 +294,9 @@ export default function BonafideRequestPage() {
+                                 )}
+                               </div>
+                             ) : req.status === 'REJECTED' ? (
+    -                          <div className="text-sm text-gray-500">N/A</div>
+    +                          <div className="flex items-center justify-center">
+    +                            <button onClick={() => setSelectedRejectedRequest(req)} className="text-indigo-600 hover:text-indigo-900 cursor-pointer">View Details</button>
+    +                          </div>
+                             ) : (
+                               <div className="text-sm text-gray-500">Processing</div>
+                             )}
+    @@ -315,6 +318,32 @@ export default function BonafideRequestPage() {
+             </div>
+           </main>
+     
+    +      {/* Rejection reason modal (read-only) */}
+    +      {selectedRejectedRequest && (
+    +        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+    +          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col relative">
+    +            <button onClick={() => setSelectedRejectedRequest(null)} aria-label="Close" className="cursor-pointer absolute right-3 top-3 text-gray-500 hover:text-gray-800">✕</button>
+    +            <div className="p-6">
+    +              <h3 className="text-xl font-semibold mb-4">Reason for Rejection</h3>
+    +              <div className="space-y-3 text-sm text-gray-800">
+    +                <p><strong>Certificate Type:</strong> {selectedRejectedRequest.certificate_type || '-'}</p>
+    +                <p><strong>Academic Year:</strong> {selectedRejectedRequest.academic_year || '-'}</p>
+    +                <p><strong>Status:</strong> <span className="text-red-700 font-semibold">Rejected</span></p>
+    +                <div>
+    +                  <h4 className="font-medium">Rejection Reason</h4>
+    +                  <div className="mt-2 p-3 border rounded bg-gray-50 text-sm text-gray-900" style={{ whiteSpace: 'pre-wrap' }}>
+    +                    {selectedRejectedRequest.reject_reason || 'No reason provided.'}
+    +                  </div>
+    +                </div>
+    +              </div>
+    +            </div>
+    +            <div className="p-4 bg-gray-50 border-t flex justify-end">
+    +              <button onClick={() => setSelectedRejectedRequest(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Close</button>       
+    +            </div>
+    +          </div>
+    +        </div>
+    +      )}
+    +
+           <Footer />
+         </div>
+       );
+    diff --git a/src/components/CertificateRequests.js b/src/components/CertificateRequests.js
+    index f293464..6943435 100644
+    --- a/src/components/CertificateRequests.js
+    +++ b/src/components/CertificateRequests.js
+    @@ -7,6 +7,8 @@ export default function CertificateRequests({ clerkType }) {
+       const [isLoading, setIsLoading] = useState(true);
+       const [selectedRequest, setSelectedRequest] = useState(null);
+       const [actionInProgress, setActionInProgress] = useState(false);
+    +  const [rejectReason, setRejectReason] = useState('');
+    +  const [showRejectDialog, setShowRejectDialog] = useState(false);
+     
+       useEffect(() => {
+         fetchRequests();
+    @@ -39,20 +41,24 @@ export default function CertificateRequests({ clerkType }) {
+         return `${dd}-${mm}-${yyyy}`;
+       }
+     
+    -  const handleUpdateStatus = async (requestId, status) => {
+    +  const handleUpdateStatus = async (requestId, status, reason) => {
+         setActionInProgress(true);
+         try {
+    +      const body = { status };
+    +      if (status === 'REJECTED') body.reject_reason = String(reason || '').trim();
+           const response = await fetch(`/api/clerk/requests/${requestId}`, {
+             method: 'PUT',
+             credentials: 'same-origin',
+             headers: { 'Content-Type': 'application/json' },
+    -        body: JSON.stringify({ status }),
+    +        body: JSON.stringify(body),
+           });
+     
+           if (response.ok) {
+             toast.success(status === 'APPROVED' ? 'Request approved!' : 'Request rejected');
+             await fetchRequests();
+             setSelectedRequest(null);
+    +        setShowRejectDialog(false);
+    +        setRejectReason('');
+           } else {
+             const errorData = await response.json().catch(() => ({}));
+             toast.error(errorData.error || 'Failed to update request.');
+    @@ -63,6 +69,16 @@ export default function CertificateRequests({ clerkType }) {
+           setActionInProgress(false);
+         }
+       };
+    +
+    +  const confirmReject = async () => {
+    +    if (!rejectReason || String(rejectReason).trim().length === 0) {
+    +      toast.error('Rejection reason is required');
+    +      return;
+    +    }
+    +    // call API and close dialog afterwards
+    +    await handleUpdateStatus(selectedRequest.request_id, 'REJECTED', rejectReason);
+    +    setShowRejectDialog(false);
+    +  };
+     
+       const arrayBufferToBase64 = (buffer) => {
+         let binary = '';
+    @@ -112,61 +128,74 @@ export default function CertificateRequests({ clerkType }) {
+     
+           {selectedRequest && (
+             <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+    -          <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col relative">
+    -            <button onClick={() => setSelectedRequest(null)} aria-label="Close" className="cursor-pointer absolute right-3 top-3 text-gray-500 hover:text-gray-800">✕</button>
+    +          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl flex flex-col relative">
+    +            <button onClick={() => { setSelectedRequest(null); setRejectReason(''); setShowRejectDialog(false); }} aria-label="Close" className="cursor-pointer absolute right-3 top-3 text-gray-500 hover:text-gray-800">✕</button>
+                 <div className="p-6 overflow-y-auto max-h-[80vh]">
+    -              <h3 className="text-xl font-semibold mb-4">Request Details</h3>
+    -              <div className="space-y-4 text-sm">
+    -                <div>
+    -                  <h4 className="font-medium">Student Details</h4>
+    -                  <p><strong>Name:</strong> {selectedRequest.student_name}</p>
+    -                  <p><strong>Roll No:</strong> {selectedRequest.roll_number}</p>
+    -                  <p><strong>Academic Year:</strong> {selectedRequest.academic_year || '-'}</p>
+    -                </div>
+    +              <div className="flex gap-6">
+    +                {/* LEFT COLUMN: Details */}
+    +                <div className="w-1/2 overflow-y-auto">
+    +                  <h3 className="text-xl font-semibold mb-4">Request Details</h3>
+    +                  <div className="space-y-4 text-sm">
+    +                    <div>
+    +                      <h4 className="font-medium">Student Details</h4>
+    +                      <p><strong>Name:</strong> {selectedRequest.student_name}</p>
+    +                      <p><strong>Roll No:</strong> {selectedRequest.roll_number}</p>
+    +                      <p><strong>Academic Year:</strong> {selectedRequest.academic_year || '-'}</p>
+    +                    </div>
+     
+    -                <div>
+    -                  <h4 className="font-medium">Request Details</h4>
+    -                  <p><strong>Certificate Type:</strong> {selectedRequest.certificate_type}</p>
+    -                  <p><strong>Requested On:</strong> {formatDateDDMMYYYY(selectedRequest.created_at)}</p>
+    -                  <p><strong>Fee:</strong> ₹{selectedRequest.payment_amount}</p>
+    -                </div>
+    +                    <div>
+    +                      <h4 className="font-medium">Request Details</h4>
+    +                      <p><strong>Certificate Type:</strong> {selectedRequest.certificate_type}</p>
+    +                      <p><strong>Requested On:</strong> {formatDateDDMMYYYY(selectedRequest.created_at)}</p>
+    +                      <p><strong>Status:</strong> {selectedRequest.status}</p>
+    +                      <p><strong>Fee:</strong> ₹{selectedRequest.payment_amount}</p>
+    +                    </div>
+     
+    -                <div>
+    -                  <h4 className="font-medium">Payment</h4>
+    -                  {selectedRequest.payment_amount > 0 ? (
+    -                    <>
+    +                    <div>
+    +                      <h4 className="font-medium">Transaction</h4>
+                           <p><strong>Transaction ID:</strong> {selectedRequest.transaction_id || '—'}</p>
+    -                      <div>
+    -                        <strong>Payment Screenshot:</strong>
+    -                        {selectedRequest.payment_screenshot ? (
+    -                          <img
+    -                            src={`data:image/jpeg;base64,${arrayBufferToBase64(selectedRequest.payment_screenshot.data)}`}
+    -                            alt="Payment Screenshot"
+    -                            className="mt-2 rounded-lg border w-full h-auto"
+    -                          />
+    -                        ) : <p>Not provided.</p>}
+    -                      </div>
+    -                    </>
+    -                  ) : <p>No payment required.</p>}
+    +                    </div>
+    +                  </div>
+    +                </div>
+    +
+    +                {/* RIGHT COLUMN: Screenshot preview */}
+    +                <div className="w-1/2 flex flex-col items-center justify-start">
+    +                  <h4 className="font-medium mb-3">Payment Screenshot</h4>
+    +                  <div className="w-full h-full flex items-center justify-center border rounded-lg bg-gray-50 p-4">
+    +                    {selectedRequest.payment_screenshot ? (
+    +                      <img
+    +                        src={`data:image/jpeg;base64,${arrayBufferToBase64(selectedRequest.payment_screenshot.data)}`}
+    +                        alt="Payment Screenshot"
+    +                        className="max-w-full max-h-[60vh] object-contain rounded-md shadow"
+    +                      />
+    +                    ) : (
+    +                      <div className="text-sm text-gray-500">No screenshot provided.</div>
+    +                    )}
+    +                  </div>
+    +                  <div className="mt-6 w-full flex justify-end space-x-3">
+    +                    <button onClick={() => { setSelectedRequest(null); setRejectReason(''); }} disabled={actionInProgress} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Close</button>
+    +                    <button onClick={() => setShowRejectDialog(true)} disabled={actionInProgress} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Reject</button>
+    +                    <button onClick={() => handleUpdateStatus(selectedRequest.request_id, 'APPROVED')} disabled={actionInProgress} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Approve</button>
+    +                  </div>
+                 </div>
+               </div>
+             </div>
+    +          </div>
+    +        </div>
+    +      )}
+    +
+    +      {showRejectDialog && selectedRequest && (
+    +        <div className="fixed inset-0 flex items-center justify-center z-60 p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+    +          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col relative">
+    +            <button onClick={() => setShowRejectDialog(false)} aria-label="Close" className="cursor-pointer absolute right-3 top-3 text-gray-500 hover:text-gray-800">✕</button>
+    +            <div className="p-6">
+    +              <h3 className="text-xl font-semibold mb-3">Reason for Rejection</h3>
+    +              <p className="text-sm text-gray-600 mb-4">Provide a clear reason so the student can understand and re-apply if needed.</p>
+    +              <textarea id="reject-dialog-reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={6} className="w-full p-3 border border-gray-300 rounded-md resize-none text-sm" placeholder="Enter rejection reason" />
+    +            </div>
+             <div className="p-4 bg-gray-50 border-t flex justify-end space-x-3">
+    -              <button onClick={() => setSelectedRequest(null)} disabled={actionInProgress} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 cursor-pointer">Close</button>
+    -              <button
+    -                onClick={() => handleUpdateStatus(selectedRequest.request_id, 'REJECTED')}
+    -                disabled={actionInProgress}
+    -                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 cursor-pointer"
+    -              >
+    -                Reject
+    -              </button>
+    -              <button
+    -                onClick={() => handleUpdateStatus(selectedRequest.request_id, 'APPROVED')}
+    -                disabled={actionInProgress}
+    -                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 cursor-pointer"
+    -              >
+    -                Approve
+    -              </button>
+    +              <button onClick={() => setShowRejectDialog(false)} disabled={actionInProgress} className="px-4 py-2 bg-white border rounded-md cursor-pointer">Cancel</button>
+    +              <button onClick={confirmReject} disabled={actionInProgress} className="px-4 py-2 bg-red-600 text-white rounded-md cursor-pointer">Confirm Reject</button>  
+             </div>
+           </div>
+         </div>
+    ```
+*   **`a72dff5` - APIs follows new table column insert**
+    ```diff
+    diff --git a/src/app/api/clerk/requests/[request_id]/route.js b/src/app/api/clerk/requests/[request_id]/route.js
+    index 09f8683..8220391 100644
+    --- a/src/app/api/clerk/requests/[request_id]/route.js
+    +++ b/src/app/api/clerk/requests/[request_id]/route.js
+    @@ -25,7 +25,9 @@ export async function PUT(request, { params }) {
+     
+         const resolvedParams = await params;
+         const { request_id } = resolvedParams;
+    -    let { status } = await request.json();
+    +    const body = await request.json();
+    +    let { status } = body;
+    +    const reject_reason = body.reject_reason;
+         if (!status) {
+             return NextResponse.json({ error: 'Status is required' }, { status: 400 });
+         }
+    @@ -62,15 +64,23 @@ export async function PUT(request, { params }) {
+                         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                 }
+     
+    -        // Now, update the status. Only set completed_at when marking final states.
+    +        // Now, update the status. Require non-empty reject_reason when rejecting.
+             let result;
+    -        if (status === 'APPROVED' || status === 'REJECTED') {
+    +        if (status === 'REJECTED') {
+    +            if (!reject_reason || String(reject_reason).trim().length === 0) {
+    +                return NextResponse.json({ error: 'Rejection reason is required' }, { status: 400 });
+    +            }
+    +            result = await query(
+    +                'UPDATE student_requests SET status = ?, reject_reason = ?, completed_at = NOW() WHERE request_id = ?',
+    +                [status, String(reject_reason).trim(), request_id]
+    +            );
+    +        } else if (status === 'APPROVED') {
+                 result = await query(
+                     'UPDATE student_requests SET status = ?, completed_at = NOW() WHERE request_id = ?',
+                     [status, request_id]
+                 );
+             } else {
+    -            // PENDING or other non-final state: don't set completed_at
+    +            // PENDING or other non-final state: don't set completed_at or reject_reason
+                 result = await query(
+                     'UPDATE student_requests SET status = ? WHERE request_id = ?',
+                     [status, request_id]
+    diff --git a/src/app/api/student/requests/route.js b/src/app/api/student/requests/route.js
+    index da7607b..8bf258a 100644
+    --- a/src/app/api/student/requests/route.js
+    +++ b/src/app/api/student/requests/route.js
+    @@ -33,7 +33,7 @@ export async function GET(request) {
+     
+       try {
+         const rows = await query(
+    -      `SELECT sr.request_id, sr.certificate_type, sr.status, sr.academic_year, sr.created_at, s.roll_no as roll_number
+    +      `SELECT sr.request_id, sr.certificate_type, sr.status, sr.academic_year, sr.created_at, sr.reject_reason, s.roll_no as roll_number
+            FROM student_requests sr
+            JOIN students s ON sr.student_id = s.id
+            WHERE sr.student_id = ?
+    ```
+*   **`2efda6c` - Dynamically Generate QR & amt acc to Certificate Type**
+    ```diff
+    diff --git a/public/assets/Payment QR/kucet-logo.jpg b/public/assets/Payment QR/kucet-logo.jpg
+    deleted file mode 100644
+    index 043e94b..0000000
+    Binary files a/public/assets/Payment QR/kucet-logo.jpg and /dev/null differ
+    diff --git a/public/assets/Payment QR/kucet-logo.png b/public/assets/Payment QR/kucet-logo.png
+    new file mode 100644
+    index 0000000..2d2934d
+    Binary files /dev/null and b/public/assets/Payment QR/kucet-logo.png differ
+    diff --git a/public/assets/Payment QR/qr.py b/public/assets/Payment QR/qr.py
+    deleted file mode 100644
+    index b8b83dc..0000000
+    --- a/public/assets/Payment QR/qr.py
+    +++ /dev/null
+    @@ -1,36 +0,0 @@
+    -import qrcode
+    -
+    -def generate_ku_qr(amount):
+    -    # 1. Define the specific KU Engineering College details
+    -    upi_id = "kuengineeringcollege@sbi"
+    -    payee_name = "PRINCIPALK U COLLEGE OF ENGIN"
+    -    currency = "INR"
+    -    
+    -    # 2. Construct the UPI string with the fixed amount
+    -    # Format: upi://pay?pa={id}&pn={name}&am={amount}&cu={currency}
+    -    upi_payload = f"upi://pay?pa={upi_id}&pn={payee_name}&am={amount}&cu={currency}"
+    -    
+    -    # 3. Create the QR code
+    -    qr = qrcode.QRCode(
+    -        version=1,
+    -        error_correction=qrcode.constants.ERROR_CORRECT_H, # High error correction
+    -        box_size=10,
+    -        border=4,
+    -    )
+    -    qr.add_data(upi_payload)
+    -    qr.make(fit=True)
+    -
+    -    # 4. Save the image
+    -    file_name = f"ku_payment_{amount}.png"
+    -    img = qr.make_image(fill_color="black", back_color="white")
+    -    img.save(file_name)
+    -    print(f"✅ Success! QR code saved as: {file_name}")
+    -
+    -# --- Run the function ---
+    -try:
+    -    amount_input = input("Enter the amount to fix (e.g. 500): ")
+    -    # Verify it's a number
+    -    float(amount_input)
+    -    generate_ku_qr(amount_input)
+    -except ValueError:
+    -    print("Please enter a valid number.")
+    -\ No newline at end of file
+    diff --git a/src/app/student/requests/bonafide/page.js b/src/app/student/requests/bonafide/page.js
+    index 978fabd..27f51e3 100644
+    --- a/src/app/student/requests/bonafide/page.js
+    +++ b/src/app/student/requests/bonafide/page.js
+    @@ -200,7 +200,7 @@ export default function BonafideRequestPage() {
+             <p className="text-s font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
+             <div className="flex items-center justify-center space-x-2 mb-4">
+             <img
+    -              src="/assets/Payment QR/kucet-logo.jpg"
+    +              src="/assets/Payment QR/kucet-logo.png" 
+               alt="PRINCIPAL KU"
+               className="h-8 w-auto object-contain"
+               onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
+    @@ -208,7 +208,7 @@ export default function BonafideRequestPage() {
+             <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
+             </div>
+              <div className="flex items-center justify-center">
+    -              <img src="/assets/Payment QR/principal_ku_qr.png" alt="QR" className="w-40 h-40 bg-white rounded-md shadow-lg" />
+    +              <img src="/assets/Payment QR/ku_payment_100.png" alt="QR" className="w-40 h-40 bg-white rounded-md shadow-lg" />
+             </div>
+             <div className="w-full mt-4">
+               <p className="text-sm text-gray-700 mb-2">Payment Fee: <span className="font-bold text-indigo-600">₹{FEE}</span></p>
+    diff --git a/src/app/student/requests/certificates/page.js b/src/app/student/requests/certificates/page.js
+    index 0c4fa36..f36e222 100644
+    --- a/src/app/student/requests/certificates/page.js
+    +++ b/src/app/student/requests/certificates/page.js
+    @@ -15,6 +15,9 @@ const certificateTypes = {
+       "Study Conduct Certificate": { fee: 100, clerk: "admission" },
+     };
+     
+    +const UPI_VPA = 'kuengineeringcollege@sbi'; 
+    +const PAYEE_NAME = 'PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY';
+    +
+     export default function CertificateRequestsPage() {
+       const [selectedCertificate, setSelectedCertificate] = useState(Object.keys(certificateTypes)[0]);
+       const [transactionId, setTransactionId] = useState('');
+    @@ -26,6 +29,8 @@ export default function CertificateRequestsPage() {
+     
+       const fee = certificateTypes[selectedCertificate].fee;
+     
+    +  const upiLink = `upi://pay?pa=${UPI_VPA}&pn=${encodeURIComponent(PAYEE_NAME)}&am=${fee}&cu=INR`;
+    +  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
+       useEffect(() => {
+         fetchRequests();
+       }, []);
+    @@ -159,7 +164,7 @@ export default function CertificateRequestsPage() {
+                         </div>
+                         <div className="flex items-center justify-center space-x-2 mb-4">
+             <img
+    -              src="/assets/Payment QR/kucet-logo.jpg"
+    +              src="/assets/Payment QR/kucet-logo.png" 
+               alt="PRINCIPAL KU"
+               className="h-9 w-auto object-contain"
+               onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
+    @@ -167,7 +172,12 @@ export default function CertificateRequestsPage() {
+             <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
+             </div>
+                         <div className="flex justify-center">
+    -                            <img src="/assets/Payment QR/principal_ku_qr.png" alt="Payment QR Code" className="w-48 h-48" />
+    +                            {/* DYNAMIC QR CODE REPLACEMENT */}
+    +                            <img 
+    +                                src={qrCodeUrl} 
+    +                                alt={`Pay ₹${fee}`} 
+    +                                className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" 
+    +                            />
+                         </div>
+                     </div>
+                     <div>
+    ```
+*   **`672aec1` - QR codes with Fixed amount with code to generate them**
+    ```diff
+    diff --git a/public/assets/Payment QR/ku_payment_100.png b/public/assets/Payment QR/ku_payment_100.png
+    new file mode 100644
+    index 0000000..7c2423b
+    Binary files /dev/null and b/public/assets/Payment QR/ku_payment_100.png differ
+    diff --git a/public/assets/Payment QR/ku_payment_150.png b/public/assets/Payment QR/ku_payment_150.png
+    new file mode 100644
+    index 0000000..e65f62b
+    Binary files /dev/null and b/public/assets/Payment QR/ku_payment_150.png differ
+    diff --git a/public/assets/Payment QR/ku_payment_200.png b/public/assets/Payment QR/ku_payment_200.png
+    new file mode 100644
+    index 0000000..20f76f2
+    Binary files /dev/null and b/public/assets/Payment QR/ku_payment_200.png differ
+    diff --git a/public/assets/Payment QR/qr.py b/public/assets/Payment QR/qr.py
+    new file mode 100644
+    index 0000000..b8b83dc
+    --- /dev/null
+    +++ b/public/assets/Payment QR/qr.py
+    @@ -0,0 +1,36 @@
+    +import qrcode
+    +
+    +def generate_ku_qr(amount):
+    +    # 1. Define the specific KU Engineering College details
+    +    upi_id = "kuengineeringcollege@sbi"
+    +    payee_name = "PRINCIPALK U COLLEGE OF ENGIN"
+    +    currency = "INR"
+    +    
+    +    # 2. Construct the UPI string with the fixed amount
+    +    # Format: upi://pay?pa={id}&pn={name}&am={amount}&cu={currency}
+    +    upi_payload = f"upi://pay?pa={upi_id}&pn={payee_name}&am={amount}&cu={currency}"
+    +    
+    +    # 3. Create the QR code
+    +    qr = qrcode.QRCode(
+    +        version=1,
+    +        error_correction=qrcode.constants.ERROR_CORRECT_H, # High error correction
+    +        box_size=10,
+    +        border=4,
+    +    )
+    +    qr.add_data(upi_payload)
+    +    qr.make(fit=True)
+    +
+    +    # 4. Save the image
+    +    file_name = f"ku_payment_{amount}.png"
+    +    img = qr.make_image(fill_color="black", back_color="white")
+    +    img.save(file_name)
+    +    print(f"✅ Success! QR code saved as: {file_name}")
+    +
+    +# --- Run the function ---
+    +try:
+    +    amount_input = input("Enter the amount to fix (e.g. 500): ")
+    +    # Verify it's a number
+    +    float(amount_input)
+    +    generate_ku_qr(amount_input)
+    +except ValueError:
+    +    print("Please enter a valid number.")
+    +\ No newline at end of file
+    ```
 *   **`7fd13d2` - docs: Update GEMINI.md with latest changes**
 *   **UI/UX Improvements In Certificates Viewing - Clerk Dashboard (`ef939f7`)**
 *   **Fixed Navbar - Removed Unnecessary Tabs (`a7d03c2`)**
