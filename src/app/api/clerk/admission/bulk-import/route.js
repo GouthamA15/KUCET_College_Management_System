@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import * => {
+import * as XLSX from 'xlsx-js-style';
+import { toMySQLDate, parseDate } from '@/lib/date';
+import { getBranchFromRoll } from '@/lib/rollNumber';
+
+// Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
+const normalizeHeader = (h) => {
   const s = String(h || '').toLowerCase().trim();
   return s
     .replace(/[\s\-]+/g, '_')
