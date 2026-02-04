@@ -146,6 +146,9 @@ function normalizeDateToMySQL(value) {
 
 export async function POST(req) {
   try {
+    const { searchParams } = new URL(req.url);
+    const isPreview = searchParams.get('preview') === 'true';
+
     const formData = await req.formData();
     const file = formData.get('file');
 
@@ -393,8 +396,18 @@ export async function POST(req) {
       if (connection) connection.release();
     }
 
+    const successfulImports = results.filter(r => r.status === 'success').length;
+    const failedImports = results.length - successfulImports;
+
+    return NextResponse.json({ 
+        message: `Import process finished. ${successfulImports} successful, ${failedImports} failed.`,
+        results,
+        info: importMessages
+    }, { status: hasErrors ? 207 : 200 }); // 207 Multi-Status
+
   } catch (error) {
     console.error('BULK IMPORT API ERROR:', error);
     return NextResponse.json({ error: 'An unexpected error occurred while processing the file.' }, { status: 500 });
   }
 }
+

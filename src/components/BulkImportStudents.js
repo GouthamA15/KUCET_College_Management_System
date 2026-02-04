@@ -4,10 +4,22 @@ import { useState, useRef } from 'react';
 export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [previewErrors, setPreviewErrors] = useState([]);
+  const [previewMessages, setPreviewMessages] = useState([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [importResults, setImportResults] = useState(null);
+  const [showResults, setShowResults] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
+    setPreviewData(null);
+    setPreviewErrors([]);
+    setPreviewMessages([]);
+    setShowPreview(false);
+    setImportResults(null);
+    setShowResults(false);
     if (selectedFile) {
       const validTypes = [
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -58,7 +70,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setIsLoading(true);
     if (onReset) { try { onReset(); } catch {} }
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', uploadedFile);
 
     try {
       const response = await fetch('/api/clerk/admission/bulk-import', { method: 'POST', body: formData });

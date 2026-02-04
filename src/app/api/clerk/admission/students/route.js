@@ -59,18 +59,15 @@ export async function POST(req) {
       mother_tongue,
       father_occupation,
       student_aadhar_no,
-      father_guardian_mobile_no,
       identification_marks,
       // additional personal/academic fields
       annual_income,
       aadhaar_no,
       seat_allotted_category,
-      ncc_nss_details,
       area_status,
       previous_college_details,
       medium_of_instruction,
-      total_marks,
-      marks_secured,
+      ranks, // Added ranks
     } = studentData;
 
     const providedRoll = roll_no || studentData.rollno || null;
@@ -110,9 +107,8 @@ export async function POST(req) {
         // Insert personal details into `student_personal_details`
         await query(
           `INSERT INTO student_personal_details (
-            student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, place_of_birth, father_occupation, annual_income, aadhaar_no, guardian_mobile, address, seat_allotted_category, identification_marks, ncc_nss_details
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
+                      student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, place_of_birth, father_occupation, annual_income, aadhaar_no, address, seat_allotted_category, identification_marks
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,          [
             studentId,
             father_name || null,
             mother_name || null,
@@ -126,26 +122,23 @@ export async function POST(req) {
             father_occupation || null,
             annual_income ? Number(annual_income) : null,
             aadhaarToSave,
-            father_guardian_mobile_no || null,
             address || null,
             seat_allotted_category || null,
-            identification_marks || null,
-            ncc_nss_details || null
+            identification_marks || null
           ]
         );
 
       // Insert academic background into `student_academic_background`
       await query(
         `INSERT INTO student_academic_background (
-          student_id, qualifying_exam, previous_college_details, medium_of_instruction, total_marks, marks_secured
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
+          student_id, qualifying_exam, previous_college_details, medium_of_instruction, ranks
+        ) VALUES (?, ?, ?, ?, ?)`,
         [
           studentId,
           qualifying_exam || null,
           previous_college_details || null,
           medium_of_instruction || null,
-          total_marks ? Number(total_marks) : null,
-          marks_secured ? Number(marks_secured) : null
+          ranks ? Number(ranks) : null
         ]
       );
 

@@ -14,7 +14,7 @@ export async function POST(request) {
     const results = await query('SELECT * FROM clerks WHERE email = ?', [email]);
 
     if (results.length === 0) {
-      console.log(`[Clerk Login] User not found for email: ${email}`);
+      console.error(`[Clerk Login Failed] User not found for email: ${email}`);
       return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -22,7 +22,7 @@ export async function POST(request) {
     const passwordMatch = await bcrypt.compare(password, clerk.password_hash);
 
     if (!passwordMatch) {
-      console.log(`[Clerk Login] Password mismatch for email: ${email}`);
+      console.error(`[Clerk Login Failed] Password mismatch for email: ${email}`);
       return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 });
     }
 

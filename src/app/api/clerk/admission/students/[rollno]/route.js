@@ -72,7 +72,7 @@ export async function PUT(req, context) {
     const personalUpdateFields = [];
     const personalUpdateValues = [];
     const personalInsertValues = [];
-    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'aadhaar_no', 'guardian_mobile', 'address', 'seat_allotted_category', 'identification_marks', 'ncc_nss_details'];
+    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks'];
 
     let hasPersonalUpdates = false;
     personalColumns.forEach(col => {
@@ -106,7 +106,7 @@ export async function PUT(req, context) {
     // --- Update `student_academic_background` table ---
     const academicUpdateFields = [];
     const academicUpdateValues = [];
-    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'total_marks', 'marks_secured']; // year_of_study removed
+    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks'];
 
     let hasAcademicUpdates = false;
     academicColumns.forEach(col => {
