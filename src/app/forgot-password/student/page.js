@@ -143,6 +143,14 @@ export default function StudentForgotPassword() {
           )}
         </form>
         {displayMessage && !showDOBLoginMessage && <p className="text-green-500 text-xs italic mt-4">{displayMessage}</p>}
+        <div className="mt-6 text-center">
+            <button
+              onClick={() => router.push('/')}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
+            >
+              Go to Login
+            </button>
+        </div>
       </div>
     </div>
   );
