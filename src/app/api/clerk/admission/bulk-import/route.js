@@ -37,7 +37,7 @@ const ALIASES = {
   // Student personal details table
   student_personal_details: {
     father_name: ['father_name', 'fathers_name', 'parent_name'],
-    category: ['category', 'caste_category'],
+    category: ['category', 'caste_category', 'caste'],
     address: ['address', 'residential_address'],
     mother_name: ['mother_name', 'mothers_name'],
     nationality: ['nationality'],
@@ -156,9 +156,10 @@ export async function POST(req) {
     }
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Use Uint8Array for compatibility across Node and Edge runtimes
+    const u8 = new Uint8Array(bytes);
 
-    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+    const workbook = XLSX.read(u8, { type: 'array', cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
@@ -168,11 +169,33 @@ export async function POST(req) {
     }
 
     const headers = rows[0];
-    const { mapping, missingRequired } = buildHeaderMapping(headers);
+    const { mapping, missingRequired, normalizedHeaders } = buildHeaderMapping(headers);
 
     if (missingRequired.length > 0) {
-      const errors = missingRequired.map((f) => `Required column "${REQUIRED_DISPLAY[f]}" not found`);
-      return NextResponse.json({ error: 'Missing required columns.', errors }, { status: 400 });
+      // Build alias hint map for missing canonical fields
+      const aliasHints = {};
+      for (const table of Object.keys(ALIASES)) {
+        for (const canonical of missingRequired) {
+          if (ALIASES[table] && ALIASES[table][canonical]) {
+            aliasHints[canonical] = ALIASES[table][canonical];
+          }
+        }
+      }
+
+      const missingDisplayNames = missingRequired.map((f) => ({ field: f, display: REQUIRED_DISPLAY[f] || f }));
+
+      return NextResponse.json(
+        {
+          type: 'HEADER_ERRORS',
+          error: 'Missing required columns.',
+          missingRequired,
+          missingDisplayNames,
+          aliasHints,
+          detectedHeaders: headers.map((h) => String(h)),
+          normalizedDetectedHeaders: normalizedHeaders,
+        },
+        { status: 400 }
+      );
     }
 
     const totalRows = rows.length - 1;
