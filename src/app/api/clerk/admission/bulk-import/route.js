@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import * as XLSX from 'xlsx-js-style';
-import { toMySQLDate, parseDate } from '@/lib/date';
-import { getBranchFromRoll } from '@/lib/rollNumber';
-
-// Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
-const normalizeHeader = (h) => {
+import * => {
   const s = String(h || '').toLowerCase().trim();
   return s
     .replace(/[\s\-]+/g, '_')
@@ -408,4 +403,3 @@ export async function POST(req) {
     return NextResponse.json({ error: 'An unexpected error occurred while processing the file.' }, { status: 500 });
   }
 }
-
