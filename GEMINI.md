@@ -8,7 +8,7 @@ This project is a "KUCET College Management System" built using Next.js. It prov
 
 *   **Frontend Framework:** Next.js (version 16.1.1) with React (version 19.2.3).
 *   **Styling:** Tailwind CSS.
-*   **Database:** MySQL, accessed via `mysql2/promise` for asynchronous database interactions. Database credentials are managed through environment variables.
+*   **Database:** MySQL, accessed via `mysql2/promise` for asynchronous database interactions. Database credentials areENI managed through environment variables.
 *   **Authentication & Authorization:**
     *   **Super Admin:** Uses hardcoded credentials (`admin@test.com`, `password`) for initial access. Authentication is handled via JSON Web Tokens (JWTs) stored in an `admin_auth` HTTP-only cookie.
     *   **Clerk:** Authenticates against a `clerk` table in the MySQL database, verifying email and hashed password. JWTs are used for session management, stored in a `clerk_auth` HTTP-only cookie.
@@ -1118,7 +1118,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Frontend Pages:**
     *   `src/app/forgot-password/admin/page.js`: Page for admins to initiate the forgot password process.
     *   `src/app/forgot-password/clerk/page.js`: Page for clerks to initiate the forgot password process.
-    *   `src/app/forgot-password/student/page.js`: Page for students to initiate the forgot password process. This page now dynamically displays either a password reset form or a message instructing the student to log in using their Date of Birth, based on their email verification and password set status fetched from the backend.
+    *   `src/app/forgot-password/student/page.js`: Page for students to initiate the forgot password process. This page now dynamically displays either a password reset form or a message instructing the student to log in using their Date of Birth, based on their email verification and password set status fetched from the backend. A "Go to Login" button has also been added for direct navigation back to the login page.
     *   `src/app/reset-password/[token]/page.js`: Page for users to reset their password.
 *   **Database:**
     *   `password_reset_tokens` table: Stores password reset tokens.
@@ -1156,3 +1156,21 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Component-Based Architecture:** Follows React's component-based development paradigm, with UI components located in the `src/components` directory.
 *   **API Route Structure:** API endpoints are organized within `src/app/api`, following Next.js API Routes conventions.
 *   **Middleware for Security:** `src/proxy.js` is used for centralized route protection, ensuring that only authorized users can access specific parts of the application.
+
+### New/Enhanced Features: Bulk Student Import
+
+*   **API Route**: `src/app/api/clerk/admission/bulk-import/route.js`
+    *   Handles `POST` requests for Excel file uploads.
+    *   Parses `.xlsx` files using `xlsx-js-style`.
+    *   Performs pre-validation of student data (missing fields, email format).
+    *   Executes database insertions for `students`, `student_personal_details`, and `student_academic_background` tables within a **transaction**.
+    *   Ensures atomicity: if any part of the import fails, the entire transaction is rolled back.
+    *   Provides detailed error feedback, including duplicate entry detection.
+*   **Frontend Component**: `src/components/BulkImportStudents.js`
+    *   Provides a user interface for selecting and uploading `.xlsx` files.
+    *   Displays loading states and success/error messages using `react-hot-toast`.
+    *   Performs basic client-side file type validation.
+*   **Integration**:
+    *   Integrated into `src/app/clerk/admission/dashboard/page.js`.
+    *   A new card allows the admission clerk to open the "Bulk Student Import" module, which then renders the `BulkImportStudents` component.
+
