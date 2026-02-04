@@ -9,7 +9,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
 import BulkImportStudents from '@/components/BulkImportStudents';
 import * as XLSX from 'xlsx-js-style';
-import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified, EXAM_TOTAL_MARKS } from '@/lib/rollNumber';
+
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
   <input
