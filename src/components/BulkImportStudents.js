@@ -40,6 +40,9 @@ export default function BulkImportStudents({ onImportSuccess }) {
 
       if (response.ok) {
         toast.success(data.message || 'Import successful!');
+        if (data.info && Array.isArray(data.info) && data.info.length > 0) {
+          data.info.forEach(msg => toast.success(msg, { duration: 8000 })); // Display informational messages
+        }
         setFile(null);
         if(fileInputRef.current) fileInputRef.current.value = '';
         if (onImportSuccess) onImportSuccess();
@@ -67,7 +70,7 @@ export default function BulkImportStudents({ onImportSuccess }) {
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-8">
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Bulk Import Students</h3>
       <p className="text-sm text-gray-600 mb-4">
-        Upload an Excel file (.xlsx) with student data. Ensure the columns match the required format: `roll_no`, `name`, `email`, `mobile`, `date_of_birth`, `father_name`, `mother_name`, `address`, `category`.
+        Upload an Excel file (.xlsx) with student data. Ensure the columns match the required format: `roll_no`, `name`, `email` (auto-generated if empty), `mobile`, `date_of_birth`, `father_name`, `mother_name`, `address`, `category`, `gender` (defaults to NULL if empty).
       </p>
       <div className="flex items-center space-x-4">
         <input

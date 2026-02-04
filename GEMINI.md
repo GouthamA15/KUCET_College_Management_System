@@ -69,6 +69,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Database Schema Updates:**
     *   `college_db_patch_v9.sql`: Adds the `password_reset_tokens` table.
     *   `college_db_patch_v10.sql`: Adds a unique constraint to the `email` column in the `students` table to ensure email uniqueness across all students.
+    *   `college_db_patch_v11.sql`: Adds a `gender` column (VARCHAR(10) NULL) to the `students` table.
 *   **Environment Variables:**
     *   The `.env.example` file has been updated with `EMAIL_USER`, `EMAIL_PASS`, and `NEXT_PUBLIC_BASE_URL` for email and base URL configuration.
 *   **Faculty Role:**
@@ -950,7 +951,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   `src/lib/pdf-generator.js`: A new utility leveraging Puppeteer for server-side HTML to PDF conversion, used for certificate generation.
     *   `src/lib/rollNumber.js`: Centralized and enhanced logic for roll number validation, parsing, and derivation of comprehensive academic information (entry year, branch, admission type, current studying year, academic year ranges), now used across multiple components and API routes.
 *   **`bddc82e` - UI/UX - Slight Reduction in Navbar height**
-*   **`e5b451a` - Modify 'Requests' pages and minor UI Enhancements**
+*   **`e5b415a` - Modify 'Requests' pages and minor UI Enhancements**
 *   **`f8c8e76` - Minor Changes in Bona**
 *   **`9b676ca` - Deleted - No longer needed**
 *   **`43d2e8a` - Edited QR Image**
@@ -1163,14 +1164,19 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   Handles `POST` requests for Excel file uploads.
     *   Parses `.xlsx` files using `xlsx-js-style`.
     *   Performs pre-validation of student data (missing fields, email format).
+    *   **Feature Enhancement**: Automatically generates email (`[roll_no]@college.com`) if not provided in the Excel file.
+    *   **Feature Enhancement**: Handles `gender` column: sets to `NULL` if not provided, attempts to normalize common gender inputs.
     *   Executes database insertions for `students`, `student_personal_details`, and `student_academic_background` tables within a **transaction**.
+    *   **Bug Fix**: Corrected transaction management by acquiring a connection from the pool for `beginTransaction`, `commit`, `rollback`, and `release`.
+    *   **Bug Fix**: Removed incorrect insertion of `branch` into `student_academic_background` table, as `branch` is derivable from the roll number and not a stored column in that table.
     *   Ensures atomicity: if any part of the import fails, the entire transaction is rolled back.
-    *   Provides detailed error feedback, including duplicate entry detection.
+    *   Provides detailed error feedback, including duplicate entry detection, and informational messages about auto-generated emails or defaulted gender values.
 *   **Frontend Component**: `src/components/BulkImportStudents.js`
     *   Provides a user interface for selecting and uploading `.xlsx` files.
     *   Displays loading states and success/error messages using `react-hot-toast`.
     *   Performs basic client-side file type validation.
+    *   **Enhancement**: Updated guidance text to mention `gender` column and its default behavior.
+    *   **Enhancement**: Displays informational messages received from the backend (e.g., auto-generated emails, defaulted gender).
 *   **Integration**:
     *   Integrated into `src/app/clerk/admission/dashboard/page.js`.
     *   A new card allows the admission clerk to open the "Bulk Student Import" module, which then renders the `BulkImportStudents` component.
-
