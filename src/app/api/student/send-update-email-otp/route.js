@@ -39,11 +39,22 @@ export async function POST(req) {
       return NextResponse.json({ message: 'Missing roll number or email' }, { status: 400 });
     }
 
+    const db = getDb();
+
+    // Server-side email uniqueness check
+    const existingEmailRows = await db.execute(
+      'SELECT roll_no FROM students WHERE email = ? AND roll_no != ?',
+      [email, rollno]
+    );
+
+    if (existingEmailRows.length > 0) {
+      return NextResponse.json({ message: 'This email is already registered to another student.' }, { status: 409 });
+    }
+    
     // Generate a secure 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
-    const db = getDb();
     
     // Invalidate any existing OTPs for this roll number
     await db.execute('DELETE FROM otp_codes WHERE roll_no = ?', [rollno]);

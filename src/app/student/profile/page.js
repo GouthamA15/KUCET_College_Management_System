@@ -1,19 +1,59 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
+import SetPasswordModal from '@/components/SetPasswordModal';
 import { getBranchFromRoll, getCurrentStudyingYear, getCurrentAcademicYear } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
 import { computeAcademicYear, isYearAllowed } from '@/app/lib/academicYear';
+import toast from 'react-hot-toast'; // Added toast
+import imageCompression from 'browser-image-compression'; // Added imageCompression
 
 export default function StudentProfileNew() {
   const router = useRouter();
   const [studentData, setStudentData] = useState(null);
   const [activeTab, setActiveTab] = useState('personal');
+
+  // State variables for editing functionality
+  const [isEditing, setIsEditing] = useState(false);
+  const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState('');
+  const [previewPhoto, setPreviewPhoto] = useState(null);
+  const [photoChanged, setPhotoChanged] = useState(false);
+  const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
+  const fileInputRef = useRef(null);
+  const [photoProcessing, setPhotoProcessing] = useState(false);
+
+  // State for email verification flow
+  const [newEmail, setNewEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
+  const [emailVerifiedPendingSave, setEmailVerifiedPendingSave] = useState(false);
+  const [emailLocked, setEmailLocked] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
+
+
+  // PASSWORD SETTING STATES
+  const [isPasswordSet, setIsPasswordSet] = useState(true); // Default true to prevent flash
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [showSetPasswordModal, setShowSetPasswordModal] = useState(false); // Added for SetPasswordModal
+
+  const sanitizeDigits = (val, maxLen = 12) => {
+    if (val == null) return '';
+    return String(val).replace(/\D/g, '').slice(0, maxLen);
+  };
 
   const fetchProfile = useCallback(async (rollno) => {
     try {
@@ -21,6 +61,26 @@ export default function StudentProfileNew() {
       const data = await res.json();
       if (res.ok) {
         setStudentData(data);
+        setMobile(data.student.mobile || '');
+        setEmail(data.student.email || '');
+        setNewEmail(data.student.email || ''); // Initialize newEmail with current email
+        setAddress(data.student.personal_details?.address || '');
+        setOriginalMobile(data.student.mobile || '');
+        setOriginalEmail(data.student.email || '');
+        setOriginalAddress(data.student.personal_details?.address || '');
+        setProfilePhoto(data.student.pfp);
+        setEmailLocked(!!data.student.is_email_verified);
+
+        // CHECK IF PASSWORD IS SET
+        try {
+          const passRes = await fetch(`/api/student/set-password?rollno=${rollno}`);
+          if (passRes.ok) {
+            const passData = await passRes.json();
+            setIsPasswordSet(passData.isPasswordSet);
+          }
+        } catch (e) {
+          console.error("Error checking password status", e);
+        }
       } else {
         router.replace('/');
       }
@@ -45,6 +105,238 @@ export default function StudentProfileNew() {
     };
     load();
   }, [router, fetchProfile]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/student/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout failed', error);
+    } finally {
+      localStorage.removeItem('logged_in_student');
+      sessionStorage.clear();
+      router.replace('/');
+    }
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+        toast.error('Only JPG, JPEG, and PNG files are allowed.');
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit for original file
+        toast.error('Original file size should be less than 2MB.');
+        return;
+      }
+
+      try {
+        const options = {
+          maxSizeMB: 0.06, // Target 60KB
+          maxWidthOrHeight: 150, // Resizes to 150x150 (smallest dimension is 150)
+          useWebWorker: true,
+          fileType: "image/jpeg", // Ensure JPEG output for consistent size
+        };
+        const compressedFile = await imageCompression(file, options);
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          setPreviewPhoto(reader.result);
+          setPhotoChanged(true);
+          setIsPhotoRemoved(false);
+        };
+        reader.readAsDataURL(compressedFile);
+
+        toast.success(`Image compressed to ${(compressedFile.size / 1024).toFixed(2)} KB.`);
+      } catch (error) {
+        toast.error('Image compression failed. Please try another image.');
+        setPreviewPhoto(null);
+      }
+    }
+  };
+
+  const handleSendOtp = async () => {
+    // Client-side uniqueness check before sending OTP
+    if (newEmail && newEmail !== originalEmail) {
+      const uniquenessRes = await fetch(`/api/student/check-email-uniqueness?email=${encodeURIComponent(newEmail)}&currentRollno=${studentData.student.roll_no}`);
+      const uniquenessData = await uniquenessRes.json();
+      if (!uniquenessData.isUnique) {
+        toast.error(uniquenessData.message || 'This email is already in use.');
+        return;
+      }
+    }
+
+    setIsVerifying(true);
+    try {
+      const res = await fetch('/api/student/send-update-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rollno: studentData.student.roll_no,
+          email: newEmail,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        setIsOtpSent(true);
+      } else {
+        toast.error(data.message || 'Failed to send OTP.');
+      }
+    } catch (error) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+  
+  const handleVerifyOtp = async () => {
+    setIsVerifying(true);
+    try {
+      const res = await fetch('/api/student/verify-update-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rollno: studentData.student.roll_no,
+          otp,
+          email: newEmail,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        if (!isPasswordSet) {
+          setShowSetPasswordModal(true);
+        } else {
+          setIsOtpVerified(true);
+          setEmail(newEmail); // Update the main email state
+          setEmailLocked(true);
+          setEmailVerifiedPendingSave(true);
+          fetchProfile(studentData.student.roll_no);
+        }
+      } else {
+        toast.error(data.message || 'OTP verification failed.');
+      }
+    } catch (error) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+
+  const handleSave = async () => {
+    if (newEmail !== originalEmail && !isOtpVerified) {
+      toast.error('Please verify your new email address before saving.');
+      return;
+    }
+    try {
+      if (photoProcessing) {
+        toast.error('Please wait for the photo to be processed.');
+        return;
+      }
+      if (photoChanged) {
+        const pfpToSend = previewPhoto || null;
+        const response = await fetch('/api/student/upload-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roll_no: studentData.student.roll_no,
+            pfp: pfpToSend,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          toast.error(result.message || 'Photo update failed. Try again.');
+          return;
+        }
+        setPreviewPhoto(null);
+        setPhotoChanged(false);
+        setIsPhotoRemoved(false);
+      }
+
+      const response = await fetch('/api/student/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rollno: studentData.student.roll_no,
+          phone: sanitizeDigits(mobile, 12),
+          address: address,
+          // Email is now updated via OTP verification, so not sent here
+        }),
+      });
+
+      const result = await response.json();
+        if (response.ok) {
+        toast.success('Profile updated successfully!');
+        setIsEditing(false);
+        setOriginalMobile(sanitizeDigits(mobile, 12));
+        setOriginalAddress(address);
+        if (isOtpVerified) {
+          setOriginalEmail(newEmail);
+          // keep email locked after saving a verified email
+          setEmailLocked(true);
+        }
+          // clear pending verified-save flag
+          setEmailVerifiedPendingSave(false);
+        // Reset OTP state
+        setIsOtpSent(false);
+        setIsOtpVerified(false);
+        setOtp('');
+
+        fetchProfile(studentData.student.roll_no);
+      } else {
+        toast.error(result.error || 'Failed to update profile.');
+      }
+    } catch (error) {
+      toast.error('Network error. Please try again.');
+    }
+  };
+
+  const handlePasswordSave = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      const res = await fetch('/api/student/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rollno: studentData.student.roll_no,
+          password: newPassword
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Password set successfully! Please use this for future logins.');
+        setIsPasswordSet(true);
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        toast.error(data.error || 'Failed to set password');
+      }
+    } catch (e) {
+      toast.error('Network error');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  const onPasswordSet = () => {
+    setShowSetPasswordModal(false);
+    setIsOtpVerified(true);
+    setEmail(newEmail);
+    setEmailLocked(true);
+    setEmailVerifiedPendingSave(true);
+    fetchProfile(studentData.student.roll_no);
+  };
+
 
   if (!studentData) return null;
   const { student } = studentData;
@@ -98,7 +390,14 @@ export default function StudentProfileNew() {
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
       <Header />
       {/* Student navbar with profile context */}
-      <Navbar studentProfileMode={true} activeTab={'profile'} onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); router.replace('/'); }} />
+      <Navbar studentProfileMode={true} activeTab={'profile'} onLogout={handleLogout} />
+      {showSetPasswordModal && (
+        <SetPasswordModal
+          rollno={studentData.student.roll_no}
+          email={newEmail}
+          onPasswordSet={onPasswordSet}
+        />
+      )}
       {/* Warning bar section: full-width, between Navbar and Profile Card */}
       {(!student.email || !student.is_email_verified || !student.password_hash) && (
         <div className="w-full flex justify-center px-6 pt-4">
@@ -116,6 +415,7 @@ export default function StudentProfileNew() {
                     <span>⚠️ Password not set. Please set a password to continue.</span>
                   )}
                 </div>
+                {/* Link to security settings to add/verify email */}
                 <a href="/student/settings/security" className="inline-flex items-center text-sm font-semibold text-blue-700 hover:underline">Go to Security & Privacy</a>
               </div>
             </div>
