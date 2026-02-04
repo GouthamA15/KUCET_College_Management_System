@@ -12,16 +12,22 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
   const [errorDetails, setErrorDetails] = useState([]);
+  // Import stage management
+  const [importStage, setImportStage] = useState('idle'); // idle | header_error | row_preview | importing | success
+  const [headerError, setHeaderError] = useState(null); // { missing: [], missingDisplay: [], aliasHints: {}, detectedHeaders: [] }
 
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     // Reset all states
+    try { toast.dismiss(); } catch {}
     setFile(null);
     setIsLoading(false);
     setShowSummary(false);
     setSummaryData(null);
     setErrorDetails([]);
+    setImportStage('idle');
+    setHeaderError(null);
 
     if (selectedFile) {
       const validTypes = [
@@ -83,10 +89,13 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
       return;
     }
 
+    try { toast.dismiss(); } catch {}
     setIsLoading(true);
+    setImportStage('importing');
     setShowSummary(false); // Hide previous summary
     setSummaryData(null);
     setErrorDetails([]);
+    setHeaderError(null);
 
     if (onReset) { try { onReset(); } catch {} }
     const formData = new FormData();
@@ -102,9 +111,22 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
           inserted: data.inserted ?? 0,
           skipped: data.skipped ?? 0,
         });
-        setErrorDetails(Array.isArray(data.errors) ? data.errors : []);
+        const rowErrors = Array.isArray(data.errors) ? data.errors : [];
+        setErrorDetails(rowErrors);
+        const insertedCount = Number(data.inserted || 0);
+        const errorCount = rowErrors.length;
         setShowSummary(true);
-        toast.success(`Import completed: ${data.inserted} inserted, ${data.errors.length} errors.`);
+        if (insertedCount > 0 && errorCount === 0) {
+          setImportStage('success');
+          toast.success('Students imported successfully');
+        } else if (insertedCount === 0 && errorCount > 0) {
+          setImportStage('row_preview');
+          toast('Import failed. Please review the errors below.', { icon: '⚠' });
+        } else {
+          // Partial success (some rows failed)
+          setImportStage('row_preview');
+          toast('Some rows failed. Review details below.', { icon: '⚠' });
+        }
 
         setFile(null); // Clear file input after successful import attempt
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -122,34 +144,47 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
           }
         }
       } else {
-        // API returned an error status (e.g., 400, 500)
-        const errorMessage = data.error || 'Failed to import students.';
-        toast.error(errorMessage);
-        setErrorDetails(Array.isArray(data.errors) ? data.errors : []);
-        setShowSummary(true); // Still show summary to display errors if they exist
-
-        setSummaryData({ // Provide some default summary for error cases
-            totalRows: 0,
-            inserted: 0,
-            skipped: 0
-        });
-
-        if (onImportSuccess) {
+        // Distinguish HEADER_ERRORS from other API errors
+        if (data && data.type === 'HEADER_ERRORS') {
+          setHeaderError({
+            missing: Array.isArray(data.missingRequired) ? data.missingRequired : [],
+            missingDisplay: Array.isArray(data.missingDisplayNames) ? data.missingDisplayNames : [],
+            aliasHints: data.aliasHints || {},
+            detectedHeaders: Array.isArray(data.detectedHeaders) ? data.detectedHeaders : [],
+          });
+          setImportStage('header_error');
+          setShowSummary(false);
+          setSummaryData(null);
+          setErrorDetails([]);
+          toast('Import blocked. Please fix the highlighted issues below.', { icon: '⚠' });
+          // Notify consumer without misleading counts
+          if (onImportSuccess) {
             try {
-                onImportSuccess({
-                    summary: { totalRows: 0, inserted: 0, skipped: 0 },
-                    errors: data.errors || [],
-                    successCount: 0,
-                    errorCount: (data.errors || []).length,
-                });
+              onImportSuccess({ headerError: true, missingRequired: data.missingRequired, detectedHeaders: data.detectedHeaders });
             } catch (e) {
-                console.error("Error in onImportSuccess callback (API error)", e);
+              console.error('Error in onImportSuccess callback (header error)', e);
             }
+          }
+        } else {
+          // Generic API error
+          const errorMessage = data.error || 'Import failed due to a server issue. Please try again.';
+          toast.error(errorMessage);
+          setImportStage('idle');
+          setShowSummary(false);
+          setSummaryData(null);
+          setErrorDetails([]);
+          if (onImportSuccess) {
+            try {
+              onImportSuccess({ systemError: true, message: errorMessage });
+            } catch (e) {
+              console.error('Error in onImportSuccess callback (API error)', e);
+            }
+          }
         }
       }
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('A network or server error occurred.');
+      toast.error('Import failed due to a network or server error.');
       setShowSummary(false); // Hide summary if network error
       setSummaryData(null);
       setErrorDetails([]);
@@ -167,6 +202,8 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setShowSummary(false);
     setSummaryData(null);
     setErrorDetails([]);
+    setHeaderError(null);
+    setImportStage('idle');
   };
 
 
@@ -218,7 +255,54 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
         </div>
       </div>
 
-      {showSummary && summaryData && (
+      {importStage === 'header_error' && headerError && (
+        <div className="mt-8 p-4 bg-red-50 rounded-lg border border-red-200">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-lg font-semibold text-red-800">Import blocked due to missing required headers</h4>
+            <button
+              onClick={handleDismissResults}
+              className="px-3 py-1 text-sm bg-red-200 hover:bg-red-300 rounded-md text-red-800"
+            >
+              Dismiss
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-6 text-sm">
+            <div>
+              <h5 className="font-semibold text-red-700 mb-2">Missing headers</h5>
+              <ul className="list-disc list-inside space-y-1">
+                {headerError.missingDisplay && headerError.missingDisplay.length > 0 ? (
+                  headerError.missingDisplay.map((m, idx) => (
+                    <li key={idx} className="text-gray-800">
+                      <span className="font-medium">{m.display}</span>
+                      {headerError.aliasHints && headerError.aliasHints[m.field] && headerError.aliasHints[m.field].length > 0 && (
+                        <span className="text-gray-600"> {' '} (expected aliases: {headerError.aliasHints[m.field].join(', ')})</span>
+                      )}
+                    </li>
+                  ))
+                ) : (
+                  headerError.missing.map((field, idx) => (
+                    <li key={idx} className="text-gray-800">{field}</li>
+                  ))
+                )}
+              </ul>
+            </div>
+            <div>
+              <h5 className="font-semibold text-gray-700 mb-2">Detected headers</h5>
+              <ul className="list-disc list-inside space-y-1">
+                {headerError.detectedHeaders && headerError.detectedHeaders.length > 0 ? (
+                  headerError.detectedHeaders.map((h, idx) => (
+                    <li key={idx} className="text-gray-800">{h || '(empty)'}</li>
+                  ))
+                ) : (
+                  <li className="text-gray-600">No headers detected.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSummary && summaryData && (importStage === 'row_preview' || importStage === 'success') && (
         <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex justify-between items-center mb-3">
             <h4 className="text-lg font-semibold text-gray-800">Import Results</h4>
@@ -241,10 +325,10 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
             </div>
           </div>
 
-          {errorDetails.length > 0 && (
+          {importStage === 'row_preview' && errorDetails.length > 0 && (
             <div className="mt-6">
               <h5 className="text-md font-semibold text-red-700 mb-3">
-                <span className="text-red-500 mr-2">⚠</span> Encountered {errorDetails.length} errors:
+                <span className="text-red-500 mr-2">⚠</span> Row-level validation errors
               </h5>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">

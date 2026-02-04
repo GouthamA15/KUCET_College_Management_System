@@ -6,11 +6,7 @@ import Image from 'next/image';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-<<<<<<< HEAD
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
-=======
-import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified, EXAM_TOTAL_MARKS } from '@/lib/rollNumber';
->>>>>>> fe70a60702f7c8913efdc161bc601a317d4e7317
 import BulkImportStudents from '@/components/BulkImportStudents';
 
 
