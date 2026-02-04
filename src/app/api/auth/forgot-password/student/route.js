@@ -3,6 +3,31 @@ import { sendEmail } from '@/lib/email';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const rollno = searchParams.get('rollno');
+
+    if (!rollno) {
+      return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
+    }
+
+    const [student] = await query('SELECT is_email_verified, password_hash FROM students WHERE roll_no = ?', [rollno]);
+
+    if (!student) {
+      return NextResponse.json({ error: 'Student not found', is_email_verified: false, has_password_set: false }, { status: 404 });
+    }
+
+    return NextResponse.json({ 
+      is_email_verified: student.is_email_verified === 1,
+      has_password_set: !!student.password_hash 
+    }, { status: 200 });
+  } catch (error) {
+    console.error('FORGOT PASSWORD STATUS ERROR:', error);
+    return NextResponse.json({ error: 'Internal server error', is_email_verified: false, has_password_set: false }, { status: 500 });
+  }
+}
+
 export async function POST(req) {
   try {
     const { rollno } = await req.json();
@@ -10,10 +35,17 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
     }
 
-    const [student] = await query('SELECT email FROM students WHERE roll_no = ?', [rollno]);
+    const [student] = await query('SELECT email, password_hash, is_email_verified FROM students WHERE roll_no = ?', [rollno]);
 
     if (!student) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Student not found', can_dob_login: false }, { status: 404 });
+    }
+
+    if (!student.is_email_verified || !student.password_hash) {
+      return NextResponse.json({ 
+        error: 'Password reset not available.Because you not set your password and verify your gmail!! Please login using your Date of Birth has a password in (DD-MM-YYYY) format or contact support.', 
+        can_dob_login: true 
+      }, { status: 403 });
     }
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -35,7 +67,7 @@ export async function POST(req) {
 
     await sendEmail(student.email, subject, html);
 
-    return NextResponse.json({ message: 'Password reset link sent to your email' }, { status: 200 });
+    return NextResponse.json({ message: 'Password reset link sent to your email', can_dob_login: false }, { status: 200 });
   } catch (error) {
     console.error('FORGOT PASSWORD ERROR:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
