@@ -45,7 +45,6 @@ const ALIASES = {
     sub_caste: ['sub_caste', 'subcaste'],
     area_status: ['area_status', 'areastatus'],
     aadhaar_no: ['aadhaar_no', 'aadhaar', 'aadhar', 'aadhar_no'],
-    guardian_mobile: ['guardian_mobile', 'guardian_phone'],
   },
   // Academic background (optional)
   student_academic_background: {
@@ -329,8 +328,8 @@ export async function POST(req) {
 
         // Personal details (mandatory + optional where present)
         await connection.execute(
-          `INSERT INTO student_personal_details (student_id, father_name, mother_name, address, category, nationality, religion, sub_caste, area_status, aadhaar_no, guardian_mobile)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO student_personal_details (student_id, father_name, mother_name, address, category, nationality, religion, sub_caste, area_status, aadhaar_no)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             studentId,
             personal.father_name,
@@ -342,7 +341,6 @@ export async function POST(req) {
             personal.sub_caste || null,
             personal.area_status || null,
             personal.aadhaar_no || null,
-            personal.guardian_mobile || null,
           ]
         );
 
