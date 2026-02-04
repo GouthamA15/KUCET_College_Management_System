@@ -59,13 +59,11 @@ export async function POST(req) {
       mother_tongue,
       father_occupation,
       student_aadhar_no,
-      father_guardian_mobile_no,
       identification_marks,
       // additional personal/academic fields
       annual_income,
       aadhaar_no,
       seat_allotted_category,
-      ncc_nss_details,
       area_status,
       previous_college_details,
       medium_of_instruction,
@@ -109,9 +107,8 @@ export async function POST(req) {
         // Insert personal details into `student_personal_details`
         await query(
           `INSERT INTO student_personal_details (
-            student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, place_of_birth, father_occupation, annual_income, aadhaar_no, guardian_mobile, address, seat_allotted_category, identification_marks, ncc_nss_details
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
+                      student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, place_of_birth, father_occupation, annual_income, aadhaar_no, address, seat_allotted_category, identification_marks
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,          [
             studentId,
             father_name || null,
             mother_name || null,
@@ -125,11 +122,9 @@ export async function POST(req) {
             father_occupation || null,
             annual_income ? Number(annual_income) : null,
             aadhaarToSave,
-            father_guardian_mobile_no || null,
             address || null,
             seat_allotted_category || null,
-            identification_marks || null,
-            ncc_nss_details || null
+            identification_marks || null
           ]
         );
 
