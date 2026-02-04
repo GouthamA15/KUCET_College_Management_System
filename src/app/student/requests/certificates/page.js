@@ -52,7 +52,7 @@ export default function CertificateRequestsPage() {
       }
     };
     init();
-  }, []);
+  }, [router]);
 
   const fetchRequests = async () => {
     try {

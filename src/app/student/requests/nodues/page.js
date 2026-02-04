@@ -55,7 +55,7 @@ export default function NoDuesRequestPage() {
       }
     };
     fetchStudentData();
-  }, []);
+  }, [router]);
 
   const totalClearedFee = studentData?.fees?.reduce((acc, fee) => acc + fee.amount, 0) || 0;
   const pendingFee = totalExpectedFee - totalClearedFee;
