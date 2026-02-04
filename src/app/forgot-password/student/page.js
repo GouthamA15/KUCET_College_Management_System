@@ -2,8 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation'; // Added useRouter
 
 export default function StudentForgotPassword() {
+  const router = useRouter(); // Initialize useRouter
   const [rollno, setRollno] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
