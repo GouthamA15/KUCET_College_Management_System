@@ -23,7 +23,7 @@ export default function ClerkStudentManagement() {
 
   // Add New Student form state
   const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'+91', email:'' });
-  const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', guardian_mobile:'+91', address:'', seat_allotted_category:'', identification_marks:'', ncc_nss_details:'' });
+  const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'' });
   const [academic, setAcademic] = useState({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
   const [addLoading, setAddLoading] = useState(false);
   const [savedRollLocked, setSavedRollLocked] = useState(false);
@@ -44,7 +44,7 @@ export default function ClerkStudentManagement() {
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
 
   // View/Edit state
-  const [editValues, setEditValues] = useState({ address:'', mobile:'', email:'', guardian_mobile:'', father_occupation:'', annual_income:'' });
+  const [editValues, setEditValues] = useState({ address:'', mobile:'', email:'', father_occupation:'', annual_income:'' });
   const [personalFull, setPersonalFull] = useState({});
   const [academicsList, setAcademicsList] = useState([]);
   const [feesList, setFeesList] = useState([]);
@@ -134,8 +134,8 @@ export default function ClerkStudentManagement() {
         father_occupation: personal.father_occupation || null,
         annual_income: personal.annual_income || null,
         student_aadhar_no: personal.aadhaar_no || null,
-        father_guardian_mobile_no: personal.guardian_mobile || null,
-        identification_marks: personal.identification_marks || null,
+
+
         ranks: academic.ranks ? Number(academic.ranks) : null,
       };
 
@@ -147,7 +147,7 @@ export default function ClerkStudentManagement() {
       setShowAddForm(false);
       try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
       setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'+91', email:''});
-      setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', guardian_mobile:'+91', address:'', seat_allotted_category:'', identification_marks:'', ncc_nss_details:'' });
+      setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'' });
       setAcademic({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
       setSavedRollLocked(false);
       setTimeout(()=>{ setShowAddForm(true); }, 1500);
@@ -181,11 +181,9 @@ export default function ClerkStudentManagement() {
         father_occupation: pd.father_occupation || '',
         annual_income: pd.annual_income || '',
         aadhaar_no: pd.aadhaar_no || '',
-        guardian_mobile: pd.guardian_mobile || pd.father_guardian_mobile_no || '',
         address: pd.address || student.address || '',
         seat_allotted_category: pd.seat_allotted_category || '',
-        identification_marks: pd.identification_marks || '',
-        ncc_nss_details: pd.ncc_nss_details || ''
+        identification_marks: pd.identification_marks || ''
       });
 
       const initialAcademics = Array.isArray(data.academics) ? data.academics : [];
@@ -226,7 +224,7 @@ export default function ClerkStudentManagement() {
         mobile: sanitizeDigits(student.mobile || '' , 10) || null,
         email: student.email || null,
         address: pd.address || student.address || null,
-        guardian_mobile: sanitizeDigits(pd.guardian_mobile || pd.father_guardian_mobile_no || '', 10) || null,
+
         father_occupation: pd.father_occupation || null,
         annual_income: sanitizeDigits(pd.annual_income || '', 12) || null
       };
@@ -246,11 +244,9 @@ export default function ClerkStudentManagement() {
         father_occupation: pd.father_occupation || null,
         annual_income: pd.annual_income || null,
         aadhaar_no: pd.aadhaar_no || null,
-        guardian_mobile: pd.guardian_mobile || pd.father_guardian_mobile_no || null,
         address: pd.address || student.address || null,
         seat_allotted_category: pd.seat_allotted_category || null,
-        identification_marks: pd.identification_marks || null,
-        ncc_nss_details: pd.ncc_nss_details || null
+        identification_marks: pd.identification_marks || null
       };
       setPersonalFull(initialPersonal);
       setOriginalPersonalFull(JSON.parse(JSON.stringify(initialPersonal)));
@@ -319,11 +315,9 @@ export default function ClerkStudentManagement() {
         father_occupation: personalFull.father_occupation,
         annual_income: personalFull.annual_income,
         aadhaar_no: personalFull.aadhaar_no,
-        guardian_mobile: personalFull.guardian_mobile,
         address: personalFull.address,
         seat_allotted_category: personalFull.seat_allotted_category,
         identification_marks: personalFull.identification_marks,
-        ncc_nss_details: personalFull.ncc_nss_details,
 
         // Academic Background (from academicsList[0])
         qualifying_exam: academicsList[0]?.qualifying_exam,
@@ -584,11 +578,11 @@ export default function ClerkStudentManagement() {
                     <input placeholder="Father Occupation" value={personalFull.father_occupation || ''} onChange={e=>setPersonalFull({...personalFull, father_occupation:e.target.value})} className="p-2 border rounded" />
                     <input placeholder="Annual Income" value={personalFull.annual_income} onChange={e=>setPersonalFull({...personalFull, annual_income:e.target.value})} type="number" className="p-2 border rounded" />
                     <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" />
-                    <input placeholder="Guardian Mobile" value={personalFull.guardian_mobile || ''} onChange={e=>setPersonalFull({...personalFull, guardian_mobile: sanitizeDigits(e.target.value,10)})} className="p-2 border rounded" />
+
                     <textarea placeholder="Address" value={personalFull.address || ''} onChange={e=>setPersonalFull({...personalFull, address:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" />
                     <input placeholder="Seat Allotted Category" value={personalFull.seat_allotted_category || ''} onChange={e=>setPersonalFull({...personalFull, seat_allotted_category:e.target.value})} className="p-2 border rounded" />
                     <textarea placeholder="Identification Marks" value={personalFull.identification_marks || ''} onChange={e=>setPersonalFull({...personalFull, identification_marks:e.target.value})} className="p-2 border rounded md:col-span-3 h-20 resize-none" />
-                    <textarea placeholder="NCC / NSS Details" value={personalFull.ncc_nss_details || ''} onChange={e=>setPersonalFull({...personalFull, ncc_nss_details:e.target.value})} className="p-2 border rounded md:col-span-3 h-20 resize-none" />
+
                   </div>
                 </div>
               </div>
