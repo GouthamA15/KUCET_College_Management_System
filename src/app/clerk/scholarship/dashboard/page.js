@@ -10,6 +10,7 @@ import CertificateRequests from '@/components/CertificateRequests';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getAdmissionTypeFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
+import BulkImportStudents from '@/components/BulkImportStudents';
 
 export default function ScholarshipDashboard() {
   const [roll, setRoll] = useState('');
