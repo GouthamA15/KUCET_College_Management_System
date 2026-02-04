@@ -600,7 +600,7 @@ export default function ClerkStudentManagement() {
                     <input placeholder="Mother Tongue" value={personalFull.mother_tongue || ''} onChange={e=>setPersonalFull({...personalFull, mother_tongue:e.target.value})} className="p-2 border rounded" />
                     <input placeholder="Place of Birth" value={personalFull.place_of_birth || ''} onChange={e=>setPersonalFull({...personalFull, place_of_birth:e.target.value})} className="p-2 border rounded" />
                     <input placeholder="Father Occupation" value={personalFull.father_occupation || ''} onChange={e=>setPersonalFull({...personalFull, father_occupation:e.target.value})} className="p-2 border rounded" />
-                    <input placeholder="Annual Income" value={personalFull.annual_income} onChange={e=>setPersonalFull({...personalFull, annual_income:e.target.value})} type="number" className="p-2 border rounded" />
+                    <input placeholder="Annual Income" value={personalFull.annual_income || ''} onChange={e=>setPersonalFull({...personalFull, annual_income:e.target.value})} type="number" className="p-2 border rounded" />
                     <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" />
 
                     <textarea placeholder="Address" value={personalFull.address || ''} onChange={e=>setPersonalFull({...personalFull, address:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" />
@@ -631,7 +631,7 @@ export default function ClerkStudentManagement() {
                   <input
                     placeholder="Rank"
                     type="number"
-                    value={(academicsList[0] && academicsList[0].ranks) || ''}
+                    value={academicsList[0]?.ranks || ''}
                     onChange={e=>{ const copy=[...academicsList]; copy[0] = {...(copy[0]||{}), ranks: e.target.value}; setAcademicsList(copy); }}
                     className="p-2 border rounded"
                   />
