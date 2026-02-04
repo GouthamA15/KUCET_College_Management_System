@@ -1,8 +1,7 @@
-'use client';
+"use client";
 import { useState, useRef } from 'react';
-import toast from 'react-hot-toast';
 
-export default function BulkImportStudents({ onImportSuccess }) {
+export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -10,57 +9,100 @@ export default function BulkImportStudents({ onImportSuccess }) {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      if (selectedFile.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-        toast.error('Invalid file type. Please upload a .xlsx file.');
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+      ];
+      if (!validTypes.includes(selectedFile.type)) {
         setFile(null);
-        if(fileInputRef.current) fileInputRef.current.value = '';
+        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
       setFile(selectedFile);
+      if (onReset) { try { onReset(); } catch {} }
     }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dt = e.dataTransfer;
+    if (dt && dt.files && dt.files.length) {
+      const f = dt.files[0];
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+      ];
+      if (!validTypes.includes(f.type)) {
+        return;
+      }
+      setFile(f);
+      if (fileInputRef.current) fileInputRef.current.files = dt.files;
+      if (onReset) { try { onReset(); } catch {} }
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   const handleUpload = async () => {
     if (!file) {
-      toast.error('Please select a file to upload.');
+      if (onImportSuccess) {
+        try { onImportSuccess({ systemError: true, message: 'Please select a file to upload.' }); } catch {}
+      }
       return;
     }
 
     setIsLoading(true);
+    if (onReset) { try { onReset(); } catch {} }
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const response = await fetch('/api/clerk/admission/bulk-import', {
-        method: 'POST',
-        body: formData,
-      });
-
+      const response = await fetch('/api/clerk/admission/bulk-import', { method: 'POST', body: formData });
       const data = await response.json();
 
       if (response.ok) {
-        toast.success(data.message || 'Import successful!');
-        if (data.info && Array.isArray(data.info) && data.info.length > 0) {
-          data.info.forEach(msg => toast.success(msg, { duration: 8000 })); // Display informational messages
-        }
+        const total = data.totalRows ?? 0;
+        const inserted = data.inserted ?? 0;
+        const skipped = data.skipped ?? 0;
+        const errors = Array.isArray(data.errors) ? data.errors : [];
+
         setFile(null);
-        if(fileInputRef.current) fileInputRef.current.value = '';
-        if (onImportSuccess) onImportSuccess();
-      } else {
-        let errorMessage = data.error || 'An error occurred during import.';
-        if (data.details && Array.isArray(data.details)) {
-          // Displaying a few errors to keep the toast manageable
-          const detailsToShow = data.details.slice(0, 3).join('\n'); // Fixed line
-          errorMessage += `\nDetails:\n${detailsToShow}`;
-          if (data.details.length > 3) {
-            errorMessage += `\n... and ${data.details.length - 3} more errors.`;
-          }
+        if (fileInputRef.current) fileInputRef.current.value = '';
+
+        if (onImportSuccess) {
+          try {
+            onImportSuccess({
+              summary: { totalRows: total, inserted, skipped },
+              errors,
+              successCount: inserted,
+              errorCount: errors.length,
+              errorReportAvailable: errors.length > 0,
+            });
+          } catch {}
         }
-        toast.error(errorMessage, { duration: 10000 }); // Longer duration for detailed errors
+      } else {
+        const errors = Array.isArray(data.errors) ? data.errors : [];
+        if (onImportSuccess) {
+          try {
+            onImportSuccess({
+              summary: { totalRows: 0, inserted: 0, skipped: 0 },
+              errors,
+              successCount: 0,
+              errorCount: errors.length,
+              errorReportAvailable: errors.length > 0,
+            });
+          } catch {}
+        }
       }
     } catch (error) {
-      console.error("Upload error:", error);
-      toast.error('A network or server error occurred.');
+      console.error('Upload error:', error);
+      if (onImportSuccess) {
+        try { onImportSuccess({ systemError: true, message: 'A network or server error occurred.' }); } catch {}
+      }
     } finally {
       setIsLoading(false);
     }
@@ -69,23 +111,19 @@ export default function BulkImportStudents({ onImportSuccess }) {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-8">
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Bulk Import Students</h3>
-      <p className="text-sm text-gray-600 mb-4">
-        Upload an Excel file (.xlsx) with student data. Ensure the columns match the required format: `roll_no`, `name`, `email` (auto-generated if empty), `mobile`, `date_of_birth`, `father_name`, `mother_name`, `address`, `category`, `gender` (defaults to NULL if empty).
-      </p>
+      <p className="text-sm text-gray-600 mb-4">Upload an Excel file (.xlsx/.xls) with student data.</p>
       <div className="flex items-center space-x-4">
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx"
+          accept=".xlsx,.xls"
           onChange={handleFileChange}
-          className="block w-full text-sm text-gray-500
-                     file:mr-4 file:py-2 file:px-4
-                     file:rounded-full file:border-0
-                     file:text-sm file:font-semibold
-                     file:bg-blue-50 file:text-blue-700
-                     hover:file:bg-blue-100"
+          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           disabled={isLoading}
         />
+        <div onDrop={handleDrop} onDragOver={handleDragOver} className="flex-1 p-3 border-2 border-dashed rounded text-center text-gray-600 hover:bg-gray-50">
+          Drag & drop .xlsx/.xls here
+        </div>
         <button
           onClick={handleUpload}
           disabled={!file || isLoading}

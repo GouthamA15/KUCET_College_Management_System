@@ -7,6 +7,8 @@ import ImagePreviewModal from '@/components/ImagePreviewModal';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
+import BulkImportStudents from '@/components/BulkImportStudents';
+import * as XLSX from 'xlsx-js-style';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
   <input
@@ -19,7 +21,22 @@ const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
 DatePickerInput.displayName = 'DatePickerInput';
 
 export default function ClerkStudentManagement() {
-  const [section, setSection] = useState('home'); // 'add','fetch','view'
+  const [activeAction, setActiveAction] = useState(null); // null | 'add' | 'import' | 'fetch' | 'view'
+  const [importResult, setImportResult] = useState(null); // { successCount, errorCount, errors, summary }
+  const [errorReportUrl, setErrorReportUrl] = useState(null);
+
+  const handleToggle = (action) => {
+    setActiveAction(prev => (prev === action ? null : action));
+  };
+
+  // Clear residual UI artifacts when closing content area
+  useEffect(() => {
+    if (activeAction === null) {
+      // Clear import warning/report when collapsed
+      setImportResult(null);
+      if (errorReportUrl) { URL.revokeObjectURL(errorReportUrl); setErrorReportUrl(null); }
+    }
+  }, [activeAction]);
 
   // Add New Student form state
   const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'+91', email:'' });
@@ -65,10 +82,10 @@ export default function ClerkStudentManagement() {
     }
   }, [basic.roll_no]);
 
-  // Scroll to top whenever user switches sections (Add / Fetch / View)
+  // Scroll to top whenever user toggles actions
   useEffect(() => {
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
-  }, [section]);
+  }, [activeAction]);
 
   const addRequiredFilled = () => {
     return basic.admission_no.trim() && basic.roll_no.trim() && !rollNoError && basic.name.trim() && basic.date_of_birth && basic.gender && basic.mobile.trim() && basic.email.trim();
@@ -220,7 +237,7 @@ export default function ClerkStudentManagement() {
       };
       setPersonalFull(initialPersonal);
       setOriginalPersonalFull(JSON.parse(JSON.stringify(initialPersonal)));
-      setSection('view');
+      setActiveAction('view');
     } catch(err){
       console.error('Load profile error:', err);
       setFetchError(err.message || 'Failed to load profile');
@@ -346,13 +363,14 @@ export default function ClerkStudentManagement() {
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-2xl font-semibold mb-4">Student Management</h2>
       <div className="flex space-x-2 mb-4">
-        <button onClick={()=>setSection('add')} className={`px-3 py-2 rounded ${section==='add'?'bg-indigo-600 text-white':'bg-gray-100'} cursor-pointer`}>Add New Student</button>
-        <button onClick={()=>setSection('fetch')} className={`px-3 py-2 rounded ${section==='fetch'?'bg-indigo-600 text-white':'bg-gray-100'} cursor-pointer`}>Fetch Student</button>
-        <button onClick={()=>setSection('view')} disabled={!fetchedStudent} className={`px-3 py-2 rounded ${section==='view'?'bg-indigo-600 text-white':'bg-gray-100'} ${!fetchedStudent?'opacity-50 cursor-not-allowed':'cursor-pointer'}`}>View / Edit Student</button>
+        <button onClick={()=>handleToggle('add')} className={`px-3 py-2 rounded ${activeAction==='add'?'bg-indigo-600 text-white':'bg-gray-100'} cursor-pointer`}>Add New Student</button>
+        <button onClick={()=>handleToggle('import')} className={`px-3 py-2 rounded ${activeAction==='import'?'bg-indigo-600 text-white':'bg-gray-100'} cursor-pointer`}>Import From Excel</button>
+        <button onClick={()=>handleToggle('fetch')} className={`px-3 py-2 rounded ${activeAction==='fetch'?'bg-indigo-600 text-white':'bg-gray-100'} cursor-pointer`}>Fetch Student</button>
+        <button onClick={()=>{ if (fetchedStudent) handleToggle('view'); }} disabled={!fetchedStudent} className={`px-3 py-2 rounded ${activeAction==='view'?'bg-indigo-600 text-white':'bg-gray-100'} ${!fetchedStudent?'opacity-50 cursor-not-allowed':'cursor-pointer'}`}>View / Edit Student</button>
       </div>
 
       {/* Sections */}
-      {section==='add' ? (
+      {activeAction==='add' ? (
         showAddForm ? (
         <form onSubmit={handleAddStudent} className="space-y-6">
           <div>
@@ -424,7 +442,7 @@ export default function ClerkStudentManagement() {
         )
       ) : null }
 
-      {section==='fetch' && (
+      {activeAction==='fetch' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <input placeholder="Roll Number" value={fetchRoll} onChange={e=>setFetchRoll(e.target.value)} className="p-2 border rounded" />
@@ -461,7 +479,85 @@ export default function ClerkStudentManagement() {
         </div>
       )}
 
-      {section==='view' && (
+      {activeAction==='import' && (
+        <div className="space-y-2">
+          <p className="text-sm text-gray-600">Upload a .xlsx or .xls file to add multiple students at once.</p>
+          {/* Inline Bulk Import Component */}
+          <BulkImportStudents
+            onReset={() => {
+              setImportResult(null);
+              if (errorReportUrl) { URL.revokeObjectURL(errorReportUrl); setErrorReportUrl(null); }
+            }}
+            onImportSuccess={(payload) => {
+              // payload: { summary, errors, successCount, errorCount, errorReportAvailable } or { systemError }
+              if (payload?.systemError) {
+                // Unexpected system failure → toast only
+                toast.error(payload.message || 'A network or server error occurred.');
+                return;
+              }
+
+              const { successCount = 0, errorCount = 0, errors = [], summary } = payload || {};
+              setImportResult({ successCount, errorCount, errors, summary });
+
+              // Success toaster only for full success
+              if (errorCount === 0 && successCount > 0) {
+                toast.success(`✔ Successfully imported ${successCount} students`);
+                // Clear any previous warning/report
+                if (errorReportUrl) { URL.revokeObjectURL(errorReportUrl); setErrorReportUrl(null); }
+                return;
+              }
+
+              // For partial or full failure: build report and show inline warning bar
+              if (errorCount > 0) {
+                try {
+                  const wsData = [
+                    ['Row', 'Roll No', 'Reason'],
+                    ...errors.map(e => [e.row ?? '', e.roll_no ?? '', e.reason ?? ''])
+                  ];
+                  const ws = XLSX.utils.aoa_to_sheet(wsData);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, 'Errors');
+                  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                  const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                  const url = URL.createObjectURL(blob);
+                  if (errorReportUrl) { URL.revokeObjectURL(errorReportUrl); }
+                  setErrorReportUrl(url);
+                } catch (e) {
+                  console.error('Failed to generate XLSX error report:', e);
+                  if (errorReportUrl) { URL.revokeObjectURL(errorReportUrl); setErrorReportUrl(null); }
+                }
+              }
+            }}
+          />
+          <div className="flex justify-end">
+            <button onClick={()=>setActiveAction(null)} className="text-sm text-gray-600">Collapse</button>
+          </div>
+          {importResult && importResult.errorCount > 0 && (
+            <div className="mt-3 p-3 border border-yellow-300 bg-yellow-50 text-yellow-800 rounded">
+              <div className="flex items-center justify-between">
+                <div>⚠ Encountered {importResult.errorCount} errors. Download report below.</div>
+                {errorReportUrl && (
+                  <button
+                    onClick={() => {
+                      const a = document.createElement('a');
+                      a.href = errorReportUrl;
+                      a.download = 'student_import_errors.xlsx';
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="ml-3 inline-block bg-yellow-600 text-white font-semibold py-1 px-3 rounded hover:bg-yellow-700"
+                  >
+                    Download Error Report
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeAction==='view' && (
         <div>
           {!fetchedStudent && <div className="text-gray-600">No student loaded. Use Fetch to load a student.</div>}
           {fetchedStudent && (
@@ -587,7 +683,7 @@ export default function ClerkStudentManagement() {
               </div>
 
               <div className="flex justify-end space-x-2">
-                <button onClick={()=>{setFetchedStudent(null); setSection('fetch');}} className="px-3 py-2 bg-gray-100 rounded cursor-pointer hover:shadow-sm transition">Back</button>
+                <button onClick={()=>{ setActiveAction(null); }} className="px-3 py-2 bg-gray-100 rounded cursor-pointer hover:shadow-sm transition">Collapse</button>
                   {hasEdits() && (
                     <button onClick={handleSaveEdits} disabled={saving} className={`px-4 py-2 bg-indigo-600 text-white rounded ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-md transition'}`}>{saving? 'Saving...':'Save Changes'}</button>
                   )}
