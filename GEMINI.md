@@ -1058,7 +1058,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Authorization Update**: The API in `src/app/api/clerk/admission/students/[rollno]/route.js` now ensures only `admission` role clerks can update student details (via `clerk_auth` cookie verification).
     *   **Robust Detail Management**: Implemented logic to dynamically update student details across `students`, `student_personal_details`, and `student_academic_background` tables. If `student_personal_details` or `student_academic_background` records do not exist for a student, new records are inserted; otherwise, existing ones are updated.
     *   **Student Update API**: New API route `src/app/api/clerk/admission/students/[rollno]/route.js` with a `PUT` endpoint for Admission Clerks to update student details (core, personal, academic background).
-    *   **Frontend Interface**: The `src/components/ClerkStudentManagement.js` component now provides a comprehensive UI for admission clerks to **add, search, view, and edit** student records. It integrates `rollNumber.js` utilities for client-side roll number validation, and derivation of academic details (course, admission type, qualifying exam). It uses the new `POST` endpoint for adding students and the centralized `PUT` endpoint for saving edits, consolidating previous fetch calls. Features include Aadhaar/mobile number sanitization, DatePicker integration, profile picture display with preview, and a read-only fee summary.
+    *   **Frontend Interface**: The `src/components/ClerkStudentManagement.js` component has been re-architected to use a unified `activeAction` state, providing a comprehensive UI for admission clerks to **add, import, search, view, and edit** student records. It now directly integrates the `BulkImportStudents` component, offering a drag-and-drop interface for Excel uploads and displaying inline error reports. It leverages `rollNumber.js` utilities for client-side roll number validation and academic details derivation. It uses the `POST` endpoint for adding students and the centralized `PUT` endpoint for saving edits. Features include Aadhaar/mobile number sanitization, DatePicker integration, profile picture display with preview, and a read-only fee summary.
     *   **Fix**: Resolved `params` Promise unwrapping issue in `src/app/api/clerk/admission/students/[rollno]/route.js`.
     *   **Student Creation API**: Implemented `POST` endpoint in `src/app/api/clerk/admission/students/route.js` allowing admission clerks to create new student records. This API includes roll number validation, duplicate checks, multi-table insertion (into `students`, `student_personal_details`, `student_academic_background`), data sanitization (e.g., Aadhaar), and a rollback mechanism for partial insertions.
 *   **Consolidated Roll Number and Academic Year Logic:**
@@ -1163,7 +1163,20 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 ### New/Enhanced Features: Bulk Student Import
 
 *   **API Route**: `src/app/api/clerk/admission/bulk-import/route.js`
-    *   Handles `POST` requests for Excel file uploads.
+    *   **Robust Excel Parsing**: Now uses a more advanced parsing logic, including header normalization (lowercase, trim, convert spaces/hyphens to underscores) and aliasing for flexible column matching (e.g., 'Roll Number', 'RollNo', 'Registration No' all map to `roll_no`).
+    *   **Enhanced Data Validation**: Performs comprehensive validation including checking for missing required columns (Roll Number, Candidate Name, Gender, DOB, Father Name, Category, Address), duplicate roll numbers within the uploaded file, and existing roll numbers in the database.
+    *   **Gender Normalization**: Standardizes gender values (e.g., 'm', 'f' to 'Male', 'Female').
+    *   **Date Normalization**: Supports various date formats and Excel serial numbers, converting them to 'YYYY-MM-DD'.
+    *   **Transactional Import**: Still executes database insertions (`students`, `student_personal_details`, `student_academic_background`) within a transaction for atomicity.
+    *   **Detailed Error Reporting**: Returns a structured response including total rows, inserted count, skipped count, and a list of errors with row numbers and reasons. It also provides a CSV report of errors when conflicts occur.
+*   **Frontend Component**: `src/components/BulkImportStudents.js`
+    *   **Integrated UI**: The component is now directly integrated into `ClerkStudentManagement.js`, replacing its standalone card in the dashboard.
+    *   **Drag-and-Drop Interface**: Features a modern drag-and-drop area for selecting Excel files, along with traditional file input.
+    *   **Unified Upload Process**: Replaces separate preview and import buttons with a single "Import Students" action that directly processes the file.
+    *   **Result Handling**: Communicates import results (successes, errors, summary) via callbacks to the parent component, allowing for inline display of error reports and download options.
+*   **Integration**:
+    *   Integrated into `src/components/ClerkStudentManagement.js`, which is used in `src/app/clerk/admission/dashboard/page.js`.
+    *   The previous standalone "Bulk Student Import" card in `src/app/clerk/admission/dashboard/page.js` has been removed.
     *   Parses `.xlsx` files using `xlsx-js-style`.
     *   Performs pre-validation of student data (missing fields, email format).
     *   **Feature Enhancement**: Automatically generates email (`[roll_no]@college.com`) if not provided in the Excel file.
@@ -1233,4 +1246,4 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   `college_db_patch_v2.sql`: The `year_of_study` column was removed from the `student_academic_background` table definition.
 
 *   **Code Cleanup:**
-    *   Deleted no longer needed files and removed non-functional comments. Removed 'Sannith's Blessings'.
+    *   Deleted no longer needed files (e.g., `Book1.xlsx`) and removed non-functional comments. Removed 'Sannith's Blessings'.
