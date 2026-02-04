@@ -56,7 +56,7 @@ export default function ChangePasswordModal({ show, onClose, apiEndpoint }) {
             <input
               type="password"
               id="oldPassword"
-              value={oldPassword}
+              value={oldPassword ?? ''}
               onChange={(e) => setOldPassword(e.target.value)}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required
@@ -69,7 +69,7 @@ export default function ChangePasswordModal({ show, onClose, apiEndpoint }) {
             <input
               type="password"
               id="newPassword"
-              value={newPassword}
+              value={newPassword ?? ''}
               onChange={(e) => setNewPassword(e.target.value)}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required
@@ -82,7 +82,7 @@ export default function ChangePasswordModal({ show, onClose, apiEndpoint }) {
             <input
               type="password"
               id="confirmPassword"
-              value={confirmPassword}
+              value={confirmPassword ?? ''}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required

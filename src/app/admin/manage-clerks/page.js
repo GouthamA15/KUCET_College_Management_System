@@ -140,7 +140,7 @@ export default function ManageClerksPage() {
                           <input
                             type="text"
                             name="name"
-                            value={editedClerk.name}
+                            value={editedClerk.name ?? ''}
                             onChange={handleChange}
                             className="w-full border rounded px-2 py-1"
                           />
@@ -153,7 +153,7 @@ export default function ManageClerksPage() {
                           <input
                             type="email"
                             name="email"
-                            value={editedClerk.email}
+                            value={editedClerk.email ?? ''}
                             onChange={handleChange}
                             className="w-full border rounded px-2 py-1"
                           />
@@ -166,7 +166,7 @@ export default function ManageClerksPage() {
                           <input
                             type="text"
                             name="employee_id"
-                            value={editedClerk.employee_id}
+                            value={editedClerk.employee_id ?? ''}
                             onChange={handleChange}
                             className="w-full border rounded px-2 py-1"
                           />
@@ -178,7 +178,7 @@ export default function ManageClerksPage() {
                         {editingClerkId === clerk.id ? (
                           <select
                             name="role"
-                            value={editedClerk.role}
+                            value={editedClerk.role ?? ''}
                             onChange={handleChange}
                             className="w-full border rounded px-2 py-1"
                           >
@@ -194,7 +194,7 @@ export default function ManageClerksPage() {
                           <input
                             type="checkbox"
                             name="is_active"
-                            checked={editedClerk.is_active}
+                            checked={!!editedClerk.is_active}
                             onChange={handleChange}
                             className="form-checkbox h-5 w-5 text-indigo-600"
                           />

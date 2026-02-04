@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { jwtVerify } from 'jose';
-import { getBranchFromRoll, getCurrentAcademicYear } from '@/lib/rollNumber';
+import { getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 // template file used from templates/bonafide.html
 import { htmlToPdfBuffer } from '@/lib/pdf-generator';
 import path from 'path';
@@ -107,7 +107,7 @@ export async function GET(request, { params }) {
             COURSE: course,
             YEAR: '',
             SEMESTER: '',
-            ACADEMIC_YEAR: getCurrentAcademicYear(student.roll_no) || '',
+            ACADEMIC_YEAR: (() => { try { return getResolvedCurrentAcademicYear(student.roll_no); } catch { return ''; } })(),
             ATTENDANCE_PERCENTAGE: 'N/A',
         };
 

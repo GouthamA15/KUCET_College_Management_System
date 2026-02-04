@@ -7,7 +7,7 @@ import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
 import SetPasswordModal from '@/components/SetPasswordModal';
-import { getBranchFromRoll, getCurrentStudyingYear, getCurrentAcademicYear } from '@/lib/rollNumber';
+import { getBranchFromRoll, getEntryYearFromRoll, getAdmissionTypeFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
 import { computeAcademicYear, isYearAllowed } from '@/app/lib/academicYear';
 import toast from 'react-hot-toast'; // Added toast
@@ -343,8 +343,34 @@ export default function StudentProfileNew() {
 
   const branch = getBranchFromRoll(student.roll_no);
   const courseLabel = branch ? `B. Tech (${branch})` : 'B. Tech';
-  const yearOfStudy = getCurrentStudyingYear(student.roll_no) || 1;
-  const currentAcademicYearLabel = getCurrentAcademicYear(student.roll_no);
+  // Compute year-of-study locally (not academic year). Academic year label comes from resolver.
+  const computeYearOfStudy = (rollNo) => {
+    try {
+      // Derive admission year and type
+      let entryYearStr = getEntryYearFromRoll(rollNo);
+      let admissionType = getAdmissionTypeFromRoll(rollNo) || 'Regular';
+      if (!entryYearStr && typeof rollNo === 'string' && rollNo.includes('567')) {
+        const two = String(rollNo).slice(0, 2);
+        if (/^\d{2}$/.test(two)) entryYearStr = `20${two}`;
+      }
+      if (!entryYearStr) return 1;
+      const admissionYear = parseInt(entryYearStr, 10);
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
+      let idx = effectiveYear - admissionYear + 1;
+      const maxYears = (String(admissionType).toLowerCase() === 'lateral') ? 3 : 4;
+      if (!Number.isFinite(idx) || idx < 1) idx = 1;
+      if (idx > maxYears) idx = maxYears;
+      return idx;
+    } catch {
+      return 1;
+    }
+  };
+  const yearOfStudy = computeYearOfStudy(student.roll_no);
+  let currentAcademicYearLabel = null;
+  try { currentAcademicYearLabel = getResolvedCurrentAcademicYear(student.roll_no); } catch { currentAcademicYearLabel = null; }
 
   // Determine allowed span (3 for lateral, 4 for regular)
   const maxYears = (() => {

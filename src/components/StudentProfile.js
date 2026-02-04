@@ -56,7 +56,7 @@ export default function StudentProfile({ student, onLogout }) {
             <label className="block text-xs sm:text-sm font-medium text-gray-700">Phone</label>
             <input
               type="text"
-              value={phone}
+              value={phone ?? ''}
               onChange={e => setPhone(e.target.value)}
               className="w-full px-2 py-1.5 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 text-sm sm:text-base"
               required

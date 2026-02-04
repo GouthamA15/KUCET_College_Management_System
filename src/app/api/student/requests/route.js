@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { jwtVerify } from 'jose';
-import { getCurrentAcademicYear } from '@/lib/rollNumber';
+import { getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -117,9 +117,26 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Transaction ID and screenshot are required for paid certificates' }, { status: 400 });
     }
 
-    // compute academic_year from roll_no (current academic year only)
-    const academicYear = getCurrentAcademicYear(auth.roll_no);
-    if (!academicYear) return NextResponse.json({ error: 'Could not compute current academic year from roll number' }, { status: 400 });
+    // compute academic_year from roll_no (single source of truth)
+    let academicYear;
+    try {
+      academicYear = getResolvedCurrentAcademicYear(auth.roll_no);
+    } catch (e1) {
+      // If token roll_no is malformed or not in expected format, try resolving from DB
+      try {
+        const rollRows = await query('SELECT roll_no FROM students WHERE id = ?', [auth.student_id]);
+        const dbRoll = rollRows && rollRows[0] && rollRows[0].roll_no;
+        if (dbRoll) {
+          academicYear = getResolvedCurrentAcademicYear(dbRoll);
+        }
+      } catch (e2) {
+        console.warn('[REQUESTS] Failed to resolve roll_no from DB', e2);
+      }
+      if (!academicYear) {
+        const msg = (e1 && e1.message) ? e1.message : 'Invalid roll number format – cannot determine academic year';
+        return NextResponse.json({ error: msg }, { status: 400 });
+      }
+    }
 
     try {
       // PRE-CHECK: see if a request exists for this student/certificate/year

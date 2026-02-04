@@ -168,9 +168,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Roll Number
                     </label>
-                    <input
+                      <input
                       type="text"
-                      value={studentForm.rollNumber}
+                      value={studentForm.rollNumber ?? ''}
                       onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value.toUpperCase() })}
                       placeholder="Enter your Roll Number"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
@@ -188,7 +188,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="relative">
                       <input
                         type={studentPasswordVisible ? 'text' : 'password'}
-                        value={studentForm.dob}
+                        value={studentForm.dob ?? ''}
                         onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
                         placeholder="Enter Password"
                         className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
@@ -266,9 +266,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Email Address
                     </label>
-                    <input
+                      <input
                       type="email"
-                      value={clerkForm.email}
+                      value={clerkForm.email ?? ''}
                       onChange={(e) => setClerkForm({ ...clerkForm, email: e.target.value })}
                       placeholder="Enter your email"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
@@ -283,7 +283,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="relative">
                       <input
                         type={clerkPasswordVisible ? 'text' : 'password'}
-                        value={clerkForm.password}
+                        value={clerkForm.password ?? ''}
                         onChange={(e) => setClerkForm({ ...clerkForm, password: e.target.value })}
                         placeholder="Enter your password"
                         className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
@@ -359,9 +359,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Email Address
                     </label>
-                    <input
+                      <input
                       type="email"
-                      value={adminForm.email}
+                      value={adminForm.email ?? ''}
                       onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
                       placeholder="Enter admin email"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
@@ -376,7 +376,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="relative">
                       <input
                         type={adminPasswordVisible ? 'text' : 'password'}
-                        value={adminForm.password}
+                        value={adminForm.password ?? ''}
                         onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
                         placeholder="Enter admin password"
                         className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"

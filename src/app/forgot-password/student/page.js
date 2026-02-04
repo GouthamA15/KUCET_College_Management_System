@@ -113,7 +113,7 @@ export default function StudentForgotPassword() {
             <input
               type="text"
               id="rollno"
-              value={rollno}
+              value={rollno ?? ''}
               onChange={(e) => setRollno(e.target.value.toUpperCase())}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               placeholder="Enter your roll number"

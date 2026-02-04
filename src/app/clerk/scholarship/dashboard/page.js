@@ -9,7 +9,7 @@ import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateRequests from '@/components/CertificateRequests';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear, getCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
+import { getAdmissionTypeFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
 
 export default function ScholarshipDashboard() {
   const [roll, setRoll] = useState('');
@@ -144,13 +144,9 @@ export default function ScholarshipDashboard() {
       setFeeDetails(data.feeDetails || {});
       setScholarshipRecords(Array.isArray(data.scholarship) ? data.scholarship : []);
 
-      const academicYear = getAcademicYear(data.student.roll_no);
-      if (academicYear) {
-        const [start, end] = academicYear.split('-').map(Number);
-        setYearCount(end - start);
-      } else {
-        setYearCount(4); // Default to 4 years if academic year is not available
-      }
+      // Determine course duration purely by admission type: Regular=4, Lateral=3
+      const at = getAdmissionTypeFromRoll(data.student.roll_no) || 'Regular';
+      setYearCount(String(at).toLowerCase() === 'lateral' ? 3 : 4);
 
       toast.success('Student loaded', { id });
     } catch (err) {
@@ -438,7 +434,7 @@ export default function ScholarshipDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
                       <div className="text-sm text-gray-500">Academic Year</div>
-                      <div className="font-medium">{getCurrentAcademicYear(student.roll_no) || '-'}</div>
+                      <div className="font-medium">{(() => { try { return getResolvedCurrentAcademicYear(student.roll_no); } catch { return '-'; } })()}</div>
                     </div>
                     <div>
                       <div className="text-sm text-gray-500">Admission Type (detailed)</div>
