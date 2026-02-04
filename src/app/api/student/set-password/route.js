@@ -40,7 +40,7 @@ export async function POST(req) {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     await query(
-      'UPDATE students SET password_hash = ? WHERE roll_no = ?',
+      'UPDATE students SET password_hash = ?, is_email_verified = 1 WHERE roll_no = ?',
       [hashedPassword, rollno]
     );
 
