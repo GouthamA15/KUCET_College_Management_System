@@ -1180,3 +1180,55 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Integration**:
     *   Integrated into `src/app/clerk/admission/dashboard/page.js`.
     *   A new card allows the admission clerk to open the "Bulk Student Import" module, which then renders the `BulkImportStudents` component.
+
+*   **Student Authentication & Profile:**
+    *   **Set Password Feature**: Implemented a "Set Password" feature for students. Initial login can be done with Date of Birth (DOB), but students are prompted to set a secure password. New API (`src/app/api/student/set-password/route.js`) and UI components (`src/app/student/profile/page.js`, `src/components/LoginPanel.js`) support this. Student login (`src/app/api/student/login/route.js`) now prioritizes `password_hash` for authentication.
+    *   **Student Profile Enhancements**: The student profile (`src/app/student/profile/page.js`) now includes a security warning and an inline form to set a custom password. It also provides a more accurate and detailed fee summary for the current academic year, accounting for self-financed branches and scholarship status.
+    *   **Student Login Improvements**: The student login panel (`src/components/LoginPanel.js`) now uses "Password" as the input field, with guidance to use DOB for first-time users without a set password. Roll number input converts to uppercase. The page title (`src/app/layout.js`) has been updated to "KUCET - Login Portal".
+    *   **Profile Picture Fetching**: Added functionality for fetching student profile pictures.
+    *   **Student Email Verification**: Improved student email verification using OTP.
+
+*   **Certificate Request System Enhancements:**
+    *   **Rejection Reason Overview**: Students can now view the specific rejection reason for their rejected certificate requests on the bonafide request page (`src/app/student/requests/bonafide/page.js`).
+    *   **Clerk Request Management with Rejection Reasons**: Clerks can now provide a detailed rejection reason when declining student requests through an integrated dialog in the `CertificateRequests.js` component. The API (`src/app/api/clerk/requests/[request_id]/route.js`) enforces this reason, and the student request API (`src/app/api/student/requests/route.js`) retrieves it.
+    *   **Dynamic QR Code Generation**: Payment QR codes for certificate requests are now dynamically generated based on the certificate type and fee. This involved updates in `public/assets/Payment QR/` (new `kucet-logo.png`, removal of `kucet-logo.jpg` and `qr.py`, new fixed amount QR images like `ku_payment_100.png`) and in the frontend (`src/app/student/requests/bonafide/page.js`, `src/app/student/requests/certificates/page.js`).
+    *   **New Student Request Pages**: Dedicated pages for "Bonafide Certificate" (`src/app/student/requests/bonafide/page.js`) and "No Dues Certificate" (`src/app/student/requests/nodues/page.js`) requests have been implemented.
+
+*   **UI/UX & Navigation:**
+    *   **Navbar Refinements**: The main navigation (`src/components/Navbar.js`) has been refined, including a slight reduction in height, removal of unnecessary tabs, and improved handling for sub-pages. The active tab highlighting is also improved.
+    *   **Image Preview**: An image preview modal (`ImagePreviewModal.js`) was added for better viewing of profile pictures.
+    *   **Login Panel UX**: The application now automatically scrolls to login panels when they are activated.
+    *   **Footer Update**: The footer text has been updated to be more professional.
+
+*   **Backend & API Improvements:**
+    *   **Optimized Academic Year Calculations**: Improved logic for calculating academic years.
+    *   **PDF Generator**: A new utility leveraging Puppeteer (`src/lib/pdf-generator.js`) was added for server-side HTML to PDF conversion.
+    *   **Roll Number Logic Consolidation**: Robust validation and derivation of academic information (entry year, branch, admission type, current studying year) from roll numbers, centralized in `src/lib/rollNumber.js`. This impacted `ClerkStudentManagement.js`, `student/profile/page.js`, `clerk/scholarship/dashboard/page.js` and various API endpoints.
+    *   **Email Sending Functionality**: Implemented email sending using Nodemailer (`src/lib/email.js`) and related API routes.
+    *   **Cryptographically Secure OTP**: Secure OTP generation and verification features implemented (new `otp_codes_table.sql`, `src/lib/student-utils.js`, `src/app/api/auth/send-otp/route.js`, `src/app/api/auth/verify-otp/route.js`).
+    *   **Admission Clerk Student Management**: Enhanced API (`src/app/api/clerk/admission/students/[rollno]/route.js`) and frontend (`src/components/ClerkStudentManagement.js`) for updating student details.
+    *   **Clerk Personal Details API**: New API (`src/app/api/clerk/personal-details/route.js`) for clerks to manage student personal details.
+    *   **Scholarship Clerk Dashboard Enhancements**: UI components (`NonScholarshipView.js`, `FullScholarshipView.js`, `PartialScholarshipView.js`) and API (`src/app/api/clerk/scholarship/[rollno]/route.js`) to manage scholarship and fee entries, including deletion functionality and improved handling of null values. Database schema for `scholarship` and `fees` tables updated in `college_db.sql`.
+    *   **Middleware Refinements**: Improved redirection handling in `src/middleware.js` for admin, clerk, and student base paths.
+    *   **Improved API Routing and Data Handling**: General improvements across the API.
+    *   **Customized APIs**: APIs have been customized for various functionalities.
+
+*   **Bug Fixes:**
+    *   **Login Issues**: Fixed `TypeError` in admin login (`src/app/api/admin/login/route.js`) and `Navbar.js` (`TypeError: setActiveTab is not a function`). Deactivated clerk accounts are now prevented from logging in. Empty results in admin login are also handled.
+    *   **Admin Panel Role Switching**: Fixed a bug where `DELETE` and `PUT` methods were swapped in the admin panel.
+    *   **Email Update OTP Verification**: Resolved issues with the email update OTP verification flow (`src/app/api/student/verify-update-email-otp/route.js`).
+    *   **Date Format Standardization**: Standardized `DD-MM-YYYY` date format using `react-datepicker` and new utility functions (`src/lib/date.js`). Fixed `ER_TRUNCATED_WRONG_VALUE` errors in backend API routes by correctly parsing and storing dates as `YYYY-MM-DD`.
+    *   **Student Profile JSX Error**: Resolved JSX parsing error in `src/app/student/profile/page.js`.
+    *   **Bulk Import Transaction Fix**: Corrected transaction management and `branch` insertion in `src/app/api/clerk/admission/bulk-import/route.js`.
+    *   **Navbar Misleadings**: Fixed issues related to navbar navigation.
+
+*   **New Pages/Components:**
+    *   **Timetable Page**: Added a placeholder timetable page (`src/app/student/timetable/page.js`).
+    *   **New Components**: `DuesSection.js`, `TuitionFeeStatus.js` (for fee display).
+
+*   **Database Schema Updates:**
+    *   `college_db_patch_v7.sql`: The `course` and `admission_type` columns have been removed from the `students` table. These are now dynamically derived from the roll number using `src/lib/rollNumber.js`. A `UNIQUE KEY` `roll_no` has been added to the `students` table, enforcing uniqueness for student roll numbers.
+    *   `college_db_patch_v2.sql`: The `year_of_study` column was removed from the `student_academic_background` table definition.
+
+*   **Code Cleanup:**
+    *   Deleted no longer needed files and removed non-functional comments. Removed 'Sannith's Blessings'.

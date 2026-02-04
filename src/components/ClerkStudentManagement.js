@@ -6,7 +6,7 @@ import Image from 'next/image';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
+import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified, EXAM_TOTAL_MARKS } from '@/lib/rollNumber';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
   <input
@@ -24,11 +24,13 @@ export default function ClerkStudentManagement() {
   // Add New Student form state
   const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'+91', email:'' });
   const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', guardian_mobile:'+91', address:'', seat_allotted_category:'', identification_marks:'', ncc_nss_details:'' });
-  const [academic, setAcademic] = useState({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', total_marks:'', marks_secured:'' });
+  const [academic, setAcademic] = useState({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
   const [addLoading, setAddLoading] = useState(false);
   const [savedRollLocked, setSavedRollLocked] = useState(false);
   const [showAddForm, setShowAddForm] = useState(true);
   const [rollNoError, setRollNoError] = useState('');
+  const [isQualifyingExamAutofilled, setIsQualifyingExamAutofilled] = useState(false);
+  const [isTotalMarksAutofilled, setIsTotalMarksAutofilled] = useState(false);
 
   // Fetch state
   const [fetchRoll, setFetchRoll] = useState('');
@@ -60,8 +62,20 @@ export default function ClerkStudentManagement() {
       } else {
         setRollNoError('Invalid Roll Number format');
       }
+      const entranceExam = getEntranceExamQualified(basic.roll_no);
+      let newQualifyingExam = 'EAMCET'; // Default
+
+      if (entranceExam) {
+        newQualifyingExam = entranceExam;
+      }
+      setAcademic(prev => ({ ...prev, qualifying_exam: newQualifyingExam, ranks: '' })); // Initialize ranks to empty
+      setIsQualifyingExamAutofilled(!!entranceExam);
+      setIsTotalMarksAutofilled(false); // Ranks is not autofilled based on exam
     } else {
       setRollNoError('');
+      setAcademic(prev => ({ ...prev, qualifying_exam: 'EAMCET', ranks: '' })); // Reset to default if rollNo is empty
+      setIsQualifyingExamAutofilled(false);
+      setIsTotalMarksAutofilled(false);
     }
   }, [basic.roll_no]);
 
@@ -121,7 +135,8 @@ export default function ClerkStudentManagement() {
         annual_income: personal.annual_income || null,
         student_aadhar_no: personal.aadhaar_no || null,
         father_guardian_mobile_no: personal.guardian_mobile || null,
-        identification_marks: personal.identification_marks || null
+        identification_marks: personal.identification_marks || null,
+        ranks: academic.ranks ? Number(academic.ranks) : null,
       };
 
       const res = await fetch('/api/clerk/admission/students', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -133,7 +148,7 @@ export default function ClerkStudentManagement() {
       try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
       setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'+91', email:''});
       setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', guardian_mobile:'+91', address:'', seat_allotted_category:'', identification_marks:'', ncc_nss_details:'' });
-      setAcademic({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', total_marks:'', marks_secured:'' });
+      setAcademic({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
       setSavedRollLocked(false);
       setTimeout(()=>{ setShowAddForm(true); }, 1500);
     }catch(err){
@@ -174,8 +189,27 @@ export default function ClerkStudentManagement() {
       });
 
       const initialAcademics = Array.isArray(data.academics) ? data.academics : [];
+      let currentQualifyingExam = initialAcademics.length > 0 ? initialAcademics[0].qualifying_exam : '';
+      let currentRanks = initialAcademics.length > 0 ? initialAcademics[0].ranks : '';
+
+      let isQualifyingExamDerived = false;
+      // ranks is not autofilled from roll number, so no 'isTotalMarksDerived' equivalent for it.
+
+      if (!currentQualifyingExam) {
+        currentQualifyingExam = getEntranceExamQualified(student.roll_no) || 'EAMCET';
+        isQualifyingExamDerived = true;
+      }
+      // No autofill logic for ranks
+
+      if (initialAcademics.length === 0) {
+        initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks });
+      } else {
+        initialAcademics[0] = { ...initialAcademics[0], qualifying_exam: currentQualifyingExam, ranks: currentRanks };
+      }
       setAcademicsList(initialAcademics);
       setOriginalAcademicsList(JSON.parse(JSON.stringify(initialAcademics)));
+      setIsQualifyingExamAutofilled(isQualifyingExamDerived);
+      setIsTotalMarksAutofilled(false); // Ranks is not autofilled
 
       const initialFees = Array.isArray(data.fees) ? data.fees : [];
       setFeesList(initialFees);
@@ -295,8 +329,7 @@ export default function ClerkStudentManagement() {
         qualifying_exam: academicsList[0]?.qualifying_exam,
         previous_college_details: academicsList[0]?.previous_college_details,
         medium_of_instruction: academicsList[0]?.medium_of_instruction,
-        total_marks: academicsList[0]?.total_marks,
-        marks_secured: academicsList[0]?.marks_secured,
+        ranks: academicsList[0]?.ranks,
       };
 
       const res = await fetch(`/api/clerk/admission/students/${roll}`, {
@@ -397,7 +430,7 @@ export default function ClerkStudentManagement() {
               <select value={personal.area_status} onChange={e=>setPersonal({...personal, area_status:e.target.value})} className="p-2 border rounded"><option>Local</option><option>Non-Local</option></select>
               <input placeholder="Mother Tongue" value={personal.mother_tongue} onChange={e=>setPersonal({...personal, mother_tongue:e.target.value})} className="p-2 border rounded" />
               <input placeholder="Place of Birth" value={personal.place_of_birth} onChange={e=>setPersonal({...personal, place_of_birth:e.target.value})} className="p-2 border rounded" />
-              <input placeholder="Father Occupation" value={personal.father_occupation} onChange={e=>setPersonal({...personal, father_occupation:e.target.value})} className="p-2 border rounded" />
+              <input placeholder="Father Occupation" value={personal.father_occupation} onChange={e=>setPersonal({...personal.father_occupation, father_occupation:e.target.value})} className="p-2 border rounded" />
               <input placeholder="Annual Income" value={personal.annual_income} onChange={e=>setPersonal({...personal, annual_income:e.target.value})} type="number" className="p-2 border rounded" />
               <input placeholder="Aadhaar Number" value={personal.aadhaar_no} onChange={e=>setPersonal({...personal, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" maxLength={14} />
           </div>
@@ -406,12 +439,26 @@ export default function ClerkStudentManagement() {
           <div>
                 <textarea placeholder="Identification Marks (optional)" value={personal.identification_marks} onChange={e=>setPersonal({...personal, identification_marks:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" style={{overflow: 'hidden'}} />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
-              <select value={academic.qualifying_exam} onChange={e=>setAcademic({...academic, qualifying_exam:e.target.value})} className="p-2 border rounded"><option>EAMCET</option><option>ECET</option><option>PGECET</option></select>
+              <select
+                value={academic.qualifying_exam}
+                onChange={e => setAcademic({...academic, qualifying_exam:e.target.value})}
+                disabled={isQualifyingExamAutofilled}
+                className={`p-2 border rounded ${isQualifyingExamAutofilled ? 'bg-gray-100' : ''}`}
+              >
+                <option>EAMCET</option>
+                <option>ECET</option>
+                <option>PGECET</option>
+              </select>
               <textarea placeholder="Previous College Details" value={academic.previous_college_details} onChange={e=>setAcademic({...academic, previous_college_details:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" rows={3} style={{overflow:'hidden'}} />
               <select value={academic.medium_of_instruction} onChange={e=>setAcademic({...academic, medium_of_instruction:e.target.value})} className="p-2 border rounded"><option>Telugu</option><option>English</option><option>Other</option></select>
               
-              <input placeholder="Total Marks" type="number" value={academic.total_marks} onChange={e=>setAcademic({...academic, total_marks:e.target.value})} className="p-2 border rounded" />
-              <input placeholder="Marks Secured" type="number" value={academic.marks_secured} onChange={e=>setAcademic({...academic, marks_secured:e.target.value})} className="p-2 border rounded" />
+              <input
+                placeholder="Ranks"
+                type="number"
+                value={academic.ranks}
+                onChange={e => setAcademic({...academic, ranks:e.target.value})}
+                className="p-2 border rounded"
+              />
             </div>
           </div>
 
@@ -535,7 +582,7 @@ export default function ClerkStudentManagement() {
                     <input placeholder="Mother Tongue" value={personalFull.mother_tongue || ''} onChange={e=>setPersonalFull({...personalFull, mother_tongue:e.target.value})} className="p-2 border rounded" />
                     <input placeholder="Place of Birth" value={personalFull.place_of_birth || ''} onChange={e=>setPersonalFull({...personalFull, place_of_birth:e.target.value})} className="p-2 border rounded" />
                     <input placeholder="Father Occupation" value={personalFull.father_occupation || ''} onChange={e=>setPersonalFull({...personalFull, father_occupation:e.target.value})} className="p-2 border rounded" />
-                    <input placeholder="Annual Income" type="number" value={personalFull.annual_income || ''} onChange={e=>setPersonalFull({...personalFull, annual_income: sanitizeDigits(e.target.value, 12)})} className="p-2 border rounded" />
+                    <input placeholder="Annual Income" value={personalFull.annual_income} onChange={e=>setPersonalFull({...personalFull, annual_income:e.target.value})} type="number" className="p-2 border rounded" />
                     <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" />
                     <input placeholder="Guardian Mobile" value={personalFull.guardian_mobile || ''} onChange={e=>setPersonalFull({...personalFull, guardian_mobile: sanitizeDigits(e.target.value,10)})} className="p-2 border rounded" />
                     <textarea placeholder="Address" value={personalFull.address || ''} onChange={e=>setPersonalFull({...personalFull, address:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" />
@@ -550,7 +597,12 @@ export default function ClerkStudentManagement() {
               <div className="bg-white p-4 rounded shadow">
                 <h4 className="font-semibold mb-2">Section C: Academic Background</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <select value={(academicsList[0] && academicsList[0].qualifying_exam) || 'EAMCET'} onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), qualifying_exam: e.target.value}; setAcademicsList(copy); }} className="p-2 border rounded">
+                  <select
+                    value={(academicsList[0] && academicsList[0].qualifying_exam) || 'EAMCET'}
+                    onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), qualifying_exam: e.target.value}; setAcademicsList(copy); }}
+                    disabled={isQualifyingExamAutofilled}
+                    className={`p-2 border rounded ${isQualifyingExamAutofilled ? 'bg-gray-100' : ''}`}
+                  >
                     <option>EAMCET</option>
                     <option>ECET</option>
                     <option>PGECET</option>
@@ -558,8 +610,13 @@ export default function ClerkStudentManagement() {
                   <textarea placeholder="Previous College Details" value={(academicsList[0] && academicsList[0].previous_college_details) || ''} onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), previous_college_details: e.target.value}; setAcademicsList(copy); }} className="p-2 border rounded md:col-span-3 h-20 resize-none" />
                   <select value={(academicsList[0] && academicsList[0].medium_of_instruction) || 'English'} onChange={e=>{ const copy=[...academicsList]; copy[0] = {...(copy[0]||{}), medium_of_instruction: e.target.value}; setAcademicsList(copy); }} className="p-2 border rounded"><option>English</option><option>Telugu</option><option>Other</option></select>
                   
-                  <input placeholder="Total Marks" type="number" value={(academicsList[0] && academicsList[0].total_marks) || ''} onChange={e=>{ const copy=[...academicsList]; copy[0] = {...(copy[0]||{}), total_marks: e.target.value}; setAcademicsList(copy); }} className="p-2 border rounded" />
-                  <input placeholder="Marks Secured" type="number" value={(academicsList[0] && academicsList[0].marks_secured) || ''} onChange={e=>{ const copy=[...academicsList]; copy[0] = {...(copy[0]||{}), marks_secured: e.target.value}; setAcademicsList(copy); }} className="p-2 border rounded" />
+                  <input
+                    placeholder="Rank"
+                    type="number"
+                    value={(academicsList[0] && academicsList[0].ranks) || ''}
+                    onChange={e=>{ const copy=[...academicsList]; copy[0] = {...(copy[0]||{}), ranks: e.target.value}; setAcademicsList(copy); }}
+                    className="p-2 border rounded"
+                  />
                 </div>
               </div>
 

@@ -106,7 +106,7 @@ export async function PUT(req, context) {
     // --- Update `student_academic_background` table ---
     const academicUpdateFields = [];
     const academicUpdateValues = [];
-    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'total_marks', 'marks_secured']; // year_of_study removed
+    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks'];
 
     let hasAcademicUpdates = false;
     academicColumns.forEach(col => {

@@ -8,6 +8,12 @@ const branchCodes = {
   '03': 'MECH',
 };
 
+const EXAM_TOTAL_MARKS = {
+  'EAMCET': 160,
+  'ECET': 200,
+  'PGECET': 120, // Assuming a default or common value for PGECET, can be updated if specified
+};
+
 function validateRollNo(rollNo) {
   const regularPattern = /^(\d{2})567T(\d{2})(\d{2})$/;
   const lateralPattern = /^(\d{2})567(\d{2})(\d{2})L$/;
@@ -109,6 +115,18 @@ function getAcademicYearForStudyYear(rollNo, yearOfStudy) {
   return `${startYear}-${String(endYear).slice(-2)}`;
 }
 
+function getEntranceExamQualified(rollNo) {
+  if (rollNo && typeof rollNo === 'string') {
+    if (rollNo.includes('T')) {
+      return 'EAMCET';
+    }
+    if (rollNo.includes('L')) {
+      return 'ECET';
+    }
+  }
+  return null;
+}
+
 export {
   validateRollNo,
   getEntryYearFromRoll,
@@ -118,7 +136,9 @@ export {
   getCurrentStudyingYear,
   getAcademicYearForStudyYear,
   getCurrentAcademicYear,
+  getEntranceExamQualified,
   branchCodes,
+  EXAM_TOTAL_MARKS,
 };
 
 function getCurrentAcademicYear(rollNo) {

@@ -28,6 +28,9 @@ const validateStudentData = (student, index) => {
 
 export async function POST(req) {
   try {
+    const { searchParams } = new URL(req.url);
+    const isPreview = searchParams.get('preview') === 'true';
+
     const formData = await req.formData();
     const file = formData.get('file');
 
@@ -96,17 +99,25 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Validation failed. Please check the following errors in your Excel file:', details: allErrors }, { status: 400 });
     }
 
-    const pool = getDb(); // Get the pool
+    if (isPreview) {
+        return NextResponse.json({ 
+            message: 'Preview generated successfully.', 
+            data: validStudents, 
+            info: importMessages 
+        }, { status: 200 });
+    }
 
-    let connection; // Declare connection outside try-finally for scope
+    const pool = getDb();
+    const results = [];
+    let hasErrors = false;
 
-    try {
-      connection = await pool.getConnection(); // Get a connection from the pool
-      await connection.beginTransaction(); // Start transaction on the connection
+    for (const student of validStudents) {
+      let connection;
+      try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
 
-      for (const student of validStudents) {
-        // 1. Insert into students table (now including gender)
-        const [studentResult] = await connection.execute( // Use connection.execute
+        const [studentResult] = await connection.execute(
           `INSERT INTO students (roll_no, name, email, mobile, date_of_birth, is_email_verified, gender)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
@@ -115,14 +126,13 @@ export async function POST(req) {
             student.email,
             student.mobile,
             toMySQLDate(student.date_of_birth),
-            0, // Default to not verified
+            0,
             student.gender
           ]
         );
         const studentId = studentResult.insertId;
 
-        // 2. Insert into student_personal_details table
-        await connection.execute( // Use connection.execute
+        await connection.execute(
           `INSERT INTO student_personal_details (student_id, father_name, mother_name, address, category)
            VALUES (?, ?, ?, ?, ?)`,
           [
@@ -134,53 +144,53 @@ export async function POST(req) {
           ]
         );
         
-        // 3. Insert into student_academic_background table
-        // Branch is derived from roll number and not stored in this table as per schema.
-        // Insert only student_id for now. Additional academic details can be added if available in Excel.
-        await connection.execute( // Use connection.execute
+        await connection.execute(
           `INSERT INTO student_academic_background (student_id) VALUES (?)`,
           [studentId]
         );
-      }
 
-      await connection.commit(); // Commit transaction on the connection
-      return NextResponse.json({ message: `${validStudents.length} students imported successfully.`, info: importMessages }, { status: 200 });
+        await connection.commit();
+        results.push({ ...student, status: 'success' });
 
-    } catch (error) {
-      if (connection) {
-        await connection.rollback(); // Rollback transaction on the connection
-      }
-      console.error('BULK IMPORT TRANSACTION ERROR:', error);
-      let errorMessage = 'An error occurred during the database transaction. All changes have been rolled back.';
-      if (error.code === 'ER_DUP_ENTRY') {
-        const duplicateValue = error.message.match(/for key '(.*?)'/)?.[1];
-        if (duplicateValue) {
+      } catch (error) {
+        if (connection) {
+          await connection.rollback();
+        }
+        hasErrors = true;
+        let errorMessage = 'An unknown error occurred.';
+        if (error.code === 'ER_DUP_ENTRY') {
           if (error.message.includes('email')) {
-            // Attempt to find which student's email caused the duplicate
-            const duplicatedStudent = validStudents.find(s => error.message.includes(s.email));
-            errorMessage = `A student with email '${duplicatedStudent ? duplicatedStudent.email : "an existing email"}' already exists. All changes have been rolled back.`;
+            errorMessage = `A student with email '${student.email}' already exists.`;
           } else if (error.message.includes('roll_no')) {
-            // Attempt to find which student's roll_no caused the duplicate
-            const duplicatedStudent = validStudents.find(s => error.message.includes(s.roll_no));
-            errorMessage = `A student with roll number '${duplicatedStudent ? duplicatedStudent.roll_no : "an existing roll number"}' already exists. All changes have been rolled back.`;
+            errorMessage = `A student with roll number '${student.roll_no}' already exists.`;
           } else {
-            errorMessage = `A duplicate entry error occurred during import for key ${duplicateValue}. All changes have been rolled back. Details: ${error.message}`;
+            errorMessage = `Duplicate entry: ${error.message}`;
           }
         } else {
-            errorMessage = `A duplicate entry error occurred during import. All changes have been rolled back. Details: ${error.message}`;
+            errorMessage = `DB Error: ${error.message}`;
         }
-      } else {
-        errorMessage = `An unexpected database error occurred. All changes have been rolled back. Details: ${error.message}`;
-      }
-      return NextResponse.json({ error: errorMessage }, { status: 500 });
-    } finally {
-      if (connection) {
-        connection.release(); // Release the connection back to the pool
+        results.push({ ...student, status: 'error', errorMessage });
+        console.error(`Failed to import student ${student.roll_no}:`, error);
+
+      } finally {
+        if (connection) {
+          connection.release();
+        }
       }
     }
+
+    const successfulImports = results.filter(r => r.status === 'success').length;
+    const failedImports = results.length - successfulImports;
+
+    return NextResponse.json({ 
+        message: `Import process finished. ${successfulImports} successful, ${failedImports} failed.`,
+        results,
+        info: importMessages
+    }, { status: hasErrors ? 207 : 200 }); // 207 Multi-Status
 
   } catch (error) {
     console.error('BULK IMPORT API ERROR:', error);
     return NextResponse.json({ error: 'An unexpected error occurred while processing the file.' }, { status: 500 });
   }
 }
+

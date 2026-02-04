@@ -69,8 +69,7 @@ export async function POST(req) {
       area_status,
       previous_college_details,
       medium_of_instruction,
-      total_marks,
-      marks_secured,
+      ranks, // Added ranks
     } = studentData;
 
     const providedRoll = roll_no || studentData.rollno || null;
@@ -137,15 +136,14 @@ export async function POST(req) {
       // Insert academic background into `student_academic_background`
       await query(
         `INSERT INTO student_academic_background (
-          student_id, qualifying_exam, previous_college_details, medium_of_instruction, total_marks, marks_secured
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
+          student_id, qualifying_exam, previous_college_details, medium_of_instruction, ranks
+        ) VALUES (?, ?, ?, ?, ?)`,
         [
           studentId,
           qualifying_exam || null,
           previous_college_details || null,
           medium_of_instruction || null,
-          total_marks ? Number(total_marks) : null,
-          marks_secured ? Number(marks_secured) : null
+          ranks ? Number(ranks) : null
         ]
       );
 
