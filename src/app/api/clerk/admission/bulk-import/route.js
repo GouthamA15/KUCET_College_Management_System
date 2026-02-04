@@ -1,29 +1,147 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import * as XLSX from 'xlsx-js-style';
-import { toMySQLDate } from '@/lib/date';
+import { toMySQLDate, parseDate } from '@/lib/date';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 
-// Helper to validate each row of student data
-const validateStudentData = (student, index) => {
-  const errors = [];
-  if (!student.roll_no) errors.push(`Row ${index + 2}: Roll Number is missing.`);
-  if (!student.name) errors.push(`Row ${index + 2}: Name is missing.`);
-  if (!student.mobile) errors.push(`Row ${index + 2}: Mobile is missing.`);
-  if (!student.date_of_birth) errors.push(`Row ${index + 2}: Date of Birth is missing.`);
-  
-  // Only validate email format if it is provided
-  if (student.email && String(student.email).trim() !== '' && !/\S+@\S+\.\S+/.test(student.email)) {
-    errors.push(`Row ${index + 2}: Email format is invalid for '${student.email}'.`);
-  }
-  // Optional: basic gender validation if provided
-  const normalizedGender = String(student.gender || '').trim().toLowerCase();
-  if (student.gender && normalizedGender !== '' && !['male', 'female', 'other'].includes(normalizedGender)) {
-    errors.push(`Row ${index + 2}: Invalid Gender '${student.gender}'. Must be 'Male', 'Female', or 'Other'.`);
-  }
-
-  return errors;
+// Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
+const normalizeHeader = (h) => {
+  const s = String(h || '').toLowerCase().trim();
+  return s
+    .replace(/[\s\-]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
 };
+
+// Canonical display names for required fields (for clear error messages)
+const REQUIRED_DISPLAY = {
+  roll_no: 'ROLL NUMBER',
+  name: 'CANDIDATE NAME',
+  gender: 'GENDER',
+  date_of_birth: 'DOB',
+  father_name: 'FATHER NAME',
+  category: 'CATEGORY',
+  address: 'ADDRESS',
+};
+
+// Alias mapping dictionary: normalized header -> canonical field
+const ALIASES = {
+  // Students table
+  students: {
+    roll_no: ['roll_no', 'rollnumber', 'roll_number', 'registration_no', 'reg_no', 'regnumber'],
+    name: ['name', 'candidate_name', 'student_name', 'fullname'],
+    gender: ['gender', 'sex'],
+    date_of_birth: ['dob', 'date_of_birth', 'birth_date', 'dateofbirth'],
+    mobile: ['mobile', 'phone', 'phone_number', 'mobile_number', 'contact_number'],
+    email: ['email', 'mail_id', 'email_id'],
+  },
+  // Student personal details table
+  student_personal_details: {
+    father_name: ['father_name', 'fathers_name', 'parent_name'],
+    category: ['category', 'caste_category'],
+    address: ['address', 'residential_address'],
+    mother_name: ['mother_name', 'mothers_name'],
+    nationality: ['nationality'],
+    religion: ['religion'],
+    sub_caste: ['sub_caste', 'subcaste'],
+    area_status: ['area_status', 'areastatus'],
+    aadhaar_no: ['aadhaar_no', 'aadhaar', 'aadhar', 'aadhar_no'],
+    guardian_mobile: ['guardian_mobile', 'guardian_phone'],
+  },
+  // Academic background (optional)
+  student_academic_background: {
+    qualifying_exam: ['qualifying_exam', 'qualifyingexam'],
+    previous_college_details: ['previous_college_details', 'previouscollege', 'previous_college'],
+    medium_of_instruction: ['medium_of_instruction', 'medium'],
+    year_of_study: ['year_of_study', 'year'],
+    total_marks: ['total_marks', 'totalmarks'],
+    marks_secured: ['marks_secured', 'secured_marks', 'marksobtained'],
+  },
+};
+
+// Build header mapping: column index -> { field, table }
+function buildHeaderMapping(originalHeaders) {
+  const normalized = originalHeaders.map(normalizeHeader);
+  const mapping = {}; // colIdx -> { field, table }
+
+  normalized.forEach((hdr, idx) => {
+    if (!hdr) return;
+    let found = false;
+    for (const table of Object.keys(ALIASES)) {
+      for (const canonical of Object.keys(ALIASES[table])) {
+        const aliases = ALIASES[table][canonical];
+        if (aliases.includes(hdr)) {
+          mapping[idx] = { field: canonical, table };
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+  });
+
+  // Verify required fields presence
+  const requiredCanon = ['roll_no', 'name', 'gender', 'date_of_birth', 'father_name', 'category', 'address'];
+  const present = new Set(
+    Object.values(mapping).map((m) => m.field)
+  );
+
+  const missing = requiredCanon.filter((f) => !present.has(f));
+  return { mapping, normalizedHeaders: normalized, missingRequired: missing };
+}
+
+// Gender normalization: returns canonical or null if invalid/missing
+function normalizeGender(value) {
+  const v = String(value || '').trim().toLowerCase();
+  if (!v) return null;
+  if (['male', 'm', 'boy'].includes(v)) return 'Male';
+  if (['female', 'f', 'girl'].includes(v)) return 'Female';
+  if (['other', 'o', 'others'].includes(v)) return 'Other';
+  return null; // invalid
+}
+
+// Date normalization to YYYY-MM-DD
+function normalizeDateToMySQL(value) {
+  if (!value && value !== 0) return null;
+  // JS Date instance
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    const yyyy = value.getFullYear();
+    const mm = String(value.getMonth() + 1).padStart(2, '0');
+    const dd = String(value.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  // Excel serial number
+  if (typeof value === 'number') {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed) {
+      const yyyy = parsed.y;
+      const mm = String(parsed.m).padStart(2, '0');
+      const dd = String(parsed.d).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    // Fallback conversion
+    const dt = new Date(Math.round((value - 25569) * 86400 * 1000));
+    if (!isNaN(dt.getTime())) {
+      const yyyy = dt.getFullYear();
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    return null;
+  }
+  // String formats
+  const s = String(value);
+  const parsedStrDate = parseDate(s);
+  if (parsedStrDate) {
+    const yyyy = parsedStrDate.getFullYear();
+    const mm = String(parsedStrDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsedStrDate.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  // Try toMySQLDate if already in a string format
+  const mysql = toMySQLDate(s);
+  if (mysql && /^\d{4}-\d{2}-\d{2}$/.test(mysql)) return mysql;
+  return null;
+}
 
 
 export async function POST(req) {
@@ -38,145 +156,241 @@ export async function POST(req) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const json = XLSX.utils.sheet_to_json(worksheet);
+    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-    if (json.length === 0) {
-      return NextResponse.json({ error: 'The uploaded Excel file is empty.' }, { status: 400 });
+    if (!rows || rows.length < 2) {
+      return NextResponse.json({ error: 'The uploaded Excel file is empty or missing headers.' }, { status: 400 });
     }
 
-    const allErrors = [];
-    const validStudents = [];
-    const importMessages = []; // To collect informational messages for the clerk
+    const headers = rows[0];
+    const { mapping, missingRequired } = buildHeaderMapping(headers);
 
-    // Pre-processing and validation before starting the transaction
-    for (let i = 0; i < json.length; i++) {
-      const student = { ...json[i] }; // Create a copy to avoid modifying original json during validation
-      let currentEmail = String(student.email || '').trim();
-      let currentGender = String(student.gender || '').trim();
-      
-      // Auto-populate email if not provided
-      if (currentEmail === '') {
-        if (student.roll_no && String(student.roll_no).trim() !== '') {
-          currentEmail = `${String(student.roll_no).trim().toLowerCase()}@college.com`;
-          importMessages.push(`Row ${i + 2}: Email auto-generated as '${currentEmail}' for Roll No '${student.roll_no}'.`);
-        } else {
-          allErrors.push(`Row ${i + 2}: Cannot auto-generate email, Roll Number is missing or empty.`);
-          continue; // Skip further processing for this row if roll_no is missing
+    if (missingRequired.length > 0) {
+      const errors = missingRequired.map((f) => `Required column "${REQUIRED_DISPLAY[f]}" not found`);
+      return NextResponse.json({ error: 'Missing required columns.', errors }, { status: 400 });
+    }
+
+    const totalRows = rows.length - 1;
+    const errors = [];
+    const prepared = []; // array of { student, personal, academic, rowNumber }
+
+    // Detect duplicates within file as we go
+    const seenRolls = new Map(); // roll_no -> firstRow
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      const rowNumber = r + 1; // Excel row number (1-based)
+
+      const student = {};
+      const personal = {};
+      const academic = {};
+
+      // Build objects from mapping
+      for (let c = 0; c < headers.length; c++) {
+        const map = mapping[c];
+        if (!map) continue;
+        const val = row[c];
+        if (map.table === 'students') {
+          student[map.field] = val;
+        } else if (map.table === 'student_personal_details') {
+          personal[map.field] = val;
+        } else if (map.table === 'student_academic_background') {
+          academic[map.field] = val;
         }
       }
-      student.email = currentEmail; // Update student object with generated/processed email
 
-      // Process gender: set to null if empty, otherwise normalize
-      if (currentGender === '') {
-        currentGender = null;
-        importMessages.push(`Row ${i + 2}: Gender not provided for Roll No '${student.roll_no}', setting to NULL.`);
-      } else {
-        // Normalize gender to standard casing (e.g., 'Male', 'Female', 'Other')
-        const lowerGender = currentGender.toLowerCase();
-        if (['male', 'm'].includes(lowerGender)) currentGender = 'Male';
-        else if (['female', 'f'].includes(lowerGender)) currentGender = 'Female';
-        else if (['other', 'o'].includes(lowerGender)) currentGender = 'Other';
-        // If still not recognized, it will be caught by validation (if specific values are required) or inserted as is
-        // For now, validation above handles invalid values.
+      // Required per-row validations
+      const roll = String(student.roll_no || '').trim();
+      const name = String(student.name || '').trim();
+      const genderCanonical = normalizeGender(student.gender);
+      const dobCanonical = normalizeDateToMySQL(student.date_of_birth);
+      const fatherName = String(personal.father_name || '').trim();
+      const category = String(personal.category || '').trim();
+      const address = String(personal.address || '').trim();
+
+      if (!roll) {
+        errors.push({ row: rowNumber, roll_no: null, reason: 'Roll number is missing' });
+        continue;
       }
-      student.gender = currentGender; // Update student object with processed gender
+      if (seenRolls.has(roll)) {
+        errors.push({ row: rowNumber, roll_no: roll, reason: 'Duplicate roll number in file' });
+        continue;
+      }
+      seenRolls.set(roll, rowNumber);
 
-      const errors = validateStudentData(student, i); // Validate the processed student object
-      if (errors.length > 0) {
-        allErrors.push(...errors);
-      } else {
-        validStudents.push(student);
+      if (!name) {
+        errors.push({ row: rowNumber, roll_no: roll, reason: 'Name is missing' });
+        continue;
+      }
+      if (!genderCanonical) {
+        errors.push({ row: rowNumber, roll_no: roll, reason: 'Invalid or missing gender' });
+        continue;
+      }
+      if (!dobCanonical) {
+        errors.push({ row: rowNumber, roll_no: roll, reason: 'Invalid or missing DOB' });
+        continue;
+      }
+      if (!fatherName) {
+        errors.push({ row: rowNumber, roll_no: roll, reason: 'Father name is missing' });
+        continue;
+      }
+      if (!category) {
+        errors.push({ row: rowNumber, roll_no: roll, reason: 'Category is missing' });
+        continue;
+      }
+      if (!address) {
+        errors.push({ row: rowNumber, roll_no: roll, reason: 'Address is missing' });
+        continue;
+      }
+
+      // Set canonical normalized values
+      student.roll_no = roll;
+      student.name = name;
+      student.gender = genderCanonical;
+      student.date_of_birth = dobCanonical;
+      // Optional fields
+      if (student.email) {
+        const em = String(student.email).trim();
+        if (em && !/\S+@\S+\.\S+/.test(em)) {
+          errors.push({ row: rowNumber, reason: `Invalid email '${em}'` });
+          continue;
+        }
+        student.email = em || null;
+      }
+      if (student.mobile) {
+        const mob = String(student.mobile).trim();
+        student.mobile = mob || null;
+      }
+
+      // Personal mandatory
+      personal.father_name = fatherName;
+      personal.category = category;
+      personal.address = address;
+
+      prepared.push({ student, personal, academic, rowNumber });
+    }
+
+    // DB-level duplicates check
+    const pool = getDb();
+    const rollList = prepared.map((p) => p.student.roll_no);
+    if (rollList.length > 0) {
+      try {
+        const [existingRows] = await pool.execute(
+          `SELECT roll_no FROM students WHERE roll_no IN (${rollList.map(() => '?').join(',')})`,
+          rollList
+        );
+        const existingSet = new Set(existingRows.map((r) => r.roll_no));
+        // Filter out rows with duplicates in DB and log errors
+        const filtered = [];
+        for (const rec of prepared) {
+          if (existingSet.has(rec.student.roll_no)) {
+            errors.push({ row: rec.rowNumber, roll_no: rec.student.roll_no, reason: 'Roll number already exists' });
+          } else {
+            filtered.push(rec);
+          }
+        }
+        prepared.splice(0, prepared.length, ...filtered);
+      } catch (dupErr) {
+        console.error('Duplicate check error:', dupErr);
+        return NextResponse.json({ error: 'Failed to verify duplicates in database.' }, { status: 500 });
       }
     }
 
-    if (allErrors.length > 0) {
-      return NextResponse.json({ error: 'Validation failed. Please check the following errors in your Excel file:', details: allErrors }, { status: 400 });
-    }
-
-    const pool = getDb(); // Get the pool
-
-    let connection; // Declare connection outside try-finally for scope
-
+    let connection;
+    let insertedCount = 0;
     try {
-      connection = await pool.getConnection(); // Get a connection from the pool
-      await connection.beginTransaction(); // Start transaction on the connection
+      connection = await pool.getConnection();
+      await connection.beginTransaction();
 
-      for (const student of validStudents) {
-        // 1. Insert into students table (now including gender)
-        const [studentResult] = await connection.execute( // Use connection.execute
+      for (const rec of prepared) {
+        const { student, personal, academic } = rec;
+
+        // Insert into students
+        const [studentResult] = await connection.execute(
           `INSERT INTO students (roll_no, name, email, mobile, date_of_birth, is_email_verified, gender)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             student.roll_no,
             student.name,
-            student.email,
-            student.mobile,
-            toMySQLDate(student.date_of_birth),
-            0, // Default to not verified
-            student.gender
+            student.email || null,
+            student.mobile || null,
+            student.date_of_birth, // already normalized YYYY-MM-DD
+            0,
+            student.gender,
           ]
         );
         const studentId = studentResult.insertId;
 
-        // 2. Insert into student_personal_details table
-        await connection.execute( // Use connection.execute
-          `INSERT INTO student_personal_details (student_id, father_name, mother_name, address, category)
-           VALUES (?, ?, ?, ?, ?)`,
+        // Personal details (mandatory + optional where present)
+        await connection.execute(
+          `INSERT INTO student_personal_details (student_id, father_name, mother_name, address, category, nationality, religion, sub_caste, area_status, aadhaar_no, guardian_mobile)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             studentId,
-            student.father_name || null,
-            student.mother_name || null,
-            student.address || null,
-            student.category || null
+            personal.father_name,
+            personal.mother_name || null,
+            personal.address,
+            personal.category,
+            personal.nationality || null,
+            personal.religion || null,
+            personal.sub_caste || null,
+            personal.area_status || null,
+            personal.aadhaar_no || null,
+            personal.guardian_mobile || null,
           ]
         );
-        
-        // 3. Insert into student_academic_background table
-        // Branch is derived from roll number and not stored in this table as per schema.
-        // Insert only student_id for now. Additional academic details can be added if available in Excel.
-        await connection.execute( // Use connection.execute
-          `INSERT INTO student_academic_background (student_id) VALUES (?)`,
-          [studentId]
-        );
+
+        // Academic background only if any field present
+        const hasAcademic = Object.values(academic).some((v) => String(v).trim() !== '');
+        if (hasAcademic) {
+          await connection.execute(
+            `INSERT INTO student_academic_background (student_id, qualifying_exam, previous_college_details, medium_of_instruction, year_of_study, total_marks, marks_secured)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              studentId,
+              academic.qualifying_exam || null,
+              academic.previous_college_details || null,
+              academic.medium_of_instruction || null,
+              academic.year_of_study || null,
+              academic.total_marks || null,
+              academic.marks_secured || null,
+            ]
+          );
+        }
+
+        insertedCount++;
       }
 
-      await connection.commit(); // Commit transaction on the connection
-      return NextResponse.json({ message: `${validStudents.length} students imported successfully.`, info: importMessages }, { status: 200 });
+      await connection.commit();
+
+      const skippedCount = totalRows - insertedCount;
+      const response = {
+        totalRows,
+        inserted: insertedCount,
+        skipped: skippedCount,
+        errors,
+      };
+
+      // Attach CSV for errors if any
+      if (errors.length > 0) {
+        const csvHeader = 'Row,Reason';
+        const csvBody = errors.map((e) => `${e.row},${String(e.reason).replace(/,/g, ';')}`).join('\n');
+        response.errorReportCsv = `${csvHeader}\n${csvBody}`;
+      }
+
+      return NextResponse.json(response, { status: 200 });
 
     } catch (error) {
       if (connection) {
-        await connection.rollback(); // Rollback transaction on the connection
+        await connection.rollback();
       }
       console.error('BULK IMPORT TRANSACTION ERROR:', error);
-      let errorMessage = 'An error occurred during the database transaction. All changes have been rolled back.';
-      if (error.code === 'ER_DUP_ENTRY') {
-        const duplicateValue = error.message.match(/for key '(.*?)'/)?.[1];
-        if (duplicateValue) {
-          if (error.message.includes('email')) {
-            // Attempt to find which student's email caused the duplicate
-            const duplicatedStudent = validStudents.find(s => error.message.includes(s.email));
-            errorMessage = `A student with email '${duplicatedStudent ? duplicatedStudent.email : "an existing email"}' already exists. All changes have been rolled back.`;
-          } else if (error.message.includes('roll_no')) {
-            // Attempt to find which student's roll_no caused the duplicate
-            const duplicatedStudent = validStudents.find(s => error.message.includes(s.roll_no));
-            errorMessage = `A student with roll number '${duplicatedStudent ? duplicatedStudent.roll_no : "an existing roll number"}' already exists. All changes have been rolled back.`;
-          } else {
-            errorMessage = `A duplicate entry error occurred during import for key ${duplicateValue}. All changes have been rolled back. Details: ${error.message}`;
-          }
-        } else {
-            errorMessage = `A duplicate entry error occurred during import. All changes have been rolled back. Details: ${error.message}`;
-        }
-      } else {
-        errorMessage = `An unexpected database error occurred. All changes have been rolled back. Details: ${error.message}`;
-      }
-      return NextResponse.json({ error: errorMessage }, { status: 500 });
+      return NextResponse.json({ error: 'An unexpected database error occurred. All changes have been rolled back.' }, { status: 500 });
     } finally {
-      if (connection) {
-        connection.release(); // Release the connection back to the pool
-      }
+      if (connection) connection.release();
     }
 
   } catch (error) {
