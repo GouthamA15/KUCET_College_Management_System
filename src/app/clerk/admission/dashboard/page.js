@@ -6,11 +6,11 @@ import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
 import ClerkStudentManagement from '@/components/ClerkStudentManagement';
 import CertificateRequests from '@/components/CertificateRequests';
-import BulkImportStudents from '@/components/BulkImportStudents'; // Import the new component
+// Bulk import moved into ClerkStudentManagement; remove standalone card
 import toast from 'react-hot-toast';
 
 export default function ClerkDashboard() {
-  const [openModule, setOpenModule] = useState(null); // 'student', 'certificates', 'bulk-import', or null
+  const [openModule, setOpenModule] = useState(null); // 'student', 'certificates', or null
   const router = useRouter();
   const [clerk, setClerk] = useState(null);
 
@@ -51,11 +51,7 @@ export default function ClerkDashboard() {
     );
   }
   
-  const handleImportSuccess = () => {
-    // Optionally, you can add logic to refresh the student list or give feedback
-    // For now, it just closes the module.
-    setOpenModule(null);
-  }
+  // Bulk import handled inside Student Management
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -86,15 +82,7 @@ export default function ClerkDashboard() {
               </div>
             </div>
             
-            <div onClick={() => setOpenModule('bulk-import')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-purple-50 rounded flex items-center justify-center">📤</div>
-                <div>
-                  <h3 className="font-semibold">Bulk Student Import</h3>
-                  <p className="text-sm text-gray-600">Upload an Excel file to add multiple students.</p>
-                </div>
-              </div>
-            </div>
+            {/* Bulk Student Import card removed; feature available under Student Management */}
 
             <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow flex flex-col">
               <div className="flex items-center space-x-3">
@@ -122,12 +110,7 @@ export default function ClerkDashboard() {
           </div>
         )}
         
-        {openModule==='bulk-import' && (
-          <div className="mt-6">
-            <button onClick={()=>setOpenModule(null)} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
-            <BulkImportStudents onImportSuccess={handleImportSuccess} />
-          </div>
-        )}
+        {/* Standalone bulk-import module removed. Use Student Management > Import From Excel */}
       </main>
       <Footer />
     </div>
