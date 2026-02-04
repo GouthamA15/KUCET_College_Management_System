@@ -54,6 +54,16 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **Refactored Bulk Student Import:**
+    *   **UI/UX Improvement:** The bulk student import feature has been refactored to display errors directly on the page in a table format, improving user experience by removing the need to download a separate error report.
+    *   **Bug Fixes:**
+        *   Resolved a critical bug where the bulk import feature would crash due to an attempt to insert into a non-existent `guardian_mobile` column in the database.
+        *   Fixed a SQL syntax error in the student creation API (`src/app/api/clerk/admission/students/route.js`) where the number of placeholders did not match the number of columns.
+        *   Resolved a critical syntax error in the bulk import API (`src/app/api/clerk/admission/bulk-import/route.js`) that was causing it to crash due to a corrupted import statement.
+*   **Clerk Student Management Fixes:**
+    *   Fixed a React warning (`Encountered two children with the same key`) caused by a duplicate `BC-D` entry in the student categories list.
+    *   Resolved a React warning (`A component is changing a controlled input to be uncontrolled`) by ensuring that `annual_income` and `ranks` input fields always receive a string value.
+
 *   **Password Management:**
     *   **Forgot/Reset Password:**
         *   New API routes for handling forgot password requests for admin, clerk, and student roles (`src/app/api/auth/forgot-password/...`).
