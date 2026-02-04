@@ -18,6 +18,8 @@ export default function SecurityPrivacyPage() {
   const [emailMessage, setEmailMessage] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [emailEditing, setEmailEditing] = useState(false);
+  const [showPwSetup, setShowPwSetup] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Password section state
   const [pwExpanded, setPwExpanded] = useState(false);
@@ -157,7 +159,7 @@ export default function SecurityPrivacyPage() {
     }
   };
 
-  const canSaveNewPw = newPassword.length >= 6 && newPassword === confirmPassword;
+  const canSaveNewPw = newPassword.length >= 8 && newPassword === confirmPassword;
 
   const savePassword = async () => {
     if (!rollno || !canSaveNewPw) return;
@@ -171,10 +173,15 @@ export default function SecurityPrivacyPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setPwMessage('Password updated successfully.');
+        setPwMessage('Password set successfully.');
         setStudent((prev) => prev ? { ...prev, password_hash: 'set' } : prev);
         setPwExpanded(false);
         setNewPassword(''); setConfirmPassword(''); setCurrentPassword('');
+        setToastMessage('Password set successfully');
+        try {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch {}
+        setTimeout(() => setToastMessage(''), 3000);
       } else {
         setPwMessage(data?.error || 'Failed to update password');
       }
@@ -187,6 +194,13 @@ export default function SecurityPrivacyPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+          <div className="px-4 py-2 rounded-md shadow-md bg-green-600 text-white text-sm">
+            {toastMessage}
+          </div>
+        </div>
+      )}
       <Header />
       <Navbar studentProfileMode={true} activeTab={'menu'} onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); location.href = '/'; }} />
 
@@ -361,16 +375,21 @@ export default function SecurityPrivacyPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-gray-700">New Password</label>
-                      <input
-                        type="password"
-                        className={`mt-1 w-full border rounded-md px-3 py-2 text-sm ${!isEmailVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Enter new password"
-                        disabled={!isEmailVerified}
-                        minLength={8}
-                        autoComplete="new-password"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showPwSetup ? 'text' : 'password'}
+                          className={`mt-1 w-full border rounded-md px-3 py-2 text-sm pr-14 ${!isEmailVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Enter new password"
+                          disabled={!isEmailVerified}
+                          minLength={8}
+                          autoComplete="new-password"
+                        />
+                        <button type="button" onClick={() => setShowPwSetup((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600 hover:text-gray-800">
+                          {showPwSetup ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
                       <div className="mt-1 flex items-center gap-2 text-xs">
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 ${pwStrength.label === 'Strong' ? 'bg-green-100 text-green-700' : pwStrength.label === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}`}>{pwStrength.label}</span>
                         <span className="text-gray-600">Min 8 chars, include upper, lower, number, special</span>
@@ -378,25 +397,51 @@ export default function SecurityPrivacyPage() {
                     </div>
                     <div>
                       <label className="text-xs text-gray-700">Confirm Password</label>
-                      <input
-                        type="password"
-                        className={`mt-1 w-full border rounded-md px-3 py-2 text-sm ${!isEmailVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-enter password"
-                        disabled={!isEmailVerified}
-                        autoComplete="new-password"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showPwSetup ? 'text' : 'password'}
+                          className={`mt-1 w-full border rounded-md px-3 py-2 text-sm pr-14 ${!isEmailVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Re-enter password"
+                          disabled={!isEmailVerified}
+                          autoComplete="new-password"
+                        />
+                        <button type="button" onClick={() => setShowPwSetup((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600 hover:text-gray-800">
+                          {showPwSetup ? 'Hide' : 'Show'}
+                        </button>
+                        {confirmPassword && (
+                          <div className="mt-1 text-xs">
+                            {confirmPassword !== newPassword ? (
+                              <span className="text-red-600">Passwords do not match</span>
+                            ) : (
+                              newPassword.length >= 8 ? (
+                                <span className="text-green-700">Passwords match</span>
+                              ) : (
+                                <span className="text-gray-600">Passwords match, ensure minimum 8 characters</span>
+                              )
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-3">
-                    <button
-                      onClick={savePassword}
-                      disabled={!(pwStrength.score >= 5 && canSaveNewPw) || pwSaving || !isEmailVerified}
-                      className={`px-4 py-2 rounded text-white ${pwSaving || !isEmailVerified ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
-                    >
-                      {pwSaving ? 'Saving...' : 'Set Password'}
-                    </button>
+                    {(() => {
+                      const passwordsFilled = newPassword.length > 0 && confirmPassword.length > 0;
+                      const passwordsMatch = newPassword === confirmPassword;
+                      const meetsStrength = pwStrength.label === 'Medium' || pwStrength.label === 'Strong';
+                      const canShowSetButton = passwordsFilled && passwordsMatch && meetsStrength;
+                      return canShowSetButton ? (
+                        <button
+                          onClick={savePassword}
+                          disabled={!canSaveNewPw || pwSaving || !isEmailVerified}
+                          className={`px-4 py-2 rounded text-white ${pwSaving || !isEmailVerified ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 cursor-pointer'}`}
+                        >
+                          {pwSaving ? 'Saving...' : 'Set Password'}
+                        </button>
+                      ) : null;
+                    })()}
                     {pwMessage && <div className="mt-2 text-xs text-gray-700">{pwMessage}</div>}
                     {!isEmailVerified && (
                       <div className="mt-1 text-xs text-gray-600">Verify your email above to enable password setup.</div>
@@ -434,6 +479,12 @@ export default function SecurityPrivacyPage() {
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 ${pwStrength.label === 'Strong' ? 'bg-green-100 text-green-700' : pwStrength.label === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}`}>{pwStrength.label}</span>
                             <span className="text-gray-600">Min 8 chars, include upper, lower, number, special</span>
                           </div>
+                          {(() => {
+                            const sameAsCurrent = currentPassword && newPassword && currentPassword === newPassword;
+                            return sameAsCurrent ? (
+                              <div className="mt-1 text-xs text-red-600">New password must be different from the current password</div>
+                            ) : null;
+                          })()}
                         </div>
                         <div>
                           <label className="text-xs text-gray-700">Confirm Password</label>
@@ -442,13 +493,31 @@ export default function SecurityPrivacyPage() {
                             <button type="button" onClick={() => setShowConfirmPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600 hover:text-gray-800">
                               {showConfirmPw ? 'Hide' : 'Show'}
                             </button>
+                            {confirmPassword && (
+                              <div className="mt-1 text-xs">
+                                {confirmPassword !== newPassword ? (
+                                  <span className="text-red-600">Passwords do not match</span>
+                                ) : (
+                                  newPassword.length >= 8 ? (
+                                    <span className="text-green-700">Passwords match</span>
+                                  ) : (
+                                    <span className="text-gray-600">Passwords match, ensure minimum 8 characters</span>
+                                  )
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
                       <div>
-                        {(currentPassword || newPassword || confirmPassword) && (
-                          <button onClick={savePassword} disabled={!canSaveNewPw || pwSaving} className={`px-4 py-2 rounded text-white ${pwSaving ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}>{pwSaving ? 'Saving...' : 'Update Password'}</button>
-                        )}
+                        {(() => {
+                          const sameAsCurrent = currentPassword && newPassword && currentPassword === newPassword;
+                          const showButton = currentPassword || newPassword || confirmPassword;
+                          const disabled = !canSaveNewPw || pwSaving || sameAsCurrent;
+                          return showButton ? (
+                            <button onClick={savePassword} disabled={disabled} className={`px-4 py-2 rounded text-white ${disabled ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'}`}>{pwSaving ? 'Saving...' : 'Update Password'}</button>
+                          ) : null;
+                        })()}
                         {pwMessage && <div className="mt-2 text-xs text-gray-700">{pwMessage}</div>}
                       </div>
                     </div>
