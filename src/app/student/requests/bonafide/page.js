@@ -47,7 +47,7 @@ export default function BonafideRequestPage() {
       }
     };
     init();
-  }, []);
+  }, [router]);
 
   const fetchRequests = async () => {
     try {
