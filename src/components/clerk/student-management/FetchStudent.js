@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/date';
+import { getEntranceExamQualified, getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
 
 export default function FetchStudent({ setActiveAction, setFetchedStudent, setPersonalFull, setAcademicsList, setFeesList, setFeeDetails, setEditValues, setOriginalEditValues, setOriginalPersonalFull, setOriginalAcademicsList }) {
   const [fetchRoll, setFetchRoll] = useState('');

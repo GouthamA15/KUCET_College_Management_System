@@ -15,6 +15,9 @@ const EXAM_TOTAL_MARKS = {
 };
 
 function validateRollNo(rollNo) {
+  if (typeof rollNo !== 'string' || rollNo.trim() === '') {
+    return { isValid: false };
+  }
   const regularPattern = /^(\d{2})567T(\d{2})(\d{2})$/;
   const lateralPattern = /^(\d{2})567(\d{2})(\d{2})L$/;
 
