@@ -466,8 +466,19 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
                   {previewData.map((row, rowIndex) => {
                     const hasRowErrors = Object.keys(row._errors).length > 0;
                     const hasRowWarnings = Object.keys(row._warnings).length > 0;
+                    // Valid row: no critical errors and no warnings
+                    const isValidRow = !hasRowErrors && !hasRowWarnings;
+                    /* Row state priority: Critical Error (red) > Warning (yellow) > Valid (green) */
+                    const rowStateClass = hasRowErrors
+                      ? 'bg-red-50'
+                      : hasRowWarnings
+                      ? 'bg-yellow-50'
+                      : isValidRow
+                      ? 'bg-green-50 ring-1 ring-green-200 rounded-md'
+                      : '';
+
                     return (
-                      <tr key={rowIndex} className={`${hasRowErrors ? 'bg-red-50' : hasRowWarnings ? 'bg-yellow-50' : ''}`}>
+                      <tr key={rowIndex} className={rowStateClass}>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{rowIndex + 2}</td>
                         {previewHeaders.map((header, colIndex) => {
                           const cellKey = normalizeHeader(header);

@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import Link from 'next/link';
 // DOB will be a controlled numeric text input (DD-MM-YYYY)
 
 
@@ -20,6 +19,27 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [studentPasswordVisible, setStudentPasswordVisible] = useState(false);
   const [clerkPasswordVisible, setClerkPasswordVisible] = useState(false);
   const [adminPasswordVisible, setAdminPasswordVisible] = useState(false);
+
+  // Internal forgot-password UI state
+  // mode: 'login' | 'forgot-password'
+  const [mode, setMode] = useState('login');
+  // activeRole: 'student' | 'employee' (derived from activePanel)
+  const activeRole = activePanel === 'student' ? 'student' : 'employee';
+
+  // Student forgot-password states
+  const [fpRollno, setFpRollno] = useState('');
+  const [fpIsLoading, setFpIsLoading] = useState(false);
+  const [fpIsCheckingStatus, setFpIsCheckingStatus] = useState(false);
+  const [fpIsEligibleForReset, setFpIsEligibleForReset] = useState(false);
+  const [fpShowDOBLoginMessage, setFpShowDOBLoginMessage] = useState(false);
+  const [fpDisplayMessage, setFpDisplayMessage] = useState('');
+  const [fpAttempted, setFpAttempted] = useState(false);
+
+  // Employee forgot-password states (used for clerk/admin)
+  const [fpEmail, setFpEmail] = useState('');
+  const [fpEmailLoading, setFpEmailLoading] = useState(false);
+  const [fpEmailMessage, setFpEmailMessage] = useState('');
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const handleStudentSubmit = async (e) => {
     e.preventDefault();
@@ -60,6 +80,159 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       setStudentError('Network error');
     } finally {
       setStudentLoading(false);
+    }
+  };
+
+  // --- Student forgot-password helpers (reused from src/app/forgot-password/student/page.js) ---
+  const checkStudentStatus = useCallback(async (currentRollno) => {
+    // This helper DOES NOT show any toasts. It only updates local UI state
+    // and returns a structured result so the caller (the form) decides what
+    // to show to the user. This prevents duplicate toasters.
+    if (!currentRollno) {
+      setFpIsEligibleForReset(false);
+      setFpShowDOBLoginMessage(false);
+      setFpDisplayMessage('');
+      return { ok: false, status: null, data: null };
+    }
+
+    setFpIsCheckingStatus(true);
+    let data = null;
+    let status = null;
+    try {
+      const response = await fetch(`/api/auth/forgot-password/student?rollno=${currentRollno}`);
+      status = response.status;
+      data = await response.json().catch(() => null);
+
+      if (response.ok) {
+        if (data && data.is_email_verified && data.has_password_set) {
+          setFpIsEligibleForReset(true);
+          setFpShowDOBLoginMessage(false);
+          setFpDisplayMessage('');
+        } else {
+          setFpIsEligibleForReset(false);
+          setFpShowDOBLoginMessage(true);
+          setFpDisplayMessage(
+            "You haven't set a password and verified your email. Please login using your Date of Birth as password in (DD-MM-YYYY) format. If you need further assistance, contact support."
+          );
+        }
+      } else {
+        setFpIsEligibleForReset(false);
+        setFpShowDOBLoginMessage(false);
+        setFpDisplayMessage(data?.error || 'Unable to retrieve student status.');
+      }
+    } catch (error) {
+      console.error('Error checking student status:', error);
+      setFpIsEligibleForReset(false);
+      setFpShowDOBLoginMessage(false);
+      setFpDisplayMessage('Network error. Please try again.');
+      return { ok: false, status: null, error: 'network' };
+    } finally {
+      setFpIsCheckingStatus(false);
+    }
+
+    return { ok: status >= 200 && status < 300, status, data };
+  }, []);
+
+
+  const handleForgotStudentSubmit = async (e) => {
+    e.preventDefault();
+    // Enforce client-side roll number validation: exactly 10 alphanumeric characters
+    const rn = (fpRollno || '').toString().trim();
+    const ROLL_REGEX = /^[A-Za-z0-9]{10}$/;
+    setFpAttempted(true);
+
+    if (!ROLL_REGEX.test(rn)) {
+      // Do not call API if roll number not exactly 10 alphanumeric chars
+      setFpDisplayMessage('Please enter a valid 10-character alphanumeric Roll Number.');
+      return;
+    }
+
+    setFpIsLoading(true);
+    setFpDisplayMessage('');
+
+    try {
+      // First, check eligibility explicitly (GET)
+      setFpIsCheckingStatus(true);
+      const statusData = await checkStudentStatus(rn);
+
+      // statusData is a structured result: { ok, status, data, error }
+      if (statusData.error === 'network') {
+        toast.error('Unable to verify student status');
+        setFpDisplayMessage('Unable to verify student status.');
+        return;
+      }
+
+      if (!statusData.ok) {
+        // Handle expected business case: student not found
+        const isNotFound = statusData.status === 404 || (statusData.data && typeof statusData.data.error === 'string' && /not\s*found/i.test(statusData.data.error));
+        if (isNotFound) {
+          // Single, specific toaster for this scenario
+          toast.error('Student Not Found');
+          setFpDisplayMessage('Student Not Found');
+        } else {
+          // Other failures: show a single local toaster
+          toast.error(statusData.data?.error || 'Unable to verify student status');
+          setFpDisplayMessage(statusData.data?.error || 'Unable to verify student status');
+        }
+        return;
+      }
+
+      if (statusData.data && statusData.data.is_email_verified && statusData.data.has_password_set) {
+        // Eligible: send reset link (POST)
+        const response = await fetch('/api/auth/forgot-password/student', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rollno: rn }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          toast.success(data.message);
+          setFpDisplayMessage(data.message);
+        } else {
+          toast.error(data.error || 'An error occurred');
+          setFpDisplayMessage(data.error || 'An error occurred');
+        }
+      } else {
+        // Not eligible: show helper message (DOB login info)
+        setFpShowDOBLoginMessage(true);
+        setFpDisplayMessage(
+          "Password reset not available. Please login using your Date of Birth as password. If you need further assistance, contact support."
+        );
+      }
+    } catch (error) {
+      toast.error('An error occurred');
+      setFpDisplayMessage('An error occurred');
+    } finally {
+      setFpIsLoading(false);
+      setFpIsCheckingStatus(false);
+    }
+  };
+
+  // --- Employee forgot-password handler (reused from clerk page) ---
+  const handleForgotEmployeeSubmit = async (e) => {
+    e.preventDefault();
+    setFpEmailLoading(true);
+    setFpEmailMessage('');
+
+    try {
+      const response = await fetch('/api/auth/forgot-password/clerk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: fpEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(data.message);
+        setFpEmailMessage(data.message);
+      } else {
+        toast.error(data.error || 'An error occurred');
+      }
+    } catch (error) {
+      toast.error('An error occurred');
+    } finally {
+      setFpEmailLoading(false);
     }
   };
 
@@ -163,6 +336,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   <p className="text-gray-500 text-sm mt-1">Access your academic portal</p>
                 </div>
                 
+                {mode === 'login' ? (
                 <form onSubmit={handleStudentSubmit} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -216,10 +390,14 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       </button>
                     </div>
                     <div className="text-right mt-2">
-                      <Link href="/forgot-password/student" className="text-xs text-blue-500 hover:text-blue-700">
-                        Forgot Password?
-                      </Link>
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => { if (activeRole === 'student') { setMode('forgot-password'); setFpRollno(studentForm.rollNumber ?? ''); } }}
+                          className="text-xs text-blue-500 hover:text-blue-700"
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
                   </div>
                   
                   <button
@@ -233,7 +411,53 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="text-red-600 text-sm mt-2 text-center">{studentError}</div>
                   )}
                 </form>
-                
+                ) : (
+                  <form onSubmit={handleForgotStudentSubmit} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Roll Number</label>
+                      <input
+                        type="text"
+                        value={fpRollno ?? ''}
+                        onChange={(e) => setFpRollno(e.target.value.toUpperCase())}
+                        placeholder="Enter your Roll Number"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                        disabled={fpIsCheckingStatus || fpIsLoading}
+                      />
+                      <div className="text-right mt-2">
+                        <button
+                          type="button"
+                          onClick={() => { setMode('login'); setFpAttempted(false); setFpDisplayMessage(''); setFpShowDOBLoginMessage(false); }}
+                          className="inline-block font-medium text-sm text-blue-500 hover:text-blue-800"
+                        >
+                          Back to Login
+                        </button>
+                      </div>
+                    </div>
+
+                    {(fpRollno.length < 10) ? (
+                      <p className="text-sm text-gray-500 text-center mt-4"></p>
+                    ) : fpShowDOBLoginMessage && fpAttempted ? (
+                      <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
+                        <p className="font-bold">Information</p>
+                        <p>{fpDisplayMessage}</p>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center">
+                        <button
+                          type="submit"
+                          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                          disabled={fpIsLoading || fpRollno.length !== 10}
+                        >
+                          {fpIsLoading ? 'Sending...' : 'Send Reset Link'}
+                        </button>
+                      </div>
+                    )}
+
+                    {fpDisplayMessage && !fpShowDOBLoginMessage && <p className="text-green-500 text-xs italic mt-4">{fpDisplayMessage}</p>}
+                  </form>
+                )}
+
                 <p className="text-center text-xs text-gray-700 mt-4">
                   Note : Login by DOB will work only for the students who haven&apos;t set their password yet
                 </p>
@@ -261,6 +485,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   <p className="text-gray-500 text-sm mt-1">Administrative staff portal</p>
                 </div>
                 
+                {mode === 'login' ? (
                 <form onSubmit={handleClerkSubmit} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -310,9 +535,13 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       </button>
                     </div>
                     <div className="text-right mt-2">
-                      <Link href="/forgot-password/clerk" className="text-xs text-blue-500 hover:text-blue-700">
+                      <button
+                        type="button"
+                        onClick={() => { if (activeRole === 'employee') { setMode('forgot-password'); setFpEmail(clerkForm.email ?? ''); } }}
+                        className="text-xs text-blue-500 hover:text-blue-700"
+                      >
                         Forgot Password?
-                      </Link>
+                      </button>
                     </div>
                   </div>
                   
@@ -326,9 +555,47 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="text-red-600 text-sm mt-2 text-center">{clerkError}</div>
                   )}
                 </form>
-                
+                ) : (
+                  <form onSubmit={handleForgotEmployeeSubmit} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <input
+                        type="email"
+                        value={fpEmail ?? ''}
+                        onChange={(e) => setFpEmail(e.target.value)}
+                        placeholder="Enter your email address"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                        disabled={fpEmailLoading}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      {EMAIL_REGEX.test((fpEmail || '').trim()) ? (
+                        <button
+                          type="submit"
+                          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                          disabled={fpEmailLoading}
+                        >
+                          {fpEmailLoading ? 'Sending...' : 'Send Reset Link'}
+                        </button>
+                      ) : (
+                        <p className="text-sm text-gray-500">&nbsp;</p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setMode('login')}
+                        className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
+                      >
+                        Back to Login
+                      </button>
+                    </div>
+                    {fpEmailMessage && <p className="text-green-500 text-xs italic mt-4">{fpEmailMessage}</p>}
+                  </form>
+                )}
+
                 <p className="text-center text-xs text-gray-500 mt-4">
-                  Contact admin if you forgot your password
+                  Make sure to Enter a Valid Email Address
                 </p>
               </div>
             )}
@@ -354,6 +621,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   <p className="text-gray-500 text-sm mt-1">System administrator access</p>
                 </div>
                 
+                {mode === 'login' ? (
                 <form onSubmit={handleAdminSubmit} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -403,9 +671,13 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       </button>
                     </div>
                     <div className="text-right mt-2">
-                      <Link href="/forgot-password/admin" className="text-xs text-blue-500 hover:text-blue-700">
+                      <button
+                        type="button"
+                        onClick={() => { if (activeRole === 'employee') { setMode('forgot-password'); setFpEmail(adminForm.email ?? ''); } }}
+                        className="text-xs text-blue-500 hover:text-blue-700"
+                      >
                         Forgot Password?
-                      </Link>
+                      </button>
                     </div>
                   </div>
                   
@@ -419,7 +691,45 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="text-red-600 text-sm mt-2 text-center">{adminError}</div>
                   )}
                 </form>
-                
+                ) : (
+                  <form onSubmit={handleForgotEmployeeSubmit} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <input
+                        type="email"
+                        value={fpEmail ?? ''}
+                        onChange={(e) => setFpEmail(e.target.value)}
+                        placeholder="Enter your email address"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                        disabled={fpEmailLoading}
+                      />
+                    </div>
+                      <div className="flex items-center justify-between">
+                        {EMAIL_REGEX.test((fpEmail || '').trim()) ? (
+                          <button
+                            type="submit"
+                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                            disabled={fpEmailLoading}
+                          >
+                            {fpEmailLoading ? 'Sending...' : 'Send Reset Link'}
+                          </button>
+                        ) : (
+                          <p className="text-sm text-gray-500">&nbsp;</p>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setMode('login')}
+                          className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
+                        >
+                          Back to Login
+                        </button>
+                      </div>
+                    {fpEmailMessage && <p className="text-green-500 text-xs italic mt-4">{fpEmailMessage}</p>}
+                  </form>
+                )}
+
                 <p className="text-center text-xs text-gray-500 mt-4">
                   Authorized personnel only
                 </p>
