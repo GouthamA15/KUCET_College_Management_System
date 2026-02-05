@@ -63,6 +63,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Clerk Student Management Fixes:**
     *   Fixed a React warning (`Encountered two children with the same key`) caused by a duplicate `BC-D` entry in the student categories list.
     *   Resolved a React warning (`A component is changing a controlled input to be uncontrolled`) by ensuring that `annual_income` and `ranks` input fields always receive a string value.
+*   **Aadhaar Number Data Length Fix**: Implemented sanitization of the `aadhaar_no` field in `src/app/api/clerk/admission/students/[rollno]/route.js` to remove non-digit characters before database insertion, resolving `ER_DATA_TOO_LONG` errors.
 
 *   **Password Management:**
     *   **Forgot/Reset Password:**

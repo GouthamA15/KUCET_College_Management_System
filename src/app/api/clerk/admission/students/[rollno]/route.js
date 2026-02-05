@@ -77,8 +77,14 @@ export async function PUT(req, context) {
     let hasPersonalUpdates = false;
     personalColumns.forEach(col => {
       if (updatedData[col] !== undefined) {
-        personalUpdateFields.push(`${col} = ?`);
-        personalUpdateValues.push(toNull(updatedData[col]));
+        if (col === 'aadhaar_no' && updatedData[col] !== null) {
+          // Sanitize aadhaar_no: remove all non-digits before storing
+          personalUpdateFields.push(`${col} = ?`);
+          personalUpdateValues.push(toNull(String(updatedData[col]).replace(/\D/g, '')));
+        } else {
+          personalUpdateFields.push(`${col} = ?`);
+          personalUpdateValues.push(toNull(updatedData[col]));
+        }
         hasPersonalUpdates = true;
       }
     });
@@ -94,7 +100,11 @@ export async function PUT(req, context) {
             personalColumns.forEach(col => {
                 if (updatedData[col] !== undefined) { // Only include columns present in updatedData
                     insertCols.push(col);
-                    insertVals.push(toNull(updatedData[col]));
+                    if (col === 'aadhaar_no' && updatedData[col] !== null) {
+                        insertVals.push(toNull(String(updatedData[col]).replace(/\D/g, '')));
+                    } else {
+                        insertVals.push(toNull(updatedData[col]));
+                    }
                 }
             });
             if (insertCols.length > 1) { // More than just student_id
