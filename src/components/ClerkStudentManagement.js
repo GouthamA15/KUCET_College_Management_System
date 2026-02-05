@@ -376,7 +376,7 @@ export default function ClerkStudentManagement() {
   };
 
   const genders = ['Male', 'Female'];
-  const categories = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS'];
+  const categories = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'];
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

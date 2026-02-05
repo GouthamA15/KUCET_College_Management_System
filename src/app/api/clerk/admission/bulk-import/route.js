@@ -23,6 +23,8 @@ const REQUIRED_DISPLAY = {
   address: 'ADDRESS',
 };
 
+const VALID_CATEGORIES = new Set(['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS']);
+
 // Alias mapping dictionary: normalized header -> canonical field
 const ALIASES = {
   // Students table
@@ -287,13 +289,24 @@ export async function POST(req) {
       }
       if (student.mobile) {
         const mob = String(student.mobile).trim();
+        if (mob && !/^\d{10}$/.test(mob)) {
+          errors.push({ row: rowNumber, roll_no: roll, reason: `Invalid mobile number '${mob}'. Must be 10 digits.` });
+          continue;
+        }
         student.mobile = mob || null;
       }
+      student.email = student.email ? String(student.email).trim() : null; // Ensure null if empty
 
       // Personal mandatory
       personal.father_name = fatherName;
-      personal.category = category;
       personal.address = address;
+      
+      // Category Validation
+      if (!VALID_CATEGORIES.has(category)) {
+        errors.push({ row: rowNumber, roll_no: roll, reason: `Invalid category '${category}'. Valid categories are: ${Array.from(VALID_CATEGORIES).join(', ')}` });
+        continue;
+      }
+      personal.category = category;
 
       prepared.push({ student, personal, academic, rowNumber });
     }
