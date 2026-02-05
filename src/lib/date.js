@@ -48,27 +48,52 @@ export function toMySQLDate(dateString) {
 }
 
 export function parseDate(str) {
-    if (!str) return null;
-    const parts = str.split('-');
-    if (parts.length === 3) {
-        const [day, month, year] = parts;
-        if (day.length === 2 && month.length === 2 && year.length === 4) {
-            const date = new Date(year, month - 1, day);
-            if (!isNaN(date.getTime())) {
-              return date;
-            }
-        }
+  if (!str) return null;
+  
+  // Helper to parse date parts with a given separator and order
+  const tryParse = (dateString, separator, order) => {
+    const parts = dateString.split(separator);
+    if (parts.length !== 3) return null;
+
+    let day, month, year;
+    if (order === 'DMY') { // DD-MM-YYYY or DD/MM/YYYY
+      [day, month, year] = parts;
+    } else if (order === 'MDY') { // MM-DD-YYYY or MM/DD/YYYY
+      [month, day, year] = parts;
+    } else if (order === 'YMD') { // YYYY-MM-DD
+      [year, month, day] = parts;
+    } else {
+      return null;
     }
-    // Try parsing YYYY-MM-DD as a fallback
-    const yParts = str.split('-');
-    if (yParts.length === 3) {
-        const [year, month, day] = yParts;
-        if (year.length === 4 && month.length === 2 && day.length === 2) {
-            const date = new Date(year, month - 1, day);
-            if (!isNaN(date.getTime())) {
-              return date;
-            }
-        }
+
+    // Convert to numbers and validate
+    const d = parseInt(day, 10);
+    const m = parseInt(month, 10);
+    const y = parseInt(year, 10);
+
+    if (isNaN(d) || isNaN(m) || isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) {
+      return null;
+    }
+
+    const date = new Date(y, m - 1, d);
+    // Check for valid date (e.g., avoid 31st of Feb)
+    if (date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d) {
+      return date;
     }
     return null;
+  };
+
+  // Try DD-MM-YYYY or DD/MM/YYYY
+  let date = tryParse(str, '-', 'DMY') || tryParse(str, '/', 'DMY');
+  if (date) return date;
+
+  // Try MM-DD-YYYY or MM/DD/YYYY
+  date = tryParse(str, '-', 'MDY') || tryParse(str, '/', 'MDY');
+  if (date) return date;
+
+  // Try YYYY-MM-DD (fallback, but could also be parsed by YYYY-MM-DD logic)
+  date = tryParse(str, '-', 'YMD');
+  if (date) return date;
+
+  return null;
 }

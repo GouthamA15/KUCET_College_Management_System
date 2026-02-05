@@ -1,6 +1,152 @@
 "use client";
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
+import readXlsxFile from 'read-excel-file'; // Corrected import path
+import { parseDate } from '@/lib/date';
+
+// --- Constants for Client-Side Validation ---
+const REQUIRED_HEADERS_MAP = {
+  roll_no: { display: 'Roll Number', aliases: ['Roll No', 'RollNumber', 'Registration No', 'Admission No'] },
+  candidate_name: { display: 'Candidate Name', aliases: ['Student Name', 'Name', 'CandidateName'] },
+  gender: { display: 'Gender', aliases: [] },
+  date_of_birth: { display: 'Date of Birth', aliases: ['DOB', 'DateOfBirth'] },
+  father_name: { display: 'Father Name', aliases: ['FatherName'] },
+  category: { display: 'Category', aliases: [] },
+  mobile: { display: 'Mobile', aliases: ['Mobile Number', 'Phone', 'Phone Number'] },
+  aadhaar_no: { display: 'Aadhaar No', aliases: ['Aadhaar Number', 'Aadhaar'] },
+  address: { display: 'Address', aliases: ['Permanent Address', 'Full Address'] },
+};
+
+const CATEGORIES = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'];
+const GENDERS = ['Male', 'Female', 'Other'];
+
+// Mobile number regex: 10 digits only or +91 followed by 10 digits
+const MOBILE_REGEX = /^(\+91)?\d{10}$/;
+
+// Roll number regex: Allows alphanumeric characters, case-insensitive (e.g., 22567T3053 or 225673072L)
+const ROLL_NO_REGEX = /^(\d{2}567T\d{4}|\d{2}567\d{4}L)$/i;
+
+// --- Utility Functions ---
+const normalizeHeader = (header) => {
+  if (!header) return '';
+  return header.toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
+};
+
+const parseAndValidateExcelFile = async (file) => {
+  const rows = await readXlsxFile(file); // Removed dateFormat to handle dates as Date objects or strings
+  if (rows.length < 2) {
+    return { error: "File is empty or contains only a header." };
+  }
+
+  const rawHeaders = rows[0];
+  const normalizedHeaders = rawHeaders.map(normalizeHeader);
+  const dataRows = rows.slice(1);
+
+  const validationErrors = [];
+  const previewData = [];
+
+  const normalizeDate_client = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) {
+      if (!isNaN(value.getTime())) {
+        return value; // It's a valid JS Date
+      }
+    }
+    if (typeof value === 'string') {
+      return parseDate(value); // Use the lib function
+    }
+    return null;
+  };
+
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    const rowData = {};
+    const rowErrors = {};
+    const rowWarnings = {};
+
+    for (let j = 0; j < normalizedHeaders.length; j++) {
+      const header = normalizedHeaders[j];
+      rowData[header] = row[j];
+    }
+    
+    // --- Perform Validation ---
+    // Row number for error reporting (Excel row is 1-indexed for headers, then data starts at 2)
+    const excelRowNumber = i + 2;
+
+    // 1. Roll Number (already implemented)
+    const rollNo = String(rowData['roll_no'] || '').trim();
+    if (!rollNo || !ROLL_NO_REGEX.test(rollNo)) {
+      rowErrors['roll_no'] = 'Invalid Roll Number format.';
+      validationErrors.push({ row: excelRowNumber, field: 'Roll Number', message: `Invalid Roll Number format: ${rollNo}` });
+    }
+
+    // 2. Candidate Name
+    const candidateName = String(rowData['candidate_name'] || '').trim();
+    if (!candidateName) {
+      rowErrors['candidate_name'] = 'Candidate Name is required.';
+      validationErrors.push({ row: excelRowNumber, field: 'Candidate Name', message: 'Candidate Name is required.' });
+    }
+
+    // 3. Gender
+    let gender = String(rowData['gender'] || '').trim();
+    // Normalize gender input for validation
+    if (gender) {
+      if (gender.toLowerCase() === 'm') gender = 'Male';
+      if (gender.toLowerCase() === 'f') gender = 'Female';
+    }
+    rowData['gender'] = gender; // Update rowData with normalized gender
+    if (!gender || !GENDERS.includes(gender)) {
+      rowErrors['gender'] = `Invalid Gender. Must be one of ${GENDERS.join(', ')}.`;
+      validationErrors.push({ row: excelRowNumber, field: 'Gender', message: `Invalid Gender: ${gender}` });
+    }
+
+    // 4. Date of Birth
+    const dobValue = rowData['date_of_birth'];
+    if (!dobValue || !normalizeDate_client(dobValue)) {
+      rowErrors['date_of_birth'] = 'Invalid Date of Birth format. Expected DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, or MM/DD/YYYY.';
+      validationErrors.push({ row: excelRowNumber, field: 'Date of Birth', message: `Invalid Date of Birth: ${dobValue}. Expected formats: DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, MM/DD/YYYY.` });
+    }
+
+
+
+    // 5. Father Name
+    const fatherName = String(rowData['father_name'] || '').trim();
+    if (!fatherName) {
+      rowErrors['father_name'] = 'Father Name is required.';
+      validationErrors.push({ row: excelRowNumber, field: 'Father Name', message: 'Father Name is required.' });
+    }
+
+    // 6. Category
+    const category = String(rowData['category'] || '').trim();
+    if (!category || !CATEGORIES.includes(category)) {
+      rowErrors['category'] = `Invalid Category. Must be one of ${CATEGORIES.join(', ')}.`;
+      validationErrors.push({ row: excelRowNumber, field: 'Category', message: `Invalid Category: ${category}` });
+    }
+
+    // 7. Mobile Number
+    const mobile = String(rowData['mobile'] || '').trim();
+    if (mobile && !MOBILE_REGEX.test(mobile)) {
+      rowErrors['mobile'] = 'Invalid Mobile Number format (10 digits or +91 followed by 10 digits).';
+      validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: `Invalid Mobile: ${mobile}` });
+    }
+
+    // 8. Address (Warning for empty)
+    const address = String(rowData['address'] || '').trim();
+    if (!address) {
+      rowWarnings['address'] = 'Address is empty.';
+      validationErrors.push({ row: excelRowNumber, field: 'Address', message: 'Address is empty.', isWarning: true });
+    }
+
+    previewData.push({ ...rowData, _errors: rowErrors, _warnings: rowWarnings });
+  }
+
+  return {
+    headers: rawHeaders,
+    data: previewData,
+    errors: validationErrors, // This now contains both errors and warnings
+  };
+};
+
 
 export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [file, setFile] = useState(null);
@@ -8,16 +154,23 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // New state for displaying results
+  // New state for displaying results from API
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
   const [errorDetails, setErrorDetails] = useState([]);
   // Import stage management
-  const [importStage, setImportStage] = useState('idle'); // idle | header_error | row_preview | importing | success
+  const [importStage, setImportStage] = useState('idle'); // idle | header_error | client_preview | importing | success
   const [headerError, setHeaderError] = useState(null); // { missing: [], missingDisplay: [], aliasHints: {}, detectedHeaders: [] }
 
+  // New states for client-side preview and validation
+  const [previewData, setPreviewData] = useState(null); // Array of objects (rows)
+  const [previewHeaders, setPreviewHeaders] = useState([]); // Array of string (headers)
+  const [clientValidationErrors, setClientValidationErrors] = useState([]); // [{ row: 1, message: '...' }]
+  const [hasClientValidationErrors, setHasClientValidationErrors] = useState(false); // Only for critical errors
+  const [isClientValidated, setIsClientValidated] = useState(false);
 
-  const handleFileChange = (e) => {
+
+  const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
     // Reset all states
     try { toast.dismiss(); } catch {}
@@ -28,6 +181,12 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setErrorDetails([]);
     setImportStage('idle');
     setHeaderError(null);
+    // Reset client-side preview states
+    setPreviewData(null);
+    setPreviewHeaders([]);
+    setClientValidationErrors([]);
+    setHasClientValidationErrors(false);
+    setIsClientValidated(false);
 
     if (selectedFile) {
       const validTypes = [
@@ -41,6 +200,32 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
       }
       setFile(selectedFile);
       if (onReset) { try { onReset(); } catch {} }
+
+      // --- Perform client-side parsing and validation ---
+      const validationResult = await parseAndValidateExcelFile(selectedFile);
+
+      if (validationResult.error) {
+        toast.error(validationResult.error);
+        setImportStage('idle');
+      } else {
+        const criticalErrors = validationResult.errors.filter(err => !err.isWarning);
+        const warnings = validationResult.errors.filter(err => err.isWarning);
+
+        setPreviewHeaders(validationResult.headers);
+        setPreviewData(validationResult.data);
+        setClientValidationErrors(validationResult.errors); // Store all (errors + warnings)
+        setHasClientValidationErrors(criticalErrors.length > 0); // Only critical errors for this flag
+        setIsClientValidated(true);
+        setImportStage('client_preview');
+
+        if (criticalErrors.length > 0) {
+          toast(`File has ${criticalErrors.length} critical error(s). Please fix before importing.`, { icon: '❌' });
+        } else if (warnings.length > 0) {
+          toast(`File has ${warnings.length} warning(s). Please review.`, { icon: '⚠️' });
+        } else {
+          toast.success('File ready for import. Review the preview.');
+        }
+      }
     }
   };
 
@@ -50,18 +235,13 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setIsDragging(false); // Reset dragging state on drop
     const dt = e.dataTransfer;
     if (dt && dt.files && dt.files.length) {
-      const f = dt.files[0];
-      const validTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-      ];
-      if (!validTypes.includes(f.type)) {
-        toast.error("Invalid file type. Please upload an Excel file (.xlsx or .xls).");
-        return;
-      }
-      setFile(f);
-      if (fileInputRef.current) fileInputRef.current.files = dt.files;
-      if (onReset) { try { onReset(); } catch {} }
+      // Create a synthetic event object for handleFileChange
+      const syntheticEvent = {
+        target: {
+          files: dt.files
+        }
+      };
+      handleFileChange(syntheticEvent); // Reuse the same logic
     }
   };
 
@@ -204,8 +384,15 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setErrorDetails([]);
     setHeaderError(null);
     setImportStage('idle');
+    // also clear client-side preview
+    setFile(null);
+    setPreviewData(null);
+    setPreviewHeaders([]);
+    setClientValidationErrors([]);
+    setHasClientValidationErrors(false);
+    setIsClientValidated(false);
+    if(fileInputRef.current) fileInputRef.current.value = '';
   };
-
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-8">
@@ -219,41 +406,111 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
         disabled={isLoading}
       />
 
-      <div
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
-        onClick={() => fileInputRef.current?.click()}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        className={`mx-auto max-w-2xl p-8 border-2 rounded-lg text-center transition cursor-pointer select-none
-          ${isDragging ? 'border-blue-400 bg-blue-50' : 'border-dashed border-gray-300 hover:border-blue-300 hover:bg-gray-50'}`}
-      >
-        <div className="text-3xl mb-2">📄</div>
-        {!file ? (
+      {importStage === 'idle' && (
+        <div
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
+          onClick={() => fileInputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          className={`mx-auto max-w-2xl p-8 border-2 rounded-lg text-center transition cursor-pointer select-none
+            ${isDragging ? 'border-blue-400 bg-blue-50' : 'border-dashed border-gray-300 hover:border-blue-300 hover:bg-gray-50'}`}
+        >
+          <div className="text-3xl mb-2">📄</div>
           <>
-            <div className="text-gray-800 font-medium">Drag & drop Excel file here</div>
-            <div className="text-gray-600">or click to browse</div>
-            <div className="text-xs text-gray-500 mt-2">Accepted: .xlsx, .xls</div>
+              <div className="text-gray-800 font-medium">Drag & drop Excel file here</div>
+              <div className="text-gray-600">or click to browse</div>
+              <div className="text-xs text-gray-500 mt-2">Accepted: .xlsx, .xls</div>
           </>
-        ) : (
-          <>
-            <div className="text-gray-800 font-medium">Selected file: {file.name}</div>
-            <div className="text-xs text-gray-500 mt-2">Accepted: .xlsx, .xls</div>
-          </>
-        )}
-        <div className="mt-6">
-          <button
-            onClick={(e) => { e.stopPropagation(); handleUpload(); }}
-            disabled={!file || isLoading}
-            className="inline-flex items-center justify-center px-5 py-2 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Importing...' : 'Import Students'}
-          </button>
         </div>
-      </div>
+      )}
+
+      {importStage === 'client_preview' && previewData && (
+        <div className="mt-6">
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 className="text-lg font-semibold text-gray-800 mb-2">Data Preview & Validation</h4>
+            {(hasClientValidationErrors || clientValidationErrors.some(err => err.isWarning)) && (
+              <div className="mb-4 p-3 bg-red-50 rounded-md border border-red-200 text-sm">
+                <p className="font-semibold text-red-800">
+                  <span className="font-bold">
+                    {clientValidationErrors.filter(err => !err.isWarning).length} critical error(s) and{' '}
+                    {clientValidationErrors.filter(err => err.isWarning).length} warning(s) found.
+                  </span>{' '}
+                  Please review the highlighted rows before importing. Critical errors must be fixed, warnings are informational.
+                </p>
+              </div>
+            )}
+            {!hasClientValidationErrors && clientValidationErrors.some(err => err.isWarning) && (
+                <div className="mb-4 p-3 bg-yellow-50 rounded-md border border-yellow-200 text-sm">
+                    <p className="font-semibold text-yellow-800">
+                        <span className="font-bold">{clientValidationErrors.filter(err => err.isWarning).length} warning(s) found.</span> Please review.
+                    </p>
+                </div>
+            )}
+            <div className="overflow-x-auto max-h-[50vh]">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-100 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Row</th>
+                    {previewHeaders.map((header, index) => (
+                      <th key={index} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {previewData.map((row, rowIndex) => {
+                    const hasRowErrors = Object.keys(row._errors).length > 0;
+                    const hasRowWarnings = Object.keys(row._warnings).length > 0;
+                    return (
+                      <tr key={rowIndex} className={`${hasRowErrors ? 'bg-red-50' : hasRowWarnings ? 'bg-yellow-50' : ''}`}>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{rowIndex + 2}</td>
+                        {previewHeaders.map((header, colIndex) => {
+                          const cellKey = normalizeHeader(header);
+                          const cellError = row._errors[cellKey];
+                          const cellWarning = row._warnings[cellKey];
+                          const hasError = !!cellError;
+                          const hasWarning = !!cellWarning;
+                          return (
+                            <td 
+                              key={colIndex} 
+                              className={`px-4 py-2 whitespace-nowrap text-sm text-gray-700 
+                                ${hasError ? 'bg-red-100 border border-red-300' : hasWarning ? 'bg-yellow-100 border border-yellow-300' : ''}`}
+                              title={hasError ? cellError : hasWarning ? cellWarning : ''}
+                            >
+                              {String(row[cellKey] ?? '')}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end space-x-4">
+            <button
+              onClick={handleDismissResults}
+              disabled={isLoading}
+              className="px-5 py-2 bg-gray-200 text-gray-800 font-semibold rounded shadow hover:bg-gray-300 disabled:bg-gray-400"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUpload}
+              disabled={!file || isLoading}
+              className="inline-flex items-center justify-center px-5 py-2 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Importing...' : 'Confirm & Import'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {importStage === 'header_error' && headerError && (
         <div className="mt-8 p-4 bg-red-50 rounded-lg border border-red-200">

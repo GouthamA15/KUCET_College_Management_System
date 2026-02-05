@@ -26,6 +26,7 @@
     "react-datepicker": "^9.1.0",
     "react-dom": "^19.2.4",
     "react-hot-toast": "^2.6.0",
+    "read-excel-file": "^6.0.3",
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {

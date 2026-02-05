@@ -54,6 +54,12 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **Clerk & Faculty Experience Improvements:**
+    *   **New Faculty Role:** The system now supports a "Faculty" role for clerks, with a dedicated dashboard page (`src/app/clerk/faculty/dashboard/page.js`).
+    *   **Email on Clerk Creation:** When a super admin creates a new clerk account, an email is automatically sent to the clerk with their login credentials (temporary password) and a link to the portal. This is handled in `src/app/api/admin/create-clerk/route.js`.
+    *   **Clerk Redirection Fix:** Corrected a bug in the `src/proxy.js` middleware where clerks with the "Faculty" role were being incorrectly redirected to the admission dashboard. The logic now correctly routes them to `/clerk/faculty/dashboard`.
+    *   **Dashboard Loading State Fix:** Resolved a race condition that caused "Access Denied" toast messages to appear on clerk dashboards during login. A loading state has been implemented on all clerk dashboards (`faculty`, `scholarship`, `admission`) to ensure that authentication checks are complete before the dashboard content is rendered.
+
 *   **Refactored Bulk Student Import:**
     *   **UI/UX Improvement:** The bulk student import feature has been refactored to display errors directly on the page in a table format, improving user experience by removing the need to download a separate error report.
     *   **Bug Fixes:**
@@ -1206,11 +1212,18 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   Ensures atomicity: if any part of the import fails, the entire transaction is rolled back.
     *   Provides detailed error feedback, including duplicate entry detection, and informational messages about auto-generated emails or defaulted gender values.
 *   **Frontend Component**: `src/components/BulkImportStudents.js`
-    *   Provides a user interface for selecting and uploading `.xlsx` files.
-    *   Displays loading states and success/error messages using `react-hot-toast`.
-    *   Performs basic client-side file type validation.
-    *   **Enhancement**: Updated guidance text to mention `gender` column and its default behavior.
-    *   **Enhancement**: Displays informational messages received from the backend (e.g., auto-generated emails, defaulted gender).
+    *   **Client-side Excel Preview & Validation**: Implemented a client-side Excel preview using `read-excel-file` before sending the data to the server.
+        *   Displays parsed Excel data in a table format.
+        *   Performs client-side validation for critical fields:
+            *   **Roll Number**: Validated against specific regex patterns (`##567T####` or `##567####L`).
+            *   **Candidate Name, Gender, Date of Birth, Father Name, Category**: Checked for emptiness.
+            *   **Gender**: Normalized ('m'/'f' to 'Male'/'Female') and validated against predefined options.
+            *   **Date of Birth**: Validated against multiple formats (DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, MM/DD/YYYY).
+            *   **Mobile Number**: Validated for 10 digits or '+91' followed by 10 digits.
+            *   **Address**: A warning is displayed if the address field is empty, but it's not a blocking error.
+        *   Highlights rows and individual cells with errors (red) or warnings (yellow) in the preview table.
+        *   Provides toast messages to inform the user about critical errors (blocking import) or warnings (informational).
+        *   The upload process is now a two-step process: select file, then confirm import from the preview.
 *   **Integration**:
     *   Integrated into `src/app/clerk/admission/dashboard/page.js`.
     *   A new card allows the admission clerk to open the "Bulk Student Import" module, which then renders the `BulkImportStudents` component.
