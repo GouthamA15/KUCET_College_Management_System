@@ -1218,7 +1218,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
             *   **Roll Number**: Validated against specific regex patterns (`##567T####` or `##567####L`).
             *   **Candidate Name, Gender, Date of Birth, Father Name, Category**: Checked for emptiness.
             *   **Gender**: Normalized ('m'/'f' to 'Male'/'Female') and validated against predefined options.
-            *   **Date of Birth**: Validated against multiple formats (DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, MM/DD/YYYY).
+            *   **Date of Birth**: **Enhanced client-side date validation** using the `parseDate` utility from `src/lib/date.js` to robustly handle various formats (e.g., DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, MM/DD/YYYY) and input types (Excel date objects, strings).
             *   **Mobile Number**: Validated for 10 digits or '+91' followed by 10 digits.
             *   **Address**: A warning is displayed if the address field is empty, but it's not a blocking error.
         *   Highlights rows and individual cells with errors (red) or warnings (yellow) in the preview table.
