@@ -13,8 +13,10 @@ import { getAdmissionTypeFromRoll, getBranchFromRoll, getResolvedCurrentAcademic
 import BulkImportStudents from '@/components/BulkImportStudents';
 
 export default function ScholarshipDashboard() {
+  const [clerk, setClerk] = useState(null);
+  const [isClerkLoading, setIsClerkLoading] = useState(true); // For initial clerk auth check
   const [roll, setRoll] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // For fetching student data
   const [student, setStudent] = useState(null);
   const [personal, setPersonal] = useState(null);
   const [academic, setAcademic] = useState(null);
@@ -22,8 +24,7 @@ export default function ScholarshipDashboard() {
   const [scholarshipRecords, setScholarshipRecords] = useState([]);
   const [yearCount, setYearCount] = useState(4);
   const [expandedYear, setExpandedYear] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false); // scholarship add/edit modal
-  // image preview state (kept separate from scholarship modal state)
+  const [modalOpen, setModalOpen] = useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [editingYear, setEditingYear] = useState(null);
@@ -32,12 +33,13 @@ export default function ScholarshipDashboard() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [pendingSaveData, setPendingSaveData] = useState(null);
-  const [view, setView] = useState('dashboard'); // 'dashboard' or 'certificates'
+  const [view, setView] = useState('dashboard');
 
   const router = useRouter();
 
   useEffect(() => {
     const fetchClerkData = async () => {
+      setIsClerkLoading(true);
       try {
         const res = await fetch('/api/clerk/me');
         const data = await res.json();
@@ -45,6 +47,8 @@ export default function ScholarshipDashboard() {
           if (data.role !== 'scholarship') {
             toast.error('Access Denied');
             router.push('/');
+          } else {
+            setClerk(data);
           }
         } else {
           toast.error(data.error || 'Failed to fetch clerk data.');
@@ -54,6 +58,8 @@ export default function ScholarshipDashboard() {
         toast.error('An unexpected error occurred while fetching clerk data.');
         console.error('Error fetching clerk data:', error);
         router.push('/');
+      } finally {
+        setIsClerkLoading(false);
       }
     };
     fetchClerkData();
@@ -339,6 +345,14 @@ export default function ScholarshipDashboard() {
     if (String(rec.application_no) === String(student?.roll_no)) return { label: 'Non-Scholar', type: 'non' };
     return { label: 'Scholarship', type: 'scholar' };
   };
+
+  if (isClerkLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <p className="text-gray-600">Loading scholarship dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">

@@ -8,7 +8,6 @@ export default function ClerkRedirects() {
   useEffect(() => {
     const roleCookie = document.cookie.split('; ').find(row => row.startsWith('clerk_role='));
     const role = roleCookie ? roleCookie.split('=')[1].toLowerCase() : '';
-
     if (role === 'scholarship') {
       router.replace('/clerk/scholarship/dashboard');
     } else if (role === 'admission') {
