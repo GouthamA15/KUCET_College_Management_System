@@ -4,11 +4,58 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
-
 export default function Navbar({ activePanel, setActivePanel, clerkMode = false, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false }) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState({});
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+
+  // Single source-of-truth menu configuration per role
+  const menuConfig = {
+    student: [
+      { label: 'Profile', route: '/student/profile' },
+      { label: 'Time Table', route: '/student/timetable' },
+      { label: 'Requests', children: [
+          { label: 'Bonafide Certificate', route: '/student/requests/bonafide' },
+          { label: 'No Dues Certificate', route: '/student/requests/nodues' },
+          { label: 'Other Certificates', route: '/student/requests/certificates' },
+        ]
+      },
+      { label: 'Menu', children: [
+          { label: 'Edit Profile', route: '/student/settings/edit-profile' },
+          { label: 'Security & Privacy', route: '/student/settings/security' },
+          { label: 'Logout', action: 'logout' }
+        ]
+      }
+    ],
+    clerk: [
+      { label: 'Dashboard', route: '/clerk/admission/dashboard' },
+      { label: 'Departments', route: '#' },
+      { label: 'Admissions', route: '#' },
+      { label: 'Time Tables', route: '#' },
+      { label: 'Faculties', route: '#' },
+      { label: 'Logout', action: 'logout' }
+    ],
+    superAdmin: [
+      { label: 'Home', route: '/' },
+      { label: 'Admin Dashboard', route: '/admin/dashboard' },
+      { label: 'Manage Clerks', route: '/admin/manage-clerks' },
+      { label: 'Student Stats', route: '/admin/student-stats' },
+      { label: 'Logout', action: 'logout' }
+    ]
+  };
+
+  // Determine current role: student -> 'student', clerk -> 'clerk', admin pages -> 'superAdmin', else 'guest'
+  let role = 'guest';
+  if (studentProfileMode) role = 'student';
+  else if (clerkMode) role = 'clerk';
+  else if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) role = 'superAdmin';
+  const menuItems = menuConfig[role] || [
+    { label: 'HOME', route: '/' },
+    { label: 'STUDENT LOGIN', action: 'open-panel-student' },
+    { label: 'EMPLOYEE LOGIN', action: 'open-panel-clerk' },
+    { label: 'SUPER ADMIN', action: 'open-panel-admin' }
+  ];
 
   const handleNavClick = (panel) => {
     if (activePanel === panel) {
@@ -21,6 +68,61 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
 
   const isActive = (panel) => activePanel === panel;
 
+  const performAction = async (action) => {
+    if (action === 'logout') {
+      // Prefer explicit onLogout handler for student role (preserve original behavior)
+      if (role === 'student' && typeof onLogout === 'function') {
+        try {
+          await onLogout();
+        } catch (e) {
+          // fallback to auth logout if handler fails
+          await fetch('/api/auth/logout', { method: 'POST' });
+          router.replace('/');
+        }
+        return;
+      }
+      // Clerk-specific logout endpoint
+      if (role === 'clerk') {
+        await fetch('/api/clerk/logout', { method: 'POST' });
+        router.replace('/');
+        return;
+      }
+      // Default auth logout
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.replace('/');
+    }
+    if (action === 'change-password') {
+      setShowChangePasswordModal(true);
+    }
+  };
+
+  const handleMobileParentToggle = (idx) => {
+    setMobileExpanded(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  const handleMobileNavigate = (item) => {
+    // Close menu first, then navigate or perform action
+    setMobileMenuOpen(false);
+    if (item.action === 'logout') {
+      setTimeout(async () => {
+        await performAction('logout');
+      }, 260);
+      return;
+    }
+    if (item.action === 'change-password') {
+      setTimeout(() => performAction('change-password'), 260);
+      return;
+    }
+    if (item.action && item.action.startsWith('open-panel-')) {
+      const panel = item.action.split('open-panel-')[1];
+      setTimeout(() => handleNavClick(panel), 260);
+      return;
+    }
+    if (item.route) {
+      setTimeout(() => router.push(item.route), 260);
+    }
+  };
+
   return (
     <>
       <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50">
@@ -31,178 +133,91 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
             </div>
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-6">
-              {clerkMode ? (
-                clerkMinimal ? (
-                  <>
-                    <Link href="/clerk/admission/dashboard" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                      Dashboard
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                    </Link>
-                    <button onClick={() => setShowChangePasswordModal(true)} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
-                      Change Password
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                    </button>
-                    <button onClick={async () => {
-                      await fetch('/api/clerk/logout', { method: 'POST' });
-                      router.replace('/');
-                    }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
-                      Logout
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                      Departments
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                    </Link>
-                    <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                      Admissions
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                    </Link>
-                    <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                      Time Tables
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                    </Link>
-                    <Link href="#" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                      Faculties
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                    </Link>
-                    <button onClick={() => setShowChangePasswordModal(true)} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
-                      Change Password
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                    </button>
-                    <button onClick={async () => {
-                      await fetch('/api/clerk/logout', { method: 'POST' });
-                      router.replace('/');
-                    }} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
-                      Logout
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                    </button>
-                  </>
-                )
-              ) : studentProfileMode ? (
-                <>
-                  {/* Profile (active) */}
-                  <Link href="/student/profile" className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${activeTab === 'profile' ? 'text-blue-200' : ''}`}>
-                    Profile
-                    <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'profile' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-                  </Link>
-                  {/* Time Table */}
-                  <Link href="/student/timetable" className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${activeTab === 'timetable' ? 'text-blue-200' : ''}`}>
-                    Time Table
-                    <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'timetable' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-                  </Link>
-                  {/* Requests Dropdown */}
-                  <div className="relative group">
-                    <button className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative flex items-center cursor-pointer ${activeTab === 'requests' ? 'text-blue-200' : ''}`}>
-                      Requests
-                      <svg
-                        className="w-4 h-4 ml-1 transition-transform duration-300 group-hover:rotate-180"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                      <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'requests' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-                    </button>
-                    {/* Dropdown Menu */}
-                    <div className="absolute left-0 top-full w-56 bg-white rounded-b-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform z-50">
-                      <Link href="/student/requests/bonafide" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">
-                        Bonafide Certificate
-                      </Link>
-                      <Link href="/student/requests/nodues" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">
-                        No Dues Certificate
-                      </Link>
-                      <Link href="/student/requests/certificates" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">
-                        Other Certificates
-                      </Link>
+              {menuItems.map((item, idx) => {
+                const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+                if (hasChildren) {
+                  return (
+                    <div key={idx} className="relative group">
+                      <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative flex items-center cursor-pointer">
+                        <span>{item.label}</span>
+                        <svg className="w-4 h-4 ml-2 transform transition-transform duration-200 ease-in-out group-hover:rotate-90" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 4l8 6-8 6" />
+                        </svg>
+                        <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                      </button>
+                      <div className="absolute left-0 top-full w-56 bg-white rounded-b-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform z-50">
+                        {item.children.map((c, ci) => {
+                          if (c.route && c.route !== '#') {
+                            return (
+                              <Link key={ci} href={c.route} className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">{c.label}</Link>
+                            );
+                          }
+                          if (c.action) {
+                            return (
+                              <button key={ci} onClick={() => performAction(c.action)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">{c.label}</button>
+                            );
+                          }
+                          return (
+                            <button key={ci} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors" onClick={(e) => e.preventDefault()}>{c.label}</button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                  {/* Menu dropdown with settings + logout */}
-                  <div className="relative group">
-                    <button className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative flex items-center cursor-pointer ${activeTab === 'menu' ? 'text-blue-200' : ''}`}>
-                      Menu
-                      <svg
-                        className="w-4 h-4 ml-1 transition-transform duration-300 group-hover:rotate-180"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                      <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${activeTab === 'menu' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                  );
+                }
+                // action items
+                if (item.action) {
+                  if (typeof item.action === 'string' && item.action.startsWith('open-panel-')) {
+                    const panelName = item.action.split('open-panel-')[1];
+                    return (
+                      <button key={idx} onClick={() => handleNavClick(panelName)} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer`}>
+                        {item.label}
+                        <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${isActive(panelName) ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                      </button>
+                    );
+                  }
+                  return (
+                    <button key={idx} onClick={() => performAction(item.action)} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
+                      {item.label}
+                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                     </button>
-                    <div className="absolute left-0 top-full w-60 bg-white rounded-b-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform z-50">
-                      <Link href="/student/settings/edit-profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">Edit Profile</Link>
-                      <Link href="/student/settings/security" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">Security & Privacy</Link>
-                      <button onClick={onLogout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">Logout</button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/"
-                    onClick={() => setActivePanel && setActivePanel(null)}
-                    className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${
-                      activePanel === null ? 'text-blue-200' : ''
-                    }`}
-                  >
-                    HOME
-                    <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                      activePanel === null ? 'w-full' : 'w-0 group-hover:w-full'
-                    }`}></span>
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick && handleNavClick('student')}
-                    className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${
-                      isActive && isActive('student') ? 'text-blue-200' : ''
-                    }`}
-                  >
-                    STUDENT LOGIN
-                    <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                      isActive && isActive('student') ? 'w-full' : 'w-0 group-hover:w-full'
-                    }`}></span>
+                  );
+                }
+                // Render a real link only when a valid route exists and is not a placeholder
+                if (item.route && item.route !== '#') {
+                  return (
+                    <Link key={idx} href={item.route} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                      {item.label}
+                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                    </Link>
+                  );
+                }
+                // Otherwise render a non-navigating button (avoids showing '#' in status bar)
+                return (
+                  <button key={idx} onClick={() => {}} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group text-left`}>
+                    {item.label}
+                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick && handleNavClick('clerk')}
-                    className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${
-                      isActive && isActive('clerk') ? 'text-blue-200' : ''
-                    }`}
-                  >
-                    EMPLOYEE LOGIN
-                    <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                      isActive && isActive('clerk') ? 'w-full' : 'w-0 group-hover:w-full'
-                    }`}></span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleNavClick && handleNavClick('admin')}
-                    className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer ${
-                      isActive && isActive('admin') ? 'text-blue-200' : ''
-                    }`}
-                  >
-                    SUPER ADMIN
-                    <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                      isActive && isActive('admin') ? 'w-full' : 'w-0 group-hover:w-full'
-                    }`}></span>
-                  </button>
-                </>
-              )}
+                );
+              })}
             </div>
             {/* Mobile Menu Button */}
             <div className="md:hidden">
               <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-white hover:text-blue-200 focus:outline-none p-2 transition-transform duration-300 ease-in-out"
+                onClick={() => setMobileMenuOpen(prev => !prev)}
+                className="text-white hover:text-blue-200 focus:outline-none p-2"
                 aria-label="Toggle menu"
               >
-                <svg className={`h-6 w-6 transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'rotate-90' : 'rotate-0'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <line x1="3" y1="6" x2="21" y2="6" stroke="white" strokeWidth="2"
+                    className={`transition-transform duration-200 ease-in-out origin-center ${mobileMenuOpen ? 'translate-y-2 rotate-45' : ''}`}
+                  />
+                  <line x1="3" y1="12" x2="21" y2="12" stroke="white" strokeWidth="2"
+                    className={`transition-opacity duration-200 ease-in-out ${mobileMenuOpen ? 'opacity-0' : 'opacity-100'}`}
+                  />
+                  <line x1="3" y1="18" x2="21" y2="18" stroke="white" strokeWidth="2"
+                    className={`transition-transform duration-200 ease-in-out origin-center ${mobileMenuOpen ? '-translate-y-2 -rotate-45' : ''}`}
+                  />
                 </svg>
               </button>
             </div>
@@ -210,60 +225,60 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
         </div>
         {/* Mobile Menu */}
         <div
-          className={`md:hidden bg-[#0a2d66] overflow-hidden transition-all duration-300 ease-in-out ${
-            mobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-          }`}
+          className={`md:hidden bg-[#0a2d66] overflow-hidden shadow-sm ${mobileMenuOpen ? 'opacity-100' : 'opacity-0'}`}
+          style={{
+            transform: mobileMenuOpen ? 'translateY(0)' : 'translateY(-10px)',
+            transitionProperty: 'transform, opacity, max-height',
+            transitionTimingFunction: 'ease-in-out',
+            transitionDuration: mobileMenuOpen ? '250ms' : '200ms',
+            maxHeight: mobileMenuOpen ? '520px' : '0px'
+          }}
         >
-          <div className="px-4 pt-2 pb-3 space-y-1">
-            {clerkMode ? (
-              clerkMinimal ? (
-                <>
-                  <Link href="/clerk/admission/dashboard" className="text-white block px-3 py-2.5 text-sm relative group">Dashboard<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-                  <button onClick={() => {setShowChangePasswordModal(true); setMobileMenuOpen(false);}} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group cursor-pointer">Change Password<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
-                  <button onClick={async () => {
-                    await fetch('/api/clerk/logout', { method: 'POST' });
-                    router.replace('/');
-                    setMobileMenuOpen(false);
-                  }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group cursor-pointer">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
-                </>
-              ) : (
-                <>
-                  <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Departments<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-                  <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Admissions<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-                  <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Time Tables<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-                  <Link href="#" className="text-white block px-3 py-2.5 text-sm relative group">Faculties<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></Link>
-                  <button onClick={() => {setShowChangePasswordModal(true); setMobileMenuOpen(false);}} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group cursor-pointer">Change Password<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
-                  <button onClick={async () => {
-                    await fetch('/api/clerk/logout', { method: 'POST' });
-                    router.replace('/');
-                    setMobileMenuOpen(false);
-                  }} className="text-white block w-full text-left px-3 py-2.5 text-sm relative group">Logout<span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span></button>
-                </>
-              )
-            ) : studentProfileMode ? (
-              <>
-                <Link href="/student/profile" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Profile</Link>
-                <Link href="/student/timetable" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Time Table</Link>
-                <Link href="/student/requests/bonafide" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Bonafide Certificate</Link>
-                <Link href="/student/requests/nodues" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">No Dues Certificate</Link>
-                <Link href="/student/requests/certificates" className="text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer">Other Certificates</Link>
-                <div className="px-3 pt-1">
-                  <div className="text-white/90 text-xs uppercase tracking-wide">Menu</div>
-                  <div className="pl-2">
-                    <Link href="/student/settings/edit-profile" className="text-white block w-full text-left py-1.5 text-sm opacity-90">Edit Profile</Link>
-                    <Link href="/student/settings/security" className="text-white block w-full text-left py-1.5 text-sm opacity-90">Security & Privacy</Link>
-                    <button onClick={() => { onLogout && onLogout(); setMobileMenuOpen(false); }} className="text-white block w-full text-left py-1.5 text-sm opacity-90 text-left">Logout</button>
+          <div className="px-4 pt-2 pb-3">
+            {menuItems.map((item, idx) => {
+              const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+              const expanded = !!mobileExpanded[idx];
+              return (
+                <div key={idx} className="mb-0">
+                  <div className={`flex items-center justify-between w-full ${hasChildren ? 'cursor-pointer' : ''}`}>
+                    {hasChildren ? (
+                      <button
+                        onClick={() => handleMobileParentToggle(idx)}
+                        className="w-full text-left px-3 py-3 text-white text-sm flex items-center justify-between"
+                        aria-expanded={expanded}
+                      >
+                        <span className="truncate">{item.label}</span>
+                        <svg className={`w-4 h-4 ml-2 transform transition-transform duration-200 ease-in-out ${expanded ? 'rotate-90' : 'rotate-0'}`} viewBox="0 0 20 20" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 4l8 6-8 6" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleMobileNavigate(item)}
+                        className="w-full text-left px-3 py-3 text-white text-sm"
+                      >
+                        {item.label}
+                      </button>
+                    )}
                   </div>
+                  {hasChildren && expanded && (
+                    <div className="pl-4 bg-white/5">
+                      {item.children.map((child, cidx) => (
+                        <button
+                          key={cidx}
+                          onClick={() => handleMobileNavigate(child)}
+                          className="w-full text-left block px-3 py-2 text-sm text-white/95"
+                          style={{ transition: 'opacity 180ms ease-in-out', transitionDelay: `${(cidx + 1) * 40}ms` }}
+                        >
+                          {child.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="border-t border-white/10" />
                 </div>
-              </>
-            ) : (
-              <>
-                <Link href="/" onClick={() => { setActivePanel && setActivePanel(null); setMobileMenuOpen(false); }} className="text-white block px-3 py-2.5 text-sm cursor-pointer">HOME</Link>
-                <button type="button" onClick={() => { handleNavClick && handleNavClick('student'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer ${isActive('student') ? 'text-blue-200' : ''}`}>STUDENT LOGIN</button>
-                <button type="button" onClick={() => { handleNavClick && handleNavClick('clerk'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer ${isActive('clerk') ? 'text-blue-200' : ''}`}>CLERK LOGIN</button>
-                <button type="button" onClick={() => { handleNavClick && handleNavClick('admin'); setMobileMenuOpen(false); }} className={`text-white block w-full text-left px-3 py-2.5 text-sm cursor-pointer ${isActive('admin') ? 'text-blue-200' : ''}`}>SUPER ADMIN</button>
-              </>
-            )}
+              );
+            })}
           </div>
         </div>
       </nav>
