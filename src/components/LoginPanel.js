@@ -70,7 +70,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       if (res.ok && data.student) {
         toast.success('Login successful!', { id: toastId });
         // Redirect to the student profile page
-        router.replace('/student/profile');
+        window.location.assign('/student/profile');
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
@@ -256,10 +256,10 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
         // Prefer explicit role from response; fallback to generic
         const role = (data.role || '').toString().toLowerCase();
         if (role.includes('scholar')) {
-          router.replace('/clerk/scholarship/dashboard');
+          window.location.assign('/clerk/scholarship/dashboard');
         } else {
           // Treat everything else as admission/administrative by default
-          router.replace('/clerk/admission/dashboard');
+          window.location.assign('/clerk/admission/dashboard');
         }
       } else {
         toast.error(data.message || 'Clerk login failed', { id: toastId });
@@ -290,7 +290,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        router.replace('/admin/dashboard');
+        window.location.assign('/admin/dashboard');
       } else {
         toast.error(data.message || 'Admin login failed', { id: toastId });
         setAdminError(data.message || 'Admin login failed');

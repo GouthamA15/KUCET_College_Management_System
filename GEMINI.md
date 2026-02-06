@@ -1283,6 +1283,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Customized APIs**: APIs have been customized for various functionalities.
 
 *   **Bug Fixes:**
+    *   **Login Redirection Fix:** Fixed a bug where login redirection would fail in some production-like deployment environments (e.g., Render). The issue was resolved by replacing the Next.js `router.replace()` with `window.location.assign()` in the `LoginPanel.js` component for all user roles (student, clerk, admin). This forces a full page reload after login, ensuring a consistent and reliable redirection.
     *   **Login Issues**: Fixed `TypeError` in admin login (`src/app/api/admin/login/route.js`) and `Navbar.js` (`TypeError: setActiveTab is not a function`). Deactivated clerk accounts are now prevented from logging in. Empty results in admin login are also handled.
     *   **Admin Panel Role Switching**: Fixed a bug where `DELETE` and `PUT` methods were swapped in the admin panel.
     *   **Email Update OTP Verification**: Resolved issues with the email update OTP verification flow (`src/app/api/student/verify-update-email-otp/route.js`).
