@@ -275,74 +275,127 @@ export default function BonafideRequestPage() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md mt-6">
-          <h2 className="text-2xl font-semibold text-gray-700 mb-4">Request History</h2>
-
-          {/* Table wrapper: standalone, fixed layout, no horizontal scroll */}
-          <div className="w-full overflow-hidden">
-            <div className="w-full max-w-full p-2 border border-gray-100 rounded bg-white">
-              <table className="w-full divide-y divide-gray-200 table-fixed" style={{ tableLayout: 'fixed' }}>
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Academic Year</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '10rem' }}>Action</th>
-                  </tr>
-                </thead>
-
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {requests.length > 0 ? requests.map(req => (
-                    <tr key={req.request_id}>
-                      <td className="px-4 py-3 whitespace-normal wrap-break-word text-sm text-gray-800">{formatDate(req.created_at || req.createdAt || req.request_date)}</td>
-                      <td className="px-4 py-3 whitespace-normal wrap-break-word text-sm text-gray-800">{req.academic_year || '-'}</td>
-                      <td className="px-4 py-3 whitespace-normal wrap-break-word text-sm">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${req.status === 'APPROVED' ? 'bg-green-100 text-green-800' : req.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {req.status}
-                        </span>
-                      </td>
-
-                      {/* Action column: fixed width, centered content, short labels only */}
-                      <td className="px-4 py-3 text-center text-sm" style={{ width: '10rem' }}>
-                        {req.status === 'APPROVED' ? (
-                          <div className="flex items-center justify-center space-x-2 min-w-0">
-                            {downloadingId === req.request_id ? (
-                              <>
-                                <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                                </svg>
-                                <span className="text-sm text-gray-600">Please wait...</span>
-                              </>
-                            ) : (
-                              <>
-                                <button onClick={() => handleDownload(req)} className="text-indigo-600 hover:text-indigo-900 truncate cursor-pointer">Download</button>
-                              </>
-                            )}
-                          </div>
-                        ) : req.status === 'REJECTED' ? (
-                          <div className="flex items-center justify-center">
-                            <button onClick={() => setSelectedRejectedRequest(req)} className="text-indigo-600 hover:text-indigo-900 cursor-pointer">View Details</button>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-500">Processing</div>
-                        )}
-
-                        {downloadErrors[req.request_id] && (
-                          <div className="text-xs text-red-600 mt-1 truncate" style={{ maxWidth: '9rem', margin: '0 auto' }}>{downloadErrors[req.request_id]}</div>
-                        )}
-                      </td>
-                    </tr>
-                  )) : (
+        <div className="lg:col-span-1">
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h2 className="text-2xl font-semibold text-gray-700 mb-4">Request History</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">No requests found.</td>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {requests.length > 0 ? requests.map(req => (
+                      <tr key={req.request_id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{req.certificate_type}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            req.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 
+                            req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {req.status === 'APPROVED' ? (
+                              <div className="flex items-center space-x-2">
+                                {downloadingId === req.request_id ? (
+                                  <>
+                                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                    </svg>
+                                    <span className="text-sm text-gray-600">Generating certificate...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={async (e) => {
+                                        e.preventDefault();
+                                        // prevent duplicate clicks
+                                        if (downloadingId) return;
+                                        setDownloadErrors(prev => ({ ...prev, [req.request_id]: null }));
+                                        setDownloadingId(req.request_id);
+                                        try {
+                                          const res = await fetch(`/api/student/requests/download/${req.request_id}`, {
+                                            method: 'GET',
+                                            credentials: 'same-origin',
+                                          });
+                                          if (!res.ok) {
+                                            const err = await res.json().catch(() => ({}));
+                                            throw new Error(err.error || 'Failed to generate certificate');
+                                          }
+                                          const blob = await res.blob();
+                                          const url = window.URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = url;
+                                          // Try to get filename from Content-Disposition header (supports filename* and filename)
+                                          const contentDisp = res.headers.get('Content-Disposition') || res.headers.get('content-disposition');
+                                          let filename = `Certificate_${req.roll_number || 'certificate'}.pdf`;
+                                          if (contentDisp) {
+                                            // Prefer filename* (RFC5987) which may be encoded
+                                            const filenameStarMatch = contentDisp.match(/filename\*\s*=\s*([^;]+)/i);
+                                            if (filenameStarMatch) {
+                                              let val = filenameStarMatch[1].trim();
+                                              val = val.replace(/^\"/, '').replace(/\"$/, '');
+                                              const parts = val.split("''");
+                                              if (parts.length === 2) {
+                                                try {
+                                                  filename = decodeURIComponent(parts[1]);
+                                                } catch (e) {
+                                                  filename = parts[1];
+                                                }
+                                              } else {
+                                                try { filename = decodeURIComponent(val); } catch (e) { filename = val; }
+                                              }
+                                            } else {
+                                              const filenameMatch = contentDisp.match(/filename\s*=\s*\"?(.*?)\"?(?:;|$)/i);
+                                              if (filenameMatch) filename = filenameMatch[1];
+                                            }
+                                          }
+                                          a.download = filename || `Certificate_${req.roll_number || 'certificate'}.pdf`;
+                                          // helpful debug when filenames are still wrong
+                                          console.debug('Certificate download filename chosen:', a.download, 'Content-Disposition:', contentDisp);
+                                          document.body.appendChild(a);
+                                          a.click();
+                                          a.remove();
+                                          window.URL.revokeObjectURL(url);
+                                        } catch (error) {
+                                          console.error('Download error', error);
+                                          setDownloadErrors(prev => ({ ...prev, [req.request_id]: 'Failed to generate certificate. Try again.' }));
+                                        } finally {
+                                          setDownloadingId(null);
+                                        }
+                                      }}
+                                      className="text-indigo-600 hover:text-indigo-900 disabled:text-gray-400 cursor-pointer"
+                                    >
+                                      Download
+                                    </button>
+                                    {downloadErrors[req.request_id] && (
+                                      <span className="text-sm text-red-600">{downloadErrors[req.request_id]}</span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            ) : (
+                              '-'
+                            )}
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan="3" className="px-6 py-4 text-center text-sm text-gray-500">No requests found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
+
       </main>
 
       {/* Rejection reason modal (read-only) */}
