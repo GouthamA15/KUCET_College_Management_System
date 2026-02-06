@@ -18,11 +18,13 @@ export async function POST(req) {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expires_at = new Date(Date.now() + 3600 * 1000); // 1 hour from now
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const created_at = new Date();
+    const expires_at = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
     await query(
-      'INSERT INTO password_reset_tokens (token, user_id, user_type, expires_at) VALUES (?, ?, ?, ?)',
-      [token, email, 'admin', expires_at]
+      'INSERT INTO password_reset_tokens (token_hash, user_id, user_type, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)',
+      [tokenHash, email, 'admin', created_at, expires_at]
     );
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
