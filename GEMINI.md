@@ -76,6 +76,10 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 *   **Password Management:**
     *   **Deleted Forgot Password Pages:** The separate frontend pages for initiating forgot password requests for admin, clerk, and student roles have been removed (commit `26119a1`). The forgot password *APIs* and the reset password page still exist for functionality, but the specific entry point pages are gone.**
+    *   **Fix `TypeError: dateString.split is not a function`**: The `parseDate` function in `src/lib/date.js` was updated to correctly handle JavaScript `Date` objects and Excel serial numbers, preventing runtime errors during date parsing.
+    *   **Resolved `Unknown column 'token_hash'` Error**: A SQL patch (`college_db_patch_v12.sql`) was created and applied to add `token_hash` (VARCHAR(255) NOT NULL UNIQUE) and `used_at` (DATETIME NULL) columns to the `password_reset_tokens` table.
+    *   **Robust Password Reset API**: The `src/app/api/auth/reset-password/[token]/route.js` API was significantly improved to enhance security and robustness. It now hashes tokens using `crypto`, queries the database by `token_hash`, checks the `used_at` field to prevent token reuse, marks tokens as used after a successful reset using database transactions, and returns more semantic HTTP status codes (e.g., `400` for invalid, `409` for used, `410` for expired).
+    *   **Fix `ReferenceError: normalizeHeader is not defined`**: The `normalizeHeader` utility function was correctly re-inserted into the global scope of `src/components/BulkImportStudents.js`, resolving a runtime error.
     *   **Forgot/Reset Password:**
         *   New API routes for handling forgot password requests for admin, clerk, and student roles (`src/app/api/auth/forgot-password/...`).
         *   New API route for resetting the password using a token (`src/app/api/auth/reset-password/[token]/route.js`).
@@ -87,10 +91,20 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
         *   New API routes for handling password changes for admin, clerk, and student roles (`src/app/api/auth/change-password/...`).
         *   A new `ChangePasswordModal.js` component to provide the UI for changing the password.
         *   The `AdminNavbar.js` and `Navbar.js` components have been updated to include a "Change Password" button that triggers the new modal.
+*   **Bulk Import Feature Enhancements:**
+    *   **Editable Client-side Preview**: The bulk student import preview table (`src/components/BulkImportStudents.js`) is now editable, allowing clerks to directly modify parsed Excel data in the table before final submission. This includes real-time validation feedback.
+    *   **Backend API Update for Edited Data**: The `src/app/api/clerk/admission/bulk-import/route.js` API now accepts both `FormData` (for original file uploads) and JSON payloads (for client-side edited data), enabling the import of corrected student information.
+    *   **Enhanced Alias Recognition**: Added support for new column header aliases (e.g., "Hall Ticket No", "Category/cast", "Mobile No.") in both client-side `REQUIRED_HEADERS_MAP` and server-side `ALIASES` for fields like 'Roll Number' (`HALL TICKET NO`), 'Category' (`CATEGORY/cast`), and 'Mobile' (`Mobile No./Phone number /mobile number /student number/number`).
+    *   **Mobile Number Validation Adjustment**: The client-side validation in `src/components/BulkImportStudents.js` now issues a warning for empty mobile number fields instead of a critical error.
+    *   **Category Validation Normalization**: Category input strings are now normalized by removing spaces around hyphens (e.g., "OC - EWS" becomes "OC-EWS") in both client-side and server-side validation, ensuring correct recognition.
+    *   **Fixed Table Scrolling**: Adjusted the styling of the bulk import preview table by removing `min-w-full` to ensure proper horizontal scrolling and full data visibility.
+    *   **Fixed `category` Redeclaration Error**: Resolved a syntax error in `src/app/api/clerk/admission/bulk-import/route.js` where the `category` variable was declared multiple times.
+
 *   **Database Schema Updates:**
     *   `college_db_patch_v9.sql`: Adds the `password_reset_tokens` table.
     *   `college_db_patch_v10.sql`: Adds a unique constraint to the `email` column in the `students` table to ensure email uniqueness across all students.
     *   `college_db_patch_v11.sql`: Adds a `gender` column (VARCHAR(10) NULL) to the `students` table.
+    *   `college_db_patch_v12.sql`: Adds `token_hash` (VARCHAR(255) NOT NULL UNIQUE) and `used_at` (DATETIME NULL) columns to the `password_reset_tokens` table.
 *   **Environment Variables:**
     *   The `.env.example` file has been updated with `EMAIL_USER`, `EMAIL_PASS`, and `NEXT_PUBLIC_BASE_URL` for email and base URL configuration.
 *   **Faculty Role:**
