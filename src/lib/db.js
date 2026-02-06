@@ -32,6 +32,7 @@ function getPool() {
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
+      port: process.env.DB_PORT, // Add this line
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
