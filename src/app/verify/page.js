@@ -1,0 +1,124 @@
+'use client';
+import Header from '@/app/components/Header/Header';
+import Footer from '@/components/Footer';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+
+function VerifyContent() {
+  const searchParams = useSearchParams();
+  const certId = searchParams.get('id');
+  const rollNo = searchParams.get('roll');
+  
+  const [status, setStatus] = useState('loading');
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    // 1. If parameters are missing, don't even try the API
+    if (!certId || !rollNo) {
+      setStatus('invalid');
+      return;
+    }
+
+    // 2. Call the API
+    fetch('/api/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ certId, rollNo }),
+    })
+    .then(res => res.json())
+    .then(result => {
+      if (result.valid) {
+        setData(result.details);
+        setStatus('success');
+      } else {
+        setStatus('failed');
+      }
+    })
+    .catch(() => setStatus('error'));
+  }, [certId, rollNo]);
+
+  return (
+   <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
+         <Header />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-5">
+    
+      <div className="bg-white shadow-2xl rounded-2xl max-w-md w-full overflow-hidden border border-slate-200">
+        
+        {/* Header Section */}
+        <div className="bg-blue-900 p-6 text-center">
+          <h1 className="text-white text-2xl font-bold tracking-tight">KUCET</h1>
+          <p className="text-blue-200 text-xs uppercase tracking-widest mt-1">Document Verification</p>
+        </div>
+
+        <div className="p-8">
+          {status === 'loading' && (
+            <div className="flex flex-col items-center py-10">
+              <div className="w-12 h-12 border-4 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-4 text-slate-600 font-medium">Verifying Document...</p>
+            </div>
+          )}
+
+          {status === 'success' && data && (
+            <div className="animate-in fade-in duration-700">
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-center gap-3">
+                <span className="text-green-600 text-2xl">✓</span>
+                <span className="text-green-800 font-bold uppercase">Verified Record</span>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex flex-col border-b border-slate-200 pb-2">
+                  <span className="text-xs text-slate-500 uppercase font-semibold">Student Name</span>
+                  <span className="text-slate-900 font-medium text-lg">{data.name}</span>
+                </div>
+                <div className="flex flex-col border-b border-slate-200 pb-2">
+                  <span className="text-xs text-slate-500 uppercase font-semibold">Hall Ticket Number</span>
+                  <span className="text-slate-900 font-medium text-lg">{data.roll_no}</span>
+                </div>
+                <div className="flex flex-col border-b border-slate-200 pb-2">
+                  <span className="text-xs text-slate-500 uppercase font-semibold">Certificate ID</span>
+                  <span className="text-slate-900 font-medium text-lg">{data.cert_id}</span>
+                </div>
+                <div className="flex flex-col border-b border-slate-200 pb-2">
+                  <span className="text-xs text-slate-500 uppercase font-semibold">Issue Date</span>
+                  <span className="text-slate-900 font-medium text-lg">{data.issue_date}</span>
+                </div>
+              </div>
+
+              <p className="mt-8 text-5px] text-slate-600 text-center leading-relaxed">
+                This verification result is retrieved directly from our database.
+              </p>
+            </div>
+          )}
+
+          {(status === 'failed' || status === 'invalid' || status === 'error') && (
+            <div className="text-center py-6 animate-in zoom-in duration-300">
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold">!</div>
+              <h2 className="text-xl font-bold text-slate-800">Invalid Certificate</h2>
+              <p className="text-slate-500 mt-2 text-sm">
+                The certificate details provided do not match our records. 
+                Please ensure you have scanned a genuine QR code.
+              </p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+    <Footer/>
+    </div>
+  );
+}
+
+// Wrapper with Suspense
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={null}>
+      <VerifyContent />
+    </Suspense>
+  );
+}
