@@ -182,9 +182,11 @@ export async function GET(request, { params }) {
         }
 
         // Ensure logo uses absolute URL so Puppeteer can load it when rendering server-side
-        htmlContent = htmlContent.replace(/src=["']Picture1.png["']/g, `src="${baseUrl}/assets/ku-logo.png"`);
-        htmlContent = htmlContent.replace(/src=["']ku-college-seal.png["']/g, `src="${baseUrl}/assets/ku-college-seal.png"`);
-        htmlContent = htmlContent.replace(/src=["']principal-sign.png["']/g, `src="${baseUrl}/assets/principal-sign.png"`);
+        // Normalize common src patterns (with or without a leading /public prefix or direct file reference)
+        htmlContent = htmlContent.replace(/src=["'](?:\/?public\/)?\/?assets\/Picture1\.png["']|src=["']Picture1\.png["']/g, `src="${baseUrl}/assets/ku-logo.png"`);
+        htmlContent = htmlContent.replace(/src=["'](?:\/?public\/)?\/?assets\/ku-college-seal\.png["']|src=["']ku-college-seal\.png["']/g, `src="${baseUrl}/assets/ku-college-seal.png"`);
+        htmlContent = htmlContent.replace(/src=["'](?:\/?public\/)?\/?assets\/principal-sign\.png["']|src=["']principal-sign\.png["']/g, `src="${baseUrl}/assets/principal-sign.png"`);
+        htmlContent = htmlContent.replace(/src=["'](?:\/?public\/)?\/?assets\/ku-logo\.png["']|src=["']ku-logo\.png["']/g, `src="${baseUrl}/assets/ku-logo.png"`);
         // 4. Generate PDF using shared helper which uses bundled puppeteer
         const pdfBuf = await htmlToPdfBuffer(htmlContent);
 
