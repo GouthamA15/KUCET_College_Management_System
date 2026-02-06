@@ -39,7 +39,14 @@ export default function ResetPassword() {
         const data = await res.json().catch(() => ({}));
 
         // Expect backend to return explicit status: VALID | EXPIRED | USED | INVALID
-        const status = data.status || (res.ok ? 'VALID' : 'INVALID');
+        let status = data.status;
+        if (!status) {
+          if (res.status === 200) status = 'VALID';
+          else if (res.status === 410) status = 'EXPIRED';
+          else if (res.status === 409) status = 'USED';
+          else status = 'INVALID';
+        }
+
         if (!cancelled) {
           setTokenStatus(status);
           setTokenMessage(data.message || '');
