@@ -1,8 +1,11 @@
 'use client';
 import Header from '@/app/components/Header/Header';
 import Footer from '@/components/Footer';
+import Navbar from '@/app/components/Navbar/Navbar';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
+
+import { useRouter } from 'next/navigation';
 
 function VerifyContent() {
   const searchParams = useSearchParams();
@@ -40,14 +43,23 @@ function VerifyContent() {
   return (
    <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
          <Header />
+         <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-13">
+            <div className="flex-shrink-0">
+              <span className="text-white text-lg font-bold tracking-wide">VERIFICATION PORTAL</span>
+            </div>
+            </div>
+            </div>
+            </nav>
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-5">
+      
     
       <div className="bg-white shadow-2xl rounded-2xl max-w-md w-full overflow-hidden border border-slate-200">
         
         {/* Header Section */}
         <div className="bg-blue-900 p-6 text-center">
-          <h1 className="text-white text-2xl font-bold tracking-tight">KUCET</h1>
-          <p className="text-blue-200 text-xs uppercase tracking-widest mt-1">Document Verification</p>
+          <p className="text-white text-xl font-semibold tracking-tight">Document Verification</p>
         </div>
 
         <div className="p-8">
