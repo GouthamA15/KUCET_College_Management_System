@@ -98,7 +98,13 @@ function getCurrentStudyingYear(rollNo) {
   // Effective academic base year: if before June, academic year belongs to previous calendar year
   const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
 
-  const academicYearIndex = effectiveYear - entryYearInt + 1;
+  let academicYearIndex = effectiveYear - entryYearInt + 1;
+
+  // For lateral entry students, their first year in college is the second year of the B.Tech program.
+  if (admissionType && admissionType.toLowerCase() === 'lateral') {
+    academicYearIndex += 1;
+  }
+
 
   const maxYears = (admissionType && admissionType.toLowerCase() === 'lateral') ? 3 : 4;
   if (!Number.isInteger(academicYearIndex) || academicYearIndex < 1 || academicYearIndex > maxYears) return null;
