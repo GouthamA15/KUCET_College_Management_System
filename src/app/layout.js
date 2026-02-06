@@ -2,7 +2,7 @@ import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
-  title: "KUCET - Login Portal",
+  title: "Login | KUCET",
   description: "KU College of Engineering and Technology - A premier engineering institution affiliated with Kakatiya University, Warangal",
 };
 

@@ -31,7 +31,7 @@ export async function POST(request) {
 
         const certData = results[0];
 
-        // 3. LOG THE VERIFICATION (This is where your table was failing)
+        // 3. LOG THE VERIFICATION 
         const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
         const userAgent = request.headers.get('user-agent') || 'Unknown Device';
 

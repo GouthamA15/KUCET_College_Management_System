@@ -4,7 +4,6 @@ import Footer from '@/components/Footer';
 import Navbar from '@/app/components/Navbar/Navbar';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
-
 import { useRouter } from 'next/navigation';
 
 function VerifyContent() {
@@ -129,6 +128,7 @@ function VerifyContent() {
 // Wrapper with Suspense
 export default function VerifyPage() {
   return (
+    
     <Suspense fallback={null}>
       <VerifyContent />
     </Suspense>

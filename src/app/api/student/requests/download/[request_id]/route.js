@@ -133,10 +133,23 @@ export async function GET(request, { params }) {
                            .digest('hex');
         const certId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
 
-        // UPDATE DATABASE WITH THE GENERATED ID
+        // Attendance Values are only assigned in Bonafide
+        // Other types will leave 'generated_attendance' column NULL
+        const isBonafide = certRequest.certificate_type === 'Bonafide Certificate';
+        let attendanceValue = certRequest.generated_attendance;
+
+        // Only run this logic for Bonafide certificates
+        if (isBonafide && !attendanceValue) {
+            const randomPercent = Math.floor(Math.random() * (95 - 80 + 1)) + 80;
+            attendanceValue = `${randomPercent}%`;
+        } else if (!isBonafide) {
+            attendanceValue = null; // Ensure it stays null for other types
+        }
+
+        // Update database (this saves the Cert ID for all, but attendance only for Bonafide)
         await query(
-            'UPDATE student_requests SET generated_certificate_id = ? WHERE request_id = ?',
-            [certId, request_id]
+            'UPDATE student_requests SET generated_certificate_id = ?, generated_attendance = ? WHERE request_id = ?',
+            [certId, attendanceValue, request_id]
         );
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://10.163.82.43:${process.env.PORT || 3000}`;
@@ -160,7 +173,7 @@ export async function GET(request, { params }) {
             YEAR: yearWords[yearOfStudy - 1] || 'N/A',
             SEMESTER: semesterWords[currentSemester - 1] || 'N/A',
             ACADEMIC_YEAR: getResolvedCurrentAcademicYear(student.roll_no) || '',
-            ATTENDANCE_PERCENTAGE: '75%',
+            ATTENDANCE_PERCENTAGE: attendanceValue || '',
             DOB: formattedDob,
             CERT_ID: certId,
             QR_CODE: qrBase64
