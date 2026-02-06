@@ -6,13 +6,13 @@ import { parseDate } from '@/lib/date';
 
 // --- Constants for Client-Side Validation ---
 const REQUIRED_HEADERS_MAP = {
-  roll_no: { display: 'Roll Number', aliases: ['Roll No', 'RollNumber', 'Registration No', 'Admission No'] },
-  candidate_name: { display: 'Candidate Name', aliases: ['Student Name', 'Name', 'CandidateName'] },
+  roll_no: { display: 'Roll Number', aliases: ['Roll No', 'RollNumber', 'Registration No', 'Admission No', 'Hall Ticket No'] },
+  name: { display: 'Candidate Name', aliases: ['Student Name', 'CandidateName'] },
   gender: { display: 'Gender', aliases: [] },
   date_of_birth: { display: 'Date of Birth', aliases: ['DOB', 'DateOfBirth'] },
   father_name: { display: 'Father Name', aliases: ['FatherName'] },
-  category: { display: 'Category', aliases: [] },
-  mobile: { display: 'Mobile', aliases: ['Mobile Number', 'Phone', 'Phone Number'] },
+  category: { display: 'Category', aliases: ['Cast'] },
+  mobile: { display: 'Mobile', aliases: ['Mobile Number', 'Phone', 'Phone Number', 'Mobile No', 'Phone number', 'mobile number', 'student number', 'number'] },
   aadhaar_no: { display: 'Aadhaar No', aliases: ['Aadhaar Number', 'Aadhaar'] },
   address: { display: 'Address', aliases: ['Permanent Address', 'Full Address'] },
 };
@@ -32,122 +32,79 @@ const normalizeHeader = (header) => {
   return header.toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
 };
 
-const parseAndValidateExcelFile = async (file) => {
-  const rows = await readXlsxFile(file); // Removed dateFormat to handle dates as Date objects or strings
-  if (rows.length < 2) {
-    return { error: "File is empty or contains only a header." };
-  }
-
-  const rawHeaders = rows[0];
-  const normalizedHeaders = rawHeaders.map(normalizeHeader);
-  const dataRows = rows.slice(1);
-
+const validateRow = (rowData, excelRowNumber) => {
+  const rowErrors = {};
+  const rowWarnings = {};
   const validationErrors = [];
-  const previewData = [];
 
-  const normalizeDate_client = (value) => {
-    if (!value) return null;
-    if (value instanceof Date) {
-      if (!isNaN(value.getTime())) {
-        return value; // It's a valid JS Date
-      }
-    }
-    if (typeof value === 'string') {
-      return parseDate(value); // Use the lib function
-    }
-    return null;
-  };
-
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
-    const rowData = {};
-    const rowErrors = {};
-    const rowWarnings = {};
-
-    for (let j = 0; j < normalizedHeaders.length; j++) {
-      const header = normalizedHeaders[j];
-      rowData[header] = row[j];
-    }
-    
-    // --- Perform Validation ---
-    // Row number for error reporting (Excel row is 1-indexed for headers, then data starts at 2)
-    const excelRowNumber = i + 2;
-
-    // 1. Roll Number (already implemented)
-    const rollNo = String(rowData['roll_no'] || '').trim();
-    if (!rollNo || !ROLL_NO_REGEX.test(rollNo)) {
-      rowErrors['roll_no'] = 'Invalid Roll Number format.';
-      validationErrors.push({ row: excelRowNumber, field: 'Roll Number', message: `Invalid Roll Number format: ${rollNo}` });
-    }
-
-    // 2. Candidate Name
-    const candidateName = String(rowData['candidate_name'] || '').trim();
-    if (!candidateName) {
-      rowErrors['candidate_name'] = 'Candidate Name is required.';
-      validationErrors.push({ row: excelRowNumber, field: 'Candidate Name', message: 'Candidate Name is required.' });
-    }
-
-    // 3. Gender
-    let gender = String(rowData['gender'] || '').trim();
-    // Normalize gender input for validation
-    if (gender) {
-      if (gender.toLowerCase() === 'm') gender = 'Male';
-      if (gender.toLowerCase() === 'f') gender = 'Female';
-    }
-    rowData['gender'] = gender; // Update rowData with normalized gender
-    if (!gender || !GENDERS.includes(gender)) {
-      rowErrors['gender'] = `Invalid Gender. Must be one of ${GENDERS.join(', ')}.`;
-      validationErrors.push({ row: excelRowNumber, field: 'Gender', message: `Invalid Gender: ${gender}` });
-    }
-
-    // 4. Date of Birth
-    const dobValue = rowData['date_of_birth'];
-    if (!dobValue || !normalizeDate_client(dobValue)) {
-      rowErrors['date_of_birth'] = 'Invalid Date of Birth format. Expected DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, or MM/DD/YYYY.';
-      validationErrors.push({ row: excelRowNumber, field: 'Date of Birth', message: `Invalid Date of Birth: ${dobValue}. Expected formats: DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, MM/DD/YYYY.` });
-    }
-
-
-
-    // 5. Father Name
-    const fatherName = String(rowData['father_name'] || '').trim();
-    if (!fatherName) {
-      rowErrors['father_name'] = 'Father Name is required.';
-      validationErrors.push({ row: excelRowNumber, field: 'Father Name', message: 'Father Name is required.' });
-    }
-
-    // 6. Category
-    const category = String(rowData['category'] || '').trim();
-    if (!category || !CATEGORIES.includes(category)) {
-      rowErrors['category'] = `Invalid Category. Must be one of ${CATEGORIES.join(', ')}.`;
-      validationErrors.push({ row: excelRowNumber, field: 'Category', message: `Invalid Category: ${category}` });
-    }
-
-    // 7. Mobile Number
-    const mobile = String(rowData['mobile'] || '').trim();
-    if (mobile && !MOBILE_REGEX.test(mobile)) {
-      rowErrors['mobile'] = 'Invalid Mobile Number format (10 digits or +91 followed by 10 digits).';
-      validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: `Invalid Mobile: ${mobile}` });
-    }
-
-    // 8. Address (Warning for empty)
-    const address = String(rowData['address'] || '').trim();
-    if (!address) {
-      rowWarnings['address'] = 'Address is empty.';
-      validationErrors.push({ row: excelRowNumber, field: 'Address', message: 'Address is empty.', isWarning: true });
-    }
-
-    previewData.push({ ...rowData, _errors: rowErrors, _warnings: rowWarnings });
+  // 1. Roll Number
+  const rollNo = String(rowData['roll_no'] || '').trim();
+  if (!rollNo || !ROLL_NO_REGEX.test(rollNo)) {
+    rowErrors['roll_no'] = 'Invalid Roll Number format.';
+    validationErrors.push({ row: excelRowNumber, field: 'Roll Number', message: `Invalid Roll Number format: ${rollNo}` });
   }
 
-  return {
-    headers: rawHeaders,
-    data: previewData,
-    errors: validationErrors, // This now contains both errors and warnings
-  };
+  // 2. Candidate Name
+  const candidateName = String(rowData['name'] || '').trim(); // Changed to 'name'
+  if (!candidateName) {
+    rowErrors['name'] = 'Candidate Name is required.'; // Changed key to 'name'
+    validationErrors.push({ row: excelRowNumber, field: 'Candidate Name', message: 'Candidate Name is required.' });
+  }
+
+  // 3. Gender
+  let gender = String(rowData['gender'] || '').trim();
+  if (gender) {
+    if (gender.toLowerCase() === 'm') gender = 'Male';
+    if (gender.toLowerCase() === 'f') gender = 'Female';
+  }
+  if (!gender || !GENDERS.includes(gender)) {
+    rowErrors['gender'] = `Invalid Gender. Must be one of ${GENDERS.join(', ')}.`;
+    validationErrors.push({ row: excelRowNumber, field: 'Gender', message: `Invalid Gender: ${gender}` });
+  }
+
+  // 4. Date of Birth
+  const dobValue = rowData['date_of_birth'];
+  if (!dobValue || !parseDate(dobValue)) {
+    rowErrors['date_of_birth'] = 'Invalid Date of Birth format. Expected DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, or MM/DD/YYYY.';
+    validationErrors.push({ row: excelRowNumber, field: 'Date of Birth', message: `Invalid Date of Birth: ${dobValue}. Expected formats: DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, MM/DD/YYYY.` });
+  }
+
+  // 5. Father Name
+  const fatherName = String(rowData['father_name'] || '').trim();
+  if (!fatherName) {
+    rowErrors['father_name'] = 'Father Name is required.';
+    validationErrors.push({ row: excelRowNumber, field: 'Father Name', message: 'Father Name is required.' });
+  }
+
+  // 6. Category
+  const category = String(rowData['category'] || '').trim().replace(/\s*-\s*/g, '-');
+  if (!category || !CATEGORIES.includes(category)) {
+    rowErrors['category'] = `Invalid Category. Must be one of ${CATEGORIES.join(', ')}.`;
+    validationErrors.push({ row: excelRowNumber, field: 'Category', message: `Invalid Category: ${category}` });
+  }
+
+  // 7. Mobile Number
+  const mobile = String(rowData['mobile'] || '').trim();
+  if (!mobile) { // Empty mobile number is a warning
+    rowWarnings['mobile'] = 'Mobile Number is empty.';
+    validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: 'Mobile Number is empty.', isWarning: true });
+  } else if (!MOBILE_REGEX.test(mobile)) { // Invalid format is an error
+    rowErrors['mobile'] = 'Invalid Mobile Number format (10 digits or +91 followed by 10 digits).';
+    validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: `Invalid Mobile: ${mobile}` });
+  }
+
+  // 8. Address (Warning for empty)
+  const address = String(rowData['address'] || '').trim();
+  if (!address) {
+    rowWarnings['address'] = 'Address is empty.';
+    validationErrors.push({ row: excelRowNumber, field: 'Address', message: 'Address is empty.', isWarning: true });
+  }
+
+  return { rowErrors, rowWarnings, validationErrors };
 };
 
 
+// --- Main Component ---
 export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -168,65 +125,28 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [clientValidationErrors, setClientValidationErrors] = useState([]); // [{ row: 1, message: '...' }]
   const [hasClientValidationErrors, setHasClientValidationErrors] = useState(false); // Only for critical errors
   const [isClientValidated, setIsClientValidated] = useState(false);
+  const [isDataEdited, setIsDataEdited] = useState(false);
 
+  const handleCellEdit = (rowIndex, cellKey, value) => {
+    const updatedPreviewData = [...previewData];
+    updatedPreviewData[rowIndex][cellKey] = value;
+    
+    const excelRowNumber = rowIndex + 2;
+    const { rowErrors, rowWarnings, validationErrors } = validateRow(updatedPreviewData[rowIndex], excelRowNumber);
+    
+    updatedPreviewData[rowIndex]._errors = rowErrors;
+    updatedPreviewData[rowIndex]._warnings = rowWarnings;
 
-  const handleFileChange = async (e) => {
-    const selectedFile = e.target.files[0];
-    // Reset all states
-    try { toast.dismiss(); } catch {}
-    setFile(null);
-    setIsLoading(false);
-    setShowSummary(false);
-    setSummaryData(null);
-    setErrorDetails([]);
-    setImportStage('idle');
-    setHeaderError(null);
-    // Reset client-side preview states
-    setPreviewData(null);
-    setPreviewHeaders([]);
-    setClientValidationErrors([]);
-    setHasClientValidationErrors(false);
-    setIsClientValidated(false);
-
-    if (selectedFile) {
-      const validTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-      ];
-      if (!validTypes.includes(selectedFile.type)) {
-        toast.error("Invalid file type. Please upload an Excel file (.xlsx or .xls).");
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        return;
-      }
-      setFile(selectedFile);
-      if (onReset) { try { onReset(); } catch {} }
-
-      // --- Perform client-side parsing and validation ---
-      const validationResult = await parseAndValidateExcelFile(selectedFile);
-
-      if (validationResult.error) {
-        toast.error(validationResult.error);
-        setImportStage('idle');
-      } else {
-        const criticalErrors = validationResult.errors.filter(err => !err.isWarning);
-        const warnings = validationResult.errors.filter(err => err.isWarning);
-
-        setPreviewHeaders(validationResult.headers);
-        setPreviewData(validationResult.data);
-        setClientValidationErrors(validationResult.errors); // Store all (errors + warnings)
-        setHasClientValidationErrors(criticalErrors.length > 0); // Only critical errors for this flag
-        setIsClientValidated(true);
-        setImportStage('client_preview');
-
-        if (criticalErrors.length > 0) {
-          toast(`File has ${criticalErrors.length} critical error(s). Please fix before importing.`, { icon: '❌' });
-        } else if (warnings.length > 0) {
-          toast(`File has ${warnings.length} warning(s). Please review.`, { icon: '⚠️' });
-        } else {
-          toast.success('File ready for import. Review the preview.');
-        }
-      }
-    }
+    setPreviewData(updatedPreviewData);
+    
+    // Update the overall validation errors
+    const otherRowsErrors = clientValidationErrors.filter(err => err.row !== excelRowNumber);
+    const newValidationErrors = [...otherRowsErrors, ...validationErrors];
+    setClientValidationErrors(newValidationErrors);
+    
+    const criticalErrors = newValidationErrors.filter(err => !err.isWarning);
+    setHasClientValidationErrors(criticalErrors.length > 0);
+    setIsDataEdited(true);
   };
 
   const handleDrop = (e) => {
@@ -263,26 +183,108 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setIsDragging(false);
   };
 
+  const handleFileChange = async (e) => {
+    const selectedFile = e.target.files[0];
+    // Reset all states
+    try { toast.dismiss(); } catch {}
+    setFile(null);
+    setIsLoading(false);
+    setShowSummary(false);
+    setSummaryData(null);
+    setErrorDetails([]);
+    setImportStage('idle');
+    setHeaderError(null);
+    // Reset client-side preview states
+    setPreviewData(null);
+    setPreviewHeaders([]);
+    setClientValidationErrors([]);
+    setHasClientValidationErrors(false);
+    setIsClientValidated(false);
+    setIsDataEdited(false);
+
+    if (selectedFile) {
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+      ];
+      if (!validTypes.includes(selectedFile.type)) {
+        toast.error("Invalid file type. Please upload an Excel file (.xlsx or .xls).");
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      setFile(selectedFile);
+      if (onReset) { try { onReset(); } catch {} }
+
+      const rows = await readXlsxFile(selectedFile);
+      if (rows.length < 2) {
+        toast.error("File is empty or contains only a header.");
+        setImportStage('idle');
+        return;
+      }
+
+      const rawHeaders = rows[0];
+      const normalizedHeaders = rawHeaders.map(normalizeHeader);
+      const dataRows = rows.slice(1);
+
+      const allValidationErrors = [];
+      const allPreviewData = [];
+
+      for (let i = 0; i < dataRows.length; i++) {
+        const row = dataRows[i];
+        const rowData = {};
+        for (let j = 0; j < normalizedHeaders.length; j++) {
+          const header = normalizedHeaders[j];
+          rowData[header] = row[j];
+        }
+
+        const excelRowNumber = i + 2;
+        const { rowErrors, rowWarnings, validationErrors } = validateRow(rowData, excelRowNumber);
+        
+        allPreviewData.push({ ...rowData, _errors: rowErrors, _warnings: rowWarnings });
+        allValidationErrors.push(...validationErrors);
+      }
+
+      const criticalErrors = allValidationErrors.filter(err => !err.isWarning);
+      const warnings = allValidationErrors.filter(err => err.isWarning);
+
+      setPreviewHeaders(rawHeaders);
+      setPreviewData(allPreviewData);
+      setClientValidationErrors(allValidationErrors);
+      setHasClientValidationErrors(criticalErrors.length > 0);
+      setIsClientValidated(true);
+      setImportStage('client_preview');
+
+      if (criticalErrors.length > 0) {
+        toast(`File has ${criticalErrors.length} critical error(s). Please fix before importing.`, { icon: '❌' });
+      } else if (warnings.length > 0) {
+        toast(`File has ${warnings.length} warning(s). Please review.`, { icon: '⚠️' });
+      } else {
+        toast.success('File ready for import. Review the preview.');
+      }
+    }
+  };
+
   const handleUpload = async () => {
-    if (!file) {
-      toast.error('Please select a file to upload.');
+    if (!previewData) {
+      toast.error('No data to import.');
+      return;
+    }
+    // Prevent upload if there are critical client-side validation errors
+    if (hasClientValidationErrors) {
+      toast.error('Cannot import due to critical client-side validation errors. Please fix them first.');
       return;
     }
 
     try { toast.dismiss(); } catch {}
     setIsLoading(true);
     setImportStage('importing');
-    setShowSummary(false); // Hide previous summary
-    setSummaryData(null);
-    setErrorDetails([]);
-    setHeaderError(null);
-
-    if (onReset) { try { onReset(); } catch {} }
-    const formData = new FormData();
-    formData.append('file', file);
 
     try {
-      const response = await fetch('/api/clerk/admission/bulk-import', { method: 'POST', body: formData });
+      const response = await fetch('/api/clerk/admission/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ students: previewData, headers: previewHeaders }),
+      });
       const data = await response.json();
 
       if (response.ok) {
@@ -293,86 +295,26 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
         });
         const rowErrors = Array.isArray(data.errors) ? data.errors : [];
         setErrorDetails(rowErrors);
-        const insertedCount = Number(data.inserted || 0);
-        const errorCount = rowErrors.length;
         setShowSummary(true);
-        if (insertedCount > 0 && errorCount === 0) {
+        if (data.inserted > 0 && rowErrors.length === 0) {
           setImportStage('success');
           toast.success('Students imported successfully');
-        } else if (insertedCount === 0 && errorCount > 0) {
-          setImportStage('row_preview');
-          toast('Import failed. Please review the errors below.', { icon: '⚠' });
         } else {
-          // Partial success (some rows failed)
           setImportStage('row_preview');
-          toast('Some rows failed. Review details below.', { icon: '⚠' });
+          toast('Import complete. Please review the results.', { icon: '⚠' });
         }
-
-        setFile(null); // Clear file input after successful import attempt
-        if (fileInputRef.current) fileInputRef.current.value = '';
-
         if (onImportSuccess) {
-          try {
-            onImportSuccess({
-              summary: { totalRows: data.totalRows, inserted: data.inserted, skipped: data.skipped },
-              errors: data.errors,
-              successCount: data.inserted,
-              errorCount: data.errors.length,
-            });
-          } catch (e) {
-            console.error("Error in onImportSuccess callback", e);
-          }
+          onImportSuccess(data);
         }
       } else {
-        // Distinguish HEADER_ERRORS from other API errors
-        if (data && data.type === 'HEADER_ERRORS') {
-          setHeaderError({
-            missing: Array.isArray(data.missingRequired) ? data.missingRequired : [],
-            missingDisplay: Array.isArray(data.missingDisplayNames) ? data.missingDisplayNames : [],
-            aliasHints: data.aliasHints || {},
-            detectedHeaders: Array.isArray(data.detectedHeaders) ? data.detectedHeaders : [],
-          });
-          setImportStage('header_error');
-          setShowSummary(false);
-          setSummaryData(null);
-          setErrorDetails([]);
-          toast('Import blocked. Please fix the highlighted issues below.', { icon: '⚠' });
-          // Notify consumer without misleading counts
-          if (onImportSuccess) {
-            try {
-              onImportSuccess({ headerError: true, missingRequired: data.missingRequired, detectedHeaders: data.detectedHeaders });
-            } catch (e) {
-              console.error('Error in onImportSuccess callback (header error)', e);
-            }
-          }
-        } else {
-          // Generic API error
-          const errorMessage = data.error || 'Import failed due to a server issue. Please try again.';
-          toast.error(errorMessage);
-          setImportStage('idle');
-          setShowSummary(false);
-          setSummaryData(null);
-          setErrorDetails([]);
-          if (onImportSuccess) {
-            try {
-              onImportSuccess({ systemError: true, message: errorMessage });
-            } catch (e) {
-              console.error('Error in onImportSuccess callback (API error)', e);
-            }
-          }
-        }
+        const errorMessage = data.error || 'Import failed due to a server issue.';
+        toast.error(errorMessage);
+        setImportStage('client_preview'); // Revert to preview stage on error
       }
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Import failed due to a network or server error.');
-      setShowSummary(false); // Hide summary if network error
-      setSummaryData(null);
-      setErrorDetails([]);
-      if (onImportSuccess) {
-        try { onImportSuccess({ systemError: true, message: 'A network or server error occurred.' }); } catch (e) {
-            console.error("Error in onImportSuccess callback (network error)", e);
-        }
-      }
+      setImportStage('client_preview');
     } finally {
       setIsLoading(false);
     }
@@ -451,7 +393,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
                 </div>
             )}
             <div className="overflow-x-auto max-h-[50vh]">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="divide-y divide-gray-200">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Row</th>
@@ -489,11 +431,18 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
                           return (
                             <td 
                               key={colIndex} 
-                              className={`px-4 py-2 whitespace-nowrap text-sm text-gray-700 
-                                ${hasError ? 'bg-red-100 border border-red-300' : hasWarning ? 'bg-yellow-100 border border-yellow-300' : ''}`}
-                              title={hasError ? cellError : hasWarning ? cellWarning : ''}
+                              className={`px-1 py-1 whitespace-nowrap text-sm text-gray-700 
+                                ${hasError ? 'bg-red-100' : hasWarning ? 'bg-yellow-100' : ''}`}
                             >
-                              {String(row[cellKey] ?? '')}
+                              <input
+                                type="text"
+                                value={String(row[cellKey] ?? '')}
+                                onChange={(e) => handleCellEdit(rowIndex, cellKey, e.target.value)}
+                                className={`w-full h-full bg-transparent border-none p-2 focus:ring-1 focus:ring-blue-500 rounded-sm ${
+                                  hasError ? 'border-red-300' : hasWarning ? 'border-yellow-300' : ''
+                                }`}
+                                title={hasError ? cellError : hasWarning ? cellWarning : ''}
+                              />
                             </td>
                           );
                         })}

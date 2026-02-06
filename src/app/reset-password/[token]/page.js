@@ -35,7 +35,7 @@ export default function ResetPassword() {
 
       setTokenStatus('loading');
       try {
-        const res = await fetch(`/api/auth/reset-password/validate?token=${encodeURIComponent(token)}`);
+        const res = await fetch(`/api/auth/reset-password/${encodeURIComponent(token)}`);
         const data = await res.json().catch(() => ({}));
 
         // Expect backend to return explicit status: VALID | EXPIRED | USED | INVALID

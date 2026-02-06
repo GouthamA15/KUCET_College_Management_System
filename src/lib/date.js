@@ -48,7 +48,26 @@ export function toMySQLDate(dateString) {
 }
 
 export function parseDate(str) {
-  if (!str) return null;
+  if (!str && str !== 0) return null; // Handle null, undefined, empty string, but allow 0 for Excel dates
+
+  // If it's already a Date object, return it
+  if (str instanceof Date && !isNaN(str.getTime())) {
+    return str;
+  }
+
+  // If it's a number, it might be an Excel serial date
+  if (typeof str === 'number') {
+    // Excel serial date to JS Date object conversion (assuming Windows Excel base date 1900-01-01)
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Dec 30, 1899, 00:00:00 UTC
+    const ms = str * 24 * 60 * 60 * 1000;
+    const date = new Date(excelEpoch.getTime() + ms);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+  }
+  
+  // Ensure it's a string before attempting split
+  const dateString = String(str);
   
   // Helper to parse date parts with a given separator and order
   const tryParse = (dateString, separator, order) => {
@@ -84,15 +103,15 @@ export function parseDate(str) {
   };
 
   // Try DD-MM-YYYY or DD/MM/YYYY
-  let date = tryParse(str, '-', 'DMY') || tryParse(str, '/', 'DMY');
+  let date = tryParse(dateString, '-', 'DMY') || tryParse(dateString, '/', 'DMY');
   if (date) return date;
 
   // Try MM-DD-YYYY or MM/DD/YYYY
-  date = tryParse(str, '-', 'MDY') || tryParse(str, '/', 'MDY');
+  date = tryParse(dateString, '-', 'MDY') || tryParse(dateString, '/', 'MDY');
   if (date) return date;
 
   // Try YYYY-MM-DD (fallback, but could also be parsed by YYYY-MM-DD logic)
-  date = tryParse(str, '-', 'YMD');
+  date = tryParse(dateString, '-', 'YMD');
   if (date) return date;
 
   return null;

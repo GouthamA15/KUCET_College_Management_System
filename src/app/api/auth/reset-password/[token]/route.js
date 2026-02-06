@@ -2,9 +2,43 @@ import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 
+export async function GET(req, { params }) {
+  try {
+    const resolvedParams = await params;
+    const { token } = resolvedParams;
+    console.log('GET /api/auth/reset-password/[token] - Received token:', token);
+
+    if (!token) {
+      console.log('GET /api/auth/reset-password/[token] - Missing token');
+      return NextResponse.json({ status: 'INVALID', error: 'Missing token' }, { status: 200 });
+    }
+
+    const [tokenData] = await query('SELECT * FROM password_reset_tokens WHERE token = ?', [token]);
+    console.log('GET /api/auth/reset-password/[token] - Query result (tokenData):', tokenData);
+
+    if (!tokenData) {
+      console.log('GET /api/auth/reset-password/[token] - Token not found in DB');
+      return NextResponse.json({ status: 'INVALID', error: 'Invalid token' }, { status: 200 });
+    }
+
+    if (new Date(tokenData.expires_at) < new Date()) {
+      console.log('GET /api/auth/reset-password/[token] - Token expired, deleting from DB');
+      await query('DELETE FROM password_reset_tokens WHERE token = ?', [token]);
+      return NextResponse.json({ status: 'EXPIRED', error: 'Token expired' }, { status: 200 });
+    }
+
+    console.log('GET /api/auth/reset-password/[token] - Token is VALID');
+    return NextResponse.json({ status: 'VALID' }, { status: 200 });
+  } catch (error) {
+    console.error('TOKEN VALIDATION ERROR:', error);
+    return NextResponse.json({ status: 'INVALID', error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function POST(req, { params }) {
   try {
-    const { token } = await params;
+    const resolvedParams = await params;
+    const { token } = resolvedParams;
     const { password } = await req.json();
 
     if (!token || !password) {
@@ -43,3 +77,4 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

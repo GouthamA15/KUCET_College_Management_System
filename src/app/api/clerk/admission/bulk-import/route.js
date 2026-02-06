@@ -29,17 +29,17 @@ const VALID_CATEGORIES = new Set(['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 
 const ALIASES = {
   // Students table
   students: {
-    roll_no: ['roll_no', 'rollnumber', 'roll_number', 'registration_no', 'reg_no', 'regnumber'],
+    roll_no: ['roll_no', 'rollnumber', 'roll_number', 'registration_no', 'reg_no', 'regnumber', 'hall_ticket_no'],
     name: ['name', 'candidate_name', 'student_name', 'fullname'],
     gender: ['gender', 'sex'],
     date_of_birth: ['dob', 'date_of_birth', 'birth_date', 'dateofbirth'],
-    mobile: ['mobile', 'phone', 'phone_number', 'mobile_number', 'contact_number'],
+    mobile: ['mobile', 'phone', 'phone_number', 'mobile_number', 'contact_number', 'mobile_no', 'student_number', 'number'],
     email: ['email', 'mail_id', 'email_id'],
   },
   // Student personal details table
   student_personal_details: {
     father_name: ['father_name', 'fathers_name', 'parent_name'],
-    category: ['category', 'caste_category', 'caste'],
+    category: ['category', 'caste_category', 'caste', 'category_cast'],
     address: ['address', 'residential_address'],
     mother_name: ['mother_name', 'mothers_name'],
     nationality: ['nationality'],
@@ -147,34 +147,38 @@ function normalizeDateToMySQL(value) {
 
 export async function POST(req) {
   try {
-    const { searchParams } = new URL(req.url);
-    const isPreview = searchParams.get('preview') === 'true';
+    const contentType = req.headers.get('content-type') || '';
+    let rows;
+    let headers;
 
-    const formData = await req.formData();
-    const file = formData.get('file');
+    if (contentType.includes('application/json')) {
+      const { students, headers: receivedHeaders } = await req.json();
+      headers = receivedHeaders;
+      rows = [headers, ...students.map(student => headers.map(header => student[normalizeHeader(header)]))];
+    } else {
+      const formData = await req.formData();
+      const file = formData.get('file');
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
+      if (!file) {
+        return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
+      }
+
+      const bytes = await file.arrayBuffer();
+      const u8 = new Uint8Array(bytes);
+      const workbook = XLSX.read(u8, { type: 'array', cellDates: true });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+      headers = rows[0];
     }
-
-    const bytes = await file.arrayBuffer();
-    // Use Uint8Array for compatibility across Node and Edge runtimes
-    const u8 = new Uint8Array(bytes);
-
-    const workbook = XLSX.read(u8, { type: 'array', cellDates: true });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
     if (!rows || rows.length < 2) {
-      return NextResponse.json({ error: 'The uploaded Excel file is empty or missing headers.' }, { status: 400 });
+      return NextResponse.json({ error: 'The uploaded data is empty or missing headers.' }, { status: 400 });
     }
-
-    const headers = rows[0];
+    
     const { mapping, missingRequired, normalizedHeaders } = buildHeaderMapping(headers);
 
     if (missingRequired.length > 0) {
-      // Build alias hint map for missing canonical fields
       const aliasHints = {};
       for (const table of Object.keys(ALIASES)) {
         for (const canonical of missingRequired) {
@@ -183,9 +187,7 @@ export async function POST(req) {
           }
         }
       }
-
       const missingDisplayNames = missingRequired.map((f) => ({ field: f, display: REQUIRED_DISPLAY[f] || f }));
-
       return NextResponse.json(
         {
           type: 'HEADER_ERRORS',
@@ -199,7 +201,8 @@ export async function POST(req) {
         { status: 400 }
       );
     }
-
+    
+    // ... (rest of the function remains the same)
     const totalRows = rows.length - 1;
     const errors = [];
     const prepared = []; // array of { student, personal, academic, rowNumber }
@@ -235,7 +238,7 @@ export async function POST(req) {
       const genderCanonical = normalizeGender(student.gender);
       const dobCanonical = normalizeDateToMySQL(student.date_of_birth);
       const fatherName = String(personal.father_name || '').trim();
-      const category = String(personal.category || '').trim();
+      const category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-');
       const address = String(personal.address || '').trim();
 
       if (!roll) {
@@ -289,8 +292,8 @@ export async function POST(req) {
       }
       if (student.mobile) {
         const mob = String(student.mobile).trim();
-        if (mob && !/^\d{10}$/.test(mob)) {
-          errors.push({ row: rowNumber, roll_no: roll, reason: `Invalid mobile number '${mob}'. Must be 10 digits.` });
+        if (mob && !/^(\+91)?\d{10}$/.test(mob)) {
+          errors.push({ row: rowNumber, roll_no: roll, reason: `Invalid mobile number '${mob}'. Must be 10 digits or +91 followed by 10 digits.` });
           continue;
         }
         student.mobile = mob || null;
@@ -302,10 +305,12 @@ export async function POST(req) {
       personal.address = address;
       
       // Category Validation
-      if (!VALID_CATEGORIES.has(category)) {
-        errors.push({ row: rowNumber, roll_no: roll, reason: `Invalid category '${category}'. Valid categories are: ${Array.from(VALID_CATEGORIES).join(', ')}` });
+      personal.category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-');
+      if (!VALID_CATEGORIES.has(personal.category)) {
+        errors.push({ row: rowNumber, roll_no: roll, reason: `Invalid category '${personal.category}'. Valid categories are: ${Array.from(VALID_CATEGORIES).join(', ')}` });
         continue;
       }
+
       personal.category = category;
 
       prepared.push({ student, personal, academic, rowNumber });
@@ -429,16 +434,6 @@ export async function POST(req) {
     } finally {
       if (connection) connection.release();
     }
-
-    const successfulImports = results.filter(r => r.status === 'success').length;
-    const failedImports = results.length - successfulImports;
-
-    return NextResponse.json({ 
-        message: `Import process finished. ${successfulImports} successful, ${failedImports} failed.`,
-        results,
-        info: importMessages
-    }, { status: hasErrors ? 207 : 200 }); // 207 Multi-Status
-
   } catch (error) {
     console.error('BULK IMPORT API ERROR:', error);
     return NextResponse.json({ error: 'An unexpected error occurred while processing the file.' }, { status: 500 });
