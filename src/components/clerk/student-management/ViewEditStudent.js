@@ -19,6 +19,8 @@ const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
 DatePickerInput.displayName = 'DatePickerInput';
 
 export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
+  const MAX_MOBILE_LEN = 10;
+  const MAX_ANNUAL_INCOME = 99999999; // match AddNewStudent
   const [editValues, setEditValues] = useState({});
   const [personalFull, setPersonalFull] = useState({});
   const [academicsList, setAcademicsList] = useState([]);
@@ -31,6 +33,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [isQualifyingExamAutofilled, setIsQualifyingExamAutofilled] = useState(false);
+  const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
 
   useEffect(() => {
     if (fetchedStudent) {
@@ -70,6 +73,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         identification_marks: pd.identification_marks || null
       };
       setPersonalFull(initialPersonal);
+      setAnnualIncomeDisplay(formatIndianNumber(initialPersonal.annual_income || ''));
       setOriginalPersonalFull(JSON.parse(JSON.stringify(initialPersonal)));
 
       const initialAcademics = Array.isArray(fetchedStudent.academics) ? fetchedStudent.academics : [];
@@ -105,6 +109,15 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
     const digits = String(val).replace(/\D/g, '').slice(0, 12);
     if (!digits) return '';
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  };
+
+  const formatIndianNumber = (digits) => {
+    if (!digits) return '';
+    const s = String(digits).replace(/\D/g, '');
+    if (s.length <= 3) return s;
+    const last3 = s.slice(-3);
+    const rest = s.slice(0, -3);
+    return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
   };
 
   const handleSaveEdits = async () => {
@@ -229,7 +242,21 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   <input placeholder="Admission Type" value={editValues.admission_type || ''} disabled className="p-2 border rounded w-full bg-gray-100" />
                   <span title="Admission Type cannot be changed after admission." className="absolute right-2 top-2 text-sm">🔒</span>
                 </div>
-                <input placeholder="Mobile Number" value={editValues.mobile || ''} onChange={e=>setEditValues({...editValues, mobile: sanitizeDigits(e.target.value, 10)})} className="p-2 border rounded" />
+                <div className="flex items-center">
+                  <span className="px-3 py-2 border border-r-0 bg-gray-100">+91</span>
+                  <input
+                    placeholder="Mobile Number"
+                    value={editValues.mobile || ''}
+                    onChange={e=>{
+                      const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, MAX_MOBILE_LEN);
+                      setEditValues({...editValues, mobile: digits});
+                    }}
+                    className="p-2 border rounded w-full"
+                    inputMode="numeric"
+                    maxLength={MAX_MOBILE_LEN}
+                    onPaste={(e) => { const pasted=(e.clipboardData||window.clipboardData).getData('text'); const digits=pasted.replace(/\D/g,'').slice(0, MAX_MOBILE_LEN); setEditValues(prev=>({...prev, mobile: digits})); e.preventDefault(); }}
+                  />
+                </div>
                 <input type="email" placeholder="Email" value={editValues.email || ''} onChange={e=>setEditValues({...editValues, email:e.target.value})} className="p-2 border rounded" />
                 <div className="col-span-1 md:col-span-3 text-sm text-gray-500">Profile Picture is view-only here. Inform Students to Upload their Profile Picture Through Their Student Login.</div>
               </div>
@@ -245,7 +272,25 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 <input placeholder="Mother Tongue" value={personalFull.mother_tongue || ''} onChange={e=>setPersonalFull({...personalFull, mother_tongue:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Place of Birth" value={personalFull.place_of_birth || ''} onChange={e=>setPersonalFull({...personalFull, place_of_birth:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Father Occupation" value={personalFull.father_occupation || ''} onChange={e=>setPersonalFull({...personalFull, father_occupation:e.target.value})} className="p-2 border rounded" />
-                <input placeholder="Annual Income" value={personalFull.annual_income || ''} onChange={e=>setPersonalFull({...personalFull, annual_income:e.target.value})} type="number" className="p-2 border rounded" />
+                <input
+                  placeholder="Annual Income"
+                  value={annualIncomeDisplay}
+                  onChange={(e) => {
+                    const raw = String(e.target.value || '').replace(/\D/g, '').slice(0, String(MAX_ANNUAL_INCOME).length);
+                    const num = raw ? Number(raw) : '';
+                    if (num !== '' && num > MAX_ANNUAL_INCOME) {
+                      setPersonalFull(prev => ({ ...prev, annual_income: String(MAX_ANNUAL_INCOME) }));
+                      setAnnualIncomeDisplay(formatIndianNumber(String(MAX_ANNUAL_INCOME)));
+                    } else {
+                      setPersonalFull(prev => ({ ...prev, annual_income: raw }));
+                      setAnnualIncomeDisplay(formatIndianNumber(raw));
+                    }
+                  }}
+                  type="text"
+                  className="p-2 border rounded"
+                  inputMode="numeric"
+                  onPaste={(e) => { const pasted=(e.clipboardData||window.clipboardData).getData('text'); const digits=pasted.replace(/\D/g,'').slice(0, String(MAX_ANNUAL_INCOME).length); setPersonalFull(prev=>({...prev, annual_income: digits})); setAnnualIncomeDisplay(formatIndianNumber(digits)); e.preventDefault(); }}
+                />
                 <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" />
                 <textarea placeholder="Address" value={personalFull.address || ''} onChange={e=>setPersonalFull({...personalFull, address:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" />
                 <input placeholder="Seat Allotted Category" value={personalFull.seat_allotted_category || ''} onChange={e=>setPersonalFull({...personalFull, seat_allotted_category:e.target.value})} className="p-2 border rounded" />

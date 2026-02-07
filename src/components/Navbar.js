@@ -13,15 +13,15 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
   // Single source-of-truth menu configuration per role
   const menuConfig = {
     student: [
-      { label: 'Profile', route: '/student/profile' },
-      { label: 'Time Table', route: '/student/timetable' },
-      { label: 'Requests', children: [
+      { label: 'PROFILE', route: '/student/profile' },
+      { label: 'TIME TABLE', route: '/student/timetable' },
+      { label: 'REQUESTS', children: [
           { label: 'Bonafide Certificate', route: '/student/requests/bonafide' },
           { label: 'No Dues Certificate', route: '/student/requests/nodues' },
           { label: 'Other Certificates', route: '/student/requests/certificates' },
         ]
       },
-      { label: 'Menu', children: [
+      { label: 'MENU', children: [
           { label: 'Edit Profile', route: '/student/settings/edit-profile' },
           { label: 'Security & Privacy', route: '/student/settings/security' },
           { label: 'Logout', action: 'logout' }
@@ -29,19 +29,29 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
       }
     ],
     clerk: [
-      { label: 'Dashboard', route: '/clerk/admission/dashboard' },
-      { label: 'Departments', route: '#' },
-      { label: 'Admissions', route: '#' },
-      { label: 'Time Tables', route: '#' },
-      { label: 'Faculties', route: '#' },
-      { label: 'Logout', action: 'logout' }
+      { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
+      { label: 'DEPARTMENTS', route: '#' },
+      { label: 'ADMISSIONS', route: '#' },
+      { label: 'TIME TABLE', route: '#' },
+      { label: 'FACULTIES', route: '#' },
+      { label: 'MENU', children: [
+          { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
+          { label: 'Security & Privacy', route: '/clerk/settings/security' },
+          { label: 'Logout', action: 'logout' }
+        ]
+      },
     ],
     superAdmin: [
-      { label: 'Home', route: '/' },
-      { label: 'Admin Dashboard', route: '/admin/dashboard' },
-      { label: 'Manage Clerks', route: '/admin/manage-clerks' },
-      { label: 'Student Stats', route: '/admin/student-stats' },
-      { label: 'Logout', action: 'logout' }
+      { label: 'HOME', route: '/' },
+      { label: 'ADMIN DASHBOARD', route: '/admin/dashboard' },
+      { label: 'MANAGE CLERKS', route: '/admin/manage-clerks' },
+      { label: 'STUDENT STATS', route: '/admin/student-stats' },
+      { label: 'MENU', children: [
+          { label: 'Edit Profile', route: '/admin/settings/edit-profile' },
+          { label: 'Security & Privacy', route: '/admin/settings/security' },
+          { label: 'Logout', action: 'logout' }
+        ]
+      }
     ]
   };
 
@@ -133,7 +143,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
             </div>
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-6">
-              {menuItems.map((item, idx) => {
+              {(menuItems || []).map((item, idx) => {
                 const hasChildren = Array.isArray(item.children) && item.children.length > 0;
                 if (hasChildren) {
                   return (
@@ -201,24 +211,24 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                 );
               })}
             </div>
-            {/* Mobile Menu Button */}
+            {/* Mobile Menu Button (single element morphing hamburger -> X) */}
             <div className="md:hidden">
               <button
                 onClick={() => setMobileMenuOpen(prev => !prev)}
-                className="text-white hover:text-blue-200 focus:outline-none p-2"
+                className="text-white focus:outline-none p-2"
                 aria-label="Toggle menu"
               >
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <line x1="3" y1="6" x2="21" y2="6" stroke="white" strokeWidth="2"
-                    className={`transition-transform duration-200 ease-in-out origin-center ${mobileMenuOpen ? 'translate-y-2 rotate-45' : ''}`}
+                <span className="relative w-6 h-6 inline-block">
+                  <span
+                    className={`absolute left-0 top-1/2 w-6 h-0.5 bg-white transform transition duration-200 ease-in-out origin-center ${mobileMenuOpen ? 'translate-y-0 rotate-45' : '-translate-y-2'}`}
                   />
-                  <line x1="3" y1="12" x2="21" y2="12" stroke="white" strokeWidth="2"
-                    className={`transition-opacity duration-200 ease-in-out ${mobileMenuOpen ? 'opacity-0' : 'opacity-100'}`}
+                  <span
+                    className={`absolute left-0 top-1/2 w-6 h-0.5 bg-white transform transition-opacity duration-200 ease-in-out ${mobileMenuOpen ? 'opacity-0' : 'opacity-100'}`}
                   />
-                  <line x1="3" y1="18" x2="21" y2="18" stroke="white" strokeWidth="2"
-                    className={`transition-transform duration-200 ease-in-out origin-center ${mobileMenuOpen ? '-translate-y-2 -rotate-45' : ''}`}
+                  <span
+                    className={`absolute left-0 top-1/2 w-6 h-0.5 bg-white transform transition duration-200 ease-in-out origin-center ${mobileMenuOpen ? 'translate-y-0 -rotate-45' : 'translate-y-2'}`}
                   />
-                </svg>
+                </span>
               </button>
             </div>
           </div>
@@ -235,7 +245,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
           }}
         >
           <div className="px-4 pt-2 pb-3">
-            {menuItems.map((item, idx) => {
+            {(menuItems || []).map((item, idx) => {
               const hasChildren = Array.isArray(item.children) && item.children.length > 0;
               const expanded = !!mobileExpanded[idx];
               return (
@@ -261,9 +271,19 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                       </button>
                     )}
                   </div>
-                  {hasChildren && expanded && (
-                    <div className="pl-4 bg-white/5">
-                      {item.children.map((child, cidx) => (
+                  {/* Mobile children container: smooth ease-in expand with slight translate */}
+                  {hasChildren && (
+                    <div
+                      className="pl-4 bg-white/5 overflow-hidden"
+                      style={{
+                        maxHeight: expanded ? `${item.children.length * 44}px` : '0px',
+                        opacity: expanded ? 1 : 0,
+                        transform: expanded ? 'translateY(0)' : 'translateY(-6px)',
+                        transition: 'max-height 220ms ease-in, opacity 200ms ease-in, transform 220ms ease-in',
+                        pointerEvents: expanded ? 'auto' : 'none'
+                      }}
+                    >
+                      {(item.children || []).map((child, cidx) => (
                         <button
                           key={cidx}
                           onClick={() => handleMobileNavigate(child)}

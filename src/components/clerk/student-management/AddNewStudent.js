@@ -17,7 +17,15 @@ const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
 DatePickerInput.displayName = 'DatePickerInput';
 
 export default function AddNewStudent() {
-  const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'+91', email:'' });
+  const MAX_ROLL = 11;
+  const MIN_ROLL = 10;
+  const MAX_MOBILE_LEN = 10;
+  const MAX_ANNUAL_INCOME = 99999999; // adjust to DB limit if known
+
+  const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'', email:'' });
+  const [mobileError, setMobileError] = useState('');
+  const [incomeError, setIncomeError] = useState('');
+  const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
   const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'' });
   const [academic, setAcademic] = useState({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
   const [addLoading, setAddLoading] = useState(false);
@@ -29,6 +37,9 @@ export default function AddNewStudent() {
 
   useEffect(() => {
     if (basic.roll_no) {
+      // Enforce roll length client-side
+      const trimmed = String(basic.roll_no || '').toUpperCase().slice(0, MAX_ROLL);
+      if (trimmed !== basic.roll_no) setBasic(prev=>({ ...prev, roll_no: trimmed }));
       const { isValid } = validateRollNo(basic.roll_no);
       if (isValid) {
         setRollNoError('');
@@ -53,7 +64,7 @@ export default function AddNewStudent() {
   }, [basic.roll_no]);
 
   const addRequiredFilled = () => {
-    return basic.admission_no.trim() && basic.roll_no.trim() && !rollNoError && basic.name.trim() && basic.date_of_birth && basic.gender && basic.mobile.trim() && basic.email.trim();
+    return basic.admission_no.trim() && basic.roll_no.trim() && !rollNoError && basic.name.trim() && basic.date_of_birth && basic.gender && (basic.mobile || '').length === MAX_MOBILE_LEN && basic.email.trim();
   };
 
   const formatAadhaar = (val) => {
@@ -61,6 +72,15 @@ export default function AddNewStudent() {
     const digits = String(val).replace(/\D/g, '').slice(0, 12);
     if (!digits) return '';
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  };
+
+  const formatIndianNumber = (digits) => {
+    if (!digits) return '';
+    const s = String(digits).replace(/\D/g, '');
+    if (s.length <= 3) return s;
+    const last3 = s.slice(-3);
+    const rest = s.slice(0, -3);
+    return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
   };
 
   const handleAddStudent = async (e) => {
@@ -100,8 +120,9 @@ export default function AddNewStudent() {
       setSavedRollLocked(true);
       setShowAddForm(false);
       try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
-      setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'+91', email:''});
+      setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', email:''});
       setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'' });
+      setAnnualIncomeDisplay('');
       setAcademic({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
       setSavedRollLocked(false);
       setTimeout(()=>{ setShowAddForm(true); }, 1500);
@@ -122,7 +143,10 @@ export default function AddNewStudent() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
             <input placeholder="Admission Number*" value={basic.admission_no} onChange={e=>setBasic({...basic, admission_no:e.target.value})} className="p-2 border rounded" />
             <div className="relative">
-              <input placeholder="Roll Number*" value={basic.roll_no} onChange={e=>setBasic({...basic, roll_no:e.target.value})} disabled={savedRollLocked} className="p-2 border rounded w-full" />
+              <input placeholder="Roll Number*" value={basic.roll_no} onChange={(e)=>{
+                const v = String(e.target.value || '').toUpperCase().slice(0, MAX_ROLL);
+                setBasic({...basic, roll_no: v});
+              }} disabled={savedRollLocked} className="p-2 border rounded w-full" maxLength={MAX_ROLL} />
               {rollNoError && <div className="text-xs text-red-600 mt-1">{rollNoError}</div>}
               {savedRollLocked && (<span className="absolute right-2 top-2 text-sm">🔒</span>)}
             </div>
@@ -142,7 +166,23 @@ export default function AddNewStudent() {
             </select>
             <input placeholder="Course" value={getBranchFromRoll(basic.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
             <input placeholder="Admission Type" value={getAdmissionTypeFromRoll(basic.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
-            <input placeholder="Mobile*" value={basic.mobile} onChange={e=>setBasic({...basic, mobile:e.target.value})} className="p-2 border rounded" />
+            <div className="flex items-center">
+              <span className="px-3 py-2 border border-r-0 bg-gray-100">+91</span>
+              <input
+                placeholder="Mobile*"
+                value={basic.mobile}
+                onChange={(e) => {
+                  const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, MAX_MOBILE_LEN);
+                  setBasic({...basic, mobile: digits});
+                  if (digits.length !== MAX_MOBILE_LEN) setMobileError('Mobile must be 10 digits'); else setMobileError('');
+                }}
+                onPaste={(e) => { const pasted = (e.clipboardData || window.clipboardData).getData('text'); const digits = pasted.replace(/\D/g,'').slice(0, MAX_MOBILE_LEN); setBasic(prev=>({...prev, mobile: digits})); e.preventDefault(); }}
+                className="p-2 border rounded w-full"
+                inputMode="numeric"
+                maxLength={MAX_MOBILE_LEN}
+              />
+            </div>
+            {mobileError && <div className="text-xs text-red-600 mt-1">{mobileError}</div>}
             <input type="email" placeholder="Email*" value={basic.email} onChange={e=>setBasic({...basic, email:e.target.value})} className="p-2 border rounded" />
           </div>
         </div>
@@ -160,7 +200,42 @@ export default function AddNewStudent() {
             <input placeholder="Mother Tongue" value={personal.mother_tongue} onChange={e=>setPersonal({...personal, mother_tongue:e.target.value})} className="p-2 border rounded" />
             <input placeholder="Place of Birth" value={personal.place_of_birth} onChange={e=>setPersonal({...personal, place_of_birth:e.target.value})} className="p-2 border rounded" />
             <input placeholder="Father Occupation" value={personal.father_occupation} onChange={e=>setPersonal({...personal, father_occupation:e.target.value})} className="p-2 border rounded" />
-            <input placeholder="Annual Income" value={personal.annual_income || ''} onChange={e=>setPersonal({...personal, annual_income:e.target.value})} type="number" className="p-2 border rounded" />
+            <input
+              placeholder="Annual Income"
+              value={annualIncomeDisplay}
+              onChange={(e) => {
+                const raw = String(e.target.value || '').replace(/\D/g, '').slice(0, String(MAX_ANNUAL_INCOME).length);
+                const num = raw ? Number(raw) : '';
+                if (num !== '' && num > MAX_ANNUAL_INCOME) {
+                  setIncomeError(`Maximum allowed is ${MAX_ANNUAL_INCOME}`);
+                  setPersonal(prev => ({ ...prev, annual_income: String(MAX_ANNUAL_INCOME) }));
+                  setAnnualIncomeDisplay(formatIndianNumber(String(MAX_ANNUAL_INCOME)));
+                } else {
+                  setIncomeError('');
+                  setPersonal(prev => ({ ...prev, annual_income: raw }));
+                  setAnnualIncomeDisplay(formatIndianNumber(raw));
+                }
+              }}
+              type="text"
+              className="p-2 border rounded"
+              inputMode="numeric"
+              onPaste={(e) => {
+                const pasted = (e.clipboardData || window.clipboardData).getData('text');
+                const digits = pasted.replace(/\D/g, '').slice(0, String(MAX_ANNUAL_INCOME).length);
+                const num = digits ? Number(digits) : '';
+                if (num !== '' && num > MAX_ANNUAL_INCOME) {
+                  setIncomeError(`Maximum allowed is ${MAX_ANNUAL_INCOME}`);
+                  setPersonal(prev => ({ ...prev, annual_income: String(MAX_ANNUAL_INCOME) }));
+                  setAnnualIncomeDisplay(formatIndianNumber(String(MAX_ANNUAL_INCOME)));
+                } else {
+                  setIncomeError('');
+                  setPersonal(prev => ({ ...prev, annual_income: digits }));
+                  setAnnualIncomeDisplay(formatIndianNumber(digits));
+                }
+                e.preventDefault();
+              }}
+            />
+            {incomeError && <div className="text-xs text-red-600 mt-1">{incomeError}</div>}
             <input placeholder="Aadhaar Number" value={personal.aadhaar_no} onChange={e=>setPersonal({...personal, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" maxLength={14} />
         </div>
         </div>

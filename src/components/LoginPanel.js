@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const router = useRouter();
+  const MAX_ROLL = 11;
+  const MIN_ROLL = 10;
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
   const [clerkForm, setClerkForm] = useState({ email: '', password: '' });
   const [adminForm, setAdminForm] = useState({ email: '', password: '' });
@@ -136,14 +138,12 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
   const handleForgotStudentSubmit = async (e) => {
     e.preventDefault();
-    // Enforce client-side roll number validation: exactly 10 alphanumeric characters
+    // Enforce client-side roll number validation: 10-11 alphanumeric characters
     const rn = (fpRollno || '').toString().trim();
-    const ROLL_REGEX = /^[A-Za-z0-9]{10}$/;
     setFpAttempted(true);
 
-    if (!ROLL_REGEX.test(rn)) {
-      // Do not call API if roll number not exactly 10 alphanumeric chars
-      setFpDisplayMessage('Please enter a valid 10-character alphanumeric Roll Number.');
+    if (rn.length < MIN_ROLL || rn.length > MAX_ROLL) {
+      setFpDisplayMessage(`Please enter a valid ${MIN_ROLL}-${MAX_ROLL} character alphanumeric Roll Number.`);
       return;
     }
 
@@ -345,10 +345,14 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       <input
                       type="text"
                       value={studentForm.rollNumber ?? ''}
-                      onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value.toUpperCase() })}
+                      onChange={(e) => {
+                        const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, MAX_ROLL);
+                        setStudentForm({ ...studentForm, rollNumber: v });
+                      }}
                       placeholder="Enter your Roll Number"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
                       required
+                      maxLength={MAX_ROLL}
                     />
                   </div>
                   
@@ -418,11 +422,15 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       <input
                         type="text"
                         value={fpRollno ?? ''}
-                        onChange={(e) => setFpRollno(e.target.value.toUpperCase())}
+                        onChange={(e) => {
+                          const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, MAX_ROLL);
+                          setFpRollno(v);
+                        }}
                         placeholder="Enter your Roll Number"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
                         required
                         disabled={fpIsCheckingStatus || fpIsLoading}
+                        maxLength={MAX_ROLL}
                       />
                       <div className="text-right mt-2">
                         <button
@@ -435,7 +443,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       </div>
                     </div>
 
-                    {(fpRollno.length < 10) ? (
+                    {(fpRollno.length < MIN_ROLL) ? (
                       <p className="text-sm text-gray-500 text-center mt-4"></p>
                     ) : fpShowDOBLoginMessage && fpAttempted ? (
                       <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
@@ -447,7 +455,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         <button
                           type="submit"
                           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                          disabled={fpIsLoading || fpRollno.length !== 10}
+                          disabled={fpIsLoading || fpRollno.length < MIN_ROLL || fpRollno.length > MAX_ROLL}
                         >
                           {fpIsLoading ? 'Sending...' : 'Send Reset Link'}
                         </button>
