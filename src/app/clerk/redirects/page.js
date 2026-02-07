@@ -8,13 +8,14 @@ export default function ClerkRedirects() {
   useEffect(() => {
     const roleCookie = document.cookie.split('; ').find(row => row.startsWith('clerk_role='));
     const role = roleCookie ? roleCookie.split('=')[1].toLowerCase() : '';
-
-    if (role.includes('scholar')) {
+    if (role === 'scholarship') {
       router.replace('/clerk/scholarship/dashboard');
-    } else if (role) {
+    } else if (role === 'admission') {
       router.replace('/clerk/admission/dashboard');
+    } else if (role === 'faculty') {
+      router.replace('/clerk/faculty/dashboard');
     } else {
-      // No role found — send to login/home
+      // No role found or unknown role — send to login/home
       router.replace('/');
     }
   }, [router]);

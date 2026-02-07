@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import Header from '../../../../components/Header';
 import Footer from '../../../../components/Footer';
 import Navbar from '../../../../components/Navbar';
+import NextImage from 'next/image';
 
 const certificateTypes = {
   "Course Completion Certificate": { fee: 100, clerk: "admission" },
@@ -16,19 +18,99 @@ const certificateTypes = {
 };
 
 export default function CertificateRequestsPage() {
+  const router = useRouter();
   const [selectedCertificate, setSelectedCertificate] = useState(Object.keys(certificateTypes)[0]);
   const [transactionId, setTransactionId] = useState('');
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [requests, setRequests] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
   const [downloadErrors, setDownloadErrors] = useState({});
+  const [isMobile, setIsMobile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const fee = certificateTypes[selectedCertificate].fee;
 
   useEffect(() => {
-    fetchRequests();
+    // Route-level guard: block unverified accounts from accessing requests
+    const init = async () => {
+      try {
+        const meRes = await fetch('/api/student/me');
+        if (!meRes.ok) return; // if unauthorized, let other guards handle
+        const { roll_no } = await meRes.json();
+        if (!roll_no) return;
+        const studentRes = await fetch(`/api/student/${roll_no}`);
+        if (!studentRes.ok) return;
+        const data = await studentRes.json();
+        const s = data?.student;
+        const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
+        if (!verified) {
+          router.replace('/student/requests/verification-required');
+          return;
+        }
+        await fetchRequests();
+      } catch (e) {
+        // ignore guard errors
+      }
+    };
+    init();
+  }, [router]);
+
+  useEffect(() => {
+    const mq = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
+    const handler = (e) => setIsMobile(!!e.matches);
+    if (mq) {
+      setIsMobile(!!mq.matches);
+      mq.addEventListener ? mq.addEventListener('change', handler) : mq.addListener(handler);
+    }
+    return () => {
+      if (mq) mq.removeEventListener ? mq.removeEventListener('change', handler) : mq.removeListener(handler);
+    };
   }, []);
+
+  const handleDownload = async (req) => {
+    if (downloadingId) return;
+    setDownloadErrors(prev => ({ ...prev, [req.request_id]: null }));
+    setDownloadingId(req.request_id);
+    try {
+      const res = await fetch(`/api/student/requests/download/${req.request_id}`, { method: 'GET', credentials: 'same-origin' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to generate certificate');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const contentDisp = res.headers.get('Content-Disposition') || res.headers.get('content-disposition');
+      let filename = `Certificate_${req.roll_number || 'certificate'}.pdf`;
+      if (contentDisp) {
+        const filenameStarMatch = contentDisp.match(/filename\*\s*=\s*([^;]+)/i);
+        if (filenameStarMatch) {
+          let val = filenameStarMatch[1].trim();
+          val = val.replace(/^\"/, '').replace(/\"$/, '');
+          const parts = val.split("''");
+          if (parts.length === 2) {
+            try { filename = decodeURIComponent(parts[1]); } catch (e) { filename = parts[1]; }
+          } else {
+            try { filename = decodeURIComponent(val); } catch (e) { filename = val; }
+          }
+        } else {
+          const filenameMatch = contentDisp.match(/filename\s*=\s*\"?(.*?)\"?(?:;|$)/i);
+          if (filenameMatch) filename = filenameMatch[1];
+        }
+      }
+      a.download = filename || `Certificate_${req.roll_number || 'certificate'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error', error);
+      setDownloadErrors(prev => ({ ...prev, [req.request_id]: 'Failed to generate certificate. Try again.' }));
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const fetchRequests = async () => {
     try {
@@ -158,16 +240,20 @@ export default function CertificateRequestsPage() {
                         <p className="text-l font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
                         </div>
                         <div className="flex items-center justify-center space-x-2 mb-4">
-            <img 
-              src="/assets/Payment QR/kucet-logo.jpg" 
-              alt="PRINCIPAL KU" 
-              className="h-9 w-auto object-contain" 
+            <NextImage
+              src="/assets/Payment QR/kucet-logo.png"
+              alt="PRINCIPAL KU"
+              width={36}
+              height={36}
+              className="h-9 w-auto object-contain"
               onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
             />
             <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
             </div>
                         <div className="flex justify-center">
-                            <img src="/assets/Payment QR/principal_ku_qr.png" alt="Payment QR Code" className="w-48 h-48" />
+                          {fee === 100 && <NextImage src="/assets/Payment QR/ku_payment_100.png" alt="Pay ₹100" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                          {fee === 150 && <NextImage src="/assets/Payment QR/ku_payment_150.png" alt="Pay ₹150" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                          {fee === 200 && <NextImage src="/assets/Payment QR/ku_payment_200.png" alt="Pay ₹200" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
                         </div>
                     </div>
                     <div>
@@ -209,7 +295,42 @@ export default function CertificateRequestsPage() {
           <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-2xl font-semibold text-gray-700 mb-4">Request History</h2>
-              <div className="overflow-x-auto">
+              {isMobile ? (
+                <div className="space-y-3">
+                  {requests.length > 0 ? requests.map(req => (
+                    <div key={req.request_id} className="w-full border rounded-md p-4 bg-white">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="text-sm font-semibold text-gray-800">{req.certificate_type}</div>
+                          <div className="text-xs text-gray-500 mt-1">Request ID: <span className="font-medium text-gray-700">{req.request_id}</span></div>
+                        </div>
+                        <div className="flex items-start flex-col items-end">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            req.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 
+                            req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                          }`}>{req.status}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 text-sm text-gray-600">
+                        <div>Applied: <span className="font-medium text-gray-800">{new Date(req.created_at).toLocaleDateString()}</span></div>
+                        {req.reject_reason && <div className="mt-2 text-sm text-gray-700">Remarks: <span className="font-normal text-gray-800">{req.reject_reason}</span></div>}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-end space-x-3">
+                        {req.status === 'APPROVED' ? (
+                          <button onClick={() => handleDownload(req)} disabled={!!downloadingId} className="text-indigo-600 hover:text-indigo-900 text-sm">
+                            {downloadingId === req.request_id ? 'Please wait...' : 'Download'}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-center text-sm text-gray-500">No requests found.</div>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -243,66 +364,7 @@ export default function CertificateRequestsPage() {
                                   </>
                                 ) : (
                                   <>
-                                    <button
-                                      onClick={async (e) => {
-                                        e.preventDefault();
-                                        // prevent duplicate clicks
-                                        if (downloadingId) return;
-                                        setDownloadErrors(prev => ({ ...prev, [req.request_id]: null }));
-                                        setDownloadingId(req.request_id);
-                                        try {
-                                          const res = await fetch(`/api/student/requests/download/${req.request_id}`, {
-                                            method: 'GET',
-                                            credentials: 'same-origin',
-                                          });
-                                          if (!res.ok) {
-                                            const err = await res.json().catch(() => ({}));
-                                            throw new Error(err.error || 'Failed to generate certificate');
-                                          }
-                                          const blob = await res.blob();
-                                          const url = window.URL.createObjectURL(blob);
-                                          const a = document.createElement('a');
-                                          a.href = url;
-                                          // Try to get filename from Content-Disposition header (supports filename* and filename)
-                                          const contentDisp = res.headers.get('Content-Disposition') || res.headers.get('content-disposition');
-                                          let filename = `Certificate_${req.roll_number || 'certificate'}.pdf`;
-                                          if (contentDisp) {
-                                            // Prefer filename* (RFC5987) which may be encoded
-                                            const filenameStarMatch = contentDisp.match(/filename\*\s*=\s*([^;]+)/i);
-                                            if (filenameStarMatch) {
-                                              let val = filenameStarMatch[1].trim();
-                                              val = val.replace(/^\"/, '').replace(/\"$/, '');
-                                              const parts = val.split("''");
-                                              if (parts.length === 2) {
-                                                try {
-                                                  filename = decodeURIComponent(parts[1]);
-                                                } catch (e) {
-                                                  filename = parts[1];
-                                                }
-                                              } else {
-                                                try { filename = decodeURIComponent(val); } catch (e) { filename = val; }
-                                              }
-                                            } else {
-                                              const filenameMatch = contentDisp.match(/filename\s*=\s*\"?(.*?)\"?(?:;|$)/i);
-                                              if (filenameMatch) filename = filenameMatch[1];
-                                            }
-                                          }
-                                          a.download = filename || `Certificate_${req.roll_number || 'certificate'}.pdf`;
-                                          // helpful debug when filenames are still wrong
-                                          console.debug('Certificate download filename chosen:', a.download, 'Content-Disposition:', contentDisp);
-                                          document.body.appendChild(a);
-                                          a.click();
-                                          a.remove();
-                                          window.URL.revokeObjectURL(url);
-                                        } catch (error) {
-                                          console.error('Download error', error);
-                                          setDownloadErrors(prev => ({ ...prev, [req.request_id]: 'Failed to generate certificate. Try again.' }));
-                                        } finally {
-                                          setDownloadingId(null);
-                                        }
-                                      }}
-                                      className="text-indigo-600 hover:text-indigo-900 disabled:text-gray-400 cursor-pointer"
-                                    >
+                                    <button onClick={() => handleDownload(req)} className="text-indigo-600 hover:text-indigo-900 disabled:text-gray-400 cursor-pointer">
                                       Download
                                     </button>
                                     {downloadErrors[req.request_id] && (
@@ -324,6 +386,7 @@ export default function CertificateRequestsPage() {
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
           </div>
 

@@ -72,13 +72,19 @@ export async function PUT(req, context) {
     const personalUpdateFields = [];
     const personalUpdateValues = [];
     const personalInsertValues = [];
-    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'aadhaar_no', 'guardian_mobile', 'address', 'seat_allotted_category', 'identification_marks', 'ncc_nss_details'];
+    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks'];
 
     let hasPersonalUpdates = false;
     personalColumns.forEach(col => {
       if (updatedData[col] !== undefined) {
-        personalUpdateFields.push(`${col} = ?`);
-        personalUpdateValues.push(toNull(updatedData[col]));
+        if (col === 'aadhaar_no' && updatedData[col] !== null) {
+          // Sanitize aadhaar_no: remove all non-digits before storing
+          personalUpdateFields.push(`${col} = ?`);
+          personalUpdateValues.push(toNull(String(updatedData[col]).replace(/\D/g, '')));
+        } else {
+          personalUpdateFields.push(`${col} = ?`);
+          personalUpdateValues.push(toNull(updatedData[col]));
+        }
         hasPersonalUpdates = true;
       }
     });
@@ -94,7 +100,11 @@ export async function PUT(req, context) {
             personalColumns.forEach(col => {
                 if (updatedData[col] !== undefined) { // Only include columns present in updatedData
                     insertCols.push(col);
-                    insertVals.push(toNull(updatedData[col]));
+                    if (col === 'aadhaar_no' && updatedData[col] !== null) {
+                        insertVals.push(toNull(String(updatedData[col]).replace(/\D/g, '')));
+                    } else {
+                        insertVals.push(toNull(updatedData[col]));
+                    }
                 }
             });
             if (insertCols.length > 1) { // More than just student_id
@@ -106,7 +116,7 @@ export async function PUT(req, context) {
     // --- Update `student_academic_background` table ---
     const academicUpdateFields = [];
     const academicUpdateValues = [];
-    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'total_marks', 'marks_secured']; // year_of_study removed
+    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks'];
 
     let hasAcademicUpdates = false;
     academicColumns.forEach(col => {

@@ -48,27 +48,71 @@ export function toMySQLDate(dateString) {
 }
 
 export function parseDate(str) {
-    if (!str) return null;
-    const parts = str.split('-');
-    if (parts.length === 3) {
-        const [day, month, year] = parts;
-        if (day.length === 2 && month.length === 2 && year.length === 4) {
-            const date = new Date(year, month - 1, day);
-            if (!isNaN(date.getTime())) {
-              return date;
-            }
-        }
+  if (!str && str !== 0) return null; // Handle null, undefined, empty string, but allow 0 for Excel dates
+
+  // If it's already a Date object, return it
+  if (str instanceof Date && !isNaN(str.getTime())) {
+    return str;
+  }
+
+  // If it's a number, it might be an Excel serial date
+  if (typeof str === 'number') {
+    // Excel serial date to JS Date object conversion (assuming Windows Excel base date 1900-01-01)
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Dec 30, 1899, 00:00:00 UTC
+    const ms = str * 24 * 60 * 60 * 1000;
+    const date = new Date(excelEpoch.getTime() + ms);
+    if (!isNaN(date.getTime())) {
+      return date;
     }
-    // Try parsing YYYY-MM-DD as a fallback
-    const yParts = str.split('-');
-    if (yParts.length === 3) {
-        const [year, month, day] = yParts;
-        if (year.length === 4 && month.length === 2 && day.length === 2) {
-            const date = new Date(year, month - 1, day);
-            if (!isNaN(date.getTime())) {
-              return date;
-            }
-        }
+  }
+  
+  // Ensure it's a string before attempting split
+  const dateString = String(str);
+  
+  // Helper to parse date parts with a given separator and order
+  const tryParse = (dateString, separator, order) => {
+    const parts = dateString.split(separator);
+    if (parts.length !== 3) return null;
+
+    let day, month, year;
+    if (order === 'DMY') { // DD-MM-YYYY or DD/MM/YYYY
+      [day, month, year] = parts;
+    } else if (order === 'MDY') { // MM-DD-YYYY or MM/DD/YYYY
+      [month, day, year] = parts;
+    } else if (order === 'YMD') { // YYYY-MM-DD
+      [year, month, day] = parts;
+    } else {
+      return null;
+    }
+
+    // Convert to numbers and validate
+    const d = parseInt(day, 10);
+    const m = parseInt(month, 10);
+    const y = parseInt(year, 10);
+
+    if (isNaN(d) || isNaN(m) || isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) {
+      return null;
+    }
+
+    const date = new Date(y, m - 1, d);
+    // Check for valid date (e.g., avoid 31st of Feb)
+    if (date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d) {
+      return date;
     }
     return null;
+  };
+
+  // Try DD-MM-YYYY or DD/MM/YYYY
+  let date = tryParse(dateString, '-', 'DMY') || tryParse(dateString, '/', 'DMY');
+  if (date) return date;
+
+  // Try MM-DD-YYYY or MM/DD/YYYY
+  date = tryParse(dateString, '-', 'MDY') || tryParse(dateString, '/', 'MDY');
+  if (date) return date;
+
+  // Try YYYY-MM-DD (fallback, but could also be parsed by YYYY-MM-DD logic)
+  date = tryParse(dateString, '-', 'YMD');
+  if (date) return date;
+
+  return null;
 }

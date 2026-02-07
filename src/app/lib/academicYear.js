@@ -30,4 +30,5 @@ function computeAcademicYear(roll_no, year) {
 
 export { isYearAllowed, computeAcademicYear, computeTotalAcademicSpan };
 
-export default { isYearAllowed, computeAcademicYear, computeTotalAcademicSpan };
+const academicYear = { isYearAllowed, computeAcademicYear, computeTotalAcademicSpan };
+export default academicYear;

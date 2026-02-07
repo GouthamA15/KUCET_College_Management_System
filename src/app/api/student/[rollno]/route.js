@@ -78,8 +78,8 @@ export async function GET(req, context) {
     const feesSql = 'SELECT * FROM student_fee_transactions WHERE student_id = ? ORDER BY year, date';
     const fees = await query(feesSql, [studentId]);
 
-    const academicsSql = 'SELECT * FROM academics WHERE student_id = ? ORDER BY year';
-    const academics = await query(academicsSql, [studentId]);
+    // const academicsSql = 'SELECT * FROM academics WHERE student_id = ? ORDER BY year';
+    // const academics = await query(academicsSql, [studentId]);
 
     // Fetch personal details from separate table if present
     let personalDetails = {};
@@ -93,7 +93,7 @@ export async function GET(req, context) {
     // Merge some commonly used fields for backward compatibility
     const mergedStudent = { ...student, personal_details: personalDetails };
 
-    return NextResponse.json({ student: mergedStudent, scholarship, fees, academics });
+    return NextResponse.json({ student: mergedStudent, scholarship, fees });
   } catch (error) {
     console.error('Error fetching student profile data:', error);
     return NextResponse.json({ message: 'Failed to fetch student profile data', error: error.message }, { status: 500 });

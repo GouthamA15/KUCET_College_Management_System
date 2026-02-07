@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 // DOB will be a controlled numeric text input (DD-MM-YYYY)
@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const router = useRouter();
+  const MAX_ROLL = 11;
+  const MIN_ROLL = 10;
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
   const [clerkForm, setClerkForm] = useState({ email: '', password: '' });
   const [adminForm, setAdminForm] = useState({ email: '', password: '' });
@@ -15,6 +17,31 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [studentError, setStudentError] = useState('');
   const [clerkError, setClerkError] = useState('');
   const [adminError, setAdminError] = useState('');
+  // Password visibility toggles for all panels
+  const [studentPasswordVisible, setStudentPasswordVisible] = useState(false);
+  const [clerkPasswordVisible, setClerkPasswordVisible] = useState(false);
+  const [adminPasswordVisible, setAdminPasswordVisible] = useState(false);
+
+  // Internal forgot-password UI state
+  // mode: 'login' | 'forgot-password'
+  const [mode, setMode] = useState('login');
+  // activeRole: 'student' | 'employee' (derived from activePanel)
+  const activeRole = activePanel === 'student' ? 'student' : 'employee';
+
+  // Student forgot-password states
+  const [fpRollno, setFpRollno] = useState('');
+  const [fpIsLoading, setFpIsLoading] = useState(false);
+  const [fpIsCheckingStatus, setFpIsCheckingStatus] = useState(false);
+  const [fpIsEligibleForReset, setFpIsEligibleForReset] = useState(false);
+  const [fpShowDOBLoginMessage, setFpShowDOBLoginMessage] = useState(false);
+  const [fpDisplayMessage, setFpDisplayMessage] = useState('');
+  const [fpAttempted, setFpAttempted] = useState(false);
+
+  // Employee forgot-password states (used for clerk/admin)
+  const [fpEmail, setFpEmail] = useState('');
+  const [fpEmailLoading, setFpEmailLoading] = useState(false);
+  const [fpEmailMessage, setFpEmailMessage] = useState('');
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const handleStudentSubmit = async (e) => {
     e.preventDefault();
@@ -44,7 +71,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       const data = await res.json();
       if (res.ok && data.student) {
         toast.success('Login successful!', { id: toastId });
-                router.replace('/student/profile');
+        // Redirect to the student profile page
+        window.location.assign('/student/profile');
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
@@ -54,6 +82,157 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       setStudentError('Network error');
     } finally {
       setStudentLoading(false);
+    }
+  };
+
+  // --- Student forgot-password helpers (reused from src/app/forgot-password/student/page.js) ---
+  const checkStudentStatus = useCallback(async (currentRollno) => {
+    // This helper DOES NOT show any toasts. It only updates local UI state
+    // and returns a structured result so the caller (the form) decides what
+    // to show to the user. This prevents duplicate toasters.
+    if (!currentRollno) {
+      setFpIsEligibleForReset(false);
+      setFpShowDOBLoginMessage(false);
+      setFpDisplayMessage('');
+      return { ok: false, status: null, data: null };
+    }
+
+    setFpIsCheckingStatus(true);
+    let data = null;
+    let status = null;
+    try {
+      const response = await fetch(`/api/auth/forgot-password/student?rollno=${currentRollno}`);
+      status = response.status;
+      data = await response.json().catch(() => null);
+
+      if (response.ok) {
+        if (data && data.is_email_verified && data.has_password_set) {
+          setFpIsEligibleForReset(true);
+          setFpShowDOBLoginMessage(false);
+          setFpDisplayMessage('');
+        } else {
+          setFpIsEligibleForReset(false);
+          setFpShowDOBLoginMessage(true);
+          setFpDisplayMessage(
+            "You haven't set a password and verified your email. Please login using your Date of Birth as password in (DD-MM-YYYY) format. If you need further assistance, contact support."
+          );
+        }
+      } else {
+        setFpIsEligibleForReset(false);
+        setFpShowDOBLoginMessage(false);
+        setFpDisplayMessage(data?.error || 'Unable to retrieve student status.');
+      }
+    } catch (error) {
+      console.error('Error checking student status:', error);
+      setFpIsEligibleForReset(false);
+      setFpShowDOBLoginMessage(false);
+      setFpDisplayMessage('Network error. Please try again.');
+      return { ok: false, status: null, error: 'network' };
+    } finally {
+      setFpIsCheckingStatus(false);
+    }
+
+    return { ok: status >= 200 && status < 300, status, data };
+  }, []);
+
+
+  const handleForgotStudentSubmit = async (e) => {
+    e.preventDefault();
+    // Enforce client-side roll number validation: 10-11 alphanumeric characters
+    const rn = (fpRollno || '').toString().trim();
+    setFpAttempted(true);
+
+    if (rn.length < MIN_ROLL || rn.length > MAX_ROLL) {
+      setFpDisplayMessage(`Please enter a valid ${MIN_ROLL}-${MAX_ROLL} character alphanumeric Roll Number.`);
+      return;
+    }
+
+    setFpIsLoading(true);
+    setFpDisplayMessage('');
+
+    try {
+      // First, check eligibility explicitly (GET)
+      setFpIsCheckingStatus(true);
+      const statusData = await checkStudentStatus(rn);
+
+      // statusData is a structured result: { ok, status, data, error }
+      if (statusData.error === 'network') {
+        toast.error('Unable to verify student status');
+        setFpDisplayMessage('Unable to verify student status.');
+        return;
+      }
+
+      if (!statusData.ok) {
+        // Handle expected business case: student not found
+        const isNotFound = statusData.status === 404 || (statusData.data && typeof statusData.data.error === 'string' && /not\s*found/i.test(statusData.data.error));
+        if (isNotFound) {
+          // Single, specific toaster for this scenario
+          toast.error('Student Not Found');
+          setFpDisplayMessage('Student Not Found');
+        } else {
+          // Other failures: show a single local toaster
+          toast.error(statusData.data?.error || 'Unable to verify student status');
+          setFpDisplayMessage(statusData.data?.error || 'Unable to verify student status');
+        }
+        return;
+      }
+
+      if (statusData.data && statusData.data.is_email_verified && statusData.data.has_password_set) {
+        // Eligible: send reset link (POST)
+        const response = await fetch('/api/auth/forgot-password/student', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rollno: rn }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          toast.success(data.message);
+          setFpDisplayMessage(data.message);
+        } else {
+          toast.error(data.error || 'An error occurred');
+          setFpDisplayMessage(data.error || 'An error occurred');
+        }
+      } else {
+        // Not eligible: show helper message (DOB login info)
+        setFpShowDOBLoginMessage(true);
+        setFpDisplayMessage(
+          "Password reset not available. Please login using your Date of Birth as password. If you need further assistance, contact support."
+        );
+      }
+    } catch (error) {
+      toast.error('An error occurred');
+      setFpDisplayMessage('An error occurred');
+    } finally {
+      setFpIsLoading(false);
+      setFpIsCheckingStatus(false);
+    }
+  };
+
+  // --- Employee forgot-password handler (reused from clerk page) ---
+  const handleForgotEmployeeSubmit = async (e) => {
+    e.preventDefault();
+    setFpEmailLoading(true);
+    setFpEmailMessage('');
+
+    try {
+      const response = await fetch('/api/auth/forgot-password/clerk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: fpEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(data.message);
+        setFpEmailMessage(data.message);
+      } else {
+        toast.error(data.error || 'An error occurred');
+      }
+    } catch (error) {
+      toast.error('An error occurred');
+    } finally {
+      setFpEmailLoading(false);
     }
   };
 
@@ -77,10 +256,10 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
         // Prefer explicit role from response; fallback to generic
         const role = (data.role || '').toString().toLowerCase();
         if (role.includes('scholar')) {
-          router.replace('/clerk/scholarship/dashboard');
+          window.location.assign('/clerk/scholarship/dashboard');
         } else {
           // Treat everything else as admission/administrative by default
-          router.replace('/clerk/admission/dashboard');
+          window.location.assign('/clerk/admission/dashboard');
         }
       } else {
         toast.error(data.message || 'Clerk login failed', { id: toastId });
@@ -111,7 +290,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        router.replace('/admin/dashboard');
+        window.location.assign('/admin/dashboard');
       } else {
         toast.error(data.message || 'Admin login failed', { id: toastId });
         setAdminError(data.message || 'Admin login failed');
@@ -157,73 +336,72 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   <p className="text-gray-500 text-sm mt-1">Access your academic portal</p>
                 </div>
                 
+                {mode === 'login' ? (
                 <form onSubmit={handleStudentSubmit} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Roll Number
                     </label>
-                    <input
+                      <input
                       type="text"
-                      value={studentForm.rollNumber}
-                      onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value })}
+                      value={studentForm.rollNumber ?? ''}
+                      onChange={(e) => {
+                        const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, MAX_ROLL);
+                        setStudentForm({ ...studentForm, rollNumber: v });
+                      }}
                       placeholder="Enter your Roll Number"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
                       required
+                      maxLength={MAX_ROLL}
                     />
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Date of Birth
+                      Password
                       <span className="block text-xs text-gray-500 font-normal mt-0.5">
-                        (used as password for first login)
+                        First time user ? Use your DOB in the format : DD-MM-YYYY
                       </span>
                     </label>
-                    {/* Numeric-only DD-MM-YYYY input with auto-inserted, locked hyphens */}
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="DD-MM-YYYY"
-                      maxLength={10}
-                      value={studentForm.dob}
-                      onKeyDown={(e) => {
-                        const allowedKeys = [
-                          'Backspace', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Delete', 'Home', 'End'
-                        ];
-                        if (allowedKeys.includes(e.key)) return;
-                        // allow only digits
-                        if (/^[0-9]$/.test(e.key)) return;
-                        e.preventDefault();
-                      }}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        // strip non-digits
-                        const digits = raw.replace(/\D/g, '').slice(0, 8);
-                        let formatted = digits;
-                        if (digits.length >= 5) {
-                          formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
-                        } else if (digits.length >= 3) {
-                          formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
-                        } else if (digits.length >= 1) {
-                          formatted = digits;
-                        }
-                        setStudentForm({ ...studentForm, dob: formatted });
-                      }}
-                      onPaste={(e) => {
-                        e.preventDefault();
-                        const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
-                        const digits = paste.replace(/\D/g, '').slice(0, 8);
-                        let formatted = digits;
-                        if (digits.length >= 5) {
-                          formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
-                        } else if (digits.length >= 3) {
-                          formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
-                        }
-                        setStudentForm({ ...studentForm, dob: formatted });
-                      }}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={studentPasswordVisible ? 'text' : 'password'}
+                        value={studentForm.dob ?? ''}
+                        onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
+                        placeholder="Enter Password"
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setStudentPasswordVisible((v) => !v)}
+                        aria-label={studentPasswordVisible ? 'Hide password' : 'Show password'}
+                        className="absolute inset-y-0 right-2 flex items-center justify-center px-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                      >
+                        {studentPasswordVisible ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          // eye icon
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-right mt-2">
+                        <button
+                          type="button"
+                          onClick={() => { if (activeRole === 'student') { setMode('forgot-password'); setFpRollno(studentForm.rollNumber ?? ''); } }}
+                          className="text-xs text-blue-500 hover:text-blue-700"
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
                   </div>
                   
                   <button
@@ -237,9 +415,59 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="text-red-600 text-sm mt-2 text-center">{studentError}</div>
                   )}
                 </form>
-                
-                <p className="text-center text-xs text-gray-500 mt-4">
-                  First time user? Use your Date of Birth as password
+                ) : (
+                  <form onSubmit={handleForgotStudentSubmit} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Roll Number</label>
+                      <input
+                        type="text"
+                        value={fpRollno ?? ''}
+                        onChange={(e) => {
+                          const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, MAX_ROLL);
+                          setFpRollno(v);
+                        }}
+                        placeholder="Enter your Roll Number"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                        disabled={fpIsCheckingStatus || fpIsLoading}
+                        maxLength={MAX_ROLL}
+                      />
+                      <div className="text-right mt-2">
+                        <button
+                          type="button"
+                          onClick={() => { setMode('login'); setFpAttempted(false); setFpDisplayMessage(''); setFpShowDOBLoginMessage(false); }}
+                          className="inline-block font-medium text-sm text-blue-500 hover:text-blue-800"
+                        >
+                          Back to Login
+                        </button>
+                      </div>
+                    </div>
+
+                    {(fpRollno.length < MIN_ROLL) ? (
+                      <p className="text-sm text-gray-500 text-center mt-4"></p>
+                    ) : fpShowDOBLoginMessage && fpAttempted ? (
+                      <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
+                        <p className="font-bold">Information</p>
+                        <p>{fpDisplayMessage}</p>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center">
+                        <button
+                          type="submit"
+                          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                          disabled={fpIsLoading || fpRollno.length < MIN_ROLL || fpRollno.length > MAX_ROLL}
+                        >
+                          {fpIsLoading ? 'Sending...' : 'Send Reset Link'}
+                        </button>
+                      </div>
+                    )}
+
+                    {fpDisplayMessage && !fpShowDOBLoginMessage && <p className="text-green-500 text-xs italic mt-4">{fpDisplayMessage}</p>}
+                  </form>
+                )}
+
+                <p className="text-center text-xs text-gray-700 mt-4">
+                  Note : Login by DOB will work only for the students who haven&apos;t set their password yet
                 </p>
               </div>
             )}
@@ -265,14 +493,15 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   <p className="text-gray-500 text-sm mt-1">Administrative staff portal</p>
                 </div>
                 
+                {mode === 'login' ? (
                 <form onSubmit={handleClerkSubmit} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Email Address
                     </label>
-                    <input
+                      <input
                       type="email"
-                      value={clerkForm.email}
+                      value={clerkForm.email ?? ''}
                       onChange={(e) => setClerkForm({ ...clerkForm, email: e.target.value })}
                       placeholder="Enter your email"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
@@ -284,14 +513,44 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password
                     </label>
-                    <input
-                      type="password"
-                      value={clerkForm.password}
-                      onChange={(e) => setClerkForm({ ...clerkForm, password: e.target.value })}
-                      placeholder="Enter your password"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={clerkPasswordVisible ? 'text' : 'password'}
+                        value={clerkForm.password ?? ''}
+                        onChange={(e) => setClerkForm({ ...clerkForm, password: e.target.value })}
+                        placeholder="Enter your password"
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setClerkPasswordVisible((v) => !v)}
+                        aria-label={clerkPasswordVisible ? 'Hide password' : 'Show password'}
+                        className="absolute inset-y-0 right-2 flex items-center justify-center px-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                      >
+                        {clerkPasswordVisible ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-right mt-2">
+                      <button
+                        type="button"
+                        onClick={() => { if (activeRole === 'employee') { setMode('forgot-password'); setFpEmail(clerkForm.email ?? ''); } }}
+                        className="text-xs text-blue-500 hover:text-blue-700"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
                   </div>
                   
                   <button
@@ -304,9 +563,47 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="text-red-600 text-sm mt-2 text-center">{clerkError}</div>
                   )}
                 </form>
-                
+                ) : (
+                  <form onSubmit={handleForgotEmployeeSubmit} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <input
+                        type="email"
+                        value={fpEmail ?? ''}
+                        onChange={(e) => setFpEmail(e.target.value)}
+                        placeholder="Enter your email address"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                        disabled={fpEmailLoading}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      {EMAIL_REGEX.test((fpEmail || '').trim()) ? (
+                        <button
+                          type="submit"
+                          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                          disabled={fpEmailLoading}
+                        >
+                          {fpEmailLoading ? 'Sending...' : 'Send Reset Link'}
+                        </button>
+                      ) : (
+                        <p className="text-sm text-gray-500">&nbsp;</p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setMode('login')}
+                        className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
+                      >
+                        Back to Login
+                      </button>
+                    </div>
+                    {fpEmailMessage && <p className="text-green-500 text-xs italic mt-4">{fpEmailMessage}</p>}
+                  </form>
+                )}
+
                 <p className="text-center text-xs text-gray-500 mt-4">
-                  Contact admin if you forgot your password
+                  Make sure to Enter a Valid Email Address
                 </p>
               </div>
             )}
@@ -332,14 +629,15 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   <p className="text-gray-500 text-sm mt-1">System administrator access</p>
                 </div>
                 
+                {mode === 'login' ? (
                 <form onSubmit={handleAdminSubmit} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Email Address
                     </label>
-                    <input
+                      <input
                       type="email"
-                      value={adminForm.email}
+                      value={adminForm.email ?? ''}
                       onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
                       placeholder="Enter admin email"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
@@ -351,14 +649,44 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password
                     </label>
-                    <input
-                      type="password"
-                      value={adminForm.password}
-                      onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                      placeholder="Enter admin password"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={adminPasswordVisible ? 'text' : 'password'}
+                        value={adminForm.password ?? ''}
+                        onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                        placeholder="Enter admin password"
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAdminPasswordVisible((v) => !v)}
+                        aria-label={adminPasswordVisible ? 'Hide password' : 'Show password'}
+                        className="absolute inset-y-0 right-2 flex items-center justify-center px-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                      >
+                        {adminPasswordVisible ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-right mt-2">
+                      <button
+                        type="button"
+                        onClick={() => { if (activeRole === 'employee') { setMode('forgot-password'); setFpEmail(adminForm.email ?? ''); } }}
+                        className="text-xs text-blue-500 hover:text-blue-700"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
                   </div>
                   
                   <button
@@ -371,7 +699,45 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="text-red-600 text-sm mt-2 text-center">{adminError}</div>
                   )}
                 </form>
-                
+                ) : (
+                  <form onSubmit={handleForgotEmployeeSubmit} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <input
+                        type="email"
+                        value={fpEmail ?? ''}
+                        onChange={(e) => setFpEmail(e.target.value)}
+                        placeholder="Enter your email address"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        required
+                        disabled={fpEmailLoading}
+                      />
+                    </div>
+                      <div className="flex items-center justify-between">
+                        {EMAIL_REGEX.test((fpEmail || '').trim()) ? (
+                          <button
+                            type="submit"
+                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                            disabled={fpEmailLoading}
+                          >
+                            {fpEmailLoading ? 'Sending...' : 'Send Reset Link'}
+                          </button>
+                        ) : (
+                          <p className="text-sm text-gray-500">&nbsp;</p>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setMode('login')}
+                          className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
+                        >
+                          Back to Login
+                        </button>
+                      </div>
+                    {fpEmailMessage && <p className="text-green-500 text-xs italic mt-4">{fpEmailMessage}</p>}
+                  </form>
+                )}
+
                 <p className="text-center text-xs text-gray-500 mt-4">
                   Authorized personnel only
                 </p>

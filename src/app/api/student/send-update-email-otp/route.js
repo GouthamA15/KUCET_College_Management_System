@@ -39,11 +39,27 @@ export async function POST(req) {
       return NextResponse.json({ message: 'Missing roll number or email' }, { status: 400 });
     }
 
+    console.log(`[DEBUG] Received request: rollno=${rollno}, email=${email}`);
+
+    const db = getDb();
+
+    // Server-side email uniqueness check
+    const uniquenessQuery = 'SELECT roll_no FROM students WHERE email = ? AND roll_no != ?';
+    const uniquenessParams = [email, rollno];
+    console.log(`[DEBUG] Uniqueness check query: "${uniquenessQuery}" with params: [${uniquenessParams.join(', ')}]`);
+
+    const [existingEmailRows] = await db.execute(uniquenessQuery, uniquenessParams);
+
+    console.log(`[DEBUG] Uniqueness check results for email ${email}:`, existingEmailRows);
+
+    if (existingEmailRows.length > 0) {
+      return NextResponse.json({ message: 'This email is already registered to another student.' }, { status: 409 });
+    }
+    
     // Generate a secure 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
-    const db = getDb();
     
     // Invalidate any existing OTPs for this roll number
     await db.execute('DELETE FROM otp_codes WHERE roll_no = ?', [rollno]);

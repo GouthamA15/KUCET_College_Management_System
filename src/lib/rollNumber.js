@@ -8,7 +8,16 @@ const branchCodes = {
   '03': 'MECH',
 };
 
+const EXAM_TOTAL_MARKS = {
+  'EAMCET': 160,
+  'ECET': 200,
+  'PGECET': 120, // Assuming a default or common value for PGECET, can be updated if specified
+};
+
 function validateRollNo(rollNo) {
+  if (typeof rollNo !== 'string' || rollNo.trim() === '') {
+    return { isValid: false };
+  }
   const regularPattern = /^(\d{2})567T(\d{2})(\d{2})$/;
   const lateralPattern = /^(\d{2})567(\d{2})(\d{2})L$/;
 
@@ -89,7 +98,13 @@ function getCurrentStudyingYear(rollNo) {
   // Effective academic base year: if before June, academic year belongs to previous calendar year
   const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
 
-  const academicYearIndex = effectiveYear - entryYearInt + 1;
+  let academicYearIndex = effectiveYear - entryYearInt + 1;
+
+  // For lateral entry students, their first year in college is the second year of the B.Tech program.
+  if (admissionType && admissionType.toLowerCase() === 'lateral') {
+    academicYearIndex += 1;
+  }
+
 
   const maxYears = (admissionType && admissionType.toLowerCase() === 'lateral') ? 3 : 4;
   if (!Number.isInteger(academicYearIndex) || academicYearIndex < 1 || academicYearIndex > maxYears) return null;
@@ -109,6 +124,18 @@ function getAcademicYearForStudyYear(rollNo, yearOfStudy) {
   return `${startYear}-${String(endYear).slice(-2)}`;
 }
 
+function getEntranceExamQualified(rollNo) {
+  if (rollNo && typeof rollNo === 'string') {
+    if (rollNo.includes('T')) {
+      return 'EAMCET';
+    }
+    if (rollNo.includes('L')) {
+      return 'ECET';
+    }
+  }
+  return null;
+}
+
 export {
   validateRollNo,
   getEntryYearFromRoll,
@@ -118,12 +145,25 @@ export {
   getCurrentStudyingYear,
   getAcademicYearForStudyYear,
   getCurrentAcademicYear,
+  getResolvedCurrentAcademicYear,
+  getEntranceExamQualified,
   branchCodes,
+  EXAM_TOTAL_MARKS,
 };
 
 function getCurrentAcademicYear(rollNo) {
-  const entryYear = getEntryYearFromRoll(rollNo);
-  const admissionType = getAdmissionTypeFromRoll(rollNo);
+  let entryYear = getEntryYearFromRoll(rollNo);
+  let admissionType = getAdmissionTypeFromRoll(rollNo);
+
+  // If strict parsing failed, attempt a tolerant extraction for slightly malformed/short roll numbers
+  if (!entryYear && typeof rollNo === 'string' && rollNo.includes('567')) {
+    const maybeYear = rollNo.slice(0, 2);
+    if (/^\d{2}$/.test(maybeYear)) {
+      entryYear = `20${maybeYear}`;
+      admissionType = rollNo.includes('L') ? 'Lateral' : 'Regular';
+    }
+  }
+
   if (!entryYear) return null;
 
   const admissionYear = parseInt(entryYear, 10);
@@ -136,6 +176,49 @@ function getCurrentAcademicYear(rollNo) {
 
   const maxYears = (admissionType && admissionType.toLowerCase() === 'lateral') ? 3 : 4;
   if (!Number.isInteger(academicYearIndex) || academicYearIndex < 1 || academicYearIndex > maxYears) return null;
+
+  const startYear = admissionYear + (academicYearIndex - 1);
+  const endYear = startYear + 1;
+  return `${startYear}-${String(endYear).slice(-2)}`;
+}
+
+// Authoritative resolver for current academic year
+// Throws on invalid roll number format. Frontend must not compute academic year independently.
+function getResolvedCurrentAcademicYear(rollNo) {
+  if (typeof rollNo !== 'string') {
+    throw new Error('Invalid roll number format – cannot determine academic year');
+  }
+
+  let entryYear = getEntryYearFromRoll(rollNo);
+  let admissionType = getAdmissionTypeFromRoll(rollNo);
+
+  // Tolerant parsing fallback: handle slightly malformed values while preserving intent
+  if (!entryYear) {
+    const two = String(rollNo).slice(0, 2);
+    if (/^\d{2}$/.test(two) && String(rollNo).includes('567')) {
+      entryYear = `20${two}`;
+      admissionType = String(rollNo).includes('L') ? 'Lateral' : 'Regular';
+    }
+  }
+
+  if (!entryYear) {
+    throw new Error('Invalid roll number format – cannot determine academic year');
+  }
+
+  const admissionYear = parseInt(entryYear, 10);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-12
+
+  // June boundary: before June -> academic base is previous calendar year
+  const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
+  let academicYearIndex = effectiveYear - admissionYear + 1;
+
+  const maxYears = (admissionType && String(admissionType).toLowerCase() === 'lateral') ? 3 : 4;
+  // Clamp to course duration bounds
+  if (!Number.isFinite(academicYearIndex)) academicYearIndex = 1;
+  if (academicYearIndex < 1) academicYearIndex = 1;
+  if (academicYearIndex > maxYears) academicYearIndex = maxYears;
 
   const startYear = admissionYear + (academicYearIndex - 1);
   const endYear = startYear + 1;

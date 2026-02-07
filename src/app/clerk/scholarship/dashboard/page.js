@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -8,11 +9,14 @@ import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateRequests from '@/components/CertificateRequests';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import { getAdmissionTypeFromRoll, getBranchFromRoll, getAcademicYear, getCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
+import { getAdmissionTypeFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
+import BulkImportStudents from '@/components/BulkImportStudents';
 
 export default function ScholarshipDashboard() {
+  const [clerk, setClerk] = useState(null);
+  const [isClerkLoading, setIsClerkLoading] = useState(true); // For initial clerk auth check
   const [roll, setRoll] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // For fetching student data
   const [student, setStudent] = useState(null);
   const [personal, setPersonal] = useState(null);
   const [academic, setAcademic] = useState(null);
@@ -20,8 +24,7 @@ export default function ScholarshipDashboard() {
   const [scholarshipRecords, setScholarshipRecords] = useState([]);
   const [yearCount, setYearCount] = useState(4);
   const [expandedYear, setExpandedYear] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false); // scholarship add/edit modal
-  // image preview state (kept separate from scholarship modal state)
+  const [modalOpen, setModalOpen] = useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [editingYear, setEditingYear] = useState(null);
@@ -30,7 +33,37 @@ export default function ScholarshipDashboard() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
   const [pendingSaveData, setPendingSaveData] = useState(null);
-  const [view, setView] = useState('dashboard'); // 'dashboard' or 'certificates'
+  const [view, setView] = useState('dashboard');
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchClerkData = async () => {
+      setIsClerkLoading(true);
+      try {
+        const res = await fetch('/api/clerk/me');
+        const data = await res.json();
+        if (res.ok) {
+          if (data.role !== 'scholarship') {
+            toast.error('Access Denied');
+            router.push('/');
+          } else {
+            setClerk(data);
+          }
+        } else {
+          toast.error(data.error || 'Failed to fetch clerk data.');
+          router.push('/');
+        }
+      } catch (error) {
+        toast.error('An unexpected error occurred while fetching clerk data.');
+        console.error('Error fetching clerk data:', error);
+        router.push('/');
+      } finally {
+        setIsClerkLoading(false);
+      }
+    };
+    fetchClerkData();
+  }, [router]);
 
   // Fee constants and helpers
   const SELF_FINANCE_BRANCHES = ['CSD', 'IT', 'CIVIL'];
@@ -54,6 +87,31 @@ export default function ScholarshipDashboard() {
 
     // self finance
     return isScholar ? 35000 : 70000;
+  };
+
+  // Safe date formatter: renders DD-MM-YYYY without timezone shifts
+  const toDmy = (val) => {
+    if (!val) return '-';
+    try {
+      const s = String(val);
+      const datePart = s.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        const [y, m, d] = datePart.split('-');
+        return `${d}-${m}-${y}`;
+      }
+      const ddmmyyyy = s.split('-');
+      if (ddmmyyyy.length === 3 && ddmmyyyy[0].length === 2 && ddmmyyyy[1].length === 2 && ddmmyyyy[2].length === 4) {
+        return s; // already DD-MM-YYYY
+      }
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return s;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch {
+      return String(val);
+    }
   };
 
   // Calculate these once before the render loop if student data is available
@@ -93,13 +151,9 @@ export default function ScholarshipDashboard() {
       setFeeDetails(data.feeDetails || {});
       setScholarshipRecords(Array.isArray(data.scholarship) ? data.scholarship : []);
 
-      const academicYear = getAcademicYear(data.student.roll_no);
-      if (academicYear) {
-        const [start, end] = academicYear.split('-').map(Number);
-        setYearCount(end - start);
-      } else {
-        setYearCount(4); // Default to 4 years if academic year is not available
-      }
+      // Determine course duration purely by admission type: Regular=4, Lateral=3
+      const at = getAdmissionTypeFromRoll(data.student.roll_no) || 'Regular';
+      setYearCount(String(at).toLowerCase() === 'lateral' ? 3 : 4);
 
       toast.success('Student loaded', { id });
     } catch (err) {
@@ -292,6 +346,14 @@ export default function ScholarshipDashboard() {
     return { label: 'Scholarship', type: 'scholar' };
   };
 
+  if (isClerkLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <p className="text-gray-600">Loading scholarship dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
@@ -387,7 +449,7 @@ export default function ScholarshipDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
                       <div className="text-sm text-gray-500">Academic Year</div>
-                      <div className="font-medium">{getCurrentAcademicYear(student.roll_no) || '-'}</div>
+                      <div className="font-medium">{(() => { try { return getResolvedCurrentAcademicYear(student.roll_no); } catch { return '-'; } })()}</div>
                     </div>
                     <div>
                       <div className="text-sm text-gray-500">Admission Type (detailed)</div>
@@ -482,10 +544,10 @@ export default function ScholarshipDashboard() {
                               <div>
                                 <h4 className="font-semibold">Non-Scholar Payment</h4>
                                 <div className="text-sm">UTR: {rec.utr_no || '-'}</div>
-                                <div className="text-sm">UTR Date: {rec.utr_date || '-'}</div>
+                                <div className="text-sm">UTR Date: {toDmy(rec.utr_date) || '-'}</div>
                                 <div className="text-sm">Amount Paid: {rec.amount_paid ?? '-'}</div>
                                 <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
-                                <div className="text-sm">Updated on: {rec.updated_at || rec.created_at || '-'}</div>
+                                <div className="text-sm">Updated on: {toDmy(rec.updated_at) || toDmy(rec.created_at) || '-'}</div>
                               </div>
                             ) : (
                               <div>
@@ -495,9 +557,9 @@ export default function ScholarshipDashboard() {
                                 <div className="text-sm">Amount Sanctioned: {rec.amount_sanctioned ?? '-'}</div>
                                 <div className="text-sm">Amount Distributed: {rec.amount_disbursed ?? '-'}</div>
                                 <div className="text-sm">Challan No: {rec.ch_no || '-'}</div>
-                                <div className="text-sm">Date: {rec.date || '-'}</div>
+                                <div className="text-sm">Date: {toDmy(rec.date) || '-'}</div>
                                 <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
-                                <div className="text-sm">Updated on: {rec.updated_at || rec.created_at || '-'}</div>
+                                <div className="text-sm">Updated on: {toDmy(rec.updated_at) || toDmy(rec.created_at) || '-'}</div>
                               </div>
                             )}
 
@@ -508,7 +570,7 @@ export default function ScholarshipDashboard() {
                                 const totalPaid = Number(rec.amount_paid ?? rec.amount_disbursed ?? 0);
                                 const pendingFee = Math.max(0, totalFee - totalPaid);
                                 const txn = rec.utr_no || rec.ch_no || '-';
-                                const txnDate = rec.utr_date || rec.date || '-';
+                                const txnDate = (toDmy(rec.utr_date) !== '-' ? toDmy(rec.utr_date) : (toDmy(rec.date) !== '-' ? toDmy(rec.date) : '-'));
                                 const statusAuto = pendingFee > 0 ? 'Pending' : 'Success';
                                 return (
                                   <>

@@ -8,7 +8,7 @@ This project is a "KUCET College Management System" built using Next.js. It prov
 
 *   **Frontend Framework:** Next.js (version 16.1.1) with React (version 19.2.3).
 *   **Styling:** Tailwind CSS.
-*   **Database:** MySQL, accessed via `mysql2/promise` for asynchronous database interactions. Database credentials are managed through environment variables.
+*   **Database:** MySQL, accessed via `mysql2/promise` for asynchronous database interactions. Database credentials areENI managed through environment variables.
 *   **Authentication & Authorization:**
     *   **Super Admin:** Uses hardcoded credentials (`admin@test.com`, `password`) for initial access. Authentication is handled via JSON Web Tokens (JWTs) stored in an `admin_auth` HTTP-only cookie.
     *   **Clerk:** Authenticates against a `clerk` table in the MySQL database, verifying email and hashed password. JWTs are used for session management, stored in a `clerk_auth` HTTP-only cookie.
@@ -45,6 +45,9 @@ DB_USER=your_mysql_user
 DB_PASSWORD=your_mysql_password
 DB_DATABASE=your_mysql_database_name
 JWT_SECRET=a_strong_random_secret_key_for_jwt_signing
+EMAIL_USER=your_email_username
+EMAIL_PASS=your_email_password
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
 ```
 
 A `college_db_cse_2023_students.sql` file is present, suggesting the database schema can be initialized from this file.
@@ -103,6 +106,13 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **`5c21a37` - fix: resolve email update OTP verification flow**
 *   **`425d88a` - docs: Update GEMINI.md with latest changes and refactoring**
 *   **`166d582` - Updated Student Login using DOB Functionality**
+
+*   **Recent Fixes and Improvements:**
+    *   **`abe2b08` - Input Field Issues:** Fixed value fallbacks.
+    *   **`bf62ef2` - Fixed Merge Conflict:** Resolved a merge conflict.
+    *   **`a2372f7` - Improvement in Components:** Enhancements made to various components.
+    *   **`6c0126c` - Fixed Endpoints:** Addressed issues in API endpoints.
+    *   **`49f892a` - Scholarship Dashboard:** Fixed a syntax problem in the Scholarship Dashboard.**
 *   **`78f7e86` - Updated Componenets**
 *   **`f401920` - Updated pages**
 *   **`81f919c` - updated clerk login api call**
@@ -156,10 +166,15 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   API endpoint for sending OTP: `src/app/api/auth/send-otp/route.js` (generates, stores, and sends OTP).
     *   API endpoint for verifying OTP: `src/app/api/auth/verify-otp/route.js` (verifies, checks expiration, and invalidates OTP).
 *   **Admission Clerk Student Management Enhancements:**
-    *   **Authorization Update**: `src/app/api/student/[rollno]/route.js` modified to allow `admission` role clerks to access student details (via `clerk_auth` cookie verification).
+    *   **Authorization Update**: The API in `src/app/api/clerk/admission/students/[rollno]/route.js` now ensures only `admission` role clerks can update student details (via `clerk_auth` cookie verification).
+    *   **Robust Detail Management**: Implemented logic to dynamically update student details across `students`, `student_personal_details`, and `student_academic_background` tables. If `student_personal_details` or `student_academic_background` records do not exist for a student, new records are inserted; otherwise, existing ones are updated.
     *   **Student Update API**: New API route `src/app/api/clerk/admission/students/[rollno]/route.js` with a `PUT` endpoint for Admission Clerks to update student details (core, personal, academic background).
-    *   **Frontend Integration**: `src/components/ClerkStudentManagement.js` refactored to use the new centralized `PUT` endpoint for saving student edits, consolidating multiple previous fetch calls.
+    *   **Frontend Interface**: The `src/components/ClerkStudentManagement.js` component has been re-architected to use a unified `activeAction` state, providing a comprehensive UI for admission clerks to **add, import, search, view, and edit** student records. It now directly integrates the `BulkImportStudents` component, offering a drag-and-drop interface for Excel uploads and displaying inline error reports. It leverages `rollNumber.js` utilities for client-side roll number validation and academic details derivation. It uses the `POST` endpoint for adding students and the centralized `PUT` endpoint for saving edits. Features include Aadhaar/mobile number sanitization, DatePicker integration, profile picture display with preview, and a read-only fee summary. The list of valid categories for student creation and editing has been updated to include 'OC-EWS'.
     *   **Fix**: Resolved `params` Promise unwrapping issue in `src/app/api/clerk/admission/students/[rollno]/route.js`.
+    *   **Student Creation API**: Implemented `POST` endpoint in `src/app/api/clerk/admission/students/route.js` allowing admission clerks to create new student records. This API includes roll number validation, duplicate checks, multi-table insertion (into `students`, `student_personal_details`, `student_academic_background`), data sanitization (e.g., Aadhaar), and a rollback mechanism for partial insertions.
+    *   **Aadhaar Number Data Length Fix**: Implemented sanitization of the `aadhaar_no` field to remove non-digit characters before database insertion, resolving `ER_DATA_TOO_LONG` errors (commit `eab1867`).
+    *   **Roll Number Input Handling**: Fixed handling of undefined roll number input in `validateRollNo` to prevent `TypeError` (commit `6776e4d`).
+    *   **Component Refactoring**: The `ClerkStudentManagement.js` component has been broken down into smaller, more manageable components for improved maintainability and readability (commit `73389d1`).
 *   **Consolidated Roll Number and Academic Year Logic:**
     *   Implemented a robust roll number validation and derivation system for both regular (e.g., `22567T3053`) and lateral entry (e.g., `225673072L`) students.
     *   Created new utility functions in `src/lib/rollNumber.js` to extract entry year, determine academic year ranges (e.g., "2023-2027"), and calculate the current studying year based on the roll number and admission type.
@@ -206,6 +221,49 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   A new git branch `testvanilla` was created and pushed to include all these changes.
 
 
+## Code Documentation
+
+### Password Management
+
+#### Forgot/Reset Password
+
+*   **API Routes:**
+    *   `src/app/api/auth/forgot-password/admin/route.js`: Handles forgot password requests for admins.
+    *   `src/app/api/auth/forgot-password/clerk/route.js`: Handles forgot password requests for clerks.
+    *   `src/app/api/auth/forgot-password/student/route.js`: Handles forgot password requests for students. This API now includes a `GET` method to check a student's email verification and password set status, and its `POST` method conditionally processes reset requests based on these statuses.
+    *   `src/app/api/auth/reset-password/[token]/route.js`: Handles password reset using a token.
+*   **Frontend Pages:**
+    *   `src/app/reset-password/[token]/page.js`: Page for users to reset their password.
+    *   **Note**: The dedicated frontend pages for initiating forgot password requests for admin, clerk, and student roles (`src/app/forgot-password/admin/page.js`, `src/app/forgot-password/clerk/page.js`, `src/app/forgot-password/student/page.js`) have been removed (commit `26119a1`). Functionality is now expected to be integrated directly into login flows or via other means.
+*   **Database:**
+    *   `password_reset_tokens` table: Stores password reset tokens.
+
+#### Change Password
+
+*   **API Routes:**
+    *   `src/app/api/auth/change-password/admin/route.js`: Handles password changes for admins.
+    *   `src/app/api/auth/change-password/clerk/route.js`: Handles password changes for clerks.
+    *   `src/app/api/auth/change-password/student/route.js`: Handles password changes for students.
+*   **Frontend Components:**
+    *   `src/components/ChangePasswordModal.js`: A modal component for changing the password.
+
+### Faculty Role
+
+*   **API Routes:**
+    *   `src/app/api/clerk/me/route.js`: Fetches the details of the logged-in clerk, including their role.
+*   **Frontend Pages:**
+    *   `src/app/admin/create-clerk/page.js`: Updated to include "Faculty" as a role option.
+    *   `src/app/clerk/faculty/dashboard/page.js`: Dashboard page for faculty members.
+    *   `src/app/clerk/redirects/page.js`: Updated to redirect faculty members to their dashboard.
+
+### Database Schema
+
+*   `college_db_patch_v9.sql`: Adds the `password_reset_tokens` table.
+
+### Environment Variables
+
+*   `.env.example`: Updated with `EMAIL_USER`, `EMAIL_PASS`, and `NEXT_PUBLIC_BASE_URL` for email and base URL configuration.
+
 ## Development Conventions
 
 *   **Code Formatting & Linting:** ESLint is configured using `eslint-config-next/core-web-vitals` to maintain code quality and consistency.
@@ -213,3 +271,103 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Component-Based Architecture:** Follows React's component-based development paradigm, with UI components located in the `src/components` directory.
 *   **API Route Structure:** API endpoints are organized within `src/app/api`, following Next.js API Routes conventions.
 *   **Middleware for Security:** `src/proxy.js` is used for centralized route protection, ensuring that only authorized users can access specific parts of the application.
+
+### New/Enhanced Features: Bulk Student Import
+
+*   **API Route**: `src/app/api/clerk/admission/bulk-import/route.js`
+    *   **Robust Excel Parsing**: Now uses a more advanced parsing logic, including header normalization (lowercase, trim, convert spaces/hyphens to underscores) and aliasing for flexible column matching (e.g., 'Roll Number', 'RollNo', 'Registration No' all map to `roll_no`).
+    *   **Enhanced Data Validation**: Performs comprehensive validation including checking for missing required columns (Roll Number, Candidate Name, Gender, DOB, Father Name, Category, Address), duplicate roll numbers within the uploaded file, and existing roll numbers in the database.
+    *   **Gender Normalization**: Standardizes gender values (e.g., 'm', 'f' to 'Male', 'Female').
+    *   **Date Normalization**: Supports various date formats and Excel serial numbers, converting them to 'YYYY-MM-DD'.
+    *   **Transactional Import**: Still executes database insertions (`students`, `student_personal_details`, `student_academic_background`) within a transaction for atomicity.
+    *   **Detailed Error Reporting**: Returns a structured response including total rows, inserted count, skipped count, and a list of errors with row numbers and reasons. It also provides a CSV report of errors when conflicts occur.
+    *   **Enhanced Data Validation (Phone Number & Category)**: Implemented validation for phone numbers to ensure they are exactly 10 digits if provided. Added strict validation for the 'Category' field, allowing only predefined values such as 'OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'. Invalid entries are now reported as errors.
+*   **Frontend Component**: `src/components/BulkImportStudents.js`
+    *   **Integrated UI**: The component is now directly integrated into `ClerkStudentManagement.js`, replacing its standalone card in the dashboard.
+    *   **Drag-and-Drop Interface**: Features a modern drag-and-drop area for selecting Excel files, along with traditional file input.
+    *   **Unified Upload Process**: Replaces separate preview and import buttons with a single "Import Students" action that directly processes the file.
+    *   **Result Handling**: Communicates import results (successes, errors, summary) via callbacks to the parent component, allowing for inline display of error reports and download options.
+*   **Integration**:
+    *   Integrated into `src/components/ClerkStudentManagement.js`, which is used in `src/app/clerk/admission/dashboard/page.js`.
+    *   The previous standalone "Bulk Student Import" card in `src/app/clerk/admission/dashboard/page.js` has been removed.
+    *   Parses `.xlsx` files using `xlsx-js-style`.
+    *   Performs pre-validation of student data (missing fields, email format).
+    *   **Feature Enhancement**: Automatically generates email (`[roll_no]@college.com`) if not provided in the Excel file.
+    *   **Feature Enhancement**: Handles `gender` column: sets to `NULL` if not provided, attempts to normalize common gender inputs.
+    *   Executes database insertions for `students`, `student_personal_details`, and `student_academic_background` tables within a **transaction**.
+    *   **Bug Fix**: Corrected transaction management by acquiring a connection from the pool for `beginTransaction`, `commit`, `rollback`, and `release`.
+    *   **Bug Fix**: Removed incorrect insertion of `branch` into `student_academic_background` table, as `branch` is derivable from the roll number and not a stored column in that table.
+    *   Ensures atomicity: if any part of the import fails, the entire transaction is rolled back.
+    *   Provides detailed error feedback, including duplicate entry detection, and informational messages about auto-generated emails or defaulted gender values.
+*   **Frontend Component**: `src/components/BulkImportStudents.js`
+    *   **Editable Client-side Preview:** The bulk student import preview table is now editable, allowing clerks to make corrections before final submission. Changes are validated in real-time. The API route (`src/app/api/clerk/admission/bulk-import/route.js`) has been updated to accept either file `FormData` or a JSON payload of edited student data.
+    *   **Client-side Excel Preview & Validation**: Implemented a client-side Excel preview using `read-excel-file` before sending the data to the server.
+        *   Displays parsed Excel data in a table format.
+        *   Performs client-side validation for critical fields:
+            *   **Roll Number**: Validated against specific regex patterns (`##567T####` or `##567####L`).
+            *   **Candidate Name, Gender, Date of Birth, Father Name, Category**: Checked for emptiness.
+            *   **Gender**: Normalized ('m'/'f' to 'Male'/'Female') and validated against predefined options.
+            *   **Date of Birth**: **Enhanced client-side date validation** using the `parseDate` utility from `src/lib/date.js` to robustly handle various formats (e.g., DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, MM/DD/YYYY) and input types (Excel date objects, strings). (commits `f529827`, `8888249`)
+            *   **Mobile Number**: Validated for 10 digits or '+91' followed by 10 digits.
+            *   **Address**: A warning is displayed if the address field is empty, but it's not a blocking error.
+        *   Highlights rows and individual cells with errors (red) or warnings (yellow) in the preview table.
+        *   Provides toast messages to inform the user about critical errors (blocking import) or warnings (informational).
+        *   The upload process is now a two-step process: select file, then confirm import from the preview.
+*   **Bug Fixes:**
+    *   **`ReferenceError: handleDrop is not defined`**: Resolved an issue where drag-and-drop handler functions (`handleDrop`, `handleDragOver`, `handleDragEnter`, `handleDragLeave`) were undefined in `src/components/BulkImportStudents.js` by moving their definitions into the component's scope.
+*   **Integration**:
+    *   Integrated into `src/app/clerk/admission/dashboard/page.js`.
+    *   A new card allows the admission clerk to open the "Bulk Student Import" module, which then renders the `BulkImportStudents` component.
+
+*   **Student Authentication & Profile:**
+    *   **Set Password Feature**: Implemented a "Set Password" feature for students. Initial login can be done with Date of Birth (DOB), but students are prompted to set a secure password. New API (`src/app/api/student/set-password/route.js`) and UI components (`src/app/student/profile/page.js`, `src/components/LoginPanel.js`) support this. Student login (`src/app/api/student/login/route.js`) now prioritizes `password_hash` for authentication.
+    *   **Student Profile Enhancements**: The student profile (`src/app/student/profile/page.js`) now includes a security warning and an inline form to set a custom password. It also provides a more accurate and detailed fee summary for the current academic year, accounting for self-financed branches and scholarship status.
+    *   **Student Login Improvements**: The student login panel (`src/components/LoginPanel.js`) now uses "Password" as the input field, with guidance to use DOB for first-time users without a set password. Roll number input converts to uppercase. The page title (`src/app/layout.js`) has been updated to "KUCET - Login Portal".
+    *   **Profile Picture Fetching**: Added functionality for fetching student profile pictures.
+    *   **Student Email Verification**: Improved student email verification using OTP.
+
+*   **Certificate Request System Enhancements:**
+    *   **Rejection Reason Overview**: Students can now view the specific rejection reason for their rejected certificate requests on the bonafide request page (`src/app/student/requests/bonafide/page.js`).
+    *   **Clerk Request Management with Rejection Reasons**: Clerks can now provide a detailed rejection reason when declining student requests through an integrated dialog in the `CertificateRequests.js` component. The API (`src/app/api/clerk/requests/[request_id]/route.js`) enforces this reason, and the student request API (`src/app/api/student/requests/route.js`) retrieves it.
+    *   **Dynamic QR Code Generation**: Payment QR codes for certificate requests are now dynamically generated based on the certificate type and fee. This involved updates in `public/assets/Payment QR/` (new `kucet-logo.png`, removal of `kucet-logo.jpg` and `qr.py`, new fixed amount QR images like `ku_payment_100.png`) and in the frontend (`src/app/student/requests/bonafide/page.js`, `src/app/student/requests/certificates/page.js`).
+    *   **New Student Request Pages**: Dedicated pages for "Bonafide Certificate" (`src/app/student/requests/bonafide/page.js`) and "No Dues Certificate" (`src/app/student/requests/nodues/page.js`) requests have been implemented.
+
+*   **UI/UX & Navigation:**
+    *   **Navbar Refinements**: The main navigation (`src/components/Navbar.js`) has been refined, including a slight reduction in height, removal of unnecessary tabs, and improved handling for sub-pages. The active tab highlighting is also improved.
+    *   **Image Preview**: An image preview modal (`ImagePreviewModal.js`) was added for better viewing of profile pictures.
+    *   **Login Panel UX**: The application now automatically scrolls to login panels when they are activated.
+    *   **Footer Update**: The footer text has been updated to be more professional.
+
+*   **Backend & API Improvements:**
+    *   **Optimized Academic Year Calculations**: Improved logic for calculating academic years.
+    *   **PDF Generator**: A new utility leveraging Puppeteer (`src/lib/pdf-generator.js`) was added for server-side HTML to PDF conversion.
+    *   **Roll Number Logic Consolidation**: Robust validation and derivation of academic information (entry year, branch, admission type, current studying year) from roll numbers, centralized in `src/lib/rollNumber.js`. This impacted `ClerkStudentManagement.js`, `student/profile/page.js`, `clerk/scholarship/dashboard/page.js` and various API endpoints.
+    *   **Email Sending Functionality**: Implemented email sending using Nodemailer (`src/lib/email.js`) and related API routes.
+    *   **Cryptographically Secure OTP**: Secure OTP generation and verification features implemented (new `otp_codes_table.sql`, `src/lib/student-utils.js`, `src/app/api/auth/send-otp/route.js`, `src/app/api/auth/verify-otp/route.js`).
+    *   **Admission Clerk Student Management**: Enhanced API (`src/app/api/clerk/admission/students/[rollno]/route.js`) and frontend (`src/components/ClerkStudentManagement.js`) for updating student details.
+    *   **Clerk Personal Details API**: New API (`src/app/api/clerk/personal-details/route.js`) for clerks to manage student personal details.
+    *   **Scholarship Clerk Dashboard Enhancements**: UI components (`NonScholarshipView.js`, `FullScholarshipView.js`, `PartialScholarshipView.js`) and API (`src/app/api/clerk/scholarship/[rollno]/route.js`) to manage scholarship and fee entries, including deletion functionality and improved handling of null values. Database schema for `scholarship` and `fees` tables updated in `college_db.sql`.
+    *   **Middleware Refinements**: Improved redirection handling in `src/middleware.js` for admin, clerk, and student base paths.
+    *   **Improved API Routing and Data Handling**: General improvements across the API.
+    *   **Customized APIs**: APIs have been customized for various functionalities.
+
+*   **Bug Fixes:**
+    *   **Login Redirection Fix:** Fixed a bug where login redirection would fail in some production-like deployment environments (e.g., Render). The issue was resolved by replacing the Next.js `router.replace()` with `window.location.assign()` in the `LoginPanel.js` component for all user roles (student, clerk, admin). This forces a full page reload after login, ensuring a consistent and reliable redirection.
+    *   **Login Issues**: Fixed `TypeError` in admin login (`src/app/api/admin/login/route.js`) and `Navbar.js` (`TypeError: setActiveTab is not a function`). Deactivated clerk accounts are now prevented from logging in. Empty results in admin login are also handled.
+    *   **Admin Panel Role Switching**: Fixed a bug where `DELETE` and `PUT` methods were swapped in the admin panel.
+    *   **Email Update OTP Verification**: Resolved issues with the email update OTP verification flow (`src/app/api/student/verify-update-email-otp/route.js`).
+    *   **Date Format Standardization**: Standardized `DD-MM-YYYY` date format using `react-datepicker` and new utility functions (`src/lib/date.js`). Fixed `ER_TRUNCATED_WRONG_VALUE` errors in backend API routes by correctly parsing and storing dates as `YYYY-MM-DD`.
+    *   **Student Profile JSX Error**: Resolved JSX parsing error in `src/app/student/profile/page.js`.
+    *   **Bulk Import Transaction Fix**: Corrected transaction management and `branch` insertion in `src/app/api/clerk/admission/bulk-import/route.js`.
+    *   **Navbar Misleadings**: Fixed issues related to navbar navigation.
+
+*   **New Pages/Components:**
+    *   **Timetable Page**: Added a placeholder timetable page (`src/app/student/timetable/page.js`).
+    *   **New Components**: `DuesSection.js`, `TuitionFeeStatus.js` (for fee display).
+
+*   **Database Schema Updates:**
+    *   `college_db_patch_v7.sql`: The `course` and `admission_type` columns have been removed from the `students` table. These are now dynamically derived from the roll number using `src/lib/rollNumber.js`. A `UNIQUE KEY` `roll_no` has been added to the `students` table, enforcing uniqueness for student roll numbers.
+    *   `college_db_patch_v2.sql`: The `year_of_study` column was removed from the `student_academic_background` table definition.
+
+*   **Code Cleanup:**
+    *   Deleted no longer needed files (e.g., `Book1.xlsx`) and removed non-functional comments. Removed 'Sannith's Blessings'.

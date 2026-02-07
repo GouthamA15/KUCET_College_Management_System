@@ -1,14 +1,60 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
 import ClerkStudentManagement from '@/components/ClerkStudentManagement';
 import CertificateRequests from '@/components/CertificateRequests';
+import toast from 'react-hot-toast';
 
-export default function ClerkDashboard(){
-  const [openModule, setOpenModule] = useState(null); // 'student', 'certificates', or null
+export default function ClerkDashboard() {
+  const [openModule, setOpenModule] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [clerk, setClerk] = useState(null);
+  const router = useRouter();
 
+  useEffect(() => {
+    const fetchClerkData = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch('/api/clerk/me');
+        const data = await res.json();
+        if (res.ok) {
+          if (data.role !== 'admission') {
+            toast.error('Access Denied');
+            router.push('/');
+          } else {
+            setClerk(data);
+          }
+        } else {
+          toast.error(data.error || 'Failed to fetch clerk data.');
+          router.push('/');
+        }
+      } catch (error) {
+        toast.error('An unexpected error occurred while fetching clerk data.');
+        console.error('Error fetching clerk data:', error);
+        router.push('/');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchClerkData();
+  }, [router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <p className="text-gray-600">Loading admission dashboard...</p>
+      </div>
+    );
+  }
+
+  if (!clerk) {
+    // This case will be hit if loading is false but clerk is still null (e.g., due to an error and redirect)
+    return null; 
+  }
+  
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
@@ -37,17 +83,7 @@ export default function ClerkDashboard(){
                 </div>
               </div>
             </div>
-
-            <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow flex flex-col">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">⚠️</div>
-                <div>
-                  <h3 className="font-semibold">Attendance Alerts</h3>
-                  <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
-                </div>
-              </div>
-            </div>
-
+            
             <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow flex flex-col">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">📈</div>
@@ -73,6 +109,7 @@ export default function ClerkDashboard(){
             <CertificateRequests clerkType="admission" />
           </div>
         )}
+        
       </main>
       <Footer />
     </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { jwtVerify } from 'jose';
-import { getCurrentAcademicYear } from '@/lib/rollNumber';
+import { getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -31,9 +31,31 @@ export async function GET(request) {
   const auth = await getStudentFromToken(request);
   if (!auth || !auth.student_id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // Block if not verified: email present, verified, and password set
+  try {
+    const rows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
+    const s = rows && rows[0];
+    if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
+      return NextResponse.json({ error: 'Verification required' }, { status: 403 });
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'Unable to validate verification status' }, { status: 500 });
+  }
+
+  // Enforce verification: email present, verified, and password set
+  try {
+    const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
+    const ver = verRows && verRows[0];
+    if (!ver || !ver.email || !ver.is_email_verified || !ver.password_hash) {
+      return NextResponse.json({ error: 'Verification required: verify email and set password to access requests.' }, { status: 403 });
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });
+  }
+
   try {
     const rows = await query(
-      `SELECT sr.request_id, sr.certificate_type, sr.status, sr.academic_year, sr.created_at, s.roll_no as roll_number
+      `SELECT sr.request_id, sr.certificate_type, sr.status, sr.academic_year, sr.created_at, sr.reject_reason, s.roll_no as roll_number
        FROM student_requests sr
        JOIN students s ON sr.student_id = s.id
        WHERE sr.student_id = ?
@@ -50,6 +72,28 @@ export async function GET(request) {
 export async function POST(request) {
   const auth = await getStudentFromToken(request);
   if (!auth || !auth.student_id || !auth.roll_no) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Block if not verified: email present, verified, and password set
+  try {
+    const rows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
+    const s = rows && rows[0];
+    if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
+      return NextResponse.json({ error: 'Verification required' }, { status: 403 });
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'Unable to validate verification status' }, { status: 500 });
+  }
+
+  // Enforce verification: email present, verified, and password set
+  try {
+    const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
+    const ver = verRows && verRows[0];
+    if (!ver || !ver.email || !ver.is_email_verified || !ver.password_hash) {
+      return NextResponse.json({ error: 'Verification required: verify email and set password to create requests.' }, { status: 403 });
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });
+  }
 
   try {
     const formData = await request.formData();
@@ -73,9 +117,26 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Transaction ID and screenshot are required for paid certificates' }, { status: 400 });
     }
 
-    // compute academic_year from roll_no (current academic year only)
-    const academicYear = getCurrentAcademicYear(auth.roll_no);
-    if (!academicYear) return NextResponse.json({ error: 'Could not compute current academic year from roll number' }, { status: 400 });
+    // compute academic_year from roll_no (single source of truth)
+    let academicYear;
+    try {
+      academicYear = getResolvedCurrentAcademicYear(auth.roll_no);
+    } catch (e1) {
+      // If token roll_no is malformed or not in expected format, try resolving from DB
+      try {
+        const rollRows = await query('SELECT roll_no FROM students WHERE id = ?', [auth.student_id]);
+        const dbRoll = rollRows && rollRows[0] && rollRows[0].roll_no;
+        if (dbRoll) {
+          academicYear = getResolvedCurrentAcademicYear(dbRoll);
+        }
+      } catch (e2) {
+        console.warn('[REQUESTS] Failed to resolve roll_no from DB', e2);
+      }
+      if (!academicYear) {
+        const msg = (e1 && e1.message) ? e1.message : 'Invalid roll number format – cannot determine academic year';
+        return NextResponse.json({ error: msg }, { status: 400 });
+      }
+    }
 
     try {
       // PRE-CHECK: see if a request exists for this student/certificate/year

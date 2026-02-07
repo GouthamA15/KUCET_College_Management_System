@@ -30,7 +30,16 @@ export async function proxy(request) {
     }
     if (clerkAuth && (await verify(clerkAuth.value, jwtSecret))) {
       const { role } = (await verify(clerkAuth.value, jwtSecret));
-      const dashboard = role.includes('scholar') ? '/clerk/scholarship/dashboard' : '/clerk/admission/dashboard';
+      let dashboard;
+      if (role === 'scholarship') {
+        dashboard = '/clerk/scholarship/dashboard';
+      } else if (role === 'admission') {
+        dashboard = '/clerk/admission/dashboard';
+      } else if (role === 'faculty') {
+        dashboard = '/clerk/faculty/dashboard';
+      } else {
+        dashboard = '/'; // Default or error case
+      }
       return NextResponse.redirect(new URL(dashboard, request.url));
     }
     if (studentAuth && (await verify(studentAuth.value, jwtSecret))) {
@@ -60,7 +69,16 @@ export async function proxy(request) {
     }
     const { role } = payload;
     if (pathname === '/clerk') {
-      const dashboard = role.includes('scholar') ? '/clerk/scholarship/dashboard' : '/clerk/admission/dashboard';
+      let dashboard;
+      if (role === 'scholarship') {
+        dashboard = '/clerk/scholarship/dashboard';
+      } else if (role === 'admission') {
+        dashboard = '/clerk/admission/dashboard';
+      } else if (role === 'faculty') {
+        dashboard = '/clerk/faculty/dashboard';
+      } else {
+        dashboard = '/'; // Default or error case
+      }
       return NextResponse.redirect(new URL(dashboard, request.url));
     }
   }
