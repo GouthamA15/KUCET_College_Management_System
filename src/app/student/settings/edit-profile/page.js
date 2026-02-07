@@ -184,7 +184,14 @@ export default function EditProfilePage() {
                   </button>
                   {/* Photo menu: outside the image, to the right */}
                   {photoMenuOpen && (
-                    <div ref={menuRef} className="absolute left-[calc(100%+12px)] bottom-0 z-50 bg-white shadow-lg rounded-md border w-48 text-sm">
+                    <div
+                      ref={menuRef}
+                      className={
+                        "absolute z-50 bg-white shadow-lg rounded-md border w-48 text-sm " +
+                        /* Mobile: centered below avatar. Desktop (md+): positioned to the right */
+                        "left-1/2 transform -translate-x-1/2 top-full mt-2 md:left-[calc(100%+12px)] md:translate-x-0 md:top-auto md:bottom-0 md:mt-0"
+                      }
+                    >
                       {!displayedPhoto ? (
                         <button onClick={() => fileInputRef.current?.click()} className="mx-1 my-0.5 w-[calc(100%-0.5rem)] text-left px-3 py-2 rounded cursor-pointer transition-colors duration-150 ease-out hover:bg-gray-50 hover:shadow-sm">Choose a Photo</button>
                       ) : (
