@@ -17,8 +17,7 @@ const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
 DatePickerInput.displayName = 'DatePickerInput';
 
 export default function AddNewStudent() {
-  const MAX_ROLL = 11;
-  const MIN_ROLL = 10;
+  const MAX_ROLL = 10;
   const MAX_MOBILE_LEN = 10;
   const MAX_ANNUAL_INCOME = 99999999; // adjust to DB limit if known
 
@@ -41,10 +40,10 @@ export default function AddNewStudent() {
       const trimmed = String(basic.roll_no || '').toUpperCase().slice(0, MAX_ROLL);
       if (trimmed !== basic.roll_no) setBasic(prev=>({ ...prev, roll_no: trimmed }));
       const { isValid } = validateRollNo(basic.roll_no);
-      if (isValid) {
+      if (basic.roll_no.length === 10) {
         setRollNoError('');
       } else {
-        setRollNoError('Invalid Roll Number format');
+        setRollNoError('Roll Number must be exactly 10 characters long');
       }
       const entranceExam = getEntranceExamQualified(basic.roll_no);
       let newQualifyingExam = 'EAMCET'; // Default
@@ -144,10 +143,10 @@ export default function AddNewStudent() {
             <input placeholder="Admission Number*" value={basic.admission_no} onChange={e=>setBasic({...basic, admission_no:e.target.value})} className="p-2 border rounded" />
             <div className="relative">
               <input placeholder="Roll Number*" value={basic.roll_no} onChange={(e)=>{
-                const v = String(e.target.value || '').toUpperCase().slice(0, MAX_ROLL);
+                const v = String(e.target.value || '').toUpperCase().slice(0, 10);
                 setBasic({...basic, roll_no: v});
               }} disabled={savedRollLocked} className="p-2 border rounded w-full" maxLength={MAX_ROLL} />
-              {rollNoError && <div className="text-xs text-red-600 mt-1">{rollNoError}</div>}
+              {rollNoError && basic.roll_no.length !== 0 && <div className="text-xs text-red-600 mt-1">{rollNoError}</div>}
               {savedRollLocked && (<span className="absolute right-2 top-2 text-sm">🔒</span>)}
             </div>
             <input placeholder="Student Name*" value={basic.name} onChange={e=>setBasic({...basic, name:e.target.value})} className="p-2 border rounded" />

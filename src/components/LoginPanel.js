@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const router = useRouter();
-  const MAX_ROLL = 11;
+  const MAX_ROLL = 10;
   const MIN_ROLL = 10;
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
   const [clerkForm, setClerkForm] = useState({ email: '', password: '' });
@@ -142,8 +142,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
     const rn = (fpRollno || '').toString().trim();
     setFpAttempted(true);
 
-    if (rn.length < MIN_ROLL || rn.length > MAX_ROLL) {
-      setFpDisplayMessage(`Please enter a valid ${MIN_ROLL}-${MAX_ROLL} character alphanumeric Roll Number.`);
+    if (rn.length !== 10) {
+      setFpDisplayMessage('Please enter an exact 10-character alphanumeric Roll Number.');
       return;
     }
 
