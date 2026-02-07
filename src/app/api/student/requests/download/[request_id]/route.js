@@ -194,12 +194,52 @@ export async function GET(request, { params }) {
         
         }
 
-        // Ensure logo uses absolute URL so Puppeteer can load it when rendering server-side
-        // Normalize common src patterns (with or without a leading /public prefix or direct file reference)
-        htmlContent = htmlContent.replace(/src=["'](?:\/?public\/)?\/?assets\/Picture1\.png["']|src=["']Picture1\.png["']/g, `src="${baseUrl}/assets/ku-logo.png"`);
-        htmlContent = htmlContent.replace(/src=["'](?:\/?public\/)?\/?assets\/ku-college-seal\.png["']|src=["']ku-college-seal\.png["']/g, `src="${baseUrl}/assets/ku-college-seal.png"`);
-        htmlContent = htmlContent.replace(/src=["'](?:\/?public\/)?\/?assets\/principal-sign\.png["']|src=["']principal-sign\.png["']/g, `src="${baseUrl}/assets/principal-sign.png"`);
-        htmlContent = htmlContent.replace(/src=["'](?:\/?public\/)?\/?assets\/ku-logo\.png["']|src=["']ku-logo\.png["']/g, `src="${baseUrl}/assets/ku-logo.png"`);
+        // Ensure images are available to Puppeteer: inline local asset files as data URIs.
+        // We perform async reads for each img src that references an assets path, and replace with a data URI.
+        const inlineImageRegex = /src=["']([^"']*assets\/[^"]+)["']/g;
+        const seen = new Map();
+        // Collect matches first because we'll perform async reads
+        const matches = Array.from(htmlContent.matchAll(inlineImageRegex));
+        for (const m of matches) {
+            const full = m[0];
+            const srcPath = m[1];
+            if (seen.has(full)) continue;
+            try {
+                let p = srcPath;
+                if (p.startsWith(baseUrl)) p = p.slice(baseUrl.length);
+                p = p.replace(/^\/?public\//, '').replace(/^\//, '');
+                const rel = p.includes('assets/') ? p : `assets/${p}`;
+                const filePath = path.join(process.cwd(), 'public', rel.replace(/^\//, ''));
+                const buffer = await fs.readFile(filePath);
+                const ext = path.extname(filePath).toLowerCase().replace('.', '');
+                const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : `image/${ext}`;
+                const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
+                seen.set(full, dataUri);
+                htmlContent = htmlContent.split(full).join(`src="${dataUri}"`);
+            } catch (e) {
+                const fallback = `src="${baseUrl}/${srcPath.replace(/^\//, '')}"`;
+                seen.set(full, fallback);
+                htmlContent = htmlContent.split(full).join(fallback);
+            }
+        }
+
+        // Also handle common template image filenames (in case templates reference them without assets/ path)
+        const knownNames = ['Picture1.png', 'ku-logo.png', 'ku-college-seal.png', 'principal-sign.png'];
+        for (const name of knownNames) {
+            const regex = new RegExp(`src=["'](?:\\/?public\\/?assets\\/${name}|\\/?assets\\/${name}|${name})["']`, 'g');
+            if (!regex.test(htmlContent)) continue;
+            const filePath = path.join(process.cwd(), 'public', 'assets', name);
+            try {
+                const buffer = await fs.readFile(filePath);
+                const ext = path.extname(filePath).toLowerCase().replace('.', '');
+                const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : `image/${ext}`;
+                const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
+                htmlContent = htmlContent.replace(regex, `src="${dataUri}"`);
+            } catch (e) {
+                htmlContent = htmlContent.replace(regex, `src="${baseUrl}/assets/${name}"`);
+            }
+        }
+
         // 4. Generate PDF using shared helper which uses bundled puppeteer
         const pdfBuf = await htmlToPdfBuffer(htmlContent);
 
