@@ -33,7 +33,8 @@ export async function POST(request) {
     }
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    const token = await new SignJWT({ clerkId: clerk.id, email: clerk.email, role: clerk.role })
+    // Include clerk DB id in JWT payload so downstream handlers can audit actions
+    const token = await new SignJWT({ id: clerk.id, clerkId: clerk.id, email: clerk.email, role: clerk.role })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime('1h')
