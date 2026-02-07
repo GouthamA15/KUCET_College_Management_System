@@ -6,11 +6,11 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
-import CertificateRequests from '@/components/CertificateRequests';
+import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getAdmissionTypeFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
-import BulkImportStudents from '@/components/BulkImportStudents';
+
 
 export default function ScholarshipDashboard() {
   const [clerk, setClerk] = useState(null);
@@ -363,7 +363,7 @@ export default function ScholarshipDashboard() {
         {view === 'certificates' ? (
           <div>
             <button onClick={() => setView('dashboard')} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
-            <CertificateRequests clerkType="scholarship" />
+            <CertificateDashboard clerkType="scholarship" />
           </div>
         ) : (
           <>
