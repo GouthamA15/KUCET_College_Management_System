@@ -1,9 +1,9 @@
 "use client";
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import readXlsxFile from 'read-excel-file'; // Corrected import path
+import readXlsxFile from 'read-excel-file';
 import { parseDate } from '@/lib/date';
-import { validateRollNo, branchCodes } from '@/lib/rollNumber'; // Import validateRollNo and branchCodes
+import { validateRollNo } from '@/lib/rollNumber';
 
 // --- Constants for Client-Side Validation ---
 const REQUIRED_HEADERS_MAP = {
@@ -37,16 +37,16 @@ const validateRow = (rowData, excelRowNumber) => {
 
   // 1. Roll Number
   const rollNo = String(rowData['roll_no'] || '').trim();
-  const { isValid: isRollNoValid, branch: parsedBranch } = validateRollNo(rollNo);
+  const { isValid: isRollNoValid } = validateRollNo(rollNo);
   if (!rollNo || !isRollNoValid) {
     rowErrors['roll_no'] = 'Invalid Roll Number format.';
     validationErrors.push({ row: excelRowNumber, field: 'Roll Number', message: `Invalid Roll Number format: ${rollNo}` });
   }
 
   // 2. Candidate Name
-  const candidateName = String(rowData['name'] || '').trim(); // Changed to 'name'
+  const candidateName = String(rowData['name'] || '').trim();
   if (!candidateName) {
-    rowErrors['name'] = 'Candidate Name is required.'; // Changed key to 'name'
+    rowErrors['name'] = 'Candidate Name is required.';
     validationErrors.push({ row: excelRowNumber, field: 'Candidate Name', message: 'Candidate Name is required.' });
   }
 
@@ -84,10 +84,10 @@ const validateRow = (rowData, excelRowNumber) => {
 
   // 7. Mobile Number
   const mobile = String(rowData['mobile'] || '').trim();
-  if (!mobile) { // Empty mobile number is a warning
+  if (!mobile) {
     rowWarnings['mobile'] = 'Mobile Number is empty.';
     validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: 'Mobile Number is empty.', isWarning: true });
-  } else if (!MOBILE_REGEX.test(mobile)) { // Invalid format is an error
+  } else if (!MOBILE_REGEX.test(mobile)) {
     rowErrors['mobile'] = 'Invalid Mobile Number format (10 digits or +91 followed by 10 digits).';
     validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: `Invalid Mobile: ${mobile}` });
   }
@@ -102,7 +102,6 @@ const validateRow = (rowData, excelRowNumber) => {
   return { rowErrors, rowWarnings, validationErrors };
 };
 
-
 // --- Main Component ---
 export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [file, setFile] = useState(null);
@@ -110,19 +109,21 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // New state for displaying results from API
+  // State for API results
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
   const [errorDetails, setErrorDetails] = useState([]);
+  
   // Import stage management
-  const [importStage, setImportStage] = useState('idle'); // idle | header_error | client_preview | importing | success
-  const [headerError, setHeaderError] = useState(null); // { missing: [], missingDisplay: [], aliasHints: {}, detectedHeaders: [] }
+  const [importStage, setImportStage] = useState('idle');
+  const [headerError, setHeaderError] = useState(null);
 
-  // New states for client-side preview and validation
-  const [previewData, setPreviewData] = useState(null); // Array of objects (rows)
-  const [previewHeaders, setPreviewHeaders] = useState([]); // Array of string (headers)
-  const [clientValidationErrors, setClientValidationErrors] = useState([]); // [{ row: 1, message: '...' }]
-  const [hasClientValidationErrors, setHasClientValidationErrors] = useState(false); // Only for critical errors
+  // States for client-side preview and validation
+  const [previewData, setPreviewData] = useState(null);
+  const [previewHeaders, setPreviewHeaders] = useState([]);
+  const [headerMapping, setHeaderMapping] = useState([]); // New state
+  const [clientValidationErrors, setClientValidationErrors] = useState([]);
+  const [hasClientValidationErrors, setHasClientValidationErrors] = useState(false);
   const [isClientValidated, setIsClientValidated] = useState(false);
   const [isDataEdited, setIsDataEdited] = useState(false);
 
@@ -138,7 +139,6 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
 
     setPreviewData(updatedPreviewData);
     
-    // Update the overall validation errors
     const otherRowsErrors = clientValidationErrors.filter(err => err.row !== excelRowNumber);
     const newValidationErrors = [...otherRowsErrors, ...validationErrors];
     setClientValidationErrors(newValidationErrors);
@@ -151,16 +151,10 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false); // Reset dragging state on drop
+    setIsDragging(false);
     const dt = e.dataTransfer;
     if (dt && dt.files && dt.files.length) {
-      // Create a synthetic event object for handleFileChange
-      const syntheticEvent = {
-        target: {
-          files: dt.files
-        }
-      };
-      handleFileChange(syntheticEvent); // Reuse the same logic
+      handleFileChange({ target: { files: dt.files } });
     }
   };
 
@@ -184,7 +178,6 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
 
   const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
-    // Reset all states
     try { toast.dismiss(); } catch {}
     setFile(null);
     setIsLoading(false);
@@ -193,20 +186,16 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setErrorDetails([]);
     setImportStage('idle');
     setHeaderError(null);
-    // Reset client-side preview states
     setPreviewData(null);
     setPreviewHeaders([]);
+    setHeaderMapping([]);
     setClientValidationErrors([]);
     setHasClientValidationErrors(false);
     setIsClientValidated(false);
     setIsDataEdited(false);
 
     if (selectedFile) {
-      const validTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-      ];
-      if (!validTypes.includes(selectedFile.type)) {
+      if (!['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'].includes(selectedFile.type)) {
         toast.error("Invalid file type. Please upload an Excel file (.xlsx or .xls).");
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -222,18 +211,30 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
       }
 
       const rawHeaders = rows[0];
-      const normalizedHeaders = rawHeaders.map(normalizeHeader);
-      const dataRows = rows.slice(1);
+      
+      const canonicalMap = {};
+      for (const canonicalKey in REQUIRED_HEADERS_MAP) {
+        const { aliases, display } = REQUIRED_HEADERS_MAP[canonicalKey];
+        const allAliases = [display, ...aliases].map(normalizeHeader);
+        allAliases.forEach(alias => {
+          if(alias) canonicalMap[alias] = canonicalKey;
+        });
+        canonicalMap[canonicalKey] = canonicalKey;
+      }
 
+      const mapping = rawHeaders.map(h => canonicalMap[normalizeHeader(h)] || normalizeHeader(h));
+      setHeaderMapping(mapping);
+
+      const dataRows = rows.slice(1);
       const allValidationErrors = [];
       const allPreviewData = [];
 
       for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
         const rowData = {};
-        for (let j = 0; j < normalizedHeaders.length; j++) {
-          const header = normalizedHeaders[j];
-          rowData[header] = row[j];
+        for (let j = 0; j < mapping.length; j++) {
+          const key = mapping[j];
+          rowData[key] = row[j];
         }
 
         const excelRowNumber = i + 2;
@@ -268,7 +269,6 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
       toast.error('No data to import.');
       return;
     }
-    // Prevent upload if there are critical client-side validation errors
     if (hasClientValidationErrors) {
       toast.error('Cannot import due to critical client-side validation errors. Please fix them first.');
       return;
@@ -278,11 +278,27 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setIsLoading(true);
     setImportStage('importing');
 
+    // Transform data back to a format the server expects (keys as normalized headers)
+    const dataToSend = previewData.map(rowWithCanonicalKeys => {
+      const serverRow = {};
+      previewHeaders.forEach((header, index) => {
+        const normalizedHeader = normalizeHeader(header);
+        const canonicalKey = headerMapping[index];
+        if (canonicalKey && rowWithCanonicalKeys.hasOwnProperty(canonicalKey)) {
+          serverRow[normalizedHeader] = rowWithCanonicalKeys[canonicalKey];
+        } else {
+           // For unmapped columns, just pass them as-is
+           serverRow[normalizedHeader] = rowWithCanonicalKeys[normalizedHeader];
+        }
+      });
+      return serverRow;
+    });
+
     try {
       const response = await fetch('/api/clerk/admission/bulk-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ students: previewData, headers: previewHeaders }),
+        body: JSON.stringify({ students: dataToSend, headers: previewHeaders }),
       });
       const data = await response.json();
 
@@ -295,20 +311,17 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
         const rowErrors = Array.isArray(data.errors) ? data.errors : [];
         setErrorDetails(rowErrors);
         setShowSummary(true);
+        setImportStage(rowErrors.length > 0 ? 'row_preview' : 'success');
         if (data.inserted > 0 && rowErrors.length === 0) {
-          setImportStage('success');
           toast.success('Students imported successfully');
         } else {
-          setImportStage('row_preview');
           toast('Import complete. Please review the results.', { icon: '⚠' });
         }
-        if (onImportSuccess) {
-          onImportSuccess(data);
-        }
+        if (onImportSuccess) onImportSuccess(data);
       } else {
         const errorMessage = data.error || 'Import failed due to a server issue.';
         toast.error(errorMessage);
-        setImportStage('client_preview'); // Revert to preview stage on error
+        setImportStage('client_preview');
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -325,7 +338,6 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setErrorDetails([]);
     setHeaderError(null);
     setImportStage('idle');
-    // also clear client-side preview
     setFile(null);
     setPreviewData(null);
     setPreviewHeaders([]);
@@ -357,15 +369,12 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
           onDragOver={handleDragOver}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
-          className={`mx-auto max-w-2xl p-8 border-2 rounded-lg text-center transition cursor-pointer select-none
-            ${isDragging ? 'border-blue-400 bg-blue-50' : 'border-dashed border-gray-300 hover:border-blue-300 hover:bg-gray-50'}`}
+          className={`mx-auto max-w-2xl p-8 border-2 rounded-lg text-center transition cursor-pointer select-none ${isDragging ? 'border-blue-400 bg-blue-50' : 'border-dashed border-gray-300 hover:border-blue-300 hover:bg-gray-50'}`}
         >
           <div className="text-3xl mb-2">📄</div>
-          <>
-              <div className="text-gray-800 font-medium">Drag & drop Excel file here</div>
-              <div className="text-gray-600">or click to browse</div>
-              <div className="text-xs text-gray-500 mt-2">Accepted: .xlsx, .xls</div>
-          </>
+          <div className="text-gray-800 font-medium">Drag & drop Excel file here</div>
+          <div className="text-gray-600">or click to browse</div>
+          <div className="text-xs text-gray-500 mt-2">Accepted: .xlsx, .xls</div>
         </div>
       )}
 
@@ -376,11 +385,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
             {(hasClientValidationErrors || clientValidationErrors.some(err => err.isWarning)) && (
               <div className="mb-4 p-3 bg-red-50 rounded-md border border-red-200 text-sm">
                 <p className="font-semibold text-red-800">
-                  <span className="font-bold">
-                    {clientValidationErrors.filter(err => !err.isWarning).length} critical error(s) and{' '}
-                    {clientValidationErrors.filter(err => err.isWarning).length} warning(s) found.
-                  </span>{' '}
-                  Please review the highlighted rows before importing. Critical errors must be fixed, warnings are informational.
+                  <span className="font-bold">{clientValidationErrors.filter(err => !err.isWarning).length} critical error(s) and {clientValidationErrors.filter(err => err.isWarning).length} warning(s) found.</span> Please review the highlighted rows before importing. Critical errors must be fixed, warnings are informational.
                 </p>
               </div>
             )}
@@ -407,39 +412,24 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
                   {previewData.map((row, rowIndex) => {
                     const hasRowErrors = Object.keys(row._errors).length > 0;
                     const hasRowWarnings = Object.keys(row._warnings).length > 0;
-                    // Valid row: no critical errors and no warnings
-                    const isValidRow = !hasRowErrors && !hasRowWarnings;
-                    /* Row state priority: Critical Error (red) > Warning (yellow) > Valid (green) */
-                    const rowStateClass = hasRowErrors
-                      ? 'bg-red-50'
-                      : hasRowWarnings
-                      ? 'bg-yellow-50'
-                      : isValidRow
-                      ? 'bg-green-50 ring-1 ring-green-200 rounded-md'
-                      : '';
+                    const rowStateClass = hasRowErrors ? 'bg-red-50' : hasRowWarnings ? 'bg-yellow-50' : '';
 
                     return (
                       <tr key={rowIndex} className={rowStateClass}>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{rowIndex + 2}</td>
                         {previewHeaders.map((header, colIndex) => {
-                          const cellKey = normalizeHeader(header);
+                          const cellKey = headerMapping[colIndex];
                           const cellError = row._errors[cellKey];
                           const cellWarning = row._warnings[cellKey];
                           const hasError = !!cellError;
                           const hasWarning = !!cellWarning;
                           return (
-                            <td 
-                              key={colIndex} 
-                              className={`px-1 py-1 whitespace-nowrap text-sm text-gray-700 
-                                ${hasError ? 'bg-red-100' : hasWarning ? 'bg-yellow-100' : ''}`}
-                            >
+                            <td key={colIndex} className={`px-1 py-1 whitespace-nowrap text-sm text-gray-700 ${hasError ? 'bg-red-100' : hasWarning ? 'bg-yellow-100' : ''}`}>
                               <input
                                 type="text"
                                 value={String(row[cellKey] ?? '')}
                                 onChange={(e) => handleCellEdit(rowIndex, cellKey, e.target.value)}
-                                className={`w-full h-full bg-transparent border-none p-2 focus:ring-1 focus:ring-blue-500 rounded-sm ${
-                                  hasError ? 'border-red-300' : hasWarning ? 'border-yellow-300' : ''
-                                }`}
+                                className={`w-full h-full bg-transparent border-none p-2 focus:ring-1 focus:ring-blue-500 rounded-sm ${hasError ? 'border-red-300' : hasWarning ? 'border-yellow-300' : ''}`}
                                 title={hasError ? cellError : hasWarning ? cellWarning : ''}
                               />
                             </td>
@@ -453,18 +443,8 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
             </div>
           </div>
           <div className="mt-6 flex justify-end space-x-4">
-            <button
-              onClick={handleDismissResults}
-              disabled={isLoading}
-              className="px-5 py-2 bg-gray-200 text-gray-800 font-semibold rounded shadow hover:bg-gray-300 disabled:bg-gray-400"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleUpload}
-              disabled={!file || isLoading}
-              className="inline-flex items-center justify-center px-5 py-2 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
+            <button onClick={handleDismissResults} disabled={isLoading} className="px-5 py-2 bg-gray-200 text-gray-800 font-semibold rounded shadow hover:bg-gray-300 disabled:bg-gray-400">Cancel</button>
+            <button onClick={handleUpload} disabled={!file || isLoading || hasClientValidationErrors} className="inline-flex items-center justify-center px-5 py-2 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
               {isLoading ? 'Importing...' : 'Confirm & Import'}
             </button>
           </div>
@@ -475,43 +455,28 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
         <div className="mt-8 p-4 bg-red-50 rounded-lg border border-red-200">
           <div className="flex justify-between items-center mb-3">
             <h4 className="text-lg font-semibold text-red-800">Import blocked due to missing required headers</h4>
-            <button
-              onClick={handleDismissResults}
-              className="px-3 py-1 text-sm bg-red-200 hover:bg-red-300 rounded-md text-red-800"
-            >
-              Dismiss
-            </button>
+            <button onClick={handleDismissResults} className="px-3 py-1 text-sm bg-red-200 hover:bg-red-300 rounded-md text-red-800">Dismiss</button>
           </div>
           <div className="grid grid-cols-2 gap-6 text-sm">
             <div>
               <h5 className="font-semibold text-red-700 mb-2">Missing headers</h5>
               <ul className="list-disc list-inside space-y-1">
-                {headerError.missingDisplay && headerError.missingDisplay.length > 0 ? (
-                  headerError.missingDisplay.map((m, idx) => (
+                {headerError.missingDisplay?.map((m, idx) => (
                     <li key={idx} className="text-gray-800">
                       <span className="font-medium">{m.display}</span>
-                      {headerError.aliasHints && headerError.aliasHints[m.field] && headerError.aliasHints[m.field].length > 0 && (
-                        <span className="text-gray-600"> {' '} (expected aliases: {headerError.aliasHints[m.field].join(', ')})</span>
+                      {headerError.aliasHints?.[m.field]?.length > 0 && (
+                        <span className="text-gray-600"> (aliases: {headerError.aliasHints[m.field].join(', ')})</span>
                       )}
                     </li>
-                  ))
-                ) : (
-                  headerError.missing.map((field, idx) => (
-                    <li key={idx} className="text-gray-800">{field}</li>
-                  ))
-                )}
+                ))}
               </ul>
             </div>
             <div>
               <h5 className="font-semibold text-gray-700 mb-2">Detected headers</h5>
               <ul className="list-disc list-inside space-y-1">
-                {headerError.detectedHeaders && headerError.detectedHeaders.length > 0 ? (
-                  headerError.detectedHeaders.map((h, idx) => (
-                    <li key={idx} className="text-gray-800">{h || '(empty)'}</li>
-                  ))
-                ) : (
-                  <li className="text-gray-600">No headers detected.</li>
-                )}
+                {headerError.detectedHeaders?.map((h, idx) => (
+                  <li key={idx} className="text-gray-800">{h || '(empty)'}</li>
+                ))}
               </ul>
             </div>
           </div>
@@ -522,57 +487,32 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
         <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex justify-between items-center mb-3">
             <h4 className="text-lg font-semibold text-gray-800">Import Results</h4>
-            <button
-              onClick={handleDismissResults}
-              className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-md text-gray-700"
-            >
-              Dismiss
-            </button>
+            <button onClick={handleDismissResults} className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-md text-gray-700">Dismiss</button>
           </div>
           <div className="grid grid-cols-3 gap-4 text-sm text-gray-700">
-            <div>
-              <span className="font-medium">Total Rows:</span> {summaryData.totalRows}
-            </div>
-            <div>
-              <span className="font-medium">Inserted:</span> {summaryData.inserted}
-            </div>
-            <div>
-              <span className="font-medium">Skipped (due to errors):</span> {summaryData.skipped}
-            </div>
+            <div><span className="font-medium">Total Rows:</span> {summaryData.totalRows}</div>
+            <div><span className="font-medium">Inserted:</span> {summaryData.inserted}</div>
+            <div><span className="font-medium">Skipped:</span> {summaryData.skipped}</div>
           </div>
 
           {importStage === 'row_preview' && errorDetails.length > 0 && (
             <div className="mt-6">
-              <h5 className="text-md font-semibold text-red-700 mb-3">
-                <span className="text-red-500 mr-2">⚠</span> Row-level validation errors
-              </h5>
+              <h5 className="text-md font-semibold text-red-700 mb-3"><span className="text-red-500 mr-2">⚠</span> Row-level validation errors</h5>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Excel Row
-                      </th>
-                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Roll Number
-                      </th>
-                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Reason
-                      </th>
+                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Excel Row</th>
+                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll Number</th>
+                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {errorDetails.map((error, index) => (
                       <tr key={index} className="hover:bg-red-50">
-                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {error.row}
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                          {error.roll_no || 'N/A'}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-500">
-                          {error.reason}
-                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{error.row}</td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{error.roll_no || 'N/A'}</td>
+                        <td className="px-4 py-2 text-sm text-gray-500">{error.reason}</td>
                       </tr>
                     ))}
                   </tbody>
