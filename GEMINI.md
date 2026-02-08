@@ -54,6 +54,13 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **Centralized Routing and Authentication:**
+    *   The Next.js middleware (`src/proxy.js`) has been refactored to be the sole authority for handling authentication and redirects for all roles (Admin, Clerk, Student).
+    *   Client-side `useRouter` and `window.location.assign` calls for navigation after login/logout or for unauthorized access have been removed from various dashboard and login components (`src/app/clerk/*/dashboard/page.js`, `src/app/student/profile/page.js`, `src/components/LoginPanel.js`, `src/components/AdminNavbar.js`, `src/components/Navbar.js`, etc.).
+    *   A new `clerkDashboardPath` helper function in `src/proxy.js` now dynamically determines the correct clerk dashboard based on their role.
+    *   All redirects are now performed server-side using `NextResponse.redirect(new URL(..., request.url), 303)`, enhancing security and preventing race conditions.
+    *   Role-based access to clerk subpaths (e.g., `/clerk/scholarship`) is now strictly enforced in `src/proxy.js`, redirecting clerks to their appropriate dashboard if they attempt to access an unauthorized path.
+
 *   **Clerk & Faculty Experience Improvements:**
     *   **New Faculty Role:** The system now supports a "Faculty" role for clerks, with a dedicated dashboard page (`src/app/clerk/faculty/dashboard/page.js`).
     *   **Email on Clerk Creation:** When a super admin creates a new clerk account, an email is automatically sent to the clerk with their login credentials (temporary password) and a link to the portal. This is handled in `src/app/api/admin/create-clerk/route.js`. (commit `be94146`)
@@ -1467,7 +1474,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Ensure Reliable Login Redirection (`35f73b6`, `7d3a11e`)**: Fixed issues to ensure reliable login redirection for all roles.
     *   **Fix ReferenceError in ClerkStudentManagement.js (`43c1141`)**: Resolved `ReferenceError` in `ClerkStudentManagement.js`.
     *   **Resolve 'router is not defined' in Student Forgot Password Page (`8eeae78`)**: Fixed 'router is not defined' error in the student forgot password page.
-    *   **Fixed Merge Conflicts (`a6c68b2`)**: Resolved merge conflicts.
+    *   **Bulk Import Client-Side Validation Fix**: Resolved an issue in `src/components/BulkImportStudents.js` where the client-side preview and validation failed due to a mismatch between normalized Excel headers and canonical field names. The `handleFileChange` function now correctly maps headers to canonical keys, enabling proper validation and display of errors/warnings. The `handleUpload` function was also updated to ensure the data sent to the server is in the expected format.
 
 *   **Feature Updates:**
     *   **Expanded Certificate Download Options**: Added new HTML templates (`transfer.html`, `income_tax.html`, `course_completion.html`) and updated the `certificateTemplates` mapping in `src/app/api/student/requests/download/[request_id]/route.js`. This enables the generation and download of "Transfer Certificate (TC)", "Income Tax (IT) Certificate", and "Course Completion Certificate" for students.
