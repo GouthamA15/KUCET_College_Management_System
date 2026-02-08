@@ -37,6 +37,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [fpShowDOBLoginMessage, setFpShowDOBLoginMessage] = useState(false);
   const [fpDisplayMessage, setFpDisplayMessage] = useState('');
   const [fpAttempted, setFpAttempted] = useState(false);
+  const [fpRollnoValid, setFpRollnoValid] = useState(false);
+  const [fpRollnoError, setFpRollnoError] = useState(''); // New state for specific roll number errors
+
 
   // Employee forgot-password states (used for clerk/admin)
   const [fpEmail, setFpEmail] = useState('');
@@ -143,8 +146,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
     const rn = (fpRollno || '').toString().trim();
     setFpAttempted(true);
 
-    if (rn.length !== 10) {
-      setFpDisplayMessage('Please enter an exact 10-character alphanumeric Roll Number.');
+    if (!fpRollnoValid || fpRollnoError) {
+      // Error message is already set by onChange handler
       return;
     }
 
@@ -440,18 +443,17 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         onChange={(e) => {
                           const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
                           setFpRollno(v);
-                          if (v.length > 0 && v.length === MAX_ROLL) {
+                          if (v.length === MAX_ROLL) {
                             const { isValid } = validateRollNo(v);
+                            setFpRollnoValid(isValid);
                             if (!isValid) {
-                              setFpDisplayMessage('Invalid Roll Number format.');
+                              setFpRollnoError('Invalid Roll Number format.');
                             } else {
-                              setFpDisplayMessage('');
+                              setFpRollnoError('');
                             }
-                          } else if (v.length > 0 && v.length !== MAX_ROLL) {
-                            setFpDisplayMessage(`Roll Number must be ${MAX_ROLL} characters long.`);
-                          }
-                           else {
-                            setFpDisplayMessage('');
+                          } else {
+                            setFpRollnoValid(false);
+                            setFpRollnoError(`Roll Number must be exactly ${MAX_ROLL} characters long.`);
                           }
                         }}
                         placeholder="Enter your Roll Number"
@@ -460,8 +462,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         disabled={fpIsCheckingStatus || fpIsLoading}
                         maxLength={MAX_ROLL}
                       />
-                      {fpDisplayMessage && !fpShowDOBLoginMessage && fpAttempted && (fpRollno.length > 0 && fpRollno.length !== MAX_ROLL) && <p className="text-red-600 text-sm mt-1">{fpDisplayMessage}</p>}
-                      {fpDisplayMessage && !fpShowDOBLoginMessage && fpAttempted && (fpRollno.length === MAX_ROLL) && <p className="text-red-600 text-sm mt-1">{fpDisplayMessage}</p>}
+                      {fpRollnoError && <div className="text-red-600 text-sm mt-1">{fpRollnoError}</div>}
                       <div className="text-right mt-2">
                         <button
                           type="button"
@@ -485,7 +486,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         <button
                           type="submit"
                           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                          disabled={fpIsLoading || fpRollno.length < MIN_ROLL || fpRollno.length > MAX_ROLL || fpDisplayMessage.includes('Invalid Roll Number format') || fpDisplayMessage.includes('Roll Number must be')}
+                          disabled={fpIsLoading || !fpRollnoValid || !!fpRollnoError}
                         >
                           {fpIsLoading ? 'Sending...' : 'Send Reset Link'}
                         </button>
