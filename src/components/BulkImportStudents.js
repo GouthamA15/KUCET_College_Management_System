@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import readXlsxFile from 'read-excel-file'; // Corrected import path
 import { parseDate } from '@/lib/date';
+import { validateRollNo, branchCodes } from '@/lib/rollNumber'; // Import validateRollNo and branchCodes
 
 // --- Constants for Client-Side Validation ---
 const REQUIRED_HEADERS_MAP = {
@@ -23,9 +24,6 @@ const GENDERS = ['Male', 'Female', 'Other'];
 // Mobile number regex: 10 digits only or +91 followed by 10 digits
 const MOBILE_REGEX = /^(\+91)?\d{10}$/;
 
-// Roll number regex: Allows alphanumeric characters, case-insensitive (e.g., 22567T3053 or 225673072L)
-const ROLL_NO_REGEX = /^(\d{2}567T\d{4}|\d{2}567\d{4}L)$/i;
-
 // --- Utility Functions ---
 const normalizeHeader = (header) => {
   if (!header) return '';
@@ -39,7 +37,8 @@ const validateRow = (rowData, excelRowNumber) => {
 
   // 1. Roll Number
   const rollNo = String(rowData['roll_no'] || '').trim();
-  if (!rollNo || !ROLL_NO_REGEX.test(rollNo)) {
+  const { isValid: isRollNoValid, branch: parsedBranch } = validateRollNo(rollNo);
+  if (!rollNo || !isRollNoValid) {
     rowErrors['roll_no'] = 'Invalid Roll Number format.';
     validationErrors.push({ row: excelRowNumber, field: 'Roll Number', message: `Invalid Roll Number format: ${rollNo}` });
   }

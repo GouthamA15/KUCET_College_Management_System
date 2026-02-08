@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import StudentProfileCard from '@/components/StudentProfileCard';
 import { useRef } from 'react';
 import { useEffect, useState } from 'react';
+import { validateRollNo } from '@/lib/rollNumber';
 
 const BRANCHES = [
   { code: '09', name: 'CSE' },
@@ -56,6 +57,11 @@ export default function AdminDashboardPage() {
     setSearchedStudent(null);
     if (!searchRoll.trim()) {
       setSearchError('Please enter a roll number.');
+      return;
+    }
+    const { isValid } = validateRollNo(searchRoll.trim());
+    if (!isValid) {
+      setSearchError('Invalid Roll Number format.');
       return;
     }
     try {

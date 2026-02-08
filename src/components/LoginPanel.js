@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-// DOB will be a controlled numeric text input (DD-MM-YYYY)
+import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
@@ -15,6 +15,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [adminForm, setAdminForm] = useState({ email: '', password: '' });
   const [studentLoading, setStudentLoading] = useState(false);
   const [studentError, setStudentError] = useState('');
+  const [studentRollNoError, setStudentRollNoError] = useState('');
   const [clerkError, setClerkError] = useState('');
   const [adminError, setAdminError] = useState('');
   // Password visibility toggles for all panels
@@ -346,14 +347,28 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       type="text"
                       value={studentForm.rollNumber ?? ''}
                       onChange={(e) => {
-                        const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, MAX_ROLL);
+                        const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
                         setStudentForm({ ...studentForm, rollNumber: v });
+                        if (v.length > 0 && v.length === MAX_ROLL) {
+                          const { isValid } = validateRollNo(v);
+                          if (!isValid) {
+                            setStudentRollNoError('Invalid Roll Number format.');
+                          } else {
+                            setStudentRollNoError('');
+                          }
+                        } else if (v.length > 0 && v.length !== MAX_ROLL) {
+                          setStudentRollNoError(`Roll Number must be ${MAX_ROLL} characters long.`);
+                        }
+                        else {
+                          setStudentRollNoError('');
+                        }
                       }}
                       placeholder="Enter your Roll Number"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
                       required
                       maxLength={MAX_ROLL}
                     />
+                    {studentRollNoError && <div className="text-red-600 text-sm mt-1">{studentRollNoError}</div>}
                   </div>
                   
                   <div>
@@ -407,7 +422,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   <button
                     type="submit"
                     className="w-full bg-[#0b3578] text-white py-3 rounded-lg font-semibold hover:bg-[#0a2d66] transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
-                    disabled={studentLoading}
+                    disabled={studentLoading || !!studentRollNoError}
                   >
                     {studentLoading ? 'Logging in...' : 'Login'}
                   </button>
@@ -423,8 +438,21 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         type="text"
                         value={fpRollno ?? ''}
                         onChange={(e) => {
-                          const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, MAX_ROLL);
+                          const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
                           setFpRollno(v);
+                          if (v.length > 0 && v.length === MAX_ROLL) {
+                            const { isValid } = validateRollNo(v);
+                            if (!isValid) {
+                              setFpDisplayMessage('Invalid Roll Number format.');
+                            } else {
+                              setFpDisplayMessage('');
+                            }
+                          } else if (v.length > 0 && v.length !== MAX_ROLL) {
+                            setFpDisplayMessage(`Roll Number must be ${MAX_ROLL} characters long.`);
+                          }
+                           else {
+                            setFpDisplayMessage('');
+                          }
                         }}
                         placeholder="Enter your Roll Number"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
@@ -432,6 +460,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         disabled={fpIsCheckingStatus || fpIsLoading}
                         maxLength={MAX_ROLL}
                       />
+                      {fpDisplayMessage && !fpShowDOBLoginMessage && fpAttempted && (fpRollno.length > 0 && fpRollno.length !== MAX_ROLL) && <p className="text-red-600 text-sm mt-1">{fpDisplayMessage}</p>}
+                      {fpDisplayMessage && !fpShowDOBLoginMessage && fpAttempted && (fpRollno.length === MAX_ROLL) && <p className="text-red-600 text-sm mt-1">{fpDisplayMessage}</p>}
                       <div className="text-right mt-2">
                         <button
                           type="button"
@@ -455,7 +485,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         <button
                           type="submit"
                           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                          disabled={fpIsLoading || fpRollno.length < MIN_ROLL || fpRollno.length > MAX_ROLL}
+                          disabled={fpIsLoading || fpRollno.length < MIN_ROLL || fpRollno.length > MAX_ROLL || fpDisplayMessage.includes('Invalid Roll Number format') || fpDisplayMessage.includes('Roll Number must be')}
                         >
                           {fpIsLoading ? 'Sending...' : 'Send Reset Link'}
                         </button>

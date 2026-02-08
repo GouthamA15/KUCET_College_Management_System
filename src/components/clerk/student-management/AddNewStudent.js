@@ -40,10 +40,12 @@ export default function AddNewStudent() {
       const trimmed = String(basic.roll_no || '').toUpperCase().slice(0, MAX_ROLL);
       if (trimmed !== basic.roll_no) setBasic(prev=>({ ...prev, roll_no: trimmed }));
       const { isValid } = validateRollNo(basic.roll_no);
-      if (basic.roll_no.length === 10) {
+      if (basic.roll_no.length === MAX_ROLL && isValid) {
         setRollNoError('');
+      } else if (basic.roll_no.length === MAX_ROLL && !isValid) {
+        setRollNoError('Invalid Roll Number format.');
       } else {
-        setRollNoError('Roll Number must be exactly 10 characters long');
+        setRollNoError(`Roll Number must be exactly ${MAX_ROLL} characters long`);
       }
       const entranceExam = getEntranceExamQualified(basic.roll_no);
       let newQualifyingExam = 'EAMCET'; // Default
