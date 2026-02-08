@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
-import { getBranchFromRoll, getCurrentStudyingYear } from '@/lib/rollNumber'; // Import needed utilities
+import { getBranchFromRoll, getCurrentStudyingYear, branchCodes } from '@/lib/rollNumber'; // Import branchCodes
 
 // Helper function to verify JWT using jose (Edge compatible)
 async function verifyJwt(token, secret) {
@@ -16,6 +16,12 @@ async function verifyJwt(token, secret) {
     console.error('JWT Verification failed:', error);
     return null;
   }
+}
+
+// Helper to get branch code from branch name
+function getBranchCodeFromName(branchName) {
+    const entry = Object.entries(branchCodes).find(([, name]) => name === branchName);
+    return entry ? entry[0] : null;
 }
 
 export async function GET(request) {
@@ -34,25 +40,30 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const studyingYear = searchParams.get('studyingYear'); // Renamed from 'year'
-  const branch = searchParams.get('branch');
+  const branchName = searchParams.get('branch'); // Renamed to branchName
 
-  if (!studyingYear || !branch) {
+  if (!studyingYear || !branchName) {
     return NextResponse.json({ error: 'Studying year and branch are required' }, { status: 400 });
   }
 
+  const branchCode = getBranchCodeFromName(branchName);
+  if (!branchCode) {
+    return NextResponse.json({ error: 'Invalid branch name provided' }, { status: 400 });
+  }
+
   try {
-    // Fetch all students that belong to the given branch (regardless of entry year for now)
+    // Fetch all students that belong to the given branch code (regardless of entry year for now)
     // We will filter by studyingYear programmatically using rollNumber.js utilities
     const studentsFromDb = await query('SELECT id, roll_no, name FROM students WHERE roll_no LIKE ? OR roll_no LIKE ?', [
-      `%${branch}%`, // Regular pattern (e.g., %T09%)
-      `%${branch}%L`, // Lateral pattern (e.g., %09L)
+      `%T${branchCode}%`, // Regular pattern (e.g., %T09%)
+      `%${branchCode}%L`, // Lateral pattern (e.g., %09L)
     ]);
 
     const filteredStudents = studentsFromDb.filter(student => {
       const studentBranch = getBranchFromRoll(student.roll_no);
       const studentStudyingYear = getCurrentStudyingYear(student.roll_no);
 
-      return studentBranch === branch && String(studentStudyingYear) === studyingYear;
+      return studentBranch === branchName && String(studentStudyingYear) === studyingYear;
     });
 
     return NextResponse.json({ students: filteredStudents });

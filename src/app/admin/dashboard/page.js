@@ -30,7 +30,7 @@ export default function AdminDashboardPage() {
   const [allStudents, setAllStudents] = useState([]);
   const [loadingAll, setLoadingAll] = useState(false);
   const [allError, setAllError] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState('09');
+  const [selectedBranch, setSelectedBranch] = useState('CSE');
   const [selectedStudyingYear, setSelectedStudyingYear] = useState('1'); // Changed to studying year (1-4)
 
   useEffect(() => {
@@ -187,7 +187,7 @@ export default function AdminDashboardPage() {
             <div className="flex gap-2 items-center">
               <select value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1 text-sm">
                 {BRANCHES.map(b => (
-                  <option key={b.code} value={b.code}>{b.name}</option>
+                  <option key={b.code} value={b.name}>{b.name}</option>
                 ))}
               </select>
               <select value={selectedStudyingYear} onChange={e => setSelectedStudyingYear(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1 text-sm">
