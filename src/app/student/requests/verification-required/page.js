@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { useRouter } from 'next/navigation';
+// No client-side routing for auth; server handles redirects
 
 export default function VerificationRequiredPage() {
-  const router = useRouter();
   const [studentStatus, setStudentStatus] = useState({ email: null, is_email_verified: false, password_hash: null });
   const [loading, setLoading] = useState(true);
 
@@ -16,13 +15,11 @@ export default function VerificationRequiredPage() {
       try {
         const meRes = await fetch('/api/student/me');
         if (!meRes.ok) {
-          router.replace('/');
           return;
         }
         const { roll_no } = await meRes.json();
         const sRes = await fetch(`/api/student/${roll_no}`);
         if (!sRes.ok) {
-          router.replace('/');
           return;
         }
         const data = await sRes.json();
@@ -33,13 +30,12 @@ export default function VerificationRequiredPage() {
           password_hash: s.password_hash || null,
         });
       } catch (e) {
-        router.replace('/');
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [router]);
+  }, []);
 
   const emailStatus = studentStatus.email && studentStatus.is_email_verified ? 'Verified' : 'Not Verified';
   const passwordStatus = studentStatus.password_hash ? 'Set' : 'Not Set';
@@ -47,7 +43,7 @@ export default function VerificationRequiredPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Header />
-      <Navbar studentProfileMode={true} isSubPage={true} activeTab="requests" onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); router.replace('/'); }} />
+      <Navbar studentProfileMode={true} isSubPage={true} activeTab="requests" onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); window.location.replace('/'); }} />
 
       <main className="flex-1">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

@@ -3,10 +3,9 @@
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { useRouter } from 'next/navigation';
+// No client-side routing for auth; server handles redirects
 
 export default function TimetablePage() {
-  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -17,7 +16,7 @@ export default function TimetablePage() {
         activeTab="timetable"
         onLogout={async () => {
           await fetch('/api/student/logout', { method: 'POST' });
-          router.replace('/');
+          window.location.replace('/');
         }}
       />
       

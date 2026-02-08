@@ -252,7 +252,7 @@ export default function BonafideRequestPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <Navbar studentProfileMode={true} isSubPage={true} activeTab="requests" onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); window.location.href = '/'; }} />
+      <Navbar studentProfileMode={true} isSubPage={true} activeTab="requests" onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); window.location.replace('/'); }} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-6">

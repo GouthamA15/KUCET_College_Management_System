@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+// Client-side router is not used for auth; server handles redirects
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/components/Footer';
@@ -14,7 +14,6 @@ import toast from 'react-hot-toast'; // Added toast
 import imageCompression from 'browser-image-compression'; // Added imageCompression
 
 export default function StudentProfileNew() {
-  const router = useRouter();
   const [studentData, setStudentData] = useState(null);
   const [activeTab, setActiveTab] = useState('personal');
 
@@ -82,29 +81,28 @@ export default function StudentProfileNew() {
           console.error("Error checking password status", e);
         }
       } else {
-        router.replace('/');
+        // Unauthorized access is handled by server-side proxy redirects
       }
     } catch (e) {
-      router.replace('/');
+      // Unauthorized access is handled by server-side proxy redirects
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
       try {
         const me = await fetch('/api/student/me');
         if (!me.ok) {
-          router.replace('/');
           return;
         }
         const user = await me.json();
         await fetchProfile(user.roll_no);
       } catch {
-        router.replace('/');
+        // Unauthorized access is handled by server-side proxy redirects
       }
     };
     load();
-  }, [router, fetchProfile]);
+  }, [fetchProfile]);
 
   const handleLogout = async () => {
     try {
@@ -114,7 +112,7 @@ export default function StudentProfileNew() {
     } finally {
       localStorage.removeItem('logged_in_student');
       sessionStorage.clear();
-      router.replace('/');
+      window.location.replace('/');
     }
   };
 

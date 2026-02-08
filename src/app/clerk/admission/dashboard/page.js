@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
@@ -12,7 +11,6 @@ export default function ClerkDashboard() {
   const [openModule, setOpenModule] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [clerk, setClerk] = useState(null);
-  const router = useRouter();
 
   useEffect(() => {
     const fetchClerkData = async () => {
@@ -23,24 +21,21 @@ export default function ClerkDashboard() {
         if (res.ok) {
           if (data.role !== 'admission') {
             toast.error('Access Denied');
-            router.push('/');
           } else {
             setClerk(data);
           }
         } else {
           toast.error(data.error || 'Failed to fetch clerk data.');
-          router.push('/');
         }
       } catch (error) {
         toast.error('An unexpected error occurred while fetching clerk data.');
         console.error('Error fetching clerk data:', error);
-        router.push('/');
       } finally {
         setIsLoading(false);
       }
     };
     fetchClerkData();
-  }, [router]);
+  }, []);
 
   if (isLoading) {
     return (

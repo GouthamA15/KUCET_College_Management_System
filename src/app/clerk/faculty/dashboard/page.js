@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
@@ -9,7 +8,6 @@ import toast from 'react-hot-toast';
 export default function FacultyDashboard() {
   const [clerk, setClerk] = useState(null);
   const [isLoading, setIsLoading] = useState(true); // New loading state
-  const router = useRouter();
 
   useEffect(() => {
     const fetchClerkData = async () => {
@@ -20,24 +18,21 @@ export default function FacultyDashboard() {
         if (res.ok) {
           if (data.role !== 'faculty') {
             toast.error('Access Denied');
-            router.push('/');
           } else {
             setClerk(data);
           }
         } else {
           toast.error(data.error || 'Failed to fetch clerk data.');
-          router.push('/');
         }
       } catch (error) {
         toast.error('An unexpected error occurred while fetching clerk data.');
         console.error('Error fetching clerk data:', error);
-        router.push('/');
       } finally {
         setIsLoading(false); // Set loading to false after fetching (success or error)
       }
     };
     fetchClerkData();
-  }, [router]);
+  }, []);
 
   if (isLoading) {
     return (
