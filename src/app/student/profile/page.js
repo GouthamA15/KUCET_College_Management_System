@@ -12,6 +12,7 @@ import { formatDate } from '@/lib/date';
 import { computeAcademicYear, isYearAllowed } from '@/app/lib/academicYear';
 import toast from 'react-hot-toast'; // Added toast
 import imageCompression from 'browser-image-compression'; // Added imageCompression
+import Loading from './loading';
 
 export default function StudentProfileNew() {
   const [studentData, setStudentData] = useState(null);
@@ -336,7 +337,7 @@ export default function StudentProfileNew() {
   };
 
 
-  if (!studentData) return null;
+  if (!studentData) return <Loading />;
   const { student } = studentData;
 
   const branch = getBranchFromRoll(student.roll_no);
