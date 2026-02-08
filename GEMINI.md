@@ -54,6 +54,13 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **Centralized Routing and Authentication:**
+    *   The Next.js middleware (`src/proxy.js`) has been refactored to be the sole authority for handling authentication and redirects for all roles (Admin, Clerk, Student).
+    *   Client-side `useRouter` and `window.location.assign` calls for navigation after login/logout or for unauthorized access have been removed from various dashboard and login components (`src/app/clerk/*/dashboard/page.js`, `src/app/student/profile/page.js`, `src/components/LoginPanel.js`, `src/components/AdminNavbar.js`, `src/components/Navbar.js`, etc.).
+    *   A new `clerkDashboardPath` helper function in `src/proxy.js` now dynamically determines the correct clerk dashboard based on their role.
+    *   All redirects are now performed server-side using `NextResponse.redirect(new URL(..., request.url), 303)`, enhancing security and preventing race conditions.
+    *   Role-based access to clerk subpaths (e.g., `/clerk/scholarship`) is now strictly enforced in `src/proxy.js`, redirecting clerks to their appropriate dashboard if they attempt to access an unauthorized path.
+
 *   **Clerk & Faculty Experience Improvements:**
     *   **New Faculty Role:** The system now supports a "Faculty" role for clerks, with a dedicated dashboard page (`src/app/clerk/faculty/dashboard/page.js`).
     *   **Email on Clerk Creation:** When a super admin creates a new clerk account, an email is automatically sent to the clerk with their login credentials (temporary password) and a link to the portal. This is handled in `src/app/api/admin/create-clerk/route.js`. (commit `be94146`)
@@ -121,11 +128,14 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Fixed Table Scrolling**: Adjusted the styling of the bulk import preview table by removing `min-w-full` to ensure proper horizontal scrolling and full data visibility.
     *   **Fixed `category` Redeclaration Error**: Resolved a syntax error in `src/app/api/clerk/admission/bulk-import/route.js` where the `category` variable was declared multiple times.
 
+*   **Build and Deployment Fixes:**
+    *   **Disabled `lightningcss`:** In `next.config.mjs`, `experimental.css.lightningcss` has been set to `false`. This resolves a build error on Linux-based deployment platforms (like Render) where the native binary for `lightningcss` could not be found.
+
 *   **Database Schema Updates:**
     *   `college_db_patch_v9.sql`: Adds the `password_reset_tokens` table.
     *   `college_db_patch_v10.sql`: Adds a unique constraint to the `email` column in the `students` table to ensure email uniqueness across all students.
     *   `college_db_patch_v11.sql`: Adds a `gender` column (VARCHAR(10) NULL) to the `students` table.
-    *   `college_db_patch_v12.sql`: Adds `token_hash` (VARCHAR(255) NOT NULL UNIQUE) and `used_at` (DATETIME NULL) columns to the `password_reset_tokens` table.
+    *   `college_db_patch_v13.sql`: Adds the `college_info` table with `first_sem_start_date` and `second_sem_start_date` fields.
 *   **Environment Variables:**
     *   The `.env.example` file has been updated with `EMAIL_USER`, `EMAIL_PASS`, and `NEXT_PUBLIC_BASE_URL` for email and base URL configuration.
 *   **Faculty Role:**
@@ -1467,7 +1477,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Ensure Reliable Login Redirection (`35f73b6`, `7d3a11e`)**: Fixed issues to ensure reliable login redirection for all roles.
     *   **Fix ReferenceError in ClerkStudentManagement.js (`43c1141`)**: Resolved `ReferenceError` in `ClerkStudentManagement.js`.
     *   **Resolve 'router is not defined' in Student Forgot Password Page (`8eeae78`)**: Fixed 'router is not defined' error in the student forgot password page.
-    *   **Fixed Merge Conflicts (`a6c68b2`)**: Resolved merge conflicts.
+    *   **Bulk Import Client-Side Validation Fix**: Resolved an issue in `src/components/BulkImportStudents.js` where the client-side preview and validation failed due to a mismatch between normalized Excel headers and canonical field names. The `handleFileChange` function now correctly maps headers to canonical keys, enabling proper validation and display of errors/warnings. The `handleUpload` function was also updated to ensure the data sent to the server is in the expected format.
 
 *   **Feature Updates:**
     *   **Expanded Certificate Download Options**: Added new HTML templates (`transfer.html`, `income_tax.html`, `course_completion.html`) and updated the `certificateTemplates` mapping in `src/app/api/student/requests/download/[request_id]/route.js`. This enables the generation and download of "Transfer Certificate (TC)", "Income Tax (IT) Certificate", and "Course Completion Certificate" for students.
@@ -1523,14 +1533,11 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Frontend Components:**
     *   `src/components/ChangePasswordModal.js`: A modal component for changing the password.
 
-### Faculty Role
+### College Information Management
 
 *   **API Routes:**
-    *   `src/app/api/clerk/me/route.js`: Fetches the details of the logged-in clerk, including their role.
-*   **Frontend Pages:**
-    *   `src/app/admin/create-clerk/page.js`: Updated to include "Faculty" as a role option.
-    *   `src/app/clerk/faculty/dashboard/page.js`: Dashboard page for faculty members.
-    *   `src/app/clerk/redirects/page.js`: Updated to redirect faculty members to their dashboard.
+    *   `src/app/api/admin/college-info/route.js`: Super admin API to update `first_sem_start_date` and `second_sem_start_date` in the `college_info` table. Requires admin authentication.
+    *   `src/app/api/public/college-info/route.js`: Public API to fetch `first_sem_start_date` and `second_sem_start_date` from the `college_info` table. No authentication required.
 
 ### Database Schema
 

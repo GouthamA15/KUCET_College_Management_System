@@ -2,6 +2,7 @@
 
 import Header from '@/components/Header';
 import AdminNavbar from '@/components/AdminNavbar';
+import CollegeInfoEditor from '@/components/admin/CollegeInfoEditor';
 import Footer from '@/components/Footer';
 import StudentProfileCard from '@/components/StudentProfileCard';
 import { useRef } from 'react';
@@ -114,6 +115,7 @@ export default function AdminDashboardPage() {
     <>
       <Header />
       <AdminNavbar />
+      <CollegeInfoEditor />
       <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center py-8">
         <div className="w-full max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
           <h1 className="text-2xl font-bold text-[#0b3578] mb-6">Admin Dashboard</h1>
