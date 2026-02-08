@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Income Tax Certificate</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 0; }
+        .container { width: 800px; margin: 20px auto; border: 1px solid #ccc; padding: 30px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { margin: 0; color: #333; }
+        .content { font-size: 1.1em; line-height: 1.6; }
+        .content p { margin-bottom: 10px; }
+        .footer { margin-top: 50px; text-align: right; font-size: 0.9em; }
+        .signature { margin-top: 20px; text-align: right; }
+        .signature img { width: 150px; }
+        .qr-code { text-align: center; margin-top: 30px; }
+        .qr-code img { width: 100px; height: 100px; }
+        .cert-id { text-align: center; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>INCOME TAX CERTIFICATE</h1>
+            <p>KUCET - KU College of Engineering and Technology</p>
+            <p>Warangal, Telangana</p>
+            <hr>
+        </div>
+        <div class="content">
+            <p>This is to certify that Mr./Ms. <strong>{{STUDENT_NAME}}</strong>, son/daughter of <strong>{{FATHER_NAME}}</strong>, Roll No. <strong>{{ADMISSION_NO}}</strong> is a student of <strong>{{COURSE}} - {{YEAR}} Year</strong> in this institution for the academic year {{ACADEMIC_YEAR}}.</p>
+            <p>This certificate is issued for Income Tax purposes as per his/her request on <strong>{{DATE}}</strong>.</p>
+        </div>
+        <div class="footer">
+            <p>Date: {{DATE}}</p>
+            <div class="signature">
+                <img src="assets/principal-sign.png" alt="Principal Signature">
+                <p><strong>PRINCIPAL</strong></p>
+                <p>KUCET - KU College of Engineering and Technology</p>
+            </div>
+        </div>
+        <div class="qr-code">
+            <img src="{{QR_CODE}}" alt="QR Code">
+            <div class="cert-id">Certificate ID: {{CERT_ID}}</div>
+        </div>
+    </div>
+</body>
+</html>

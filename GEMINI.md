@@ -1470,7 +1470,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Fixed Merge Conflicts (`a6c68b2`)**: Resolved merge conflicts.
 
 *   **Feature Updates:**
-    *   **Add Verification Page for Generated Certificates (`45babec`)**: Implemented a verification page for generated certificates.
+    *   **Expanded Certificate Download Options**: Added new HTML templates (`transfer.html`, `income_tax.html`, `course_completion.html`) and updated the `certificateTemplates` mapping in `src/app/api/student/requests/download/[request_id]/route.js`. This enables the generation and download of "Transfer Certificate (TC)", "Income Tax (IT) Certificate", and "Course Completion Certificate" for students.
     *   **Ensure Student Email is Verified Upon Password Set (`9c1e64e`)**: Ensured student email is verified upon password set.
     *   **Fixed Password Validation and Saving Flow (`10565bf`)**: Corrected password validation and saving flow.
     *   **Fixed Routing - New Student Profile Page (`106ad6e`)**: Fixed routing for the new student profile page.

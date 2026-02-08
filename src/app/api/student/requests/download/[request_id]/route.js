@@ -48,6 +48,9 @@ const certificateTemplates = {
   'Custodian Certificate': 'custodian.html',
   'Study Conduct Certificate': 'study-conduct.html',
   'Migration Certificate': 'migration.html',
+  'Transfer Certificate (TC)': 'transfer.html',
+  'Income Tax (IT) Certificate': 'income_tax.html',
+  'Course Completion Certificate': 'course_completion.html',
 };
 
 // using bundled Puppeteer; helper closes browser internally
