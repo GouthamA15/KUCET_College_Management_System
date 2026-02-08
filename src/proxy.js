@@ -13,6 +13,19 @@ async function verify(token, secret) {
   }
 }
 
+function clerkDashboardPath(role) {
+  switch (role) {
+    case 'scholarship':
+      return '/clerk/scholarship/dashboard';
+    case 'admission':
+      return '/clerk/admission/dashboard';
+    case 'faculty':
+      return '/clerk/faculty/dashboard';
+    default:
+      return '/';
+  }
+}
+
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
   const { cookies } = request;
@@ -22,74 +35,72 @@ export async function proxy(request) {
   const studentAuth = cookies.get('student_auth');
   const jwtSecret = process.env.JWT_SECRET;
 
-  // If on the login page, do nothing
+  // Home ("/") is a pure login gate. Authenticated users are redirected server-side.
   if (pathname === '/') {
-    // If authenticated, redirect to the appropriate dashboard
-    if (adminAuth && (await verify(adminAuth.value, jwtSecret))) {
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    const adminPayload = adminAuth ? await verify(adminAuth.value, jwtSecret) : null;
+    if (adminPayload) {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
     }
-    if (clerkAuth && (await verify(clerkAuth.value, jwtSecret))) {
-      const { role } = (await verify(clerkAuth.value, jwtSecret));
-      let dashboard;
-      if (role === 'scholarship') {
-        dashboard = '/clerk/scholarship/dashboard';
-      } else if (role === 'admission') {
-        dashboard = '/clerk/admission/dashboard';
-      } else if (role === 'faculty') {
-        dashboard = '/clerk/faculty/dashboard';
-      } else {
-        dashboard = '/'; // Default or error case
-      }
-      return NextResponse.redirect(new URL(dashboard, request.url));
+
+    const clerkPayload = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : null;
+    if (clerkPayload) {
+      const dashboard = clerkDashboardPath(clerkPayload.role);
+      return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
-    if (studentAuth && (await verify(studentAuth.value, jwtSecret))) {
-      return NextResponse.redirect(new URL('/student/profile', request.url));
+
+    const studentPayload = studentAuth ? await verify(studentAuth.value, jwtSecret) : null;
+    if (studentPayload) {
+      return NextResponse.redirect(new URL('/student/profile', request.url), 303);
     }
+
+    // Unauthenticated users proceed to Home.
     return NextResponse.next();
   }
 
   // Protect /admin routes
   if (pathname.startsWith('/admin')) {
-    if (!adminAuth || !(await verify(adminAuth.value, jwtSecret))) {
-      return NextResponse.redirect(new URL('/', request.url));
+    const adminPayload = adminAuth ? await verify(adminAuth.value, jwtSecret) : null;
+    if (!adminPayload) {
+      return NextResponse.redirect(new URL('/', request.url), 303);
     }
     if (pathname === '/admin') {
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
     }
   }
 
   // Protect /clerk routes
   else if (pathname.startsWith('/clerk')) {
-    if (!clerkAuth || !(await verify(clerkAuth.value, jwtSecret))) {
-      return NextResponse.redirect(new URL('/', request.url));
+    const clerkPayload = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : null;
+    if (!clerkPayload) {
+      return NextResponse.redirect(new URL('/', request.url), 303);
     }
-    const payload = await verify(clerkAuth.value, jwtSecret);
-    if (!payload) {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-    const { role } = payload;
     if (pathname === '/clerk') {
-      let dashboard;
-      if (role === 'scholarship') {
-        dashboard = '/clerk/scholarship/dashboard';
-      } else if (role === 'admission') {
-        dashboard = '/clerk/admission/dashboard';
-      } else if (role === 'faculty') {
-        dashboard = '/clerk/faculty/dashboard';
-      } else {
-        dashboard = '/'; // Default or error case
-      }
-      return NextResponse.redirect(new URL(dashboard, request.url));
+      const dashboard = clerkDashboardPath(clerkPayload.role);
+      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+    }
+    // Enforce role-based access for clerk subpaths via server-only redirects
+    if (pathname.startsWith('/clerk/scholarship') && clerkPayload.role !== 'scholarship') {
+      const dashboard = clerkDashboardPath(clerkPayload.role);
+      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+    }
+    if (pathname.startsWith('/clerk/admission') && clerkPayload.role !== 'admission') {
+      const dashboard = clerkDashboardPath(clerkPayload.role);
+      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+    }
+    if (pathname.startsWith('/clerk/faculty') && clerkPayload.role !== 'faculty') {
+      const dashboard = clerkDashboardPath(clerkPayload.role);
+      return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
   }
 
   // Protect /student routes
   else if (pathname.startsWith('/student')) {
-    if (!studentAuth || !(await verify(studentAuth.value, jwtSecret))) {
-      return NextResponse.redirect(new URL('/', request.url));
+    const studentPayload = studentAuth ? await verify(studentAuth.value, jwtSecret) : null;
+    if (!studentPayload) {
+      return NextResponse.redirect(new URL('/', request.url), 303);
     }
     if (pathname === '/student') {
-      return NextResponse.redirect(new URL('/student/profile', request.url));
+      return NextResponse.redirect(new URL('/student/profile', request.url), 303);
     }
   }
 
