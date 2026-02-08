@@ -12,6 +12,7 @@
     "@sparticuz/chromium": "^143.0.4",
     "bcrypt": "^6.0.0",
     "browser-image-compression": "^2.0.2",
+    "date-fns": "^4.1.0",
     "docxtemplater": "^3.67.6",
     "dotenv": "^17.2.3",
     "jose": "^6.1.3",

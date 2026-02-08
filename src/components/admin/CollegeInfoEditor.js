@@ -1,7 +1,50 @@
-"use client";
-
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { parseDate } from '@/lib/date'; // Import parseDate
+
+// Function to format YYYY-MM-DD to DD-MM-YYYY
+const formatToDDMMYYYY = (dateString) => {
+  if (!dateString || dateString === '0000-00-00') return ''; // Handle null or invalid date from API
+  try {
+    const date = new Date(dateString); // Parse YYYY-MM-DD
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  } catch (e) {
+    console.error("Error formatting date to DD-MM-YYYY:", dateString, e);
+    return '';
+  }
+};
+
+// Function to handle DD-MM-YYYY input formatting
+const handleDateInputChange = (setter) => (e) => {
+  const raw = e.target.value;
+  // strip non-digits
+  const digits = raw.replace(/\D/g, '').slice(0, 8); // Max 8 digits for DDMMYYYY
+  let formatted = digits;
+  if (digits.length >= 5) {
+    formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
+  } else if (digits.length >= 3) {
+    formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
+  }
+  setter(formatted);
+};
+
+// Function to handle paste for DD-MM-YYYY input
+const handleDatePaste = (setter) => (e) => {
+  e.preventDefault();
+  const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
+  const digits = paste.replace(/\D/g, '').slice(0, 8);
+  let formatted = digits;
+  if (digits.length >= 5) {
+    formatted = `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`;
+  } else if (digits.length >= 3) {
+    formatted = `${digits.slice(0,2)}-${digits.slice(2)}`;
+  }
+  setter(formatted);
+};
+
 
 export default function CollegeInfoEditor() {
   const [firstSemDate, setFirstSemDate] = useState('');
@@ -19,8 +62,8 @@ export default function CollegeInfoEditor() {
       const response = await fetch('/api/public/college-info');
       const data = await response.json();
       if (response.ok) {
-        setFirstSemDate(data.first_sem_start_date || '');
-        setSecondSemDate(data.second_sem_start_date || '');
+        setFirstSemDate(formatToDDMMYYYY(data.first_sem_start_date));
+        setSecondSemDate(formatToDDMMYYYY(data.second_sem_start_date));
       } else {
         toast.error(data.error || 'Failed to fetch college info.');
       }
@@ -35,14 +78,30 @@ export default function CollegeInfoEditor() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // Convert DD-MM-YYYY from state to YYYY-MM-DD for API
+      const apiFirstSemDate = firstSemDate ? parseDate(firstSemDate) : null;
+      const apiSecondSemDate = secondSemDate ? parseDate(secondSemDate) : null;
+
+      // Validate parsed dates
+      if (firstSemDate && !apiFirstSemDate) {
+          toast.error('Invalid format for First Semester Start Date. Please use DD-MM-YYYY.');
+          setIsSaving(false);
+          return;
+      }
+      if (secondSemDate && !apiSecondSemDate) {
+          toast.error('Invalid format for Second Semester Start Date. Please use DD-MM-YYYY.');
+          setIsSaving(false);
+          return;
+      }
+      
       const response = await fetch('/api/admin/college-info', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          first_sem_start_date: firstSemDate || null,
-          second_sem_start_date: secondSemDate || null,
+          first_sem_start_date: apiFirstSemDate ? apiFirstSemDate.toISOString().split('T')[0] : null,
+          second_sem_start_date: apiSecondSemDate ? apiSecondSemDate.toISOString().split('T')[0] : null,
         }),
       });
       const data = await response.json();
@@ -73,27 +132,45 @@ export default function CollegeInfoEditor() {
       <div className="space-y-4">
         <div>
           <label htmlFor="firstSemDate" className="block text-sm font-medium text-gray-700">
-            First Semester Start Date
+            First Semester Start Date (DD-MM-YYYY)
           </label>
           <input
-            type="date"
+            type="text" // Changed to text
+            inputMode="numeric"
             id="firstSemDate"
+            maxLength={10}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            placeholder="DD-MM-YYYY"
             value={firstSemDate}
-            onChange={(e) => setFirstSemDate(e.target.value)}
+            onKeyDown={(e) => {
+              const allowedKeys = ['Backspace', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Delete', 'Home', 'End', '-'];
+              if (allowedKeys.includes(e.key)) return;
+              if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+            }}
+            onChange={handleDateInputChange(setFirstSemDate)}
+            onPaste={handleDatePaste(setFirstSemDate)}
             disabled={isSaving}
           />
         </div>
         <div>
           <label htmlFor="secondSemDate" className="block text-sm font-medium text-gray-700">
-            Second Semester Start Date
+            Second Semester Start Date (DD-MM-YYYY)
           </label>
           <input
-            type="date"
+            type="text" // Changed to text
+            inputMode="numeric"
             id="secondSemDate"
+            maxLength={10}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            placeholder="DD-MM-YYYY"
             value={secondSemDate}
-            onChange={(e) => setSecondSemDate(e.target.value)}
+            onKeyDown={(e) => {
+              const allowedKeys = ['Backspace', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Delete', 'Home', 'End', '-'];
+              if (allowedKeys.includes(e.key)) return;
+              if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+            }}
+            onChange={handleDateInputChange(setSecondSemDate)}
+            onPaste={handleDatePaste(setSecondSemDate)}
             disabled={isSaving}
           />
         </div>
