@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
-  const router = useRouter();
   const MAX_ROLL = 10;
   const MIN_ROLL = 10;
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
@@ -75,8 +73,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       const data = await res.json();
       if (res.ok && data.student) {
         toast.success('Login successful!', { id: toastId });
-        // Redirect to the student profile page
-        window.location.assign('/student/profile');
+        // Trigger a hard reload to "/" so proxy.js runs and redirects server-side
+        window.location.replace('/');
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
@@ -257,14 +255,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        // Prefer explicit role from response; fallback to generic
-        const role = (data.role || '').toString().toLowerCase();
-        if (role.includes('scholar')) {
-          window.location.assign('/clerk/scholarship/dashboard');
-        } else {
-          // Treat everything else as admission/administrative by default
-          window.location.assign('/clerk/admission/dashboard');
-        }
+        // Trigger a hard reload to "/" so proxy.js runs and redirects server-side
+        window.location.replace('/');
       } else {
         toast.error(data.message || 'Clerk login failed', { id: toastId });
         setClerkError(data.message || 'Clerk login failed');
@@ -294,7 +286,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        window.location.assign('/admin/dashboard');
+        // Trigger a hard reload to "/" so proxy.js runs and redirects server-side
+        window.location.replace('/');
       } else {
         toast.error(data.message || 'Admin login failed', { id: toastId });
         setAdminError(data.message || 'Admin login failed');

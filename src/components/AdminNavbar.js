@@ -1,11 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function AdminNavbar() {
-  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -18,17 +16,17 @@ export default function AdminNavbar() {
 
       if (response.ok) {
         // Clear any client-side storage
-                // Redirect to home
-        router.replace('/');
+        // Redirect to home via server-only navigation
+        window.location.replace('/');
       } else {
         console.error('Logout failed');
         // Force redirect anyway
-        router.replace('/');
+        window.location.replace('/');
       }
     } catch (error) {
       console.error('Logout error:', error);
       // Force redirect even if API call fails
-      router.replace('/');
+      window.location.replace('/');
     }
   };
 

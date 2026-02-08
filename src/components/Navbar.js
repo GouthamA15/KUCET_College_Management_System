@@ -87,19 +87,19 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
         } catch (e) {
           // fallback to auth logout if handler fails
           await fetch('/api/auth/logout', { method: 'POST' });
-          router.replace('/');
+          window.location.replace('/');
         }
         return;
       }
       // Clerk-specific logout endpoint
       if (role === 'clerk') {
         await fetch('/api/clerk/logout', { method: 'POST' });
-        router.replace('/');
+        window.location.replace('/');
         return;
       }
       // Default auth logout
       await fetch('/api/auth/logout', { method: 'POST' });
-      router.replace('/');
+      window.location.replace('/');
     }
     if (action === 'change-password') {
       setShowChangePasswordModal(true);
