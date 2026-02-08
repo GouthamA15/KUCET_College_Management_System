@@ -132,7 +132,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   `college_db_patch_v9.sql`: Adds the `password_reset_tokens` table.
     *   `college_db_patch_v10.sql`: Adds a unique constraint to the `email` column in the `students` table to ensure email uniqueness across all students.
     *   `college_db_patch_v11.sql`: Adds a `gender` column (VARCHAR(10) NULL) to the `students` table.
-    *   `college_db_patch_v12.sql`: Adds `token_hash` (VARCHAR(255) NOT NULL UNIQUE) and `used_at` (DATETIME NULL) columns to the `password_reset_tokens` table.
+    *   `college_db_patch_v13.sql`: Adds the `college_info` table with `first_sem_start_date` and `second_sem_start_date` fields.
 *   **Environment Variables:**
     *   The `.env.example` file has been updated with `EMAIL_USER`, `EMAIL_PASS`, and `NEXT_PUBLIC_BASE_URL` for email and base URL configuration.
 *   **Faculty Role:**
@@ -1530,14 +1530,11 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Frontend Components:**
     *   `src/components/ChangePasswordModal.js`: A modal component for changing the password.
 
-### Faculty Role
+### College Information Management
 
 *   **API Routes:**
-    *   `src/app/api/clerk/me/route.js`: Fetches the details of the logged-in clerk, including their role.
-*   **Frontend Pages:**
-    *   `src/app/admin/create-clerk/page.js`: Updated to include "Faculty" as a role option.
-    *   `src/app/clerk/faculty/dashboard/page.js`: Dashboard page for faculty members.
-    *   `src/app/clerk/redirects/page.js`: Updated to redirect faculty members to their dashboard.
+    *   `src/app/api/admin/college-info/route.js`: Super admin API to update `first_sem_start_date` and `second_sem_start_date` in the `college_info` table. Requires admin authentication.
+    *   `src/app/api/public/college-info/route.js`: Public API to fetch `first_sem_start_date` and `second_sem_start_date` from the `college_info` table. No authentication required.
 
 ### Database Schema
 
