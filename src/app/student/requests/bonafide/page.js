@@ -104,15 +104,41 @@ export default function BonafideRequestPage() {
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('File size should be less than 2MB.');
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      toast.error('File size should be less than 5MB.');
       return;
     }
     try {
-      const options = { maxSizeMB: 0.05, maxWidthOrHeight: 800, useWebWorker: true };
-      const compressedFile = await imageCompression(file, options);
-      setPaymentScreenshot(compressedFile);
-      toast.success('Image compressed and ready for upload.');
+      let compressedFile = file;
+      const options = {
+        maxSizeMB: 0.058, 
+        maxWidthOrHeight: 800,
+        useWebWorker: true,
+        initialQuality: 0.6, 
+      };
+
+      
+      if (file.size > 60 * 1024) {
+        compressedFile = await imageCompression(file, options);
+      }
+
+      
+      let finalFile = compressedFile;
+      let quality = 0.6;
+      while (finalFile.size > 60 * 1024 && quality > 0.1) {
+        quality -= 0.1;
+        const loopOptions = { ...options, initialQuality: quality };
+        finalFile = await imageCompression(file, loopOptions);
+      }
+
+      if (finalFile.size > 60 * 1024) {
+        toast.error('Image is too large even after compression. Please use a smaller image.');
+        setPaymentScreenshot(null);
+        return;
+      }
+
+      setPaymentScreenshot(finalFile);
+      toast.success(`Image compressed to ${(finalFile.size / 1024).toFixed(2)} KB and ready for upload.`);
     } catch (err) {
       setPaymentScreenshot(null);
       toast.error('Image compression failed.');

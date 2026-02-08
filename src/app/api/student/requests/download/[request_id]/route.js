@@ -59,8 +59,14 @@ export async function GET(request, { params }) {
     try {
         const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
         const ver = verRows && verRows[0];
-        if (!ver || !ver.email || !ver.is_email_verified || !ver.password_hash) {
-            return NextResponse.json({ error: 'Verification required: verify email and set password to download certificates.' }, { status: 403 });
+        if (!ver || !ver.email) {
+            return NextResponse.json({ error: 'Verification required: email address not found.' }, { status: 403 });
+        }
+        if (!ver.is_email_verified) {
+            return NextResponse.json({ error: 'Verification required: email not verified.' }, { status: 403 });
+        }
+        if (!ver.password_hash) {
+            return NextResponse.json({ error: 'Verification required: password not set.' }, { status: 403 });
         }
     } catch (e) {
         return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });

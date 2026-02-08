@@ -74,6 +74,27 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Roll Number Input Handling**: Fixed handling of undefined roll number input in `validateRollNo` to prevent `TypeError` (commit `6776e4d`).
     *   **Component Refactoring**: The `ClerkStudentManagement` component has been broken down into smaller, more manageable components for improved maintainability and readability (commit `73389d1`).
 
+*   **Clerk Certificate Management Refactoring:**
+    *   The previous monolithic `src/components/CertificateRequests.js` component has been replaced by a modular structure for better maintainability and scalability.
+    *   **New Components:**
+        *   `src/components/clerk/certificates/CertificateDashboard.js`: The main entry point for clerks to manage certificate requests, featuring "active" and "history" modes, and integrating other specialized components.
+        *   `src/components/clerk/certificates/CertificateActionPanel.js`: Handles specific actions and displays details for an individual certificate request.
+        *   `src/components/clerk/certificates/CertificateDateHistory.js`: Displays a list of dates for which certificate request history is available.
+        *   `src/components/clerk/certificates/CertificateRecordsView.js`: Renders the list of certificate request records.
+        *   `src/components/clerk/certificates/CertificateWorkspaceCard.js`: Allows switching between "active" and "history" modes for certificate requests.
+        *   `src/components/clerk/certificates/CertificateFilters.js`, `src/components/clerk/certificates/FiltersButton.js`, `src/components/clerk/certificates/FiltersPopover.js`: Provide client-side filtering capabilities for certificate type and status.
+    *   **API Updates:**
+        *   `src/app/api/clerk/requests/route.js`: Enhanced to support fetching certificate requests based on clerk role (`clerkType`), workspace mode ("active" for pending, "history" for approved/rejected on a specific date), and filters (certificate type, status). It also provides distinct `completed_at` dates for history mode.
+        *   `src/app/api/clerk/requests/[request_id]/route.js`: Updated to handle fetching details and updating the status of individual certificate requests. It enforces role-based authorization, allows approval, and mandates a `reject_reason` when rejecting a request, updating relevant timestamps and clerk action details.
+    *   **Dashboard Integration:**
+        *   Minor updates to `src/app/clerk/admission/dashboard/page.js` and `src/app/clerk/scholarship/dashboard/page.js` to integrate the new certificate management components.
+
+*   **Robust Image Compression for Certificate Requests:**
+    *   Implemented a more aggressive and reliable client-side image compression strategy in `src/app/student/requests/certificates/page.js` and `src/app/student/requests/bonafide/page.js`.
+    *   The new logic uses a loop to repeatedly compress the payment screenshot with decreasing quality until its size is under a 60KB threshold. This ensures that the uploaded image will always fit within the `BLOB` column in the `student_requests` table, resolving the `ER_DATA_TOO_LONG` error without requiring a database schema change.
+
+**Warning:** Students attempting to download approved certificates may encounter a `403 Forbidden` error if they have not completed the email verification process or set a password for their account. The system now provides more specific error messages to guide students in resolving this.
+
 *   **Password Management:**
     *   **Deleted Forgot Password Pages:** The separate frontend pages for initiating forgot password requests for admin, clerk, and student roles have been removed (commit `26119a1`). The forgot password *APIs* and the reset password page still exist for functionality, but the specific entry point pages are gone.**
     *   **Fix `TypeError: dateString.split is not a function`**: The `parseDate` function in `src/lib/date.js` was updated to correctly handle JavaScript `Date` objects and Excel serial numbers, preventing runtime errors during date parsing.

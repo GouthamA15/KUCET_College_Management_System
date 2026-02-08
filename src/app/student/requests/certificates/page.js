@@ -129,19 +129,41 @@ export default function CertificateRequestsPage() {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB
-        toast.error('File size should be less than 2MB.');
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        toast.error('File size should be less than 5MB.');
         return;
       }
       try {
+        let compressedFile = file;
         const options = {
-          maxSizeMB: 0.05, // 50KB
+          maxSizeMB: 0.058, 
           maxWidthOrHeight: 800,
           useWebWorker: true,
+          initialQuality: 0.6, 
         };
-        const compressedFile = await imageCompression(file, options);
-        setPaymentScreenshot(compressedFile);
-        toast.success('Image compressed and ready for upload.');
+
+        
+        if (file.size > 60 * 1024) {
+          compressedFile = await imageCompression(file, options);
+        }
+
+        
+        let finalFile = compressedFile;
+        let quality = 0.6;
+        while (finalFile.size > 60 * 1024 && quality > 0.1) {
+          quality -= 0.1;
+          const loopOptions = { ...options, initialQuality: quality };
+          finalFile = await imageCompression(file, loopOptions);
+        }
+
+        if (finalFile.size > 60 * 1024) {
+          toast.error('Image is too large even after compression. Please use a smaller image.');
+          setPaymentScreenshot(null);
+          return;
+        }
+
+        setPaymentScreenshot(finalFile);
+        toast.success(`Image compressed to ${(finalFile.size / 1024).toFixed(2)} KB and ready for upload.`);
       } catch (error) {
         toast.error('Image compression failed. Please try another image.');
         setPaymentScreenshot(null);
