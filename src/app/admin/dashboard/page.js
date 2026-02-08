@@ -31,7 +31,7 @@ export default function AdminDashboardPage() {
   const [loadingAll, setLoadingAll] = useState(false);
   const [allError, setAllError] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('09');
-  const [selectedYear, setSelectedYear] = useState('2022');
+  const [selectedStudyingYear, setSelectedStudyingYear] = useState('1'); // Changed to studying year (1-4)
 
   useEffect(() => {
     // Fetch clerk stats
@@ -80,7 +80,7 @@ export default function AdminDashboardPage() {
     setAllError('');
     setAllStudents([]);
     try {
-      const res = await fetch(`/api/admin/students?year=${selectedYear}&branch=${selectedBranch}`);
+      const res = await fetch(`/api/admin/students?studyingYear=${selectedStudyingYear}&branch=${selectedBranch}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.students) && data.students.length > 0) {
@@ -190,8 +190,8 @@ export default function AdminDashboardPage() {
                   <option key={b.code} value={b.code}>{b.name}</option>
                 ))}
               </select>
-              <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1 text-sm">
-                {YEARS.map(y => (
+              <select value={selectedStudyingYear} onChange={e => setSelectedStudyingYear(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                {studyYears.map(y => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>

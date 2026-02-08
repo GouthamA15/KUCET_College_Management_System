@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
+import { getBranchFromRoll, getCurrentStudyingYear } from '@/lib/rollNumber'; // Import needed utilities
 
 // Helper function to verify JWT using jose (Edge compatible)
 async function verifyJwt(token, secret) {
@@ -32,22 +33,29 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const year = searchParams.get('year');
+  const studyingYear = searchParams.get('studyingYear'); // Renamed from 'year'
   const branch = searchParams.get('branch');
 
-  if (!year || !branch) {
-    return NextResponse.json({ error: 'Year and branch are required' }, { status: 400 });
+  if (!studyingYear || !branch) {
+    return NextResponse.json({ error: 'Studying year and branch are required' }, { status: 400 });
   }
 
   try {
-    const yearShort = year.slice(-2);
-    const regularRollPattern = `${yearShort}567T${branch}%`;
-    const lateralRollPattern = `${yearShort}567${branch}%L`;
-    
-    const studentsQuery = 'SELECT * FROM students WHERE roll_no LIKE ? OR roll_no LIKE ?';
-    const students = await query(studentsQuery, [regularRollPattern, lateralRollPattern]);
+    // Fetch all students that belong to the given branch (regardless of entry year for now)
+    // We will filter by studyingYear programmatically using rollNumber.js utilities
+    const studentsFromDb = await query('SELECT id, roll_no, name FROM students WHERE roll_no LIKE ? OR roll_no LIKE ?', [
+      `%${branch}%`, // Regular pattern (e.g., %T09%)
+      `%${branch}%L`, // Lateral pattern (e.g., %09L)
+    ]);
 
-    return NextResponse.json({ students });
+    const filteredStudents = studentsFromDb.filter(student => {
+      const studentBranch = getBranchFromRoll(student.roll_no);
+      const studentStudyingYear = getCurrentStudyingYear(student.roll_no);
+
+      return studentBranch === branch && String(studentStudyingYear) === studyingYear;
+    });
+
+    return NextResponse.json({ students: filteredStudents });
   } catch (error) {
     console.error('Failed to fetch students:', error);
     return NextResponse.json({ error: 'Failed to fetch students' }, { status: 500 });
