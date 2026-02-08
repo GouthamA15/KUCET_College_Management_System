@@ -128,6 +128,9 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Fixed Table Scrolling**: Adjusted the styling of the bulk import preview table by removing `min-w-full` to ensure proper horizontal scrolling and full data visibility.
     *   **Fixed `category` Redeclaration Error**: Resolved a syntax error in `src/app/api/clerk/admission/bulk-import/route.js` where the `category` variable was declared multiple times.
 
+*   **Build and Deployment Fixes:**
+    *   **Disabled `lightningcss`:** In `next.config.mjs`, `experimental.css.lightningcss` has been set to `false`. This resolves a build error on Linux-based deployment platforms (like Render) where the native binary for `lightningcss` could not be found.
+
 *   **Database Schema Updates:**
     *   `college_db_patch_v9.sql`: Adds the `password_reset_tokens` table.
     *   `college_db_patch_v10.sql`: Adds a unique constraint to the `email` column in the `students` table to ensure email uniqueness across all students.
