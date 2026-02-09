@@ -6,7 +6,8 @@ import Footer from '@/components/Footer';
 import StudentProfileCard from '@/components/StudentProfileCard';
 import { useRef } from 'react';
 import { useEffect, useState } from 'react';
-import { validateRollNo } from '@/lib/rollNumber';
+import CollegeInfoEditor from '@/components/admin/CollegeInfoEditor';
+import { validateRollNo } from '@/lib/rollNumber'; // Added this line back
 
 const BRANCHES = [
   { code: '09', name: 'CSE' },
@@ -186,7 +187,9 @@ export default function AdminDashboardPage() {
           </div>
 
         </div>
-        {/* All students section */}
+          <div className="w-full max-w-4xl mx-auto mt-8">
+            <CollegeInfoEditor />
+          </div>
         <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6 mt-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <h2 className="text-xl font-bold text-[#0b3578]">All Students</h2>
