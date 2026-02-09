@@ -1,23 +1,23 @@
 // src/app/api/admin/college-info/route.js
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { verifyJwt } from '@/lib/auth'; // Changed from verifyAdminAuth
-import { cookies } from 'next/headers'; // Added
+import { verifyJwt } from '@/lib/auth';
+import { cookies } from 'next/headers';
 
 async function getAdminId() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies(); // Changed this line
   const token = cookieStore.get('admin_auth')?.value;
   if (!token) {
     return null;
   }
   const payload = await verifyJwt(token, process.env.JWT_SECRET);
-  return payload?.admin_id || null; // Assuming payload contains admin_id
+  return payload?.admin_id || null;
 }
 
 
 export async function GET() {
   try {
-    const adminId = await getAdminId(); // Changed to use getAdminId
+    const adminId = await getAdminId();
     if (!adminId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -29,7 +29,6 @@ export async function GET() {
     );
 
     if (rows.length === 0) {
-      // If no record exists, return default/null values
       return NextResponse.json({ collegeInfo: {} }, { status: 200 });
     }
 
@@ -42,14 +41,13 @@ export async function GET() {
 
 export async function PUT(req) {
   try {
-    const adminId = await getAdminId(); // Changed to use getAdminId
+    const adminId = await getAdminId();
     if (!adminId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { first_sem_start_month, first_sem_start_day, second_sem_start_month, second_sem_start_day } = await req.json();
 
-    // Validate inputs
     const validateDatePart = (part, name) => {
       if (part !== null && (typeof part !== 'number' || part < 1 || (name.includes('month') ? part > 12 : part > 31))) {
         return `${name} must be a number between 1 and ${name.includes('month') ? 12 : 31}, or null.`;
@@ -67,7 +65,6 @@ export async function PUT(req) {
     if (error) return NextResponse.json({ error }, { status: 400 });
 
 
-    // Check if a record with id=1 exists. If not, insert, otherwise update.
     const existing = await query(`SELECT id FROM college_info WHERE id = 1`);
     if (existing.length === 0) {
       await query(
