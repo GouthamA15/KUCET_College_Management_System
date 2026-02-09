@@ -1329,3 +1329,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 *   **Component-Based Architecture:** Follows React's component-based development paradigm, with UI components located in the `src/components` directory.
 *   **API Route Structure:** API endpoints are organized within `src/app/api`, following Next.js API Routes conventions.
 *   **Middleware for Security:** `src/proxy.js` is used for centralized route protection, ensuring that only authorized users can access specific parts of the application.
+
+## Gemini CLI Usage Guidelines
+
+*   **Avoid `npm run dev` for Repeated Failures**: If `npm run dev` or similar development server commands fail repeatedly due to port conflicts, lock file issues, or other environment-related problems, **do not attempt to rerun the command directly.** Instead, prioritize identifying and resolving the underlying conflict (e.g., terminating rogue processes, deleting stale lock files) before attempting to restart the development server.
