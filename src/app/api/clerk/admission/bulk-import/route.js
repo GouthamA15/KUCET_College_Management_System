@@ -29,8 +29,8 @@ const VALID_CATEGORIES = new Set(['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 
 const ALIASES = {
   // Students table
   students: {
-    roll_no: ['roll_no', 'rollnumber', 'roll_number', 'registration_no', 'reg_no', 'regnumber', 'hall_ticket_no'],
-    name: ['name', 'candidate_name', 'student_name', 'fullname'],
+    roll_no: ['roll_no', 'rollnumber', 'roll_number', 'registration_no', 'reg_no', 'regnumber', 'hall_ticket_no', 'studentid', 'ht_no', 'hall_ticket_number'],
+    name: ['name', 'candidate_name', 'student_name', 'fullname', 'name_of_this_student', 'name_of_the_candidate'],
     gender: ['gender', 'sex'],
     date_of_birth: ['dob', 'date_of_birth', 'birth_date', 'dateofbirth'],
     mobile: ['mobile', 'phone', 'phone_number', 'mobile_number', 'contact_number', 'mobile_no', 'student_number', 'number'],
@@ -40,22 +40,27 @@ const ALIASES = {
   student_personal_details: {
     father_name: ['father_name', 'fathers_name', 'parent_name'],
     category: ['category', 'caste_category', 'caste', 'category_cast'],
-    address: ['address', 'residential_address'],
+    address: ['address', 'residential_address', 'permanent_address', 'aadhar_card_address'],
     mother_name: ['mother_name', 'mothers_name'],
-    nationality: ['nationality'],
+    nationality: ['nationality', 'native_country'],
     religion: ['religion'],
     sub_caste: ['sub_caste', 'subcaste'],
-    area_status: ['area_status', 'areastatus'],
-    aadhaar_no: ['aadhaar_no', 'aadhaar', 'aadhar', 'aadhar_no'],
+    area_status: ['area_status', 'areastatus', 'area_statu', 'local__non_local'],
+    aadhaar_no: ['aadhaar_no', 'aadhaar', 'aadhar', 'aadhar_no', 'uid', 'aadhar_card_number'],
+    place_of_birth: ['place_of_birth'],
+    father_occupation: ['father_occupation', 'father_work'],
+    annual_income: ['annual_income', 'income'],
+    identification_marks: ['identification_mark', 'identify_marks'],
   },
   // Academic background (optional)
   student_academic_background: {
     qualifying_exam: ['qualifying_exam', 'qualifyingexam'],
     previous_college_details: ['previous_college_details', 'previouscollege', 'previous_college'],
-    medium_of_instruction: ['medium_of_instruction', 'medium'],
+    medium_of_instruction: ['medium_of_instruction', 'medium', 'medium_of_education', 'language_of_education', 'education_medium'],
     year_of_study: ['year_of_study', 'year'],
     total_marks: ['total_marks', 'totalmarks'],
     marks_secured: ['marks_secured', 'secured_marks', 'marksobtained'],
+    intermediate_rank: ['rank', 'intermediate_rank'],
   },
 };
 
@@ -151,169 +156,150 @@ export async function POST(req) {
     let rows;
     let headers;
 
+    let totalRows = 0;
+    const errors = [];
+    const prepared = [];
+    const seenRolls = new Map();
+
     if (contentType.includes('application/json')) {
-      const { students, headers: receivedHeaders } = await req.json();
-      headers = receivedHeaders;
-      rows = [headers, ...students.map(student => headers.map(header => student[normalizeHeader(header)]))];
+      const { students } = await req.json();
+      if (!students || !Array.isArray(students) || students.length === 0) {
+        return NextResponse.json({ error: 'No student data received.' }, { status: 400 });
+      }
+      totalRows = students.length;
+      // When receiving JSON, the data is already processed by the client.
+      rows = students.map(s => ({...s})); // Create a mutable copy
+      headers = Object.keys(rows[0]).filter(k => !k.startsWith('_'));
+      
+      // Directly process rows since they are already structured correctly
+      processRows(rows, true);
+
     } else {
       const formData = await req.formData();
       const file = formData.get('file');
-
-      if (!file) {
-        return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
-      }
+      if (!file) return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
 
       const bytes = await file.arrayBuffer();
-      const u8 = new Uint8Array(bytes);
-      const workbook = XLSX.read(u8, { type: 'array', cellDates: true });
+      const workbook = XLSX.read(bytes, { type: 'array', cellDates: true });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-      headers = rows[0];
-    }
-
-    if (!rows || rows.length < 2) {
-      return NextResponse.json({ error: 'The uploaded data is empty or missing headers.' }, { status: 400 });
-    }
-    
-    const { mapping, missingRequired, normalizedHeaders } = buildHeaderMapping(headers);
-
-    if (missingRequired.length > 0) {
-      const aliasHints = {};
-      for (const table of Object.keys(ALIASES)) {
-        for (const canonical of missingRequired) {
-          if (ALIASES[table] && ALIASES[table][canonical]) {
-            aliasHints[canonical] = ALIASES[table][canonical];
-          }
-        }
-      }
-      const missingDisplayNames = missingRequired.map((f) => ({ field: f, display: REQUIRED_DISPLAY[f] || f }));
-      return NextResponse.json(
-        {
-          type: 'HEADER_ERRORS',
-          error: 'Missing required columns.',
-          missingRequired,
-          missingDisplayNames,
-          aliasHints,
-          detectedHeaders: headers.map((h) => String(h)),
-          normalizedDetectedHeaders: normalizedHeaders,
-        },
-        { status: 400 }
-      );
-    }
-    
-    // ... (rest of the function remains the same)
-    const totalRows = rows.length - 1;
-    const errors = [];
-    const prepared = []; // array of { student, personal, academic, rowNumber }
-
-    // Detect duplicates within file as we go
-    const seenRolls = new Map(); // roll_no -> firstRow
-
-    for (let r = 1; r < rows.length; r++) {
-      const row = rows[r];
-      const rowNumber = r + 1; // Excel row number (1-based)
-
-      const student = {};
-      const personal = {};
-      const academic = {};
-
-      // Build objects from mapping
-      for (let c = 0; c < headers.length; c++) {
-        const map = mapping[c];
-        if (!map) continue;
-        const val = row[c];
-        if (map.table === 'students') {
-          student[map.field] = val;
-        } else if (map.table === 'student_personal_details') {
-          personal[map.field] = val;
-        } else if (map.table === 'student_academic_background') {
-          academic[map.field] = val;
-        }
-      }
-
-      // Required per-row validations
-      const roll = String(student.roll_no || '').trim();
-      const name = String(student.name || '').trim();
-      const genderCanonical = normalizeGender(student.gender);
-      const dobCanonical = normalizeDateToMySQL(student.date_of_birth);
-      const fatherName = String(personal.father_name || '').trim();
-      const category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-');
-      const address = String(personal.address || '').trim();
-
-      if (!roll) {
-        errors.push({ row: rowNumber, roll_no: null, reason: 'Roll number is missing' });
-        continue;
-      }
-      if (seenRolls.has(roll)) {
-        errors.push({ row: rowNumber, roll_no: roll, reason: 'Duplicate roll number in file' });
-        continue;
-      }
-      seenRolls.set(roll, rowNumber);
-
-      if (!name) {
-        errors.push({ row: rowNumber, roll_no: roll, reason: 'Name is missing' });
-        continue;
-      }
-      if (!genderCanonical) {
-        errors.push({ row: rowNumber, roll_no: roll, reason: 'Invalid or missing gender' });
-        continue;
-      }
-      if (!dobCanonical) {
-        errors.push({ row: rowNumber, roll_no: roll, reason: 'Invalid or missing DOB' });
-        continue;
-      }
-      if (!fatherName) {
-        errors.push({ row: rowNumber, roll_no: roll, reason: 'Father name is missing' });
-        continue;
-      }
-      if (!category) {
-        errors.push({ row: rowNumber, roll_no: roll, reason: 'Category is missing' });
-        continue;
-      }
-      if (!address) {
-        errors.push({ row: rowNumber, roll_no: roll, reason: 'Address is missing' });
-        continue;
-      }
-
-      // Set canonical normalized values
-      student.roll_no = roll;
-      student.name = name;
-      student.gender = genderCanonical;
-      student.date_of_birth = dobCanonical;
-      // Optional fields
-      if (student.email) {
-        const em = String(student.email).trim();
-        if (em && !/\S+@\S+\.\S+/.test(em)) {
-          errors.push({ row: rowNumber, reason: `Invalid email '${em}'` });
-          continue;
-        }
-        student.email = em || null;
-      }
-      if (student.mobile) {
-        const mob = String(student.mobile).trim();
-        if (mob && !/^(\+91)?\d{10}$/.test(mob)) {
-          errors.push({ row: rowNumber, roll_no: roll, reason: `Invalid mobile number '${mob}'. Must be 10 digits or +91 followed by 10 digits.` });
-          continue;
-        }
-        student.mobile = mob || null;
-      }
-      student.email = student.email ? String(student.email).trim() : null; // Ensure null if empty
-
-      // Personal mandatory
-      personal.father_name = fatherName;
-      personal.address = address;
+      const sheetRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
       
-      // Category Validation
-      personal.category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-');
-      if (!VALID_CATEGORIES.has(personal.category)) {
-        errors.push({ row: rowNumber, roll_no: roll, reason: `Invalid category '${personal.category}'. Valid categories are: ${Array.from(VALID_CATEGORIES).join(', ')}` });
-        continue;
+      if (!sheetRows || sheetRows.length < 2) {
+        return NextResponse.json({ error: 'The uploaded data is empty or missing headers.' }, { status: 400 });
       }
+      
+      headers = sheetRows[0];
+      const dataRows = sheetRows.slice(1);
+      totalRows = dataRows.length;
 
-      personal.category = category;
+      const { mapping, missingRequired } = buildHeaderMapping(headers);
+      if (missingRequired.length > 0) {
+        const aliasHints = {};
+        missingRequired.forEach(canonical => {
+            for (const table of Object.keys(ALIASES)) {
+                if (ALIASES[table][canonical]) {
+                    aliasHints[canonical] = ALIASES[table][canonical];
+                    break;
+                }
+            }
+        });
+        const missingDisplayNames = missingRequired.map(f => ({ field: f, display: REQUIRED_DISPLAY[f] || f }));
+        return NextResponse.json({ type: 'HEADER_ERRORS', error: 'Missing required columns.', missingRequired, missingDisplayNames, aliasHints, detectedHeaders: headers.map(String) }, { status: 400 });
+      }
+      
+      // Convert sheet rows to object rows
+      const objectRows = dataRows.map(rowArray => {
+        const rowObject = {};
+        headers.forEach((header, index) => {
+            const map = mapping[index];
+            if(map) {
+                rowObject[map.field] = rowArray[index];
+            }
+        });
+        return rowObject;
+      });
+      processRows(objectRows, false);
+    }
+    
+    function processRows(objectRows, isJson = false) {
+        for(let i = 0; i < objectRows.length; i++) {
+            const record = objectRows[i];
+            const rowNumber = i + (isJson ? 1 : 2); // JSON is 1-based, Excel is 2-based
 
-      prepared.push({ student, personal, academic, rowNumber });
+            const student = {};
+            const personal = {};
+            const academic = {};
+            
+            Object.keys(record).forEach(key => {
+                if (key.startsWith('_')) return;
+                let tableFound = null;
+                for (const table in ALIASES) {
+                    if (ALIASES[table][key]) {
+                        tableFound = table;
+                        break;
+                    }
+                }
+                if (tableFound === 'students') student[key] = record[key];
+                else if (tableFound === 'student_personal_details') personal[key] = record[key];
+                else if (tableFound === 'student_academic_background') academic[key] = record[key];
+            });
+
+            const roll = String(student.roll_no || '').trim();
+            if (!roll) { errors.push({ row: rowNumber, roll_no: null, reason: 'Roll number is missing' }); continue; }
+            if (seenRolls.has(roll)) { errors.push({ row: rowNumber, roll_no: roll, reason: 'Duplicate roll number in file' }); continue; }
+            seenRolls.set(roll, rowNumber);
+            
+            const validationResult = validateRecord(roll, student, personal, academic);
+            if(validationResult.error) {
+                errors.push({ row: rowNumber, roll_no: roll, reason: validationResult.error });
+                continue;
+            }
+            
+            prepared.push({ student: validationResult.student, personal: validationResult.personal, academic, rowNumber });
+        }
+    }
+
+    function validateRecord(roll, student, personal, academic) {
+        const name = String(student.name || '').trim();
+        if (!name) return { error: 'Name is missing' };
+        
+        const genderCanonical = normalizeGender(student.gender);
+        if (!genderCanonical) return { error: 'Invalid or missing gender' };
+        
+        const dobCanonical = normalizeDateToMySQL(student.date_of_birth);
+        if (!dobCanonical) return { error: 'Invalid or missing DOB' };
+        
+        const fatherName = String(personal.father_name || '').trim();
+        if (!fatherName) return { error: 'Father name is missing' };
+        
+        const category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-');
+        if (!category) return { error: 'Category is missing' };
+        if (!VALID_CATEGORIES.has(category)) return { error: `Invalid category '${category}'` };
+
+        const address = String(personal.address || '').trim();
+        if (!address) return { error: 'Address is missing' };
+
+        student.roll_no = roll;
+        student.name = name;
+        student.gender = genderCanonical;
+        student.date_of_birth = dobCanonical;
+        personal.father_name = fatherName;
+        personal.category = category;
+        personal.address = address;
+        
+        if (student.mobile) {
+            const mob = String(student.mobile).trim();
+            if (mob && !/^(\+91)?\d{10}$/.test(mob)) return { error: `Invalid mobile: ${mob}` };
+            student.mobile = mob || null;
+        }
+        if (student.email) {
+            const em = String(student.email).trim();
+            if (em && !/\S+@\S+\.\S+/.test(em)) return { error: `Invalid email: ${em}` };
+            student.email = em || null;
+        }
+
+        return { student, personal, academic };
     }
 
     // DB-level duplicates check
@@ -369,8 +355,8 @@ export async function POST(req) {
 
         // Personal details (mandatory + optional where present)
         await connection.execute(
-          `INSERT INTO student_personal_details (student_id, father_name, mother_name, address, category, nationality, religion, sub_caste, area_status, aadhaar_no)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO student_personal_details (student_id, father_name, mother_name, address, category, nationality, religion, sub_caste, area_status, aadhaar_no, place_of_birth, father_occupation, annual_income, identification_marks)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             studentId,
             personal.father_name,
@@ -382,6 +368,10 @@ export async function POST(req) {
             personal.sub_caste || null,
             personal.area_status || null,
             personal.aadhaar_no || null,
+            personal.place_of_birth || null,
+            personal.father_occupation || null,
+            personal.annual_income || null,
+            personal.identification_marks || null,
           ]
         );
 
@@ -389,8 +379,8 @@ export async function POST(req) {
         const hasAcademic = Object.values(academic).some((v) => String(v).trim() !== '');
         if (hasAcademic) {
           await connection.execute(
-            `INSERT INTO student_academic_background (student_id, qualifying_exam, previous_college_details, medium_of_instruction, year_of_study, total_marks, marks_secured)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO student_academic_background (student_id, qualifying_exam, previous_college_details, medium_of_instruction, year_of_study, total_marks, marks_secured, intermediate_rank)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               studentId,
               academic.qualifying_exam || null,
@@ -399,6 +389,7 @@ export async function POST(req) {
               academic.year_of_study || null,
               academic.total_marks || null,
               academic.marks_secured || null,
+              academic.intermediate_rank || null,
             ]
           );
         }

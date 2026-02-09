@@ -6,23 +6,50 @@ import { parseDate } from '@/lib/date';
 import { validateRollNo, branchCodes } from '@/lib/rollNumber'; // Import validateRollNo and branchCodes
 
 // --- Constants for Client-Side Validation ---
-const REQUIRED_HEADERS_MAP = {
-  roll_no: { display: 'Roll Number', aliases: ['Roll No', 'RollNumber', 'Registration No', 'Admission No', 'Hall Ticket No'] },
-  name: { display: 'Candidate Name', aliases: ['Student Name', 'CandidateName'] },
-  gender: { display: 'Gender', aliases: [] },
-  date_of_birth: { display: 'Date of Birth', aliases: ['DOB', 'DateOfBirth'] },
-  father_name: { display: 'Father Name', aliases: ['FatherName'] },
-  category: { display: 'Category', aliases: ['Cast'] },
-  mobile: { display: 'Mobile', aliases: ['Mobile Number', 'Phone', 'Phone Number', 'Mobile No', 'Phone number', 'mobile number', 'student number', 'number'] },
-  aadhaar_no: { display: 'Aadhaar No', aliases: ['Aadhaar Number', 'Aadhaar'] },
-  address: { display: 'Address', aliases: ['Permanent Address', 'Full Address'] },
+const HEADERS_MAP = {
+  // Required Fields
+  roll_no: { display: 'Roll Number', aliases: ['roll no', 'rollnumber', 'registration no', 'admission no', 'hall ticket no', 'studentid', 'h.t no', 'hall ticket number'], required: true },
+  name: { display: 'Candidate Name', aliases: ['student name', 'name of the candidate', 'candidate name', 'name of this student'], required: true },
+  gender: { display: 'Gender', aliases: ['sex'], required: true },
+  date_of_birth: { display: 'Date of Birth', aliases: ['dob'], required: true },
+  father_name: { display: 'Father Name', aliases: [], required: true },
+  category: { display: 'Category', aliases: ['cast'], required: true },
+  address: { display: 'Address', aliases: ['permanent address', 'aadhar card address'], required: true },
+
+  // Optional Fields (students table)
+  mobile: { display: 'Mobile', aliases: ['mobile number', 'phone', 'phone number', 'contact number', 'student number'], required: false },
+  email: { display: 'Email', aliases: ['email id'], required: false },
+
+  // Optional Fields (student_personal_details table)
+  mother_name: { display: 'Mother Name', aliases: [], required: false },
+  aadhaar_no: { display: 'Aadhaar No', aliases: ['aadhaar number', 'aadhaar', 'uid', 'aadhar card number'], required: false },
+  nationality: { display: 'Nationality', aliases: ['native country'], required: false },
+  religion: { display: 'Religion', aliases: [], required: false },
+  sub_caste: { display: 'Sub Caste', aliases: [], required: false },
+  area_status: { display: 'Area Status', aliases: ['area statu', 'local /non local'], required: false },
+  place_of_birth: { display: 'Place of Birth', aliases: [], required: false },
+  father_occupation: { display: 'Father Occupation', aliases: ['father work'], required: false },
+  annual_income: { display: 'Annual Income', aliases: ['income'], required: false },
+  identification_marks: { display: 'Identification Marks', aliases: ['identify marks'], required: false },
+
+  // Optional Fields (student_academic_background table)
+  medium_of_instruction: { display: 'Medium of Instruction', aliases: ['medium', 'medium of education', 'language of education', 'education medium'], required: false },
+  intermediate_rank: { display: 'Rank', aliases: ['intermediate rank'], required: false },
+  qualifying_exam: { display: 'Qualifying Exam', aliases: [], required: false },
+  previous_college_details: { display: 'Previous College', aliases: [], required: false },
+  total_marks: { display: 'Total Marks', aliases: [], required: false },
+  marks_secured: { display: 'Marks Secured', aliases: [], required: false },
 };
 
 const CATEGORIES = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'];
 const GENDERS = ['Male', 'Female', 'Other'];
+const AREA_STATUSES = ['Local', 'Non-Local'];
 
 // Mobile number regex: 10 digits only or +91 followed by 10 digits
 const MOBILE_REGEX = /^(\+91)?\d{10}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NUMBER_REGEX = /^\d+$/;
+const DECIMAL_REGEX = /^\d+(\.\d+)?$/;
 
 // --- Utility Functions ---
 const normalizeHeader = (header) => {
@@ -35,26 +62,28 @@ const validateRow = (rowData, excelRowNumber) => {
   const rowWarnings = {};
   const validationErrors = [];
 
+  // --- REQUIRED FIELDS ---
   // 1. Roll Number
   const rollNo = String(rowData['roll_no'] || '').trim();
-  const { isValid: isRollNoValid, branch: parsedBranch } = validateRollNo(rollNo);
+  const { isValid: isRollNoValid } = validateRollNo(rollNo);
   if (!rollNo || !isRollNoValid) {
     rowErrors['roll_no'] = 'Invalid Roll Number format.';
     validationErrors.push({ row: excelRowNumber, field: 'Roll Number', message: `Invalid Roll Number format: ${rollNo}` });
   }
 
   // 2. Candidate Name
-  const candidateName = String(rowData['name'] || '').trim(); // Changed to 'name'
+  const candidateName = String(rowData['name'] || '').trim();
   if (!candidateName) {
-    rowErrors['name'] = 'Candidate Name is required.'; // Changed key to 'name'
+    rowErrors['name'] = 'Candidate Name is required.';
     validationErrors.push({ row: excelRowNumber, field: 'Candidate Name', message: 'Candidate Name is required.' });
   }
 
   // 3. Gender
   let gender = String(rowData['gender'] || '').trim();
   if (gender) {
-    if (gender.toLowerCase() === 'm') gender = 'Male';
-    if (gender.toLowerCase() === 'f') gender = 'Female';
+    const lowerGender = gender.toLowerCase();
+    if (lowerGender === 'm') gender = 'Male';
+    if (lowerGender === 'f') gender = 'Female';
   }
   if (!gender || !GENDERS.includes(gender)) {
     rowErrors['gender'] = `Invalid Gender. Must be one of ${GENDERS.join(', ')}.`;
@@ -64,8 +93,8 @@ const validateRow = (rowData, excelRowNumber) => {
   // 4. Date of Birth
   const dobValue = rowData['date_of_birth'];
   if (!dobValue || !parseDate(dobValue)) {
-    rowErrors['date_of_birth'] = 'Invalid Date of Birth format. Expected DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, or MM/DD/YYYY.';
-    validationErrors.push({ row: excelRowNumber, field: 'Date of Birth', message: `Invalid Date of Birth: ${dobValue}. Expected formats: DD-MM-YYYY, MM-DD-YYYY, DD/MM/YYYY, MM/DD/YYYY.` });
+    rowErrors['date_of_birth'] = 'Invalid Date of Birth format.';
+    validationErrors.push({ row: excelRowNumber, field: 'Date of Birth', message: `Invalid Date of Birth: ${dobValue}.` });
   }
 
   // 5. Father Name
@@ -81,23 +110,66 @@ const validateRow = (rowData, excelRowNumber) => {
     rowErrors['category'] = `Invalid Category. Must be one of ${CATEGORIES.join(', ')}.`;
     validationErrors.push({ row: excelRowNumber, field: 'Category', message: `Invalid Category: ${category}` });
   }
-
-  // 7. Mobile Number
-  const mobile = String(rowData['mobile'] || '').trim();
-  if (!mobile) { // Empty mobile number is a warning
-    rowWarnings['mobile'] = 'Mobile Number is empty.';
-    validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: 'Mobile Number is empty.', isWarning: true });
-  } else if (!MOBILE_REGEX.test(mobile)) { // Invalid format is an error
-    rowErrors['mobile'] = 'Invalid Mobile Number format (10 digits or +91 followed by 10 digits).';
-    validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: `Invalid Mobile: ${mobile}` });
-  }
-
-  // 8. Address (Warning for empty)
+  
+  // 7. Address
   const address = String(rowData['address'] || '').trim();
   if (!address) {
-    rowWarnings['address'] = 'Address is empty.';
-    validationErrors.push({ row: excelRowNumber, field: 'Address', message: 'Address is empty.', isWarning: true });
+    rowErrors['address'] = 'Address is required.';
+    validationErrors.push({ row: excelRowNumber, field: 'Address', message: 'Address is required.' });
   }
+
+  // --- OPTIONAL FIELDS ---
+  // 8. Mobile Number (Warning for empty, error for invalid)
+  const mobile = String(rowData['mobile'] || '').trim();
+  if (!mobile) {
+    rowWarnings['mobile'] = 'Mobile Number is empty.';
+    validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: 'Mobile Number is empty.', isWarning: true });
+  } else if (!MOBILE_REGEX.test(mobile)) {
+    rowErrors['mobile'] = 'Invalid Mobile Number format (10 digits or +91XXXXXXXXXX).';
+    validationErrors.push({ row: excelRowNumber, field: 'Mobile', message: `Invalid Mobile: ${mobile}` });
+  }
+  
+  // 9. Email (Warning for invalid)
+  const email = String(rowData['email'] || '').trim();
+  if (email && !EMAIL_REGEX.test(email)) {
+    rowWarnings['email'] = 'Invalid Email format.';
+    validationErrors.push({ row: excelRowNumber, field: 'Email', message: `Invalid Email: ${email}`, isWarning: true });
+  }
+  
+  // 10. Aadhaar (Warning for invalid)
+  const aadhaar = String(rowData['aadhaar_no'] || '').replace(/\s/g, '');
+  if (aadhaar && !/^\d{12}$/.test(aadhaar)) {
+    rowWarnings['aadhaar_no'] = 'Aadhaar should be 12 digits.';
+    validationErrors.push({ row: excelRowNumber, field: 'Aadhaar No', message: `Invalid Aadhaar: ${aadhaar}`, isWarning: true });
+  }
+
+  // 11. Area Status (Warning for invalid)
+  let areaStatus = String(rowData['area_status'] || '').trim();
+  if (areaStatus) {
+    const lowerArea = areaStatus.toLowerCase();
+    if(lowerArea.includes('non')) areaStatus = 'Non-Local';
+    else if(lowerArea.includes('local')) areaStatus = 'Local';
+  }
+  if (areaStatus && !AREA_STATUSES.includes(areaStatus)) {
+    rowWarnings['area_status'] = `Invalid Area Status. Must be 'Local' or 'Non-Local'.`;
+    validationErrors.push({ row: excelRowNumber, field: 'Area Status', message: `Invalid Area Status: ${areaStatus}`, isWarning: true });
+  }
+
+  // 12. Annual Income (Warning for invalid)
+  const annualIncome = String(rowData['annual_income'] || '').trim();
+  if (annualIncome && !DECIMAL_REGEX.test(annualIncome)) {
+    rowWarnings['annual_income'] = 'Annual Income should be a number.';
+    validationErrors.push({ row: excelRowNumber, field: 'Annual Income', message: `Invalid Annual Income: ${annualIncome}`, isWarning: true });
+  }
+  
+  // 13. Rank (Warning for invalid)
+  const rank = String(rowData['intermediate_rank'] || '').trim();
+  if (rank && !NUMBER_REGEX.test(rank)) {
+    rowWarnings['intermediate_rank'] = 'Rank should be a number.';
+    validationErrors.push({ row: excelRowNumber, field: 'Rank', message: `Invalid Rank: ${rank}`, isWarning: true });
+  }
+
+  // Other optional fields (mother_name, nationality, etc.) are treated as free text, so no specific validation is added for them.
 
   return { rowErrors, rowWarnings, validationErrors };
 };
@@ -125,6 +197,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [hasClientValidationErrors, setHasClientValidationErrors] = useState(false); // Only for critical errors
   const [isClientValidated, setIsClientValidated] = useState(false);
   const [isDataEdited, setIsDataEdited] = useState(false);
+  const [detectedHeaderMap, setDetectedHeaderMap] = useState({});
 
   const handleCellEdit = (rowIndex, cellKey, value) => {
     const updatedPreviewData = [...previewData];
@@ -222,19 +295,78 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
       }
 
       const rawHeaders = rows[0];
-      const normalizedHeaders = rawHeaders.map(normalizeHeader);
-      const dataRows = rows.slice(1);
+      const detectedHeaderMap = {}; // Maps normalized Excel header -> internal_key
+      const missingRequired = [];
+      const aliasHints = {};
 
+      // Get a set of all required internal keys
+      const requiredKeys = new Set(
+        Object.keys(HEADERS_MAP).filter(key => HEADERS_MAP[key].required)
+      );
+
+      // Map detected headers to our canonical keys
+      const mappedInternalKeys = new Set();
+      rawHeaders.forEach(rawHeader => {
+        const normalizedExcelHeader = normalizeHeader(rawHeader);
+        for (const internalKey in HEADERS_MAP) {
+          const headerConfig = HEADERS_MAP[internalKey];
+          const allPossibleAliases = [
+            internalKey, // e.g., 'roll_no'
+            normalizeHeader(headerConfig.display), // e.g., 'roll_number'
+            ...headerConfig.aliases.map(normalizeHeader) // e.g., 'hall_ticket_no'
+          ];
+          
+          if (allPossibleAliases.includes(normalizedExcelHeader)) {
+            if (!mappedInternalKeys.has(internalKey)) { // Avoid mapping multiple Excel columns to the same internal key
+              detectedHeaderMap[normalizedExcelHeader] = internalKey;
+              mappedInternalKeys.add(internalKey);
+              break; 
+            }
+          }
+        }
+      });
+      
+      // Check for missing *required* headers
+      requiredKeys.forEach(key => {
+        if (!mappedInternalKeys.has(key)) {
+          missingRequired.push(key);
+        }
+      });
+
+      setDetectedHeaderMap(detectedHeaderMap);
+
+      if (missingRequired.length > 0) {
+        const missingDisplay = missingRequired.map(key => {
+          const config = HEADERS_MAP[key];
+          aliasHints[key] = [config.display, ...config.aliases];
+          return { field: key, display: config.display };
+        });
+
+        setHeaderError({
+          missing: missingRequired,
+          missingDisplay,
+          aliasHints,
+          detectedHeaders: rawHeaders,
+        });
+        setImportStage('header_error');
+        toast.error('Missing required headers. Please check the file.');
+        return;
+      }
+
+      const dataRows = rows.slice(1);
       const allValidationErrors = [];
       const allPreviewData = [];
 
       for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
         const rowData = {};
-        for (let j = 0; j < normalizedHeaders.length; j++) {
-          const header = normalizedHeaders[j];
-          rowData[header] = row[j];
-        }
+        rawHeaders.forEach((rawHeader, j) => {
+            const normalizedExcelHeader = normalizeHeader(rawHeader);
+            const internalKey = detectedHeaderMap[normalizedExcelHeader];
+            if (internalKey) {
+                rowData[internalKey] = row[j];
+            }
+        });
 
         const excelRowNumber = i + 2;
         const { rowErrors, rowWarnings, validationErrors } = validateRow(rowData, excelRowNumber);
@@ -407,26 +539,35 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
                   {previewData.map((row, rowIndex) => {
                     const hasRowErrors = Object.keys(row._errors).length > 0;
                     const hasRowWarnings = Object.keys(row._warnings).length > 0;
-                    // Valid row: no critical errors and no warnings
-                    const isValidRow = !hasRowErrors && !hasRowWarnings;
-                    /* Row state priority: Critical Error (red) > Warning (yellow) > Valid (green) */
-                    const rowStateClass = hasRowErrors
-                      ? 'bg-red-50'
-                      : hasRowWarnings
-                      ? 'bg-yellow-50'
-                      : isValidRow
-                      ? 'bg-green-50 ring-1 ring-green-200 rounded-md'
-                      : '';
+                    const rowStateClass = hasRowErrors ? 'bg-red-50' : hasRowWarnings ? 'bg-yellow-50' : '';
 
                     return (
                       <tr key={rowIndex} className={rowStateClass}>
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{rowIndex + 2}</td>
                         {previewHeaders.map((header, colIndex) => {
-                          const cellKey = normalizeHeader(header);
-                          const cellError = row._errors[cellKey];
-                          const cellWarning = row._warnings[cellKey];
+                          const normalizedHeader = normalizeHeader(header);
+                          const internalKey = detectedHeaderMap[normalizedHeader];
+
+                          // If header is not mapped, render a disabled or empty cell
+                          if (!internalKey) {
+                            return (
+                              <td key={colIndex} className="px-1 py-1 whitespace-nowrap text-sm">
+                                <input
+                                  type="text"
+                                  value={""} // Or some indicator for unmapped data
+                                  disabled
+                                  className="w-full h-full bg-gray-100 border-none p-2 cursor-not-allowed"
+                                  title={`Unmapped header: ${header}`}
+                                />
+                              </td>
+                            );
+                          }
+                          
+                          const cellError = row._errors[internalKey];
+                          const cellWarning = row._warnings[internalKey];
                           const hasError = !!cellError;
                           const hasWarning = !!cellWarning;
+
                           return (
                             <td 
                               key={colIndex} 
@@ -435,12 +576,12 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
                             >
                               <input
                                 type="text"
-                                value={String(row[cellKey] ?? '')}
-                                onChange={(e) => handleCellEdit(rowIndex, cellKey, e.target.value)}
+                                value={String(row[internalKey] ?? '')}
+                                onChange={(e) => handleCellEdit(rowIndex, internalKey, e.target.value)}
                                 className={`w-full h-full bg-transparent border-none p-2 focus:ring-1 focus:ring-blue-500 rounded-sm ${
                                   hasError ? 'border-red-300' : hasWarning ? 'border-yellow-300' : ''
                                 }`}
-                                title={hasError ? cellError : hasWarning ? cellWarning : ''}
+                                title={hasError ? cellError : hasWarning ? cellWarning : `Internal Field: ${internalKey}`}
                               />
                             </td>
                           );
