@@ -54,7 +54,7 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
-*   **Clerk & Faculty Experience Improvements:**
+*   **ROLLBACK TO WORKING METHOD (`f522fd8`)**: This commit rolls back recent changes to a previously stable working method. This was necessary due to issues encountered with newer versions, ensuring the system returns to a functional state.
     *   **New Faculty Role:** The system now supports a "Faculty" role for clerks, with a dedicated dashboard page (`src/app/clerk/faculty/dashboard/page.js`).
     *   **Email on Clerk Creation:** When a super admin creates a new clerk account, an email is automatically sent to the clerk with their login credentials (temporary password) and a link to the portal. This is handled in `src/app/api/admin/create-clerk/route.js`. (commit `be94146`)
     *   **Clerk Redirection Fix:** Corrected a bug in the `src/proxy.js` middleware where clerks with the "Faculty" role were being incorrectly redirected to the admission dashboard. The logic now correctly routes them to `/clerk/faculty/dashboard`. Additionally, race conditions that caused "Access Denied" toast messages to appear on clerk dashboards during login have been resolved, with a loading state implemented to ensure authentication checks complete before content rendering (commit `501ac9d`).
