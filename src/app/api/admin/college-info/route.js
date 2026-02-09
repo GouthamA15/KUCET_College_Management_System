@@ -5,13 +5,24 @@ import { verifyJwt } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
 async function getAdminId() {
-  const cookieStore = await cookies(); // Changed this line
+  const cookieStore = await cookies();
   const token = cookieStore.get('admin_auth')?.value;
+
+  console.log("Admin auth token received:", token); // ADDED FOR DEBUGGING
+
   if (!token) {
+    console.log("No admin_auth token found."); // ADDED FOR DEBUGGING
     return null;
   }
-  const payload = await verifyJwt(token, process.env.JWT_SECRET);
-  return payload?.admin_id || null;
+
+  try {
+    const payload = await verifyJwt(token, process.env.JWT_SECRET);
+    console.log("JWT payload:", payload); // ADDED FOR DEBUGGING
+    return payload?.admin_id || null;
+  } catch (error) {
+    console.error("Error verifying admin JWT:", error); // ADDED FOR DEBUGGING
+    return null;
+  }
 }
 
 
