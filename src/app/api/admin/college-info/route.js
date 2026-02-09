@@ -8,19 +8,26 @@ async function getAdminId() {
   const cookieStore = await cookies();
   const token = cookieStore.get('admin_auth')?.value;
 
-  console.log("Admin auth token received:", token); // ADDED FOR DEBUGGING
+  console.log("Admin auth token received:", token);
 
   if (!token) {
-    console.log("No admin_auth token found."); // ADDED FOR DEBUGGING
+    console.log("No admin_auth token found.");
     return null;
   }
 
   try {
     const payload = await verifyJwt(token, process.env.JWT_SECRET);
-    console.log("JWT payload:", payload); // ADDED FOR DEBUGGING
-    return payload?.admin_id || null;
+    console.log("JWT payload:", payload);
+
+    if (payload && payload.role === 'admin') {
+      console.log("Admin role verified.");
+      return 'admin'; // Return a non-null value indicating admin success
+    } else {
+      console.log("Payload does not indicate admin role or payload is null.");
+      return null;
+    }
   } catch (error) {
-    console.error("Error verifying admin JWT:", error); // ADDED FOR DEBUGGING
+    console.error("Error verifying admin JWT:", error);
     return null;
   }
 }
