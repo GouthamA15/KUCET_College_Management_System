@@ -57,10 +57,7 @@ const ALIASES = {
     qualifying_exam: ['qualifying_exam', 'qualifyingexam'],
     previous_college_details: ['previous_college_details', 'previouscollege', 'previous_college'],
     medium_of_instruction: ['medium_of_instruction', 'medium', 'medium_of_education', 'language_of_education', 'education_medium'],
-    year_of_study: ['year_of_study', 'year'],
-    total_marks: ['total_marks', 'totalmarks'],
-    marks_secured: ['marks_secured', 'secured_marks', 'marksobtained'],
-    intermediate_rank: ['rank', 'intermediate_rank'],
+    ranks: ['rank', 'intermediate_rank'], // Changed from intermediate_rank
   },
 };
 
@@ -122,7 +119,7 @@ function normalizeDateToMySQL(value) {
       const yyyy = parsed.y;
       const mm = String(parsed.m).padStart(2, '0');
       const dd = String(parsed.d).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
+    return `${yyyy}-${mm}-${dd}`;
     }
     // Fallback conversion
     const dt = new Date(Math.round((value - 25569) * 86400 * 1000));
@@ -153,9 +150,7 @@ function normalizeDateToMySQL(value) {
 export async function POST(req) {
   try {
     const contentType = req.headers.get('content-type') || '';
-    let rows;
-    let headers;
-
+    let totalRows = 0; // Declared here
     const errors = [];
     const prepared = []; // array of { student, personal, academic, rowNumber, isUpdate: boolean, existingId: number }
     const seenRolls = new Map(); // roll_no -> firstRow
@@ -327,10 +322,9 @@ export async function POST(req) {
         academic.qualifying_exam = String(academic.qualifying_exam || '').trim() || null;
         academic.previous_college_details = String(academic.previous_college_details || '').trim() || null;
         academic.medium_of_instruction = String(academic.medium_of_instruction || '').trim() || null;
-        academic.year_of_study = academic.year_of_study === undefined ? null : academic.year_of_study; // Keep number or set null
-        academic.total_marks = academic.total_marks === undefined ? null : academic.total_marks;
-        academic.marks_secured = academic.marks_secured === undefined ? null : academic.marks_secured;
-        academic.intermediate_rank = academic.intermediate_rank === undefined ? null : academic.intermediate_rank;
+
+
+
 
         return { student, personal, academic };
     }
@@ -345,91 +339,60 @@ export async function POST(req) {
       // Fields for students table
       const STUDENT_FIELDS = ['name', 'email', 'mobile', 'date_of_birth', 'gender'];
       STUDENT_FIELDS.forEach(field => {
-          const incomingValue = incomingRec.student[field] !== undefined ? String(incomingRec.student[field]).trim() : '';
-          const existingValue = existingDbRec[field] !== null ? String(existingDbRec[field]).trim() : '';
+          const incomingValue = incomingRec.student[field] ? String(incomingRec.student[field]).trim() : null;
+          const existingValue = existingDbRec[field] ? String(existingDbRec[field]).trim() : null;
           
           if (field === 'date_of_birth') {
-              // Compare normalized dates
-              const normalizedIncomingDate = normalizeDateToMySQL(incomingRec.student[field]);
-              const normalizedExistingDate = normalizeDateToMySQL(existingDbRec.date_of_birth);
+              const normalizedIncomingDate = normalizeDateToMySQL(incomingValue);
+              const normalizedExistingDate = normalizeDateToMySQL(existingValue);
               if (normalizedIncomingDate !== normalizedExistingDate) {
-                  studentUpdates[field] = incomingRec.student[field];
+                  studentUpdates[field] = incomingRec.student[field] || null;
                   hasChanges = true;
               }
           } else if (field === 'gender') {
-              if (normalizeGender(incomingValue) !== normalizeGender(existingValue)) {
-                  studentUpdates[field] = incomingRec.student[field];
+              const normalizedIncoming = normalizeGender(incomingValue);
+              const normalizedExisting = normalizeGender(existingValue);
+              if (normalizedIncoming !== normalizedExisting) {
+                  studentUpdates[field] = incomingRec.student[field] || null;
                   hasChanges = true;
               }
-          } else if (field === 'email' || field === 'mobile') {
-              // These can be null, compare directly after trimming
-              if (incomingValue !== existingValue) {
-                  studentUpdates[field] = incomingRec.student[field];
-                  hasChanges = true;
-              }
-          }
-          else if (incomingValue !== existingValue) {
-              studentUpdates[field] = incomingRec.student[field];
+          } else if (incomingValue !== existingValue) {
+              studentUpdates[field] = incomingRec.student[field] || null;
               hasChanges = true;
           }
       });
-      // Handle email/mobile explicitly if null from incoming but not existing (and vice-versa for cleanup)
-      if (incomingRec.student.email === null && existingDbRec.email !== null) { studentUpdates.email = null; hasChanges = true; }
-      if (incomingRec.student.mobile === null && existingDbRec.mobile !== null) { studentUpdates.mobile = null; hasChanges = true; }
-
 
       // Fields for student_personal_details table
       const PERSONAL_FIELDS = ['father_name', 'mother_name', 'address', 'category', 'nationality', 'religion', 'sub_caste', 'area_status', 'aadhaar_no', 'place_of_birth', 'father_occupation', 'annual_income', 'identification_marks'];
       PERSONAL_FIELDS.forEach(field => {
-          const incomingValue = incomingRec.personal[field] !== undefined ? String(incomingRec.personal[field]).trim() : '';
-          const existingValue = existingDbRec[field] !== null ? String(existingDbRec[field]).trim() : '';
-          if (field === 'category') { // Normalize category for comparison
-            if (incomingValue.replace(/\s*-\s*/g, '-') !== existingValue.replace(/\s*-\s*/g, '-')) {
-                personalUpdates[field] = incomingRec.personal[field];
+          const incomingValue = incomingRec.personal[field] ? String(incomingRec.personal[field]).trim() : null;
+          const existingValue = existingDbRec[field] ? String(existingDbRec[field]).trim() : null;
+          
+          if (field === 'category') {
+            const normalizedIncoming = incomingValue ? incomingValue.replace(/\s*-\s*/g, '-') : null;
+            const normalizedExisting = existingValue ? existingValue.replace(/\s*-\s*/g, '-') : null;
+            if (normalizedIncoming !== normalizedExisting) {
+                personalUpdates[field] = incomingRec.personal[field] || null;
                 hasChanges = true;
             }
           }
           else if (incomingValue !== existingValue) {
-              personalUpdates[field] = incomingRec.personal[field];
+              personalUpdates[field] = incomingRec.personal[field] || null;
               hasChanges = true;
           }
       });
-      // Explicitly handle null for optional fields in personal details
-      PERSONAL_FIELDS.forEach(field => {
-        if (incomingRec.personal[field] === null && existingDbRec[field] !== null) { personalUpdates[field] = null; hasChanges = true; }
-      });
-
 
       // Fields for student_academic_background table
-      const ACADEMIC_FIELDS = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'year_of_study', 'total_marks', 'marks_secured', 'intermediate_rank'];
+      const ACADEMIC_FIELDS = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction'];
       ACADEMIC_FIELDS.forEach(field => {
-          const incomingValue = incomingRec.academic[field] !== undefined ? String(incomingRec.academic[field]).trim() : '';
-          const existingValue = existingDbRec[field] !== null ? String(existingDbRec[field]).trim() : '';
-          // For numeric fields like year_of_study, total_marks, marks_secured, intermediate_rank, compare as numbers if possible
-          if (['year_of_study', 'total_marks', 'marks_secured', 'intermediate_rank'].includes(field)) {
-            const numIncoming = Number(incomingValue);
-            const numExisting = Number(existingValue);
-            if (!isNaN(numIncoming) && !isNaN(numExisting) && numIncoming !== numExisting) {
-                academicUpdates[field] = incomingRec.academic[field];
-                hasChanges = true;
-            } else if (isNaN(numIncoming) && !isNaN(numExisting)) { // Incoming is not number, existing is
-                academicUpdates[field] = incomingRec.academic[field]; // Set to whatever incoming is (likely null)
-                hasChanges = true;
-            } else if (!isNaN(numIncoming) && isNaN(numExisting)) { // Incoming is number, existing is not
-                academicUpdates[field] = incomingRec.academic[field];
-                hasChanges = true;
-            }
-          }
-          else if (incomingValue !== existingValue) {
-              academicUpdates[field] = incomingRec.academic[field];
+          const incomingValue = incomingRec.academic[field] ? String(incomingRec.academic[field]).trim() : null;
+          const existingValue = existingDbRec[field] ? String(existingDbRec[field]).trim() : null;
+          
+          if (incomingValue !== existingValue) {
+              academicUpdates[field] = incomingRec.academic[field] || null;
               hasChanges = true;
           }
       });
-      // Explicitly handle null for optional fields in academic details
-      ACADEMIC_FIELDS.forEach(field => {
-        if (incomingRec.academic[field] === null && existingDbRec[field] !== null) { academicUpdates[field] = null; hasChanges = true; }
-      });
-
 
       return { hasChanges, studentUpdates, personalUpdates, academicUpdates };
     }
@@ -449,7 +412,7 @@ export async function POST(req) {
         const [existingStudentsDb] = await pool.execute(
           `SELECT s.id, s.roll_no, s.name, s.email, s.mobile, s.date_of_birth, s.gender,
                   sp.id AS personal_id, sp.father_name, sp.mother_name, sp.address, sp.category, sp.nationality, sp.religion, sp.sub_caste, sp.area_status, sp.aadhaar_no, sp.place_of_birth, sp.father_occupation, sp.annual_income, sp.identification_marks,
-                  sa.id AS academic_id, sa.qualifying_exam, sa.previous_college_details, sa.medium_of_instruction, sa.year_of_study, sa.total_marks, sa.marks_secured, sa.intermediate_rank
+                  sa.id AS academic_id, sa.qualifying_exam, sa.previous_college_details, sa.medium_of_instruction
            FROM students s
            LEFT JOIN student_personal_details sp ON s.id = sp.student_id
            LEFT JOIN student_academic_background sa ON s.id = sa.student_id
@@ -495,7 +458,8 @@ export async function POST(req) {
     }
     
     let connection;
-    let insertedCount = 0; // Updated count is global
+    let insertedCount = 0;
+    let updatedCount = 0; // Updated count is global
     try {
       connection = await pool.getConnection();
       await connection.beginTransaction();
@@ -506,8 +470,11 @@ export async function POST(req) {
         if (existingId) { // Record needs update
           // Update students table
           if (Object.keys(changes.studentUpdates).length > 0) {
-            const updateFields = Object.keys(changes.studentUpdates).map(field => `${field} = ?`).join(', ');
-            const updateValues = Object.values(changes.studentUpdates);
+            const sanitizedStudentUpdates = Object.fromEntries(
+              Object.entries(changes.studentUpdates).map(([key, value]) => [key, value === undefined ? null : value])
+            );
+            const updateFields = Object.keys(sanitizedStudentUpdates).map(field => `${field} = ?`).join(', ');
+            const updateValues = Object.values(sanitizedStudentUpdates);
             await connection.execute(
               `UPDATE students SET ${updateFields} WHERE id = ?`,
               [...updateValues, existingId]
@@ -517,19 +484,25 @@ export async function POST(req) {
           // Update student_personal_details table or insert if it doesn't exist
           if (personalExistingId) {
             if (Object.keys(changes.personalUpdates).length > 0) {
-              const updateFields = Object.keys(changes.personalUpdates).map(field => `${field} = ?`).join(', ');
-              const updateValues = Object.values(changes.personalUpdates);
+              const sanitizedPersonalUpdates = Object.fromEntries(
+                Object.entries(changes.personalUpdates).map(([key, value]) => [key, value === undefined ? null : value])
+              );
+              const updateFields = Object.keys(sanitizedPersonalUpdates).map(field => `${field} = ?`).join(', ');
+              const updateValues = Object.values(sanitizedPersonalUpdates);
               await connection.execute(
                 `UPDATE student_personal_details SET ${updateFields} WHERE id = ?`,
                 [...updateValues, personalExistingId]
               );
             }
           } else if (Object.keys(personal).length > 0) { // No personal details record, but incoming has data, so insert
-            const personalKeys = Object.keys(personal).join(', ');
-            const personalPlaceholders = Object.keys(personal).map(() => '?').join(', ');
+            const sanitizedPersonal = Object.fromEntries(
+              Object.entries(personal).map(([key, value]) => [key, value === undefined ? null : value])
+            );
+            const personalKeys = Object.keys(sanitizedPersonal).join(', ');
+            const personalPlaceholders = Object.keys(sanitizedPersonal).map(() => '?').join(', ');
             await connection.execute(
               `INSERT INTO student_personal_details (student_id, ${personalKeys}) VALUES (?, ${personalPlaceholders})`,
-              [existingId, ...Object.values(personal)]
+              [existingId, ...Object.values(sanitizedPersonal)]
             );
           }
 
@@ -537,23 +510,28 @@ export async function POST(req) {
           // Update student_academic_background table or insert if it doesn't exist
           if (academicExistingId) {
             if (Object.keys(changes.academicUpdates).length > 0) {
-              const updateFields = Object.keys(changes.academicUpdates).map(field => `${field} = ?`).join(', ');
-              const updateValues = Object.values(changes.academicUpdates);
+              const sanitizedAcademicUpdates = Object.fromEntries(
+                Object.entries(changes.academicUpdates).map(([key, value]) => [key, value === undefined ? null : value])
+              );
+              const updateFields = Object.keys(sanitizedAcademicUpdates).map(field => `${field} = ?`).join(', ');
+              const updateValues = Object.values(sanitizedAcademicUpdates);
               await connection.execute(
                 `UPDATE student_academic_background SET ${updateFields} WHERE id = ?`,
                 [...updateValues, academicExistingId]
               );
             }
           } else if (Object.keys(academic).length > 0) { // No academic record, but incoming has data, so insert
-              const academicKeys = Object.keys(academic).join(', ');
-              const academicPlaceholders = Object.keys(academic).map(() => '?').join(', ');
+              const sanitizedAcademic = Object.fromEntries(
+                Object.entries(academic).map(([key, value]) => [key, value === undefined ? null : value])
+              );
+              const academicKeys = Object.keys(sanitizedAcademic).join(', ');
+              const academicPlaceholders = Object.keys(sanitizedAcademic).map(() => '?').join(', ');
               await connection.execute(
                 `INSERT INTO student_academic_background (student_id, ${academicKeys}) VALUES (?, ${academicPlaceholders})`,
-                [existingId, ...Object.values(academic)]
+                [existingId, ...Object.values(sanitizedAcademic)]
               );
           }
           updatedCount++;
-
         } else { // New record, perform insert
           // Insert into students
           const [studentResult] = await connection.execute(
@@ -583,11 +561,14 @@ export async function POST(req) {
 
           // Academic background (if any data provided)
           if (Object.keys(academic).length > 0) {
-            const academicKeys = Object.keys(academic).join(', ');
-            const academicPlaceholders = Object.keys(academic).map(() => '?').join(', ');
+            const sanitizedAcademic = Object.fromEntries(
+              Object.entries(academic).map(([key, value]) => [key, value === undefined ? null : value])
+            );
+            const academicKeys = Object.keys(sanitizedAcademic).join(', ');
+            const academicPlaceholders = Object.keys(sanitizedAcademic).map(() => '?').join(', ');
             await connection.execute(
               `INSERT INTO student_academic_background (student_id, ${academicKeys}) VALUES (?, ${academicPlaceholders})`,
-              [studentId, ...Object.values(academic)]
+              [studentId, ...Object.values(sanitizedAcademic)]
             );
           }
           insertedCount++;
@@ -621,3 +602,8 @@ export async function POST(req) {
     } finally {
       if (connection) connection.release();
     }
+  } catch (outerError) {
+    console.error('BULK IMPORT POST HANDLER OUTER ERROR:', outerError);
+    return NextResponse.json({ error: 'An unexpected error occurred during bulk import preparation.' }, { status: 500 });
+  }
+}

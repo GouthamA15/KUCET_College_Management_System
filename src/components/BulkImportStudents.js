@@ -34,11 +34,10 @@ const HEADERS_MAP = {
 
   // Optional Fields (student_academic_background table)
   medium_of_instruction: { display: 'Medium of Instruction', aliases: ['medium', 'medium of education', 'language of education', 'education medium'], required: false },
-  intermediate_rank: { display: 'Rank', aliases: ['intermediate rank'], required: false },
+  ranks: { display: 'Ranks', aliases: ['intermediate rank', 'rank'], required: false },
   qualifying_exam: { display: 'Qualifying Exam', aliases: [], required: false },
   previous_college_details: { display: 'Previous College', aliases: [], required: false },
-  total_marks: { display: 'Total Marks', aliases: [], required: false },
-  marks_secured: { display: 'Marks Secured', aliases: [], required: false },
+
 };
 
 const CATEGORIES = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'];
@@ -422,6 +421,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
         setSummaryData({
           totalRows: data.totalRows ?? 0,
           inserted: data.inserted ?? 0,
+          updated: data.updated ?? 0,
           skipped: data.skipped ?? 0,
         });
         const rowErrors = Array.isArray(data.errors) ? data.errors : [];
@@ -676,6 +676,9 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
             </div>
             <div>
               <span className="font-medium">Inserted:</span> {summaryData.inserted}
+            </div>
+            <div>
+              <span className="font-medium">Updated:</span> {summaryData.updated}
             </div>
             <div>
               <span className="font-medium">Skipped (due to errors):</span> {summaryData.skipped}

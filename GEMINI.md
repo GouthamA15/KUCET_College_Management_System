@@ -60,6 +60,12 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Clerk Redirection Fix:** Corrected a bug in the `src/proxy.js` middleware where clerks with the "Faculty" role were being incorrectly redirected to the admission dashboard. The logic now correctly routes them to `/clerk/faculty/dashboard`. Additionally, race conditions that caused "Access Denied" toast messages to appear on clerk dashboards during login have been resolved, with a loading state implemented to ensure authentication checks complete before content rendering (commit `501ac9d`).
     *   **Dashboard Loading State Fix:** Resolved a race condition that caused "Access Denied" toast messages to appear on clerk dashboards during login. A loading state has been implemented on all clerk dashboards (`faculty`, `scholarship`, `admission`) to ensure that authentication checks are complete before the dashboard content is rendered.
 
+*   **Bulk Import Update Count Fix & Academic Field Synchronization:**
+    *   Resolved a bug where re-importing an identical Excel sheet would incorrectly report existing students as 'updated' due to a flaw in null/empty value comparisons. The `compareRecords` function in `src/app/api/clerk/admission/bulk-import/route.js` has been refactored for robust detection of actual changes.
+    *   Synchronized bulk import academic fields with the database schema by:
+        *   Removing non-existent `total_marks` and `marks_secured` fields from `HEADERS_MAP` (`src/components/BulkImportStudents.js`) and `ALIASES` (`src/app/api/clerk/admission/bulk-import/route.js`).
+        *   Correcting the mapping for student ranks (`intermediate_rank` to `ranks`) across client-side and server-side configurations to match the `student_academic_background` table's `ranks` column.
+
 *   **Refactored Bulk Student Import:**
     *   **UI/UX Improvement:** The bulk student import feature has been refactored to display errors directly on the page in a table format, improving user experience by removing the need to download a separate error report.
     *   **Robust Client-side Excel Import Preview and Validation:** Implemented advanced client-side Excel import preview with robust date validation, category validation (including 'OC-EWS'), and phone number checks, significantly improving data quality and user feedback during bulk imports (commits `f529827`, `8888249`, `d86408a`).
