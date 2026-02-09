@@ -1,11 +1,23 @@
 // src/app/api/admin/college-info/route.js
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { verifyAdminAuth } from '@/lib/auth';
+import { verifyJwt } from '@/lib/auth'; // Changed from verifyAdminAuth
+import { cookies } from 'next/headers'; // Added
+
+async function getAdminId() {
+  const cookieStore = cookies();
+  const token = cookieStore.get('admin_auth')?.value;
+  if (!token) {
+    return null;
+  }
+  const payload = await verifyJwt(token, process.env.JWT_SECRET);
+  return payload?.admin_id || null; // Assuming payload contains admin_id
+}
+
 
 export async function GET() {
   try {
-    const adminId = await verifyAdminAuth();
+    const adminId = await getAdminId(); // Changed to use getAdminId
     if (!adminId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -30,7 +42,7 @@ export async function GET() {
 
 export async function PUT(req) {
   try {
-    const adminId = await verifyAdminAuth();
+    const adminId = await getAdminId(); // Changed to use getAdminId
     if (!adminId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
