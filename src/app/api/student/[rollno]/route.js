@@ -71,12 +71,29 @@ export async function GET(req, context) {
     student.course = getBranchFromRoll(student.roll_no);
     student.admission_type = getAdmissionTypeFromRoll(student.roll_no);
 
-    const scholarshipSql = 'SELECT * FROM scholarship WHERE student_id = ? ORDER BY year';
+    const scholarshipSql = 'SELECT * FROM scholarship_sanctions WHERE student_id = ? ORDER BY sanction_date';
     let scholarship = await query(scholarshipSql, [studentId]);
-    scholarship = scholarship.map(s => ({ ...s, academic_year: computeAcademicYear(student.roll_no, s.year) }));
+    // Normalize scholarship fields to support both old and new schemas.
+    scholarship = scholarship.map(s => {
+      const academic_year = s.academic_year || (s.year ? computeAcademicYear(student.roll_no, s.year) : null);
+      return {
+        ...s,
+        academic_year,
+        application_no: s.application_no ?? s.application_no,
+        proceeding_no: s.proceeding_no ?? s.proceeding_no,
+        sanctioned_amount: s.sanctioned_amount ?? s.amount_sanctioned ?? s.sanctioned_amount,
+        sanction_date: s.sanction_date ?? s.date ?? s.sanction_date,
+      };
+    });
 
-    const feesSql = 'SELECT * FROM student_fee_transactions WHERE student_id = ? ORDER BY year, date';
-    const fees = await query(feesSql, [studentId]);
+    const feesSql = 'SELECT * FROM student_fee_payments WHERE student_id = ? ORDER BY academic_year, transaction_date';
+    const feesRaw = await query(feesSql, [studentId]);
+    // Normalize fee field names (transaction_ref_no -> transaction_ref, transaction_date -> date)
+    const fees = feesRaw.map(f => ({
+      ...f,
+      transaction_ref: f.transaction_ref_no ?? f.transaction_ref ?? f.transactionRef ?? null,
+      date: f.transaction_date ?? f.date ?? null,
+    }));
 
     // const academicsSql = 'SELECT * FROM academics WHERE student_id = ? ORDER BY year';
     // const academics = await query(academicsSql, [studentId]);
