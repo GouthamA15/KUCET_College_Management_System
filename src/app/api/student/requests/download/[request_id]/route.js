@@ -165,12 +165,13 @@ export async function GET(request, { params }) {
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://10.163.82.43:${process.env.PORT || 3000}`;
         const verificationUrl = `${baseUrl}/verify?id=${certId}&roll=${rollNo}`;
-        
+
         if(verificationUrl) {
             qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
+        } else {
+            console.log('Error in QR generation')
         }
- 
-       
+
 
         
         const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
@@ -190,10 +191,10 @@ export async function GET(request, { params }) {
             ATTENDANCE_PERCENTAGE: attendanceValue || '',
             DOB: formattedDob,
             CERT_ID: certId,
-            QR_CODE: qrBase64
+            QR_CODE: qrBase64 || 'n/a'
         };
 
-
+        try {
         // 3. Get HTML for the certificate by loading the template and injecting data
         const templatePath = path.join(process.cwd(), 'templates', templateName);
         let htmlTemplate = await fs.readFile(templatePath, 'utf8');
@@ -253,9 +254,19 @@ export async function GET(request, { params }) {
                 htmlContent = htmlContent.replace(regex, `src="${baseUrl}/assets/${name}"`);
             }
         }
+    } catch {
+        console.log("Failed at 3rd step")
+    }
 
+
+    try {
         // 4. Generate PDF using shared helper which uses bundled puppeteer
         const pdfBuf = await htmlToPdfBuffer(htmlContent);
+    } catch {
+        console.log('Kamal Moddu ho yar')
+    }
+
+    try {
 
         // 5. Send the file as a response
         const headers = new Headers();
@@ -273,7 +284,12 @@ export async function GET(request, { params }) {
     } catch (error) {
         console.error("Error generating certificate:", error);
         return NextResponse.json({ error: 'An error occurred while generating the certificate.', details: error.message }, { status: 500 });
+
     } finally {
         // nothing to clean up here; browser lifecycle is handled in pdf-generator
+    }
+
+    }catch {
+        console.log('Faild at 5')
     }
 }
