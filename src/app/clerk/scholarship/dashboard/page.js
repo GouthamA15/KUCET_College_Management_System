@@ -8,31 +8,39 @@ import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import { getAdmissionTypeFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear, getAcademicYearForStudyYear } from '@/lib/rollNumber';
+import { validateRollNo } from '@/lib/rollNumber';
+import { formatDate } from '@/lib/date';
 
 
 export default function ScholarshipDashboard() {
   const [clerk, setClerk] = useState(null);
   const [isClerkLoading, setIsClerkLoading] = useState(true); // For initial clerk auth check
   const [roll, setRoll] = useState('');
+  const [rollError, setRollError] = useState('');
+  const MAX_ROLL = 10;
   const [loading, setLoading] = useState(false); // For fetching student data
   const [student, setStudent] = useState(null);
-  const [personal, setPersonal] = useState(null);
-  const [academic, setAcademic] = useState(null);
-  const [feeDetails, setFeeDetails] = useState(null);
-  const [scholarshipRecords, setScholarshipRecords] = useState([]);
-  const [yearCount, setYearCount] = useState(4);
-  const [expandedYear, setExpandedYear] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [feeSummary, setFeeSummary] = useState(null);
+  const [scholarshipProceedings, setScholarshipProceedings] = useState([]);
+  const [studentPayments, setStudentPayments] = useState([]);
+  const [yearList, setYearList] = useState([]);
+  const [summariesByYear, setSummariesByYear] = useState({});
+  const [expandedByYear, setExpandedByYear] = useState({});
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
-  const [editingYear, setEditingYear] = useState(null);
-  const [form, setForm] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState('');
-  const [pendingSaveData, setPendingSaveData] = useState(null);
   const [view, setView] = useState('dashboard');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalYear, setModalYear] = useState('');
+  // Modal form state
+  const [schAppNo, setSchAppNo] = useState('');
+  const [schProceedingNo, setSchProceedingNo] = useState('');
+  const [schAmount, setSchAmount] = useState('');
+  const [schDate, setSchDate] = useState('');
+  const [payAmount, setPayAmount] = useState('');
+  const [payRef, setPayRef] = useState('');
+  const [payDate, setPayDate] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [appEditing, setAppEditing] = useState(false);
 
 
   useEffect(() => {
@@ -60,58 +68,10 @@ export default function ScholarshipDashboard() {
     fetchClerkData();
   }, []);
 
-  // Fee constants and helpers
-  const SELF_FINANCE_BRANCHES = ['CSD', 'IT', 'CIVIL'];
+  // Date formatting helper (UI only)
+  const toDmy = (val) => formatDate(val) || '-';
 
-  const isSelfFinanceBranch = (branch) => {
-    if (!branch) return false;
-    return SELF_FINANCE_BRANCHES.includes(String(branch).toUpperCase());
-  };
-
-  const computeTotalFee = (rollNo, application_no) => {
-    const branch = getBranchFromRoll(rollNo);
-    const isSelf = isSelfFinanceBranch(branch);
-    const isScholar = (() => {
-      if (!application_no) return false;
-      return String(application_no).trim() !== String(rollNo);
-    })();
-
-    if (!isSelf) {
-      return 35000;
-    }
-
-    // self finance
-    return isScholar ? 35000 : 70000;
-  };
-
-  // Safe date formatter: renders DD-MM-YYYY without timezone shifts
-  const toDmy = (val) => {
-    if (!val) return '-';
-    try {
-      const s = String(val);
-      const datePart = s.split('T')[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-        const [y, m, d] = datePart.split('-');
-        return `${d}-${m}-${y}`;
-      }
-      const ddmmyyyy = s.split('-');
-      if (ddmmyyyy.length === 3 && ddmmyyyy[0].length === 2 && ddmmyyyy[1].length === 2 && ddmmyyyy[2].length === 4) {
-        return s; // already DD-MM-YYYY
-      }
-      const d = new Date(s);
-      if (isNaN(d.getTime())) return s;
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}-${month}-${year}`;
-    } catch {
-      return String(val);
-    }
-  };
-
-  // Calculate these once before the render loop if student data is available
-  const admissionType = student ? getAdmissionTypeFromRoll(student.roll_no) : null;
-  const displayYearOffset = (admissionType === 'Lateral') ? 1 : 0;
+  // UI must not parse roll number; rely only on backend fields
 
   const handleLogout = () => {
     document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
@@ -122,33 +82,60 @@ export default function ScholarshipDashboard() {
 
   const resetStudent = () => {
     setStudent(null);
-    setPersonal(null);
-    setAcademic(null);
-    setFeeDetails(null);
-    setScholarshipRecords([]);
-    setExpandedYear(null);
+    setFeeSummary(null);
+    setScholarshipProceedings([]);
+    setStudentPayments([]);
+    setYearList([]);
+    setSummariesByYear({});
+    setExpandedByYear({});
   };
 
   const fetchStudent = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!roll) return;
+    // Enforce same client-side constraints as LoginPanel / Admission clerk
+    if (String(roll).length !== MAX_ROLL) {
+      toast.error(`Roll Number must be ${MAX_ROLL} characters long`);
+      return;
+    }
+    try {
+      const { isValid } = validateRollNo(String(roll));
+      if (!isValid) {
+        toast.error('Invalid Roll Number format');
+        return;
+      }
+    } catch (err) {
+      toast.error('Invalid Roll Number format');
+      return;
+    }
     setLoading(true);
     resetStudent();
     const id = toast.loading('Fetching student...');
     try {
-      const res = await fetch(`/api/clerk/scholarship/${encodeURIComponent(roll)}`);
+      // Expect backend to return exactly the frozen contract shape
+      // No hardcoded academic year; server defaults to current academic year
+      const res = await fetch(`/api/clerk/scholarship/summary/${encodeURIComponent(roll)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Student not found');
-
       setStudent(data.student);
-      setPersonal(data.personal || {});
-      setAcademic(data.academic || {});
-      setFeeDetails(data.feeDetails || {});
-      setScholarshipRecords(Array.isArray(data.scholarship) ? data.scholarship : []);
+      setFeeSummary(data.fee_summary || null);
+      setScholarshipProceedings(Array.isArray(data.scholarship_proceedings) ? data.scholarship_proceedings : []);
+      setStudentPayments(Array.isArray(data.student_payments) ? data.student_payments : []);
 
-      // Determine course duration purely by admission type: Regular=4, Lateral=3
-      const at = getAdmissionTypeFromRoll(data.student.roll_no) || 'Regular';
-      setYearCount(String(at).toLowerCase() === 'lateral' ? 3 : 4);
+      // Build 4-year list from admission academic year period (e.g., 2023-2027)
+      const list = deriveYearsFromAdmission(String(data?.student?.admission_year || ''));
+      setYearList(list);
+      // Fetch summaries for each year in parallel; store by year
+      const urls = list.map(y => `/api/clerk/scholarship/summary/${encodeURIComponent(roll)}?year=${encodeURIComponent(y)}`);
+      const results = await Promise.allSettled(urls.map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null)));
+      const byYear = {};
+      results.forEach((res, idx) => {
+        const y = list[idx];
+        byYear[y] = (res.status === 'fulfilled' ? res.value : null) || null;
+      });
+      setSummariesByYear(byYear);
+      // Default collapsed view for all cards
+      setExpandedByYear(list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
 
       toast.success('Student loaded', { id });
     } catch (err) {
@@ -158,188 +145,157 @@ export default function ScholarshipDashboard() {
     }
   };
 
-  const openModalForYear = (year, existing = null) => {
-    setEditingYear(year);
-    const base = existing
-      ? { ...existing, amount_paid: existing.amount_paid ?? '', utr_no: existing.utr_no ?? '', utr_date: existing.utr_date ?? '' }
-      : { year, application_no: '', amount_paid: '', utr_no: '', utr_date: '' };
-    setForm(base);
+  // Derive 4 academic years (YYYY-YY) from an admission period like "2023-2027"
+  function deriveYearsFromAdmission(period) {
+    const m = String(period).match(/^(\d{4})-(\d{4})$/);
+    if (!m) return [];
+    const start = parseInt(m[1], 10);
+    // Generate Year 1..4 as YYYY-YY
+    return [0,1,2,3].map(offset => {
+      const s = start + offset;
+      const e = s + 1;
+      return `${s}-${String(e).slice(-2)}`;
+    });
+  }
+
+  function openAddModal(year) {
+    setModalYear(year);
     setModalOpen(true);
-  };
-
-  const evaluateType = (application_no) => {
-    if (!application_no) return 'unknown';
-    return String(application_no).trim() === String(student?.roll_no) ? 'non' : 'scholar';
-  };
-
-  useEffect(() => {
-    if (!modalOpen) setForm({});
-  }, [modalOpen]);
-
-  const saveRecord = async () => {
-    if (!form.application_no || form.application_no.toString().trim() === '') {
-      toast.error('Application Number is required');
-      return;
+    // Reset fields
+    try {
+      const existingApp = (summariesByYear[year]?.application_no) || '';
+      setSchAppNo(existingApp);
+      setAppEditing(false);
+    } catch { setSchAppNo(''); setAppEditing(false); }
+    // Prefill proceeding, amount, date if an existing proceeding is present
+    try {
+      const arr = Array.isArray(summariesByYear[year]?.scholarship_proceedings) ? summariesByYear[year].scholarship_proceedings : [];
+      const latest = arr.length > 0 ? arr[arr.length - 1] : null;
+      setSchProceedingNo(latest?.proceeding_no || '');
+      setSchAmount(latest?.amount ? String(latest.amount) : '');
+      setSchDate(latest?.date || '');
+    } catch {
+      setSchProceedingNo('');
+      setSchAmount('');
+      setSchDate('');
     }
-    const type = evaluateType(form.application_no);
+    setPayAmount('');
+    setPayRef('');
+    setPayDate('');
+  }
 
-    // If changing type during edit, warn
-    const existing = scholarshipRecords.find(s => Number(s.year) === Number(editingYear));
-    if (existing) {
-      const existingType = existing.application_no === student.roll_no ? 'non' : 'scholar';
-      const newType = type;
-      if (existingType !== newType) {
-        // Open custom confirmation modal instead of native confirm
-        setConfirmMessage('Changing the Application Number will change record type (Scholar ↔ Non‑Scholar). Proceed?');
-        setPendingSaveData({ ...form });
-        setConfirmOpen(true);
-        return;
-      }
-    }
+  async function refetchYearSummary(rollNo, year) {
+    try {
+      const res = await fetch(`/api/clerk/scholarship/summary/${encodeURIComponent(rollNo)}?year=${encodeURIComponent(year)}`);
+      const data = res.ok ? await res.json() : null;
+      setSummariesByYear(prev => ({ ...prev, [year]: data }));
+    } catch {}
+  }
 
+  async function handleSaveRecord() {
+    if (!student || !modalYear) return;
     setSaving(true);
-    const id = toast.loading('Saving record...');
+    const ops = [];
+    // Scholarship side
+    const isScholar = student?.fee_reimbursement === 'YES';
+    const isSfc = String(student?.fee_category).toUpperCase() === 'SFC';
+    const feeFieldsLocked = isScholar && !isSfc;
     try {
-      const dataToSave = { ...form };
-
-      // Compute fee, pending and status based on roll & application
-      const totalFee = computeTotalFee(student.roll_no, dataToSave.application_no);
-      const amountPaid = Number(String(dataToSave.amount_paid || '').trim() || 0);
-      const pending = Math.max(0, Number(totalFee) - Number(amountPaid));
-      dataToSave.total_fee = totalFee;
-      dataToSave.pending_fee = pending;
-      dataToSave.status = pending > 0 ? 'Pending' : 'Success';
-
-      // If payment provided, ensure transaction id/date exist
-      if (amountPaid > 0) {
-        if (!dataToSave.utr_no || String(dataToSave.utr_no).trim() === '') {
-          dataToSave.utr_no = 'TX' + Date.now().toString() + Math.random().toString(36).slice(2,6);
-        }
-        if (!dataToSave.utr_date || String(dataToSave.utr_date).trim() === '') {
-          dataToSave.utr_date = new Date().toISOString().slice(0,10);
+      if (isScholar) {
+        // Scholarship creation: Application Number is the only mandatory field
+        // Proceeding Number remains OPTIONAL, but REQUIRED if a sanctioned amount is provided
+        const hasScholarInputs = schProceedingNo || schAmount || schDate || schAppNo;
+        if (hasScholarInputs) {
+          if (!schAppNo) throw new Error('Application Number is required');
+          const hasAmount = Number(schAmount) > 0;
+          if (hasAmount && !String(schProceedingNo || '').trim()) {
+            throw new Error('Proceeding Number is required to enter sanctioned amount');
+          }
+          const amt = hasAmount ? Number(schAmount) : null;
+          ops.push(fetch('/api/clerk/scholarship/sanctions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roll_no: student.roll_no,
+              academic_year: modalYear,
+              application_no: schAppNo || null,
+              proceeding_no: schProceedingNo || null,
+              sanctioned_amount: amt,
+              sanction_date: schDate || null,
+            })
+          }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.error || 'Failed to save sanction')))));
         }
       }
 
-      // For scholarship records, keep amount_disbursed in sync with clerk-entered amount_paid when provided
-      if (type === 'scholar') {
-        if (!dataToSave.amount_disbursed && amountPaid > 0) dataToSave.amount_disbursed = amountPaid;
+      // Payment side
+      if (!feeFieldsLocked) {
+        const hasPaymentInputs = payAmount || payRef || payDate;
+        if (hasPaymentInputs) {
+          const pAmt = Number(payAmount);
+          if (!(pAmt > 0)) throw new Error('Student Paid Amount must be > 0');
+          if (!payRef) throw new Error('Transaction Ref is required');
+          if (!payDate) throw new Error('Transaction Date is required');
+          ops.push(fetch('/api/clerk/scholarship/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roll_no: student.roll_no,
+              academic_year: modalYear,
+              transaction_ref: payRef,
+              amount: pAmt,
+              transaction_date: payDate,
+            })
+          }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.error || 'Failed to save payment')))));
+        }
       }
 
-      const payload = { scholarship: [ dataToSave ] };
-      // If editing existing record include id
-      if (existing && existing.id) payload.scholarship[0].id = existing.id;
+      if (ops.length === 0) {
+        throw new Error('No changes to save');
+      }
 
-      const res = await fetch(`/api/clerk/scholarship/${encodeURIComponent(roll)}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
-
-      toast.success('Record saved', { id });
+      await Promise.all(ops);
+      toast.success('Record saved');
       setModalOpen(false);
-      // Refresh
-      await fetchStudent();
+      await refetchYearSummary(student.roll_no, modalYear);
     } catch (err) {
-      toast.error(err.message || 'Failed to save', { id });
+      toast.error(err.message || 'Failed to save record');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const deleteRecord = async () => {
-    // require form.id to delete
-    if (!form || !form.id) {
-      toast.error('No record selected to delete');
-      return;
-    }
-    // Use custom confirmation modal
-    setConfirmMessage(`Delete scholarship record for year ${editingYear}? This action cannot be undone.`);
-    setPendingSaveData({ action: 'delete', scholarship_id: form.id, delete_related_fees: false });
-    setConfirmOpen(true);
-  };
-
-  // Called when user confirms type-change warning
-  const confirmAndSave = async () => {
-    setConfirmOpen(false);
-    if (!pendingSaveData) return;
-    const snapshot = { ...pendingSaveData };
-    // handle delete action separately
-    if (snapshot.action === 'delete') {
-      setSaving(true);
-      const id = toast.loading('Deleting record...');
-      try {
-        const payload = { scholarship_id: snapshot.scholarship_id, delete_related_fees: !!snapshot.delete_related_fees };
-        const res = await fetch(`/api/clerk/scholarship/${encodeURIComponent(roll)}`, {
-          method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Delete failed');
-        toast.success('Record deleted', { id });
-        setModalOpen(false);
-        await fetchStudent();
-      } catch (err) {
-        toast.error(err.message || 'Failed to delete', { id });
-      } finally {
-        setSaving(false);
-        setPendingSaveData(null);
-      }
-      return;
-    }
-
-    // Otherwise, treat as a pending save (type-change confirmation) — reuse existing save logic
+  async function deleteScholarship(id) {
+    if (!id) return;
+    if (!confirm('Delete this scholarship proceeding?')) return;
     try {
-      setSaving(true);
-      const id = toast.loading('Saving record...');
-
-      const dataToSave = { ...snapshot };
-      const type = evaluateType(dataToSave.application_no);
-      const totalFee = computeTotalFee(student.roll_no, dataToSave.application_no);
-      const amountPaid = Number(String(dataToSave.amount_paid || '').trim() || 0);
-      const pending = Math.max(0, Number(totalFee) - Number(amountPaid));
-      dataToSave.total_fee = totalFee;
-      dataToSave.pending_fee = pending;
-      dataToSave.status = pending > 0 ? 'Pending' : 'Success';
-
-      if (amountPaid > 0) {
-        if (!dataToSave.utr_no || String(dataToSave.utr_no).trim() === '') {
-          dataToSave.utr_no = 'TX' + Date.now().toString() + Math.random().toString(36).slice(2,6);
-        }
-        if (!dataToSave.utr_date || String(dataToSave.utr_date).trim() === '') {
-          dataToSave.utr_date = new Date().toISOString().slice(0,10);
-        }
+      const res = await fetch(`/api/clerk/scholarship/sanctions/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || 'Failed to delete proceeding');
       }
-
-      if (type === 'scholar') {
-        if (!dataToSave.amount_disbursed && amountPaid > 0) dataToSave.amount_disbursed = amountPaid;
-      }
-
-      const payload = { scholarship: [ dataToSave ] };
-      const existing = scholarshipRecords.find(s => Number(s.year) === Number(editingYear));
-      if (existing && existing.id) payload.scholarship[0].id = existing.id;
-
-      const res = await fetch(`/api/clerk/scholarship/${encodeURIComponent(roll)}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
-
-      toast.success('Record saved', { id });
-      setModalOpen(false);
-      await fetchStudent();
+      toast.success('Proceeding deleted');
+      await refetchYearSummary(student.roll_no, modalYear);
     } catch (err) {
-      toast.error(err.message || 'Failed to save');
-    } finally {
-      setSaving(false);
-      setPendingSaveData(null);
+      toast.error(err.message || 'Failed to delete proceeding');
     }
-  };
+  }
 
-  const yearStatus = (year) => {
-    const rec = scholarshipRecords.find(r => Number(r.year) === Number(year));
-    if (!rec) return { label: 'No Record', type: 'none' };
-    if (String(rec.application_no) === String(student?.roll_no)) return { label: 'Non-Scholar', type: 'non' };
-    return { label: 'Scholarship', type: 'scholar' };
-  };
+  async function deletePayment(id) {
+    if (!id) return;
+    if (!confirm('Delete this payment?')) return;
+    try {
+      const res = await fetch(`/api/clerk/scholarship/payments/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || 'Failed to delete payment');
+      }
+      toast.success('Payment deleted');
+      await refetchYearSummary(student.roll_no, modalYear);
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete payment');
+    }
+  }
+
 
   if (isClerkLoading) {
     return (
@@ -368,8 +324,33 @@ export default function ScholarshipDashboard() {
                 <h3 className="font-semibold">Fetch Student</h3>
                 <p className="text-sm text-gray-600">Primary action: fetch a student by roll number</p>
                 <form onSubmit={fetchStudent} className="mt-3 flex gap-2 items-center">
-                  <input value={roll} onChange={(e) => setRoll(e.target.value)} placeholder="Roll Number" className="flex-grow min-w-0 px-3 py-2 border rounded" />
-                  <button type="submit" disabled={!roll || loading} className="px-4 py-2 bg-indigo-700 text-white rounded disabled:opacity-60 whitespace-nowrap flex-shrink-0 min-w-[90px] text-center">{loading ? 'Fetching...' : 'Fetch'}</button>
+                  <div className="flex-grow min-w-0">
+                    <input
+                      value={roll}
+                      onChange={(e) => {
+                        const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                        setRoll(v);
+                        if (v.length > 0 && v.length === MAX_ROLL) {
+                          try {
+                            const { isValid } = validateRollNo(v);
+                            if (!isValid) setRollError('Invalid Roll Number format.');
+                            else setRollError('');
+                          } catch (err) {
+                            setRollError('Invalid Roll Number format.');
+                          }
+                        } else if (v.length > 0 && v.length !== MAX_ROLL) {
+                          setRollError(`Roll Number must be ${MAX_ROLL} characters long.`);
+                        } else {
+                          setRollError('');
+                        }
+                      }}
+                      placeholder="Roll Number"
+                      className="w-full px-3 py-2 border rounded"
+                      maxLength={MAX_ROLL}
+                    />
+                    {rollError && <div className="text-red-600 text-sm mt-1">{rollError}</div>}
+                  </div>
+                  <button type="submit" disabled={loading || String(roll).length !== MAX_ROLL} className="px-4 py-2 bg-indigo-700 text-white rounded disabled:opacity-60 whitespace-nowrap flex-shrink-0 min-w-[90px] text-center">{loading ? 'Fetching...' : 'Fetch'}</button>
                 </form>
               </div>
 
@@ -389,14 +370,13 @@ export default function ScholarshipDashboard() {
               </div>
             </div>
 
-            {/* After fetch: Student Info + Year Cards */}
+            {/* After fetch: Student Info + Summary */}
             {student && (
               <section className="space-y-6">
                 {/* Student Info Card */}
                 <div className="bg-white p-6 rounded-lg shadow">
                   <div className="flex justify-between items-start">
                     <h2 className="text-xl font-semibold">Student Information</h2>
-                    <div className="text-sm text-gray-700">Admission Type: <span className="font-medium">{getAdmissionTypeFromRoll(student.roll_no) || 'Regular'}</span> ({yearCount} Years)</div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                     <div>
@@ -418,166 +398,103 @@ export default function ScholarshipDashboard() {
                       <div className="font-medium">{student.roll_no}</div>
                       <div className="text-sm text-gray-500 mt-2">Student Name</div>
                       <div className="font-medium">{student.name}</div>
-                      <div className="text-sm text-gray-500 mt-2">Father Name</div>
-                      <div className="font-medium">{personal?.father_name || '-'}</div>
+                      <div className="text-sm text-gray-500 mt-2">Fee Reimbursement</div>
+                      <div className="font-medium">{student.fee_reimbursement}</div>
                     </div>
 
                     <div>
-                      <div className="text-sm text-gray-500">Religion</div>
-                      <div className="font-medium">{personal?.religion || '-'}</div>
-                      <div className="text-sm text-gray-500 mt-2">Category</div>
-                      <div className="font-medium">{personal?.category || '-'}</div>
-                      <div className="text-sm text-gray-500 mt-2">Annual Income</div>
-                      <div className="font-medium">{personal?.annual_income ?? '-'}</div>
+                      <div className="text-sm text-gray-500">Course</div>
+                      <div className="font-medium">{student.course || '-'}</div>
+                      <div className="text-sm text-gray-500 mt-2">Admission Academic Year</div>
+                      <div className="font-medium">{student.admission_year || '-'}</div>
+                      <div className="text-sm text-gray-500 mt-2">Current Academic Year</div>
+                      <div className="font-medium">{student.current_year || '-'}</div>
                     </div>
 
-                    <div>
-                      <div className="text-sm text-gray-500">Area Status</div>
-                      <div className="font-medium">{personal?.area_status || '-'}</div>
-                      <div className="text-sm text-gray-500 mt-2">Qualifying Exam</div>
-                      <div className="font-medium">{academic?.qualifying_exam || '-'}</div>
-                      <div className="text-sm text-gray-500 mt-2">Course</div>
-                      <div className="font-medium">{getBranchFromRoll(student.roll_no) || '-'}</div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <div className="text-sm text-gray-500">Academic Year</div>
-                      <div className="font-medium">{(() => { try { return getResolvedCurrentAcademicYear(student.roll_no); } catch { return '-'; } })()}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Admission Type (detailed)</div>
-                      <div className="font-medium">{getAdmissionTypeFromRoll(student.roll_no) || '-'}</div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
                       <div className="text-sm text-gray-500">Email</div>
                       <div className="font-medium">{student.email || '-'}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Address</div>
-                      <div className="font-medium">{personal?.address || '-'}</div>
+                      <div className="text-sm text-gray-500 mt-2">Mobile</div>
+                      <div className="font-medium">{student.mobile || '-'}</div>
                     </div>
                   </div>
                 </div>
-
-                {/* Year-wise cards */}
+                {/* Year-wise cards (4 cards, independent) */}
                 <div className="space-y-4">
-                  {Array.from({ length: yearCount }).map((_, idx) => {
-                    const collegeYear = idx + 1; // Year relative to college admission (1, 2, 3...)
-                    const btechYear = collegeYear + displayYearOffset; // Year relative to B.Tech (1, 2, 3...)
-
-                    const rec = scholarshipRecords.find(r => Number(r.year) === Number(collegeYear));
-                    const status = yearStatus(collegeYear);
+                  {yearList.map((y, idx) => {
+                    const summary = summariesByYear[y] || null;
+                    const status = summary?.fee_summary?.status || 'NO_RECORD';
+                    const isCompleted = status === 'COMPLETED';
                     return (
-                      <div key={collegeYear} className="bg-white rounded-lg shadow p-4">
+                      <div key={y} className="bg-white rounded-lg shadow p-4">
                         <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-4">
-                            <h3 className="font-semibold">Year {btechYear}</h3>
-                            <div className="text-sm text-gray-500">{getAcademicYearForStudyYear(student.roll_no, collegeYear) || ''}</div>
-                            {(() => {
-                              // prefer server-provided status color if available
-                              const recStatus = rec && rec.status ? String(rec.status).trim() : null;
-                              const isSuccess = recStatus && recStatus.toLowerCase() === 'success';
-                              const isPending = recStatus && recStatus.toLowerCase() === 'pending';
-                              let badgeClasses = 'px-2 py-1 text-xs rounded flex items-center';
-                              let dotClasses = 'w-3 h-3 rounded-full mr-2 bg-gray-300';
-                              if (isSuccess) {
-                                badgeClasses += ' bg-green-100 text-green-800';
-                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-green-500';
-                              } else if (isPending) {
-                                badgeClasses += ' bg-yellow-100 text-yellow-800';
-                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-yellow-500';
-                              } else if (status.type === 'none') {
-                                badgeClasses += ' bg-gray-100 text-gray-700';
-                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-gray-400';
-                              } else if (status.type === 'non') {
-                                badgeClasses += ' bg-yellow-100 text-yellow-800';
-                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-yellow-500';
-                              } else {
-                                badgeClasses += ' bg-green-100 text-green-800';
-                                dotClasses = 'w-3 h-3 rounded-full mr-2 bg-green-500';
-                              }
-                              return (
-                                <span className={badgeClasses}>
-                                  <span className={dotClasses} />
-                                  <span>{status.label}</span>
-                                </span>
-                              );
-                            })()}
+                          <div>
+                            <h3 className="font-semibold">Year {idx + 1}</h3>
+                            <div className="text-sm text-gray-500">{y}</div>
                           </div>
                           <div className="flex items-center gap-2">
-                            {!rec && (() => {
-                              const prevRec = scholarshipRecords.find(r => Number(r.year) === Number(collegeYear - 1));
-                              const allowAdd = collegeYear === 1 || !!prevRec;
-                              return (
-                                <button
-                                  onClick={() => allowAdd && openModalForYear(collegeYear)}
-                                  disabled={!allowAdd}
-                                  title={!allowAdd ? 'Please add previous year record first' : ''}
-                                  className={`px-3 py-1 rounded ${allowAdd ? 'bg-indigo-600 text-white cursor-pointer' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
-                                >
-                                  Add Record
-                                </button>
-                              );
-                            })()}
-                            {rec && (
-                              <>
-                                <button onClick={() => { setExpandedYear(expandedYear === collegeYear ? null : collegeYear); }} className={`px-3 py-1 border rounded cursor-pointer transition transform duration-150 ${expandedYear === collegeYear ? 'scale-105' : ''}`}>{expandedYear === collegeYear ? 'Collapse' : 'Expand'}</button>
-                                <button onClick={() => openModalForYear(collegeYear, rec)} className="px-3 py-1 bg-yellow-600 text-white rounded cursor-pointer transition duration-150 hover:scale-105">Edit Record</button>
-                              </>
+                            <span className={`px-2 py-1 text-xs rounded ${status === 'COMPLETED' ? 'bg-green-100 text-green-800' : status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'}`}>{status}</span>
+                            <button
+                              onClick={() => setExpandedByYear(prev => ({ ...prev, [y]: !prev[y] }))}
+                              className="px-3 py-1 rounded border"
+                            >
+                              {expandedByYear[y] ? 'Collapse' : 'Expand'}
+                            </button>
+                            {!isCompleted && (
+                              (() => {
+                                const summaryExists = Boolean((summariesByYear[y]?.application_no) || (Array.isArray(summariesByYear[y]?.scholarship_proceedings) && summariesByYear[y].scholarship_proceedings.length > 0));
+                                const label = summaryExists ? 'Edit Record' : 'Add Record';
+                                return (
+                                  <button onClick={() => openAddModal(y)} className="px-3 py-1 rounded bg-indigo-600 text-white">{label}</button>
+                                );
+                              })()
                             )}
                           </div>
                         </div>
 
-                        {expandedYear === collegeYear && rec && (
-                          <div className="mt-4 border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4 animate-slideDown">
-                            {String(rec.application_no) === String(student.roll_no) ? (
-                              <div>
-                                <h4 className="font-semibold">Non-Scholar Payment</h4>
-                                <div className="text-sm">UTR: {rec.utr_no || '-'}</div>
-                                <div className="text-sm">UTR Date: {toDmy(rec.utr_date) || '-'}</div>
-                                <div className="text-sm">Amount Paid: {rec.amount_paid ?? '-'}</div>
-                                <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
-                                <div className="text-sm">Updated on: {toDmy(rec.updated_at) || toDmy(rec.created_at) || '-'}</div>
-                              </div>
-                            ) : (
-                              <div>
-                                <h4 className="font-semibold">Scholarship Particulars</h4>
-                                <div className="text-sm">Application No: {rec.application_no}</div>
-                                <div className="text-sm">Proceeding No: {rec.proceedings_no || '-'}</div>
-                                <div className="text-sm">Amount Sanctioned: {rec.amount_sanctioned ?? '-'}</div>
-                                <div className="text-sm">Amount Distributed: {rec.amount_disbursed ?? '-'}</div>
-                                <div className="text-sm">Challan No: {rec.ch_no || '-'}</div>
-                                <div className="text-sm">Date: {toDmy(rec.date) || '-'}</div>
-                                <div className="text-sm mt-2">Updated by: {rec.updated_by_name || rec.updated_by || '-'}</div>
-                                <div className="text-sm">Updated on: {toDmy(rec.updated_at) || toDmy(rec.created_at) || '-'}</div>
-                              </div>
-                            )}
+                        {expandedByYear[y] && (
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <h4 className="font-semibold">Fee Summary</h4>
+                              {summary?.fee_summary ? (
+                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                  <div className="text-sm text-gray-500">Total Fee</div>
+                                  <div className="text-sm font-medium">{summary.fee_summary.total_fee}</div>
+                                  <div className="text-sm text-gray-500">Govt Paid</div>
+                                  <div className="text-sm font-medium">{summary.fee_summary.govt_paid}</div>
+                                  <div className="text-sm text-gray-500">Student Paid</div>
+                                  <div className="text-sm font-medium">{summary.fee_summary.student_paid}</div>
+                                  <div className="text-sm text-gray-500">Pending Fee</div>
+                                  <div className="text-sm font-medium">{summary.fee_summary.pending_fee}</div>
+                                </div>
+                              ) : (
+                                <div className="text-sm text-gray-600">No fee summary available.</div>
+                              )}
+                            </div>
 
                             <div>
-                              <h4 className="font-semibold">Fee Particulars</h4>
-                              {(() => {
-                                const totalFee = computeTotalFee(student.roll_no, rec.application_no);
-                                const totalPaid = Number(rec.amount_paid ?? rec.amount_disbursed ?? 0);
-                                const pendingFee = Math.max(0, totalFee - totalPaid);
-                                const txn = rec.utr_no || rec.ch_no || '-';
-                                const txnDate = (toDmy(rec.utr_date) !== '-' ? toDmy(rec.utr_date) : (toDmy(rec.date) !== '-' ? toDmy(rec.date) : '-'));
-                                const statusAuto = pendingFee > 0 ? 'Pending' : 'Success';
-                                return (
-                                  <>
-                                    <div className="text-sm">Total Fee: {totalFee}</div>
-                                    <div className="text-sm">Total Paid: {totalPaid ?? '-'}</div>
-                                    <div className="text-sm">Pending Fee: {pendingFee}</div>
-                                    <div className="text-sm">Transaction ID: {txn}</div>
-                                    <div className="text-sm">Date: {txnDate}</div>
-                                    <div className="text-sm">Status: {rec.status || statusAuto}</div>
-                                  </>
-                                );
-                              })()}
+                              <h4 className="font-semibold">Scholarship Proceedings</h4>
+                              <div className="mt-2">
+                                <div className="text-sm text-gray-500">Application Number</div>
+                                <div className="text-sm font-medium">{summary?.application_no || '-'}</div>
+                              </div>
+                              {(student?.fee_reimbursement === 'YES' && Array.isArray(summary?.scholarship_proceedings)) ? (
+                                summary.scholarship_proceedings.length > 0 ? (
+                                  <div className="space-y-2 mt-2">
+                                    {summary.scholarship_proceedings.map((p, i) => (
+                                      <div key={i} className="flex items-center justify-between border rounded p-2">
+                                        <div className="text-sm">{p.proceeding_no}</div>
+                                        <div className="text-sm">{p.amount}</div>
+                                        <div className="text-sm">{toDmy(p.date)}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-gray-600 mt-2">No proceedings recorded.</div>
+                                )
+                              ) : (
+                                <div className="text-sm text-gray-600 mt-2">Scholarship section hidden for non‑scholarship students.</div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -585,106 +502,168 @@ export default function ScholarshipDashboard() {
                     );
                   })}
                 </div>
+
+                {/* Add Record Modal (logic-only; no save action) */}
+                {modalOpen && (
+                  <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                    <div className="bg-white rounded-lg p-6 w-full max-w-3xl">
+                      <div className="flex justify-between items-center mb-3">
+                        {(() => {
+                          const summaryExists = Boolean((summariesByYear[modalYear]?.application_no) || (Array.isArray(summariesByYear[modalYear]?.scholarship_proceedings) && summariesByYear[modalYear].scholarship_proceedings.length > 0));
+                          const label = summaryExists ? 'Edit Record' : 'Add Record';
+                          return (<h3 className="text-lg font-semibold">{label} — {modalYear}</h3>);
+                        })()}
+                        <button onClick={() => setModalOpen(false)} className="px-3 py-1 border rounded">Close</button>
+                      </div>
+                      {(() => {
+                        const summary = summariesByYear[modalYear] || null;
+                        const isScholar = student?.fee_reimbursement === 'YES';
+                        const isSfc = String(student?.fee_category).toUpperCase() === 'SFC';
+                        const feeFieldsLocked = isScholar && !isSfc; // Scholarship + NON-SFC → locked
+                        return (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Fee Particulars */}
+                            <div className="p-4 bg-gray-50 rounded">
+                              <h4 className="font-semibold mb-2">Fee Particulars</h4>
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-sm text-gray-600">Total Fee</label>
+                                  <div className="mt-1 px-3 py-2 border rounded w-full bg-white">{summary?.fee_summary?.total_fee ?? '-'}</div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm text-gray-600">Student Paid Amount</label>
+                                  <input value={payAmount} onChange={(e) => setPayAmount(e.target.value)} disabled={feeFieldsLocked} className={`mt-1 px-3 py-2 border rounded w-full ${feeFieldsLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+                                </div>
+                                <div>
+                                  <label className="block text-sm text-gray-600">Transaction Ref (UTR/Challan)</label>
+                                  <input value={payRef} onChange={(e) => setPayRef(e.target.value)} disabled={feeFieldsLocked} className={`mt-1 px-3 py-2 border rounded w-full ${feeFieldsLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+                                </div>
+                                <div>
+                                  <label className="block text-sm text-gray-600">Transaction Date</label>
+                                  <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} disabled={feeFieldsLocked} className={`mt-1 px-3 py-2 border rounded w-full ${feeFieldsLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Scholarship Particulars */}
+                            {isScholar && (
+                              <div className="p-4 bg-gray-50 rounded">
+                                <h4 className="font-semibold mb-2">Scholarship Particulars</h4>
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="block text-sm text-gray-600">Application Number</label>
+                                    <div className="relative">
+                                      {(() => {
+                                        const existingVal = String(summariesByYear[modalYear]?.application_no || '').trim();
+                                        const hasExisting = existingVal !== '';
+                                        return (
+                                          <>
+                                          <input
+                                            value={schAppNo}
+                                            onChange={(e) => setSchAppNo(e.target.value)}
+                                            disabled={!appEditing && hasExisting}
+                                            className={`mt-1 px-3 py-2 border rounded w-full ${(!appEditing && hasExisting) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                          />
+                                          {hasExisting && (
+                                            <div className="mt-1 text-xs text-amber-700">Existing Application Number found. Editing should be done with caution.</div>
+                                          )}
+                                          {hasExisting && (
+                                            <div className="mt-2 flex items-center gap-2">
+                                              {!appEditing ? (
+                                                <button type="button" onClick={() => setAppEditing(true)} className="px-2 py-1 text-xs rounded border">Edit</button>
+                                              ) : (
+                                                <>
+                                                  <button type="button" onClick={() => { setAppEditing(false); setSchAppNo(String(summariesByYear[modalYear]?.application_no || '')); }} className="px-2 py-1 text-xs rounded border">Cancel Edit</button>
+                                                </>
+                                              )}
+                                            </div>
+                                          )}
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm text-gray-600">Proceeding Number</label>
+                                    <input value={schProceedingNo} onChange={(e) => setSchProceedingNo(e.target.value)} className="mt-1 px-3 py-2 border rounded w-full" />
+                                    <div className="mt-1 text-xs text-gray-600">Proceeding number may be added later if not yet issued.</div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm text-gray-600">Sanctioned Amount</label>
+                                    <input
+                                      value={schAmount}
+                                      onChange={(e) => setSchAmount(e.target.value)}
+                                      disabled={!String(schProceedingNo || '').trim()}
+                                      className={`mt-1 px-3 py-2 border rounded w-full ${!String(schProceedingNo || '').trim() ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    />
+                                    {!String(schProceedingNo || '').trim() && (
+                                      <div className="mt-1 text-xs text-gray-600">Enter Proceeding Number to add sanctioned amount.</div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm text-gray-600">Sanction Date</label>
+                                    <input type="date" value={schDate} onChange={(e) => setSchDate(e.target.value)} className="mt-1 px-3 py-2 border rounded w-full" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {/* Existing records with delete actions */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                        <div className="p-4 bg-white rounded border">
+                          <h4 className="font-semibold mb-2">Existing Payments</h4>
+                          {Array.isArray(summariesByYear[modalYear]?.student_payments) && summariesByYear[modalYear].student_payments.length > 0 ? (
+                            <div className="space-y-2">
+                              {summariesByYear[modalYear].student_payments.map((p) => (
+                                <div key={p.id} className="flex items-center justify-between border rounded p-2">
+                                  <div className="text-sm">{p.transaction_ref}</div>
+                                  <div className="text-sm">{p.amount}</div>
+                                  <div className="text-sm">{toDmy(p.date)}</div>
+                                  <button onClick={() => deletePayment(p.id)} className="text-red-600 text-xs">Delete</button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-600">No payments recorded.</div>
+                          )}
+                        </div>
+                        {student?.fee_reimbursement === 'YES' && (
+                          <div className="p-4 bg-white rounded border">
+                            <h4 className="font-semibold mb-2">Existing Scholarship Proceedings</h4>
+                            {Array.isArray(summariesByYear[modalYear]?.scholarship_proceedings) && summariesByYear[modalYear].scholarship_proceedings.length > 0 ? (
+                              <div className="space-y-2">
+                                {summariesByYear[modalYear].scholarship_proceedings.map((s) => (
+                                  <div key={s.id} className="flex items-center justify-between border rounded p-2">
+                                    <div className="text-sm">{s.proceeding_no}</div>
+                                    <div className="text-sm">{s.amount}</div>
+                                    <div className="text-sm">{toDmy(s.date)}</div>
+                                    <button onClick={() => deleteScholarship(s.id)} className="text-red-600 text-xs">Delete</button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-600">No proceedings recorded.</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-end mt-4">
+                        <button onClick={handleSaveRecord} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded disabled:opacity-60">
+                          {saving ? 'Saving…' : 'Save Record'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </section>
             )}
           </>
         )}
 
 
-        {/* Modal for Add/Edit */}
-        {modalOpen && (
-          <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
-              <h3 className="text-lg font-semibold mb-3">{form.id ? 'Edit' : 'Add'} Record — Year {editingYear}</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Fee Particulars */}
-                <div className="p-4 bg-gray-50 rounded">
-                  <h4 className="font-semibold mb-2">Fee Particulars</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm text-gray-600">Total Fee (auto)</label>
-                      <div className="mt-1 px-3 py-2 border rounded w-full bg-white">{student ? computeTotalFee(student.roll_no, form.application_no) : '-'}</div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-gray-600">Amount Paid</label>
-                      <input value={form.amount_paid || ''} onChange={(e) => setForm({ ...form, amount_paid: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-gray-600">UTR / Transaction ID</label>
-                      <input value={form.utr_no || ''} onChange={(e) => setForm({ ...form, utr_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-gray-600">UTR Date</label>
-                      <input type="date" value={form.utr_date || ''} onChange={(e) => setForm({ ...form, utr_date: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Scholarship Particulars */}
-                <div className="p-4 bg-gray-50 rounded">
-                  <h4 className="font-semibold mb-2">Scholarship Particulars</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm text-gray-600">Application Number *</label>
-                      <input value={form.application_no || ''} onChange={(e) => setForm({ ...form, application_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                    </div>
-
-                    {evaluateType(form.application_no) === 'scholar' && (
-                      <>
-                        <div>
-                          <label className="block text-sm text-gray-600">Proceedings Number</label>
-                          <input value={form.proceedings_no || ''} onChange={(e) => setForm({ ...form, proceedings_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600">Amount Sanctioned</label>
-                          <input value={form.amount_sanctioned || ''} onChange={(e) => setForm({ ...form, amount_sanctioned: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600">Amount Distributed</label>
-                          <input value={form.amount_disbursed || ''} onChange={(e) => setForm({ ...form, amount_disbursed: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600">Challan Number</label>
-                          <input value={form.ch_no || ''} onChange={(e) => setForm({ ...form, ch_no: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600">Date</label>
-                          <input type="date" value={form.date || ''} onChange={(e) => setForm({ ...form, date: e.target.value })} className="mt-1 px-3 py-2 border rounded w-full" />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex justify-end gap-2">
-                <button onClick={() => setModalOpen(false)} className="px-4 py-2 border rounded cursor-pointer">Cancel</button>
-                {form && form.id && (
-                  <button onClick={deleteRecord} disabled={saving} className="px-4 py-2 bg-red-600 cursor-pointer text-white rounded disabled:opacity-60">Delete</button>
-                )}
-                <button onClick={saveRecord} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded disabled:opacity-60 cursor-pointer">{saving ? 'Saving...' : 'Save'}</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Confirmation dialog for type changes */}
-        {confirmOpen && (
-          <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-3">Confirm Change</h3>
-              <p className="text-sm text-gray-700 mb-4">{confirmMessage}</p>
-              <div className="flex justify-end gap-2">
-                <button onClick={() => { setConfirmOpen(false); setPendingSaveData(null); }} className="px-4 py-2 border rounded">Cancel</button>
-                <button onClick={confirmAndSave} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded">Proceed</button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* UI is a pure renderer; edit modals removed per contract */}
       </main>
       <Footer />
       <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />
