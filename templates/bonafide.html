@@ -10,7 +10,7 @@
   <style>
     @page {
       size: A4;
-      margin: 40mm 25mm 35mm 25mm;
+      margin: 15mm;
     }
 
     body {
@@ -18,21 +18,24 @@
       font-size: 14pt;
       line-height: 1.6;
       color: #000;
-      height: 90vh;
+      height: 94vh;
       width: fit-content;
       border: 2px solid black;
       padding: 20px;
     }
 
     .header {
-      text-align: center;
+      align-items: center;
       margin-bottom: 20px;
       display: flex;
+      width: 100%;
+      margin-bottom: 5px;
     }
 
     .logo img {
-      width: 90px;
-      margin-bottom: 10px;
+      width: 95px;
+      margin-right: 15px;
+      height: auto;
     }
 
  
@@ -73,17 +76,18 @@
 
     .content {
       text-align: justify;
-      margin: 30px;
+      margin: 20px 10px;
       position: relative;
       
     }
 
     .watermark {
       position: absolute;
-      z-index : -1;
-      height: 500px;
-      width: 500px;
-      transform: translate(10%,-20%);
+      z-index : 0;
+      top: 40%;
+      left: 50%;
+      position: absolute;
+      transform: translate(-50%,-25%);
       opacity: 0.15;
     }
 
@@ -92,21 +96,35 @@
       height: 400px;
     }
 
-    .signature {
-      margin-top: 80px;
-      text-align: right;
-      font-weight: bold;
-      margin-right: 30px;
+    /* Signature follows the text naturally */
+    .signature-section {
+      margin-top: 40px; /* Space after the last line of text */
+      margin-right: 20px;
+      float: right;
+      text-align: center;
+      width: 200px;
     }
+    .signature-section img { height: 50px; width: auto; margin-bottom: -5px; }
+    .signature-label { font-weight: bold; font-size: 14pt; border-top: 1px solid black; padding-top: 5px; }
+    /* QR Code is hard-locked to the bottom left */
+    .footer-qr {
+      position: absolute;
+      bottom: 30px;
+      left: 30px;
+      text-align: center;
+      width: 100px;
+    }
+    .footer-qr img { height: 80px; width: 80px; }
+    .qr-label { font-size: 7pt; font-family: sans-serif; margin-top: 4px; font-weight: bold; }
   </style>
 </head>
 
 <body>
 
   <div class="header">
-    <div class="logo"><img src="/public/assets/Picture1.png"  alt="College Logo" /></div>
+    <div class="logo"><img src="/public/assets/ku-logo.png"  alt="College Logo" /></div>
     
-    <div class="college-details">
+    <div class="college-details" style="flex-grow: 1;">
         <div class="college-name">
           KU COLLEGE OF ENGINEERING & TECHNOLOGY
         </div>
@@ -143,19 +161,15 @@
     <strong>{{ATTENDANCE_PERCENTAGE}}</strong>.
   </div>
 
-  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px;">
-    
-   
-    <div style="text-align: center;  margin-left: 10px;">
-    <img src="{{QR_CODE}}" style="max-height: 75px; max-width: 75px;">
-    <div style="font-size: 7pt; font-family: sans-serif; margin-top: 2px;">SCAN TO VERIFY</div>
+  <div class="signature-section">
+      <img src="/public/assets/principal-sign.png" alt="sign">
+      <div class="signature-label">PRINCIPAL</div>
+    </div>
   </div>
 
-    <div style="display: flex; flex-direction: column; align-items: center; margin-right: 30px;">
-      <img src="/public/assets/principal-sign.png" alt="sign" style="height: 80px; width: auto; margin-bottom: -2px;">
-      <div style="font-weight: bold; font-size: 14pt; border-top: 1px solid transparent;">PRINCIPAL</div>
-    </div>
-
+  <div class="footer-qr">
+    <img src="{{QR_CODE}}" alt="QR Code">
+    <div class="qr-label">SCAN TO VERIFY</div>
   </div>
 
 </body>

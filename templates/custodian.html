@@ -5,62 +5,148 @@
     Certificate ID: {{CERT_ID}}
 </div>
   <meta charset="UTF-8" />
-  <title>Custodian Certificate</title>
+  <title>Bonafide Certificate</title>
+
   <style>
-    /* Preserving original margins and layout */
-    @page { size: A4; margin: 25mm 25mm 10mm 25mm; }
-    body {
-      font-family: "Times New Roman", Times, serif; font-size: 14pt; line-height: 1.6;
-      color: #000; height: 90vh; width: fit-content; border: 2px solid black; padding: 20px;
-      box-sizing: border-box;
+    @page {
+      size: A4;
+      margin: 15mm;
     }
-    .header { text-align: center; margin-bottom: 20px; display: flex; }
-    .logo img { width: 90px; margin-bottom: 3px; }
-    .college-name { margin-top: 30px; font-weight: bold; font-size: 14pt; text-transform: uppercase; }
-    .college-address { font-size: 13pt; margin-top: 4px; }
-    .date { text-align: right; margin-top: 10px; margin-right: 0px; font-size: 13pt; }
-    .title { text-align: center; font-weight: bold; font-size: 18pt; margin: 20px 0 20px 0; text-transform: uppercase; text-decoration: underline; }
-    hr { border: none; border-top: 2px solid #000; margin: 15px 0; }
-    .content { text-align: justify; margin: 10px 10px; }
-     .watermark {
+
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 14pt;
+      line-height: 1.6;
+      color: #000;
+      height: 94vh;
+      width: fit-content;
+      border: 2px solid black;
+      padding: 20px;
+    }
+
+    .header {
+      align-items: center;
+      margin-bottom: 20px;
+      display: flex;
+      width: 100%;
+      margin-bottom: 5px;
+    }
+
+    .logo img {
+      width: 95px;
+      margin-right: 15px;
+      height: auto;
+    }
+
+ 
+
+    .college-name {
+      margin-top: 30px;
+      font-weight: bold;
+      font-size: 14pt;
+      text-transform: uppercase;
+    }
+
+    .college-address {
+      font-size: 13pt;
+      margin-top: 4px;
+    }
+
+    .date {
+      text-align: right;
+      margin-top: 30px;
+      margin-right: 30px;
+      font-size: 13pt;
+    }
+
+    .title {
+      text-align: center;
+      font-weight: bold;
+      font-size: 18pt;
+      margin: 40px 0 35px 0;
+      text-transform: uppercase;
+      text-decoration: underline;
+    }
+
+    hr {
+      border: none;
+      border-top: 2px solid #000;
+      margin: 15px 0;
+    }
+
+    .content {
+      text-align: justify;
+      margin: 20px 10px;
+      position: relative;
+      
+    }
+
+    .watermark {
       position: absolute;
-      z-index : -1;
-      height: 500px;
-      width: 500px;
-      transform: translate(10%,-10%);
+      z-index : 0;
+      top: 40%;
+      left: 50%;
+      position: absolute;
+      transform: translate(-50%,-50%);
       opacity: 0.15;
     }
+
     .content img{
       width: 400px;
       height: 400px;
     }
-    /* Specific styles for the Custodian list */
-    .doc-list { margin-left: 20px; margin-top: 10px; margin-bottom: 10px; list-style-type: decimal; }
-    .doc-list li { margin-bottom: 5px; padding-left: 10px; }
-    .footer-text { margin-top: 10px; text-align: justify; }
-    .signature { margin-top: 60px; text-align: right; font-weight: bold; margin-right: 30px; }
-    .dob-section { margin-top: 5px; }
+
+    /* Signature follows the text naturally */
+    .signature-section {
+      margin-top: 40px; /* Space after the last line of text */
+      margin-right: 20px;
+      float: right;
+      text-align: center;
+      width: 200px;
+    }
+    .signature-section img { height: 50px; width: auto; margin-bottom: -5px; }
+    .signature-label { font-weight: bold; font-size: 14pt; border-top: 1px solid black; padding-top: 5px; }
+    /* QR Code is hard-locked to the bottom left */
+    .footer-qr {
+      position: absolute;
+      bottom: 30px;
+      left: 30px;
+      text-align: center;
+      width: 100px;
+    }
+    .footer-qr img { height: 80px; width: 80px; }
+    .qr-label { font-size: 7pt; font-family: sans-serif; margin-top: 4px; font-weight: bold; }
   </style>
 </head>
+
 <body>
+
   <div class="header">
+    <div class="logo"><img src="/public/assets/ku-logo.png"  alt="College Logo" /></div>
     
-    <div class="logo"><img src="/public/assets/Picture1.png" alt="College Logo" /></div>
-    
-    <div class="college-details">
-        <div class="college-name">KU COLLEGE OF ENGINEERING & TECHNOLOGY</div>
-        <div class="college-address">KAKATIYA UNIVERSITY CAMPUS, WARANGAL – 506 009</div>
+    <div class="college-details" style="flex-grow: 1;">
+        <div class="college-name">
+          KU COLLEGE OF ENGINEERING & TECHNOLOGY
+        </div>
+        <div class="college-address">
+          KAKATIYA UNIVERSITY CAMPUS, WARANGAL – 506 009
+        </div>
         <hr>
     </div>
   </div>
 
-  <div class="date">Date: {{DATE}}</div>
 
-  <div class="title">CUSTODIAN CERTIFICATE</div>
+  <div class="date">
+    Date: {{DATE}}
+  </div>
+
+  <div class="title">
+    CUSTODIAN CERTIFICATE
+  </div>
 
   <div class="content">
-    <div class="watermark">
-      <img src="/public/assets/ku-logo.png" >
+    <div class = "watermark">
+      <img src="/public/assets/ku-logo.png">
     </div>
     This is to certify that Mr. / Ms. <strong>{{STUDENT_NAME}}</strong>
     S/o. / D/o. <strong>{{FATHER_NAME}}</strong>
@@ -68,7 +154,7 @@
     Semester <strong>{{SEMESTER}}</strong> in
     <strong>{{COURSE}}</strong> branch, bearing Hall Ticket No. <strong>{{ADMISSION_NO}}</strong>
     has deposited his/her Original Certificates of:
-  </div>
+  
 
   <ol class="doc-list">
       <li>S.S.C. Memorandum</li>
@@ -77,27 +163,23 @@
       <li>Transfer Certificate</li>
   </ol>
 
-  <div class="content footer-text">
+  
     with this institution at the time of his / her admission and they are in the custody of this
     Institution. This certificate is issued w.r.t his/her application dated {{DATE}}
-  </div>
-  <div class="dob-section">
+  
+  <br>
       As per our record his/her date of birth is <strong> <u>{{DOB}}</u></strong>
   </div>
 
-  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px;">
-    
-    
-    <div style="text-align: center; margin-bottom: 5px;">
-    <img src="{{QR_CODE}}" style="height: 75px; width: 75px;">
-    <div style="font-size: 7pt; font-family: sans-serif; margin-top: 2px;">SCAN TO VERIFY</div>
+  <div class="signature-section">
+      <img src="/public/assets/principal-sign.png" alt="sign">
+      <div class="signature-label">PRINCIPAL</div>
+    </div>
   </div>
 
-    <div style="display: flex; flex-direction: column; align-items: center; margin-right: 30px;">
-      <img src="/public/assets/principal-sign.png" alt="sign" style="height: 80px; width: auto; margin-bottom: -2px;">
-      <div style="font-weight: bold; font-size: 14pt; border-top: 1px solid transparent;">PRINCIPAL</div>
-    </div>
-
+  <div class="footer-qr">
+    <img src="{{QR_CODE}}" alt="QR Code">
+    <div class="qr-label">SCAN TO VERIFY</div>
   </div>
 </body>
 </html>

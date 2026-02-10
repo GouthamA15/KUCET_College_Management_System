@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <div style="font-size: 12pt; color: #555; text-align: right; margin-bottom: -20px;">
+  <div style="font-size: 9pt; color: #555; text-align: right; margin-bottom: -20px;">
     Certificate ID: {{CERT_ID}}
 </div>
   <meta charset="UTF-8" />
-  <title>Study Conduct Certificate</title>
+  <title>Course Completion Certificate</title>
 
   <style>
     @page {
@@ -87,12 +87,12 @@
       top: 40%;
       left: 50%;
       position: absolute;
-      transform: translate(-50%,-20%);
+      transform: translate(-50%,-25%);
       opacity: 0.15;
     }
 
     .content img{
-      width: auto;
+      width: 400px;
       height: 400px;
     }
 
@@ -141,20 +141,25 @@
   </div>
 
   <div class="title">
-    STUDY & CONDUCT CERTIFICATE
+    COURSE COMPLETION CERTIFICATE
   </div>
 
   <div class="content">
     <div class = "watermark">
       <img src="/public/assets/ku-logo.png">
     </div>
-    This is certify that Mr. / Ms. <strong>{{STUDENT_NAME}}</strong>
-    S/o., D/o. Sri <strong>{{FATHER_NAME}}</strong>
-    is / was a bonafide student of B.Tech. / M.Tech. degree course in
-    <strong>{{COURSE}}</strong> branch during the
-    academic year <strong>{{ACADEMIC_YEAR}}</strong>.
-    His / Her conduct is / was <strong>GOOD</strong>
-    during his / her stay at this college.
+    This is to certify that Mr./Ms. <strong>{{STUDENT_NAME}}</strong>,
+    S/o., D/o. <strong>{{FATHER_NAME}}</strong>
+    bearing Admission No. <strong>{{ADMISSION_NO}}</strong>
+    is a Bonafide student of this institution and
+    studied B.Tech in <strong>{{COURSE}}</strong> Branch
+    during the academic year <strong>{{BATCH}}</strong>.
+    <br><br>
+    He has fulfilled the requirements of the course/program and completed his final examination for which the results are also declared.
+    He has no standing backlogs and his aggregate CGPA - <strong>{{AGG_CGPA}}</strong>.
+    His Certificates are under process and will be issued in the first week of July {{YEAR}}
+    <br>
+    This Certificate is issued with reference to his application dated {{DATE}}
   </div>
 
   <div class="signature-section">

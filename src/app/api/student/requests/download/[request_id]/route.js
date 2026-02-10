@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { jwtVerify } from 'jose';
-import { getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 // template file used from templates/bonafide.html
 import { htmlToPdfBuffer } from '@/lib/pdf-generator';
 import path from 'path';
@@ -48,9 +48,8 @@ const certificateTemplates = {
   'Custodian Certificate': 'custodian.html',
   'Study Conduct Certificate': 'study-conduct.html',
   'Migration Certificate': 'migration.html',
-  'Transfer Certificate (TC)': 'transfer.html',
-  'Income Tax (IT) Certificate': 'income_tax.html',
-  'Course Completion Certificate': 'course_completion.html',
+  'Course Completion Certificate' : 'course-completion.html',
+  'Income Tax (IT) Certificate' : 'income-tax.html'
 };
 
 // using bundled Puppeteer; helper closes browser internally
@@ -109,10 +108,20 @@ export async function GET(request, { params }) {
         }
         const student = students[0];
 
-        // --- NEW LOGIC: CALCULATE YEAR AND SEMESTER ---
+        // CALCULATE YEAR AND SEMESTER ---
         const rollNo = student.roll_no;
         const admissionYearShort = parseInt(rollNo.substring(0, 2)); // e.g., "22" from "22K4..."
         const admissionYear = 2000 + admissionYearShort;
+        const isLateral = rollNo.toUpperCase().endsWith('L');
+
+        // If lateral, they join in 2nd year, so their "Batch" actually started 1 year prior
+        // Example: 24K4...L joins in 2024, but their batch is 2023-2027
+        const batchStart = isLateral ? admissionYear - 1 : admissionYear;
+        const batchEnd = batchStart + 4; 
+        const batchString = `${batchStart}-${batchEnd}`;
+
+        const durationYears = isLateral ? 3 : 4;
+        const durationString = `${durationYears} Years`;
         
         const today = new Date();
         const currentYearDate = today.getFullYear();
@@ -182,6 +191,10 @@ export async function GET(request, { params }) {
             YEAR: yearWords[yearOfStudy - 1] || 'N/A',
             SEMESTER: semesterWords[currentSemester - 1] || 'N/A',
             ACADEMIC_YEAR: getResolvedCurrentAcademicYear(student.roll_no) || '',
+            BATCH: getBatchFromRoll,
+            DURATION: durationString,
+            IS_LATERAL: isLateral ? 'Lateral Entry' : 'Regular',
+            // PURPOSE: certRequest.purpose || "general academic purposes",
             ATTENDANCE_PERCENTAGE: attendanceValue || '',
             DOB: formattedDob,
             CERT_ID: certId,

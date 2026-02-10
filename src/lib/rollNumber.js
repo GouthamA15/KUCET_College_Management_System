@@ -124,6 +124,17 @@ function getAcademicYearForStudyYear(rollNo, yearOfStudy) {
   return `${startYear}-${String(endYear).slice(-2)}`;
 }
 
+  // Calculating Batch years
+  export function getBatchFromRoll(rollNo) {
+    const isLateral = rollNo.toUpperCase().endsWith('L');
+    const admissionYearShort = parseInt(rollNo.substring(0, 2));
+    const admissionYear = 2000 + admissionYearShort;
+    
+    // Batch start is 1 year earlier for laterals to match their classmates
+    const batchStart = isLateral ? admissionYear - 1 : admissionYear;
+    return `${batchStart}-${batchStart + 4}`;
+}
+
 function getEntranceExamQualified(rollNo) {
   if (rollNo && typeof rollNo === 'string') {
     if (rollNo.includes('T')) {
