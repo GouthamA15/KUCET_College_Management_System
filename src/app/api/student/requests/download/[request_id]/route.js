@@ -77,6 +77,8 @@ export async function GET(request, { params }) {
 
     const { request_id } = await params;
 
+    let qrBase64 = ''
+
     try {
         // 1. Verify this request belongs to the logged-in student and is a completed bonafide
         const requests = await query(
@@ -163,14 +165,12 @@ export async function GET(request, { params }) {
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://10.163.82.43:${process.env.PORT || 3000}`;
         const verificationUrl = `${baseUrl}/verify?id=${certId}&roll=${rollNo}`;
-   
         
-        try {
-            const qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
-            console.log('Generated QR Successfully')
-        } catch {
-            console.log('Error generating QR Code')
+        if(verificationUrl) {
+            qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
         }
+ 
+       
 
         
         const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
