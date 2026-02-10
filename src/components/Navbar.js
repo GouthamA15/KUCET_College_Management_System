@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
 export default function Navbar({ activePanel, setActivePanel, clerkMode = false, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState({});
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -153,13 +154,17 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                         <svg className="w-4 h-4 ml-2 transform transition-transform duration-200 ease-in-out group-hover:rotate-90" viewBox="0 0 20 20" fill="none" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 4l8 6-8 6" />
                         </svg>
-                        <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                        <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
+                          // underline parent if any child matches current pathname
+                          (Array.isArray(item.children) && item.children.some(c => c.route && pathname && pathname.startsWith(c.route))) ? 'w-full' : 'w-0 group-hover:w-full'
+                        }`}></span>
                       </button>
                       <div className="absolute left-0 top-full w-56 bg-white rounded-b-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform z-50">
                         {item.children.map((c, ci) => {
-                          if (c.route && c.route !== '#') {
+                            if (c.route && c.route !== '#') {
+                            const childActive = pathname && pathname.startsWith(c.route);
                             return (
-                              <Link key={ci} href={c.route} className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">{c.label}</Link>
+                              <Link key={ci} href={c.route} className={`block px-4 py-2 text-sm ${childActive ? 'text-[#0b3578] underline' : 'text-gray-700 hover:bg-[#0b3578] hover:text-white'} transition-colors`}>{c.label}</Link>
                             );
                           }
                           if (c.action) {
@@ -195,10 +200,11 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                 }
                 // Render a real link only when a valid route exists and is not a placeholder
                 if (item.route && item.route !== '#') {
+                  const routeActive = pathname && pathname.startsWith(item.route);
                   return (
                     <Link key={idx} href={item.route} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                       {item.label}
-                      <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
+                      <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${routeActive ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                     </Link>
                   );
                 }
@@ -248,6 +254,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
             {(menuItems || []).map((item, idx) => {
               const hasChildren = Array.isArray(item.children) && item.children.length > 0;
               const expanded = !!mobileExpanded[idx];
+              const mobileRouteActive = pathname && item.route && item.route !== '#' && pathname.startsWith(item.route);
               return (
                 <div key={idx} className="mb-0">
                   <div className={`flex items-center justify-between w-full ${hasChildren ? 'cursor-pointer' : ''}`}>
@@ -265,7 +272,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                     ) : (
                       <button
                         onClick={() => handleMobileNavigate(item)}
-                        className="w-full text-left px-3 py-3 text-white text-sm"
+                        className={`w-full text-left px-3 py-3 text-white text-sm ${mobileRouteActive ? 'bg-white/5 rounded' : ''}`}
                       >
                         {item.label}
                       </button>
@@ -283,16 +290,19 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
                         pointerEvents: expanded ? 'auto' : 'none'
                       }}
                     >
-                      {(item.children || []).map((child, cidx) => (
-                        <button
-                          key={cidx}
-                          onClick={() => handleMobileNavigate(child)}
-                          className="w-full text-left block px-3 py-2 text-sm text-white/95"
-                          style={{ transition: 'opacity 180ms ease-in-out', transitionDelay: `${(cidx + 1) * 40}ms` }}
-                        >
-                          {child.label}
-                        </button>
-                      ))}
+                      {(item.children || []).map((child, cidx) => {
+                        const childActive = pathname && child.route && pathname.startsWith(child.route);
+                        return (
+                          <button
+                            key={cidx}
+                            onClick={() => handleMobileNavigate(child)}
+                            className={`w-full text-left block px-3 py-2 text-sm ${childActive ? 'bg-white/5 rounded text-white' : 'text-white/95'}`}
+                            style={{ transition: 'opacity 180ms ease-in-out', transitionDelay: `${(cidx + 1) * 40}ms` }}
+                          >
+                            {child.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                   <div className="border-t border-white/10" />
