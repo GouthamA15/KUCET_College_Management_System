@@ -6,6 +6,9 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
+import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
+import YearRecordsList from '@/components/clerk/scholarship/YearRecordsList';
+import AddEditRecordModal from '@/components/clerk/scholarship/AddEditRecordModal';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber';
@@ -156,6 +159,41 @@ export default function ScholarshipDashboard() {
       const e = s + 1;
       return `${s}-${String(e).slice(-2)}`;
     });
+  }
+
+  // Determine canonical record state for a year from backend summary or fallbacks.
+  // Returns 'NO_RECORD' | 'PENDING' | 'COMPLETED'
+  function computeRecordState(summary, globalFeeSummary) {
+    // If no summary object at all, there are no DB rows for this year
+    if (!summary) return 'NO_RECORD';
+
+    const hasScholar = Array.isArray(summary.scholarship_proceedings) && summary.scholarship_proceedings.length > 0;
+    const hasPayments = Array.isArray(summary.student_payments) && summary.student_payments.length > 0;
+    const hasApplication = !!(summary.application_no && String(summary.application_no).trim() !== '');
+
+    if (!hasScholar && !hasPayments && !hasApplication) return 'NO_RECORD';
+
+    // Prefer explicit record_state from backend if provided
+    if (summary.record_state && ['NO_RECORD', 'PENDING', 'COMPLETED'].includes(summary.record_state)) return summary.record_state;
+
+    // Try to derive from fee_summary.pending_fee (if present)
+    const fs = summary.fee_summary || {};
+    let pending = fs.pending_fee;
+
+    // If pending not available, use globalFeeSummary total_fee as fallback and assume nothing paid
+    if (pending == null) {
+      const total = fs.total_fee ?? globalFeeSummary?.total_fee ?? null;
+      if (total == null) {
+        // We have records but no fee numbers -> treat as PENDING to force clerk attention
+        return 'PENDING';
+      }
+      // No payments recorded: pending equals total
+      pending = total;
+    }
+
+    const pendingNum = Number(pending);
+    if (!isNaN(pendingNum) && pendingNum === 0) return 'COMPLETED';
+    return 'PENDING';
   }
 
   function openAddModal(year) {
@@ -374,289 +412,55 @@ export default function ScholarshipDashboard() {
             {student && (
               <section className="space-y-6">
                 {/* Student Info Card */}
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <div className="flex justify-between items-start">
-                    <h2 className="text-xl font-semibold">Student Information</h2>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                    <div>
-                      {(() => {
-                        const p = student?.pfp;
-                        const has = p && String(p).trim() !== '';
-                        const isData = has && String(p).startsWith('data:');
-                        const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
-                        if (has && dataHasBody) {
-                          return (
-                            <div className="mb-3">
-                              <Image src={String(p)} alt="Profile Pic" width={96} height={96} onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} className="w-24 h-24 object-cover rounded-full border-2 border-gray-300 cursor-pointer" />
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                      <div className="text-sm text-gray-500">Roll Number</div>
-                      <div className="font-medium">{student.roll_no}</div>
-                      <div className="text-sm text-gray-500 mt-2">Student Name</div>
-                      <div className="font-medium">{student.name}</div>
-                      <div className="text-sm text-gray-500 mt-2">Fee Reimbursement</div>
-                      <div className="font-medium">{student.fee_reimbursement}</div>
-                    </div>
-
-                    <div>
-                      <div className="text-sm text-gray-500">Course</div>
-                      <div className="font-medium">{student.course || '-'}</div>
-                      <div className="text-sm text-gray-500 mt-2">Admission Academic Year</div>
-                      <div className="font-medium">{student.admission_year || '-'}</div>
-                      <div className="text-sm text-gray-500 mt-2">Current Academic Year</div>
-                      <div className="font-medium">{student.current_year || '-'}</div>
-                    </div>
-
-                    <div>
-                      <div className="text-sm text-gray-500">Email</div>
-                      <div className="font-medium">{student.email || '-'}</div>
-                      <div className="text-sm text-gray-500 mt-2">Mobile</div>
-                      <div className="font-medium">{student.mobile || '-'}</div>
-                    </div>
-                  </div>
-                </div>
+                <StudentInfoCard student={student} onImageClick={(src) => { setImagePreviewSrc(src); setImagePreviewOpen(true); }} />
                 {/* Year-wise cards (4 cards, independent) */}
-                <div className="space-y-4">
-                  {yearList.map((y, idx) => {
-                    const summary = summariesByYear[y] || null;
-                    const status = summary?.fee_summary?.status || 'NO_RECORD';
-                    const isCompleted = status === 'COMPLETED';
-                    return (
-                      <div key={y} className="bg-white rounded-lg shadow p-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="font-semibold">Year {idx + 1}</h3>
-                            <div className="text-sm text-gray-500">{y}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 text-xs rounded ${status === 'COMPLETED' ? 'bg-green-100 text-green-800' : status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'}`}>{status}</span>
-                            <button
-                              onClick={() => setExpandedByYear(prev => ({ ...prev, [y]: !prev[y] }))}
-                              className="px-3 py-1 rounded border"
-                            >
-                              {expandedByYear[y] ? 'Collapse' : 'Expand'}
-                            </button>
-                            {!isCompleted && (
-                              (() => {
-                                const summaryExists = Boolean((summariesByYear[y]?.application_no) || (Array.isArray(summariesByYear[y]?.scholarship_proceedings) && summariesByYear[y].scholarship_proceedings.length > 0));
-                                const label = summaryExists ? 'Edit Record' : 'Add Record';
-                                return (
-                                  <button onClick={() => openAddModal(y)} className="px-3 py-1 rounded bg-indigo-600 text-white">{label}</button>
-                                );
-                              })()
-                            )}
-                          </div>
-                        </div>
+                <YearRecordsList
+                  yearList={yearList}
+                  summariesByYear={summariesByYear}
+                  expandedByYear={expandedByYear}
+                  onToggleExpand={(yy) => setExpandedByYear(prev => ({ ...prev, [yy]: !prev[yy] }))}
+                  onOpenModal={(yy) => openAddModal(yy)}
+                  computeRecordState={computeRecordState}
+                  feeSummary={feeSummary}
+                  student={student}
+                  toDmy={toDmy}
+                />
 
-                        {expandedByYear[y] && (
-                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <h4 className="font-semibold">Fee Summary</h4>
-                              {summary?.fee_summary ? (
-                                <div className="grid grid-cols-2 gap-2 mt-2">
-                                  <div className="text-sm text-gray-500">Total Fee</div>
-                                  <div className="text-sm font-medium">{summary.fee_summary.total_fee}</div>
-                                  <div className="text-sm text-gray-500">Govt Paid</div>
-                                  <div className="text-sm font-medium">{summary.fee_summary.govt_paid}</div>
-                                  <div className="text-sm text-gray-500">Student Paid</div>
-                                  <div className="text-sm font-medium">{summary.fee_summary.student_paid}</div>
-                                  <div className="text-sm text-gray-500">Pending Fee</div>
-                                  <div className="text-sm font-medium">{summary.fee_summary.pending_fee}</div>
-                                </div>
-                              ) : (
-                                <div className="text-sm text-gray-600">No fee summary available.</div>
-                              )}
-                            </div>
-
-                            <div>
-                              <h4 className="font-semibold">Scholarship Proceedings</h4>
-                              <div className="mt-2">
-                                <div className="text-sm text-gray-500">Application Number</div>
-                                <div className="text-sm font-medium">{summary?.application_no || '-'}</div>
-                              </div>
-                              {(student?.fee_reimbursement === 'YES' && Array.isArray(summary?.scholarship_proceedings)) ? (
-                                summary.scholarship_proceedings.length > 0 ? (
-                                  <div className="space-y-2 mt-2">
-                                    {summary.scholarship_proceedings.map((p, i) => (
-                                      <div key={i} className="flex items-center justify-between border rounded p-2">
-                                        <div className="text-sm">{p.proceeding_no}</div>
-                                        <div className="text-sm">{p.amount}</div>
-                                        <div className="text-sm">{toDmy(p.date)}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-sm text-gray-600 mt-2">No proceedings recorded.</div>
-                                )
-                              ) : (
-                                <div className="text-sm text-gray-600 mt-2">Scholarship section hidden for non‑scholarship students.</div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Add Record Modal (logic-only; no save action) */}
-                {modalOpen && (
-                  <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-                    <div className="bg-white rounded-lg p-6 w-full max-w-3xl">
-                      <div className="flex justify-between items-center mb-3">
-                        {(() => {
-                          const summaryExists = Boolean((summariesByYear[modalYear]?.application_no) || (Array.isArray(summariesByYear[modalYear]?.scholarship_proceedings) && summariesByYear[modalYear].scholarship_proceedings.length > 0));
-                          const label = summaryExists ? 'Edit Record' : 'Add Record';
-                          return (<h3 className="text-lg font-semibold">{label} — {modalYear}</h3>);
-                        })()}
-                        <button onClick={() => setModalOpen(false)} className="px-3 py-1 border rounded">Close</button>
-                      </div>
-                      {(() => {
-                        const summary = summariesByYear[modalYear] || null;
-                        const isScholar = student?.fee_reimbursement === 'YES';
-                        const isSfc = String(student?.fee_category).toUpperCase() === 'SFC';
-                        const feeFieldsLocked = isScholar && !isSfc; // Scholarship + NON-SFC → locked
-                        return (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Fee Particulars */}
-                            <div className="p-4 bg-gray-50 rounded">
-                              <h4 className="font-semibold mb-2">Fee Particulars</h4>
-                              <div className="space-y-3">
-                                <div>
-                                  <label className="block text-sm text-gray-600">Total Fee</label>
-                                  <div className="mt-1 px-3 py-2 border rounded w-full bg-white">{summary?.fee_summary?.total_fee ?? '-'}</div>
-                                </div>
-                                <div>
-                                  <label className="block text-sm text-gray-600">Student Paid Amount</label>
-                                  <input value={payAmount} onChange={(e) => setPayAmount(e.target.value)} disabled={feeFieldsLocked} className={`mt-1 px-3 py-2 border rounded w-full ${feeFieldsLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
-                                </div>
-                                <div>
-                                  <label className="block text-sm text-gray-600">Transaction Ref (UTR/Challan)</label>
-                                  <input value={payRef} onChange={(e) => setPayRef(e.target.value)} disabled={feeFieldsLocked} className={`mt-1 px-3 py-2 border rounded w-full ${feeFieldsLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
-                                </div>
-                                <div>
-                                  <label className="block text-sm text-gray-600">Transaction Date</label>
-                                  <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} disabled={feeFieldsLocked} className={`mt-1 px-3 py-2 border rounded w-full ${feeFieldsLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Scholarship Particulars */}
-                            {isScholar && (
-                              <div className="p-4 bg-gray-50 rounded">
-                                <h4 className="font-semibold mb-2">Scholarship Particulars</h4>
-                                <div className="space-y-3">
-                                  <div>
-                                    <label className="block text-sm text-gray-600">Application Number</label>
-                                    <div className="relative">
-                                      {(() => {
-                                        const existingVal = String(summariesByYear[modalYear]?.application_no || '').trim();
-                                        const hasExisting = existingVal !== '';
-                                        return (
-                                          <>
-                                          <input
-                                            value={schAppNo}
-                                            onChange={(e) => setSchAppNo(e.target.value)}
-                                            disabled={!appEditing && hasExisting}
-                                            className={`mt-1 px-3 py-2 border rounded w-full ${(!appEditing && hasExisting) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                          />
-                                          {hasExisting && (
-                                            <div className="mt-1 text-xs text-amber-700">Existing Application Number found. Editing should be done with caution.</div>
-                                          )}
-                                          {hasExisting && (
-                                            <div className="mt-2 flex items-center gap-2">
-                                              {!appEditing ? (
-                                                <button type="button" onClick={() => setAppEditing(true)} className="px-2 py-1 text-xs rounded border">Edit</button>
-                                              ) : (
-                                                <>
-                                                  <button type="button" onClick={() => { setAppEditing(false); setSchAppNo(String(summariesByYear[modalYear]?.application_no || '')); }} className="px-2 py-1 text-xs rounded border">Cancel Edit</button>
-                                                </>
-                                              )}
-                                            </div>
-                                          )}
-                                          </>
-                                        );
-                                      })()}
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm text-gray-600">Proceeding Number</label>
-                                    <input value={schProceedingNo} onChange={(e) => setSchProceedingNo(e.target.value)} className="mt-1 px-3 py-2 border rounded w-full" />
-                                    <div className="mt-1 text-xs text-gray-600">Proceeding number may be added later if not yet issued.</div>
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm text-gray-600">Sanctioned Amount</label>
-                                    <input
-                                      value={schAmount}
-                                      onChange={(e) => setSchAmount(e.target.value)}
-                                      disabled={!String(schProceedingNo || '').trim()}
-                                      className={`mt-1 px-3 py-2 border rounded w-full ${!String(schProceedingNo || '').trim() ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                    />
-                                    {!String(schProceedingNo || '').trim() && (
-                                      <div className="mt-1 text-xs text-gray-600">Enter Proceeding Number to add sanctioned amount.</div>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm text-gray-600">Sanction Date</label>
-                                    <input type="date" value={schDate} onChange={(e) => setSchDate(e.target.value)} className="mt-1 px-3 py-2 border rounded w-full" />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-                      {/* Existing records with delete actions */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                        <div className="p-4 bg-white rounded border">
-                          <h4 className="font-semibold mb-2">Existing Payments</h4>
-                          {Array.isArray(summariesByYear[modalYear]?.student_payments) && summariesByYear[modalYear].student_payments.length > 0 ? (
-                            <div className="space-y-2">
-                              {summariesByYear[modalYear].student_payments.map((p) => (
-                                <div key={p.id} className="flex items-center justify-between border rounded p-2">
-                                  <div className="text-sm">{p.transaction_ref}</div>
-                                  <div className="text-sm">{p.amount}</div>
-                                  <div className="text-sm">{toDmy(p.date)}</div>
-                                  <button onClick={() => deletePayment(p.id)} className="text-red-600 text-xs">Delete</button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-600">No payments recorded.</div>
-                          )}
-                        </div>
-                        {student?.fee_reimbursement === 'YES' && (
-                          <div className="p-4 bg-white rounded border">
-                            <h4 className="font-semibold mb-2">Existing Scholarship Proceedings</h4>
-                            {Array.isArray(summariesByYear[modalYear]?.scholarship_proceedings) && summariesByYear[modalYear].scholarship_proceedings.length > 0 ? (
-                              <div className="space-y-2">
-                                {summariesByYear[modalYear].scholarship_proceedings.map((s) => (
-                                  <div key={s.id} className="flex items-center justify-between border rounded p-2">
-                                    <div className="text-sm">{s.proceeding_no}</div>
-                                    <div className="text-sm">{s.amount}</div>
-                                    <div className="text-sm">{toDmy(s.date)}</div>
-                                    <button onClick={() => deleteScholarship(s.id)} className="text-red-600 text-xs">Delete</button>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-sm text-gray-600">No proceedings recorded.</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex justify-end mt-4">
-                        <button onClick={handleSaveRecord} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded disabled:opacity-60">
-                          {saving ? 'Saving…' : 'Save Record'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <AddEditRecordModal
+                  open={modalOpen}
+                  year={modalYear}
+                  student={student}
+                  summary={summariesByYear[modalYear] || null}
+                  formState={{
+                    schAppNo,
+                    schProceedingNo,
+                    schAmount,
+                    schDate,
+                    payAmount,
+                    payRef,
+                    payDate,
+                    appEditing,
+                  }}
+                  setFormState={(k, v) => {
+                    const setters = {
+                      schAppNo: setSchAppNo,
+                      schProceedingNo: setSchProceedingNo,
+                      schAmount: setSchAmount,
+                      schDate: setSchDate,
+                      payAmount: setPayAmount,
+                      payRef: setPayRef,
+                      payDate: setPayDate,
+                      appEditing: setAppEditing,
+                    };
+                    (setters[k] || (() => {}))(v);
+                  }}
+                  saving={saving}
+                  onSave={handleSaveRecord}
+                  onClose={() => setModalOpen(false)}
+                  onDeletePayment={deletePayment}
+                  onDeleteScholarship={deleteScholarship}
+                  toDmy={toDmy}
+                />
               </section>
             )}
           </>

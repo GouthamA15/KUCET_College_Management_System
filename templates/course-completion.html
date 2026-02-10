@@ -5,7 +5,7 @@
     Certificate ID: {{CERT_ID}}
 </div>
   <meta charset="UTF-8" />
-  <title>Custodian Certificate</title>
+  <title>Course Completion Certificate</title>
 
   <style>
     @page {
@@ -87,7 +87,7 @@
       top: 40%;
       left: 50%;
       position: absolute;
-      transform: translate(-50%,-50%);
+      transform: translate(-50%,-25%);
       opacity: 0.15;
     }
 
@@ -141,34 +141,25 @@
   </div>
 
   <div class="title">
-    CUSTODIAN CERTIFICATE
+    COURSE COMPLETION CERTIFICATE
   </div>
 
   <div class="content">
     <div class = "watermark">
       <img src="/public/assets/ku-logo.png">
     </div>
-    This is to certify that Mr. / Ms. <strong>{{STUDENT_NAME}}</strong>
-    S/o. / D/o. <strong>{{FATHER_NAME}}</strong>
-    is a student of this institution studying B.Tech. <strong>{{YEAR}}</strong> Yr.
-    Semester <strong>{{SEMESTER}}</strong> in
-    <strong>{{COURSE}}</strong> branch, bearing Hall Ticket No. <strong>{{ADMISSION_NO}}</strong>
-    has deposited his/her Original Certificates of:
-  
-
-  <ol class="doc-list">
-      <li>S.S.C. Memorandum</li>
-      <li>Intermediate Memorandum of Marks & Diploma Certificate</li>
-      <li>Study Certificate / Bonafide Certificate</li>
-      <li>Transfer Certificate</li>
-  </ol>
-
-  
-    with this institution at the time of his / her admission and they are in the custody of this
-    Institution. This certificate is issued w.r.t his/her application dated {{DATE}}
-  
-  <br>
-      As per our record his/her date of birth is <strong> <u>{{DOB}}</u></strong>
+    This is to certify that Mr./Ms. <strong>{{STUDENT_NAME}}</strong>,
+    S/o., D/o. <strong>{{FATHER_NAME}}</strong>
+    bearing Admission No. <strong>{{ADMISSION_NO}}</strong>
+    is a Bonafide student of this institution and
+    studied B.Tech in <strong>{{COURSE}}</strong> Branch
+    during the academic year <strong>{{BATCH}}</strong>.
+    <br><br>
+    He has fulfilled the requirements of the course/program and completed his final examination for which the results are also declared.
+    He has no standing backlogs and his aggregate CGPA - <strong>{{AGG_CGPA}}</strong>.
+    His Certificates are under process and will be issued in the first week of July {{YEAR}}
+    <br>
+    This Certificate is issued with reference to his application dated {{DATE}}
   </div>
 
   <div class="signature-section">
@@ -181,5 +172,6 @@
     <img src="{{QR_CODE}}" alt="QR Code">
     <div class="qr-label">SCAN TO VERIFY</div>
   </div>
+
 </body>
 </html>

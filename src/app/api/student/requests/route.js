@@ -156,7 +156,7 @@ export async function POST(request) {
         try {
           const updateResult = await query(
             `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, payment_screenshot = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
-            [paymentAmount, transactionId, paymentScreenshotBuffer, 'PENDING', existing.request_id]
+            [paymentAmount, transactionId, paymentScreenshotBuffer,  'PENDING', existing.request_id]
           );
           if (updateResult.affectedRows === 1) {
             return NextResponse.json({ success: true, requestId: existing.request_id });
@@ -174,8 +174,8 @@ export async function POST(request) {
 
       // No existing row - safe to insert
       const result = await query(
-        'INSERT INTO student_requests (student_id, certificate_type, academic_year, payment_amount, transaction_id, payment_screenshot, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [auth.student_id, certificateType, academicYear, paymentAmount, transactionId, paymentScreenshotBuffer, 'PENDING']
+        'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, payment_screenshot, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [auth.student_id, certificateType,  academicYear, paymentAmount, transactionId, paymentScreenshotBuffer, 'PENDING']
       );
       if (result.affectedRows === 1) {
         return NextResponse.json({ success: true, requestId: result.insertId });
