@@ -379,9 +379,24 @@ export default function StudentProfileNew() {
   })();
 
   const scholarshipByYear = {};
+  // Map scholarship records (new schema uses `academic_year`, older schema used numeric `year`).
   (studentData.scholarship || []).forEach((s) => {
-    const y = Number(s.year);
-    if (Number.isInteger(y)) scholarshipByYear[y] = s;
+    for (let y = 1; y <= maxYears; y++) {
+      const acadLabel = computeAcademicYear(student.roll_no, y);
+      if (!acadLabel) continue;
+      const matchesYearIndex = s.year && Number(s.year) === y;
+      const matchesAcademicLabel = s.academic_year && String(s.academic_year) === String(acadLabel);
+      if (matchesYearIndex || matchesAcademicLabel) {
+        scholarshipByYear[y] = {
+          // normalize to UI expected keys
+          proceedings_no: s.proceeding_no ?? s.proceedings_no ?? s.proceedingNo ?? '',
+          amount_sanctioned: s.sanctioned_amount ?? s.amount_sanctioned ?? s.sanctionedAmount ?? '',
+          amount_disbursed: s.amount_disbursed ?? '',
+          date: s.sanction_date ?? s.sanctionDate ?? s.date ?? null,
+        };
+        break;
+      }
+    }
   });
 
   const rows = Array.from({ length: maxYears }, (_, i) => {

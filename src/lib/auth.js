@@ -8,7 +8,7 @@ export async function verifyJwt(token, secret) {
     });
     return payload;
   } catch (error) {
-    console.error('JWT Verification failed:', error);
+    console.error('JWT Verification failed:', error.name, error.message); // MODIFIED FOR MORE DETAIL
     return null;
   }
 }
