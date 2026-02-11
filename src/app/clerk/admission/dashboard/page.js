@@ -4,6 +4,7 @@ import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
 import ClerkStudentManagement from '@/components/ClerkStudentManagement';
+import StudentHistoryCard from '@/components/clerk/student-management/StudentHistoryCard';
 import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
 import toast from 'react-hot-toast';
 
@@ -94,7 +95,10 @@ export default function ClerkDashboard() {
         {openModule==='student' && (
           <div className="mt-6">
             <button onClick={()=>setOpenModule(null)} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
-            <ClerkStudentManagement />
+            <div>
+              <ClerkStudentManagement />
+              <StudentHistoryCard currentClerkId={clerk?.id} />
+            </div>
           </div>
         )}
 
