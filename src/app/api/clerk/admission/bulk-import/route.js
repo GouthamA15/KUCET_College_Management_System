@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { getBranchFromRoll } from '@/lib/rollNumber';
@@ -35,10 +37,12 @@ const ALIASES = {
     date_of_birth: ['dob', 'date_of_birth', 'birth_date', 'dateofbirth'],
     mobile: ['mobile', 'phone', 'phone_number', 'mobile_number', 'contact_number', 'mobile_no', 'student_number', 'number'],
     email: ['email', 'mail_id', 'email_id'],
+    fee_reimbursement: ['fee_reimbursement', 'fee_reimb', 'reimbursement', 'scholarship'],
   },
   // Student personal details table
   student_personal_details: {
     father_name: ['father_name', 'fathers_name', 'parent_name'],
+    blood_group: ['blood_group', 'bloodgroup', 'bg'],
     category: ['category', 'caste_category', 'caste', 'category_cast'],
     address: ['address', 'residential_address', 'permanent_address', 'aadhar_card_address'],
     mother_name: ['mother_name', 'mothers_name'],
@@ -59,6 +63,7 @@ const ALIASES = {
     medium_of_instruction: ['medium_of_instruction', 'medium', 'medium_of_education', 'language_of_education', 'education_medium'],
     ranks: ['rank', 'intermediate_rank'], // Changed from intermediate_rank
   },
+  
 };
 
 // Build header mapping: column index -> { field, table }
@@ -149,6 +154,46 @@ function normalizeDateToMySQL(value) {
 
 export async function POST(req) {
   try {
+    // Verify clerk JWT and extract clerk id (do not allow client to set clerk id)
+    const cookieStore = await cookies();
+    const clerkAuthCookie = cookieStore.get('clerk_auth');
+    const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    async function verifyJwt(token, secret) {
+      try {
+        const secretKey = new TextEncoder().encode(secret);
+        const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
+        return payload;
+      } catch (error) {
+        console.error('JWT Verification failed:', error);
+        return null;
+      }
+    }
+
+    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
+    if (!decoded || decoded.role !== 'admission') {
+      return NextResponse.json({ error: 'Forbidden: Only admission clerks can bulk import' }, { status: 403 });
+    }
+
+    const clerkId = decoded?.clerkId || null;
+    if (!clerkId) {
+      return NextResponse.json({ error: 'Unauthorized: clerk id missing in token' }, { status: 401 });
+    }
+
+    // ensure clerk exists
+    const poolCheck = getDb();
+    try {
+      const [clerkRows] = await poolCheck.execute('SELECT id FROM clerks WHERE id = ?', [clerkId]);
+      if (!clerkRows || clerkRows.length === 0) {
+        return NextResponse.json({ error: 'Unauthorized: clerk not found' }, { status: 403 });
+      }
+    } catch (e) {
+      console.error('Clerk lookup error:', e);
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
     const contentType = req.headers.get('content-type') || '';
     let totalRows = 0; // Declared here
     const errors = [];
@@ -317,11 +362,29 @@ export async function POST(req) {
         personal.father_occupation = String(personal.father_occupation || '').trim() || null;
         personal.annual_income = String(personal.annual_income || '').trim() || null;
         personal.identification_marks = String(personal.identification_marks || '').trim() || null;
+        // Validate blood_group if present
+        if (personal.blood_group !== undefined && personal.blood_group !== null) {
+          const bg = String(personal.blood_group || '').trim();
+          const VALID_BLOOD = new Set(['A+','A-','B+','B-','AB+','AB-','O+','O-']);
+          if (bg && !VALID_BLOOD.has(bg)) return { error: `Invalid blood_group '${bg}'` };
+          personal.blood_group = bg || null;
+        } else {
+          personal.blood_group = null;
+        }
 
         // Academic details (ensure null if empty for DB)
         academic.qualifying_exam = String(academic.qualifying_exam || '').trim() || null;
         academic.previous_college_details = String(academic.previous_college_details || '').trim() || null;
         academic.medium_of_instruction = String(academic.medium_of_instruction || '').trim() || null;
+
+        // Validate fee_reimbursement (students level) if provided
+        if (student.fee_reimbursement !== undefined && student.fee_reimbursement !== null) {
+          const fr = String(student.fee_reimbursement || '').trim().toUpperCase();
+          if (fr && !['YES','NO'].includes(fr)) return { error: `Invalid fee_reimbursement '${fr}'` };
+          student.fee_reimbursement = fr || null;
+        } else {
+          student.fee_reimbursement = null;
+        }
 
 
 
@@ -337,7 +400,7 @@ export async function POST(req) {
       let hasChanges = false;
 
       // Fields for students table
-      const STUDENT_FIELDS = ['name', 'email', 'mobile', 'date_of_birth', 'gender'];
+      const STUDENT_FIELDS = ['name', 'email', 'mobile', 'date_of_birth', 'gender', 'fee_reimbursement'];
       STUDENT_FIELDS.forEach(field => {
           const incomingValue = incomingRec.student[field] ? String(incomingRec.student[field]).trim() : null;
           const existingValue = existingDbRec[field] ? String(existingDbRec[field]).trim() : null;
@@ -363,7 +426,7 @@ export async function POST(req) {
       });
 
       // Fields for student_personal_details table
-      const PERSONAL_FIELDS = ['father_name', 'mother_name', 'address', 'category', 'nationality', 'religion', 'sub_caste', 'area_status', 'aadhaar_no', 'place_of_birth', 'father_occupation', 'annual_income', 'identification_marks'];
+      const PERSONAL_FIELDS = ['father_name', 'mother_name', 'address', 'category', 'nationality', 'religion', 'sub_caste', 'area_status', 'aadhaar_no', 'place_of_birth', 'father_occupation', 'annual_income', 'identification_marks', 'blood_group'];
       PERSONAL_FIELDS.forEach(field => {
           const incomingValue = incomingRec.personal[field] ? String(incomingRec.personal[field]).trim() : null;
           const existingValue = existingDbRec[field] ? String(existingDbRec[field]).trim() : null;
@@ -535,8 +598,8 @@ export async function POST(req) {
         } else { // New record, perform insert
           // Insert into students
           const [studentResult] = await connection.execute(
-            `INSERT INTO students (roll_no, name, email, mobile, date_of_birth, is_email_verified, gender)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO students (roll_no, name, email, mobile, date_of_birth, is_email_verified, gender, added_by_clerk_id, fee_reimbursement)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               student.roll_no,
               student.name,
@@ -545,6 +608,8 @@ export async function POST(req) {
               student.date_of_birth, // already normalized YYYY-MM-DD
               0,
               student.gender,
+              clerkId,
+              student.fee_reimbursement || null,
             ]
           );
           const studentId = studentResult.insertId;

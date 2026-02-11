@@ -76,6 +76,8 @@ export async function GET(request, { params }) {
 
     const { request_id } = await params;
 
+    let qrBase64 = ''
+
     try {
         // 1. Verify this request belongs to the logged-in student and is a completed bonafide
         const requests = await query(
@@ -172,9 +174,11 @@ export async function GET(request, { params }) {
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://10.163.82.43:${process.env.PORT || 3000}`;
         const verificationUrl = `${baseUrl}/verify?id=${certId}&roll=${rollNo}`;
-        const qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
 
-        
+        if(verificationUrl) {
+            qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
+        }
+
 
         
         const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
@@ -263,7 +267,7 @@ export async function GET(request, { params }) {
         }
 
         // 4. Generate PDF using shared helper which uses bundled puppeteer
-        const pdfBuf = await htmlToPdfBuffer(htmlContent);
+        const pdfBuffer = await htmlToPdfBuffer(htmlContent);
 
         // 5. Send the file as a response
         const headers = new Headers();
@@ -276,7 +280,7 @@ export async function GET(request, { params }) {
         const encoded = encodeURIComponent(filename);
         headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encoded}`);
 
-        return new NextResponse(pdfBuf, { status: 200, headers });
+        return new NextResponse(pdfBuffer, { status: 200, headers });
 
     } catch (error) {
         console.error("Error generating certificate:", error);
