@@ -44,6 +44,25 @@ export async function PUT(req, context) {
     }
 
     const updatedData = await req.json();
+    // Prevent changing clerk tracking from frontend
+    if (updatedData.added_by_clerk_id !== undefined) {
+      delete updatedData.added_by_clerk_id;
+    }
+    // Validate blood_group and fee_reimbursement early if provided
+    if (updatedData.blood_group !== undefined) {
+      const bg = updatedData.blood_group == null ? null : String(updatedData.blood_group).trim();
+      const validBloodGroups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+      if (bg && !validBloodGroups.includes(bg)) {
+        return NextResponse.json({ error: 'Invalid blood group value' }, { status: 400 });
+      }
+    }
+    if (updatedData.fee_reimbursement !== undefined) {
+      const fr = updatedData.fee_reimbursement == null ? null : String(updatedData.fee_reimbursement).trim().toUpperCase();
+      const validFeeReimbursement = ['YES', 'NO'];
+      if (fr && !validFeeReimbursement.includes(fr)) {
+        return NextResponse.json({ error: 'Invalid fee_reimbursement value' }, { status: 400 });
+      }
+    }
 
     // Find student ID
     const [student] = await query('SELECT id FROM students WHERE roll_no = ?', [rollno]);
@@ -58,6 +77,7 @@ export async function PUT(req, context) {
 
     if (updatedData.name !== undefined) { studentUpdateFields.push('name = ?'); studentUpdateValues.push(toNull(updatedData.name)); }
     if (updatedData.admission_no !== undefined) { studentUpdateFields.push('admission_no = ?'); studentUpdateValues.push(toNull(updatedData.admission_no)); }
+    if (updatedData.fee_reimbursement !== undefined) { studentUpdateFields.push('fee_reimbursement = ?'); studentUpdateValues.push(toNull(String(updatedData.fee_reimbursement).trim().toUpperCase())); }
     if (updatedData.date_of_birth !== undefined) { studentUpdateFields.push('date_of_birth = ?'); studentUpdateValues.push(toMySQLDate(updatedData.date_of_birth)); }
     if (updatedData.gender !== undefined) { studentUpdateFields.push('gender = ?'); studentUpdateValues.push(toNull(updatedData.gender)); }
     if (updatedData.mobile !== undefined) { studentUpdateFields.push('mobile = ?'); studentUpdateValues.push(toNull(updatedData.mobile)); }
@@ -72,15 +92,20 @@ export async function PUT(req, context) {
     const personalUpdateFields = [];
     const personalUpdateValues = [];
     const personalInsertValues = [];
-    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks'];
+    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
 
     let hasPersonalUpdates = false;
+    // Validate and prepare personal columns. blood_group must be one of allowed values when provided.
     personalColumns.forEach(col => {
       if (updatedData[col] !== undefined) {
         if (col === 'aadhaar_no' && updatedData[col] !== null) {
           // Sanitize aadhaar_no: remove all non-digits before storing
           personalUpdateFields.push(`${col} = ?`);
           personalUpdateValues.push(toNull(String(updatedData[col]).replace(/\D/g, '')));
+        } else if (col === 'blood_group') {
+          const bg = updatedData[col] == null ? null : String(updatedData[col]).trim();
+          personalUpdateFields.push(`${col} = ?`);
+          personalUpdateValues.push(toNull(bg));
         } else {
           personalUpdateFields.push(`${col} = ?`);
           personalUpdateValues.push(toNull(updatedData[col]));

@@ -25,7 +25,7 @@ export default function AddNewStudent() {
   const [mobileError, setMobileError] = useState('');
   const [incomeError, setIncomeError] = useState('');
   const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
-  const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'' });
+  const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '' });
   const [academic, setAcademic] = useState({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
   const [addLoading, setAddLoading] = useState(false);
   const [savedRollLocked, setSavedRollLocked] = useState(false);
@@ -94,6 +94,7 @@ export default function AddNewStudent() {
         admission_no: basic.admission_no || null,
         roll_no: basic.roll_no || null,
         name: basic.name || null,
+        fee_reimbursement: basic.fee_reimbursement ? String(basic.fee_reimbursement).trim().toUpperCase() : null,
         father_name: personal.father_name || null,
         mother_name: personal.mother_name || null,
         date_of_birth: basic.date_of_birth || null,
@@ -112,6 +113,7 @@ export default function AddNewStudent() {
         annual_income: personal.annual_income || null,
         student_aadhar_no: personal.aadhaar_no || null,
         ranks: academic.ranks ? Number(academic.ranks) : null,
+        blood_group: personal.blood_group || null,
       };
 
       const res = await fetch('/api/clerk/admission/students', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -122,7 +124,9 @@ export default function AddNewStudent() {
       setShowAddForm(false);
       try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
       setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', email:''});
-      setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'' });
+      setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '' });
+      // reset fee_reimbursement
+      setBasic(prev => ({ ...prev, fee_reimbursement: undefined }));
       setAnnualIncomeDisplay('');
       setAcademic({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
       setSavedRollLocked(false);
@@ -135,6 +139,8 @@ export default function AddNewStudent() {
   
   const genders = ['Male', 'Female'];
   const categories = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'];
+
+  const feeReimbursementOptions = ['NO', 'YES'];
 
   return (
     showAddForm ? (
@@ -164,6 +170,9 @@ export default function AddNewStudent() {
             />
             <select value={basic.gender} onChange={e=>setBasic({...basic, gender:e.target.value})} className="p-2 border rounded">
               {genders.map(g=> <option key={g} value={g}>{g}</option>)}
+            </select>
+            <select value={basic.fee_reimbursement || 'NO'} onChange={e=>setBasic({...basic, fee_reimbursement: e.target.value})} className="p-2 border rounded">
+              {feeReimbursementOptions.map(o => <option key={o} value={o}>{o === 'YES' ? 'Fee Reimbursement: YES' : 'Fee Reimbursement: NO'}</option>)}
             </select>
             <input placeholder="Course" value={getBranchFromRoll(basic.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
             <input placeholder="Admission Type" value={getAdmissionTypeFromRoll(basic.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
@@ -238,6 +247,17 @@ export default function AddNewStudent() {
             />
             {incomeError && <div className="text-xs text-red-600 mt-1">{incomeError}</div>}
             <input placeholder="Aadhaar Number" value={personal.aadhaar_no} onChange={e=>setPersonal({...personal, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" maxLength={14} />
+            <select value={personal.blood_group || ''} onChange={e=>setPersonal({...personal, blood_group: e.target.value})} className="p-2 border rounded">
+              <option value="">Blood Group (optional)</option>
+              <option>A+</option>
+              <option>A-</option>
+              <option>B+</option>
+              <option>B-</option>
+              <option>AB+</option>
+              <option>AB-</option>
+              <option>O+</option>
+              <option>O-</option>
+            </select>
         </div>
         </div>
               <textarea placeholder="Address" value={personal.address} onChange={e=>setPersonal({...personal, address:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" style={{overflow: 'hidden'}} />

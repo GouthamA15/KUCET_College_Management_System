@@ -41,6 +41,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       const initialEdit = {
         admission_no: fetchedStudent.admission_no || null,
         roll_no: fetchedStudent.roll_no || null,
+        fee_reimbursement: fetchedStudent.fee_reimbursement || null,
         name: fetchedStudent.name || null,
         date_of_birth: formatDate(fetchedStudent.date_of_birth) || null,
         gender: fetchedStudent.gender || 'Male',
@@ -68,6 +69,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         father_occupation: pd.father_occupation || null,
         annual_income: pd.annual_income || null,
         aadhaar_no: pd.aadhaar_no || null,
+        blood_group: pd.blood_group || null,
         address: pd.address || fetchedStudent.address || null,
         seat_allotted_category: pd.seat_allotted_category || null,
         identification_marks: pd.identification_marks || null
@@ -129,6 +131,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       const updatedData = {
         name: editValues.name,
         admission_no: editValues.admission_no,
+        fee_reimbursement: editValues.fee_reimbursement,
         date_of_birth: editValues.date_of_birth,
         gender: editValues.gender,
         mobile: editValues.mobile,
@@ -148,6 +151,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         address: personalFull.address,
         seat_allotted_category: personalFull.seat_allotted_category,
         identification_marks: personalFull.identification_marks,
+        blood_group: personalFull.blood_group,
         qualifying_exam: academicsList[0]?.qualifying_exam,
         previous_college_details: academicsList[0]?.previous_college_details,
         medium_of_instruction: academicsList[0]?.medium_of_instruction,
@@ -237,6 +241,10 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 <select value={editValues.gender || 'Male'} onChange={e=>setEditValues({...editValues, gender:e.target.value})} className="p-2 border rounded">
                   {genders.map(g=> <option key={g} value={g}>{g}</option>)}
                 </select>
+                <select value={editValues.fee_reimbursement || 'NO'} onChange={e=>setEditValues({...editValues, fee_reimbursement: e.target.value})} className="p-2 border rounded">
+                  <option value="NO">Fee Reimbursement: NO</option>
+                  <option value="YES">Fee Reimbursement: YES</option>
+                </select>
                 <input placeholder="Course" value={getBranchFromRoll(editValues.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
                 <div className="relative">
                   <input placeholder="Admission Type" value={editValues.admission_type || ''} disabled className="p-2 border rounded w-full bg-gray-100" />
@@ -292,6 +300,17 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   onPaste={(e) => { const pasted=(e.clipboardData||window.clipboardData).getData('text'); const digits=pasted.replace(/\D/g,'').slice(0, String(MAX_ANNUAL_INCOME).length); setPersonalFull(prev=>({...prev, annual_income: digits})); setAnnualIncomeDisplay(formatIndianNumber(digits)); e.preventDefault(); }}
                 />
                 <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" />
+                <select value={personalFull.blood_group || ''} onChange={e=>setPersonalFull({...personalFull, blood_group: e.target.value})} className="p-2 border rounded">
+                  <option value="">Blood Group (optional)</option>
+                  <option>A+</option>
+                  <option>A-</option>
+                  <option>B+</option>
+                  <option>B-</option>
+                  <option>AB+</option>
+                  <option>AB-</option>
+                  <option>O+</option>
+                  <option>O-</option>
+                </select>
                 <textarea placeholder="Address" value={personalFull.address || ''} onChange={e=>setPersonalFull({...personalFull, address:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" />
                 <input placeholder="Seat Allotted Category" value={personalFull.seat_allotted_category || ''} onChange={e=>setPersonalFull({...personalFull, seat_allotted_category:e.target.value})} className="p-2 border rounded" />
                 <textarea placeholder="Identification Marks" value={personalFull.identification_marks || ''} onChange={e=>setPersonalFull({...personalFull, identification_marks:e.target.value})} className="p-2 border rounded md:col-span-3 h-20 resize-none" />

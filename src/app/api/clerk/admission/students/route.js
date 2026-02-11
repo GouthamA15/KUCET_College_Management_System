@@ -29,8 +29,8 @@ export async function POST(req) {
   }
 
   const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!decoded || decoded.role !== 'admission') {
+    return NextResponse.json({ error: 'Forbidden: Only admission clerks can add students' }, { status: 403 });
   }
 
   try {
@@ -68,6 +68,8 @@ export async function POST(req) {
       previous_college_details,
       medium_of_instruction,
       ranks, // Added ranks
+      blood_group,
+      fee_reimbursement,
     } = studentData;
 
     const providedRoll = roll_no || studentData.rollno || null;
@@ -90,10 +92,34 @@ export async function POST(req) {
       }
     }
 
-    // Insert into `students` table (core student record)
+    // Ensure clerk exists and use clerk id from JWT (do NOT accept clerk id from frontend)
+    const clerkId = decoded?.clerkId || null;
+    if (!clerkId) {
+      return NextResponse.json({ error: 'Unauthorized: clerk id missing in token' }, { status: 401 });
+    }
+    const [clerkRow] = await query('SELECT id FROM clerks WHERE id = ?', [clerkId]);
+    if (!clerkRow) {
+      return NextResponse.json({ error: 'Unauthorized: clerk not found' }, { status: 403 });
+    }
+
+    // Validate blood group if provided
+    const validBloodGroups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+    const bloodGroupToSave = blood_group && String(blood_group).trim() ? String(blood_group).trim() : null;
+    if (bloodGroupToSave && !validBloodGroups.includes(bloodGroupToSave)) {
+      return NextResponse.json({ error: 'Invalid blood group value' }, { status: 400 });
+    }
+
+    // Validate fee_reimbursement if provided
+    const validFeeReimbursement = ['YES', 'NO'];
+    const feeReimbursementToSave = fee_reimbursement == null ? null : String(fee_reimbursement).trim().toUpperCase();
+    if (feeReimbursementToSave && !validFeeReimbursement.includes(feeReimbursementToSave)) {
+      return NextResponse.json({ error: 'Invalid fee_reimbursement value' }, { status: 400 });
+    }
+
+    // Insert into `students` table (core student record). Set added_by_clerk_id from token.
     const studentResult = await query(
-      `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [admission_no || null, providedRoll, name || null, toMySQLDate(date_of_birth) || null, gender || null, mobile || null, email || null]
+      `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email, added_by_clerk_id, fee_reimbursement) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [admission_no || null, providedRoll, name || null, toMySQLDate(date_of_birth) || null, gender || null, mobile || null, email || null, clerkId, feeReimbursementToSave]
     );
 
     const studentId = studentResult.insertId;
@@ -104,11 +130,11 @@ export async function POST(req) {
         const cleanAadhaar = (rawAadhaar.replace(/\D/g, '') || null);
         const aadhaarToSave = cleanAadhaar ? cleanAadhaar.slice(0, 12) : null;
 
-        // Insert personal details into `student_personal_details`
+        // Insert personal details into `student_personal_details`. Include optional blood_group.
         await query(
           `INSERT INTO student_personal_details (
-                      student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, place_of_birth, father_occupation, annual_income, aadhaar_no, address, seat_allotted_category, identification_marks
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,          [
+                      student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, place_of_birth, father_occupation, annual_income, aadhaar_no, address, seat_allotted_category, identification_marks, blood_group
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,          [
             studentId,
             father_name || null,
             mother_name || null,
@@ -124,7 +150,8 @@ export async function POST(req) {
             aadhaarToSave,
             address || null,
             seat_allotted_category || null,
-            identification_marks || null
+            identification_marks || null,
+            bloodGroupToSave
           ]
         );
 
