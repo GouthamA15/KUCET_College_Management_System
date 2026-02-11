@@ -199,6 +199,7 @@ export async function POST(req) {
     const errors = [];
     const prepared = []; // array of { student, personal, academic, rowNumber, isUpdate: boolean, existingId: number }
     const seenRolls = new Map(); // roll_no -> firstRow
+    let importFileName = null;
 
     if (contentType.includes('application/json')) {
       const { students } = await req.json();
@@ -217,6 +218,7 @@ export async function POST(req) {
         return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
       }
 
+      importFileName = file.name || null;
       const bytes = await file.arrayBuffer();
       const workbook = XLSX.read(bytes, { type: 'array', cellDates: true });
       const sheetName = workbook.SheetNames[0];
@@ -598,19 +600,19 @@ export async function POST(req) {
         } else { // New record, perform insert
           // Insert into students
           const [studentResult] = await connection.execute(
-            `INSERT INTO students (roll_no, name, email, mobile, date_of_birth, is_email_verified, gender, added_by_clerk_id, fee_reimbursement)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              student.roll_no,
-              student.name,
-              student.email,
-              student.mobile,
-              student.date_of_birth, // already normalized YYYY-MM-DD
-              0,
-              student.gender,
-              clerkId,
-              student.fee_reimbursement || null,
-            ]
+              `INSERT INTO students (roll_no, name, email, mobile, date_of_birth, is_email_verified, gender, added_by_clerk_id, fee_reimbursement, created_at, updated_at, updated_by_clerk_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NULL, NULL)`,
+              [
+                student.roll_no,
+                student.name,
+                student.email,
+                student.mobile,
+                student.date_of_birth, // already normalized YYYY-MM-DD
+                0,
+                student.gender,
+                clerkId,
+                student.fee_reimbursement || null,
+              ]
           );
           const studentId = studentResult.insertId;
 
@@ -638,6 +640,19 @@ export async function POST(req) {
           }
           insertedCount++;
         }
+      }
+
+      // If any rows were inserted, record an import log for auditing
+      try {
+        if (insertedCount > 0) {
+          await connection.execute(
+            `INSERT INTO student_import_logs (clerk_id, total_records, file_name, created_at) VALUES (?, ?, ?, NOW())`,
+            [clerkId, insertedCount, importFileName]
+          );
+        }
+      } catch (logErr) {
+        // Log but do not fail the whole import because of logging errors
+        console.error('Failed to insert student_import_logs:', logErr);
       }
 
       await connection.commit();

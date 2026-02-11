@@ -35,6 +35,12 @@ export async function PUT(req, context) {
     return NextResponse.json({ error: 'Forbidden: Only admission clerks can update student details' }, { status: 403 });
   }
 
+  // Ensure clerk id is present in token and use it for audit fields
+  const clerkId = decoded?.clerkId || null;
+  if (!clerkId) {
+    return NextResponse.json({ error: 'Unauthorized: clerk id missing in token' }, { status: 401 });
+  }
+
   try {
     const params = await context.params;
     const { rollno } = params;
@@ -85,6 +91,9 @@ export async function PUT(req, context) {
     // Note: roll_no is typically not updated directly after admission, and it's used as the identifier here.
 
     if (studentUpdateFields.length > 0) {
+      // add audit columns for update
+      studentUpdateFields.push('updated_at = NOW()', 'updated_by_clerk_id = ?');
+      studentUpdateValues.push(clerkId);
       await query(`UPDATE students SET ${studentUpdateFields.join(', ')} WHERE id = ?`, [...studentUpdateValues, studentId]);
     }
 
@@ -170,6 +179,12 @@ export async function PUT(req, context) {
                 await query(`INSERT INTO student_academic_background (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`, insertVals);
             }
         }
+    }
+
+    // If personal/academic updates were applied but students table was not modified above,
+    // set the updated_at and updated_by_clerk_id audit fields on students table.
+    if ((hasPersonalUpdates || hasAcademicUpdates) && studentUpdateFields.length === 0) {
+      await query('UPDATE students SET updated_at = NOW(), updated_by_clerk_id = ? WHERE id = ?', [clerkId, studentId]);
     }
 
 
