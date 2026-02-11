@@ -226,21 +226,23 @@ export default function BonafideRequestPage() {
       let qrCodeDataUri = '';
       if (verificationUrl) {
         qrCodeDataUri = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
+        console.log("Generated QR Code Data URI:", qrCodeDataUri); // Debugging line
       }
 
-      // 3. Inject QR Code into HTML content if a placeholder exists
-      let finalHtmlContent = htmlContent;
-      if (qrCodeDataUri) {
-        finalHtmlContent = finalHtmlContent.replace('{{QR_CODE}}', `<img src="${qrCodeDataUri}" alt="QR Code" style="width: 150px; height: 150px;" />`);
-      } else {
-        finalHtmlContent = finalHtmlContent.replace('{{QR_CODE}}', ''); // Remove placeholder if no QR
-      }
-
-      // 4. Create a temporary element to render the HTML
+      // 3. Create a temporary element to render the HTML
       const element = document.createElement('div');
-      element.innerHTML = finalHtmlContent;
+      element.innerHTML = htmlContent;
       element.style.fontFamily = 'serif'; // Ensure consistent font rendering
 
+      // 4. Find the QR Code placeholder in the element's DOM
+      const qrCodePlaceholder = element.querySelector('img[src="{{QR_CODE}}"]');
+
+      if (verificationUrl && qrCodePlaceholder) {
+        const canvas = document.createElement('canvas');
+        await QRCode.toCanvas(canvas, verificationUrl, { margin: 1, width: 150 });
+        qrCodePlaceholder.parentNode.replaceChild(canvas, qrCodePlaceholder);
+      }
+      
       // 5. Generate and download PDF
       const filename = `${certificateType.replace(/ /g, '_')}_${studentRollNo}.pdf`;
       
