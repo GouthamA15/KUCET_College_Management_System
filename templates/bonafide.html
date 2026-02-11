@@ -10,7 +10,7 @@
   <style>
     @page {
       size: A4;
-      margin: 15mm;
+      margin: 0; /* Remove default margins to control from body/container */
     }
 
     body {
@@ -18,18 +18,27 @@
       font-size: 14pt;
       line-height: 1.6;
       color: #000;
-      height: 94vh;
-      width: fit-content;
-      border: 2px solid black;
-      padding: 20px;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .document-container {
+        width: 210mm; /* A4 width */
+        height: 297mm; /* A4 height */
+        padding: 15mm; /* Inner padding for the content */
+        border: 2px solid black;
+        box-sizing: border-box;
+        margin: 0 auto; /* Center the document on the page */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Pushes footer to bottom */
     }
 
     .header {
-      align-items: center;
-      margin-bottom: 20px;
       display: flex;
-      width: 100%;
-      margin-bottom: 5px;
+      align-items: flex-start; /* Align logo and text at the top */
+      margin-bottom: 20px;
     }
 
     .logo img {
@@ -38,18 +47,21 @@
       height: auto;
     }
 
- 
+    .college-details {
+      flex-grow: 1;
+    }
 
     .college-name {
-      margin-top: 30px;
       font-weight: bold;
       font-size: 14pt;
       text-transform: uppercase;
+      text-align: center; /* Center the college name */
     }
 
     .college-address {
       font-size: 13pt;
       margin-top: 4px;
+      text-align: center; /* Center the college address */
     }
 
     .date {
@@ -76,55 +88,58 @@
 
     .content {
       text-align: justify;
-      margin: 20px 10px;
+      margin: 20px 0; /* Adjust margin */
       position: relative;
-      
+      flex-grow: 1; /* Allow content to grow and push footer down */
     }
 
     .watermark {
       position: absolute;
       z-index : 0;
-      top: 40%;
+      top: 50%; /* Adjusted for better centering */
       left: 50%;
-      position: absolute;
-      transform: translate(-50%,-25%);
+      transform: translate(-50%,-50%);
       opacity: 0.15;
     }
 
-    .content img{
-      width: 400px;
-      height: 400px;
+    .watermark img{
+      width: 150mm; /* Use mm for print consistency */
+      height: auto;
     }
 
-    /* Signature follows the text naturally */
-    .signature-section {
-      margin-top: 40px; /* Space after the last line of text */
-      margin-right: 20px;
-      float: right;
-      text-align: center;
-      width: 200px;
+    .footer-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end; /* Align items at the bottom */
+        margin-top: auto; /* Push this section to the bottom */
+        width: 100%;
     }
-    .signature-section img { height: 50px; width: auto; margin-bottom: -5px; }
+
+    .signature-section {
+      text-align: center;
+      width: 200px; /* Fixed width for signature area */
+      margin-left: auto; /* Push to the right */
+      margin-top: 30px; /* Space from content */
+    }
+    .signature-section img { height: 50px; width: auto; margin-bottom: -5px; display: block; margin-left: auto; margin-right: auto;} /* Center signature image */
     .signature-label { font-weight: bold; font-size: 14pt; border-top: 1px solid black; padding-top: 5px; }
-    /* QR Code is hard-locked to the bottom left */
+    
     .footer-qr {
-      position: absolute;
-      bottom: 30px;
-      left: 30px;
       text-align: center;
       width: 100px;
+      margin-top: 30px; /* Space from content */
     }
-    .footer-qr img { height: 80px; width: 80px; }
+    .footer-qr canvas { height: 80px; width: 80px; display: block; margin: 0 auto; } /* Center canvas */
     .qr-label { font-size: 7pt; font-family: sans-serif; margin-top: 4px; font-weight: bold; }
   </style>
 </head>
 
 <body>
-
+<div class="document-container">
   <div class="header">
-    <div class="logo"><img src="/public/assets/ku-logo.png"  alt="College Logo" /></div>
+    <div class="logo"><img src="/assets/ku-logo.png"  alt="College Logo" /></div>
     
-    <div class="college-details" style="flex-grow: 1;">
+    <div class="college-details">
         <div class="college-name">
           KU COLLEGE OF ENGINEERING & TECHNOLOGY
         </div>
@@ -146,7 +161,7 @@
 
   <div class="content">
     <div class = "watermark">
-      <img src="/public/assets/ku-logo.png">
+      <img src="/assets/ku-logo.png">
     </div>
     This is to certify that Mr./Ms. <strong>{{STUDENT_NAME}}</strong>,
     S/o., D/o. <strong>{{FATHER_NAME}}</strong>
@@ -161,16 +176,17 @@
     <strong>{{ATTENDANCE_PERCENTAGE}}</strong>.
   </div>
 
-  <div class="signature-section">
-      <img src="/public/assets/principal-sign.png" alt="sign">
+  <div class="footer-section">
+    <div class="footer-qr">
+      <img src="{{QR_CODE}}" alt="QR Code"> <!-- This will be replaced by canvas -->
+      <div class="qr-label">SCAN TO VERIFY</div>
+    </div>
+    <div class="signature-section">
+      <img src="/assets/principal-sign.png" alt="sign">
       <div class="signature-label">PRINCIPAL</div>
     </div>
   </div>
 
-  <div class="footer-qr">
-    <img src="{{QR_CODE}}" alt="QR Code">
-    <div class="qr-label">SCAN TO VERIFY</div>
-  </div>
-
+</div>
 </body>
 </html>
