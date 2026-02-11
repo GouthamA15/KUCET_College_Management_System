@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { usePathname } from 'next/navigation';
 // Filters moved into a contextual popover; removed full-width CertificateFilters component
 import CertificateWorkspaceCard from "./CertificateWorkspaceCard";
-import CertificateDateHistory from "./CertificateDateHistory";
+// Date-based history removed — replaced with scope-based history UI
 import CertificateRecordsView from "./CertificateRecordsView";
 import CertificateActionPanel from "./CertificateActionPanel";
 import FiltersPopover from "./FiltersPopover";
@@ -20,14 +20,16 @@ export default function CertificateDashboard({ clerkType }) {
   const [dialogError, setDialogError] = useState(null);
   const [records, setRecords] = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
-  const [historyDates, setHistoryDates] = useState([]);
-  const [loadingDates, setLoadingDates] = useState(false);
+  const [historyScope, setHistoryScope] = useState('my'); // 'my' | 'all'
+  const [myHistoryCount, setMyHistoryCount] = useState(0);
+  const [allHistoryCount, setAllHistoryCount] = useState(0);
   const [rejectReasonOpen, setRejectReasonOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   // Filter UI state
   const [showFilters, setShowFilters] = useState(false);
+  // Filters stored as arrays per spec but popover provides single-select values
   const [filters, setFilters] = useState({ certificateType: '', status: '' });
-  const [appliedFilters, setAppliedFilters] = useState({ certificateType: '', status: '' });
+  const [appliedFilters, setAppliedFilters] = useState({ certificateType: [], status: [] });
   const filtersRef = useRef(null);
   const pathname = usePathname();
 
@@ -35,6 +37,7 @@ export default function CertificateDashboard({ clerkType }) {
     setWorkspaceMode(next);
     if (next === "active") {
       // Clear selected date when switching back to active
+      // ensure history scope remains but clear selectedDate
       setSelectedDate(null);
     }
   };
@@ -45,21 +48,35 @@ export default function CertificateDashboard({ clerkType }) {
     try {
       const params = new URLSearchParams();
       params.set('workspace', workspaceMode);
-      if (workspaceMode === 'history' && selectedDate) params.set('date', selectedDate);
+      if (workspaceMode === 'history') params.set('scope', historyScope);
       if (clerkType) params.set('clerkType', clerkType);
       // Apply active filters to records fetch
-      if (appliedFilters?.certificateType) params.set('certificate_type', appliedFilters.certificateType);
-      if (appliedFilters?.status) params.set('status', appliedFilters.status);
+      // appliedFilters values are arrays — append each as repeated params
+      if (Array.isArray(appliedFilters.certificateType) && appliedFilters.certificateType.length > 0) {
+        appliedFilters.certificateType.forEach(v => params.append('certificateType', v));
+      }
+      if (Array.isArray(appliedFilters.status) && appliedFilters.status.length > 0) {
+        appliedFilters.status.forEach(v => params.append('status', v));
+      }
       const res = await fetch(`/api/clerk/requests?${params.toString()}`, { credentials: 'same-origin' });
       if (!res.ok) throw new Error('Failed to fetch requests');
       const data = await res.json();
-      // Normalize date field for UI
-      const normalized = (Array.isArray(data) ? data : []).map(r => ({
-        ...r,
-        // Prefer the explicit date provided by the backend (YYYY-MM-DD) for history mode.
-        date: r.date ?? (workspaceMode === 'history' ? (r.completed_at || r.updated_at || r.created_at) : (r.created_at)),
-      }));
-      setRecords(normalized);
+      // If history workspace, API returns { records, myHistoryCount, allHistoryCount }
+      if (workspaceMode === 'history') {
+        const recs = Array.isArray(data?.records) ? data.records : [];
+        // Normalize to include a `date` field (YYYY-MM-DD) for grouping
+        const normalized = recs.map(r => ({
+          ...r,
+          date: r.completed_at ? String(r.completed_at).split('T')[0] : (r.date ? String(r.date) : null),
+        }));
+        setRecords(normalized);
+        setMyHistoryCount(Number(data?.myHistoryCount ?? 0));
+        setAllHistoryCount(Number(data?.allHistoryCount ?? 0));
+      } else {
+        const recs = Array.isArray(data.records) ? data.records : (Array.isArray(data) ? data : []);
+        const normalized = recs.map(r => ({ ...r, date: r.created_at ? String(r.created_at).split('T')[0] : r.date }));
+        setRecords(normalized);
+      }
     } catch (e) {
       setRecords([]);
     } finally {
@@ -67,35 +84,18 @@ export default function CertificateDashboard({ clerkType }) {
     }
   };
 
-  // Fetch history dates when entering history mode
-  const fetchHistoryDates = async () => {
-    if (workspaceMode !== 'history') return;
-    setLoadingDates(true);
-    try {
-      const params = new URLSearchParams();
-      params.set('historyDates', 'true');
-      if (clerkType) params.set('clerkType', clerkType);
-      const res = await fetch(`/api/clerk/requests?${params.toString()}`, { credentials: 'same-origin' });
-      if (!res.ok) throw new Error('Failed to fetch history dates');
-      const data = await res.json();
-      // Backend MUST return an array of YYYY-MM-DD strings. Treat them as opaque values.
-      const dates = Array.isArray(data) ? data.filter(d => typeof d === 'string') : [];
-      setHistoryDates(dates);
-    } catch {
-      setHistoryDates([]);
-    } finally {
-      setLoadingDates(false);
-    }
-  };
+  // Date-based history removed; scope-based history uses backend counts
 
   // Effects
   useEffect(() => {
-    fetchRecords();
+    // When switching history scope, immediately show isolated loading and clear stale records
     if (workspaceMode === 'history') {
-      fetchHistoryDates();
+      setLoadingRecords(true);
+      setRecords([]);
     }
+    fetchRecords();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceMode, selectedDate, clerkType, appliedFilters]);
+  }, [workspaceMode, historyScope, clerkType, appliedFilters]);
 
   // Click-away and Escape handling for Filters popover
   useEffect(() => {
@@ -140,7 +140,7 @@ export default function CertificateDashboard({ clerkType }) {
   }, [pathname]);
 
   useEffect(() => {
-    if (workspaceMode === 'history') fetchHistoryDates();
+    // keep effect hook for potential future needs
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceMode, clerkType]);
 
@@ -200,7 +200,31 @@ export default function CertificateDashboard({ clerkType }) {
         <div className="md:col-span-3 space-y-4">
           <CertificateWorkspaceCard mode={workspaceMode} onChange={handleChangeMode} />
           {workspaceMode === "history" && (
-            <CertificateDateHistory dates={historyDates} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+            <section className="bg-white border rounded-lg p-3 shadow-sm">
+              <h4 className="text-sm font-semibold text-gray-800 mb-3">History Scope</h4>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHistoryScope('my')}
+                  className={
+                    "px-3 py-2 text-sm rounded-md border text-left w-full " +
+                    (historyScope === 'my' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-700')
+                  }
+                >
+                  My History ({myHistoryCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHistoryScope('all')}
+                  className={
+                    "px-3 py-2 text-sm rounded-md border text-left w-full " +
+                    (historyScope === 'all' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-700')
+                  }
+                >
+                  All History ({allHistoryCount})
+                </button>
+              </div>
+            </section>
           )}
         </div>
 
@@ -218,58 +242,60 @@ export default function CertificateDashboard({ clerkType }) {
                     <FiltersButton
                       show={showFilters}
                       onToggle={() => setShowFilters((s) => !s)}
-                      activeCount={(appliedFilters.certificateType ? 1 : 0) + (appliedFilters.status ? 1 : 0)}
+                      activeCount={(appliedFilters.certificateType?.length || 0) + (appliedFilters.status?.length || 0)}
                     />
                     {showFilters && (
                       <FiltersPopover
                         filters={filters}
                         setFilters={setFilters}
-                        onApply={() => { setAppliedFilters(filters); setShowFilters(false); }}
-                        onClear={() => { setFilters({ certificateType: '', status: '' }); setAppliedFilters({ certificateType: '', status: '' }); setShowFilters(false); }}
+                        onApply={() => {
+                          const certArr = filters.certificateType ? [filters.certificateType] : [];
+                          const statusArr = filters.status ? [filters.status] : [];
+                          setAppliedFilters({ certificateType: certArr, status: statusArr });
+                          setShowFilters(false);
+                        }}
+                        onClear={() => { setFilters({ certificateType: '', status: '' }); setAppliedFilters({ certificateType: [], status: [] }); setShowFilters(false); }}
                       />
                     )}
                   </div>
                 </div>
               </section>
-              <CertificateRecordsView records={records} onViewDetails={handleViewDetails} />
+              <CertificateRecordsView records={records} onViewDetails={handleViewDetails} loading={loadingRecords} />
             </>
           )}
 
-          {workspaceMode === "history" && selectedDate === null && (
-            <section className="bg-white border rounded-lg p-8 shadow-sm grid place-items-center text-center">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">History</h3>
-                <p className="text-sm text-gray-600">Select a date on the left to view historical records.</p>
-              </div>
-            </section>
-          )}
-
-          {workspaceMode === "history" && selectedDate !== null && (
+          {workspaceMode === 'history' && (
             <>
               <section className="bg-white border rounded-lg p-4 shadow-sm relative">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800">History — {formatDateForDisplay(selectedDate)}</h3>
-                    <p className="text-sm text-gray-600">Placeholder records for the selected date.</p>
+                    <h3 className="text-lg font-semibold text-gray-800">History — {historyScope === 'my' ? 'My History' : 'All History'}</h3>
+                    <p className="text-sm text-gray-600">Showing approved and rejected records grouped by completion date.</p>
                   </div>
                   <div className="ml-4 relative">
                     <FiltersButton
                       show={showFilters}
                       onToggle={() => setShowFilters((s) => !s)}
-                      activeCount={(appliedFilters.certificateType ? 1 : 0) + (appliedFilters.status ? 1 : 0)}
+                      activeCount={(appliedFilters.certificateType?.length || 0) + (appliedFilters.status?.length || 0)}
                     />
                     {showFilters && (
                       <FiltersPopover
                         filters={filters}
                         setFilters={setFilters}
-                        onApply={() => { setAppliedFilters(filters); setShowFilters(false); }}
-                        onClear={() => { setFilters({ certificateType: '', status: '' }); setAppliedFilters({ certificateType: '', status: '' }); setShowFilters(false); }}
+                        onApply={() => {
+                          // Convert popover single-select values into arrays for appliedFilters
+                          const certArr = filters.certificateType ? [filters.certificateType] : [];
+                          const statusArr = filters.status ? [filters.status] : [];
+                          setAppliedFilters({ certificateType: certArr, status: statusArr });
+                          setShowFilters(false);
+                        }}
+                        onClear={() => { setFilters({ certificateType: '', status: '' }); setAppliedFilters({ certificateType: [], status: [] }); setShowFilters(false); }}
                       />
                     )}
                   </div>
                 </div>
               </section>
-              <CertificateRecordsView records={records} onViewDetails={handleViewDetails} />
+              <CertificateRecordsView records={records} onViewDetails={handleViewDetails} groupByDate={true} loading={loadingRecords} />
             </>
           )}
         </div>
@@ -314,7 +340,6 @@ export default function CertificateDashboard({ clerkType }) {
                       if (res.ok) {
                         closeDialog();
                         await fetchRecords();
-                        if (workspaceMode === 'history') await fetchHistoryDates();
                       }
                     } catch {}
                   }}>Approve</button>
@@ -361,7 +386,6 @@ export default function CertificateDashboard({ clerkType }) {
                     setRejectReasonOpen(false);
                     closeDialog();
                     await fetchRecords();
-                    if (workspaceMode === 'history') await fetchHistoryDates();
                   }
                 } catch {}
               }}>Confirm Reject</button>
