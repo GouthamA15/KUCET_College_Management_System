@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import Header from '../../../../components/Header';
 import Footer from '../../../../components/Footer';
 import Navbar from '../../../../components/Navbar';
-import QRCode from 'qrcode';
+import NextImage from 'next/image';
 
 const certificateTypes = {
   "Course Completion Certificate": { fee: 100, clerk: "admission" },
@@ -27,7 +27,6 @@ export default function CertificateRequestsPage() {
   const [downloadErrors, setDownloadErrors] = useState({});
   const [isMobile, setIsMobile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [clientHtml2pdf, setClientHtml2pdf] = useState(null);
 
   const fee = certificateTypes[selectedCertificate].fee;
 
@@ -68,71 +67,46 @@ export default function CertificateRequestsPage() {
     };
   }, []);
 
-  // Dynamic import for html2pdf.js
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !clientHtml2pdf) {
-      import('html2pdf.js').then((module) => {
-        setClientHtml2pdf(() => module.default);
-      }).catch(error => {
-        console.error("Failed to load html2pdf.js:", error);
-      });
-    }
-  }, [clientHtml2pdf]);
-
   const handleDownload = async (req) => {
     if (downloadingId) return;
     setDownloadErrors(prev => ({ ...prev, [req.request_id]: null }));
     setDownloadingId(req.request_id);
-
     try {
-      // 1. Fetch HTML content and data from the API
       const res = await fetch(`/api/student/requests/download/${req.request_id}`, { method: 'GET', credentials: 'same-origin' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to retrieve certificate data.');
+        throw new Error(err.error || 'Failed to generate certificate');
       }
-      const { htmlContent, certificateId, certificateType, studentRollNo, verificationUrl } = await res.json();
-
-      // 2. Generate QR Code client-side
-      let qrCodeDataUri = '';
-      if (verificationUrl) {
-        qrCodeDataUri = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const contentDisp = res.headers.get('Content-Disposition') || res.headers.get('content-disposition');
+      let filename = `Certificate_${req.roll_number || 'certificate'}.pdf`;
+      if (contentDisp) {
+        const filenameStarMatch = contentDisp.match(/filename\*\s*=\s*([^;]+)/i);
+        if (filenameStarMatch) {
+          let val = filenameStarMatch[1].trim();
+          val = val.replace(/^\"/, '').replace(/\"$/, '');
+          const parts = val.split("''");
+          if (parts.length === 2) {
+            try { filename = decodeURIComponent(parts[1]); } catch (e) { filename = parts[1]; }
+          } else {
+            try { filename = decodeURIComponent(val); } catch (e) { filename = val; }
+          }
+        } else {
+          const filenameMatch = contentDisp.match(/filename\s*=\s*\"?(.*?)\"?(?:;|$)/i);
+          if (filenameMatch) filename = filenameMatch[1];
+        }
       }
-
-      // 3. Inject QR Code into HTML content if a placeholder exists
-      let finalHtmlContent = htmlContent;
-      if (qrCodeDataUri) {
-        finalHtmlContent = finalHtmlContent.replace('{{QR_CODE}}', `<img src="${qrCodeDataUri}" alt="QR Code" style="width: 150px; height: 150px;" />`);
-      } else {
-        finalHtmlContent = finalHtmlContent.replace('{{QR_CODE}}', ''); // Remove placeholder if no QR
-      }
-
-      // 4. Create a temporary element to render the HTML
-      const element = document.createElement('div');
-      element.innerHTML = finalHtmlContent;
-      element.style.fontFamily = 'serif'; // Ensure consistent font rendering
-
-      // 5. Generate and download PDF
-      const filename = `${certificateType.replace(/ /g, '_')}_${studentRollNo}.pdf`;
-      
-      const opt = {
-        margin:       [10, 10, 10, 10], // top, left, bottom, right
-        filename:     filename,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, logging: true, dpi: 192, letterRendering: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      if (!clientHtml2pdf) {
-        throw new Error('html2pdf.js not loaded. Please try again.');
-      }
-      await clientHtml2pdf().from(element).set(opt).save();
-      toast.success('Certificate downloaded successfully!');
-
+      a.download = filename || `Certificate_${req.roll_number || 'certificate'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Download error', error);
       setDownloadErrors(prev => ({ ...prev, [req.request_id]: 'Failed to generate certificate. Try again.' }));
-      toast.error(error.message || 'Failed to download certificate.');
     } finally {
       setDownloadingId(null);
     }
@@ -288,18 +262,20 @@ export default function CertificateRequestsPage() {
                         <p className="text-l font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
                         </div>
                         <div className="flex items-center justify-center space-x-2 mb-4">
-            <img
+            <NextImage
               src="/assets/Payment QR/kucet-logo.png"
               alt="PRINCIPAL KU"
+              width={36}
+              height={36}
               className="h-9 w-auto object-contain"
               onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
             />
             <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
             </div>
                         <div className="flex justify-center">
-                          {fee === 100 && <img src="/assets/Payment QR/ku_payment_100.png" alt="Pay ₹100" className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
-                          {fee === 150 && <img src="/assets/Payment QR/ku_payment_150.png" alt="Pay ₹150" className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
-                          {fee === 200 && <img src="/assets/Payment QR/ku_payment_200.png" alt="Pay ₹200" className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                          {fee === 100 && <NextImage src="/assets/Payment QR/ku_payment_100.png" alt="Pay ₹100" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                          {fee === 150 && <NextImage src="/assets/Payment QR/ku_payment_150.png" alt="Pay ₹150" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                          {fee === 200 && <NextImage src="/assets/Payment QR/ku_payment_200.png" alt="Pay ₹200" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
                         </div>
                     </div>
                     <div>

@@ -1,9 +1,11 @@
 import crypto from 'crypto'; 
+import QRCode from 'qrcode';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { jwtVerify } from 'jose';
 import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 // template file used from templates/bonafide.html
+import { htmlToPdfBuffer } from '@/lib/pdf-generator';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -173,6 +175,12 @@ export async function GET(request, { params }) {
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://10.163.82.43:${process.env.PORT || 3000}`;
         const verificationUrl = `${baseUrl}/verify?id=${certId}&roll=${rollNo}`;
 
+        if(verificationUrl) {
+            qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
+        }
+
+
+        
         const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
         const dob = new Date(student.date_of_birth);
         const formattedDob = `${dob.getDate()}-${dob.getMonth() + 1}-${dob.getFullYear()}`;
@@ -190,29 +198,89 @@ export async function GET(request, { params }) {
             BATCH: getBatchFromRoll,
             DURATION: durationString,
             IS_LATERAL: isLateral ? 'Lateral Entry' : 'Regular',
+            // PURPOSE: certRequest.purpose || "general academic purposes",
             ATTENDANCE_PERCENTAGE: attendanceValue || '',
             DOB: formattedDob,
             CERT_ID: certId,
-            VERIFICATION_URL: verificationUrl // Pass URL for client-side QR generation
+            QR_CODE: qrBase64
         };
 
+
+        // 3. Get HTML for the certificate by loading the template and injecting data
         const templatePath = path.join(process.cwd(), 'templates', templateName);
         let htmlTemplate = await fs.readFile(templatePath, 'utf8');
 
+        // Replace placeholders in template (simple token replacement)
         let htmlContent = htmlTemplate;
         for (const [key, value] of Object.entries(data)) {
             const token = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
             htmlContent = htmlContent.replace(token, String(value));
+
+
+        
         }
 
-        // Return the HTML content and other data as JSON
-        return NextResponse.json({
-            htmlContent: htmlContent,
-            certificateId: certId,
-            certificateType: certRequest.certificate_type,
-            studentRollNo: rollNo,
-            verificationUrl: verificationUrl
-        }, { status: 200 });
+        // Ensure images are available to Puppeteer: inline local asset files as data URIs.
+        // We perform async reads for each img src that references an assets path, and replace with a data URI.
+        const inlineImageRegex = /src=["']([^"']*assets\/[^"]+)["']/g;
+        const seen = new Map();
+        // Collect matches first because we'll perform async reads
+        const matches = Array.from(htmlContent.matchAll(inlineImageRegex));
+        for (const m of matches) {
+            const full = m[0];
+            const srcPath = m[1];
+            if (seen.has(full)) continue;
+            try {
+                let p = srcPath;
+                if (p.startsWith(baseUrl)) p = p.slice(baseUrl.length);
+                p = p.replace(/^\/?public\//, '').replace(/^\//, '');
+                const rel = p.includes('assets/') ? p : `assets/${p}`;
+                const filePath = path.join(process.cwd(), 'public', rel.replace(/^\//, ''));
+                const buffer = await fs.readFile(filePath);
+                const ext = path.extname(filePath).toLowerCase().replace('.', '');
+                const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : `image/${ext}`;
+                const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
+                seen.set(full, dataUri);
+                htmlContent = htmlContent.split(full).join(`src="${dataUri}"`);
+            } catch (e) {
+                const fallback = `src="${baseUrl}/${srcPath.replace(/^\//, '')}"`;
+                seen.set(full, fallback);
+                htmlContent = htmlContent.split(full).join(fallback);
+            }
+        }
+
+        // Also handle common template image filenames (in case templates reference them without assets/ path)
+        const knownNames = ['Picture1.png', 'ku-logo.png', 'ku-college-seal.png', 'principal-sign.png'];
+        for (const name of knownNames) {
+            const regex = new RegExp(`src=["'](?:\\/?public\\/?assets\\/${name}|\\/?assets\\/${name}|${name})["']`, 'g');
+            if (!regex.test(htmlContent)) continue;
+            const filePath = path.join(process.cwd(), 'public', 'assets', name);
+            try {
+                const buffer = await fs.readFile(filePath);
+                const ext = path.extname(filePath).toLowerCase().replace('.', '');
+                const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : `image/${ext}`;
+                const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
+                htmlContent = htmlContent.replace(regex, `src="${dataUri}"`);
+            } catch (e) {
+                htmlContent = htmlContent.replace(regex, `src="${baseUrl}/assets/${name}"`);
+            }
+        }
+
+        // 4. Generate PDF using shared helper which uses bundled puppeteer
+        const pdfBuffer = await htmlToPdfBuffer(htmlContent);
+
+        // 5. Send the file as a response
+        const headers = new Headers();
+        headers.set('Content-Type', 'application/pdf');
+        // Use student.roll_no when available
+        const fileRoll = student.roll_no || auth.roll_no || 'student';
+        if (!student.roll_no) console.warn('[CERT_DOWNLOAD] student.roll_no missing, falling back to token roll_no or generic');
+        // RFC 5987 encoded filename to be safe with special chars
+        const filename = `${certRequest.certificate_type.replace(/ /g, '_')}_${fileRoll}.pdf`;
+        const encoded = encodeURIComponent(filename);
+        headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encoded}`);
+
+        return new NextResponse(pdfBuffer, { status: 200, headers });
 
     } catch (error) {
         console.error("Error generating certificate:", error);
