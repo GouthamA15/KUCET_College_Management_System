@@ -226,7 +226,6 @@ export default function BonafideRequestPage() {
       let qrCodeDataUri = '';
       if (verificationUrl) {
         qrCodeDataUri = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
-        console.log("Generated QR Code Data URI:", qrCodeDataUri); // Debugging line
       }
 
       // 3. Create a temporary element to render the HTML
