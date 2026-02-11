@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@sparticuz/chromium": "^143.0.4",
     "bcrypt": "^6.0.0",
     "browser-image-compression": "^2.0.2",
     "docxtemplater": "^3.67.6",
@@ -21,14 +20,14 @@
     "next": "^16.1.6",
     "nodemailer": "^7.0.13",
     "pizzip": "^3.2.0",
-    "puppeteer": "^24.36.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-datepicker": "^9.1.0",
     "react-dom": "^19.2.4",
     "react-hot-toast": "^2.6.0",
     "read-excel-file": "^6.0.3",
-    "xlsx-js-style": "^1.2.0"
+    "xlsx-js-style": "^1.2.0",
+    "html2pdf.js": "^0.10.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
