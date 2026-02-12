@@ -62,7 +62,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
   else if (clerkMode) role = 'clerk';
   else if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) role = 'superAdmin';
   const menuItems = menuConfig[role] || [
-    { label: 'HOME', route: '/' },
+    // { label: 'HOME', route: '/' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'EMPLOYEE LOGIN', action: 'open-panel-clerk' },
     { label: 'SUPER ADMIN', action: 'open-panel-admin' }

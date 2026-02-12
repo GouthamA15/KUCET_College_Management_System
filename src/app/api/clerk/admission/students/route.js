@@ -118,7 +118,7 @@ export async function POST(req) {
 
     // Insert into `students` table (core student record). Set added_by_clerk_id from token.
     const studentResult = await query(
-      `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email, added_by_clerk_id, fee_reimbursement) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email, added_by_clerk_id, fee_reimbursement, created_at, updated_at, updated_by_clerk_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NULL, NULL)`,
       [admission_no || null, providedRoll, name || null, toMySQLDate(date_of_birth) || null, gender || null, mobile || null, email || null, clerkId, feeReimbursementToSave]
     );
 

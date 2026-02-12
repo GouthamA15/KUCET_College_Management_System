@@ -26,11 +26,11 @@ export default function ClerkStudentManagement() {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-2xl font-semibold mb-4">Student Management</h2>
-      <div className="flex space-x-2 mb-4">
-        <button onClick={() => setActiveAction(prev => (prev === 'add' ? null : 'add'))} className={`px-3 py-2 rounded ${activeAction === 'add' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer`}>Add New Student</button>
-        <button onClick={() => setActiveAction(prev => (prev === 'import' ? null : 'import'))} className={`px-3 py-2 rounded ${activeAction === 'import' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer`}>Import From Excel</button>
-        <button onClick={() => setActiveAction(prev => (prev === 'fetch' ? null : 'fetch'))} className={`px-3 py-2 rounded ${activeAction === 'fetch' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer`}>Fetch Student</button>
-        <button onClick={() => { if (fetchedStudent) setActiveAction(prev => (prev === 'view' ? null : 'view')); }} disabled={!fetchedStudent} className={`px-3 py-2 rounded ${activeAction === 'view' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} ${!fetchedStudent ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>View / Edit Student</button>
+      <div className="flex flex-col md:flex-row md:space-x-2 space-y-3 md:space-y-0 mb-4">
+        <button onClick={() => setActiveAction(prev => (prev === 'add' ? null : 'add'))} className={`w-full md:w-auto text-center px-3 py-3 rounded ${activeAction === 'add' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer whitespace-nowrap`}>Add New Student</button>
+        <button onClick={() => setActiveAction(prev => (prev === 'import' ? null : 'import'))} className={`w-full md:w-auto text-center px-3 py-3 rounded ${activeAction === 'import' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer whitespace-nowrap`}>Import From Excel</button>
+        <button onClick={() => setActiveAction(prev => (prev === 'fetch' ? null : 'fetch'))} className={`w-full md:w-auto text-center px-3 py-3 rounded ${activeAction === 'fetch' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer whitespace-nowrap`}>Fetch Student</button>
+        <button onClick={() => { if (fetchedStudent) setActiveAction(prev => (prev === 'view' ? null : 'view')); }} disabled={!fetchedStudent} className={`w-full md:w-auto text-center px-3 py-3 rounded ${activeAction === 'view' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} ${!fetchedStudent ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} whitespace-nowrap`}>View / Edit Student</button>
       </div>
 
       {activeAction === 'add' && <AddNewStudent />}
