@@ -64,7 +64,7 @@ export const styles = StyleSheet.create({
       fontWeight: "bold",
       fontSize: 18,
       marginTop: 40,
-      marginBottom: 35,
+      marginBottom: 15,
       textTransform: "uppercase",
       textDecoration: "underline",
     },
@@ -95,18 +95,20 @@ export const styles = StyleSheet.create({
       alignSelf: "flex-end",
       alignItems: "flex-end",
       textAlign: "center",
-      width: 200,
+      width: 300,
     },
+
     signatureImage: {
-      width: 80,
-      height: 40,
+      width: 140,
     },
+
     signatureLabel: {
       fontWeight: "bold",
       fontSize: 14,
       borderTopWidth: 1,
       borderTopColor: "#000",
-      paddingTop: 5,
+      paddingTop: 1,
+      marginRight: 30
     },
     qrSection: {
       position: "absolute",
