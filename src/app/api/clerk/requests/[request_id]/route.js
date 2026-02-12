@@ -32,7 +32,7 @@ export async function PUT(request, { params }) {
     const resolvedParams = await params;
     const { request_id } = resolvedParams;
     const body = await request.json();
-    let { status } = body;
+    let { status, purpose } = body;
     const reject_reason = body.reject_reason;
     if (!status) {
         return NextResponse.json({ error: 'Status is required' }, { status: 400 });
@@ -82,8 +82,8 @@ export async function PUT(request, { params }) {
             );
         } else if (status === 'APPROVED') {
             result = await query(
-                'UPDATE student_requests SET status = ?, reject_reason = NULL, completed_at = NOW(), updated_at = NOW(), action_by_clerk_id = ?, action_by_role = ? WHERE request_id = ?',
-                [status, clerk.id ?? null, clerk.role ?? null, request_id]
+                'UPDATE student_requests SET status = ?, purpose = ?, reject_reason = NULL, completed_at = NOW(), updated_at = NOW(), action_by_clerk_id = ?, action_by_role = ? WHERE request_id = ?',
+                [status, purpose || null, clerk.id ?? null, clerk.role ?? null, request_id]
             );
         } else {
             // PENDING or other non-final state: don't set completed_at or reject_reason
@@ -147,6 +147,7 @@ export async function GET(request, { params }) {
             sr.status,
             sr.payment_amount,
             sr.transaction_id,
+            sr.purpose,
             sr.payment_screenshot,
             sr.academic_year,
             sr.created_at,

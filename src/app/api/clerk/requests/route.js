@@ -111,6 +111,8 @@ export async function GET(request) {
         sr.status,
         sr.payment_amount,
         sr.transaction_id,
+        sr.purpose,
+        sr.payment_screenshot,
         sr.academic_year,
         sr.created_at,
         sr.completed_at,
@@ -177,6 +179,8 @@ export async function GET(request) {
         sr.status,
         sr.payment_amount,
         sr.transaction_id,
+        sr.purpose,
+        sr.payment_screenshot,
         sr.academic_year,
         sr.created_at
       FROM student_requests sr

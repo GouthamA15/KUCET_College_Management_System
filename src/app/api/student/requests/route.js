@@ -101,6 +101,7 @@ export async function POST(request) {
     const clerkType = formData.get('clerkType');
     const paymentAmount = formData.get('paymentAmount');
     const transactionId = formData.get('transactionId');
+    const purpose = formData.get('purpose')
     const paymentScreenshotFile = formData.get('paymentScreenshot');
 
     let paymentScreenshotBuffer = null;
@@ -113,7 +114,7 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (paymentAmount > 0 && (!transactionId || !paymentScreenshotBuffer)) {
+    if (paymentAmount >= 0 && (!transactionId || !paymentScreenshotBuffer)) {
         return NextResponse.json({ error: 'Transaction ID and screenshot are required for paid certificates' }, { status: 400 });
     }
 
@@ -155,8 +156,8 @@ export async function POST(request) {
         // status === 'REJECTED' -> allow re-request by reusing the same row (UPDATE)
         try {
           const updateResult = await query(
-            `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
-            [paymentAmount, transactionId, 'PENDING', existing.request_id]
+            `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, purpose = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
+            [paymentAmount, transactionId, purpose||null, 'PENDING', existing.request_id]
           );
           
           if (paymentScreenshotBuffer) {
@@ -182,8 +183,8 @@ export async function POST(request) {
 
       // No existing row - safe to insert
       const result = await query(
-        'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, status) VALUES (?, ?, ?, ?, ?, ?)',
-        [auth.student_id, certificateType,  academicYear, paymentAmount, transactionId, 'PENDING']
+        'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [auth.student_id, certificateType,  academicYear, paymentAmount, transactionId, purpose|| null, 'PENDING']
       );
       
       const newRequestId = result.insertId;
