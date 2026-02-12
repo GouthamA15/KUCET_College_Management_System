@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 
 export default function CertificateActionPanel({ request }) {
+  const [imageLoading, setImageLoading] = useState(true);
+
   const toDmy = (val) => {
     if (!val) return "—";
     try {
@@ -29,27 +32,9 @@ export default function CertificateActionPanel({ request }) {
     return `₹${n}`;
   };
 
-  const screenshotSrc = (() => {
-    const ss = request?.payment_screenshot;
-    if (!ss) return null;
-    try {
-      if (typeof ss === "string") {
-        if (ss.startsWith("data:")) return ss;
-        // if it's plain base64 without prefix, assume jpeg
-        return `data:image/jpeg;base64,${ss}`;
-      }
-      if (ss?.data) {
-        const bytes = new Uint8Array(ss.data);
-        let binary = "";
-        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-        const b64 = typeof window !== "undefined" ? window.btoa(binary) : Buffer.from(binary, "binary").toString("base64");
-        return `data:image/jpeg;base64,${b64}`;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  })();
+  const screenshotSrc = (request?.request_id && Number(request.payment_amount) > 0) 
+    ? `/api/student/requests/image/${request.request_id}` 
+    : null;
 
   return (
     <section className="bg-white">
@@ -137,9 +122,25 @@ export default function CertificateActionPanel({ request }) {
 
         <div className="flex flex-col">
           <h4 className="font-medium text-gray-800 mb-2">Payment Screenshot</h4>
-          <div className="flex-1 min-h-[180px] w-full rounded-md border bg-gray-50 grid place-items-center">
+          <div className="flex-1 min-h-[180px] w-full rounded-md border bg-gray-50 grid place-items-center relative overflow-hidden">
             {screenshotSrc ? (
-              <Image src={screenshotSrc} alt="Payment Screenshot" width={500} height={500} className="max-w-full max-h-[48vh] object-contain rounded-md" />
+              <>
+                {imageLoading && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-1">
+                        <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                        <span className="text-xs text-gray-500 font-medium">Image is loading...</span>
+                    </div>
+                )}
+                <Image 
+                    src={screenshotSrc} 
+                    alt="Payment Screenshot" 
+                    width={500} 
+                    height={500} 
+                    unoptimized
+                    className={`max-w-full max-h-[48vh] object-contain rounded-md transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                    onLoad={() => setImageLoading(false)}
+                />
+              </>
             ) : (
               <span className="text-sm text-gray-400">No screenshot provided.</span>
             )}

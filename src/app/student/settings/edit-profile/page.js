@@ -6,7 +6,6 @@ import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
-import imageCompression from 'browser-image-compression';
 import { getBranchFromRoll, getCurrentAcademicYear } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
 
@@ -23,9 +22,18 @@ export default function EditProfilePage() {
   const [originalMobile, setOriginalMobile] = useState('');
   const [originalAddress, setOriginalAddress] = useState('');
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
   const fileInputRef = useRef(null);
   const menuRef = useRef(null);
   const editBtnRef = useRef(null);
+
+  const displayedPhoto = pfpDataUrl ? pfpDataUrl : photoRemoved ? null : student?.pfp || null;
+
+  useEffect(() => {
+    if (displayedPhoto) {
+      setImageLoading(true);
+    }
+  }, [displayedPhoto]);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -99,32 +107,22 @@ export default function EditProfilePage() {
     }
   };
 
-  const onPhotoSelect = async (file) => {
+  const onPhotoSelect = (file) => {
     setPhotoFile(file || null);
     if (file) {
-      // Validate types as in old implementation
       if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
         setMessage({ type: 'error', text: 'Only JPG, JPEG, and PNG files are allowed.' });
         return;
       }
-      // Allow compression for files larger than 2MB as requested
-
-      try {
-        const options = {
-          maxSizeMB: 0.06,
-          maxWidthOrHeight: 150,
-          useWebWorker: true,
-          fileType: 'image/jpeg',
-        };
-        const compressedFile = await imageCompression(file, options);
-        const reader = new FileReader();
-        reader.onload = () => setPfpDataUrl(reader.result);
-        reader.readAsDataURL(compressedFile);
-        setMessage(null);
-      } catch (err) {
-        setMessage({ type: 'error', text: 'Image compression failed. Please try another image.' });
-        setPfpDataUrl(null);
+      if (file.size > 4 * 1024 * 1024) {
+        setMessage({ type: 'error', text: 'File size must be less than 4MB.' });
+        return;
       }
+
+      const reader = new FileReader();
+      reader.onload = () => setPfpDataUrl(reader.result);
+      reader.readAsDataURL(file);
+      setMessage(null);
     } else {
       setPfpDataUrl(null);
     }
@@ -144,8 +142,6 @@ export default function EditProfilePage() {
     router.push('/student/profile');
   };
 
-  const displayedPhoto = pfpDataUrl ? pfpDataUrl : photoRemoved ? null : student?.pfp || null;
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
       <Header />
@@ -163,9 +159,25 @@ export default function EditProfilePage() {
               <div className="flex flex-col items-center md:items-start">
                 {/* Parent container: relative; inner circle handles overflow. */}
                 <div className="relative w-44">
-                  <div className="w-44 h-44 rounded-full border-4 border-gray-300 overflow-hidden flex items-center justify-center bg-gray-100">
+                  <div className="w-44 h-44 rounded-full border-4 border-gray-300 overflow-hidden flex items-center justify-center bg-gray-100 relative">
                     {displayedPhoto ? (
-                      <Image src={displayedPhoto} alt="Profile Photo" width={176} height={176} className="object-cover w-full h-full" />
+                      <>
+                        {imageLoading && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-2">
+                                <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+                                <span className="text-xs text-gray-500 font-medium">Image is loading...</span>
+                            </div>
+                        )}
+                        <Image 
+                            src={displayedPhoto} 
+                            alt="Profile Photo" 
+                            width={176} 
+                            height={176} 
+                            unoptimized
+                            className={`object-cover w-full h-full transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`} 
+                            onLoad={() => setImageLoading(false)}
+                        />
+                      </>
                     ) : (
                       <div className="text-gray-500">Profile Picture</div>
                     )}

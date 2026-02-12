@@ -2,7 +2,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
@@ -102,48 +101,17 @@ export default function BonafideRequestPage() {
     };
   }, [paymentScreenshot]);
 
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { // 5MB
-      toast.error('File size should be less than 5MB.');
+    if (file.size > 4 * 1024 * 1024) { // 4MB
+      toast.error('File size must be less than 4MB.');
+      setPaymentScreenshot(null);
+      e.target.value = null; // Reset input
       return;
     }
-    try {
-      let compressedFile = file;
-      const options = {
-        maxSizeMB: 0.058, 
-        maxWidthOrHeight: 800,
-        useWebWorker: true,
-        initialQuality: 0.6, 
-      };
-
-      
-      if (file.size > 60 * 1024) {
-        compressedFile = await imageCompression(file, options);
-      }
-
-      
-      let finalFile = compressedFile;
-      let quality = 0.6;
-      while (finalFile.size > 60 * 1024 && quality > 0.1) {
-        quality -= 0.1;
-        const loopOptions = { ...options, initialQuality: quality };
-        finalFile = await imageCompression(file, loopOptions);
-      }
-
-      if (finalFile.size > 60 * 1024) {
-        toast.error('Image is too large even after compression. Please use a smaller image.');
-        setPaymentScreenshot(null);
-        return;
-      }
-
-      setPaymentScreenshot(finalFile);
-      toast.success(`Image compressed to ${(finalFile.size / 1024).toFixed(2)} KB and ready for upload.`);
-    } catch (err) {
-      setPaymentScreenshot(null);
-      toast.error('Image compression failed.');
-    }
+    setPaymentScreenshot(file);
+    toast.success('Image ready for upload.');
   };
 
   const handleSubmit = async (e) => {
