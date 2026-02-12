@@ -54,6 +54,26 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **Database and Image Handling Optimization:**
+    *   **Resolved Slow Query Performance:** Fixed a critical performance issue where `SELECT * FROM students` was taking an excessive amount of time due to large image blobs stored directly in the main tables.
+    *   **Database Schema Refactoring:**
+        *   **Students:** Created a new table `student_images` (linked by `student_id`) to store profile pictures. The `pfp` column was dropped from the main `students` table.
+        *   **Requests:** Created a new table `student_request_images` (linked by `request_id`) to store payment screenshots. The `payment_screenshot` column was dropped from the main `student_requests` table.
+        *   **Migration:** Data was successfully migrated to these new tables using migration scripts (`migrate_standalone.js` and `migrate_request_images.js`).
+    *   **Backend API Overhaul:**
+        *   **New Image Serving APIs:**
+            *   `src/app/api/student/image/[rollno]/route.js`: Dedicated endpoint to serve student profile pictures.
+            *   `src/app/api/student/requests/image/[request_id]/route.js`: Dedicated endpoint to serve payment screenshots, incorporating robust role-based authentication (Admin, Clerk, Student owner).
+        *   **API Logic Updates:**
+            *   `src/app/api/student/[rollno]/route.js`: No longer returns base64 image data. Instead, it conditionally sets the `pfp` field to the new image API URL if an image exists.
+            *   `src/app/api/student/requests/route.js` & `src/app/api/clerk/requests/route.js`: Updated to exclude image blobs from list queries, ensuring fast response times. Image insertion logic in `POST` requests was separated to write to the new image tables.
+            *   `src/app/api/student/upload-photo/route.js`: Updated to insert/update records in `student_images` instead of the main student table.
+    *   **Frontend Enhancements:**
+        *   **Removed Client-Side Compression:** The `browser-image-compression` library was removed to resolve quality issues.
+        *   **Strict File Size Limit:** Enforced a strict **4MB** file size limit on the client-side for both profile pictures and payment screenshots.
+        *   **Full Quality Rendering:** Updated `Next.js` `Image` components with the `unoptimized` prop to display images in full quality without server-side resizing artifacts.
+        *   **Loading States:** Implemented "Image is loading..." spinner overlays in `StudentProfile`, `EditProfile`, `ViewEditStudent` (Clerk), and `CertificateActionPanel` (Clerk) components to improve user experience during image fetching.
+
 *   **ROLLBACK TO WORKING METHOD (`f522fd8`)**: This commit rolls back recent changes to a previously stable working method. This was necessary due to issues encountered with newer versions, ensuring the system returns to a functional state.
     *   **New Faculty Role:** The system now supports a "Faculty" role for clerks, with a dedicated dashboard page (`src/app/clerk/faculty/dashboard/page.js`).
     *   **Email on Clerk Creation:** When a super admin creates a new clerk account, an email is automatically sent to the clerk with their login credentials (temporary password) and a link to the portal. This is handled in `src/app/api/admin/create-clerk/route.js`. (commit `be94146`)
