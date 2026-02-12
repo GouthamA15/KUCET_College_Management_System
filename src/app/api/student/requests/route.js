@@ -174,7 +174,7 @@ export async function POST(request) {
 
       // No existing row - safe to insert
       const result = await query(
-        'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, payment_screenshot, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, payment_screenshot, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [auth.student_id, certificateType,  academicYear, paymentAmount, transactionId, paymentScreenshotBuffer, 'PENDING']
       );
       if (result.affectedRows === 1) {

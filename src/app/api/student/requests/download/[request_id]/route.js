@@ -11,7 +11,7 @@ import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
 import CustodianCertificatePDF from '@/pdf/templates/CustodianCertificatePDF';
 import StudyConductCertificatePDF from '@/pdf/templates/StudyConductCertificatePDF';
 import MigrationCertificatePDF from '@/pdf/templates/MigrationCertificatePDF';
-import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCertificatePDF';
+// import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCertificatePDF';
 import IncomeTaxCertificatePDF from '@/pdf/templates/IncomeTaxCertificatePDF';
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -53,7 +53,7 @@ const certificateComponents = {
     'Custodian Certificate': CustodianCertificatePDF,
     'Study Conduct Certificate': StudyConductCertificatePDF,
     'Migration Certificate': MigrationCertificatePDF,
-    'Course Completion Certificate': CourseCompletionCertificatePDF,
+    // 'Course Completion Certificate': CourseCompletionCertificatePDF,
     'Income Tax (IT) Certificate': IncomeTaxCertificatePDF,
 };
 
@@ -183,11 +183,13 @@ export async function GET(request, { params }) {
         const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
         const dob = new Date(student.date_of_birth);
         const formattedDob = `${dob.getDate()}-${dob.getMonth() + 1}-${dob.getFullYear()}`;
-        const course = `${getBranchFromRoll(student.roll_no)}`;
+        const course = String(getBranchFromRoll(student.roll_no) || '');
 
        
         const logoUrl = `${baseUrl}/assets/ku-logo.png`;
         const signatureUrl = `${baseUrl}/assets/principal-sign.png`;
+        const stampSign = `${baseUrl}/assets/principal-signStamp.jpg`;
+        const stampUrl = `${baseUrl}/assets/ku-college-seal.png`;
 
         const commonData = {
             certId,
@@ -196,9 +198,12 @@ export async function GET(request, { params }) {
             fatherName: student.father_name || 'N/A',
             admissionNo: student.roll_no,
             course,
+            dob: formattedDob,
             academicYear: getResolvedCurrentAcademicYear(student.roll_no) || certRequest.academic_year || '',
             logoUrl,
             signatureUrl,
+            stampSign,
+            stampUrl,
             qrUrl: qrBase64,
         };
 
