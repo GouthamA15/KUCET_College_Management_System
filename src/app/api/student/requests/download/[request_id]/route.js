@@ -1,13 +1,18 @@
 import crypto from 'crypto'; 
 import QRCode from 'qrcode';
+import React from 'react';
+import { pdf } from '@react-pdf/renderer';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { jwtVerify } from 'jose';
-import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
-// template file used from templates/bonafide.html
-import { htmlToPdfBuffer } from '@/lib/pdf-generator';
-import path from 'path';
-import fs from 'fs/promises';
+import { getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+// React-PDF templates
+import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
+import CustodianCertificatePDF from '@/pdf/templates/CustodianCertificatePDF';
+import StudyConductCertificatePDF from '@/pdf/templates/StudyConductCertificatePDF';
+import MigrationCertificatePDF from '@/pdf/templates/MigrationCertificatePDF';
+import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCertificatePDF';
+import IncomeTaxCertificatePDF from '@/pdf/templates/IncomeTaxCertificatePDF';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -43,13 +48,13 @@ async function getStudentFromToken(request) {
     }
 }
 
-const certificateTemplates = {
-  'Bonafide Certificate': 'bonafide.html',
-  'Custodian Certificate': 'custodian.html',
-  'Study Conduct Certificate': 'study-conduct.html',
-  'Migration Certificate': 'migration.html',
-  'Course Completion Certificate' : 'course-completion.html',
-  'Income Tax (IT) Certificate' : 'income-tax.html'
+const certificateComponents = {
+    'Bonafide Certificate': BonafideCertificatePDF,
+    'Custodian Certificate': CustodianCertificatePDF,
+    'Study Conduct Certificate': StudyConductCertificatePDF,
+    'Migration Certificate': MigrationCertificatePDF,
+    'Course Completion Certificate': CourseCompletionCertificatePDF,
+    'Income Tax (IT) Certificate': IncomeTaxCertificatePDF,
 };
 
 // using bundled Puppeteer; helper closes browser internally
@@ -90,9 +95,9 @@ export async function GET(request, { params }) {
         }
 
         const certRequest = requests[0];
-        const templateName = certificateTemplates[certRequest.certificate_type];
+        const Template = certificateComponents[certRequest.certificate_type];
 
-        if (!templateName || certRequest.status !== 'APPROVED') {
+        if (!Template || certRequest.status !== 'APPROVED') {
             return NextResponse.json({ error: 'Certificate not available for download' }, { status: 403 });
         }
 
@@ -154,19 +159,14 @@ export async function GET(request, { params }) {
         const certId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
 
         // Attendance Values are only assigned in Bonafide
-        // Other types will leave 'generated_attendance' column NULL
         const isBonafide = certRequest.certificate_type === 'Bonafide Certificate';
         let attendanceValue = certRequest.generated_attendance;
-
-        // Only run this logic for Bonafide certificates
-        if (isBonafide && !attendanceValue) {
-            const randomPercent = Math.floor(Math.random() * (95 - 80 + 1)) + 80;
-            attendanceValue = `${randomPercent}%`;
-        } else if (!isBonafide) {
-            attendanceValue = null; // Ensure it stays null for other types
+        // Do not generate mock attendance; use only data from DB.
+        if (!isBonafide) {
+            attendanceValue = null;
         }
 
-        // Update database (this saves the Cert ID for all, but attendance only for Bonafide)
+        // Persist cert ID and attendance (bonafide only)
         await query(
             'UPDATE student_requests SET generated_certificate_id = ?, generated_attendance = ? WHERE request_id = ?',
             [certId, attendanceValue, request_id]
@@ -180,94 +180,75 @@ export async function GET(request, { params }) {
         }
 
 
-        
         const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
         const dob = new Date(student.date_of_birth);
         const formattedDob = `${dob.getDate()}-${dob.getMonth() + 1}-${dob.getFullYear()}`;
+        const course = `${getBranchFromRoll(student.roll_no)}`;
 
-        const course = ` ${getBranchFromRoll(student.roll_no)}`;
-        const data = {
-            DATE: formattedDate,
-            STUDENT_NAME: student.name,
-            FATHER_NAME: student.father_name || 'N/A',
-            ADMISSION_NO: student.roll_no,
-            COURSE: course,
-            YEAR: yearWords[yearOfStudy - 1] || 'N/A',
-            SEMESTER: semesterWords[currentSemester - 1] || 'N/A',
-            ACADEMIC_YEAR: getResolvedCurrentAcademicYear(student.roll_no) || '',
-            BATCH: getBatchFromRoll,
-            DURATION: durationString,
-            IS_LATERAL: isLateral ? 'Lateral Entry' : 'Regular',
-            // PURPOSE: certRequest.purpose || "general academic purposes",
-            ATTENDANCE_PERCENTAGE: attendanceValue || '',
-            DOB: formattedDob,
-            CERT_ID: certId,
-            QR_CODE: qrBase64
+       
+        const logoUrl = `${baseUrl}/assets/ku-logo.png`;
+        const signatureUrl = `${baseUrl}/assets/principal-sign.png`;
+
+        const commonData = {
+            certId,
+            date: formattedDate,
+            studentName: student.name,
+            fatherName: student.father_name || 'N/A',
+            admissionNo: student.roll_no,
+            course,
+            academicYear: getResolvedCurrentAcademicYear(student.roll_no) || certRequest.academic_year || '',
+            logoUrl,
+            signatureUrl,
+            qrUrl: qrBase64,
         };
 
-
-        // 3. Get HTML for the certificate by loading the template and injecting data
-        const templatePath = path.join(process.cwd(), 'templates', templateName);
-        let htmlTemplate = await fs.readFile(templatePath, 'utf8');
-
-        // Replace placeholders in template (simple token replacement)
-        let htmlContent = htmlTemplate;
-        for (const [key, value] of Object.entries(data)) {
-            const token = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-            htmlContent = htmlContent.replace(token, String(value));
-
-
-        
+        // Extend data per certificate type
+        let data = { ...commonData };
+        switch (certRequest.certificate_type) {
+            case 'Bonafide Certificate':
+                data = {
+                    ...data,
+                    year: yearWords[yearOfStudy - 1] || 'N/A',
+                    semester: semesterWords[currentSemester - 1] || 'N/A',
+                    attendancePercentage: attendanceValue || '',
+                };
+                break;
+            case 'Course Completion Certificate':
+                data = {
+                    ...data,
+                    batch: batchString,
+                    aggCgpa: 'N/A',
+                    year: today.getFullYear(),
+                };
+                break;
+            case 'Income Tax (IT) Certificate':
+                data = {
+                    ...data,
+                    feeAmount: certRequest.payment_amount || 'N/A',
+                };
+                break;
+            case 'Migration Certificate':
+                data = {
+                    ...data,
+                    reason: 'N/A',
+                };
+                break;
+            case 'Study Conduct Certificate':
+                data = {
+                    ...data,
+                    conduct: 'Good',
+                };
+                break;
+            case 'Custodian Certificate':
+                // No extra fields beyond common
+                break;
+            default:
+                // fallthrough, use common
+                break;
         }
 
-        // Ensure images are available to Puppeteer: inline local asset files as data URIs.
-        // We perform async reads for each img src that references an assets path, and replace with a data URI.
-        const inlineImageRegex = /src=["']([^"']*assets\/[^"]+)["']/g;
-        const seen = new Map();
-        // Collect matches first because we'll perform async reads
-        const matches = Array.from(htmlContent.matchAll(inlineImageRegex));
-        for (const m of matches) {
-            const full = m[0];
-            const srcPath = m[1];
-            if (seen.has(full)) continue;
-            try {
-                let p = srcPath;
-                if (p.startsWith(baseUrl)) p = p.slice(baseUrl.length);
-                p = p.replace(/^\/?public\//, '').replace(/^\//, '');
-                const rel = p.includes('assets/') ? p : `assets/${p}`;
-                const filePath = path.join(process.cwd(), 'public', rel.replace(/^\//, ''));
-                const buffer = await fs.readFile(filePath);
-                const ext = path.extname(filePath).toLowerCase().replace('.', '');
-                const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : `image/${ext}`;
-                const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
-                seen.set(full, dataUri);
-                htmlContent = htmlContent.split(full).join(`src="${dataUri}"`);
-            } catch (e) {
-                const fallback = `src="${baseUrl}/${srcPath.replace(/^\//, '')}"`;
-                seen.set(full, fallback);
-                htmlContent = htmlContent.split(full).join(fallback);
-            }
-        }
-
-        // Also handle common template image filenames (in case templates reference them without assets/ path)
-        const knownNames = ['Picture1.png', 'ku-logo.png', 'ku-college-seal.png', 'principal-sign.png'];
-        for (const name of knownNames) {
-            const regex = new RegExp(`src=["'](?:\\/?public\\/?assets\\/${name}|\\/?assets\\/${name}|${name})["']`, 'g');
-            if (!regex.test(htmlContent)) continue;
-            const filePath = path.join(process.cwd(), 'public', 'assets', name);
-            try {
-                const buffer = await fs.readFile(filePath);
-                const ext = path.extname(filePath).toLowerCase().replace('.', '');
-                const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : `image/${ext}`;
-                const dataUri = `data:${mime};base64,${buffer.toString('base64')}`;
-                htmlContent = htmlContent.replace(regex, `src="${dataUri}"`);
-            } catch (e) {
-                htmlContent = htmlContent.replace(regex, `src="${baseUrl}/assets/${name}"`);
-            }
-        }
-
-        // 4. Generate PDF using shared helper which uses bundled puppeteer
-        const pdfBuffer = await htmlToPdfBuffer(htmlContent);
+        // 4. Generate PDF using React-PDF
+        const pdfBuffer = await pdf(<Template {...data} />).toBuffer();
 
         // 5. Send the file as a response
         const headers = new Headers();
@@ -286,6 +267,6 @@ export async function GET(request, { params }) {
         console.error("Error generating certificate:", error);
         return NextResponse.json({ error: 'An error occurred while generating the certificate.', details: error.message }, { status: 500 });
     } finally {
-        // nothing to clean up here; browser lifecycle is handled in pdf-generator
+        // nothing to clean up
     }
 }

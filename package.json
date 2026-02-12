@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.3.2",
     "bcrypt": "^6.0.0",
     "browser-image-compression": "^2.0.2",
     "docxtemplater": "^3.67.6",
@@ -20,7 +21,6 @@
     "next": "^16.1.6",
     "nodemailer": "^7.0.13",
     "pizzip": "^3.2.0",
-    "puppeteer": "^24.36.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-datepicker": "^9.1.0",
