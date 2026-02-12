@@ -7,7 +7,7 @@ import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
 import SetPasswordModal from '@/components/SetPasswordModal';
-import { getBranchFromRoll, getEntryYearFromRoll, getAdmissionTypeFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { getBranchFromRoll, getEntryYearFromRoll, getAdmissionTypeFromRoll, getResolvedCurrentAcademicYear, getBatchFromRoll } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
 import { computeAcademicYear, isYearAllowed } from '@/app/lib/academicYear';
 import toast from 'react-hot-toast'; // Added toast
@@ -355,6 +355,8 @@ export default function StudentProfileNew() {
   const yearOfStudy = computeYearOfStudy(student.roll_no);
   let currentAcademicYearLabel = null;
   try { currentAcademicYearLabel = getResolvedCurrentAcademicYear(student.roll_no); } catch { currentAcademicYearLabel = null; }
+  let batchString = null;
+  try { batchString = getBatchFromRoll(student.roll_no); } catch { batchString = null }
 
   // Determine allowed span (3 for lateral, 4 for regular)
   const maxYears = (() => {
@@ -490,7 +492,9 @@ export default function StudentProfileNew() {
                 <div className="text-xl font-semibold">{courseLabel}</div>
                 <div className="text-blue-700 font-semibold">Year: {yearOfStudy}</div>
                 {currentAcademicYearLabel && (
-                  <div className="text-blue-700 font-semibold">Academic Year: {currentAcademicYearLabel} (Current Academic)</div>
+                  <><div className="text-blue-700 font-semibold">Academic Year: {currentAcademicYearLabel} (Current Academic)</div>
+                  <div className="text-blue-700 font-semibold">Batch: {batchString}</div>
+                </>
                 )}
               </div>
 
