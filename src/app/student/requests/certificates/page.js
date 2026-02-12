@@ -20,6 +20,7 @@ export default function CertificateRequestsPage() {
   const router = useRouter();
   const [selectedCertificate, setSelectedCertificate] = useState(Object.keys(certificateTypes)[0]);
   const [transactionId, setTransactionId] = useState('');
+  const [purpose, setPurpose] = useState('');
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [requests, setRequests] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -138,24 +139,28 @@ export default function CertificateRequestsPage() {
       toast.success('Image ready for upload.');
     }
   };
+  const [purposeOption, setPurposeOption] = useState('Select');
+  const [customPurpose, setCustomPurpose] = useState('');
+  const commonPurposes = ['Scholarship', 'Internship', 'Education Loan', 'Higher Studies', 'Passport/Visa'];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (fee > 0 && !transactionId) {
-      toast.error('Transaction ID is required for paid certificates.');
-      return;
-    }
-    if (fee > 0 && !paymentScreenshot) {
-      toast.error('Payment screenshot is required for paid certificates.');
-      return;
-    }
+    // Logic to check if we need payment details
+  const needsValidation = fee > 0 || selectedCertificate === "Income Tax (IT) Certificate";
+
+  if (needsValidation && (!transactionId || !paymentScreenshot)) {
+    toast.error('Payment details (UTR and Screenshot) are required.');
+    return;
+  }
     setIsLoading(true);
 
+    const finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
     const formData = new FormData();
     formData.append('certificateType', selectedCertificate);
     formData.append('clerkType', certificateTypes[selectedCertificate].clerk);
     formData.append('paymentAmount', fee);
-    if (fee > 0) {
+    formData.append('purpose', finalPurpose);
+    if (fee >= 0) {
       formData.append('transactionId', transactionId);
       formData.append('paymentScreenshot', paymentScreenshot);
     }
@@ -171,6 +176,7 @@ export default function CertificateRequestsPage() {
         setSelectedCertificate(Object.keys(certificateTypes)[0]);
         setTransactionId('');
         setPaymentScreenshot(null);
+        setPurpose('');
         e.target.reset(); // Reset file input
         fetchRequests();
       } else {
@@ -214,8 +220,20 @@ export default function CertificateRequestsPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-700">Fee: <span className="font-bold text-indigo-600">₹{fee}</span></p>
                 </div>
+                {/* Conditional Note for IT Certificate */}
+                {selectedCertificate === "Income Tax (IT) Certificate" && (
+                  <div className="mt-2 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-md">
+                    <div className="flex gap-2">
+                      <div className="text-blue-600 font-bold">!</div>
+                      <p className="text-xs text-blue-700">
+                        This certificate is free, but you <strong>must</strong> upload proof of your 
+                        <strong> ₹35,000 Yearly College Fee</strong> payment below. Requests without a valid UTR will be rejected.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-                {fee > 0 && (
+                {(fee > 0 || selectedCertificate === "Income Tax (IT) Certificate") && (
                   <>
                     <div className="p-4 border rounded-lg bg-gray-50">
                       <div className="flex justify-center">
@@ -230,24 +248,28 @@ export default function CertificateRequestsPage() {
                         <p className="text-l font-semibold text-gray-700 mb-4">SCAN & PAY - Enter UTR - Upload the Screenshot</p>
                         </div>
                         <div className="flex items-center justify-center space-x-2 mb-4">
-            <NextImage
-              src="/assets/Payment QR/kucet-logo.png"
-              alt="PRINCIPAL KU"
-              width={36}
-              height={36}
-              className="h-9 w-auto object-contain"
-              onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
-            />
-            <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
-            </div>
+                        <NextImage
+                          src="/assets/Payment QR/kucet-logo.png"
+                          alt="PRINCIPAL KU"
+                          width={36}
+                          height={36}
+                          className="h-9 w-auto object-contain"
+                          onError={(e) => {e.target.style.display = 'none'}} // Hide if broken
+                        />
+                        <p className="text-sm font-semibold text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
+                        </div>
                         <div className="flex justify-center">
                           {fee === 100 && <NextImage src="/assets/Payment QR/ku_payment_100.png" alt="Pay ₹100" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
                           {fee === 150 && <NextImage src="/assets/Payment QR/ku_payment_150.png" alt="Pay ₹150" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
                           {fee === 200 && <NextImage src="/assets/Payment QR/ku_payment_200.png" alt="Pay ₹200" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
+                          {selectedCertificate === "Income Tax (IT) Certificate" && <NextImage src="/assets/Payment QR/principal_ku_qr.png" alt="Pay ₹200" width={192} height={192} className="w-48 h-48 border border-gray-200 rounded-md bg-white p-1" />}
                         </div>
                     </div>
                     <div>
-                      <label htmlFor="transaction-id" className="block text-sm font-medium text-gray-700">Transaction ID / UTR</label>
+                      <label htmlFor="transaction-id" className="block text-sm font-medium text-gray-700">
+                        Transaction ID / UTR <span className="text-red-500">*</span> <br></br>
+                        <span className="text-red-500">(Requests without a valid UTR will be rejected.)</span>
+                      </label>
                       <input
                         type="number"
                         id="transaction-id"
@@ -256,9 +278,51 @@ export default function CertificateRequestsPage() {
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       />
                     </div>
-
                     <div>
-                      <label htmlFor="payment-screenshot" className="block text-sm font-medium text-gray-700">Payment Screenshot</label>
+                      <label htmlFor="purpose" className="block text-sm font-medium text-gray-700">
+                        Purpose of Certificate <span className="text-red-500">*</span>
+                      </label>
+                      
+                      <select
+                        value={purposeOption}
+                        onChange={(e) => setPurposeOption(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      >
+                        {commonPurposes.map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                        <option value="Other">Other (Please specify)</option>
+                      </select>
+
+                      {/* Only show the textarea if "Other" is selected */}
+                      {purposeOption === 'Other' && (
+                        <>
+                        <div className="mt-3 space-y-2 flex items-start gap-2 p-3 bg-amber-50 border-l-4 border-amber-400 rounded-md">
+                          <svg className="h-5 w-5 text-amber-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-xs text-amber-800">
+                            <strong>Note:</strong> Please be careful with the wording as this exact text will be printed on certificate upon approval. 
+                            Include the name of the organization if needed  (Eg: TCS on-boarding etc..)
+                          </p>
+                        </div>
+                        
+                        <textarea
+                          required
+                          rows={2}
+                          value={customPurpose}
+                          onChange={(e) => setCustomPurpose(e.target.value)}
+                          className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                          placeholder="Describe your purpose here..."
+                        />
+                        </>
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor="payment-screenshot" className="block text-sm font-medium text-gray-700">
+                        Payment Screenshot <span className="text-red-500">*</span><br></br>
+                        <span className="text-red-500">(Please upload a valid screenshot. The UTR in the image should match with the one entered above)</span>
+                        </label>
                       <input
                         type="file"
                         id="payment-screenshot"

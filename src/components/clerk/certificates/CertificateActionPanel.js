@@ -110,6 +110,10 @@ export default function CertificateActionPanel({ request }) {
                 <div className="w-36 text-sm text-gray-500">Transaction ID</div>
                 <div className="font-semibold text-gray-800">{request?.transaction_id ?? '—'}</div>
               </div>
+              <div className="flex items-start gap-3">
+                <div className="w-36 text-sm text-gray-500">Purpose</div>
+                <div className="font-semibold text-gray-800">{request?.purpose ?? '—'}</div>
+              </div>
               {request?.reject_reason ? (
                 <div className="flex items-start gap-3">
                   <div className="w-36 text-sm text-gray-500">Reject Reason</div>
