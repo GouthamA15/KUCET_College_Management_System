@@ -35,7 +35,7 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const rollno = body.rollno;
-    const email = body.email ? String(body.email).trim() : null;
+    const email = body.email ? String(body.email).replace(/\s+/g, '') : null;
 
     if (!rollno || !email) {
       return NextResponse.json({ message: 'Missing roll number or email' }, { status: 400 });
