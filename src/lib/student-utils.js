@@ -3,8 +3,8 @@ import { query } from '@/lib/db'; // Adjust path if necessary
 export async function getStudentEmail(rollNo) {
   try {
     const results = await query('SELECT email FROM students WHERE roll_no = ?', [rollNo]);
-    if (results.length > 0) {
-      return results[0].email;
+    if (results.length > 0 && results[0].email) {
+      return String(results[0].email).trim();
     }
     return null;
   } catch (error) {
