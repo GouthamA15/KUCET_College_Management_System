@@ -5,10 +5,12 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 // No client-side routing for auth; server handles redirects
 
+import ComingSoon from '@/components/ComingSoon';
+
 export default function TimetablePage() {
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
       <Navbar 
         studentProfileMode={true} 
@@ -20,19 +22,8 @@ export default function TimetablePage() {
         }}
       />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Time Table</h1>  
-            <p className="mt-2 text-sm text-gray-600">Your class schedule</p>
-          </div>
-        </div>
-
-        <div className="bg-white shadow-sm rounded-xl overflow-hidden border border-gray-200">
-          <div className="p-6">
-            <p className="text-gray-500">Time table is not yet available. Please check back later.</p>
-          </div>
-        </div>
+      <main className="flex-1 flex items-center justify-center p-6">
+        <ComingSoon title="Time Table" icon="📅" description="Your class schedule is not yet available. Please check back later." />
       </main>
 
       <Footer />
