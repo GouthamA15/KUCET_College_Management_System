@@ -5,13 +5,15 @@ import { pdf } from '@react-pdf/renderer';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { jwtVerify } from 'jose';
+import path from 'path';
+import fs from 'fs';
 import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
 import CustodianCertificatePDF from '@/pdf/templates/CustodianCertificatePDF';
 import StudyConductCertificatePDF from '@/pdf/templates/StudyConductCertificatePDF';
 import MigrationCertificatePDF from '@/pdf/templates/MigrationCertificatePDF';
-// import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCertificatePDF';
+import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCertificatePDF';
 import IncomeTaxCertificatePDF from '@/pdf/templates/IncomeTaxCertificatePDF';
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -53,7 +55,7 @@ const certificateComponents = {
     'Custodian Certificate': CustodianCertificatePDF,
     'Study Conduct Certificate': StudyConductCertificatePDF,
     'Migration Certificate': MigrationCertificatePDF,
-    // 'Course Completion Certificate': CourseCompletionCertificatePDF,
+    'Course Completion Certificate': CourseCompletionCertificatePDF,
     'Income Tax (IT) Certificate': IncomeTaxCertificatePDF,
 };
 
@@ -185,11 +187,30 @@ export async function GET(request, { params }) {
         const formattedDob = `${dob.getDate()}-${dob.getMonth() + 1}-${dob.getFullYear()}`;
         const course = String(getBranchFromRoll(student.roll_no) || '');
 
-       
-        const logoUrl = `${baseUrl}/assets/ku-logo.png`;
-        const signatureUrl = `${baseUrl}/assets/principal-sign.png`;
-        const stampSign = `${baseUrl}/assets/principal-signStamp.jpg`;
-        const stampUrl = `${baseUrl}/assets/ku-college-seal.png`;
+        
+        
+        // Helper to load image as base64 to avoid react-pdf fetching issues
+        const getBase64Image = (filePath) => {
+            try {
+                if (fs.existsSync(filePath)) {
+                    const ext = path.extname(filePath).toLowerCase().replace('.', '');
+                    const mimeType = ext === 'jpg' ? 'jpeg' : ext; 
+                    const fileBuffer = fs.readFileSync(filePath);
+                    return `data:image/${mimeType};base64,${fileBuffer.toString('base64')}`;
+                }
+                console.warn(`[CERT_DOWNLOAD] Image file not found: ${filePath}`);
+                return null;
+            } catch (err) {
+                console.error(`[CERT_DOWNLOAD] Error reading image file: ${filePath}`, err);
+                return null;
+            }
+        };
+
+        const publicDir = path.join(process.cwd(), 'public');
+        const logoUrl = getBase64Image(path.join(publicDir, 'assets', 'ku-logo.png'));
+        const signatureUrl = getBase64Image(path.join(publicDir, 'assets', 'principal-sign.png'));
+        const stampSign = getBase64Image(path.join(publicDir, 'assets', 'principal-signStamp.jpg'));
+        const stampUrl = getBase64Image(path.join(publicDir, 'assets', 'ku-college-seal.png'));
 
         const commonData = {
             certId,
