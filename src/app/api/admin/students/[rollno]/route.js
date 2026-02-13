@@ -38,12 +38,23 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const studentQuery = 'SELECT * FROM students WHERE roll_no = ?';
+    const studentQuery = `
+      SELECT s.*, CASE WHEN si.pfp IS NOT NULL THEN 1 ELSE 0 END as has_pfp 
+      FROM students s 
+      LEFT JOIN student_images si ON s.id = si.student_id 
+      WHERE s.roll_no = ?`;
     const [student] = await query(studentQuery, [rollno]);
 
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
+
+    if (student.has_pfp) {
+        student.pfp = `/api/student/image/${student.roll_no}`;
+    } else {
+        student.pfp = null;
+    }
+    delete student.has_pfp;
 
     return NextResponse.json({ student });
   } catch (error) {

@@ -148,7 +148,6 @@ export async function GET(request, { params }) {
             sr.payment_amount,
             sr.transaction_id,
             sr.purpose,
-            sr.payment_screenshot,
             sr.academic_year,
             sr.created_at,
             sr.updated_at,
