@@ -1,41 +1,20 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useStudent } from '@/context/StudentContext';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 // No client-side routing for auth; server handles redirects
 
 export default function VerificationRequiredPage() {
-  const [studentStatus, setStudentStatus] = useState({ email: null, is_email_verified: false, password_hash: null });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const meRes = await fetch('/api/student/me');
-        if (!meRes.ok) {
-          return;
-        }
-        const { roll_no } = await meRes.json();
-        const sRes = await fetch(`/api/student/${roll_no}`);
-        if (!sRes.ok) {
-          return;
-        }
-        const data = await sRes.json();
-        const s = data?.student || {};
-        setStudentStatus({
-          email: s.email || null,
-          is_email_verified: !!s.is_email_verified,
-          password_hash: s.password_hash || null,
-        });
-      } catch (e) {
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+  const { studentData, loading } = useStudent();
+  const s = studentData?.student || {};
+  const studentStatus = {
+    email: s.email || null,
+    is_email_verified: !!s.is_email_verified,
+    password_hash: s.password_hash || null,
+  };
 
   const emailStatus = studentStatus.email && studentStatus.is_email_verified ? 'Verified' : 'Not Verified';
   const passwordStatus = studentStatus.password_hash ? 'Set' : 'Not Set';

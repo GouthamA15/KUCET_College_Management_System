@@ -21,6 +21,11 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [clerkPasswordVisible, setClerkPasswordVisible] = useState(false);
   const [adminPasswordVisible, setAdminPasswordVisible] = useState(false);
 
+  // Remember Me states
+  const [studentRememberMe, setStudentRememberMe] = useState(false);
+  const [clerkRememberMe, setClerkRememberMe] = useState(false);
+  const [adminRememberMe, setAdminRememberMe] = useState(false);
+
   // Internal forgot-password UI state
   // mode: 'login' | 'forgot-password'
   const [mode, setMode] = useState('login');
@@ -68,7 +73,11 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
       const res = await fetch('/api/student/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollno: studentForm.rollNumber, dob: dobForServer }),
+        body: JSON.stringify({ 
+          rollno: studentForm.rollNumber, 
+          dob: dobForServer,
+          rememberMe: studentRememberMe 
+        }),
       });
       const data = await res.json();
       if (res.ok && data.student) {
@@ -248,7 +257,10 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(clerkForm),
+        body: JSON.stringify({
+          ...clerkForm,
+          rememberMe: clerkRememberMe
+        }),
       });
 
       const data = await res.json(); // Parse JSON to get error message
@@ -279,7 +291,10 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(adminForm),
+        body: JSON.stringify({
+          ...adminForm,
+          rememberMe: adminRememberMe
+        }),
       });
       
       const data = await res.json();
@@ -404,7 +419,19 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         )}
                       </button>
                     </div>
-                    <div className="text-right mt-2">
+                    <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center">
+                          <input
+                            id="student-remember-me"
+                            type="checkbox"
+                            checked={studentRememberMe}
+                            onChange={(e) => setStudentRememberMe(e.target.checked)}
+                            className="h-4 w-4 text-[#0b3578] focus:ring-[#0b3578] border-gray-300 rounded"
+                          />
+                          <label htmlFor="student-remember-me" className="ml-2 block text-xs text-gray-700">
+                            Remember Me
+                          </label>
+                        </div>
                         <button
                           type="button"
                           onClick={() => { if (activeRole === 'student') { setMode('forgot-password'); setFpRollno(studentForm.rollNumber ?? ''); } }}
@@ -566,7 +593,19 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         )}
                       </button>
                     </div>
-                    <div className="text-right mt-2">
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center">
+                        <input
+                          id="clerk-remember-me"
+                          type="checkbox"
+                          checked={clerkRememberMe}
+                          onChange={(e) => setClerkRememberMe(e.target.checked)}
+                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="clerk-remember-me" className="ml-2 block text-xs text-gray-700">
+                          Remember Me
+                        </label>
+                      </div>
                       <button
                         type="button"
                         onClick={() => { if (activeRole === 'employee') { setMode('forgot-password'); setFpEmail(clerkForm.email ?? ''); } }}
@@ -702,7 +741,19 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         )}
                       </button>
                     </div>
-                    <div className="text-right mt-2">
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center">
+                        <input
+                          id="admin-remember-me"
+                          type="checkbox"
+                          checked={adminRememberMe}
+                          onChange={(e) => setAdminRememberMe(e.target.checked)}
+                          className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="admin-remember-me" className="ml-2 block text-xs text-gray-700">
+                          Remember Me
+                        </label>
+                      </div>
                       <button
                         type="button"
                         onClick={() => { if (activeRole === 'employee') { setMode('forgot-password'); setFpEmail(adminForm.email ?? ''); } }}

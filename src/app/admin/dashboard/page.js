@@ -4,8 +4,8 @@ import Header from '@/components/Header';
 import AdminNavbar from '@/components/AdminNavbar';
 import Footer from '@/components/Footer';
 import StudentProfileCard from '@/components/StudentProfileCard';
-import { useRef } from 'react';
-import { useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
+import { useAdmin } from '@/context/AdminContext';
 import CollegeInfoEditor from '@/components/admin/CollegeInfoEditor';
 import { validateRollNo } from '@/lib/rollNumber'; // Added this line back
 
@@ -23,9 +23,7 @@ const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 4 }, (_, i) => (currentYear - i).toString()).reverse();
 
 export default function AdminDashboardPage() {
-  const [totalClerks, setTotalClerks] = useState(0);
-  const [activeClerks, setActiveClerks] = useState(0);
-  const [studentStats, setStudentStats] = useState(null); // Changed from studentCounts
+  const { clerks, studentStats, loading: contextLoading } = useAdmin();
   const [searchRoll, setSearchRoll] = useState('');
   const [searchedStudent, setSearchedStudent] = useState(null);
   const [searchError, setSearchError] = useState('');
@@ -33,24 +31,10 @@ export default function AdminDashboardPage() {
   const [loadingAll, setLoadingAll] = useState(false);
   const [allError, setAllError] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('CSE');
-  const [selectedStudyingYear, setSelectedStudyingYear] = useState('1'); // Changed to studying year (1-4)
+  const [selectedStudyingYear, setSelectedStudyingYear] = useState('1'); 
 
-  useEffect(() => {
-    // Fetch clerk stats
-    fetch('/api/admin/clerks')
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        setTotalClerks(data.length || 0);
-        setActiveClerks(data.filter(c => c.is_active).length || 0);
-      });
-
-    // Fetch student stats
-    fetch('/api/admin/student-stats')
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-            setStudentStats(data);
-        });
-  }, []);
+  const totalClerks = clerks?.length || 0;
+  const activeClerks = clerks?.filter(c => c.is_active).length || 0;
 
   const handleSearch = async (e) => {
     e.preventDefault();

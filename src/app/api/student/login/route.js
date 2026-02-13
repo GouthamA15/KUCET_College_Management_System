@@ -7,7 +7,7 @@ import bcrypt from'bcrypt'
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { rollno, dob } = body; //dob used as password input field
+    const { rollno, dob, rememberMe } = body; //dob used as password input field
     if (!rollno || !dob) {
       return NextResponse.json({ error: 'Missing rollno or dob' }, { status: 400 });
     }
@@ -67,10 +67,13 @@ export async function POST(req) {
     const { date_of_birth: _dob, password_hash = _ph, ...profile } = student;
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const sessionDuration = rememberMe ? '30d' : '1h';
+    const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 60 * 60;
+
     const token = await new SignJWT({ student_id: student.id, roll_no: student.roll_no, name: student.name })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setExpirationTime('1h')
+      .setExpirationTime(sessionDuration)
       .sign(secret);
 
     const response = NextResponse.json({ student: profile, success: true }, { status: 200 });
@@ -82,7 +85,7 @@ export async function POST(req) {
     response.cookies.set('student_auth', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60, // 1 hour
+        maxAge: cookieMaxAge,
         path: '/',
     });
     return response;

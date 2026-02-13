@@ -1,6 +1,7 @@
 
 "use client";
 import { useState, useEffect, useRef } from 'react';
+import { useStudent } from '@/context/StudentContext';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Header from '@/components/Header';
@@ -13,6 +14,7 @@ const FEE = 100;
 
 export default function BonafideRequestPage() {
   const router = useRouter();
+  const { studentData, loading } = useStudent();
   const [transactionId, setTransactionId] = useState('');
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [requests, setRequests] = useState([]);
@@ -40,28 +42,17 @@ export default function BonafideRequestPage() {
 
   // route-level guard + initial fetch
   useEffect(() => {
-    const init = async () => {
-      try {
-        const meRes = await fetch('/api/student/me');
-        if (!meRes.ok) return;
-        const { roll_no } = await meRes.json();
-        if (!roll_no) return;
-        const studentRes = await fetch(`/api/student/${roll_no}`);
-        if (!studentRes.ok) return;
-        const data = await studentRes.json();
-        const s = data?.student;
-        const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
-        if (!verified) {
-          router.replace('/student/requests/verification-required');
-          return;
-        }
-        await fetchRequests();
-      } catch (e) {
-        // ignore
-      }
-    };
-    init();
-  }, [router]);
+    if (loading) return;
+    if (!studentData) return;
+
+    const s = studentData.student;
+    const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
+    if (!verified) {
+      router.replace('/student/requests/verification-required');
+      return;
+    }
+    fetchRequests();
+  }, [studentData, loading, router]);
 
   const fetchRequests = async () => {
     try {

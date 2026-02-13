@@ -1,38 +1,19 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useClerk } from '@/context/ClerkContext';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
 import toast from 'react-hot-toast';
 
 export default function FacultyDashboard() {
-  const [clerk, setClerk] = useState(null);
-  const [isLoading, setIsLoading] = useState(true); // New loading state
+  const { clerkData: clerk, loading: isLoading } = useClerk();
 
   useEffect(() => {
-    const fetchClerkData = async () => {
-      setIsLoading(true); // Set loading to true before fetching
-      try {
-        const res = await fetch('/api/clerk/me');
-        const data = await res.json();
-        if (res.ok) {
-          if (data.role !== 'faculty') {
-            toast.error('Access Denied');
-          } else {
-            setClerk(data);
-          }
-        } else {
-          toast.error(data.error || 'Failed to fetch clerk data.');
-        }
-      } catch (error) {
-        toast.error('An unexpected error occurred while fetching clerk data.');
-        console.error('Error fetching clerk data:', error);
-      } finally {
-        setIsLoading(false); // Set loading to false after fetching (success or error)
-      }
-    };
-    fetchClerkData();
-  }, []);
+    if (!isLoading && clerk && clerk.role !== 'faculty') {
+      toast.error('Access Denied');
+    }
+  }, [clerk, isLoading]);
 
   if (isLoading) {
     return (
