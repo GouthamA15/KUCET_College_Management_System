@@ -46,15 +46,23 @@ export async function POST(req) {
     if (pfp) {
       pfpValue = Buffer.from(pfp.split(',')[1], 'base64'); // Remove data URL prefix if present
     }
-    // If pfp is null or empty, pfpValue remains null
 
-    const [result] = await db.execute(
-      'UPDATE students SET pfp = ? WHERE roll_no = ?',
-      [pfpValue, roll_no]
-    );
+    // Get student ID first
+    const [rows] = await db.execute('SELECT id FROM students WHERE roll_no = ?', [roll_no]);
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+    const studentId = rows[0].id;
 
-    if (result.affectedRows === 0) {
-      return NextResponse.json({ error: 'Student not found or data is the same' }, { status: 404 });
+    if (pfpValue) {
+      // Insert or Update image
+      await db.execute(
+        'INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ON DUPLICATE KEY UPDATE pfp = VALUES(pfp)',
+        [studentId, pfpValue]
+      );
+    } else {
+      // Delete image if pfp is null (removed)
+      await db.execute('DELETE FROM student_images WHERE student_id = ?', [studentId]);
     }
 
     return NextResponse.json({ success: true }, { status: 200 });

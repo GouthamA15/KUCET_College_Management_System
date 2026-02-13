@@ -68,8 +68,15 @@ export async function GET(req, ctx) {
 
     if (!rollno) return NextResponse.json({ error: 'Missing rollno parameter' }, { status: 400 });
 
-    // STEP A: Fetch student
-    const [student] = await query('SELECT id, roll_no, name, fee_reimbursement, email, mobile FROM students WHERE roll_no = ?', [rollno]);
+    // STEP A: Fetch student with pfp check
+    const [student] = await query(
+      `SELECT s.id, s.roll_no, s.name, s.fee_reimbursement, s.email, s.mobile, 
+       CASE WHEN si.pfp IS NOT NULL THEN 1 ELSE 0 END as has_pfp
+       FROM students s
+       LEFT JOIN student_images si ON s.id = si.student_id
+       WHERE s.roll_no = ?`,
+      [rollno]
+    );
 
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
@@ -133,6 +140,7 @@ export async function GET(req, ctx) {
         course,
         email: student.email ?? null,
         mobile: student.mobile ?? null,
+        pfp: student.has_pfp ? `/api/student/image/${student.roll_no}` : null,
         admission_year,
         current_year,
       },

@@ -39,12 +39,25 @@ export async function GET(req, context) {
       return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
     }
 
-    const rows = await query('SELECT * FROM students WHERE roll_no = ?', [rollno]);
+    const rows = await query(`
+      SELECT s.*, CASE WHEN si.pfp IS NOT NULL THEN 1 ELSE 0 END as has_pfp 
+      FROM students s 
+      LEFT JOIN student_images si ON s.id = si.student_id 
+      WHERE s.roll_no = ?`, [rollno]);
 
     if (!rows || rows.length === 0) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
-    return NextResponse.json({ student: rows[0] });
+    
+    const student = rows[0];
+    if (student.has_pfp) {
+        student.pfp = `/api/student/image/${student.roll_no}`;
+    } else {
+        student.pfp = null;
+    }
+    delete student.has_pfp;
+
+    return NextResponse.json({ student });
   } catch (err) {
     console.error('Fetch Student Error:', err);
     return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });

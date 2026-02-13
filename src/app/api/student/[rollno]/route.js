@@ -52,7 +52,12 @@ export async function GET(req, context) {
     const params = await context.params;
     const { rollno } = params;
 
-    const studentSql = 'SELECT * FROM students WHERE roll_no = ?';
+    const studentSql = `
+      SELECT s.*, CASE WHEN si.pfp IS NOT NULL THEN 1 ELSE 0 END as has_pfp 
+      FROM students s 
+      LEFT JOIN student_images si ON s.id = si.student_id 
+      WHERE s.roll_no = ?
+    `;
     const studentResult = await query(studentSql, [rollno]);
 
     if (studentResult.length === 0) {
@@ -62,10 +67,14 @@ export async function GET(req, context) {
     const student = studentResult[0];
     const studentId = student.id;
 
-    // Convert pfp BLOB to base64 data URL if exists
-    if (student.pfp) {
-      student.pfp = `data:image/jpeg;base64,${student.pfp.toString('base64')}`;
+    // Set pfp URL if image exists
+    if (student.has_pfp) {
+      student.pfp = `/api/student/image/${student.roll_no}`;
+    } else {
+      student.pfp = null;
     }
+    // Remove temporary field
+    delete student.has_pfp;
 
     // Derive course and admission type
     student.course = getBranchFromRoll(student.roll_no);

@@ -101,6 +101,7 @@ export async function POST(request) {
     const clerkType = formData.get('clerkType');
     const paymentAmount = formData.get('paymentAmount');
     const transactionId = formData.get('transactionId');
+    const purpose = formData.get('purpose')
     const paymentScreenshotFile = formData.get('paymentScreenshot');
 
     let paymentScreenshotBuffer = null;
@@ -113,7 +114,7 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (paymentAmount > 0 && (!transactionId || !paymentScreenshotBuffer)) {
+    if (paymentAmount >= 0 && (!transactionId || !paymentScreenshotBuffer)) {
         return NextResponse.json({ error: 'Transaction ID and screenshot are required for paid certificates' }, { status: 400 });
     }
 
@@ -155,9 +156,17 @@ export async function POST(request) {
         // status === 'REJECTED' -> allow re-request by reusing the same row (UPDATE)
         try {
           const updateResult = await query(
-            `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, payment_screenshot = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
-            [paymentAmount, transactionId, paymentScreenshotBuffer,  'PENDING', existing.request_id]
+            `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, purpose = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
+            [paymentAmount, transactionId, purpose||null, 'PENDING', existing.request_id]
           );
+          
+          if (paymentScreenshotBuffer) {
+             await query(
+                `INSERT INTO student_request_images (request_id, payment_screenshot) VALUES (?, ?) ON DUPLICATE KEY UPDATE payment_screenshot = VALUES(payment_screenshot)`,
+                [existing.request_id, paymentScreenshotBuffer]
+             );
+          }
+
           if (updateResult.affectedRows === 1) {
             return NextResponse.json({ success: true, requestId: existing.request_id });
           } else {
@@ -174,11 +183,20 @@ export async function POST(request) {
 
       // No existing row - safe to insert
       const result = await query(
-        'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, payment_screenshot, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [auth.student_id, certificateType,  academicYear, paymentAmount, transactionId, paymentScreenshotBuffer, 'PENDING']
+        'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [auth.student_id, certificateType,  academicYear, paymentAmount, transactionId, purpose|| null, 'PENDING']
       );
+      
+      const newRequestId = result.insertId;
+      if (paymentScreenshotBuffer) {
+          await query(
+             `INSERT INTO student_request_images (request_id, payment_screenshot) VALUES (?, ?)`,
+             [newRequestId, paymentScreenshotBuffer]
+          );
+      }
+
       if (result.affectedRows === 1) {
-        return NextResponse.json({ success: true, requestId: result.insertId });
+        return NextResponse.json({ success: true, requestId: newRequestId });
       } else {
         return NextResponse.json({ error: 'Failed to create request' }, { status: 500 });
       }

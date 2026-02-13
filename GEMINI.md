@@ -54,6 +54,37 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
 
 ## Recent Changes
 
+*   **Database Optimization and Image Handling Overhaul (Performance Fix):**
+    *   **Problem:** The `SELECT * FROM students` and `SELECT * FROM student_requests` queries were extremely slow because they were fetching large BLOBs (Binary Large Objects) for profile pictures and payment screenshots directly from the main tables.
+    *   **Solution:** Refactored the database schema to move these heavy image columns into separate, dedicated tables.
+    *   **Database Schema Changes:**
+        *   **`students` Table:** Dropped the `pfp` column.
+        *   **`student_requests` Table:** Dropped the `payment_screenshot` column.
+        *   **New `student_images` Table:** Created to store student profile pictures, linked by `student_id`.
+        *   **New `student_request_images` Table:** Created to store payment screenshots, linked by `request_id`.
+        *   **Migration:** Existing data was migrated to the new tables using `migrate_standalone.js` and `migrate_request_images.js`.
+    *   **API Updates:**
+        *   **New Image Serving APIs:**
+            *   `src/app/api/student/image/[rollno]/route.js`: Serves student profile pictures.
+            *   `src/app/api/student/requests/image/[request_id]/route.js`: Serves payment screenshots with role-based authorization (Admin/Clerk/Student).
+        *   **Refactored Endpoints:**
+            *   `src/app/api/student/[rollno]/route.js`: Now returns a constructed URL (`/api/student/image/...`) for the profile picture instead of base64 data.
+            *   `src/app/api/clerk/students/[rollno]/route.js` & `src/app/api/admin/students/[rollno]/route.js`: Updated to join with `student_images` logic and return image URLs.
+            *   `src/app/api/clerk/requests/route.js`: Removed `payment_screenshot` from the list query for fast loading.
+            *   `src/app/api/clerk/requests/[request_id]/route.js`: Updated to remove references to the deleted `payment_screenshot` column.
+            *   `src/app/api/clerk/scholarship/summary/[rollno]/route.js`: Updated to correctly resolve profile picture URLs for the scholarship dashboard.
+            *   `src/app/api/student/upload-photo/route.js` & `src/app/api/student/requests/route.js`: Updated `POST` logic to write images to the new separate tables.
+    *   **Frontend Optimization:**
+        *   **Full Quality Images:** Removed `browser-image-compression` library. Images are now uploaded and stored in their original quality (up to the file size limit).
+        *   **4MB Limit:** Enforced a strict **4MB** file size limit on the client-side for uploads.
+        *   **Unoptimized Rendering:** Updated `Next.js` `Image` components with the `unoptimized` prop to bypass server-side resizing and display full-quality images directly from the new APIs.
+        *   **Loading States:** Added "Image is loading..." spinner overlays to:
+            *   Student Profile Page
+            *   Edit Profile Page
+            *   Clerk Student View (`ViewEditStudent.js`)
+            *   Clerk Certificate Action Panel (`CertificateActionPanel.js`)
+            *   Scholarship Clerk Info Card (`StudentInfoCard.js`)
+
 *   **ROLLBACK TO WORKING METHOD (`f522fd8`)**: This commit rolls back recent changes to a previously stable working method. This was necessary due to issues encountered with newer versions, ensuring the system returns to a functional state.
     *   **New Faculty Role:** The system now supports a "Faculty" role for clerks, with a dedicated dashboard page (`src/app/clerk/faculty/dashboard/page.js`).
     *   **Email on Clerk Creation:** When a super admin creates a new clerk account, an email is automatically sent to the clerk with their login credentials (temporary password) and a link to the portal. This is handled in `src/app/api/admin/create-clerk/route.js`. (commit `be94146`)
@@ -1278,6 +1309,22 @@ A `college_db_cse_2023_students.sql` file is present, suggesting the database sc
     *   **Delete college_db_patch_v8.sql (`eabcd8d`)**: Removed `college_db_patch_v8.sql`.
     *   **Add Set Password feature in Student Login (`0ab5a03`)**: Implemented a feature to allow students to set their password.
     *   **Added Rejection Reason Overview (`000b98d`)**: Added functionality to view rejection reasons for certificate requests.
+*   **PDF Generation System Overhaul**:
+    *   Replaced old HTML-based certificate templates (`templates/*.html` deleted) with a new, robust, and component-based PDF generation system located in `src/pdf/`.
+    *   New PDF components include `src/pdf/components/CertificateHeader.js`, `src/pdf/components/CertificateTitle.js`, `src/pdf/components/CertificateWatermark.js`, `src/pdf/components/PageBorder.js`, `src/pdf/components/QRBlock.js`, `src/pdf/components/SignatureBlock.js`, `src/pdf/components/Styles.js`, and font registration in `src/pdf/fonts/register.js`.
+    *   New PDF templates for various certificates have been introduced: `src/pdf/templates/BonafideCertificatePDF.js`, `src/pdf/templates/CourseCompletionCertificatePDF.js`, `src/pdf/templates/CustodianCertificatePDF.js`, `src/pdf/templates/IncomeTaxCertificatePDF.js`, `src/pdf/templates/MigrationCertificatePDF.js`, and `src/pdf/templates/StudyConductCertificatePDF.js`.
+    *   The `src/app/api/student/requests/download/[request_id]/route.js` API has been updated to utilize this new PDF generation utility (`src/pdf/utils/generatePdf.js`) for dynamic certificate creation.
+*   **Student History Feature**:
+    *   Implemented a new API route `src/app/api/clerk/student-history/route.js` to fetch student historical data.
+    *   Introduced a new frontend component `src/components/clerk/student-management/StudentHistoryCard.js` to display student history information within the clerk's management interface.
+*   **Image Renaming**: The `principal-sign.jpg` image in `public/assets/` was renamed to `principal-signStamp.jpg`.
+*   **API and UI Refinements**:
+    *   Updates to `src/app/api/clerk/admission/bulk-import/route.js`, `src/app/api/clerk/admission/students/[rollno]/route.js`, `src/app/api/clerk/admission/students/route.js` for continued improvements in student admission and bulk import processes.
+    *   Refinements in `src/app/api/clerk/requests/route.js` and `src/app/api/student/requests/route.js` for handling certificate requests, likely integrating with the new PDF system.
+    *   Minor updates to `src/app/clerk/admission/dashboard/page.js`, `src/app/student/requests/bonafide/page.js`, and `src/app/student/requests/certificates/page.js` reflecting the integration of new features and UI adjustments.
+    *   Minor adjustments to `src/components/ClerkStudentManagement.js` and `src/components/Navbar.js`.
+    *   Updated `src/components/clerk/certificates/CertificateDashboard.js` and `src/components/clerk/certificates/CertificateRecordsView.js`.
+*   **Dependency Updates**: `package-lock.json` and `package.json` were updated to reflect changes in project dependencies.
 
 ## Code Documentation
 

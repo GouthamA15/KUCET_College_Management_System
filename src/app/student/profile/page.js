@@ -7,11 +7,10 @@ import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
 import SetPasswordModal from '@/components/SetPasswordModal';
-import { getBranchFromRoll, getEntryYearFromRoll, getAdmissionTypeFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { getBranchFromRoll, getEntryYearFromRoll, getAdmissionTypeFromRoll, getResolvedCurrentAcademicYear, getBatchFromRoll } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
 import { computeAcademicYear, isYearAllowed } from '@/app/lib/academicYear';
 import toast from 'react-hot-toast'; // Added toast
-import imageCompression from 'browser-image-compression'; // Added imageCompression
 import Loading from './loading';
 
 export default function StudentProfileNew() {
@@ -41,6 +40,7 @@ export default function StudentProfileNew() {
   const [emailTouched, setEmailTouched] = useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
+  const [imageLoading, setImageLoading] = useState(true);
 
 
   // PASSWORD SETTING STATES
@@ -117,40 +117,25 @@ export default function StudentProfileNew() {
     }
   };
 
-  const handlePhotoChange = async (e) => {
+  const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
         toast.error('Only JPG, JPEG, and PNG files are allowed.');
         return;
       }
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit for original file
-        toast.error('Original file size should be less than 2MB.');
+      if (file.size > 4 * 1024 * 1024) { // 4MB limit
+        toast.error('File size must be less than 4MB.');
         return;
       }
 
-      try {
-        const options = {
-          maxSizeMB: 0.06, // Target 60KB
-          maxWidthOrHeight: 150, // Resizes to 150x150 (smallest dimension is 150)
-          useWebWorker: true,
-          fileType: "image/jpeg", // Ensure JPEG output for consistent size
-        };
-        const compressedFile = await imageCompression(file, options);
-
-        const reader = new FileReader();
-        reader.onload = () => {
-          setPreviewPhoto(reader.result);
-          setPhotoChanged(true);
-          setIsPhotoRemoved(false);
-        };
-        reader.readAsDataURL(compressedFile);
-
-        toast.success(`Image compressed to ${(compressedFile.size / 1024).toFixed(2)} KB.`);
-      } catch (error) {
-        toast.error('Image compression failed. Please try another image.');
-        setPreviewPhoto(null);
-      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPreviewPhoto(reader.result);
+        setPhotoChanged(true);
+        setIsPhotoRemoved(false);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -370,6 +355,8 @@ export default function StudentProfileNew() {
   const yearOfStudy = computeYearOfStudy(student.roll_no);
   let currentAcademicYearLabel = null;
   try { currentAcademicYearLabel = getResolvedCurrentAcademicYear(student.roll_no); } catch { currentAcademicYearLabel = null; }
+  let batchString = null;
+  try { batchString = getBatchFromRoll(student.roll_no); } catch { batchString = null }
 
   // Determine allowed span (3 for lateral, 4 for regular)
   const maxYears = (() => {
@@ -470,10 +457,25 @@ export default function StudentProfileNew() {
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8">
             {/* Left section: photo + identity */}
             <div className="flex flex-col items-center md:items-start">
-              <div className="w-40 h-40 rounded-full border-4 border-gray-300 overflow-hidden flex items-center justify-center bg-gray-100">
+              <div className="w-40 h-40 rounded-full border-4 border-gray-300 overflow-hidden flex items-center justify-center bg-gray-100 relative">
                 {student.pfp ? (
-                  // Using next/image with data URL; fallback to <img> if required
-                  <Image src={student.pfp} alt="Profile Photo" width={160} height={160} className="object-cover w-full h-full" />
+                  <>
+                    {imageLoading && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-2">
+                            <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+                            <span className="text-xs text-gray-500 font-medium">Image is loading...</span>
+                        </div>
+                    )}
+                    <Image 
+                        src={student.pfp} 
+                        alt="Profile Photo" 
+                        width={160} 
+                        height={160} 
+                        unoptimized
+                        className={`object-cover w-full h-full transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                        onLoad={() => setImageLoading(false)}
+                    />
+                  </>
                 ) : (
                   <div className="text-gray-500">Profile Pic</div>
                 )}
@@ -490,7 +492,9 @@ export default function StudentProfileNew() {
                 <div className="text-xl font-semibold">{courseLabel}</div>
                 <div className="text-blue-700 font-semibold">Year: {yearOfStudy}</div>
                 {currentAcademicYearLabel && (
-                  <div className="text-blue-700 font-semibold">Academic Year: {currentAcademicYearLabel} (Current Academic)</div>
+                  <><div className="text-blue-700 font-semibold">Academic Year: {currentAcademicYearLabel} (Current Academic)</div>
+                  <div className="text-blue-700 font-semibold">Batch: {batchString}</div>
+                </>
                 )}
               </div>
 

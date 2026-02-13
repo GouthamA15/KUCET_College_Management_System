@@ -5,7 +5,7 @@ import { pdf } from '@react-pdf/renderer';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { jwtVerify } from 'jose';
-import { getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
 import CustodianCertificatePDF from '@/pdf/templates/CustodianCertificatePDF';
@@ -117,7 +117,7 @@ export async function GET(request, { params }) {
 
         // CALCULATE YEAR AND SEMESTER ---
         const rollNo = student.roll_no;
-        const admissionYearShort = parseInt(rollNo.substring(0, 2)); // e.g., "22" from "22K4..."
+        const admissionYearShort = parseInt(rollNo.substring(0, 2)); // e.g., "22" from "22567T..."
         const admissionYear = 2000 + admissionYearShort;
         const isLateral = rollNo.toUpperCase().endsWith('L');
 
@@ -205,6 +205,7 @@ export async function GET(request, { params }) {
             stampSign,
             stampUrl,
             qrUrl: qrBase64,
+            batch: batchString
         };
 
         // Extend data per certificate type
@@ -241,7 +242,7 @@ export async function GET(request, { params }) {
             case 'Study Conduct Certificate':
                 data = {
                     ...data,
-                    conduct: 'Good',
+                    conduct: 'Satisfactory',
                 };
                 break;
             case 'Custodian Certificate':

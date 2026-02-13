@@ -34,6 +34,13 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [isQualifyingExamAutofilled, setIsQualifyingExamAutofilled] = useState(false);
   const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
+  const [imageLoading, setImageLoading] = useState(true);
+
+  useEffect(() => {
+      if (fetchedStudent?.pfp) {
+          setImageLoading(true);
+      }
+  }, [fetchedStudent]);
 
   useEffect(() => {
     if (fetchedStudent) {
@@ -199,14 +206,33 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-1 bg-gray-50 p-4 rounded">
               <h4 className="font-semibold mb-3">Profile</h4>
-              <div className="w-28 h-28 rounded-full bg-gray-100 overflow-hidden mb-3 flex items-center justify-center">
+              <div className="w-28 h-28 rounded-full bg-gray-100 overflow-hidden mb-3 flex items-center justify-center relative">
                 {(() => {
                   const p = fetchedStudent.pfp;
                   const has = p && String(p).trim() !== '';
                   const isData = has && String(p).startsWith('data:');
                   const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
                   if (has && dataHasBody) {
-                    return <Image src={String(p)} alt="Profile" width={112} height={112} onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} className="w-full h-full object-cover cursor-pointer" />;
+                    return (
+                        <>
+                            {imageLoading && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-1">
+                                    <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                                    <span className="text-[10px] text-gray-500 font-medium">Image is loading...</span>
+                                </div>
+                            )}
+                            <Image 
+                                src={String(p)} 
+                                alt="Profile" 
+                                width={112} 
+                                height={112} 
+                                unoptimized
+                                onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} 
+                                className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                                onLoad={() => setImageLoading(false)}
+                            />
+                        </>
+                    );
                   }
                   return <div className="text-gray-500">No Photo</div>;
                 })()}
