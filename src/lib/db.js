@@ -1,22 +1,20 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 // Debugging: Log paths and dotenv result
 try {
   const envPath = path.resolve(process.cwd(), '.env.local');
-  console.log(`[DB_CONFIG] Current working directory: ${process.cwd()}`);
-  console.log(`[DB_CONFIG] Attempting to load .env file from: ${envPath}`);
-  
-  const result = dotenv.config({ path: envPath });
-
-  if (result.error) {
-    console.error('[DB_CONFIG] Error loading .env.local file:', result.error);
+  if (fs.existsSync(envPath)) {
+    console.log(`[DB_CONFIG] Loading .env file from: ${envPath}`);
+    dotenv.config({ path: envPath });
   } else {
-    console.log(`[DB_CONFIG] Successfully loaded .env.local file. Parsed content:`, result.parsed);
+    console.log(`[DB_CONFIG] .env.local not found, relying on system environment variables.`);
+    dotenv.config(); // Load .env if it exists
   }
 } catch (e) {
-  console.error('[DB_CONFIG] A critical error occurred during dotenv initialization:', e);
+  console.error('[DB_CONFIG] Error during dotenv initialization:', e);
 }
 
 

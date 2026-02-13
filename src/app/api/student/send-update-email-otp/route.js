@@ -62,13 +62,18 @@ export async function POST(req) {
 
     
     // Invalidate any existing OTPs for this roll number
-    await db.execute('DELETE FROM otp_codes WHERE roll_no = ?', [rollno]);
+    try {
+      await db.execute('DELETE FROM otp_codes WHERE roll_no = ?', [rollno]);
 
-    // Store the new OTP
-    await db.execute(
-      'INSERT INTO otp_codes (roll_no, otp_code, expires_at) VALUES (?, ?, ?)',
-      [rollno, otp, expiresAt]
-    );
+      // Store the new OTP
+      await db.execute(
+        'INSERT INTO otp_codes (roll_no, otp_code, expires_at) VALUES (?, ?, ?)',
+        [rollno, otp, expiresAt]
+      );
+    } catch (dbError) {
+      console.error('[DATABASE ERROR] OTP management failed:', dbError);
+      return NextResponse.json({ message: 'Database error occurred during OTP generation.' }, { status: 500 });
+    }
 
     // Send the OTP email
     const subject = 'Verify Your New Email Address';
@@ -127,15 +132,22 @@ export async function POST(req) {
       </body>
     </html>`;
     
-    const emailResponse = await sendEmail(email, subject, html);
+    let emailResponse;
+    try {
+      emailResponse = await sendEmail(email, subject, html);
+    } catch (mailError) {
+      console.error('[MAIL EXCEPTION] Failed during sendEmail:', mailError);
+      return NextResponse.json({ message: 'Email service exception occurred.' }, { status: 500 });
+    }
 
     if (emailResponse.success) {
       return NextResponse.json({ message: 'OTP sent to your new email address.' }, { status: 200 });
     } else {
-      return NextResponse.json({ message: 'Failed to send OTP email.' }, { status: 500 });
+      console.error('[MAIL FAILURE] sendEmail returned false:', emailResponse.message);
+      return NextResponse.json({ message: emailResponse.message || 'Failed to send OTP email.' }, { status: 500 });
     }
   } catch (error) {
-    console.error('Send OTP Error:', error);
+    console.error('[GENERAL ERROR] send-update-email-otp:', error);
     return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
   }
 }
