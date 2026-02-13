@@ -1,6 +1,5 @@
 import "./globals.css";
 import { Toaster } from 'react-hot-toast';
-import CookieConsent from "@/components/CookieConsent";
 
 export const metadata = {
   title: "Login | KUCET",
@@ -13,7 +12,6 @@ export default function RootLayout({ children }) {
       <body className="antialiased">
         <Toaster position="top-center" reverseOrder={false} />
         {children}
-        <CookieConsent />
       </body>
     </html>
   );
