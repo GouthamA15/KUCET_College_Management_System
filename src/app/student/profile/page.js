@@ -60,6 +60,9 @@ export default function StudentProfileNew() {
       const res = await fetch(`/api/student/${rollno}`);
       const data = await res.json();
       if (res.ok) {
+        if (data.student && data.student.pfp) {
+          data.student.pfp = `${data.student.pfp}?t=${new Date().getTime()}`;
+        }
         setStudentData(data);
         setMobile(data.student.mobile || '');
         setEmail(data.student.email || '');

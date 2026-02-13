@@ -43,6 +43,9 @@ export default function EditProfilePage() {
       const profRes = await fetch(`/api/student/${me.roll_no}`);
       if (!profRes.ok) return;
       const data = await profRes.json();
+      if (data.student && data.student.pfp) {
+        data.student.pfp = `${data.student.pfp}?t=${new Date().getTime()}`;
+      }
       setStudent(data.student);
       const initialMobile = data.student?.mobile || '';
       const initialAddress = data.student?.personal_details?.address || data.student?.address || '';

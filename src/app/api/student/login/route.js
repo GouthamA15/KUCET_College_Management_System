@@ -13,7 +13,7 @@ export async function POST(req) {
     }
     
     const rows = await query(
-      `SELECT s.roll_no, s.name, sp.father_name, sp.category, s.mobile, s.date_of_birth, s.password_hash
+      `SELECT s.id, s.roll_no, s.name, sp.father_name, sp.category, s.mobile, s.date_of_birth, s.password_hash
        FROM students s
        LEFT JOIN student_personal_details sp ON s.id = sp.student_id
        WHERE s.roll_no = ?`,
