@@ -4,7 +4,7 @@ export async function getStudentEmail(rollNo) {
   try {
     const results = await query('SELECT email FROM students WHERE roll_no = ?', [rollNo]);
     if (results.length > 0 && results[0].email) {
-      return String(results[0].email).replace(/\s+/g, '');
+      return String(results[0].email).replace(/[^a-zA-Z0-9@.\-_]/g, '');
     }
     return null;
   } catch (error) {
