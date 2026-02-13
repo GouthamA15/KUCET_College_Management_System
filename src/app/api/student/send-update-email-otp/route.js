@@ -36,8 +36,8 @@ export async function POST(req) {
     const body = await req.json();
     const rollno = body.rollno;
     const rawEmail = body.email ? String(body.email) : '';
-    // Strip everything except alphanumeric, @, ., -, and _
-    const email = rawEmail.replace(/[^a-zA-Z0-9@.\-_]/g, '');
+    // Aggressive cleaning: Remove all whitespace and non-standard characters
+    const email = rawEmail.trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9@.\-_]/g, '');
 
     console.log(`[DEBUG] OTP Request: rollno=${rollno}, rawEmail="${rawEmail}", cleanedEmail="${email}"`);
 

@@ -5,19 +5,17 @@ import fs from 'fs';
 
 dotenv.config();
 
-console.log(`[MAIL_INIT] User: ${process.env.EMAIL_USER}, Pass Length: ${process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0}`);
-
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // Use STARTTLS
+  port: 465,
+  secure: true, // Use SSL/TLS
   auth: {
-    user: (process.env.EMAIL_USER || '').trim(),
-    pass: (process.env.EMAIL_PASS || '').trim(),
+    user: (process.env.EMAIL_USER || '').replace(/\s+/g, ''),
+    pass: (process.env.EMAIL_PASS || '').replace(/\s+/g, ''),
   },
   tls: {
-    // Do not fail on invalid certs - helps in some cloud environments
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    minVersion: 'TLSv1.2'
   },
   connectionTimeout: 20000,
   debug: true,
