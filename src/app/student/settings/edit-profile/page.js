@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useStudent } from '@/context/StudentContext';
 import { useRouter } from 'next/navigation';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
@@ -11,7 +12,9 @@ import { formatDate } from '@/lib/date';
 
 export default function EditProfilePage() {
   const router = useRouter();
-  const [student, setStudent] = useState(null);
+  const { studentData, setStudentData, loading: contextLoading, refreshData } = useStudent();
+  const student = studentData?.student;
+
   const [mobile, setMobile] = useState('');
   const [address, setAddress] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
@@ -35,30 +38,18 @@ export default function EditProfilePage() {
     }
   }, [displayedPhoto]);
 
-  const loadProfile = useCallback(async () => {
-    try {
-      const meRes = await fetch('/api/student/me');
-      if (!meRes.ok) return;
-      const me = await meRes.json();
-      const profRes = await fetch(`/api/student/${me.roll_no}`);
-      if (!profRes.ok) return;
-      const data = await profRes.json();
-      if (data.student && data.student.pfp) {
-        data.student.pfp = `${data.student.pfp}?t=${new Date().getTime()}`;
-      }
-      setStudent(data.student);
-      const initialMobile = data.student?.mobile || '';
-      const initialAddress = data.student?.personal_details?.address || data.student?.address || '';
+  useEffect(() => {
+    if (student) {
+      const initialMobile = student.mobile || '';
+      const initialAddress = student.personal_details?.address || student.address || '';
       setMobile(initialMobile);
       setAddress(initialAddress);
       setOriginalMobile(initialMobile);
       setOriginalAddress(initialAddress);
       setPhotoRemoved(false);
       setPfpDataUrl(null);
-    } catch {}
-  }, []);
-
-  useEffect(() => { loadProfile(); }, [loadProfile]);
+    }
+  }, [student]);
 
   // Close photo menu when clicking outside
   useEffect(() => {
@@ -100,7 +91,7 @@ export default function EditProfilePage() {
         if (!updRes.ok) throw new Error('Failed to update profile');
       }
       setMessage({ type: 'success', text: 'Profile updated successfully.' });
-      await loadProfile();
+      await refreshData();
       setPfpDataUrl(null);
       setPhotoRemoved(false);
     } catch (e) {
@@ -154,8 +145,10 @@ export default function EditProfilePage() {
         <div className="w-full max-w-6xl bg-white shadow-xl rounded-lg p-6">
           <h1 className="text-2xl font-bold mb-6">Edit Profile</h1>
 
-          {!student ? (
+          {!studentData && contextLoading ? (
             <div className="text-gray-600">Loading...</div>
+          ) : !studentData ? (
+            <div className="text-gray-600">Student not found.</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-10">
               {/* Left: Photo */}

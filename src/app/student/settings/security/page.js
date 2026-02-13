@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useStudent } from '@/context/StudentContext';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/components/Footer';
 
 export default function SecurityPrivacyPage() {
-  const [loading, setLoading] = useState(true);
-  const [rollno, setRollno] = useState(null);
-  const [student, setStudent] = useState(null);
+  const { studentData, loading, refreshData } = useStudent();
+  const student = studentData?.student;
 
   // Email section state
   const [emailInput, setEmailInput] = useState('');
@@ -35,27 +35,13 @@ export default function SecurityPrivacyPage() {
   const [emailValid, setEmailValid] = useState(false);
   const [pwStrength, setPwStrength] = useState({ score: 0, label: 'Too Weak' });
 
+  const rollno = student?.roll_no;
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const meRes = await fetch('/api/student/me');
-        if (!meRes.ok) { setLoading(false); return; }
-        const me = await meRes.json();
-        const rno = me.roll_no;
-        setRollno(rno);
-        const detailRes = await fetch(`/api/student/${rno}`);
-        if (!detailRes.ok) { setLoading(false); return; }
-        const detail = await detailRes.json();
-        const st = detail.student;
-        setStudent(st);
-        setEmailInput(st?.email || '');
-      } catch (e) {
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+    if (student) {
+      setEmailInput(student.email || '');
+    }
+  }, [student]);
 
   // Email validation helper: valid format and must end with .com
   const validateEmail = (val) => {
@@ -148,7 +134,7 @@ export default function SecurityPrivacyPage() {
       const data = await res.json();
       if (res.ok) {
         setEmailMessage('Email verified successfully.');
-        setStudent((prev) => prev ? { ...prev, email: emailInput, is_email_verified: true } : prev);
+        await refreshData();
       } else {
         setEmailMessage(data?.message || 'Failed to verify OTP');
       }
@@ -174,7 +160,7 @@ export default function SecurityPrivacyPage() {
       const data = await res.json();
       if (res.ok) {
         setPwMessage('Password set successfully.');
-        setStudent((prev) => prev ? { ...prev, password_hash: 'set' } : prev);
+        await refreshData();
         setPwExpanded(false);
         setNewPassword(''); setConfirmPassword(''); setCurrentPassword('');
         setToastMessage('Password set successfully');
@@ -208,8 +194,10 @@ export default function SecurityPrivacyPage() {
         <div className="w-full max-w-4xl bg-white shadow-xl rounded-lg p-6 md:p-8">
           <h1 className="text-2xl font-bold mb-6">Security & Privacy</h1>
 
-          {loading ? (
+          {!studentData && loading ? (
             <div className="text-sm text-gray-600">Loading...</div>
+          ) : !studentData ? (
+            <div className="text-sm text-gray-600">Student not found.</div>
           ) : (
             <div className="space-y-8">
               {/* Section 1: Account Security Status (Read-only) */}

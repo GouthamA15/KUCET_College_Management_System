@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useStudent } from '@/context/StudentContext';
 // Client-side router is not used for auth; server handles redirects
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
@@ -14,7 +15,7 @@ import toast from 'react-hot-toast'; // Added toast
 import Loading from './loading';
 
 export default function StudentProfileNew() {
-  const [studentData, setStudentData] = useState(null);
+  const { studentData, setStudentData, loading: contextLoading, refreshData } = useStudent();
   const [activeTab, setActiveTab] = useState('personal');
 
   // State variables for editing functionality
@@ -42,6 +43,11 @@ export default function StudentProfileNew() {
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [imageLoading, setImageLoading] = useState(true);
 
+  // Store original values for cancellation/comparison
+  const [originalMobile, setOriginalMobile] = useState('');
+  const [originalEmail, setOriginalEmail] = useState('');
+  const [originalAddress, setOriginalAddress] = useState('');
+
 
   // PASSWORD SETTING STATES
   const [isPasswordSet, setIsPasswordSet] = useState(true); // Default true to prevent flash
@@ -55,28 +61,22 @@ export default function StudentProfileNew() {
     return String(val).replace(/\D/g, '').slice(0, maxLen);
   };
 
-  const fetchProfile = useCallback(async (rollno) => {
-    try {
-      const res = await fetch(`/api/student/${rollno}`);
-      const data = await res.json();
-      if (res.ok) {
-        if (data.student && data.student.pfp) {
-          data.student.pfp = `${data.student.pfp}?t=${new Date().getTime()}`;
-        }
-        setStudentData(data);
-        setMobile(data.student.mobile || '');
-        setEmail(data.student.email || '');
-        setNewEmail(data.student.email || ''); // Initialize newEmail with current email
-        setAddress(data.student.personal_details?.address || '');
-        setOriginalMobile(data.student.mobile || '');
-        setOriginalEmail(data.student.email || '');
-        setOriginalAddress(data.student.personal_details?.address || '');
-        setProfilePhoto(data.student.pfp);
-        setEmailLocked(!!data.student.is_email_verified);
+  useEffect(() => {
+    if (studentData) {
+      setMobile(studentData.student.mobile || '');
+      setEmail(studentData.student.email || '');
+      setNewEmail(studentData.student.email || ''); // Initialize newEmail with current email
+      setAddress(studentData.student.personal_details?.address || '');
+      setOriginalMobile(studentData.student.mobile || '');
+      setOriginalEmail(studentData.student.email || '');
+      setOriginalAddress(studentData.student.personal_details?.address || '');
+      setProfilePhoto(studentData.student.pfp);
+      setEmailLocked(!!studentData.student.is_email_verified);
 
-        // CHECK IF PASSWORD IS SET
+      // CHECK IF PASSWORD IS SET
+      const checkPassword = async () => {
         try {
-          const passRes = await fetch(`/api/student/set-password?rollno=${rollno}`);
+          const passRes = await fetch(`/api/student/set-password?rollno=${studentData.student.roll_no}`);
           if (passRes.ok) {
             const passData = await passRes.json();
             setIsPasswordSet(passData.isPasswordSet);
@@ -84,29 +84,10 @@ export default function StudentProfileNew() {
         } catch (e) {
           console.error("Error checking password status", e);
         }
-      } else {
-        // Unauthorized access is handled by server-side proxy redirects
-      }
-    } catch (e) {
-      // Unauthorized access is handled by server-side proxy redirects
+      };
+      checkPassword();
     }
-  }, []);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const me = await fetch('/api/student/me');
-        if (!me.ok) {
-          return;
-        }
-        const user = await me.json();
-        await fetchProfile(user.roll_no);
-      } catch {
-        // Unauthorized access is handled by server-side proxy redirects
-      }
-    };
-    load();
-  }, [fetchProfile]);
+  }, [studentData]);
 
   const handleLogout = async () => {
     try {
@@ -199,7 +180,7 @@ export default function StudentProfileNew() {
           setEmail(newEmail); // Update the main email state
           setEmailLocked(true);
           setEmailVerifiedPendingSave(true);
-          fetchProfile(studentData.student.roll_no);
+          refreshData();
         }
       } else {
         toast.error(data.message || 'OTP verification failed.');
@@ -271,7 +252,7 @@ export default function StudentProfileNew() {
         setIsOtpVerified(false);
         setOtp('');
 
-        fetchProfile(studentData.student.roll_no);
+        refreshData();
       } else {
         toast.error(result.error || 'Failed to update profile.');
       }
@@ -321,11 +302,12 @@ export default function StudentProfileNew() {
     setEmail(newEmail);
     setEmailLocked(true);
     setEmailVerifiedPendingSave(true);
-    fetchProfile(studentData.student.roll_no);
+    refreshData();
   };
 
 
-  if (!studentData) return <Loading />;
+  if (!studentData && contextLoading) return <Loading />;
+  if (!studentData) return null;
   const { student } = studentData;
 
   const branch = getBranchFromRoll(student.roll_no);
