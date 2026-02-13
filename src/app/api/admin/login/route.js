@@ -5,7 +5,7 @@ import { query } from '@/lib/db';
 
 export async function POST(request) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, rememberMe } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
@@ -28,10 +28,13 @@ export async function POST(request) {
     }
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const sessionDuration = rememberMe ? '30d' : '1h';
+    const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 60 * 60;
+
     const token = await new SignJWT({ email: principal.email, role: 'admin' })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setExpirationTime('1h')
+      .setExpirationTime(sessionDuration)
       .sign(secret);
 
     const response = NextResponse.json({ success: true, message: 'Admin login successful' });
@@ -43,7 +46,7 @@ export async function POST(request) {
     response.cookies.set('admin_auth', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60, // 1 hour
+      maxAge: cookieMaxAge,
       path: '/',
     });
     return response;

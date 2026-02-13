@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, rememberMe } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json({ success: false, message: 'Email and password are required' }, { status: 400 });
@@ -33,11 +33,14 @@ export async function POST(request) {
     }
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const sessionDuration = rememberMe ? '30d' : '1h';
+    const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 60 * 60;
+
     // Include clerk DB id in JWT payload so downstream handlers can audit actions
     const token = await new SignJWT({ id: clerk.id, clerkId: clerk.id, email: clerk.email, role: clerk.role })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setExpirationTime('1h')
+      .setExpirationTime(sessionDuration)
       .sign(secret);
 
     const response = NextResponse.json({ success: true, message: 'Login successful', role: clerk.role });
@@ -49,20 +52,20 @@ export async function POST(request) {
     response.cookies.set('clerk_auth', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60, // 1 hour
+      maxAge: cookieMaxAge,
       path: '/',
     });
     response.cookies.set('clerk_logged_in', 'true', {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60, // 1 hour
+      maxAge: cookieMaxAge,
       path: '/',
     });
     // Expose the clerk role in a non-httpOnly cookie so client-side code can route appropriately
     response.cookies.set('clerk_role', clerk.role || '', {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60,
+      maxAge: cookieMaxAge,
       path: '/',
     });
 
