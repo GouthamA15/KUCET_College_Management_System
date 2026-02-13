@@ -65,7 +65,8 @@ export function AdminProvider({ children }) {
 
   useEffect(() => {
     refreshAll();
-  }, [refreshAll]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <AdminContext.Provider value={{ 

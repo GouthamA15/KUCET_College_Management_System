@@ -15,7 +15,7 @@ export default function NoDuesRequestPage() {
   const [requestStatus, setRequestStatus] = useState('idle');
   // Mock totalExpectedFee for demonstration.
   // In a real application, this should be dynamically calculated based on student's course, admission type, scholarship, etc.
-  const [totalExpectedFee, setTotalExpectedFee] = useState(0); 
+  const [totalExpectedFee, setTotalExpectedFee] = useState(250000); 
 
 
   useEffect(() => {
@@ -29,9 +29,6 @@ export default function NoDuesRequestPage() {
       router.replace('/student/requests/verification-required');
       return;
     }
-
-    // TODO: Implement actual logic to calculate totalExpectedFee
-    setTotalExpectedFee(250000); // Placeholder value for total expected fee
   }, [studentData, loading, router]);
 
   const totalClearedFee = studentData?.fees?.reduce((acc, fee) => acc + fee.amount, 0) || 0;

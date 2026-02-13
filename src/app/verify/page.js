@@ -11,17 +11,19 @@ function VerifyContent() {
   const certId = searchParams.get('id');
   const rollNo = searchParams.get('roll');
   
+  // Derived state: calculate invalidity immediately
+  const missingParams = !certId || !rollNo;
+
   const [status, setStatus] = useState('loading');
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    // 1. If parameters are missing, don't even try the API
-    if (!certId || !rollNo) {
-      setStatus('invalid');
+    // If parameters are missing, we don't need to do anything as the UI will reflect 'missingParams'
+    if (missingParams) {
       return;
     }
 
-    // 2. Call the API
+    // Call the API only if params exist
     fetch('/api/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -37,7 +39,12 @@ function VerifyContent() {
       }
     })
     .catch(() => setStatus('error'));
-  }, [certId, rollNo]);
+  }, [certId, rollNo, missingParams]);
+
+  // Consolidate 'error', 'failed', and 'invalid' (missing params) states for UI rendering
+  const showInvalidUI = missingParams || status === 'failed' || status === 'error';
+  const showLoadingUI = !missingParams && status === 'loading';
+  const showSuccessUI = !missingParams && status === 'success' && data;
 
   return (
    <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -62,14 +69,14 @@ function VerifyContent() {
         </div>
 
         <div className="p-8">
-          {status === 'loading' && (
+          {showLoadingUI && (
             <div className="flex flex-col items-center py-10">
               <div className="w-12 h-12 border-4 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
               <p className="mt-4 text-slate-600 font-medium">Verifying Document...</p>
             </div>
           )}
 
-          {status === 'success' && data && (
+          {showSuccessUI && (
             <div className="animate-in fade-in duration-700">
               <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-center gap-3">
                 <span className="text-green-600 text-2xl">✓</span>
@@ -101,7 +108,7 @@ function VerifyContent() {
             </div>
           )}
 
-          {(status === 'failed' || status === 'invalid' || status === 'error') && (
+          {showInvalidUI && (
             <div className="text-center py-6 animate-in zoom-in duration-300">
               <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold">!</div>
               <h2 className="text-xl font-bold text-slate-800">Invalid Certificate</h2>

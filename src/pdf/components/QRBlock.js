@@ -5,7 +5,7 @@ import { styles } from "./Styles";
 export default function QRBlock({ qrUrl, label = "SCAN TO VERIFY" }) {
   return (
     <View style={styles.qrSection}>
-      {qrUrl ? <Image src={qrUrl} style={styles.qrImage} /> : null}
+      {qrUrl ? <Image src={qrUrl} style={styles.qrImage} alt="QR Code" /> : null}
       <Text style={styles.qrLabel}>{label}</Text>
     </View>
   );
