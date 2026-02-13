@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useStudent } from '@/context/StudentContext';
 import Navbar from '../../../../components/Navbar';
 import DuesSection from '../../../../components/DuesSection';
 import TuitionFeeStatus from '../../../../components/TuitionFeeStatus';
@@ -10,8 +11,7 @@ import { useRouter } from 'next/navigation';
 export default function NoDuesRequestPage() {
   const router = useRouter();
 
-  const [studentData, setStudentData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { studentData, loading, refreshData } = useStudent();
   const [requestStatus, setRequestStatus] = useState('idle');
   // Mock totalExpectedFee for demonstration.
   // In a real application, this should be dynamically calculated based on student's course, admission type, scholarship, etc.
@@ -19,43 +19,20 @@ export default function NoDuesRequestPage() {
 
 
   useEffect(() => {
-    const fetchStudentData = async () => {
-      try {
-        const meRes = await fetch('/api/student/me');
-        if (!meRes.ok) throw new Error('Could not fetch student identity.');
-        const { roll_no } = await meRes.json();
+    if (loading) return;
+    if (!studentData) return;
 
-        if (roll_no) {
-          const studentRes = await fetch(`/api/student/${roll_no}`);
-          if (!studentRes.ok) throw new Error(`Could not fetch data for ${roll_no}`);
-          const data = await studentRes.json();
-          setStudentData(data);
+    // Route-level guard: block unverified accounts from accessing requests
+    const s = studentData.student;
+    const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
+    if (!verified) {
+      router.replace('/student/requests/verification-required');
+      return;
+    }
 
-          // Route-level guard: block unverified accounts from accessing requests
-          const s = data?.student;
-          const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
-          if (!verified) {
-            router.replace('/student/requests/verification-required');
-            return;
-          }
-
-          // TODO: Implement actual logic to calculate totalExpectedFee
-          // For now, using a placeholder.
-          // This should likely involve `data.student.admission_type`, `data.student.course`, `data.scholarship`, etc.
-          // For demonstration, let's assume a fixed fee or derive from some existing data if possible.
-          // Example: If student's `student.academic_year` implies a certain total fee.
-          // Or, for simplicity, let's assume a default value if no specific calculation is implemented.
-          setTotalExpectedFee(250000); // Placeholder value for total expected fee
-        }
-      } catch (error) {
-        console.error('Failed to fetch student data:', error);
-        toast.error(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStudentData();
-  }, [router]);
+    // TODO: Implement actual logic to calculate totalExpectedFee
+    setTotalExpectedFee(250000); // Placeholder value for total expected fee
+  }, [studentData, loading, router]);
 
   const totalClearedFee = studentData?.fees?.reduce((acc, fee) => acc + fee.amount, 0) || 0;
   const pendingFee = totalExpectedFee - totalClearedFee;

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useClerk } from '@/context/ClerkContext';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
@@ -9,34 +10,14 @@ import CertificateDashboard from '@/components/clerk/certificates/CertificateDas
 import toast from 'react-hot-toast';
 
 export default function ClerkDashboard() {
+  const { clerkData: clerk, loading: isLoading } = useClerk();
   const [openModule, setOpenModule] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [clerk, setClerk] = useState(null);
 
   useEffect(() => {
-    const fetchClerkData = async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch('/api/clerk/me');
-        const data = await res.json();
-        if (res.ok) {
-          if (data.role !== 'admission') {
-            toast.error('Access Denied');
-          } else {
-            setClerk(data);
-          }
-        } else {
-          toast.error(data.error || 'Failed to fetch clerk data.');
-        }
-      } catch (error) {
-        toast.error('An unexpected error occurred while fetching clerk data.');
-        console.error('Error fetching clerk data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchClerkData();
-  }, []);
+    if (!isLoading && clerk && clerk.role !== 'admission') {
+      toast.error('Access Denied');
+    }
+  }, [clerk, isLoading]);
 
   if (isLoading) {
     return (

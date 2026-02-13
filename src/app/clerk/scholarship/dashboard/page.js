@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useClerk } from '@/context/ClerkContext';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -16,8 +17,7 @@ import { formatDate } from '@/lib/date';
 
 
 export default function ScholarshipDashboard() {
-  const [clerk, setClerk] = useState(null);
-  const [isClerkLoading, setIsClerkLoading] = useState(true); // For initial clerk auth check
+  const { clerkData: clerk, loading: isClerkLoading } = useClerk();
   const [roll, setRoll] = useState('');
   const [rollError, setRollError] = useState('');
   const MAX_ROLL = 10;
@@ -47,29 +47,10 @@ export default function ScholarshipDashboard() {
 
 
   useEffect(() => {
-    const fetchClerkData = async () => {
-      setIsClerkLoading(true);
-      try {
-        const res = await fetch('/api/clerk/me');
-        const data = await res.json();
-        if (res.ok) {
-          if (data.role !== 'scholarship') {
-            toast.error('Access Denied');
-          } else {
-            setClerk(data);
-          }
-        } else {
-          toast.error(data.error || 'Failed to fetch clerk data.');
-        }
-      } catch (error) {
-        toast.error('An unexpected error occurred while fetching clerk data.');
-        console.error('Error fetching clerk data:', error);
-      } finally {
-        setIsClerkLoading(false);
-      }
-    };
-    fetchClerkData();
-  }, []);
+    if (!isClerkLoading && clerk && clerk.role !== 'scholarship') {
+      toast.error('Access Denied');
+    }
+  }, [clerk, isClerkLoading]);
 
   // Date formatting helper (UI only)
   const toDmy = (val) => formatDate(val) || '-';

@@ -4,32 +4,13 @@ import Header from '@/components/Header';
 import AdminNavbar from '@/components/AdminNavbar';
 import Footer from '@/components/Footer';
 import { useState, useEffect } from 'react';
+import { useAdmin } from '@/context/AdminContext';
 import toast from 'react-hot-toast';
 
 export default function ManageClerksPage() {
-  const [clerks, setClerks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { clerks, loading, refreshClerks } = useAdmin();
   const [editingClerkId, setEditingClerkId] = useState(null);
   const [editedClerk, setEditedClerk] = useState({});
-
-  useEffect(() => {
-    fetchClerks();
-  }, []);
-
-  const fetchClerks = async () => {
-    try {
-      const res = await fetch('/api/admin/clerks');
-      if (!res.ok) {
-        throw new Error('Failed to fetch clerks');
-      }
-      const data = await res.json();
-      setClerks(data);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEdit = (clerk) => {
     setEditingClerkId(clerk.id);
@@ -64,7 +45,7 @@ export default function ManageClerksPage() {
       toast.success('Clerk updated successfully!', { id: toastId });
       setEditingClerkId(null);
       setEditedClerk({});
-      fetchClerks(); // Re-fetch clerks to update the list
+      refreshClerks();
     } catch (error) {
       toast.error(error.message, { id: toastId });
     }
@@ -87,7 +68,7 @@ export default function ManageClerksPage() {
       }
 
       toast.success('Clerk deleted successfully!', { id: toastId });
-      fetchClerks(); // Re-fetch clerks to update the list
+      refreshClerks();
     } catch (error) {
       toast.error(error.message, { id: toastId });
     }

@@ -13,6 +13,8 @@
 # testing
 /coverage
 *.sql
+
+/src/app/pdf-preview
 # next.js
 /.next/
 /out/

@@ -5,9 +5,11 @@ import Header from '@/components/Header';
 import AdminNavbar from '@/components/AdminNavbar';
 import Footer from '@/components/Footer';
 import { useState } from 'react';
+import { useAdmin } from '@/context/AdminContext';
 import toast from 'react-hot-toast';
 
 export default function CreateClerkPage() {
+  const { refreshClerks } = useAdmin();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,6 +38,7 @@ export default function CreateClerkPage() {
           setPassword('');
           setEmployeeId('');
           setRole('scholarship'); // Reset role to default after creation
+          refreshClerks();
         } else {
           if (res.status === 409) {
              toast.error('A clerk with this email already exists.', { id: toastId });

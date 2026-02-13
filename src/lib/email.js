@@ -1,58 +1,40 @@
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
-
-dotenv.config();
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-// Default images to attach as CID so they render inside email clients reliably.
-const defaultCidImages = [
-  { filename: 'ku-college-logo.png', cid: 'ku_logo@kucet', relPath: ['public', 'assets', 'ku-college-logo.png'] },
-  { filename: 'college-campus.jpg', cid: 'campus@kucet', relPath: ['public', 'assets', 'college-campus.jpg'] },
-  { filename: 'kakatiya-kala-thoranam.png', cid: 'thoranam@kucet', relPath: ['public', 'assets', 'kakatiya-kala-thoranam.png'] },
-];
-
 export const sendEmail = async (to, subject, html) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.error('Email credentials not set in environment variables.');
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.EMAIL_USER;
+
+  if (!apiKey || !senderEmail) {
+    console.error('[EMAIL_ERROR] Brevo API key or Sender Email missing in environment.');
     return { success: false, message: 'Email service not configured.' };
   }
 
-  // Build attachments list by checking files exist
-  const attachments = [];
-  for (const img of defaultCidImages) {
-    try {
-      const imgPath = path.join(process.cwd(), ...img.relPath);
-      if (fs.existsSync(imgPath)) {
-        attachments.push({ filename: img.filename, path: imgPath, cid: img.cid });
-      }
-    } catch (err) {
-      // ignore missing images; continue without failing
-      console.warn(`CID image not attached: ${img.filename}`, err);
-    }
-  }
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    html,
-    attachments: attachments.length ? attachments : undefined,
-  };
-
+  // Brevo API uses standard HTTPS (Port 443), so it is never blocked by Render.
   try {
-    await transporter.sendMail(mailOptions);
-    return { success: true, message: 'Email sent successfully.' };
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { email: senderEmail, name: "KUCET College Portal" },
+        to: [{ email: to }],
+        subject: subject,
+        htmlContent: html
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      console.log('[EMAIL_SUCCESS] Message sent via Brevo API.');
+      return { success: true, message: 'Email sent successfully.' };
+    } else {
+      console.error('[EMAIL_FAILURE] Brevo API error:', data);
+      return { success: false, message: data.message || 'Failed to send email via Brevo.' };
+    }
   } catch (error) {
-    console.error('Error sending email:', error);
-    return { success: false, message: 'Failed to send email.' };
+    console.error('[EMAIL_EXCEPTION] Error calling Brevo API:', error);
+    return { success: false, message: 'Internal error connecting to email service.' };
   }
 };

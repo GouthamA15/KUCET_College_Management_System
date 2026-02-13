@@ -118,7 +118,6 @@ export default function Header() {
               alt="KU Logo" 
               width={40} height={40}
               className="h-8 w-auto object-contain"
-              priority
             />
           </div>
           <div className="bg-blue-100 p-1 rounded-lg">

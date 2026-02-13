@@ -1,3 +1,9 @@
+import { AdminProvider } from '@/context/AdminContext';
+
 export default async function AdminLayout({ children }) {
-  return <>{children}</>;
+  return (
+    <AdminProvider>
+      {children}
+    </AdminProvider>
+  );
 }
