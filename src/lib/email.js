@@ -6,14 +6,25 @@ import fs from 'fs';
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // Use SSL/TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  connectionTimeout: 20000, // 20 seconds
-  greetingTimeout: 20000,
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
   socketTimeout: 30000,
+});
+
+// Verify connection configuration
+transporter.verify(function (error, success) {
+  if (error) {
+    console.error('[MAIL_VERIFY] Connection error:', error);
+  } else {
+    console.log('[MAIL_VERIFY] Server is ready to take our messages');
+  }
 });
 
 // Default images to attach as CID so they render inside email clients reliably.
