@@ -57,7 +57,7 @@ export default function BonafideCertificatePDF({
           </Text>
         </View>
 
-        <SignatureBlock signatureUrl={signatureUrl} />
+        <SignatureBlock  signatureUrl={signatureUrl} />
 
         <QRBlock qrUrl={qrUrl} />
       </PageBorder>
