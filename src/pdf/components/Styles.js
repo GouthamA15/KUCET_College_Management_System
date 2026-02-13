@@ -89,6 +89,7 @@ export const styles = StyleSheet.create({
     bold: {
       fontWeight: "bold",
     },
+    
     signatureSection: {
       marginTop: 40,
       marginRight: 20,
@@ -98,8 +99,19 @@ export const styles = StyleSheet.create({
       width: 300,
     },
 
+    custodianSignSection: {
+      marginTop: 50,
+      marginRight: 20,
+      alignSelf: "flex-end",
+      alignItems: "flex-end",
+      textAlign: "center",
+      width: 300,
+    },
+
     signatureImage: {
-      width: 140,
+      width: 70,
+      marginRight: 40,
+      paddingBottom: 5
     },
 
     signatureLabel: {
@@ -110,6 +122,13 @@ export const styles = StyleSheet.create({
       paddingTop: 1,
       marginRight: 30
     },
+
+    stampSign: {
+      width: 120,
+      paddingBottom: 5,
+      marginRight: 10
+    },
+
     qrSection: {
       position: "absolute",
       bottom: 30,
