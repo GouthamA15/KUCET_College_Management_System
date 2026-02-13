@@ -6,15 +6,18 @@ export default function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Check if user has already accepted cookies
-    const consent = localStorage.getItem('cookie-consent');
+    // Check for cookie-consent in document.cookie
+    const consent = document.cookie.split('; ').find(row => row.startsWith('cookie-consent='));
     if (!consent) {
       setIsVisible(true);
     }
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem('cookie-consent', 'true');
+    // Set an actual cookie that expires in 365 days
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (365 * 24 * 60 * 60 * 1000));
+    document.cookie = `cookie-consent=true; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
     setIsVisible(false);
   };
 
