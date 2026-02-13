@@ -35,13 +35,14 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const rollno = body.rollno;
-    const email = body.email ? String(body.email).replace(/\s+/g, '') : null;
+    const rawEmail = body.email ? String(body.email) : '';
+    const email = rawEmail.replace(/\s+/g, '');
+
+    console.log(`[DEBUG] OTP Request: rollno=${rollno}, rawEmail="${rawEmail}", cleanedEmail="${email}"`);
 
     if (!rollno || !email) {
       return NextResponse.json({ message: 'Missing roll number or email' }, { status: 400 });
     }
-
-    console.log(`[DEBUG] Received request: rollno=${rollno}, email=${email}`);
 
     const db = getDb();
 

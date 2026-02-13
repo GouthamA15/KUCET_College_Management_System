@@ -6,24 +6,25 @@ import fs from 'fs';
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // Use SSL/TLS
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  connectionTimeout: 15000,
-  greetingTimeout: 15000,
-  socketTimeout: 30000,
+  pool: true, // Use a pool of connections
+  maxConnections: 3,
+  maxMessages: 100,
+  connectionTimeout: 20000,
+  debug: true, // Detailed logs
+  logger: true  // Log to console
 });
 
 // Verify connection configuration
 transporter.verify(function (error, success) {
   if (error) {
-    console.error('[MAIL_VERIFY] Connection error:', error);
+    console.error('[MAIL_VERIFY] Initialization failure:', error);
   } else {
-    console.log('[MAIL_VERIFY] Server is ready to take our messages');
+    console.log('[MAIL_VERIFY] Transporter is ready');
   }
 });
 
