@@ -87,6 +87,7 @@ CERTIFICATE_SECRET=your_qr_verification_secret
     *   **Rejection Reasons:** Added functionality for clerks to provide, and students to view, detailed rejection reasons for certificate requests.
     *   **Dynamic QR Codes:** Certificates now generate dynamic QR codes based on the certificate type and fee, using the UPI standard.
     *   **PDF Generation System:** Replaced HTML templates with a robust, component-based PDF generation system utilizing `@react-pdf/renderer`.
+    *   **New Template:** Added `TransferCertificatePDF.js` to support Transfer Certificate (TC) generation.
 
 ## Code Documentation
 
