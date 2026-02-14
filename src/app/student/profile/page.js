@@ -8,7 +8,6 @@ import Footer from '@/components/Footer';
 import { getBranchFromRoll, getResolvedCurrentAcademicYear, getBatchFromRoll } from '@/lib/rollNumber';
 import { calculateYearAndSemester } from '@/lib/academic-utils';
 import StudentProfileLayout from '@/components/student/StudentProfileLayout';
-import ProfileWarningBar from '@/components/student/ProfileWarningBar';
 import ProfileActivityBar from '@/components/student/ProfileActivityBar';
 import ProfileHeaderCard from '@/components/student/ProfileHeaderCard';
 import ProfileStatusBar from '@/components/student/ProfileStatusBar';
@@ -61,8 +60,7 @@ export default function StudentProfileNew() {
 
       <SetPasswordGate show={password.showSetPasswordModal} rollno={student.roll_no} email={profileEdit.email} onPasswordSet={() => { password.setShowSetPasswordModal(false); refreshData(); }} />
 
-      <ProfileWarningBar student={student} />
-      <ProfileActivityBar latestRequest={activity.latestRequest} dismissCount={activity.dismissCount} onDismiss={activity.dismiss} onReset={activity.reset} />
+      <ProfileActivityBar activity={activity} student={student} />
 
       <main className="flex-1 flex items-start justify-center px-6 py-6">
         <div className="w-full max-w-6xl bg-white shadow-xl rounded-lg p-6 overflow-hidden">
