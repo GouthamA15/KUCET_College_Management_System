@@ -178,16 +178,46 @@ export async function GET(request, { params }) {
         
         
         // Helper to load image as base64 to avoid react-pdf fetching issues
+        // Detect MIME from file signature (magic bytes) to avoid "SOI not found" when extension is wrong.
         const getBase64Image = (filePath) => {
             try {
-                if (fs.existsSync(filePath)) {
-                    const ext = path.extname(filePath).toLowerCase().replace('.', '');
-                    const mimeType = ext === 'jpg' ? 'jpeg' : ext; 
-                    const fileBuffer = fs.readFileSync(filePath);
-                    return `data:image/${mimeType};base64,${fileBuffer.toString('base64')}`;
+                if (!fs.existsSync(filePath)) {
+                    console.warn(`[CERT_DOWNLOAD] Image file not found: ${filePath}`);
+                    return null;
                 }
-                console.warn(`[CERT_DOWNLOAD] Image file not found: ${filePath}`);
-                return null;
+                const fileBuffer = fs.readFileSync(filePath);
+                if (!fileBuffer || fileBuffer.length < 4) {
+                    console.warn(`[CERT_DOWNLOAD] Image file is too small or empty: ${filePath}`);
+                    return null;
+                }
+
+                let mimeType = null;
+                // JPEG SOI: 0xFF 0xD8
+                if (fileBuffer[0] === 0xFF && fileBuffer[1] === 0xD8) {
+                    mimeType = 'image/jpeg';
+                // PNG signature: 0x89 0x50 0x4E 0x47
+                } else if (fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x4E && fileBuffer[3] === 0x47) {
+                    mimeType = 'image/png';
+                // GIF: 'GIF8'
+                } else if (fileBuffer.slice(0,4).toString('ascii') === 'GIF8') {
+                    mimeType = 'image/gif';
+                // WEBP: 'RIFF' .... 'WEBP'
+                } else if (fileBuffer.slice(0,4).toString('ascii') === 'RIFF' && fileBuffer.slice(8,12).toString('ascii') === 'WEBP') {
+                    mimeType = 'image/webp';
+                }
+
+                if (!mimeType) {
+                    // Fallback to extension-based guess when signature not recognized
+                    const ext = path.extname(filePath).toLowerCase().replace('.', '');
+                    if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+                    else if (ext === 'png') mimeType = 'image/png';
+                    else if (ext === 'gif') mimeType = 'image/gif';
+                    else if (ext === 'webp') mimeType = 'image/webp';
+                    else mimeType = 'application/octet-stream';
+                    console.warn(`[CERT_DOWNLOAD] Unknown image signature for ${filePath}, falling back to extension (${ext}) => ${mimeType}`);
+                }
+
+                return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
             } catch (err) {
                 console.error(`[CERT_DOWNLOAD] Error reading image file: ${filePath}`, err);
                 return null;
@@ -197,7 +227,25 @@ export async function GET(request, { params }) {
         const publicDir = path.join(process.cwd(), 'public');
         const logoUrl = getBase64Image(path.join(publicDir, 'assets', 'ku-logo.png'));
         const signatureUrl = getBase64Image(path.join(publicDir, 'assets', 'principal-sign.png'));
-        const stampSign = getBase64Image(path.join(publicDir, 'assets', 'principal-signStamp.jpg'));
+        // Try multiple common variants for stamp image (jpg/png, different case/sep)
+        const stampCandidates = [
+            path.join(publicDir, 'assets', 'principal-signStamp.jpg'),
+            path.join(publicDir, 'assets', 'principal-signStamp.png'),
+            path.join(publicDir, 'assets', 'principal-sign-stamp.jpg'),
+            path.join(publicDir, 'assets', 'principal-sign-stamp.png'),
+            path.join(publicDir, 'assets', 'principal-signstamp.jpg'),
+            path.join(publicDir, 'assets', 'principal-signstamp.png'),
+        ];
+        let stampSign = null;
+        for (const p of stampCandidates) {
+            stampSign = getBase64Image(p);
+            if (stampSign) break;
+        }
+        // As last resort, use the signature image so the PDF still shows a mark
+        if (!stampSign) {
+            console.warn('[CERT_DOWNLOAD] stampSign not found in assets; falling back to principal-sign.png');
+            stampSign = signatureUrl;
+        }
         const stampUrl = getBase64Image(path.join(publicDir, 'assets', 'ku-college-seal.png'));
 
         const commonData = {
