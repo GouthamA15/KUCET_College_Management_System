@@ -9,13 +9,14 @@ import Footer from '@/components/Footer';
 import Image from 'next/image';
 import SetPasswordModal from '@/components/SetPasswordModal';
 import { getBranchFromRoll, getEntryYearFromRoll, getAdmissionTypeFromRoll, getResolvedCurrentAcademicYear, getBatchFromRoll } from '@/lib/rollNumber';
+import { calculateYearAndSemester } from '@/lib/academic-utils';
 import { formatDate } from '@/lib/date';
 import { computeAcademicYear, isYearAllowed } from '@/app/lib/academicYear';
 import toast from 'react-hot-toast'; // Added toast
 import Loading from './loading';
 
 export default function StudentProfileNew() {
-  const { studentData, setStudentData, loading: contextLoading, refreshData } = useStudent();
+  const { studentData, collegeInfo, setStudentData, loading: contextLoading, refreshData } = useStudent();
   const [activeTab, setActiveTab] = useState('personal');
 
   // State variables for editing functionality
@@ -312,32 +313,7 @@ export default function StudentProfileNew() {
 
   const branch = getBranchFromRoll(student.roll_no);
   const courseLabel = branch ? `B. Tech (${branch})` : 'B. Tech';
-  // Compute year-of-study locally (not academic year). Academic year label comes from resolver.
-  const computeYearOfStudy = (rollNo) => {
-    try {
-      // Derive admission year and type
-      let entryYearStr = getEntryYearFromRoll(rollNo);
-      let admissionType = getAdmissionTypeFromRoll(rollNo) || 'Regular';
-      if (!entryYearStr && typeof rollNo === 'string' && rollNo.includes('567')) {
-        const two = String(rollNo).slice(0, 2);
-        if (/^\d{2}$/.test(two)) entryYearStr = `20${two}`;
-      }
-      if (!entryYearStr) return 1;
-      const admissionYear = parseInt(entryYearStr, 10);
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
-      const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
-      let idx = effectiveYear - admissionYear + 1;
-      const maxYears = (String(admissionType).toLowerCase() === 'lateral') ? 3 : 4;
-      if (!Number.isFinite(idx) || idx < 1) idx = 1;
-      if (idx > maxYears) idx = maxYears;
-      return idx;
-    } catch {
-      return 1;
-    }
-  };
-  const yearOfStudy = computeYearOfStudy(student.roll_no);
+  const { yearOfStudy, semesterLabel } = calculateYearAndSemester(student.roll_no, collegeInfo);
   let currentAcademicYearLabel = null;
   try { currentAcademicYearLabel = getResolvedCurrentAcademicYear(student.roll_no); } catch { currentAcademicYearLabel = null; }
   let batchString = null;
@@ -475,7 +451,7 @@ export default function StudentProfileNew() {
             <div className="flex flex-col justify-start">
               <div className="space-y-1">
                 <div className="text-xl font-semibold">{courseLabel}</div>
-                <div className="text-blue-700 font-semibold">Year: {yearOfStudy}</div>
+                <div className="text-blue-700 font-semibold">Year: {yearOfStudy} | Semester: {semesterLabel}</div>
                 {currentAcademicYearLabel && (
                   <><div className="text-blue-700 font-semibold">Academic Year: {currentAcademicYearLabel} (Current Academic)</div>
                   <div className="text-blue-700 font-semibold">Batch: {batchString}</div>

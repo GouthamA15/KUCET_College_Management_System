@@ -6,10 +6,23 @@ const AdminContext = createContext();
 
 export function AdminProvider({ children }) {
   const [adminData, setAdminData] = useState(null);
+  const [collegeInfo, setCollegeInfo] = useState(null);
   const [clerks, setClerks] = useState([]);
   const [studentStats, setStudentStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const fetchCollegeInfo = useCallback(async () => {
+    try {
+      const res = await fetch('/api/public/college-info');
+      const data = await res.json();
+      if (res.ok) {
+        setCollegeInfo(data.collegeInfo);
+      }
+    } catch (e) {
+      console.error('Failed to fetch college info', e);
+    }
+  }, []);
 
   const fetchClerks = useCallback(async () => {
     try {
@@ -58,10 +71,11 @@ export function AdminProvider({ children }) {
     await Promise.all([
       fetchAdminMe(),
       fetchClerks(),
-      fetchStudentStats()
+      fetchStudentStats(),
+      fetchCollegeInfo()
     ]);
     setLoading(false);
-  }, [fetchAdminMe, fetchClerks, fetchStudentStats]);
+  }, [fetchAdminMe, fetchClerks, fetchStudentStats, fetchCollegeInfo]);
 
   useEffect(() => {
     refreshAll();
@@ -71,6 +85,7 @@ export function AdminProvider({ children }) {
   return (
     <AdminContext.Provider value={{ 
       adminData, 
+      collegeInfo,
       clerks, 
       studentStats, 
       loading, 

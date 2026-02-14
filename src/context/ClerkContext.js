@@ -6,8 +6,21 @@ const ClerkContext = createContext();
 
 export function ClerkProvider({ children }) {
   const [clerkData, setClerkData] = useState(null);
+  const [collegeInfo, setCollegeInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const fetchCollegeInfo = useCallback(async () => {
+    try {
+      const res = await fetch('/api/public/college-info');
+      const data = await res.json();
+      if (res.ok) {
+        setCollegeInfo(data.collegeInfo);
+      }
+    } catch (e) {
+      console.error('Failed to fetch college info', e);
+    }
+  }, []);
 
   const fetchClerk = useCallback(async () => {
     try {
@@ -28,14 +41,14 @@ export function ClerkProvider({ children }) {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await fetchClerk();
+      await Promise.all([fetchClerk(), fetchCollegeInfo()]);
       setLoading(false);
     };
     init();
-  }, [fetchClerk]);
+  }, [fetchClerk, fetchCollegeInfo]);
 
   return (
-    <ClerkContext.Provider value={{ clerkData, setClerkData, loading, error, refreshClerk: fetchClerk }}>
+    <ClerkContext.Provider value={{ clerkData, collegeInfo, setClerkData, loading, error, refreshClerk: fetchClerk }}>
       {children}
     </ClerkContext.Provider>
   );

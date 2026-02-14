@@ -8,6 +8,7 @@ import { jwtVerify } from 'jose';
 import path from 'path';
 import fs from 'fs';
 import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { calculateYearAndSemester } from '@/lib/academic-utils';
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
 import CustodianCertificatePDF from '@/pdf/templates/CustodianCertificatePDF';
@@ -119,39 +120,24 @@ export async function GET(request, { params }) {
         }
         const student = students[0];
 
+        // Fetch college info for semester calculation
+        const collegeInfoRows = await query('SELECT * FROM college_info WHERE id = 1');
+        const collegeInfo = collegeInfoRows[0] || {};
+
         // CALCULATE YEAR AND SEMESTER ---
+        const { yearOfStudy, semester: currentSemester } = calculateYearAndSemester(student.roll_no, collegeInfo);
+        
         const rollNo = student.roll_no;
-        const admissionYearShort = parseInt(rollNo.substring(0, 2)); // e.g., "22" from "22567T..."
-        const admissionYear = 2000 + admissionYearShort;
         const isLateral = rollNo.toUpperCase().endsWith('L');
+        const admissionYearShort = parseInt(rollNo.substring(0, 2));
+        const admissionYear = 2000 + admissionYearShort;
 
         // If lateral, they join in 2nd year, so their "Batch" actually started 1 year prior
-        // Example: 24K4...L joins in 2024, but their batch is 2023-2027
         const batchStart = isLateral ? admissionYear - 1 : admissionYear;
         const batchEnd = batchStart + 4; 
         const batchString = `${batchStart}-${batchEnd}`;
-
-        const durationYears = isLateral ? 3 : 4;
-        const durationString = `${durationYears} Years`;
         
         const today = new Date();
-        const currentYearDate = today.getFullYear();
-        const currentMonth = today.getMonth() + 1; // 1-12
-
-        // Calculate Year of Study (1, 2, 3, or 4)
-        // Academic sessions usually start around July/August
-        let yearOfStudy = currentYearDate - admissionYear;
-        if (currentMonth >= 7) {
-            yearOfStudy += 1;
-        }
-        
-        // Clamp year between 1 and 4
-        yearOfStudy = Math.max(1, Math.min(4, yearOfStudy));
-
-        // Calculate Semester (1-8)
-        // Odd semesters: July - Dec | Even semesters: Jan - June
-        const isEvenSemester = currentMonth >= 1 && currentMonth <= 6;
-        const currentSemester = isEvenSemester ? (yearOfStudy * 2) : (yearOfStudy * 2 - 1);
 
         const yearWords = ["I (FIRST)", "II (SECOND)", "III (THIRD)", "IV (FOURTH)"];
         const semesterWords = ["I (FIRST)", "II (SECOND)", "III (THIRD)", "IV (FOURTH)", "V (FIFTH)", "VI (SIXTH)", "VII (SEVENTH)", "VIII (EIGHTH)"];
