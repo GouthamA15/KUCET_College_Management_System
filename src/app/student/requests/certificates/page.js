@@ -8,19 +8,20 @@ import Footer from '../../../../components/Footer';
 import Navbar from '../../../../components/Navbar';
 import NextImage from 'next/image';
 
-const certificateTypes = {
-  "Course Completion Certificate": { fee: 100, clerk: "admission" },
-  "Income Tax (IT) Certificate": { fee: 0, clerk: "scholarship" },
-  "Custodian Certificate": { fee: 100, clerk: "scholarship" },
-  "Transfer Certificate (TC)": { fee: 150, clerk: "admission" },
-  "Migration Certificate": { fee: 200, clerk: "admission" },
-  "Study Conduct Certificate": { fee: 100, clerk: "admission" },
-};
+const certificateOptions = [
+  { value: 'Bonafide Certificate', label: 'Bonafide Certificate', fee: 100, clerk: 'admission' },
+  { value: 'Course Completion Certificate', label: 'Course Completion Certificate', fee: 100, clerk: 'admission' },
+  { value: 'Income Tax (IT) Certificate', label: 'Income Tax (IT) Certificate', fee: 0, clerk: 'scholarship' },
+  { value: 'Custodian Certificate', label: 'Custodian Certificate', fee: 100, clerk: 'scholarship' },
+  { value: 'Transfer Certificate (TC)', label: 'Transfer Certificate (TC)', fee: 150, clerk: 'admission' },
+  { value: 'Migration Certificate', label: 'Migration Certificate', fee: 200, clerk: 'admission' },
+  { value: 'Study Conduct Certificate', label: 'Study Conduct Certificate', fee: 100, clerk: 'admission' },
+];
 
 export default function CertificateRequestsPage() {
   const router = useRouter();
   const { studentData, loading: contextLoading } = useStudent();
-  const [selectedCertificate, setSelectedCertificate] = useState(Object.keys(certificateTypes)[0]);
+  const [selectedCertificate, setSelectedCertificate] = useState(certificateOptions[0].value);
   const [transactionId, setTransactionId] = useState('');
   const [purpose, setPurpose] = useState('');
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
@@ -29,8 +30,11 @@ export default function CertificateRequestsPage() {
   const [downloadErrors, setDownloadErrors] = useState({});
   const [isMobile, setIsMobile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReq, setRejectReq] = useState(null);
 
-  const fee = certificateTypes[selectedCertificate].fee;
+  const selectedOption = certificateOptions.find(o => o.value === selectedCertificate) || certificateOptions[0];
+  const fee = selectedOption.fee;
 
   useEffect(() => {
     if (contextLoading) return;
@@ -102,6 +106,41 @@ export default function CertificateRequestsPage() {
     }
   };
 
+  const openRejectModal = (req) => {
+    setRejectReq(req);
+    setShowRejectModal(true);
+  };
+
+  const closeRejectModal = () => {
+    setShowRejectModal(false);
+    setRejectReq(null);
+  };
+
+  const handleReapply = (req) => {
+    // Prefill form to allow re-apply
+    if (!req) return;
+    setSelectedCertificate(req.certificate_type);
+    // try to set purposeOption/customPurpose
+    if (commonPurposes.includes(req.purpose)) {
+      setPurposeOption(req.purpose || 'Select');
+      setCustomPurpose('');
+    } else if (req.purpose) {
+      setPurposeOption('Other');
+      setCustomPurpose(req.purpose);
+    } else {
+      setPurposeOption('Select');
+      setCustomPurpose('');
+    }
+    setTransactionId('');
+    setPaymentScreenshot(null);
+    closeRejectModal();
+    // Scroll to form
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById('certificate-type');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const fetchRequests = async () => {
     try {
       const response = await fetch('/api/student/requests');
@@ -147,7 +186,7 @@ export default function CertificateRequestsPage() {
     const finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
     const formData = new FormData();
     formData.append('certificateType', selectedCertificate);
-    formData.append('clerkType', certificateTypes[selectedCertificate].clerk);
+    formData.append('clerkType', selectedOption.clerk);
     formData.append('paymentAmount', fee);
     formData.append('purpose', finalPurpose);
     if (fee >= 0) {
@@ -163,7 +202,7 @@ export default function CertificateRequestsPage() {
 
       if (response.ok) {
         toast.success('Request submitted successfully!');
-        setSelectedCertificate(Object.keys(certificateTypes)[0]);
+        setSelectedCertificate(certificateOptions[0].value);
         setTransactionId('');
         setPaymentScreenshot(null);
         setPurpose('');
@@ -201,8 +240,8 @@ export default function CertificateRequestsPage() {
                     onChange={(e) => setSelectedCertificate(e.target.value)}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   >
-                    {Object.keys(certificateTypes).map(cert => (
-                      <option key={cert} value={cert}>{cert}</option>
+                    {certificateOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                 </div>
@@ -367,6 +406,9 @@ export default function CertificateRequestsPage() {
                             {downloadingId === req.request_id ? 'Please wait...' : 'Download'}
                           </button>
                         ) : null}
+                        {req.status === 'REJECTED' && (
+                          <button onClick={() => openRejectModal(req)} className="text-red-600 hover:text-red-800 text-sm">View Details</button>
+                        )}
                       </div>
                     </div>
                   )) : (
@@ -417,6 +459,10 @@ export default function CertificateRequestsPage() {
                                   </>
                                 )}
                               </div>
+                            ) : req.status === 'REJECTED' ? (
+                              <div className="flex items-center space-x-2">
+                                <button onClick={() => openRejectModal(req)} className="text-red-600 hover:text-red-800 text-sm">View Details</button>
+                              </div>
                             ) : (
                               '-'
                             )}
@@ -437,6 +483,24 @@ export default function CertificateRequestsPage() {
         </div>
         </div>
       </main>
+      {/* Reject details modal */}
+      {showRejectModal && rejectReq && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40">
+          <div className="bg-white max-w-lg w-full rounded-md shadow-lg p-6">
+            <h3 className="text-lg font-semibold mb-2">Request Rejection Details</h3>
+            <div className="text-sm text-gray-700 mb-4">
+              <div><strong>Certificate:</strong> {rejectReq.certificate_type}</div>
+              <div className="mt-2"><strong>Reason:</strong></div>
+              <div className="mt-1 p-3 bg-gray-50 border rounded text-sm text-red-700">{rejectReq.reject_reason || 'No reason provided.'}</div>
+              <div className="mt-3 text-xs text-gray-500">Applied on: {new Date(rejectReq.created_at).toLocaleString()}</div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={closeRejectModal} className="px-3 py-1 rounded border">Close</button>
+              <button onClick={() => handleReapply(rejectReq)} className="px-3 py-1 rounded bg-indigo-600 text-white">Re-apply</button>
+            </div>
+          </div>
+        </div>
+      )}
       <Footer />
     </>
   );
