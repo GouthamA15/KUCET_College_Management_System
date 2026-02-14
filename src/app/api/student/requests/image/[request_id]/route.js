@@ -78,7 +78,9 @@ export async function GET(req, context) {
     return new NextResponse(imageBuffer, {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'private, max-age=86400', // Cache for 1 day, private because of auth
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
 

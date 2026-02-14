@@ -33,7 +33,7 @@ export default function CertificateActionPanel({ request }) {
   };
 
   const screenshotSrc = (request?.request_id && Number(request.payment_amount) > 0) 
-    ? `/api/student/requests/image/${request.request_id}` 
+    ? `/api/student/requests/image/${request.request_id}?t=${request.updated_at ? new Date(request.updated_at).getTime() : (request.created_at ? new Date(request.created_at).getTime() : 0)}` 
     : null;
 
   return (

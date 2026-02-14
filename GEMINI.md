@@ -54,6 +54,12 @@ CERTIFICATE_SECRET=your_qr_verification_secret
 
 ## Recent Changes
 
+*   **Student Features & Fixes:**
+    *   **Profile Editing:** Implemented the "Edit Profile" page (`src/app/student/settings/edit-profile/page.js`), allowing students to update their phone number, address, and profile picture. Integrated with existing API routes (`upload-photo`, `update-profile`) and includes client-side validation for image size/type.
+    *   **Request Image Caching:** Fixed an issue where resubmitted payment screenshots were not updating in the clerk dashboard due to aggressive browser caching.
+        *   Updated `src/app/api/student/requests/image/[request_id]/route.js` to set `Cache-Control: no-store` and other headers to prevent caching.
+        *   Updated `src/components/clerk/certificates/CertificateActionPanel.js` to append a timestamp (based on `updated_at` or `created_at`) to the image URL, ensuring the latest version is always fetched.
+
 *   **Production Readiness & Stability Fixes:**
     *   **Brevo API Integration:** Migrated from Gmail SMTP to the **Brevo HTTP API** (`src/lib/email.js`). This bypasses outbound SMTP port blocking (465/587) common on cloud platforms like Render, ensuring 100% reliability for OTP delivery.
     *   **Critical React Fixes:** Resolved multiple "cascading render" errors in `useEffect` hooks across `NoDuesRequestPage`, `VerifyPage`, and `AdminContext`. State updates are now handled via direct initialization or guarded conditions to prevent infinite loops.
