@@ -21,7 +21,8 @@ export default function DevelopersPage() {
       role: 'Backend & Database Administrator',
       image: '/assets/DevPics/Dev2.jpg',
       delay: '0.2s',
-      audio: '/assets/DevPics/Dev2.mpeg'
+      audio: '/assets/DevPics/Dev2.mpeg',
+      portfolio: 'https://sannith-hack.github.io/Portfolio/'
     },
     {
       name: 'Uzair',
@@ -105,6 +106,20 @@ export default function DevelopersPage() {
               <p className="text-gray-600 font-medium bg-blue-50 px-4 py-1.5 rounded-full text-sm">
                 {dev.role}
               </p>
+
+              {dev.portfolio && (
+                <a 
+                  href={dev.portfolio} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="mt-4 text-blue-600 hover:text-blue-700 text-sm font-semibold flex items-center gap-1 hover:underline decoration-2 underline-offset-4"
+                >
+                  View more details
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </a>
+              )}
             </div>
           ))}
         </div>
