@@ -10,6 +10,7 @@ import Image from 'next/image';
 import SetPasswordModal from '@/components/SetPasswordModal';
 import { getBranchFromRoll, getEntryYearFromRoll, getAdmissionTypeFromRoll, getResolvedCurrentAcademicYear, getBatchFromRoll } from '@/lib/rollNumber';
 import { calculateYearAndSemester } from '@/lib/academic-utils';
+import SyllabusTab from './SyllabusTab';
 import { formatDate } from '@/lib/date';
 import { computeAcademicYear, isYearAllowed } from '@/app/lib/academicYear';
 import toast from 'react-hot-toast'; // Added toast
@@ -313,7 +314,7 @@ export default function StudentProfileNew() {
 
   const branch = getBranchFromRoll(student.roll_no);
   const courseLabel = branch ? `B. Tech (${branch})` : 'B. Tech';
-  const { yearOfStudy, semesterLabel } = calculateYearAndSemester(student.roll_no, collegeInfo);
+  const { yearOfStudy, semester, semesterLabel } = calculateYearAndSemester(student.roll_no, collegeInfo);
   let currentAcademicYearLabel = null;
   try { currentAcademicYearLabel = getResolvedCurrentAcademicYear(student.roll_no); } catch { currentAcademicYearLabel = null; }
   let batchString = null;
@@ -475,6 +476,12 @@ export default function StudentProfileNew() {
                   >
                     Scholarship Details
                   </button>
+                  <button
+                    onClick={() => setActiveTab('syllabus')}
+                    className={`px-4 py-3 text-sm font-medium border-b-2 ${activeTab === 'syllabus' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
+                  >
+                    Syllabus
+                  </button>
                 </div>
 
                 {/* Tab body */}
@@ -564,6 +571,10 @@ export default function StudentProfileNew() {
                         </div>
                       </div>
                     </>
+                  )}
+
+                  {activeTab === 'syllabus' && (
+                    <SyllabusTab branch={branch} semester={semester} />
                   )}
                 </div>
               </div>
