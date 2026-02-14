@@ -11,10 +11,12 @@ export default function DevelopersPage() {
 
   const developers = [
     {
-      name: 'Gautam',
+      name: 'Masna Goutham',
       role: 'Frontend & UI/UX Developer',
-      image: '/assets/default-avatar.svg',
+      image: '/assets/DevPics/Dev1.png',
       delay: '0s',
+      audio: '/assets/DevPics/Dev1.mpeg',
+      portfolio: ''
     },
     {
       name: 'P.Sannith',
