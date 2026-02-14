@@ -36,7 +36,7 @@ export default function DevelopersPage() {
       <main className="flex-grow container mx-auto px-4 py-12">
         <div className="text-center mb-16">
           <h1 className="text-4xl font-extrabold text-[#0b3578] mb-4 animate-fade-in-down">
-            Meet the Development Team
+            Meet Team "Homeless Soon"
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto animate-fade-in-up">
             The talented individuals behind the KUCET College Management System, dedicated to building a robust and user-friendly platform.
@@ -75,11 +75,11 @@ export default function DevelopersPage() {
           ))}
         </div>
 
-                {/* Group Photo Section */}
+                        {/* Group Photo Section */}
 
-                <div className="max-w-5xl mx-auto text-center animate-fade-in-up" style={{ animationDelay: '0.6s', animationFillMode: 'both' }}>
+                        <div className="max-w-5xl mx-auto text-center animate-fade-in-up" style={{ animationDelay: '0.6s', animationFillMode: 'both' }}>
 
-                  <h2 className="text-3xl font-bold text-[#0b3578] mb-8">Our Team</h2>
+                          <h2 className="text-3xl font-bold text-[#0b3578] mb-8">Team "Homeless Soon"</h2>
 
                   <div className="relative w-full rounded-2xl overflow-hidden shadow-xl border-4 border-white group">
 
