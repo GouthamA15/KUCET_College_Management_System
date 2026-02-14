@@ -69,6 +69,10 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
   ];
 
   const handleNavClick = (panel) => {
+    if (pathname !== '/') {
+      router.push('/');
+      return;
+    }
     if (activePanel === panel) {
       setActivePanel(null); // Close if clicking the same panel
     } else {

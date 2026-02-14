@@ -5,7 +5,7 @@ import { styles } from "./Styles";
 export default function SignatureBlock({ signatureUrl, label = "PRINCIPAL" }) {
   return (
     <View style={styles.signatureSection}>
-      {signatureUrl ? <Image src={signatureUrl} style={styles.signatureImage} /> : null}
+      {signatureUrl ? <Image src={signatureUrl} style={styles.signatureImage} alt="Principal Signature" /> : null}
       <Text style={styles.signatureLabel}>{label}</Text>
     </View>
   );

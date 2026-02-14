@@ -15,6 +15,7 @@ import StudyConductCertificatePDF from '@/pdf/templates/StudyConductCertificateP
 import MigrationCertificatePDF from '@/pdf/templates/MigrationCertificatePDF';
 import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCertificatePDF';
 import IncomeTaxCertificatePDF from '@/pdf/templates/IncomeTaxCertificatePDF';
+import TransferCertificatePDF from '@/pdf/templates/TransferCertificatePDF';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -57,6 +58,7 @@ const certificateComponents = {
     'Migration Certificate': MigrationCertificatePDF,
     'Course Completion Certificate': CourseCompletionCertificatePDF,
     'Income Tax (IT) Certificate': IncomeTaxCertificatePDF,
+    'Transfer Certificate (TC)': TransferCertificatePDF,
 };
 
 // using bundled Puppeteer; helper closes browser internally
@@ -252,6 +254,14 @@ export async function GET(request, { params }) {
                 data = {
                     ...data,
                     feeAmount: certRequest.payment_amount || 'N/A',
+                };
+                break;
+            case 'Transfer Certificate (TC)':
+                data = {
+                    ...data,
+                    batch: batchString,
+                    conduct: 'Good',
+                    reason: 'Completion of Course',
                 };
                 break;
             case 'Migration Certificate':
