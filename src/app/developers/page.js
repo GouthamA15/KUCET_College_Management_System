@@ -4,8 +4,11 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
+import { useRef } from 'react';
 
 export default function DevelopersPage() {
+  const audioRef = useRef(null);
+
   const developers = [
     {
       name: 'Gautam',
@@ -18,6 +21,7 @@ export default function DevelopersPage() {
       role: 'Backend & Database Administrator',
       image: '/assets/DevPics/Dev2.jpg',
       delay: '0.2s',
+      audio: '/assets/DevPics/Dev2.mpeg'
     },
     {
       name: 'Uzair',
@@ -26,6 +30,34 @@ export default function DevelopersPage() {
       delay: '0.4s',
     },
   ];
+
+  const handleMouseEnter = (dev) => {
+    if (dev.audio) {
+      try {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+        audioRef.current = new Audio(dev.audio);
+        audioRef.current.volume = 0.5; // Set volume to 50% to be safe
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.log("Audio play prevented:", error);
+          });
+        }
+      } catch (e) {
+        console.error("Audio error:", e);
+      }
+    }
+  };
+
+  const handleMouseLeave = (dev) => {
+    if (dev.audio && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -49,6 +81,8 @@ export default function DevelopersPage() {
               key={index}
               className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border border-gray-100 flex flex-col items-center p-8 text-center animate-fade-in-up"
               style={{ animationDelay: dev.delay, animationFillMode: 'both' }}
+              onMouseEnter={() => handleMouseEnter(dev)}
+              onMouseLeave={() => handleMouseLeave(dev)}
             >
               <div className="relative w-40 h-40 mb-6">
                 <div className="absolute inset-0 bg-blue-100 rounded-full scale-0 group-hover:scale-110 transition-transform duration-500 ease-out"></div>
@@ -75,37 +109,22 @@ export default function DevelopersPage() {
           ))}
         </div>
 
-                        {/* Group Photo Section */}
-
-                        <div className="max-w-5xl mx-auto text-center animate-fade-in-up" style={{ animationDelay: '0.6s', animationFillMode: 'both' }}>
-
-                          <h2 className="text-3xl font-bold text-[#0b3578] mb-8">Team "Homeless Soon"</h2>
-
-                  <div className="relative w-full rounded-2xl overflow-hidden shadow-xl border-4 border-white group">
-
-                                  <Image
-
-                                     src="/assets/DevPics/Group.jpg" 
-
-                                     alt="Team Group Photo"
-
-                                     width={3096}
-
-                                     height={2477}
-
-                                     className="w-full h-auto object-contain transition-transform duration-500 group-hover:scale-105"
-
-                                  />
-
-                  </div>
-
-                  <p className="mt-6 text-gray-600 italic">
-
-                    "Coming together is a beginning, keeping together is progress, working together is success."
-
-                  </p>
-
-                </div>
+        {/* Group Photo Section */}
+        <div className="max-w-5xl mx-auto text-center animate-fade-in-up" style={{ animationDelay: '0.6s', animationFillMode: 'both' }}>
+          <h2 className="text-3xl font-bold text-[#0b3578] mb-8">Team "Homeless Soon"</h2>
+          <div className="relative w-full rounded-2xl overflow-hidden shadow-xl border-4 border-white group">
+             <Image
+                src="/assets/DevPics/Group.jpg" 
+                alt="Team Group Photo"
+                width={3096}
+                height={2477}
+                className="w-full h-auto object-contain transition-transform duration-500 group-hover:scale-105"
+             />
+          </div>
+          <p className="mt-6 text-gray-600 italic">
+            "Coming together is a beginning, keeping together is progress, working together is success."
+          </p>
+        </div>
       </main>
 
       <Footer />
