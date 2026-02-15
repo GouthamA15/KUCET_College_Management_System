@@ -269,12 +269,12 @@ export async function GET(request, { params }) {
         let data = { ...commonData };
         switch (certRequest.certificate_type) {
             case 'Bonafide Certificate':
-                data = {
-                    ...data,
-                    year: yearWords[yearOfStudy - 1] || 'N/A',
-                    semester: semesterWords[currentSemester - 1] || 'N/A',
-                    attendancePercentage: attendanceValue || '',
-                };
+                    data = {
+                        ...data,
+                        year: yearWords[yearOfStudy - 1] || 'N/A',
+                        semester: semesterWords[currentSemester - 1] || 'N/A',
+                        attendancePercentage: (attendanceValue !== null && attendanceValue !== undefined) ? attendanceValue : '',
+                    };
                 break;
             case 'Course Completion Certificate':
                 data = {

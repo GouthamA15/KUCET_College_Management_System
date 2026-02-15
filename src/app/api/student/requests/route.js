@@ -110,12 +110,45 @@ export async function POST(request) {
         paymentScreenshotBuffer = Buffer.from(bytes);
     }
     
-    if (!certificateType || !clerkType || !paymentAmount) {
+    if (!certificateType || !clerkType || (paymentAmount === null || paymentAmount === undefined)) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (paymentAmount >= 0 && (!transactionId || !paymentScreenshotBuffer)) {
+    // Certificate validation rules
+    const certificateRules = {
+      'Income Tax (IT) Certificate': { requiresPayment: false, requiresUTR: false },
+      'Bonafide Certificate': { requiresPayment: true, requiresUTR: true },
+      'Course Completion Certificate': { requiresPayment: true, requiresUTR: true },
+      'Custodian Certificate': { requiresPayment: true, requiresUTR: true },
+      'Transfer Certificate (TC)': { requiresPayment: true, requiresUTR: true },
+      'Migration Certificate': { requiresPayment: true, requiresUTR: true },
+      'Study Conduct Certificate': { requiresPayment: true, requiresUTR: true },
+    };
+
+    const rule = certificateRules[certificateType] || { requiresPayment: true, requiresUTR: true };
+
+    // Normalize payment amount to number
+    const paymentAmountNum = Number(paymentAmount) || 0;
+
+    // Validation per rule
+    if (rule.requiresUTR) {
+      // Paid certificates require both transactionId and screenshot
+      if (!transactionId || !paymentScreenshotBuffer) {
         return NextResponse.json({ error: 'Transaction ID and screenshot are required for paid certificates' }, { status: 400 });
+      }
+    } else if (certificateType === 'Income Tax (IT) Certificate') {
+      // Income Tax requires only screenshot
+      if (!paymentScreenshotBuffer) {
+        return NextResponse.json({ error: 'Screenshot of college fee payment is required.' }, { status: 400 });
+      }
+    }
+
+    // Sanitize storage values depending on certificate type
+    let transactionIdToStore = transactionId || null;
+    let paymentAmountToStore = paymentAmountNum;
+    if (certificateType === 'Income Tax (IT) Certificate') {
+      transactionIdToStore = null;
+      paymentAmountToStore = 0;
     }
 
     // compute academic_year from roll_no (single source of truth)
@@ -165,7 +198,7 @@ export async function POST(request) {
         try {
           const updateResult = await query(
             `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, purpose = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
-            [paymentAmount, transactionId, purpose||null, 'PENDING', existing.request_id]
+            [paymentAmountToStore, transactionIdToStore, purpose||null, 'PENDING', existing.request_id]
           );
           
           if (paymentScreenshotBuffer) {
@@ -192,7 +225,7 @@ export async function POST(request) {
       // No existing row - safe to insert
       const result = await query(
         'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [auth.student_id, certificateType,  academicYear, paymentAmount, transactionId, purpose|| null, 'PENDING']
+        [auth.student_id, certificateType,  academicYear, paymentAmountToStore, transactionIdToStore, purpose|| null, 'PENDING']
       );
       
       const newRequestId = result.insertId;

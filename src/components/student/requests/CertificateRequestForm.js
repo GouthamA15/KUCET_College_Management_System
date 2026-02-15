@@ -19,7 +19,24 @@ export default function CertificateRequestForm({
   const [customPurpose, setCustomPurpose] = useState('');
   const commonPurposes = ['Scholarship', 'Internship', 'Education Loan', 'Higher Studies', 'Passport/Visa'];
 
-  const needsValidation = fee > 0 || selectedCertificate === 'Income Tax (IT) Certificate';
+  const isIncomeTax = selectedCertificate === 'Income Tax (IT) Certificate';
+
+  // Certificates that should display QR / UPI payment options
+  const upiRequiredTypes = [
+    'Bonafide Certificate',
+    'Course Completion Certificate',
+    'Custodian Certificate',
+    'Transfer Certificate (TC)',
+    'Migration Certificate',
+    'Study Conduct Certificate',
+  ];
+  const isUPIRequired = upiRequiredTypes.includes(selectedCertificate);
+
+  // Show the form whenever a certificate requires any payment proof or fee-related action
+  const showForm = isUPIRequired || isIncomeTax || fee > 0;
+
+  // Transaction ID is required for certificates that expect a UPI transaction
+  const requiresTransactionId = isUPIRequired;
 
   const fileInputRef = useRef(null);
 
@@ -49,9 +66,19 @@ export default function CertificateRequestForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (needsValidation && (!transactionId || !paymentScreenshot)) {
-      toast.error('Payment details (UTR and Screenshot) are required.');
-      return;
+    // Conditional validation per certificate type
+    if (isUPIRequired || (!isIncomeTax && fee > 0)) {
+      // Requires both UTR and screenshot
+      if (!transactionId || !paymentScreenshot) {
+        toast.error('Please enter UTR and upload payment screenshot.');
+        return;
+      }
+    } else if (isIncomeTax) {
+      // Requires only screenshot
+      if (!paymentScreenshot) {
+        toast.error('Please upload college fee payment screenshot.');
+        return;
+      }
     }
     const finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
     await onSubmit({ transactionId, paymentScreenshot, finalPurpose });
@@ -83,44 +110,74 @@ export default function CertificateRequestForm({
                 ))}
               </select>
             </div>
-            <div className="lg:col-span-1">
+            {/* <div className="lg:col-span-1">
               <p className="text-sm font-medium text-gray-700">Fee</p>
               <div className="mt-1 text-lg font-semibold text-indigo-600">₹{fee}</div>
-            </div>
+            </div> */}
           </div>
-          {selectedCertificate === 'Income Tax (IT) Certificate' && (
+          {isIncomeTax && (
             <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-sm">
-              <p className="text-sm text-blue-700">This certificate is free, but you must upload proof of your ₹35,000 yearly college fee payment below. Requests without a valid UTR will be rejected.</p>
+              <h4 className="text-sm font-semibold text-blue-800">Upload College Fee Payment Proof</h4>
+              <p className="text-sm text-blue-700">Upload screenshot of college fee payment receipt.</p>
             </div>
           )}
         </div>
 
         {/* Payment & Upload Sections */}
-        {needsValidation && (
+        {showForm && (
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Payment Card */}
             <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
                 {/* Removed step pills - structured single form */}
-              <PaymentSection fee={fee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />
+              {/* Render payment/QR section only for certificate types that require UPI (Bonafide) */}
+              {isUPIRequired && <PaymentSection fee={fee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />}
               <div className="mt-4">
-                <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-indigo-600">₹{fee}</span></p>
+                {fee > 0 ? (
+                  <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-indigo-600">₹{fee}</span></p>
+                ) : (
+                  <p className="text-sm text-gray-700 font-semibold text-green-600">No additional payment required.</p>
+                )}
               </div>
-              <div className="mt-4">
-                <p className="text-sm text-gray-600">Transaction ID / UTR</p>
-                <input
-                  type="text"
-                  id="transaction-id"
-                  value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              {requiresTransactionId && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-600">Transaction ID / UTR</p>
+                  <input
+                    type="text"
+                    id="transaction-id"
+                    value={transactionId}
+                    // Allow only digits for Transaction ID / UTR
+                    onChange={(e) => setTransactionId((e.target.value || '').replace(/\D/g, ''))}
+                    onPaste={(e) => {
+                      const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
+                      const digits = paste.replace(/\D/g, '');
+                      e.preventDefault();
+                      // insert only numeric characters
+                      const el = e.target;
+                      const start = el.selectionStart || 0;
+                      const end = el.selectionEnd || 0;
+                      const newVal = (el.value || '').slice(0, start) + digits + (el.value || '').slice(end);
+                      setTransactionId(newVal);
+                      // move caret after inserted text
+                      requestAnimationFrame(() => {
+                        el.selectionStart = el.selectionEnd = start + digits.length;
+                      });
+                    }}
+                    inputMode="numeric"
+                    pattern="\d*"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Upload & Submit Card */}
             <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm flex flex-col">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Upload Payment Proof</h3>
-              <p className="text-sm text-gray-600 mb-3">Upload your UPI payment screenshot (PNG/JPEG, &lt;4MB).</p>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                {isUPIRequired ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
+              </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <4MB).'}
+              </p>
 
               <div className="mb-3">
                 <div className="max-h-[250px] border-2 border-dashed border-gray-300 rounded-sm flex items-center justify-center p-4 relative">

@@ -21,6 +21,17 @@ export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
   const upiLink = upiVPA
     ? `upi://pay?pa=${encodeURIComponent(upiVPA)}&pn=${encodeURIComponent('PRINCIPAL KU CET')}&am=${fee}&cu=INR`
     : null;
+  // Certificates that should display QR / UPI payment options
+  const upiRequiredTypes = [
+    'Bonafide Certificate',
+    'Course Completion Certificate',
+    'Custodian Certificate',
+    'Transfer Certificate (TC)',
+    'Migration Certificate',
+    'Study Conduct Certificate',
+  ];
+  const requiresUPI = upiRequiredTypes.includes(selectedCertificate);
+  if (!requiresUPI) return null;
 
   return (
     <div className="p-2 md:p-3 border border-gray-200 rounded-sm bg-white">
@@ -42,8 +53,8 @@ export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
             />
             <p className="text-xs md:text-sm font-medium text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
           </div>
-            <div className="flex justify-center">
-              {fee === 100 && (
+          <div className="flex justify-center">
+            {fee === 100 && (
               <NextImage src="/assets/Payment QR/ku_payment_100.png" alt="Pay ₹100" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
             )}
             {fee === 150 && (
@@ -51,9 +62,6 @@ export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
             )}
             {fee === 200 && (
               <NextImage src="/assets/Payment QR/ku_payment_200.png" alt="Pay ₹200" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
-            )}
-            {selectedCertificate === 'Income Tax (IT) Certificate' && (
-              <NextImage src="/assets/Payment QR/principal_ku_qr.png" alt="IT Certificate Payment" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
             )}
           </div>
         </>

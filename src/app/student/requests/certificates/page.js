@@ -168,17 +168,10 @@ export default function CertificateRequestsPage() {
         cache: 'no-store'
       });
       if (response.ok) {
-        const newReq = await response.json().catch(() => null);
+        // refresh request history from server to avoid optimistic / placeholder rows
+        await fetchRequests();
         toast.success('Request submitted successfully!');
         setSelectedCertificate(certificateOptions[0].value);
-        // update context cache directly to avoid refetch
-        if (newReq) {
-          setCertificateRequests(prev => (prev ? [newReq, ...prev] : [newReq]));
-          setCertificateRequestsLoaded(true);
-        } else {
-          // fallback: mark as not loaded so effect will refetch
-          setCertificateRequestsLoaded(false);
-        }
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || 'Failed to submit request.');
@@ -195,6 +188,7 @@ export default function CertificateRequestsPage() {
       <Suspense fallback={null}>
         <ScrollHandler />
       </Suspense>
+
       <CertificatePageLayout
         title="Certificate Requests"
         left={
@@ -209,32 +203,28 @@ export default function CertificateRequestsPage() {
           />
         }
         bottom={
-          <div
-            id="request-history-section"
-            className={historyFlash ? 'bg-indigo-50 transition-colors duration-1000 rounded-lg' : ''}
-          >
-            {isMobile ? (
-              <RequestHistoryMobile
-                requests={certificateRequests || []}
-                downloadingId={downloadingId}
-                downloadErrors={downloadErrors}
-                onDownload={handleDownload}
-                onOpenRejectModal={openRejectModal}
-                isLoadingRequests={isLoadingRequests}
-              />
-            ) : (
-              <RequestHistoryDesktop
-                requests={certificateRequests || []}
-                downloadingId={downloadingId}
-                downloadErrors={downloadErrors}
-                onDownload={handleDownload}
-                onOpenRejectModal={openRejectModal}
-                isLoadingRequests={isLoadingRequests}
-              />
-            )}
-          </div>
+          isMobile ? (
+            <RequestHistoryMobile
+              requests={certificateRequests || []}
+              downloadingId={downloadingId}
+              downloadErrors={downloadErrors}
+              onDownload={handleDownload}
+              onOpenRejectModal={openRejectModal}
+              isLoadingRequests={isLoadingRequests}
+            />
+          ) : (
+            <RequestHistoryDesktop
+              requests={certificateRequests || []}
+              downloadingId={downloadingId}
+              downloadErrors={downloadErrors}
+              onDownload={handleDownload}
+              onOpenRejectModal={openRejectModal}
+              isLoadingRequests={isLoadingRequests}
+            />
+          )
         }
       />
+
       <RejectDetailsModal isOpen={showRejectModal} request={rejectReq} onClose={closeRejectModal} onReapply={handleReapply} />
       <Footer />
     </>

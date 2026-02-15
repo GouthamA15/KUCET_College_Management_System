@@ -20,8 +20,7 @@ export default function RequestHistoryMobile({
   const hasData = Array.isArray(requests) && requests.length > 0;
 
   return (
-    <div className="bg-white p-5 md:p-6 rounded-lg shadow-md">
-      <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-3">Request History</h2>
+    <div className="w-full">
       <div className="space-y-3 min-h-32">
         {showLoading ? (
           <div className="flex items-center justify-center h-32">
