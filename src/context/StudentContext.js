@@ -9,6 +9,9 @@ export function StudentProvider({ children }) {
   const [collegeInfo, setCollegeInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [certificateRequests, setCertificateRequests] = useState(null);
+  const [certificateRequestsLoaded, setCertificateRequestsLoaded] = useState(false);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -65,8 +68,27 @@ export function StudentProvider({ children }) {
     init();
   }, [refreshData]);
 
+  const resetCertificateRequests = () => {
+    setCertificateRequests(null);
+    setCertificateRequestsLoaded(false);
+  };
+
   return (
-    <StudentContext.Provider value={{ studentData, collegeInfo, setStudentData, loading, error, refreshData }}>
+    <StudentContext.Provider value={{
+      studentData,
+      collegeInfo,
+      setStudentData,
+      loading,
+      error,
+      refreshData,
+      certificateRequests,
+      setCertificateRequests,
+      certificateRequestsLoaded,
+      setCertificateRequestsLoaded,
+      isLoadingRequests,
+      setIsLoadingRequests,
+      resetCertificateRequests
+    }}>
       {children}
     </StudentContext.Provider>
   );

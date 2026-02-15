@@ -24,9 +24,8 @@ const certificateOptions = [
 
 export default function CertificateRequestsPage() {
   const router = useRouter();
-  const { studentData, loading: contextLoading } = useStudent();
+  const { studentData, loading: contextLoading, certificateRequests, setCertificateRequests, certificateRequestsLoaded, setCertificateRequestsLoaded, isLoadingRequests, setIsLoadingRequests } = useStudent();
   const [selectedCertificate, setSelectedCertificate] = useState(certificateOptions[0].value);
-  const [requests, setRequests] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
   const [downloadErrors, setDownloadErrors] = useState({});
   const [isMobile, setIsMobile] = useState(false);
@@ -39,7 +38,6 @@ export default function CertificateRequestsPage() {
   const fee = selectedOption.fee;
 
   useEffect(() => {
-    if (contextLoading) return;
     if (!studentData) return;
     const s = studentData.student;
     const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
@@ -47,8 +45,11 @@ export default function CertificateRequestsPage() {
       router.replace('/student/requests/verification-required');
       return;
     }
-    fetchRequests();
-  }, [studentData, contextLoading, router]);
+    if (!certificateRequestsLoaded) {
+      fetchRequests();
+    }
+    // depend only on student's roll_no and cache-loaded flag
+  }, [studentData?.student?.roll_no, certificateRequestsLoaded]);
 
   // Scroll handling moved to client child `ScrollHandler` (wrapped in Suspense)
 
@@ -133,15 +134,19 @@ export default function CertificateRequestsPage() {
 
   const fetchRequests = async () => {
     try {
+      setIsLoadingRequests(true);
       const response = await fetch('/api/student/requests', { method: 'GET', cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
-        setRequests(data);
+        setCertificateRequests(data);
+        setCertificateRequestsLoaded(true);
       } else {
         toast.error('Failed to fetch requests.');
       }
     } catch (error) {
       toast.error('An error occurred while fetching requests.');
+    } finally {
+      setIsLoadingRequests(false);
     }
   };
   const handleSubmit = async ({ transactionId, paymentScreenshot, finalPurpose }) => {
@@ -163,9 +168,17 @@ export default function CertificateRequestsPage() {
         cache: 'no-store'
       });
       if (response.ok) {
+        const newReq = await response.json().catch(() => null);
         toast.success('Request submitted successfully!');
         setSelectedCertificate(certificateOptions[0].value);
-        fetchRequests();
+        // update context cache directly to avoid refetch
+        if (newReq) {
+          setCertificateRequests(prev => (prev ? [newReq, ...prev] : [newReq]));
+          setCertificateRequestsLoaded(true);
+        } else {
+          // fallback: mark as not loaded so effect will refetch
+          setCertificateRequestsLoaded(false);
+        }
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || 'Failed to submit request.');
@@ -202,19 +215,21 @@ export default function CertificateRequestsPage() {
           >
             {isMobile ? (
               <RequestHistoryMobile
-                requests={requests}
+                requests={certificateRequests || []}
                 downloadingId={downloadingId}
                 downloadErrors={downloadErrors}
                 onDownload={handleDownload}
                 onOpenRejectModal={openRejectModal}
+                isLoadingRequests={isLoadingRequests}
               />
             ) : (
               <RequestHistoryDesktop
-                requests={requests}
+                requests={certificateRequests || []}
                 downloadingId={downloadingId}
                 downloadErrors={downloadErrors}
                 onDownload={handleDownload}
                 onOpenRejectModal={openRejectModal}
+                isLoadingRequests={isLoadingRequests}
               />
             )}
           </div>

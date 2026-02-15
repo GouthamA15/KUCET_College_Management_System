@@ -14,12 +14,26 @@ export default function RequestHistoryMobile({
   downloadErrors,
   onDownload,
   onOpenRejectModal,
+  isLoadingRequests
 }) {
+  const showLoading = !!isLoadingRequests;
+  const hasData = Array.isArray(requests) && requests.length > 0;
+
   return (
     <div className="bg-white p-5 md:p-6 rounded-lg shadow-md">
       <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-3">Request History</h2>
-      <div className="space-y-3">
-        {requests.length > 0 ? (
+      <div className="space-y-3 min-h-32">
+        {showLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <svg className="animate-spin h-6 w-6 text-indigo-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <div className="text-sm text-gray-600">Loading Request History...</div>
+          </div>
+        ) : !hasData ? (
+          <div className="flex items-center justify-center h-32 text-gray-500">No Request History Is Found</div>
+        ) : (
           requests.map((req) => {
             const s = (req.status || '').toUpperCase();
             return (
@@ -53,8 +67,6 @@ export default function RequestHistoryMobile({
               </div>
             );
           })
-        ) : (
-          <div className="text-center text-sm text-gray-500">No requests found.</div>
         )}
       </div>
     </div>
