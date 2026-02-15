@@ -13,13 +13,12 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
 
   // Single source-of-truth menu configuration per role
   const menuConfig = {
-    student: [
+      student: [
       { label: 'PROFILE', route: '/student/profile' },
       { label: 'TIME TABLE', route: '/student/timetable' },
       { label: 'REQUESTS', children: [
-          { label: 'Bonafide Certificate', route: '/student/requests/bonafide' },
-          { label: 'No Dues Certificate', route: '/student/requests/nodues' },
-          { label: 'Other Certificates', route: '/student/requests/certificates' },
+          { label: 'Certificates', route: '/student/requests/certificates' },
+          { label: 'ID Card Re-issue'}
         ]
       },
       { label: 'MENU', children: [

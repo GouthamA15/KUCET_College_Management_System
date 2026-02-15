@@ -6,8 +6,21 @@ const StudentContext = createContext();
 
 export function StudentProvider({ children }) {
   const [studentData, setStudentData] = useState(null);
+  const [collegeInfo, setCollegeInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const fetchCollegeInfo = useCallback(async () => {
+    try {
+      const res = await fetch('/api/public/college-info');
+      const data = await res.json();
+      if (res.ok) {
+        setCollegeInfo(data.collegeInfo);
+      }
+    } catch (e) {
+      console.error('Failed to fetch college info', e);
+    }
+  }, []);
 
   const fetchProfile = useCallback(async (rollno) => {
     try {
@@ -34,13 +47,14 @@ export function StudentProvider({ children }) {
       const me = await fetch('/api/student/me');
       if (me.ok) {
         const user = await me.json();
+        await fetchCollegeInfo();
         return await fetchProfile(user.roll_no);
       }
     } catch (e) {
       setError('Failed to refresh data');
     }
     return null;
-  }, [fetchProfile]);
+  }, [fetchProfile, fetchCollegeInfo]);
 
   useEffect(() => {
     const init = async () => {
@@ -52,7 +66,7 @@ export function StudentProvider({ children }) {
   }, [refreshData]);
 
   return (
-    <StudentContext.Provider value={{ studentData, setStudentData, loading, error, refreshData }}>
+    <StudentContext.Provider value={{ studentData, collegeInfo, setStudentData, loading, error, refreshData }}>
       {children}
     </StudentContext.Provider>
   );
