@@ -56,9 +56,14 @@ CERTIFICATE_SECRET=your_qr_verification_secret
 
 *   **General Enhancements:**
     *   **Developers Page:** Added a dedicated page (`src/app/developers/page.js`) listing the development team with animations and responsive layout. Included a "View more details" link in the global footer.
+    *   **Academic Year Logic Overhaul:** Integrated `college_info` configuration into `src/lib/rollNumber.js`. The system now respects super admin-defined semester start dates (e.g., first semester start month/day) for calculating the current studying year and academic year labels.
+        *   Updated dependent API routes: `admin/students`, `admin/student-stats`, `clerk/scholarship/summary`, and `student/requests`.
+        *   Updated student profile UI to correctly resolve and display the academic year based on college settings.
 
 *   **Student Features & Fixes:**
+    *   **ID Card Reissue Placeholder:** Added a professional "Coming Soon" landing page for ID Card Reissue (`src/app/student/requests/id-card/page.js`) and updated the student navbar to include the link.
     *   **Profile Editing:** Implemented the "Edit Profile" page (`src/app/student/settings/edit-profile/page.js`), allowing students to update their phone number, address, and profile picture. Integrated with existing API routes (`upload-photo`, `update-profile`) and includes client-side validation for image size/type.
+    *   **Request API Fixes:** Resolved a critical syntax error in the student requests POST handler and removed unused imports in profile settings.
     *   **Request Image Caching:** Fixed an issue where resubmitted payment screenshots were not updating in the clerk dashboard due to aggressive browser caching.
         *   Updated `src/app/api/student/requests/image/[request_id]/route.js` to set `Cache-Control: no-store` and other headers to prevent caching.
         *   Updated `src/components/clerk/certificates/CertificateActionPanel.js` to append a timestamp (based on `updated_at` or `created_at`) to the image URL, ensuring the latest version is always fetched.

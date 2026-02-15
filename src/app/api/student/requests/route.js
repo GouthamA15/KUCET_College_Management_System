@@ -143,6 +143,9 @@ export async function POST(request) {
           return NextResponse.json({ error: msg }, { status: 400 });
         }
       }
+    } catch (error) {
+       return NextResponse.json({ error: 'Failed to resolve academic year boundary.' }, { status: 500 });
+    }
 
     try {
       // PRE-CHECK: see if a request exists for this student/certificate/year
