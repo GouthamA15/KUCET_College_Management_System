@@ -115,10 +115,19 @@ BRANCH: CSD
     - OE-I: Open Elective-I [SUB]
     - PCS-603DS: Machine Learning [SUB]
   SEMESTER 7:
-    - PCS-701DS: Big Data Analytics [SUB]
-    - PE-III: Professional Elective – III [SUB]
+    - PEC III*: Professional Elective - III [SUB]
+    - PEC IV*: Professional Elective - IV [SUB]
+    - PEC V*: Professional Elective - V [SUB]
+    - PEC VI*: Professional Elective - VI [SUB]
+    - PE-III**: Professional Elective – III Lab [LAB]
+    - PE-IV**: Professional Elective – IV Lab [LAB]
+    - PW4108CS: Mini Project – II [LAB]
   SEMESTER 8:
-    - PCS-801DS: Data Science Capstone Project [LAB]
+    - PE-VII*: Professional Elective – VII [SUB]
+    - PE-VIII*: Professional Elective – VIII [SUB]
+    - OE-II *: Open Elective – II [SUB]
+    - PW4205CS: Project Work [LAB]
+    - MC: Mandatory Non-Credit course [SUB]
 
 BRANCH: CSE
 -----------
