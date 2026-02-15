@@ -499,7 +499,7 @@ export const semester7 = [
         ]
       },
       {
-        "name": "OE4114 HS",
+        "code": "OE4114 HS",
         "title": "IPR and Patenting",
         "units": [
           {
