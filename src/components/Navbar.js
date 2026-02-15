@@ -18,7 +18,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
       { label: 'TIME TABLE', route: '/student/timetable' },
       { label: 'REQUESTS', children: [
           { label: 'Certificates', route: '/student/requests/certificates' },
-          { label: 'ID Card Re-issue'}
+          { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
         ]
       },
       { label: 'MENU', children: [

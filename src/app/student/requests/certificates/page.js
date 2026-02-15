@@ -1,7 +1,9 @@
 "use client";
-import { useState, useEffect } from 'react';
+export const dynamic = "force-dynamic";
+import { useState, useEffect, Suspense } from 'react';
 import { useStudent } from '@/context/StudentContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import ScrollHandler from './ScrollHandler';
 import toast from 'react-hot-toast';
 import Footer from '../../../../components/Footer';
 import CertificatePageLayout from '../../../../components/student/requests/CertificatePageLayout';
@@ -32,7 +34,6 @@ export default function CertificateRequestsPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReq, setRejectReq] = useState(null);
   const [historyFlash, setHistoryFlash] = useState(false);
-  const searchParams = useSearchParams();
 
   const selectedOption = certificateOptions.find(o => o.value === selectedCertificate) || certificateOptions[0];
   const fee = selectedOption.fee;
@@ -49,22 +50,7 @@ export default function CertificateRequestsPage() {
     fetchRequests();
   }, [studentData, contextLoading, router]);
 
-  // Smooth scroll to history when coming from activity bar
-  useEffect(() => {
-    if (!searchParams) return;
-    const scrollTarget = searchParams.get('scroll');
-    if (scrollTarget === 'history') {
-      const doScroll = () => {
-        const el = typeof document !== 'undefined' ? document.getElementById('request-history-section') : null;
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth' });
-          setHistoryFlash(true);
-          setTimeout(() => setHistoryFlash(false), 1000);
-        }
-      };
-      setTimeout(doScroll, 150);
-    }
-  }, [searchParams]);
+  // Scroll handling moved to client child `ScrollHandler` (wrapped in Suspense)
 
   useEffect(() => {
     const mq = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
@@ -83,7 +69,7 @@ export default function CertificateRequestsPage() {
     setDownloadErrors(prev => ({ ...prev, [req.request_id]: null }));
     setDownloadingId(req.request_id);
     try {
-      const res = await fetch(`/api/student/requests/download/${req.request_id}`, { method: 'GET', credentials: 'same-origin' });
+      const res = await fetch(`/api/student/requests/download/${req.request_id}`, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to generate certificate');
@@ -147,7 +133,7 @@ export default function CertificateRequestsPage() {
 
   const fetchRequests = async () => {
     try {
-      const response = await fetch('/api/student/requests');
+      const response = await fetch('/api/student/requests', { method: 'GET', cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         setRequests(data);
@@ -174,6 +160,7 @@ export default function CertificateRequestsPage() {
       const response = await fetch('/api/student/requests', {
         method: 'POST',
         body: formData,
+        cache: 'no-store'
       });
       if (response.ok) {
         toast.success('Request submitted successfully!');
@@ -192,6 +179,9 @@ export default function CertificateRequestsPage() {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <ScrollHandler />
+      </Suspense>
       <CertificatePageLayout
         title="Certificate Requests"
         left={
