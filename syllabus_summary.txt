@@ -574,6 +574,7 @@ BRANCH: IT
       * OE4206EC: Basics of IoT [SUB]
       * OE4207ME: Basics of Alloy Steel Structures [SUB]
       * OE4208EC: VLSI Design [SUB]
+    - PW4205IT: Project Work [LAB]
     - MC: Mandatory Non-Credit course [ELECTIVE GROUP]
       * MC- 42aHS: Yoga Practice [SUB]
       * MC- 42bHS: NSS [SUB]
