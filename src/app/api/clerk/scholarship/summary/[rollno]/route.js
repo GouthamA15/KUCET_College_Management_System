@@ -86,8 +86,13 @@ export async function GET(req, ctx) {
     const course = getBranchFromRoll(student.roll_no);
     // Admission academic year period (e.g., 2023-2027)
     const admission_year = getAcademicYear(student.roll_no);
+
+    // Fetch college info for academic year boundary
+    const collegeInfoRows = await query('SELECT * FROM college_info WHERE id = 1');
+    const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
+
     // Server-resolved current academic year (e.g., 2025-26)
-    const current_year = getResolvedCurrentAcademicYear(student.roll_no);
+    const current_year = getResolvedCurrentAcademicYear(student.roll_no, collegeInfo);
     // If client did not provide year, default to current_year to avoid UI-side hardcoding
     if (!year) {
       year = current_year;

@@ -121,22 +121,30 @@ export async function POST(request) {
     // compute academic_year from roll_no (single source of truth)
     let academicYear;
     try {
-      academicYear = getResolvedCurrentAcademicYear(auth.roll_no);
-    } catch (e1) {
-      // If token roll_no is malformed or not in expected format, try resolving from DB
+      // Fetch college info for academic year boundary
+      const collegeInfoRows = await query('SELECT * FROM college_info WHERE id = 1');
+      const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
+
       try {
-        const rollRows = await query('SELECT roll_no FROM students WHERE id = ?', [auth.student_id]);
-        const dbRoll = rollRows && rollRows[0] && rollRows[0].roll_no;
-        if (dbRoll) {
-          academicYear = getResolvedCurrentAcademicYear(dbRoll);
+        academicYear = getResolvedCurrentAcademicYear(auth.roll_no, collegeInfo);
+      } catch (e1) {
+        // If token roll_no is malformed or not in expected format, try resolving from DB
+        try {
+          const rollRows = await query('SELECT roll_no FROM students WHERE id = ?', [auth.student_id]);
+          const dbRoll = rollRows && rollRows[0] && rollRows[0].roll_no;
+          if (dbRoll) {
+            academicYear = getResolvedCurrentAcademicYear(dbRoll, collegeInfo);
+          }
+        } catch (e2) {
+          console.warn('[REQUESTS] Failed to resolve roll_no from DB', e2);
         }
-      } catch (e2) {
-        console.warn('[REQUESTS] Failed to resolve roll_no from DB', e2);
+        if (!academicYear) {
+          const msg = (e1 && e1.message) ? e1.message : 'Invalid roll number format – cannot determine academic year';
+          return NextResponse.json({ error: msg }, { status: 400 });
+        }
       }
-      if (!academicYear) {
-        const msg = (e1 && e1.message) ? e1.message : 'Invalid roll number format – cannot determine academic year';
-        return NextResponse.json({ error: msg }, { status: 400 });
-      }
+    } catch (error) {
+       return NextResponse.json({ error: 'Failed to resolve academic year boundary.' }, { status: 500 });
     }
 
     try {

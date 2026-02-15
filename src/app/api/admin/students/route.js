@@ -52,6 +52,10 @@ export async function GET(request) {
   }
 
   try {
+    // Fetch college info for academic year boundary
+    const collegeInfoRows = await query('SELECT * FROM college_info WHERE id = 1');
+    const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
+
     // Fetch all students that belong to the given branch code (regardless of entry year for now)
     // We will filter by studyingYear programmatically using rollNumber.js utilities
     const studentsFromDb = await query('SELECT id, roll_no, name FROM students WHERE roll_no LIKE ? OR roll_no LIKE ?', [
@@ -61,7 +65,7 @@ export async function GET(request) {
 
     const filteredStudents = studentsFromDb.filter(student => {
       const studentBranch = getBranchFromRoll(student.roll_no);
-      const studentStudyingYear = getCurrentStudyingYear(student.roll_no);
+      const studentStudyingYear = getCurrentStudyingYear(student.roll_no, collegeInfo);
 
       return studentBranch === branchName && String(studentStudyingYear) === studyingYear;
     });

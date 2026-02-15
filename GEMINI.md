@@ -56,9 +56,14 @@ CERTIFICATE_SECRET=your_qr_verification_secret
 
 *   **General Enhancements:**
     *   **Developers Page:** Added a dedicated page (`src/app/developers/page.js`) listing the development team with animations and responsive layout. Included a "View more details" link in the global footer.
+    *   **Academic Year Logic Overhaul:** Integrated `college_info` configuration into `src/lib/rollNumber.js`. The system now respects super admin-defined semester start dates (e.g., first semester start month/day) for calculating the current studying year and academic year labels.
+        *   Updated dependent API routes: `admin/students`, `admin/student-stats`, `clerk/scholarship/summary`, and `student/requests`.
+        *   Updated student profile UI to correctly resolve and display the academic year based on college settings.
 
 *   **Student Features & Fixes:**
+    *   **ID Card Reissue Placeholder:** Added a professional "Coming Soon" landing page for ID Card Reissue (`src/app/student/requests/id-card/page.js`) and updated the student navbar to include the link.
     *   **Profile Editing:** Implemented the "Edit Profile" page (`src/app/student/settings/edit-profile/page.js`), allowing students to update their phone number, address, and profile picture. Integrated with existing API routes (`upload-photo`, `update-profile`) and includes client-side validation for image size/type.
+    *   **Request API Fixes:** Resolved a critical syntax error in the student requests POST handler and removed unused imports in profile settings.
     *   **Request Image Caching:** Fixed an issue where resubmitted payment screenshots were not updating in the clerk dashboard due to aggressive browser caching.
         *   Updated `src/app/api/student/requests/image/[request_id]/route.js` to set `Cache-Control: no-store` and other headers to prevent caching.
         *   Updated `src/components/clerk/certificates/CertificateActionPanel.js` to append a timestamp (based on `updated_at` or `created_at`) to the image URL, ensuring the latest version is always fetched.
@@ -88,6 +93,15 @@ CERTIFICATE_SECRET=your_qr_verification_secret
     *   **Dynamic QR Codes:** Certificates now generate dynamic QR codes based on the certificate type and fee, using the UPI standard.
     *   **PDF Generation System:** Replaced HTML templates with a robust, component-based PDF generation system utilizing `@react-pdf/renderer`.
     *   **New Template:** Added `TransferCertificatePDF.js` to support Transfer Certificate (TC) generation.
+
+*   **Syllabus System Refactoring & Data Integrity:**
+    *   **Modular Architecture:** Refactored the monolithic syllabus data into a modular structure. Each branch (CSE, IT, ECE, EEE, CIVIL, MECH, CSD) now has its own subdirectory in `src/lib/syllabus/` containing individual files for each semester (`sem1.js` through `sem8.js`).
+    *   **Data Synchronization:** Updated and synchronized syllabus data with official PDF assets.
+        *   Populated missing unit-level details for **ECE and CIVIL 8th Semester**.
+        *   Aligned **CSD branch** with the "Data Science" curriculum from Semester 3-2 onwards.
+        *   Fixed shared curriculum data for **ECE and EEE 8th Semester** based on matching course codes.
+    *   **Enhanced UI Data Structure:** Implemented `isGroup: true` and `variants` keys for Professional and Open Electives. This allows the `SyllabusTab.js` component to render elective groups with specialized badges ("Faculty Selection" / "Student Group Choice") and restriction warnings.
+    *   **Syntax & Quality Control:** Performed a comprehensive syntax check across all 56 new JavaScript files using `node -c` to ensure zero parsing errors. Fixed specific typos like unescaped quotes in `eee/sem4.js`.
 
 ## Code Documentation
 

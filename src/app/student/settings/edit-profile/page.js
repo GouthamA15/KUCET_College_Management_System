@@ -7,7 +7,7 @@ import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
-import { getBranchFromRoll, getCurrentAcademicYear } from '@/lib/rollNumber';
+import { getBranchFromRoll } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
 
 export default function EditProfilePage() {

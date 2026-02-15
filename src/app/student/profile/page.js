@@ -50,7 +50,7 @@ export default function StudentProfileNew() {
   const branch = getBranchFromRoll(student.roll_no);
   const courseLabel = branch ? `B. Tech (${branch})` : 'B. Tech';
   const { yearOfStudy, semester, semesterLabel } = calculateYearAndSemester(student.roll_no, collegeInfo);
-  const currentAcademicYearLabel = (() => { try { return getResolvedCurrentAcademicYear(student.roll_no); } catch { return null; } })();
+  const currentAcademicYearLabel = (() => { try { return getResolvedCurrentAcademicYear(student.roll_no, collegeInfo); } catch { return null; } })();
   const batchString = (() => { try { return getBatchFromRoll(student.roll_no); } catch { return null; } })();
 
   return (
