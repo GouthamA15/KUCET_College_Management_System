@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useState, useEffect } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -83,7 +84,7 @@ export default function CertificateRequestsPage() {
     setDownloadErrors(prev => ({ ...prev, [req.request_id]: null }));
     setDownloadingId(req.request_id);
     try {
-      const res = await fetch(`/api/student/requests/download/${req.request_id}`, { method: 'GET', credentials: 'same-origin' });
+      const res = await fetch(`/api/student/requests/download/${req.request_id}`, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to generate certificate');
@@ -147,7 +148,7 @@ export default function CertificateRequestsPage() {
 
   const fetchRequests = async () => {
     try {
-      const response = await fetch('/api/student/requests');
+      const response = await fetch('/api/student/requests', { method: 'GET', cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         setRequests(data);
@@ -174,6 +175,7 @@ export default function CertificateRequestsPage() {
       const response = await fetch('/api/student/requests', {
         method: 'POST',
         body: formData,
+        cache: 'no-store'
       });
       if (response.ok) {
         toast.success('Request submitted successfully!');
