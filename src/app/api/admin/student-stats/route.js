@@ -34,6 +34,10 @@ export async function GET(req) {
   }
 
   try {
+    // Fetch college info for academic year boundary
+    const collegeInfoRows = await query('SELECT * FROM college_info WHERE id = 1');
+    const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
+
     const students = await query('SELECT roll_no FROM students');
 
     const stats = {};
@@ -41,7 +45,7 @@ export async function GET(req) {
     for (const student of students) {
       const { roll_no } = student;
       const branch = getBranchFromRoll(roll_no);
-      const year = getCurrentStudyingYear(roll_no);
+      const year = getCurrentStudyingYear(roll_no, collegeInfo);
 
       if (branch && year) {
         if (!stats[branch]) {

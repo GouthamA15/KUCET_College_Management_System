@@ -89,6 +89,15 @@ CERTIFICATE_SECRET=your_qr_verification_secret
     *   **PDF Generation System:** Replaced HTML templates with a robust, component-based PDF generation system utilizing `@react-pdf/renderer`.
     *   **New Template:** Added `TransferCertificatePDF.js` to support Transfer Certificate (TC) generation.
 
+*   **Syllabus System Refactoring & Data Integrity:**
+    *   **Modular Architecture:** Refactored the monolithic syllabus data into a modular structure. Each branch (CSE, IT, ECE, EEE, CIVIL, MECH, CSD) now has its own subdirectory in `src/lib/syllabus/` containing individual files for each semester (`sem1.js` through `sem8.js`).
+    *   **Data Synchronization:** Updated and synchronized syllabus data with official PDF assets.
+        *   Populated missing unit-level details for **ECE and CIVIL 8th Semester**.
+        *   Aligned **CSD branch** with the "Data Science" curriculum from Semester 3-2 onwards.
+        *   Fixed shared curriculum data for **ECE and EEE 8th Semester** based on matching course codes.
+    *   **Enhanced UI Data Structure:** Implemented `isGroup: true` and `variants` keys for Professional and Open Electives. This allows the `SyllabusTab.js` component to render elective groups with specialized badges ("Faculty Selection" / "Student Group Choice") and restriction warnings.
+    *   **Syntax & Quality Control:** Performed a comprehensive syntax check across all 56 new JavaScript files using `node -c` to ensure zero parsing errors. Fixed specific typos like unescaped quotes in `eee/sem4.js`.
+
 ## Code Documentation
 
 ### Email System (`src/lib/email.js`)

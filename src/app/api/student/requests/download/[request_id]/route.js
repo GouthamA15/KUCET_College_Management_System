@@ -256,7 +256,7 @@ export async function GET(request, { params }) {
             admissionNo: student.roll_no,
             course,
             dob: formattedDob,
-            academicYear: getResolvedCurrentAcademicYear(student.roll_no) || certRequest.academic_year || '',
+            academicYear: getResolvedCurrentAcademicYear(student.roll_no, collegeInfo) || certRequest.academic_year || '',
             logoUrl,
             signatureUrl,
             stampSign,

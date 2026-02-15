@@ -82,7 +82,26 @@ function getAcademicYear(rollNo) {
   return `${startYear}-${endYear}`;
 }
 
-function getCurrentStudyingYear(rollNo) {
+/**
+ * Determines the effective start year of the current academic session.
+ * Uses college-specific semester start dates if provided, otherwise defaults to June 1st.
+ */
+function getEffectiveAcademicYear(collegeInfo = null, now = new Date()) {
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+
+  // Boundary for new academic year: defaults to June (6) 1st
+  const startMonth = parseInt(collegeInfo?.first_sem_start_month) || 6;
+  const startDay = parseInt(collegeInfo?.first_sem_start_day) || 1;
+
+  const currentTotal = currentMonth * 100 + currentDay;
+  const boundaryTotal = startMonth * 100 + startDay;
+
+  return currentTotal < boundaryTotal ? currentYear - 1 : currentYear;
+}
+
+function getCurrentStudyingYear(rollNo, collegeInfo = null) {
   const entryYear = getEntryYearFromRoll(rollNo);
   const admissionType = getAdmissionTypeFromRoll(rollNo);
 
@@ -92,11 +111,9 @@ function getCurrentStudyingYear(rollNo) {
 
   const entryYearInt = parseInt(entryYear, 10);
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1; // 1-12
-
-  // Effective academic base year: if before June, academic year belongs to previous calendar year
-  const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
+  
+  // Use collegeInfo to determine the effective academic year boundary
+  const effectiveYear = getEffectiveAcademicYear(collegeInfo, now);
 
   let academicYearIndex = effectiveYear - entryYearInt + 1;
 
@@ -104,7 +121,6 @@ function getCurrentStudyingYear(rollNo) {
   if (admissionType && admissionType.toLowerCase() === 'lateral') {
     academicYearIndex += 1;
   }
-
 
   const maxYears = (admissionType && admissionType.toLowerCase() === 'lateral') ? 3 : 4;
   if (!Number.isInteger(academicYearIndex) || academicYearIndex < 1 || academicYearIndex > maxYears) return null;
@@ -124,15 +140,15 @@ function getAcademicYearForStudyYear(rollNo, yearOfStudy) {
   return `${startYear}-${String(endYear).slice(-2)}`;
 }
 
-  // Calculating Batch years
-  export function getBatchFromRoll(rollNo) {
-    const isLateral = rollNo.toUpperCase().endsWith('L');
-    const admissionYearShort = parseInt(rollNo.substring(0, 2));
-    const admissionYear = 2000 + admissionYearShort;
-    
-    // Batch start is 1 year earlier for laterals to match their classmates
-    const batchStart = isLateral ? admissionYear - 1 : admissionYear;
-    return `${batchStart}-${batchStart + 4}`;
+// Calculating Batch years
+function getBatchFromRoll(rollNo) {
+  const isLateral = rollNo.toUpperCase().endsWith('L');
+  const admissionYearShort = parseInt(rollNo.substring(0, 2));
+  const admissionYear = 2000 + admissionYearShort;
+  
+  // Batch start is 1 year earlier for laterals to match their classmates
+  const batchStart = isLateral ? admissionYear - 1 : admissionYear;
+  return `${batchStart}-${batchStart + 4}`;
 }
 
 function getEntranceExamQualified(rollNo) {
@@ -147,22 +163,7 @@ function getEntranceExamQualified(rollNo) {
   return null;
 }
 
-export {
-  validateRollNo,
-  getEntryYearFromRoll,
-  getBranchFromRoll,
-  getAdmissionTypeFromRoll,
-  getAcademicYear,
-  getCurrentStudyingYear,
-  getAcademicYearForStudyYear,
-  getCurrentAcademicYear,
-  getResolvedCurrentAcademicYear,
-  getEntranceExamQualified,
-  branchCodes,
-  EXAM_TOTAL_MARKS,
-};
-
-function getCurrentAcademicYear(rollNo) {
+function getCurrentAcademicYear(rollNo, collegeInfo = null) {
   let entryYear = getEntryYearFromRoll(rollNo);
   let admissionType = getAdmissionTypeFromRoll(rollNo);
 
@@ -179,10 +180,8 @@ function getCurrentAcademicYear(rollNo) {
 
   const admissionYear = parseInt(entryYear, 10);
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-
-  const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
+  
+  const effectiveYear = getEffectiveAcademicYear(collegeInfo, now);
   const academicYearIndex = effectiveYear - admissionYear + 1;
 
   const maxYears = (admissionType && admissionType.toLowerCase() === 'lateral') ? 3 : 4;
@@ -195,7 +194,7 @@ function getCurrentAcademicYear(rollNo) {
 
 // Authoritative resolver for current academic year
 // Throws on invalid roll number format. Frontend must not compute academic year independently.
-function getResolvedCurrentAcademicYear(rollNo) {
+function getResolvedCurrentAcademicYear(rollNo, collegeInfo = null) {
   if (typeof rollNo !== 'string') {
     throw new Error('Invalid roll number format – cannot determine academic year');
   }
@@ -218,11 +217,9 @@ function getResolvedCurrentAcademicYear(rollNo) {
 
   const admissionYear = parseInt(entryYear, 10);
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1; // 1-12
-
-  // June boundary: before June -> academic base is previous calendar year
-  const effectiveYear = currentMonth < 6 ? currentYear - 1 : currentYear;
+  
+  // Use collegeInfo to determine the effective academic year boundary
+  const effectiveYear = getEffectiveAcademicYear(collegeInfo, now);
   let academicYearIndex = effectiveYear - admissionYear + 1;
 
   const maxYears = (admissionType && String(admissionType).toLowerCase() === 'lateral') ? 3 : 4;
@@ -235,3 +232,19 @@ function getResolvedCurrentAcademicYear(rollNo) {
   const endYear = startYear + 1;
   return `${startYear}-${String(endYear).slice(-2)}`;
 }
+
+export {
+  validateRollNo,
+  getEntryYearFromRoll,
+  getBranchFromRoll,
+  getAdmissionTypeFromRoll,
+  getAcademicYear,
+  getCurrentStudyingYear,
+  getAcademicYearForStudyYear,
+  getCurrentAcademicYear,
+  getResolvedCurrentAcademicYear,
+  getEntranceExamQualified,
+  getBatchFromRoll,
+  branchCodes,
+  EXAM_TOTAL_MARKS,
+};
