@@ -95,6 +95,7 @@ CERTIFICATE_SECRET=your_qr_verification_secret
     *   **New Template:** Added `TransferCertificatePDF.js` to support Transfer Certificate (TC) generation.
 
 *   **Syllabus System Refactoring & Data Integrity:**
+    *   **Comprehensive Data Updates:** Updated **CIVIL (Sem 7-8), CSD (Sem 7-8), and IT (Sem 7-8)** syllabus with exhaustive unit-level details, including professional and open electives, labs, and project work components.
     *   **Modular Architecture:** Refactored the monolithic syllabus data into a modular structure. Each branch (CSE, IT, ECE, EEE, CIVIL, MECH, CSD) now has its own subdirectory in `src/lib/syllabus/` containing individual files for each semester (`sem1.js` through `sem8.js`).
     *   **Data Synchronization:** Updated and synchronized syllabus data with official PDF assets.
         *   Populated missing unit-level details for **ECE and CIVIL 8th Semester**.
@@ -102,6 +103,15 @@ CERTIFICATE_SECRET=your_qr_verification_secret
         *   Fixed shared curriculum data for **ECE and EEE 8th Semester** based on matching course codes.
     *   **Enhanced UI Data Structure:** Implemented `isGroup: true` and `variants` keys for Professional and Open Electives. This allows the `SyllabusTab.js` component to render elective groups with specialized badges ("Faculty Selection" / "Student Group Choice") and restriction warnings.
     *   **Syntax & Quality Control:** Performed a comprehensive syntax check across all 56 new JavaScript files using `node -c` to ensure zero parsing errors. Fixed specific typos like unescaped quotes in `eee/sem4.js`.
+    *   **Automation Tools:** 
+        *   Developed `extract_syllabus.js` to automatically scan modular syllabus files and generate a detailed text summary (`syllabus_summary.txt`) including all elective variants.
+        *   Developed `generate_syllabus_csv.js` to create a faculty allocation CSV (`syllabus_faculty_allocation_v3.csv`), enabling administrative staff to assign faculty to subjects/labs for Google Sheets integration.
+
+*   **Student Dashboard & Request UI Enhancements:**
+    *   **Request UI Overhaul:** Significant refinements to `CertificateRequestForm.js` and `PaymentSection.js` for better usability, error handling, and visual feedback during certificate applications.
+    *   **Responsive History:** Updated `RequestHistoryDesktop.js` and `RequestHistoryMobile.js` to improve the layout and accessibility of certificate request tracking.
+    *   **Context Optimization:** Improved `StudentContext.js` for more efficient data fetching and state management across the dashboard.
+    *   **ID Card Reissue Placeholder:** Added a professional "Coming Soon" landing page for ID Card Reissue (`src/app/student/requests/id-card/page.js`) and updated the student navbar to include the link.
 
 ## Code Documentation
 
