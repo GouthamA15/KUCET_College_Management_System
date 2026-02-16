@@ -1,36 +1,13 @@
 import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
 import { validateRollNo } from '@/lib/rollNumber';
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(req) {
-  const cookieStore = await cookies();
-  const clerkAuthCookie = cookieStore.get('clerk_auth');
-  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded || decoded.role !== 'admission') {
-    return NextResponse.json({ error: 'Forbidden: Only admission clerks can add students' }, { status: 403 });
+  if (!user || user.role !== 'admission') {
+    return apiError('Forbidden: Only admission clerks can add students', 403);
   }
 
   try {
@@ -75,45 +52,45 @@ export async function POST(req) {
     const providedRoll = roll_no || studentData.rollno || null;
 
     if (!providedRoll) {
-      return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
+      return apiError('Roll number is required', 400);
     }
 
     const { isValid } = validateRollNo(providedRoll);
 
     if (!isValid) {
-      return NextResponse.json({ error: 'Invalid roll number format' }, { status: 400 });
+      return apiError('Invalid roll number format', 400);
     }
 
     // Check if a student with this roll number already exists
     if (providedRoll) {
       const [existingStudent] = await query('SELECT id FROM students WHERE roll_no = ?', [providedRoll]);
       if (existingStudent) {
-        return NextResponse.json({ error: `Student with Roll Number ${providedRoll} already exists.` }, { status: 409 });
+        return apiError(`Student with Roll Number ${providedRoll} already exists.`, 409);
       }
     }
 
     // Ensure clerk exists and use clerk id from JWT (do NOT accept clerk id from frontend)
-    const clerkId = decoded?.clerkId || null;
+    const clerkId = user?.clerkId || null;
     if (!clerkId) {
-      return NextResponse.json({ error: 'Unauthorized: clerk id missing in token' }, { status: 401 });
+      return apiError('Unauthorized: clerk id missing in token', 401);
     }
     const [clerkRow] = await query('SELECT id FROM clerks WHERE id = ?', [clerkId]);
     if (!clerkRow) {
-      return NextResponse.json({ error: 'Unauthorized: clerk not found' }, { status: 403 });
+      return apiError('Unauthorized: clerk not found', 403);
     }
 
     // Validate blood group if provided
     const validBloodGroups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
     const bloodGroupToSave = blood_group && String(blood_group).trim() ? String(blood_group).trim() : null;
     if (bloodGroupToSave && !validBloodGroups.includes(bloodGroupToSave)) {
-      return NextResponse.json({ error: 'Invalid blood group value' }, { status: 400 });
+      return apiError('Invalid blood group value', 400);
     }
 
     // Validate fee_reimbursement if provided
     const validFeeReimbursement = ['YES', 'NO'];
     const feeReimbursementToSave = fee_reimbursement == null ? null : String(fee_reimbursement).trim().toUpperCase();
     if (feeReimbursementToSave && !validFeeReimbursement.includes(feeReimbursementToSave)) {
-      return NextResponse.json({ error: 'Invalid fee_reimbursement value' }, { status: 400 });
+      return apiError('Invalid fee_reimbursement value', 400);
     }
 
     // Insert into `students` table (core student record). Set added_by_clerk_id from token.
@@ -171,18 +148,19 @@ export async function POST(req) {
 
       // Fetch inserted records to return for debugging/confirmation
       const savedStudentRows = await query('SELECT * FROM students WHERE id = ?', [studentId]);
-      const savedPersonal = await query('SELECT * FROM student_personal_details WHERE student_id = ?', [studentId]);
-      const savedAcademic = await query('SELECT * FROM student_academic_background WHERE student_id = ?', [studentId]);
-
-      return NextResponse.json({ success: true, studentId, roll_no: providedRoll, savedStudent: savedStudentRows[0] || null, savedPersonal: savedPersonal[0] || null, savedAcademic: savedAcademic[0] || null });
-    } catch (innerError) {
-      // If inserting related details fails, remove the created student to avoid partial state
-      console.error('Error inserting related student data, rolling back student:', innerError);
-      try { await query('DELETE FROM students WHERE id = ?', [studentId]); } catch (delErr) { console.error('Rollback delete failed:', delErr); }
-      return NextResponse.json({ error: 'Failed to save student details' }, { status: 500 });
-    }
-  } catch (error) {
-    console.error('Error adding student:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
-}
+            const savedPersonal = await query('SELECT * FROM student_personal_details WHERE student_id = ?', [studentId]);
+            const savedAcademic = await query('SELECT * FROM student_academic_background WHERE student_id = ?', [studentId]);
+      
+            return apiResponse({ success: true, studentId, roll_no: providedRoll, savedStudent: savedStudentRows[0] || null, savedPersonal: savedPersonal[0] || null, savedAcademic: savedAcademic[0] || null });
+          } catch (innerError) {
+            // If inserting related details fails, remove the created student to avoid partial state
+            console.error('Error inserting related student data, rolling back student:', innerError);
+            try { await query('DELETE FROM students WHERE id = ?', [studentId]); } catch (delErr) { console.error('Rollback delete failed:', delErr); }
+            return apiError('Failed to save student details', 500);
+          }
+        } catch (error) {
+          console.error('Error adding student:', error);
+          return apiError('Internal Server Error', 500);
+        }
+      }
+      

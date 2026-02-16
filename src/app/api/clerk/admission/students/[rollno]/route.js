@@ -1,44 +1,21 @@
 import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 // Helper function to handle undefined/empty values and convert them to null
 const toNull = (value) => (value === undefined || value === '' ? null : value);
 
 export async function PUT(req, context) {
-  const cookieStore = await cookies();
-  const clerkAuthCookie = cookieStore.get('clerk_auth');
-  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded || decoded.role !== 'admission') {
-    return NextResponse.json({ error: 'Forbidden: Only admission clerks can update student details' }, { status: 403 });
+  if (!user || user.role !== 'admission') {
+    return apiError('Forbidden: Only admission clerks can update student details', 403);
   }
 
   // Ensure clerk id is present in token and use it for audit fields
-  const clerkId = decoded?.clerkId || null;
+  const clerkId = user?.clerkId || null;
   if (!clerkId) {
-    return NextResponse.json({ error: 'Unauthorized: clerk id missing in token' }, { status: 401 });
+    return apiError('Unauthorized: clerk id missing in token', 401);
   }
 
   try {
@@ -46,7 +23,7 @@ export async function PUT(req, context) {
     const { rollno } = params;
 
     if (!rollno) {
-      return NextResponse.json({ error: 'Missing rollno parameter' }, { status: 400 });
+      return apiError('Missing rollno parameter', 400);
     }
 
     const updatedData = await req.json();
@@ -59,21 +36,21 @@ export async function PUT(req, context) {
       const bg = updatedData.blood_group == null ? null : String(updatedData.blood_group).trim();
       const validBloodGroups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
       if (bg && !validBloodGroups.includes(bg)) {
-        return NextResponse.json({ error: 'Invalid blood group value' }, { status: 400 });
+        return apiError('Invalid blood group value', 400);
       }
     }
     if (updatedData.fee_reimbursement !== undefined) {
       const fr = updatedData.fee_reimbursement == null ? null : String(updatedData.fee_reimbursement).trim().toUpperCase();
       const validFeeReimbursement = ['YES', 'NO'];
       if (fr && !validFeeReimbursement.includes(fr)) {
-        return NextResponse.json({ error: 'Invalid fee_reimbursement value' }, { status: 400 });
+        return apiError('Invalid fee_reimbursement value', 400);
       }
     }
 
     // Find student ID
     const [student] = await query('SELECT id FROM students WHERE roll_no = ?', [rollno]);
     if (!student) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
     const studentId = student.id;
 
@@ -188,9 +165,9 @@ export async function PUT(req, context) {
     }
 
 
-    return NextResponse.json({ success: true, message: 'Student details updated successfully' });
+    return apiResponse({ success: true, message: 'Student details updated successfully' });
   } catch (error) {
     console.error('Error updating student details:', error);
-    return NextResponse.json({ error: 'Failed to update student details', details: error.message }, { status: 500 });
+    return apiError('Failed to update student details', 500, error.message);
   }
 }

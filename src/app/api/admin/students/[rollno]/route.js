@@ -1,40 +1,17 @@
-import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request, { params }) {
-  const cookieStore = await cookies();
-  const adminAuthCookie = cookieStore.get('admin_auth');
-  const token = adminAuthCookie ? adminAuthCookie.value : null;
+  const user = await getAuthUser('admin');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded || decoded.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   const { rollno } = await params;
 
   if (!rollno) {
-    return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
+    return apiError('Roll number is required', 400);
   }
 
   try {
@@ -46,7 +23,7 @@ export async function GET(request, { params }) {
     const [student] = await query(studentQuery, [rollno]);
 
     if (!student) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
 
     if (student.has_pfp) {
@@ -56,9 +33,9 @@ export async function GET(request, { params }) {
     }
     delete student.has_pfp;
 
-    return NextResponse.json({ student });
+    return apiResponse({ student });
   } catch (error) {
     console.error('Failed to fetch student:', error);
-    return NextResponse.json({ error: 'Failed to fetch student' }, { status: 500 });
+    return apiError('Failed to fetch student', 500);
   }
 }
