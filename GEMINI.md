@@ -128,7 +128,12 @@ CERTIFICATE_SECRET=your_qr_verification_secret
     *   **UI Utility Layer:** Created `src/lib/ui-utils.js` to share visual logic across components, such as `getStatusStyles` for certificate request tracking.
     *   **PDF Template Refactoring:** Implemented `BaseCertificate.js` in the PDF component library. This reduces boilerplate in individual certificate templates by centralizing the document wrapper, header, border, signature, and QR code placement logic.
     *   **Internal Cleanup:** Refactored `admin/student-stats` and `clerk/scholarship` API routes to utilize the new utility layers, improving maintainability and reducing code duplication by ~30% in affected files.
-    *   **Linting & Stability:** Resolved critical ESLint errors related to synchronous state updates within `useEffect` hooks across `ProfileActivityBar.js`, `RequestHistoryDesktop.js`, and `PaymentSection.js`. Fixed missing dependency warnings in `CertificateRequestsPage` by wrapping handlers in `useCallback`. Added missing accessibility attributes to PDF templates.
+    *   **Linting & Stability:** Resolved all critical ESLint errors and warnings across the codebase.
+        *   Fixed synchronous state updates within `useEffect` hooks in `ProfileActivityBar.js`, `RequestHistoryDesktop.js`, and `PaymentSection.js` to prevent cascading renders.
+        *   Standardized image rendering by migrating all loading states and form previews to Next.js `<Image />` components with appropriate `unoptimized` or `priority` settings.
+        *   Optimized React hooks by wrapping fetch handlers in `useCallback` and ensuring robust dependency arrays in `CertificateDashboard.js`, `usePasswordSetup.js`, and `CertificateRequestsPage`.
+        *   Improved accessibility by adding `alt` attributes to all UI and PDF image elements.
+        *   Cleaned up codebase by removing all unnecessary `eslint-disable` directives and redundant `useEffect` hooks.
     *   **Syllabus Data Cleanup:** Removed "Engineering Graphics & Design Lab" (ESC102L) from the 1st-semester syllabus for all branches (CSE, IT, ECE, EEE, CIVIL, MECH, CSD). Verified its absence in the 2nd-semester syllabus to align with updated curriculum standards.
 
 ## Code Documentation

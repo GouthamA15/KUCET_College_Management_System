@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { usePathname } from 'next/navigation';
 // Filters moved into a contextual popover; removed full-width CertificateFilters component
 import CertificateWorkspaceCard from "./CertificateWorkspaceCard";
@@ -43,7 +43,7 @@ export default function CertificateDashboard({ clerkType }) {
   };
 
   // Fetch records whenever mode/date/clerkType changes
-  const fetchRecords = async () => {
+  const fetchRecords = useCallback(async () => {
     setLoadingRecords(true);
     try {
       const params = new URLSearchParams();
@@ -82,7 +82,7 @@ export default function CertificateDashboard({ clerkType }) {
     } finally {
       setLoadingRecords(false);
     }
-  };
+  }, [workspaceMode, historyScope, clerkType, appliedFilters]);
 
   // Date-based history removed; scope-based history uses backend counts
 
@@ -94,8 +94,7 @@ export default function CertificateDashboard({ clerkType }) {
       setRecords([]);
     }
     fetchRecords();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceMode, historyScope, clerkType, appliedFilters]);
+  }, [workspaceMode, historyScope, clerkType, appliedFilters, fetchRecords]);
 
   // Click-away and Escape handling for Filters popover
   useEffect(() => {
@@ -136,13 +135,7 @@ export default function CertificateDashboard({ clerkType }) {
   // Close popover on route change
   useEffect(() => {
     if (showFilters) setShowFilters(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
-
-  useEffect(() => {
-    // keep effect hook for potential future needs
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceMode, clerkType]);
+  }, [pathname, showFilters]);
 
   const formatDateForDisplay = (val) => {
     if (!val) return val;

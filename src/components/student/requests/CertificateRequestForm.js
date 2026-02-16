@@ -2,6 +2,7 @@
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import PaymentSection from './PaymentSection';
+import Image from 'next/image';
 
 export default function CertificateRequestForm({
   certificateOptions,
@@ -188,7 +189,7 @@ export default function CertificateRequestForm({
                     </div>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center relative">
-                      <img src={URL.createObjectURL(paymentScreenshot)} alt="Payment Screenshot Preview" className="max-h-[220px] w-auto object-contain" />
+                      <Image src={URL.createObjectURL(paymentScreenshot)} alt="Payment Screenshot Preview" width={400} height={400} unoptimized className="max-h-[220px] w-auto object-contain" />
                       <button type="button" onClick={handleRemoveImage} className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full p-1 text-gray-600 hover:bg-gray-100">
                         ×
                       </button>
