@@ -66,16 +66,17 @@ export default function CustodianCertificatePDF({
           <Image
             src={stampUrl}
             style={{ position: "absolute", left: 40, bottom: 50, width: 100, height: 100 }}
+            alt="Stamp"
           />
         ) : null}
 
         <View style={{ position: "absolute", left: 0, right: 0, bottom: 50, alignItems: "center", marginRight: 30 }}>
-          {qrUrl ? <Image src={qrUrl} style={{ width: 60, height: 60}} /> : null}
+          {qrUrl ? <Image src={qrUrl} style={{ width: 60, height: 60}} alt="QR Code" /> : null}
           <Text style={styles.qrLabel}>SCAN TO VERIFY</Text>
         </View>
 
         <View style={styles.custodianSignSection}>
-          <Image src={stampSign} style={styles.stampSign} />        
+          <Image src={stampSign} style={styles.stampSign} alt="Principal Signature" />        
           <Text style={styles.signatureLabel}>PRINCIPAL</Text> 
         </View>  
       

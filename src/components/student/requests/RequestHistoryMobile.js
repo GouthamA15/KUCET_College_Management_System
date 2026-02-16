@@ -1,12 +1,5 @@
 "use client";
-
-function statusStyles(status) {
-  const s = (status || '').toUpperCase();
-  if (s === 'APPROVED') return 'bg-green-100 text-green-800';
-  if (s === 'PENDING') return 'bg-yellow-100 text-yellow-800';
-  if (s === 'REJECTED') return 'bg-red-100 text-red-800';
-  return 'bg-gray-100 text-gray-800';
-}
+import { getStatusStyles } from '@/lib/ui-utils';
 
 export default function RequestHistoryMobile({
   requests,
@@ -42,7 +35,7 @@ export default function RequestHistoryMobile({
                     <div className="text-sm font-semibold text-gray-800 wrap-break-word">{req.certificate_type}</div>
                     <div className="text-xs text-gray-500 mt-1">Request ID: <span className="font-medium text-gray-700">{req.request_id}</span></div>
                   </div>
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyles(s)}`}>{s}</span>
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusStyles(s)}`}>{s}</span>
                 </div>
                 <div className="mt-3 text-sm text-gray-600">
                   <div>Applied: <span className="font-medium text-gray-800">{new Date(req.created_at).toLocaleDateString()}</span></div>

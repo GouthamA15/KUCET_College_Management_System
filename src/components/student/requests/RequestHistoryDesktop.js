@@ -1,13 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-
-function statusStyles(status) {
-  const s = (status || '').toUpperCase();
-  if (s === 'APPROVED') return 'bg-[#ecfdf3] text-[#166534]';
-  if (s === 'PENDING') return 'bg-[#fff7ed] text-[#b45309]';
-  if (s === 'REJECTED') return 'bg-[#fef2f2] text-[#991b1b]';
-  return 'bg-gray-100 text-gray-800';
-}
+import { getStatusStyles } from '@/lib/ui-utils';
 
 export default function RequestHistoryDesktop({
   requests,
@@ -18,13 +11,8 @@ export default function RequestHistoryDesktop({
   isLoadingRequests
 }) {
   const showLoading = !!isLoadingRequests;
-  const hasData = Array.isArray(requests) && requests.length > 0;
-  const [localRequests, setLocalRequests] = useState(Array.isArray(requests) ? requests : []);
-
-  // Keep a local copy so the table updates immediately when the parent adds a new request
-  useEffect(() => {
-    setLocalRequests(Array.isArray(requests) ? requests : []);
-  }, [requests]);
+  const requestList = Array.isArray(requests) ? requests : [];
+  const hasData = requestList.length > 0;
 
   return (
     <div className="w-full">
@@ -50,14 +38,14 @@ export default function RequestHistoryDesktop({
               </tr>
             </thead>
             <tbody>
-              {localRequests.map((req, idx) => {
+              {requestList.map((req, idx) => {
                 const s = (req.status || '').toUpperCase();
                 return (
                   <tr key={req.request_id ?? `req-${idx}-${req.certificate_type}-${req.academic_year}` } className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
                     <td className="px-3 py-2 text-sm text-gray-800 align-middle">{req.certificate_type}</td>
                     <td className="px-3 py-2 text-sm text-gray-700 align-middle">{req.academic_year || '-'}</td>
                     <td className="px-3 py-2 text-sm text-center align-middle">
-                      <span className={`inline-flex items-center justify-center ${statusStyles(s)} text-sm font-medium rounded-sm px-2 py-1`}>
+                      <span className={`inline-flex items-center justify-center ${getStatusStyles(s)} text-sm font-medium rounded-sm px-2 py-1`}>
                         {s}
                       </span>
                     </td>

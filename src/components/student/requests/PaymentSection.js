@@ -3,18 +3,23 @@ import { useEffect, useState } from 'react';
 import NextImage from 'next/image';
 
 export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+  });
 
   useEffect(() => {
-    const mq = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
-    const handler = (e) => setIsMobile(!!e.matches);
-    if (mq) {
-      setIsMobile(!!mq.matches);
-      mq.addEventListener ? mq.addEventListener('change', handler) : mq.addListener(handler);
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e) => setIsMobile(e.matches);
+
+    if (mq.addEventListener) {
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    } else {
+      mq.addListener(handler);
+      return () => mq.removeListener(handler);
     }
-    return () => {
-      if (mq) mq.removeEventListener ? mq.removeEventListener('change', handler) : mq.removeListener(handler);
-    };
   }, []);
 
   const showDeepLink = isMobile && !!upiVPA && fee > 0;

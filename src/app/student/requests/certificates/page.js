@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import { useRouter } from 'next/navigation';
 import ScrollHandler from './ScrollHandler';
@@ -28,7 +28,10 @@ export default function CertificateRequestsPage() {
   const [selectedCertificate, setSelectedCertificate] = useState(certificateOptions[0].value);
   const [downloadingId, setDownloadingId] = useState(null);
   const [downloadErrors, setDownloadErrors] = useState({});
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReq, setRejectReq] = useState(null);
@@ -36,6 +39,24 @@ export default function CertificateRequestsPage() {
 
   const selectedOption = certificateOptions.find(o => o.value === selectedCertificate) || certificateOptions[0];
   const fee = selectedOption.fee;
+
+  const fetchRequests = useCallback(async () => {
+    try {
+      setIsLoadingRequests(true);
+      const response = await fetch('/api/student/requests', { method: 'GET', cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        setCertificateRequests(data);
+        setCertificateRequestsLoaded(true);
+      } else {
+        toast.error('Failed to fetch requests.');
+      }
+    } catch (error) {
+      toast.error('An error occurred while fetching requests.');
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  }, [setCertificateRequests, setCertificateRequestsLoaded, setIsLoadingRequests]);
 
   useEffect(() => {
     if (!studentData) return;
@@ -48,21 +69,20 @@ export default function CertificateRequestsPage() {
     if (!certificateRequestsLoaded) {
       fetchRequests();
     }
-    // depend only on student's roll_no and cache-loaded flag
-  }, [studentData?.student?.roll_no, certificateRequestsLoaded]);
-
-  // Scroll handling moved to client child `ScrollHandler` (wrapped in Suspense)
+  }, [studentData, certificateRequestsLoaded, fetchRequests, router]);
 
   useEffect(() => {
-    const mq = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
-    const handler = (e) => setIsMobile(!!e.matches);
-    if (mq) {
-      setIsMobile(!!mq.matches);
-      mq.addEventListener ? mq.addEventListener('change', handler) : mq.addListener(handler);
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e) => setIsMobile(e.matches);
+    
+    if (mq.addEventListener) {
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    } else {
+      mq.addListener(handler);
+      return () => mq.removeListener(handler);
     }
-    return () => {
-      if (mq) mq.removeEventListener ? mq.removeEventListener('change', handler) : mq.removeListener(handler);
-    };
   }, []);
 
   const handleDownload = async (req) => {
@@ -132,23 +152,6 @@ export default function CertificateRequestsPage() {
     }
   };
 
-  const fetchRequests = async () => {
-    try {
-      setIsLoadingRequests(true);
-      const response = await fetch('/api/student/requests', { method: 'GET', cache: 'no-store' });
-      if (response.ok) {
-        const data = await response.json();
-        setCertificateRequests(data);
-        setCertificateRequestsLoaded(true);
-      } else {
-        toast.error('Failed to fetch requests.');
-      }
-    } catch (error) {
-      toast.error('An error occurred while fetching requests.');
-    } finally {
-      setIsLoadingRequests(false);
-    }
-  };
   const handleSubmit = async ({ transactionId, paymentScreenshot, finalPurpose }) => {
     setIsLoading(true);
     const formData = new FormData();
