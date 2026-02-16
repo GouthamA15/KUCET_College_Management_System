@@ -30,7 +30,6 @@ export default function TransferCertificatePDF({
       <CertificateTitle text="TRANSFER CERTIFICATE" />
 
       <View style={styles.content}>
-        <CertificateWatermark imageUrl={logoUrl} />
         <Text style={[styles.paragraph, { lineHeight: 1.7, fontSize: 14, textAlign: "justify" }]}>
           This is to certify that Mr./Ms. <Text style={styles.bold}>{studentName}</Text>,
           {" "}S/o., D/o. <Text style={styles.bold}>{fatherName}</Text>{" "}

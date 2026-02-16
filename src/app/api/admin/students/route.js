@@ -1,22 +1,6 @@
-import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-import { getBranchFromRoll, getCurrentStudyingYear, branchCodes } from '@/lib/rollNumber'; // Import branchCodes
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { getBranchFromRoll, getCurrentStudyingYear, branchCodes } from '@/lib/rollNumber';
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 // Helper to get branch code from branch name
 function getBranchCodeFromName(branchName) {
@@ -25,17 +9,10 @@ function getBranchCodeFromName(branchName) {
 }
 
 export async function GET(request) {
-  const cookieStore = await cookies();
-  const adminAuthCookie = cookieStore.get('admin_auth');
-  const token = adminAuthCookie ? adminAuthCookie.value : null;
+  const user = await getAuthUser('admin');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded || decoded.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   const { searchParams } = new URL(request.url);

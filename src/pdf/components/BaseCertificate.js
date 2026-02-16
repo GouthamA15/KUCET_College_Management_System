@@ -4,6 +4,7 @@ import PageBorder from "./PageBorder";
 import CertificateHeader from "./CertificateHeader";
 import SignatureBlock from "./SignatureBlock";
 import QRBlock from "./QRBlock";
+import CertificateWatermark from "./CertificateWatermark";
 import { styles } from "./Styles";
 import { COLLEGE_CONFIG } from "@/lib/college-config";
 
@@ -16,6 +17,7 @@ export default function BaseCertificate({
   logoUrl,
   signatureUrl,
   qrUrl,
+  showWatermark = true,
   children
 }) {
   return (
@@ -30,6 +32,8 @@ export default function BaseCertificate({
         />
 
         {date ? <Text style={styles.date}>Date: {date}</Text> : null}
+
+        {showWatermark && <CertificateWatermark imageUrl={logoUrl} />}
 
         {children}
 

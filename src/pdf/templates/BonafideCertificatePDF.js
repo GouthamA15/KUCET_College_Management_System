@@ -1,7 +1,6 @@
 import React from "react";
 import { Text, View } from "@react-pdf/renderer";
 import CertificateTitle from "../components/CertificateTitle";
-import CertificateWatermark from "../components/CertificateWatermark";
 import BaseCertificate from "../components/BaseCertificate";
 import { styles } from "../components/Styles";
 
@@ -31,7 +30,6 @@ export default function BonafideCertificatePDF({
       <CertificateTitle text="BONAFIDE CERTIFICATE" />
 
       <View style={styles.content}>
-        <CertificateWatermark imageUrl={logoUrl} />
           <Text style={[styles.paragraph, { lineHeight: 1.7, fontSize: 14, textAlign: "justify" }]}>
           This is to certify that Mr./Ms. <Text style={styles.bold}>{studentName}</Text>,
           {" "}S/o., D/o. <Text style={styles.bold}>{fatherName}</Text>{" "}

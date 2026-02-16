@@ -1,57 +1,26 @@
-import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
 import { getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-async function getStudentFromToken(request) {
-  const token = request.cookies.get('student_auth')?.value;
-  if (!token) return null;
+async function validateStudentVerification(studentId) {
   try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(JWT_SECRET));
-    let student_id = payload.student_id || null;
-    const roll_no = payload.roll_no || null;
-    // If token doesn't include student_id (old tokens), try to resolve it from roll_no
-    if (!student_id && roll_no) {
-      try {
-        const rows = await query('SELECT id FROM students WHERE roll_no = ?', [roll_no]);
-        if (rows && rows.length > 0) student_id = rows[0].id;
-      } catch (e) {
-        console.warn('[AUTH] Failed to resolve student_id from roll_no', e);
-      }
+    const rows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [studentId]);
+    const s = rows && rows[0];
+    if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
+      return { valid: false, error: 'Verification required' };
     }
-    return { student_id, roll_no };
-  } catch (error) {
-    return null;
+    return { valid: true };
+  } catch (e) {
+    return { valid: false, error: 'Unable to validate verification status' };
   }
 }
 
 export async function GET(request) {
-  const auth = await getStudentFromToken(request);
-  if (!auth || !auth.student_id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await getAuthUser('student');
+  if (!user || !user.student_id) return apiError('Unauthorized', 401);
 
-  // Block if not verified: email present, verified, and password set
-  try {
-    const rows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
-    const s = rows && rows[0];
-    if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
-      return NextResponse.json({ error: 'Verification required' }, { status: 403 });
-    }
-  } catch (e) {
-    return NextResponse.json({ error: 'Unable to validate verification status' }, { status: 500 });
-  }
-
-  // Enforce verification: email present, verified, and password set
-  try {
-    const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
-    const ver = verRows && verRows[0];
-    if (!ver || !ver.email || !ver.is_email_verified || !ver.password_hash) {
-      return NextResponse.json({ error: 'Verification required: verify email and set password to access requests.' }, { status: 403 });
-    }
-  } catch (e) {
-    return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });
-  }
+  const verification = await validateStudentVerification(user.student_id);
+  if (!verification.valid) return apiError(verification.error, 403);
 
   try {
     const rows = await query(
@@ -60,40 +29,21 @@ export async function GET(request) {
        JOIN students s ON sr.student_id = s.id
        WHERE sr.student_id = ?
        ORDER BY sr.created_at DESC`,
-      [auth.student_id]
+      [user.student_id]
     );
-    return NextResponse.json(rows);
+    return apiResponse(rows);
   } catch (error) {
     console.error('Error fetching student requests:', error);
-    return NextResponse.json({ error: 'Failed to fetch requests' }, { status: 500 });
+    return apiError('Failed to fetch requests', 500);
   }
 }
 
 export async function POST(request) {
-  const auth = await getStudentFromToken(request);
-  if (!auth || !auth.student_id || !auth.roll_no) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await getAuthUser('student');
+  if (!user || !user.student_id || !user.roll_no) return apiError('Unauthorized', 401);
 
-  // Block if not verified: email present, verified, and password set
-  try {
-    const rows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
-    const s = rows && rows[0];
-    if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
-      return NextResponse.json({ error: 'Verification required' }, { status: 403 });
-    }
-  } catch (e) {
-    return NextResponse.json({ error: 'Unable to validate verification status' }, { status: 500 });
-  }
-
-  // Enforce verification: email present, verified, and password set
-  try {
-    const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
-    const ver = verRows && verRows[0];
-    if (!ver || !ver.email || !ver.is_email_verified || !ver.password_hash) {
-      return NextResponse.json({ error: 'Verification required: verify email and set password to create requests.' }, { status: 403 });
-    }
-  } catch (e) {
-    return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });
-  }
+  const verification = await validateStudentVerification(user.student_id);
+  if (!verification.valid) return apiError(verification.error, 403);
 
   try {
     const formData = await request.formData();
@@ -111,7 +61,7 @@ export async function POST(request) {
     }
     
     if (!certificateType || !clerkType || (paymentAmount === null || paymentAmount === undefined)) {
-        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        return apiError('Missing required fields', 400);
     }
 
     // Certificate validation rules
@@ -134,12 +84,12 @@ export async function POST(request) {
     if (rule.requiresUTR) {
       // Paid certificates require both transactionId and screenshot
       if (!transactionId || !paymentScreenshotBuffer) {
-        return NextResponse.json({ error: 'Transaction ID and screenshot are required for paid certificates' }, { status: 400 });
+        return apiError('Transaction ID and screenshot are required for paid certificates', 400);
       }
     } else if (certificateType === 'Income Tax (IT) Certificate') {
       // Income Tax requires only screenshot
       if (!paymentScreenshotBuffer) {
-        return NextResponse.json({ error: 'Screenshot of college fee payment is required.' }, { status: 400 });
+        return apiError('Screenshot of college fee payment is required.', 400);
       }
     }
 
@@ -159,11 +109,11 @@ export async function POST(request) {
       const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
 
       try {
-        academicYear = getResolvedCurrentAcademicYear(auth.roll_no, collegeInfo);
+        academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeInfo);
       } catch (e1) {
         // If token roll_no is malformed or not in expected format, try resolving from DB
         try {
-          const rollRows = await query('SELECT roll_no FROM students WHERE id = ?', [auth.student_id]);
+          const rollRows = await query('SELECT roll_no FROM students WHERE id = ?', [user.student_id]);
           const dbRoll = rollRows && rollRows[0] && rollRows[0].roll_no;
           if (dbRoll) {
             academicYear = getResolvedCurrentAcademicYear(dbRoll, collegeInfo);
@@ -173,25 +123,25 @@ export async function POST(request) {
         }
         if (!academicYear) {
           const msg = (e1 && e1.message) ? e1.message : 'Invalid roll number format – cannot determine academic year';
-          return NextResponse.json({ error: msg }, { status: 400 });
+          return apiError(msg, 400);
         }
       }
     } catch (error) {
-       return NextResponse.json({ error: 'Failed to resolve academic year boundary.' }, { status: 500 });
+       return apiError('Failed to resolve academic year boundary.', 500);
     }
 
     try {
       // PRE-CHECK: see if a request exists for this student/certificate/year
       const existingRows = await query(
         `SELECT request_id, status FROM student_requests WHERE student_id = ? AND certificate_type = ? AND academic_year = ? LIMIT 1`,
-        [auth.student_id, certificateType, academicYear]
+        [user.student_id, certificateType, academicYear]
       );
 
       if (existingRows && existingRows.length > 0) {
         const existing = existingRows[0];
         if (existing.status && existing.status !== 'REJECTED') {
           // active (PENDING/APPROVED) - block
-          return NextResponse.json({ error: 'An active request already exists for this certificate and academic year.' }, { status: 409 });
+          return apiError('An active request already exists for this certificate and academic year.', 409);
         }
 
         // status === 'REJECTED' -> allow re-request by reusing the same row (UPDATE)
@@ -209,23 +159,23 @@ export async function POST(request) {
           }
 
           if (updateResult.affectedRows === 1) {
-            return NextResponse.json({ success: true, requestId: existing.request_id });
+            return apiResponse({ success: true, requestId: existing.request_id });
           } else {
-            return NextResponse.json({ error: 'Failed to update rejected request' }, { status: 500 });
+            return apiError('Failed to update rejected request', 500);
           }
         } catch (err) {
           if (err && (err.code === 'ER_DUP_ENTRY' || err.errno === 1062)) {
-            return NextResponse.json({ error: 'Certificate already requested for this academic year.' }, { status: 409 });
+            return apiError('Certificate already requested for this academic year.', 409);
           }
           console.error('Error updating rejected student request:', err);
-          return NextResponse.json({ error: 'An error occurred while updating the request' }, { status: 500 });
+          return apiError('An error occurred while updating the request', 500);
         }
       }
 
       // No existing row - safe to insert
       const result = await query(
         'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [auth.student_id, certificateType,  academicYear, paymentAmountToStore, transactionIdToStore, purpose|| null, 'PENDING']
+        [user.student_id, certificateType,  academicYear, paymentAmountToStore, transactionIdToStore, purpose|| null, 'PENDING']
       );
       
       const newRequestId = result.insertId;
@@ -237,19 +187,19 @@ export async function POST(request) {
       }
 
       if (result.affectedRows === 1) {
-        return NextResponse.json({ success: true, requestId: newRequestId });
+        return apiResponse({ success: true, requestId: newRequestId });
       } else {
-        return NextResponse.json({ error: 'Failed to create request' }, { status: 500 });
+        return apiError('Failed to create request', 500);
       }
     } catch (err) {
       // handle duplicate unique constraint (race or DB-level)
       if (err && (err.code === 'ER_DUP_ENTRY' || err.errno === 1062)) {
-        return NextResponse.json({ error: 'Certificate already requested for this academic year.' }, { status: 409 });
+        return apiError('Certificate already requested for this academic year.', 409);
       }
       console.error('Error inserting student request:', err);
-      return NextResponse.json({ error: 'An error occurred while creating the request' }, { status: 500 });
+      return apiError('An error occurred while creating the request', 500);
     }
   } catch (error) {
-    return NextResponse.json({ error: 'An error occurred while creating the request' }, { status: 500 });
+    return apiError('An error occurred while creating the request', 500);
   }
 }
