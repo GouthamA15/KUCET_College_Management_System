@@ -71,6 +71,7 @@ export default function useProfileActivity(rollno) {
     fetchData();
 
     return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rollno]);
 
   const incrementVisit = () => {
