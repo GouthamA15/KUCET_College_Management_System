@@ -46,8 +46,18 @@ export async function getAuthUser(role = null) {
     if (!payload) return null;
 
     // Optional role validation
-    if (expectedRole && payload.role !== expectedRole && !(expectedRole === 'student' && payload.roll_no)) {
-      return null;
+    if (expectedRole) {
+      const actualRole = payload.role;
+      const isStudent = actualRole === 'student' || !!payload.roll_no;
+      const isClerk = ['admission', 'scholarship', 'faculty', 'clerk'].includes(actualRole);
+
+      if (expectedRole === 'student') {
+        if (!isStudent) return null;
+      } else if (expectedRole === 'clerk') {
+        if (!isClerk) return null;
+      } else if (actualRole !== expectedRole) {
+        return null;
+      }
     }
 
     return payload;
