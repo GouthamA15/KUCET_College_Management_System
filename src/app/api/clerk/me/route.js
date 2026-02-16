@@ -1,43 +1,22 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
 import { query } from '@/lib/db';
-
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('clerk_auth')?.value;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
-    const rows = await query('SELECT id, name, email, role, employee_id FROM clerks WHERE id = ?', [decoded.clerkId]);
+    const rows = await query('SELECT id, name, email, role, employee_id FROM clerks WHERE id = ?', [user.clerkId]);
     if (rows.length === 0) {
-      return NextResponse.json({ error: 'Clerk not found' }, { status: 404 });
+      return apiError('Clerk not found', 404);
     }
     const clerk = rows[0];
-    return NextResponse.json(clerk);
+    return apiResponse(clerk);
   } catch (error) {
     console.error('Database error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return apiError('Internal Server Error', 500);
   }
 }

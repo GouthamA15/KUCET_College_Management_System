@@ -1,23 +1,7 @@
 import { query } from '@/lib/db';
 import bcrypt from 'bcrypt';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
 import { sendEmail } from '@/lib/email';
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 // Helper function to generate the HTML content for the clerk account email
 const generateClerkAccountEmailHtml = (clerkName, clerkEmail, clerkPassword, clerkRole, employeeId) => {
@@ -63,24 +47,17 @@ const generateClerkAccountEmailHtml = (clerkName, clerkEmail, clerkPassword, cle
 };
 
 export async function POST(req) {
-  const cookieStore = await cookies();
-  const adminAuthCookie = cookieStore.get('admin_auth');
-  const token = adminAuthCookie ? adminAuthCookie.value : null;
+  const user = await getAuthUser('admin');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded || decoded.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
     const { name, email, password, employee_id, role } = await req.json();
 
     if (!name || !email || !password || !employee_id || !role) {
-      return new Response(JSON.stringify({ error: 'Name, email, password, employee_id, and role are required' }), { status: 400 });
+      return apiError('Name, email, password, employee_id, and role are required', 400);
     }
 
     const saltRounds = 10;
@@ -98,17 +75,14 @@ export async function POST(req) {
 
     if (!emailResult.success) {
       console.error(`Failed to send welcome email to ${email}: ${emailResult.message}`);
-      // Optionally, you might want to log this or store it for retry,
-      // but for now, we'll proceed as clerk creation was successful.
     }
 
-    return new Response(JSON.stringify({ success: true, clerkId: result.insertId }), { status: 201 });
+    return apiResponse({ success: true, clerkId: result.insertId }, 201);
   } catch (error) {
     console.error('Error creating clerk:', error);
-    // Check for duplicate entry error
     if (error.code === 'ER_DUP_ENTRY') {
-      return new Response(JSON.stringify({ error: 'Email already exists' }), { status: 409 });
+      return apiError('Email already exists', 409);
     }
-    return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
+    return apiError('Internal Server Error', 500);
   }
 }
