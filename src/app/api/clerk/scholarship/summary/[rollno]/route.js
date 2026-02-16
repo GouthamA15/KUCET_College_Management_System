@@ -1,41 +1,9 @@
-// src/app/api/clerk/scholarship/summary/[rollno]/route.js
 import { query } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
 import { getBranchFromRoll, getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 // Helper function to handle undefined values
 const toNull = (value) => (value === undefined || value === '' ? null : value);
-
-// Normalize various date inputs to SQL DATE string 'YYYY-MM-DD' or null
-const formatDateForSQL = (value) => {
-  if (value === undefined || value === null || value === '') return null;
-  // If it's already a Date
-  if (value instanceof Date && !isNaN(value)) return value.toISOString().slice(0, 10);
-  const s = String(value);
-  // If looks like YYYY-MM-DD at start
-  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (m) return m[1];
-  // Try parsing as date
-  const d = new Date(s);
-  if (!isNaN(d)) return d.toISOString().slice(0, 10);
-  return null;
-};
 
 // Normalize status to DB enum: only 'Pending' or 'Success'
 const normalizeStatus = (value) => {
@@ -47,17 +15,10 @@ const normalizeStatus = (value) => {
 };
 
 export async function GET(req, ctx) {
-  const cookieStore = await cookies();
-  const clerkAuthCookie = cookieStore.get('clerk_auth');
-  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
@@ -66,7 +27,7 @@ export async function GET(req, ctx) {
     const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
     const { rollno } = params;
 
-    if (!rollno) return NextResponse.json({ error: 'Missing rollno parameter' }, { status: 400 });
+    if (!rollno) return apiError('Missing rollno parameter', 400);
 
     // STEP A: Fetch student with pfp check
     const [student] = await query(
@@ -79,7 +40,7 @@ export async function GET(req, ctx) {
     );
 
     if (!student) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
 
     // STEP B: Derive course from roll number
@@ -162,20 +123,14 @@ export async function GET(req, ctx) {
       student_payments,
     };
 
-    return NextResponse.json(response);
+    return apiResponse(response);
   } catch (error) {
     console.error('Error fetching student data:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return apiError('Internal Server Error', 500);
   }
 }
 
 // Unsupported methods for this endpoint until POST endpoints are implemented
-export async function POST() {
-  return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
-}
-export async function PUT() {
-  return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
-}
-export async function DELETE() {
-  return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
-}
+export async function POST() { return apiError('Method Not Allowed', 405); }
+export async function PUT() { return apiError('Method Not Allowed', 405); }
+export async function DELETE() { return apiError('Method Not Allowed', 405); }

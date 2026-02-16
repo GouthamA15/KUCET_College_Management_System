@@ -28,23 +28,38 @@ export function formatDate(dateString) {
   }
 }
 
-export function toMySQLDate(dateString) {
-  if (!dateString || typeof dateString !== 'string') {
+export function toMySQLDate(value) {
+  if (value === undefined || value === null || value === '') return null;
+  
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value !== 'string') {
     return null;
   }
+
   // Check if it's already in YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
-    return dateString.split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.split('T')[0];
   }
-  const parts = dateString.split('-');
-  if (parts.length !== 3) {
-    return dateString; // Let the DB handle invalid format
+
+  // Support DD-MM-YYYY
+  const parts = value.split('-');
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    if (day.length === 2 && month.length === 2 && year.length === 4) {
+      return `${year}-${month}-${day}`;
+    }
   }
-  const [day, month, year] = parts;
-  if (day.length !== 2 || month.length !== 2 || year.length !== 4) {
-    return dateString;
+
+  // Fallback to generic Date parsing
+  const d = new Date(value);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().slice(0, 10);
   }
-  return `${year}-${month}-${day}`;
+
+  return value; // Let the DB handle invalid format if we can't parse it
 }
 
 export function parseDate(str) {

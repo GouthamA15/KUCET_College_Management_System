@@ -1,42 +1,19 @@
 import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req, context) {
-  const cookieStore = await cookies();
-  const clerkAuthCookie = cookieStore.get('clerk_auth');
-  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
     const params = await context.params;
     const { rollno } = params;
     if (!rollno) {
-      return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
+      return apiError('Roll number is required', 400);
     }
 
     const rows = await query(`
@@ -46,7 +23,7 @@ export async function GET(req, context) {
       WHERE s.roll_no = ?`, [rollno]);
 
     if (!rows || rows.length === 0) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
     
     const student = rows[0];
@@ -57,25 +34,18 @@ export async function GET(req, context) {
     }
     delete student.has_pfp;
 
-    return NextResponse.json({ student });
+    return apiResponse({ student });
   } catch (err) {
     console.error('Fetch Student Error:', err);
-    return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
+    return apiError('Server error', 500, err.message);
   }
 }
 
 export async function PUT(req, context) {
-  const cookieStore = await cookies();
-  const clerkAuthCookie = cookieStore.get('clerk_auth');
-  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
@@ -85,12 +55,12 @@ export async function PUT(req, context) {
     const { name, gender, mobile, email, date_of_birth } = body;
 
     if (!rollno) {
-      return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
+      return apiError('Roll number is required', 400);
     }
 
     const checkRows = await query('SELECT roll_no FROM students WHERE roll_no = ?', [rollno]);
     if (checkRows.length === 0) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
 
     // Build dynamic update for only allowed students columns
@@ -103,19 +73,19 @@ export async function PUT(req, context) {
     if (typeof date_of_birth !== 'undefined') { updates.push('date_of_birth = ?'); paramsArr.push(date_of_birth === '' ? null : toMySQLDate(date_of_birth)); }
 
     if (updates.length === 0) {
-      return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 });
+      return apiError('No updatable fields provided', 400);
     }
 
     const sql = `UPDATE students SET ${updates.join(', ')} WHERE roll_no = ?`;
     const result = await query(sql, [...paramsArr, rollno]);
 
     if (result.affectedRows === 0) {
-      return NextResponse.json({ error: 'No changes made or update failed' }, { status: 400 });
+      return apiError('No changes made or update failed', 400);
     }
 
-    return NextResponse.json({ success: true, message: 'Student details updated successfully' });
+    return apiResponse({ success: true, message: 'Student details updated successfully' });
   } catch (err) {
     console.error('Update Student Error:', err);
-    return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
+    return apiError('Server error', 500, err.message);
   }
 }

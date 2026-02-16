@@ -1,34 +1,11 @@
 import { query } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
-  const cookieStore = await cookies();
-  const clerkAuthCookie = cookieStore.get('clerk_auth');
-  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
@@ -36,7 +13,7 @@ export async function GET(req) {
     const branch = req.nextUrl.searchParams.get('branch');
 
     if (!year || !branch) {
-      return NextResponse.json({ message: 'Year and branch are required' }, { status: 400 });
+      return apiError('Year and branch are required', 400);
     }
 
     const yearShort = year.slice(-2);
@@ -52,25 +29,18 @@ export async function GET(req) {
 
     const students = await query(sql, [regularRollPattern, lateralRollPattern]);
 
-    return NextResponse.json({ students });
+    return apiResponse({ students });
   } catch (error) {
     console.error('Error fetching students:', error);
-    return NextResponse.json({ message: 'Failed to fetch students', error: error.message }, { status: 500 });
+    return apiError('Failed to fetch students', 500, error.message);
   }
 }
 
 export async function POST(req) {
-  const cookieStore = cookies();
-  const clerkAuthCookie = cookieStore.get('clerk_auth');
-  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
@@ -126,9 +96,9 @@ export async function POST(req) {
 
     await query(sql, params);
 
-    return NextResponse.json({ message: 'Student added successfully' }, { status: 201 });
+    return apiResponse({ message: 'Student added successfully' }, 201);
   } catch (error) {
     console.error('Error adding student:', error);
-    return NextResponse.json({ message: 'Failed to add student', error: error.message }, { status: 500 });
+    return apiError('Failed to add student', 500, error.message);
   }
 }
