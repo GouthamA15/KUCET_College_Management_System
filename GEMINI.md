@@ -129,7 +129,7 @@ CERTIFICATE_SECRET=your_qr_verification_secret
     *   **PDF Template Refactoring:** Implemented `BaseCertificate.js` in the PDF component library. This reduces boilerplate in individual certificate templates by centralizing the document wrapper, header, border, signature, and QR code placement logic.
     *   **Internal Cleanup:** Refactored `admin/student-stats` and `clerk/scholarship` API routes to utilize the new utility layers, improving maintainability and reducing code duplication by ~30% in affected files.
     *   **Linting & Stability:** Resolved critical ESLint errors related to synchronous state updates within `useEffect` hooks across `ProfileActivityBar.js`, `RequestHistoryDesktop.js`, and `PaymentSection.js`. Fixed missing dependency warnings in `CertificateRequestsPage` by wrapping handlers in `useCallback`. Added missing accessibility attributes to PDF templates.
-    *   **Syllabus Data Cleanup:** Removed "Engineering Graphics & Design Lab" (ESC102L) from the 1st-semester syllabus for all branches (CSE, IT, ECE, EEE, CIVIL, MECH, CSD) to align with the updated curriculum requirements.
+    *   **Syllabus Data Cleanup:** Removed "Engineering Graphics & Design Lab" (ESC102L) from the 1st-semester syllabus for all branches (CSE, IT, ECE, EEE, CIVIL, MECH, CSD). Verified its absence in the 2nd-semester syllabus to align with updated curriculum standards.
 
 ## Code Documentation
 
