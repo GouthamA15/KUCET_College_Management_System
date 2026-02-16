@@ -108,10 +108,17 @@ CERTIFICATE_SECRET=your_qr_verification_secret
         *   Developed `generate_syllabus_csv.js` to create a faculty allocation CSV (`syllabus_faculty_allocation_v3.csv`), enabling administrative staff to assign faculty to subjects/labs for Google Sheets integration.
 
 *   **Student Dashboard & Request UI Enhancements:**
-    *   **Request UI Overhaul:** Significant refinements to `CertificateRequestForm.js` and `PaymentSection.js` for better usability, error handling, and visual feedback during certificate applications.
-    *   **Responsive History:** Updated `RequestHistoryDesktop.js` and `RequestHistoryMobile.js` to improve the layout and accessibility of certificate request tracking.
+    *   **Certificate Page UI/UX Overhaul:** Comprehensive restructuring of the certificate request system (`src/app/student/requests/certificates/page.js`).
+        *   Introduced `CertificatePageLayout.js` for better structural organization.
+        *   Redesigned `CertificateRequestForm.js` and `PaymentSection.js` for a more intuitive step-by-step experience.
+        *   Implemented `ScrollHandler.js` to manage navigation and smooth positioning within the request flow.
+        *   Enhanced `RequestHistoryDesktop.js` and `RequestHistoryMobile.js` for clearer tracking of past requests.
+        *   Improved `RejectDetailsModal.js` to provide more professional and readable rejection feedback.
     *   **Context Optimization:** Improved `StudentContext.js` for more efficient data fetching and state management across the dashboard.
     *   **ID Card Reissue Placeholder:** Added a professional "Coming Soon" landing page for ID Card Reissue (`src/app/student/requests/id-card/page.js`) and updated the student navbar to include the link.
+
+*   **Clerk Management Improvements:**
+    *   **Roll Number Validation:** Integrated real-time client-side validation for roll numbers in the student lookup field (`src/components/clerk/student-management/FetchStudent.js`). This ensures that only valid roll number formats are queried, reducing server load and improving data integrity.
 
 ## Code Documentation
 
