@@ -80,10 +80,10 @@ export const styles = StyleSheet.create({
     },
     watermark: {
       position: "absolute",
-      top: -70,
-      left: 70, 
-      width: 300,
-      opacity: 0.12,
+      top: 160,
+      left: 60, 
+      width: 400,
+      opacity: 0.1,
       zIndex: -1,
     },
     bold: {
