@@ -27,7 +27,7 @@ export async function GET(req, context) {
     const studentResult = await query(studentSql, [rollno]);
 
     if (studentResult.length === 0) {
-      return NextResponse.json({ message: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
 
     const student = studentResult[0];
@@ -85,9 +85,9 @@ export async function GET(req, context) {
     // Merge some commonly used fields for backward compatibility
     const mergedStudent = { ...student, personal_details: personalDetails };
 
-    return NextResponse.json({ student: mergedStudent, scholarship, fees });
+    return apiResponse({ student: mergedStudent, scholarship, fees });
   } catch (error) {
     console.error('Error fetching student profile data:', error);
-    return NextResponse.json({ message: 'Failed to fetch student profile data', error: error.message }, { status: 500 });
+    return apiError('Failed to fetch student profile data', 500, error.message);
   }
 }
