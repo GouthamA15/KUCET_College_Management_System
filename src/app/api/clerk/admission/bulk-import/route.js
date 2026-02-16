@@ -1,10 +1,8 @@
-import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { getBranchFromRoll } from '@/lib/rollNumber';
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -154,33 +152,15 @@ function normalizeDateToMySQL(value) {
 
 export async function POST(req) {
   try {
-    // Verify clerk JWT and extract clerk id (do not allow client to set clerk id)
-    const cookieStore = await cookies();
-    const clerkAuthCookie = cookieStore.get('clerk_auth');
-    const token = clerkAuthCookie ? clerkAuthCookie.value : null;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getAuthUser('clerk');
+
+    if (!user || user.role !== 'admission') {
+      return apiError('Forbidden: Only admission clerks can bulk import', 403);
     }
 
-    async function verifyJwt(token, secret) {
-      try {
-        const secretKey = new TextEncoder().encode(secret);
-        const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
-        return payload;
-      } catch (error) {
-        console.error('JWT Verification failed:', error);
-        return null;
-      }
-    }
-
-    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-    if (!decoded || decoded.role !== 'admission') {
-      return NextResponse.json({ error: 'Forbidden: Only admission clerks can bulk import' }, { status: 403 });
-    }
-
-    const clerkId = decoded?.clerkId || null;
+    const clerkId = user?.clerkId || null;
     if (!clerkId) {
-      return NextResponse.json({ error: 'Unauthorized: clerk id missing in token' }, { status: 401 });
+      return apiError('Unauthorized: clerk id missing in token', 401);
     }
 
     // ensure clerk exists
@@ -188,11 +168,11 @@ export async function POST(req) {
     try {
       const [clerkRows] = await poolCheck.execute('SELECT id FROM clerks WHERE id = ?', [clerkId]);
       if (!clerkRows || clerkRows.length === 0) {
-        return NextResponse.json({ error: 'Unauthorized: clerk not found' }, { status: 403 });
+        return apiError('Unauthorized: clerk not found', 403);
       }
     } catch (e) {
       console.error('Clerk lookup error:', e);
-      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+      return apiError('Internal Server Error', 500);
     }
     const contentType = req.headers.get('content-type') || '';
     let totalRows = 0; // Declared here
@@ -204,7 +184,7 @@ export async function POST(req) {
     if (contentType.includes('application/json')) {
       const { students } = await req.json();
       if (!students || !Array.isArray(students) || students.length === 0) {
-        return NextResponse.json({ error: 'No student data received.' }, { status: 400 });
+        return apiError('No student data received.', 400);
       }
       totalRows = students.length;
       // When receiving JSON, the data is already processed by the client with canonical keys.
@@ -215,7 +195,7 @@ export async function POST(req) {
       const formData = await req.formData();
       const file = formData.get('file');
       if (!file) {
-        return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
+        return apiError('No file uploaded.', 400);
       }
 
       importFileName = file.name || null;
@@ -226,7 +206,7 @@ export async function POST(req) {
       const sheetRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
       
       if (!sheetRows || sheetRows.length < 2) {
-        return NextResponse.json({ error: 'The uploaded data is empty or missing headers.' }, { status: 400 });
+        return apiError('The uploaded data is empty or missing headers.', 400);
       }
       
       const headers = sheetRows[0];
@@ -245,7 +225,7 @@ export async function POST(req) {
             }
         });
         const missingDisplayNames = missingRequired.map(f => ({ field: f, display: REQUIRED_DISPLAY[f] || f }));
-        return NextResponse.json({ type: 'HEADER_ERRORS', error: 'Missing required columns.', missingRequired, missingDisplayNames, aliasHints, detectedHeaders: headers.map(String) }, { status: 400 });
+        return apiResponse({ type: 'HEADER_ERRORS', error: 'Missing required columns.', missingRequired, missingDisplayNames, aliasHints, detectedHeaders: headers.map(String) }, 400);
       }
       
       // Convert sheet rows (array of arrays) to object rows (array of objects with canonical keys)
@@ -518,7 +498,7 @@ export async function POST(req) {
 
       } catch (dupCheckErr) {
         console.error('DB-level check error:', dupCheckErr);
-        return NextResponse.json({ error: 'Failed to process existing student data.' }, { status: 500 });
+        return apiError('Failed to process existing student data.', 500);
       }
     }
     
@@ -670,20 +650,21 @@ export async function POST(req) {
       if (errors.length > 0) {
         const csvHeader = 'Row,Roll Number,Reason';
         const csvBody = errors.map((e) => `${e.row},${e.roll_no || 'N/A'},${String(e.reason).replace(/,/g, ';')}`).join('\n');
-        response.errorReportCsv = `${csvHeader}\n${csvBody}`;
-      }
-
-      return NextResponse.json(response, { status: 200 });
-
-    } catch (error) {
-      if (connection) await connection.rollback();
-      console.error('BULK IMPORT TRANSACTION ERROR:', error);
-      return NextResponse.json({ error: 'Database transaction failed.' }, { status: 500 });
-    } finally {
-      if (connection) connection.release();
-    }
-  } catch (outerError) {
-    console.error('BULK IMPORT POST HANDLER OUTER ERROR:', outerError);
-    return NextResponse.json({ error: 'An unexpected error occurred during bulk import preparation.' }, { status: 500 });
-  }
-}
+                response.errorReportCsv = `${csvHeader}\n${csvBody}`;
+              }
+        
+              return apiResponse(response);
+        
+            } catch (error) {
+              if (connection) await connection.rollback();
+              console.error('BULK IMPORT TRANSACTION ERROR:', error);
+              return apiError('Database transaction failed.', 500);
+            } finally {
+              if (connection) connection.release();
+            }
+          } catch (outerError) {
+            console.error('BULK IMPORT POST HANDLER OUTER ERROR:', outerError);
+            return apiError('An unexpected error occurred during bulk import preparation.', 500);
+          }
+        }
+        
