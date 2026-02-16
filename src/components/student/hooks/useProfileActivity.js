@@ -71,7 +71,7 @@ export default function useProfileActivity(rollno) {
     fetchData();
 
     return () => { mounted = false; };
-  }, [rollno, seenRequestId, seenStatus, latestRequest]);
+  }, [rollno]);
 
   const incrementVisit = () => {
     try {
