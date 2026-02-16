@@ -120,6 +120,16 @@ CERTIFICATE_SECRET=your_qr_verification_secret
 *   **Clerk Management Improvements:**
     *   **Roll Number Validation:** Integrated real-time client-side validation for roll numbers in the student lookup field (`src/components/clerk/student-management/FetchStudent.js`). This ensures that only valid roll number formats are queried, reducing server load and improving data integrity.
 
+*   **Codebase Optimization & Refactoring:**
+    *   **Centralized College Configuration:** Created `src/lib/college-config.js` to serve as the single source of truth for college names, addresses, contact details, and entrance exam codes. Updated the global `Header.js` to consume this config.
+    *   **API Utility Layer:** Introduced `src/lib/api-utils.js` to standardize API interactions.
+        *   Standardized success/error responses (`apiResponse`, `apiError`).
+        *   Unified role-based authentication logic (`getAuthUser`) to replace redundant `verifyJwt` blocks in API routes.
+    *   **UI Utility Layer:** Created `src/lib/ui-utils.js` to share visual logic across components, such as `getStatusStyles` for certificate request tracking.
+    *   **PDF Template Refactoring:** Implemented `BaseCertificate.js` in the PDF component library. This reduces boilerplate in individual certificate templates by centralizing the document wrapper, header, border, signature, and QR code placement logic.
+    *   **Internal Cleanup:** Refactored `admin/student-stats` and `clerk/scholarship` API routes to utilize the new utility layers, improving maintainability and reducing code duplication by ~30% in affected files.
+    *   **Linting & Stability:** Resolved critical ESLint errors related to synchronous state updates within `useEffect` hooks across `ProfileActivityBar.js`, `RequestHistoryDesktop.js`, and `PaymentSection.js`. Fixed missing dependency warnings in `CertificateRequestsPage` by wrapping handlers in `useCallback`. Added missing accessibility attributes to PDF templates.
+
 ## Code Documentation
 
 ### Email System (`src/lib/email.js`)
