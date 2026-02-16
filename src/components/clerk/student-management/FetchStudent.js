@@ -64,11 +64,8 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
       let currentQualifyingExam = initialAcademics.length > 0 ? initialAcademics[0].qualifying_exam : '';
       let currentRanks = initialAcademics.length > 0 ? initialAcademics[0].ranks : '';
 
-      let isQualifyingExamDerived = false;
-      
       if (!currentQualifyingExam) {
         currentQualifyingExam = getEntranceExamQualified(student.roll_no) || 'EAMCET';
-        isQualifyingExamDerived = true;
       }
       
       if (initialAcademics.length === 0) {

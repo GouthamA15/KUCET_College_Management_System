@@ -32,7 +32,6 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
   const [originalAcademicsList, setOriginalAcademicsList] = useState(null);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
-  const [isQualifyingExamAutofilled, setIsQualifyingExamAutofilled] = useState(false);
   const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
   const [imageLoading, setImageLoading] = useState(true);
 
@@ -88,10 +87,8 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       const initialAcademics = Array.isArray(fetchedStudent.academics) ? fetchedStudent.academics : [];
       let currentQualifyingExam = initialAcademics.length > 0 ? initialAcademics[0].qualifying_exam : '';
       let currentRanks = initialAcademics.length > 0 ? initialAcademics[0].ranks : '';
-      let isQualifyingExamDerived = false;
       if (!currentQualifyingExam) {
         currentQualifyingExam = getEntranceExamQualified(fetchedStudent.roll_no) || 'EAMCET';
-        isQualifyingExamDerived = true;
       }
       if (initialAcademics.length === 0) {
         initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks });
@@ -100,7 +97,6 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       }
       setAcademicsList(initialAcademics);
       setOriginalAcademicsList(JSON.parse(JSON.stringify(initialAcademics)));
-      setIsQualifyingExamAutofilled(isQualifyingExamDerived);
 
       setFeesList(Array.isArray(fetchedStudent.fees) ? fetchedStudent.fees : []);
       setFeeDetails(fetchedStudent.student_fee_details || null);
@@ -349,8 +345,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
               <select
                 value={(academicsList[0] && academicsList[0].qualifying_exam) || 'EAMCET'}
                 onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), qualifying_exam: e.target.value}; setAcademicsList(copy); }}
-                disabled={isQualifyingExamAutofilled}
-                className={`p-2 border rounded ${isQualifyingExamAutofilled ? 'bg-gray-100' : ''}`}
+                className="p-2 border rounded"
               >
                 <option>EAMCET</option>
                 <option>ECET</option>

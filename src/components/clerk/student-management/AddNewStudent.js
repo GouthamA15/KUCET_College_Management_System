@@ -31,7 +31,6 @@ export default function AddNewStudent() {
   const [savedRollLocked, setSavedRollLocked] = useState(false);
   const [showAddForm, setShowAddForm] = useState(true);
   const [rollNoError, setRollNoError] = useState('');
-  const [isQualifyingExamAutofilled, setIsQualifyingExamAutofilled] = useState(false);
   const [isTotalMarksAutofilled, setIsTotalMarksAutofilled] = useState(false);
 
   useEffect(() => {
@@ -48,18 +47,13 @@ export default function AddNewStudent() {
         setRollNoError(`Roll Number must be exactly ${MAX_ROLL} characters long`);
       }
       const entranceExam = getEntranceExamQualified(basic.roll_no);
-      let newQualifyingExam = 'EAMCET'; // Default
+      let newQualifyingExam = entranceExam || 'EAMCET';
 
-      if (entranceExam) {
-        newQualifyingExam = entranceExam;
-      }
       setAcademic(prev => ({ ...prev, qualifying_exam: newQualifyingExam, ranks: '' })); // Initialize ranks to empty
-      setIsQualifyingExamAutofilled(!!entranceExam);
       setIsTotalMarksAutofilled(false); // Ranks is not autofilled based on exam
     } else {
       setRollNoError('');
       setAcademic(prev => ({ ...prev, qualifying_exam: 'EAMCET', ranks: '' })); // Reset to default if rollNo is empty
-      setIsQualifyingExamAutofilled(false);
       setIsTotalMarksAutofilled(false);
     }
   }, [basic.roll_no]);
@@ -267,8 +261,7 @@ export default function AddNewStudent() {
             <select
               value={academic.qualifying_exam}
               onChange={e => setAcademic({...academic, qualifying_exam:e.target.value})}
-              disabled={isQualifyingExamAutofilled}
-              className={`p-2 border rounded ${isQualifyingExamAutofilled ? 'bg-gray-100' : ''}`}
+              className="p-2 border rounded"
             >
               <option>EAMCET</option>
               <option>ECET</option>

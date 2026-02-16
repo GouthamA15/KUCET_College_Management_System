@@ -1,52 +1,18 @@
 import { query } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { computeAcademicYear } from '@/app/lib/academicYear';
 import { getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
-import { jwtVerify } from 'jose'; // Import jwtVerify
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req, context) {
-  const cookieStore = await cookies();
-  const studentAuthCookie = cookieStore.get('student_auth');
-  const clerkAuthCookie = cookieStore.get('clerk_auth'); // Get clerk auth cookie
+  // Check any valid auth
+  const user = await getAuthUser();
 
-  let isAuthenticated = false;
-
-  // Check student authentication
-  if (studentAuthCookie) {
-    const token = studentAuthCookie.value;
-    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-    if (decoded) {
-      isAuthenticated = true;
-    }
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
-  // If not authenticated as student, check clerk authentication
-  if (!isAuthenticated && clerkAuthCookie) {
-    const token = clerkAuthCookie.value;
-    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-    if (decoded && decoded.role === 'admission') { // Check if role is 'admission'
-      isAuthenticated = true;
-    }
-  }
-
-  if (!isAuthenticated) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Optional: Add specific logic if clerk can see all, but student only their own
+  // if (user.student_id && user.roll_no !== context.params.rollno) return apiError('Forbidden', 403);
 
   try {
     const params = await context.params;
