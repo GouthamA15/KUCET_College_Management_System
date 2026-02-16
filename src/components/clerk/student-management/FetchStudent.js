@@ -2,10 +2,11 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/date';
-import { getEntranceExamQualified, getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
+import { getEntranceExamQualified, getBranchFromRoll, getAdmissionTypeFromRoll, validateRollNo } from '@/lib/rollNumber';
 
 export default function FetchStudent({ setActiveAction, setFetchedStudent, setPersonalFull, setAcademicsList, setFeesList, setFeeDetails, setEditValues, setOriginalEditValues, setOriginalPersonalFull, setOriginalAcademicsList }) {
   const [fetchRoll, setFetchRoll] = useState('');
+  const [fetchRollNoError, setFetchRollNoError] = useState('');
   const [fetchAdmission, setFetchAdmission] = useState('');
   const [fetchName, setFetchName] = useState('');
   const [fetchLoading, setFetchLoading] = useState(false);
@@ -14,6 +15,15 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
 
   const canFetch = () => {
     return fetchRoll.trim() || fetchAdmission.trim() || fetchName.trim();
+  };
+
+  const MAX_ROLL = 10;
+
+  const sanitizeRoll = (input) => {
+    if (input == null) return '';
+    // Allow only uppercase alphanumeric characters (A-Z, 0-9)
+    const s = String(input || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return s.slice(0, MAX_ROLL);
   };
 
   const sanitizeDigits = (input, maxLen = 10) => {
@@ -122,7 +132,18 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
     if (!canFetch()) { setFetchError('Please enter at least one search field.'); return; }
     setFetchLoading(true);
     try{
-      if (fetchRoll.trim()) { await loadFullProfileByRoll(fetchRoll.trim()); return; }
+      if (fetchRoll.trim()) {
+        // Validate roll client-side similar to LoginPanel
+        const rn = fetchRoll.trim();
+        const { isValid } = validateRollNo(rn);
+        if (!isValid) {
+          setFetchError('Invalid Roll Number format.');
+          setFetchLoading(false);
+          return;
+        }
+        await loadFullProfileByRoll(rn);
+        return;
+      }
       const params = new URLSearchParams();
       if (fetchAdmission.trim()) params.set('admission_no', fetchAdmission.trim());
       if (fetchName.trim()) params.set('name', fetchName.trim());
@@ -145,19 +166,43 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <input placeholder="Roll Number" value={fetchRoll} onChange={e=>setFetchRoll(e.target.value)} className="p-2 border rounded" />
-        <input placeholder="Admission Number" value={fetchAdmission} onChange={e=>setFetchAdmission(e.target.value)} className="p-2 border rounded" />
-        <input placeholder="Student Name" value={fetchName} onChange={e=>setFetchName(e.target.value)} className="p-2 border rounded" />
+        <div>
+          <input
+            placeholder="Roll Number"
+            value={fetchRoll}
+            onChange={(e) => {
+              const v = sanitizeRoll(e.target.value);
+              setFetchRoll(v);
+              if (v.length > 0 && v.length === MAX_ROLL) {
+                const { isValid } = validateRollNo(v);
+                if (!isValid) {
+                  setFetchRollNoError('Invalid Roll Number format.');
+                } else {
+                  setFetchRollNoError('');
+                }
+              } else if (v.length > 0 && v.length !== MAX_ROLL) {
+                setFetchRollNoError(`Roll Number must be ${MAX_ROLL} characters long.`);
+              } else {
+                setFetchRollNoError('');
+              }
+            }}
+            className="w-full p-2 border rounded"
+            maxLength={MAX_ROLL}
+          />
+          {fetchRollNoError && <div className="text-red-600 text-sm mt-1">{fetchRollNoError}</div>}
+        </div>
+        <input placeholder="Admission Number" value={fetchAdmission} onChange={e=>setFetchAdmission(e.target.value)} className="w-full p-2 border rounded" />
+        <input placeholder="Student Name" value={fetchName} onChange={e=>setFetchName(e.target.value)} className="w-full p-2 border rounded" />
       </div>
       <div className="flex space-x-2">
         <button
           onClick={handleFetch}
-          disabled={!canFetch() || fetchLoading}
-          className={`px-4 py-2 bg-green-600 text-white rounded ${(!canFetch() || fetchLoading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-lg hover:ring-2 hover:ring-green-300 transition duration-150'}`}
+          disabled={!canFetch() || fetchLoading || !!fetchRollNoError}
+          className={`px-4 py-2 bg-green-600 text-white rounded ${(!canFetch() || fetchLoading || !!fetchRollNoError) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-lg hover:ring-2 hover:ring-green-300 transition duration-150'}`}
         >
           {fetchLoading? 'Fetching...':'Fetch'}
         </button>
-        <button onClick={()=>{setFetchRoll(''); setFetchAdmission(''); setFetchName(''); setFetchError('');}} className="px-4 py-2 bg-gray-100 rounded">Clear</button>
+        <button onClick={()=>{setFetchRoll(''); setFetchAdmission(''); setFetchName(''); setFetchError(''); setFetchRollNoError('');}} className="px-4 py-2 bg-gray-100 rounded">Clear</button>
       </div>
       {fetchError && <div className="text-red-600">{fetchError}</div>}
       {fetchedList && fetchedList.length > 1 && (
