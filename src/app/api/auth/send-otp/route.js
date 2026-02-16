@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { sendEmail } from '@/lib/email';
 import { getStudentEmail } from '@/lib/student-utils';
@@ -19,12 +19,12 @@ export async function POST(request) {
     const { rollNo } = await request.json();
 
     if (!rollNo) {
-      return NextResponse.json({ success: false, message: 'Roll number is required' }, { status: 400 });
+      return apiError('Roll number is required', 400);
     }
 
     const studentEmail = await getStudentEmail(rollNo);
     if (!studentEmail) {
-      return NextResponse.json({ success: false, message: 'Student email not found.' }, { status: 404 });
+      return apiError('Student email not found.', 404);
     }
 
     const otp = generateSecureOtp();
@@ -41,7 +41,7 @@ export async function POST(request) {
       );
     } catch (dbError) {
       console.error('Error storing OTP in database:', dbError);
-      return NextResponse.json({ success: false, message: 'Failed to store OTP.' }, { status: 500 });
+      return apiError('Failed to store OTP.', 500);
     }
     // --- End Database Interaction ---
 
@@ -104,15 +104,15 @@ export async function POST(request) {
     const emailResult = await sendEmail(studentEmail, subject, html);
 
     if (emailResult.success) {
-      return NextResponse.json({ success: true, message: 'OTP sent successfully to your email.' });
+      return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });
     } else {
       console.error('Failed to send OTP email:', emailResult.message);
       // Optionally delete OTP from DB if email sending failed, to prevent stale OTPs
       await query('DELETE FROM otp_codes WHERE roll_no = ?', [rollNo]);
-      return NextResponse.json({ success: false, message: emailResult.message || 'Failed to send OTP email.' }, { status: 500 });
+      return apiError(emailResult.message || 'Failed to send OTP email.', 500);
     }
   } catch (error) {
     console.error('Error in send-otp API:', error);
-    return NextResponse.json({ success: false, message: 'An internal server error occurred.' }, { status: 500 });
+    return apiError('An internal server error occurred.', 500);
   }
 }

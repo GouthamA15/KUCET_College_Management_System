@@ -1,6 +1,5 @@
 import { query } from '@/lib/db';
-import { toMySQLDate } from '@/lib/date';
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError } from '@/lib/api-utils';
 import { SignJWT } from 'jose';
 import bcrypt from'bcrypt'
 
@@ -9,7 +8,7 @@ export async function POST(req) {
     const body = await req.json();
     const { rollno, dob, rememberMe } = body; //dob used as password input field
     if (!rollno || !dob) {
-      return NextResponse.json({ error: 'Missing rollno or dob' }, { status: 400 });
+      return apiError('Missing rollno or dob', 400);
     }
     
     const rows = await query(
@@ -21,7 +20,7 @@ export async function POST(req) {
     );
 
     if (rows.length === 0) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
 
     const student = rows[0];
@@ -34,12 +33,10 @@ export async function POST(req) {
       if (match) {
         isAuthenticated = true;
       } else {
-        return NextResponse.json({ error: 'Invalid Password' }, { status: 401 });
+        return apiError('Invalid Password', 401);
       }
     }
     else {
-    const dobInputMySQL = toMySQLDate(dob);
-
     const dbDate = new Date(student.date_of_birth);
     const dbDateString = dbDate.getFullYear() + '-' + String(dbDate.getMonth() + 1).padStart(2, '0') + '-' + String(dbDate.getDate()).padStart(2, '0');
     // Helper: Normalize Input to YYYY-MM-DD
@@ -56,12 +53,12 @@ export async function POST(req) {
     if (dbDateString === inputDateString) {
         isAuthenticated = true;
       } else {
-        return NextResponse.json({ error: 'Invalid Date of Birth' }, { status: 401 });
+        return apiError('Invalid Date of Birth', 401);
       }
     }
 
     if (!isAuthenticated) {
-        return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
+        return apiError('Authentication failed', 401);
     }
     
     const { date_of_birth: _dob, password_hash = _ph, ...profile } = student;
@@ -76,7 +73,7 @@ export async function POST(req) {
       .setExpirationTime(sessionDuration)
       .sign(secret);
 
-    const response = NextResponse.json({ student: profile, success: true }, { status: 200 });
+    const response = apiResponse({ student: profile, success: true });
 
     // Clear other auth cookies
     response.cookies.delete('admin_auth');
@@ -92,6 +89,6 @@ export async function POST(req) {
 
   } catch (err) {
      console.error(err)
-    return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
+    return apiError('Server error', 500, err.message);
   }
 }

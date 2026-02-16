@@ -1,5 +1,5 @@
 import { query, getDb } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
@@ -11,7 +11,7 @@ export async function GET(req, { params }) {
     const { token } = resolved || {};
     if (!token) {
       console.log('[RESET VALIDATION] missing token');
-      return NextResponse.json({ status: 'INVALID' }, { status: 400 });
+      return apiError('INVALID', 400);
     }
 
     // Debug logging (temporary)
@@ -26,21 +26,21 @@ export async function GET(req, { params }) {
 
     if (!tokenData) {
       console.log('[RESET VALIDATION] tokenData not found for hash');
-      return NextResponse.json({ status: 'INVALID' }, { status: 400 });
+      return apiError('INVALID', 400);
     }
     if (tokenData.used_at) {
       console.log('[RESET VALIDATION] token already used_at=', tokenData.used_at);
-      return NextResponse.json({ status: 'USED' }, { status: 409 });
+      return apiError('USED', 409);
     }
     if (new Date(tokenData.expires_at) < new Date()) {
       console.log('[RESET VALIDATION] token expired at=', tokenData.expires_at);
-      return NextResponse.json({ status: 'EXPIRED' }, { status: 410 });
+      return apiError('EXPIRED', 410);
     }
 
-    return NextResponse.json({ status: 'VALID' }, { status: 200 });
+    return apiResponse({ status: 'VALID' });
   } catch (err) {
     console.error('RESET TOKEN VALIDATION ERROR:', err);
-    return NextResponse.json({ status: 'INVALID' }, { status: 400 });
+    return apiError('INVALID', 400);
   }
 }
 
@@ -54,7 +54,7 @@ export async function POST(req, { params }) {
 
     if (!token || !password) {
       console.log('[RESET CONSUME] missing token or password');
-      return NextResponse.json({ error: 'Missing token or password' }, { status: 400 });
+      return apiError('Missing token or password', 400);
     }
 
     try { console.log(`[RESET CONSUME] rawToken length=${String(token).length}, alg=sha256`); } catch (e) {}
@@ -66,15 +66,15 @@ export async function POST(req, { params }) {
 
     if (!tokenData) {
       console.log('[RESET CONSUME] tokenData not found for hash');
-      return NextResponse.json({ status: 'INVALID' }, { status: 400 });
+      return apiError('INVALID', 400);
     }
     if (tokenData.used_at) {
       console.log('[RESET CONSUME] token already used_at=', tokenData.used_at);
-      return NextResponse.json({ status: 'USED' }, { status: 409 });
+      return apiError('USED', 409);
     }
     if (new Date(tokenData.expires_at) < new Date()) {
       console.log('[RESET CONSUME] token expired at=', tokenData.expires_at);
-      return NextResponse.json({ status: 'EXPIRED' }, { status: 410 });
+      return apiError('EXPIRED', 410);
     }
 
     // Begin transaction
@@ -94,7 +94,7 @@ export async function POST(req, { params }) {
       updateResult = await conn.execute('UPDATE principal SET password_hash = ? WHERE email = ?', [hashedPassword, tokenData.user_id]);
     } else {
       await conn.rollback();
-      return NextResponse.json({ error: 'Invalid user type' }, { status: 500 });
+      return apiError('Invalid user type', 500);
     }
 
     // Mark token as used (single-use) - only succeed if token wasn't used concurrently
@@ -104,15 +104,15 @@ export async function POST(req, { params }) {
 
     if (!affected || affected === 0) {
       await conn.rollback();
-      return NextResponse.json({ status: 'USED' }, { status: 409 });
+      return apiError('USED', 409);
     }
 
     await conn.commit();
-    return NextResponse.json({ message: 'Password reset successful' }, { status: 200 });
+    return apiResponse({ message: 'Password reset successful' });
   } catch (err) {
     console.error('RESET PASSWORD ERROR:', err);
     try { if (conn) await conn.rollback(); } catch (e) {}
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiError('Internal server error', 500);
   } finally {
     try { if (conn) conn.release(); } catch (e) {}
   }

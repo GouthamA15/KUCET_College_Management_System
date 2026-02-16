@@ -1,20 +1,20 @@
 import { query } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 
 export async function POST(req) {
   try {
     const { email } = await req.json();
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+      return apiError('Email is required', 400);
     }
 
     const [admin] = await query('SELECT email FROM principal WHERE email = ?', [email]);
 
     if (!admin) {
       // Generic message to prevent email enumeration
-      return NextResponse.json({ message: 'If an account with this email exists, a password reset link has been sent.' }, { status: 200 });
+      return apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
     }
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -38,10 +38,10 @@ export async function POST(req) {
 
     await sendEmail(admin.email, subject, html);
 
-    return NextResponse.json({ message: 'If an account with this email exists, a password reset link has been sent.' }, { status: 200 });
+    return apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
   } catch (error) {
     console.error('FORGOT PASSWORD ERROR:', error);
     // Still return a generic message to the user
-    return NextResponse.json({ message: 'If an account with this email exists, a password reset link has been sent.' }, { status: 200 });
+    return apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
   }
 }

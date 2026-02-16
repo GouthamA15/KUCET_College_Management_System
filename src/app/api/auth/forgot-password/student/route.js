@@ -1,6 +1,6 @@
 import { query } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 
 export async function GET(req) {
@@ -9,22 +9,22 @@ export async function GET(req) {
     const rollno = searchParams.get('rollno');
 
     if (!rollno) {
-      return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
+      return apiError('Roll number is required', 400);
     }
 
     const [student] = await query('SELECT is_email_verified, password_hash FROM students WHERE roll_no = ?', [rollno]);
 
     if (!student) {
-      return NextResponse.json({ error: 'Student not found', is_email_verified: false, has_password_set: false }, { status: 404 });
+      return apiError('Student not found', 404, { is_email_verified: false, has_password_set: false });
     }
 
-    return NextResponse.json({ 
+    return apiResponse({ 
       is_email_verified: student.is_email_verified === 1,
       has_password_set: !!student.password_hash 
-    }, { status: 200 });
+    });
   } catch (error) {
     console.error('FORGOT PASSWORD STATUS ERROR:', error);
-    return NextResponse.json({ error: 'Internal server error', is_email_verified: false, has_password_set: false }, { status: 500 });
+    return apiError('Internal server error', 500, { is_email_verified: false, has_password_set: false });
   }
 }
 
@@ -32,20 +32,17 @@ export async function POST(req) {
   try {
     const { rollno } = await req.json();
     if (!rollno) {
-      return NextResponse.json({ error: 'Roll number is required' }, { status: 400 });
+      return apiError('Roll number is required', 400);
     }
 
     const [student] = await query('SELECT email, password_hash, is_email_verified FROM students WHERE roll_no = ?', [rollno]);
 
     if (!student) {
-      return NextResponse.json({ error: 'Student not found', can_dob_login: false }, { status: 404 });
+      return apiError('Student not found', 404, { can_dob_login: false });
     }
 
     if (!student.is_email_verified || !student.password_hash) {
-      return NextResponse.json({ 
-        error: 'Password reset not available.Because you not set your password and verify your gmail!! Please login using your Date of Birth has a password in (DD-MM-YYYY) format or contact support.', 
-        can_dob_login: true 
-      }, { status: 403 });
+      return apiError('Password reset not available.Because you not set your password and verify your gmail!! Please login using your Date of Birth has a password in (DD-MM-YYYY) format or contact support.', 403, { can_dob_login: true });
     }
 
     // Generate raw token and store only its SHA-256 hash in DB
@@ -70,9 +67,9 @@ export async function POST(req) {
 
     await sendEmail(student.email, subject, html);
 
-    return NextResponse.json({ message: 'Password reset link sent to your email', can_dob_login: false }, { status: 200 });
+    return apiResponse({ message: 'Password reset link sent to your email', can_dob_login: false });
   } catch (error) {
     console.error('FORGOT PASSWORD ERROR:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiError('Internal server error', 500);
   }
 }

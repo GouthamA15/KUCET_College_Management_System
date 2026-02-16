@@ -1,26 +1,10 @@
-import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-async function getClerkFromToken(request) {
-  const token = request.cookies.get('clerk_auth')?.value;
-  if (!token) {
-    return null;
-  }
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(JWT_SECRET));
-    return payload;
-  } catch (error) {
-    return null;
-  }
-}
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
-  const clerk = await getClerkFromToken(request);
+  const clerk = await getAuthUser('clerk');
   if (!clerk) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('Unauthorized', 401);
   }
 
   const { searchParams } = new URL(request.url);
@@ -32,12 +16,12 @@ export async function GET(request) {
 
   if (!clerkType || clerk.role !== clerkType) {
     // This check ensures a clerk can only access requests for their own role.
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return apiError('Forbidden', 403);
   }
 
   // Require clerk DB id in token for history accountability
   if (!clerk.id) {
-    return NextResponse.json({ error: 'Clerk identity missing in token' }, { status: 401 });
+    return apiError('Clerk identity missing in token', 401);
   }
 
   try {
@@ -58,7 +42,7 @@ export async function GET(request) {
 
     const certTypes = clerkToTypes[clerkType];
     if (!certTypes || certTypes.length === 0) {
-      return NextResponse.json({ error: 'No certificate types configured for this clerk' }, { status: 400 });
+      return apiError('No certificate types configured for this clerk', 400);
     }
     // Build listing query depending on workspace mode
     const typesParam = [...certTypes];
@@ -154,7 +138,7 @@ export async function GET(request) {
       const myCountRows = await query(myCountSql, [...baseCountParams, clerk.id]);
       const myHistoryCount = myCountRows?.[0]?.cnt ?? 0;
 
-      return NextResponse.json({ records: rows, myHistoryCount, allHistoryCount });
+      return apiResponse({ records: rows, myHistoryCount, allHistoryCount });
     } else {
       // Active mode: pending only (no grouping, unaffected by scope)
       whereClauses.push("sr.status = 'PENDING'");
@@ -187,10 +171,10 @@ export async function GET(request) {
       ORDER BY sr.created_at ASC`;
 
       const rows = await query(sql, params);
-      return NextResponse.json({ records: rows });
+      return apiResponse({ records: rows });
     }
   } catch (error) {
     console.error('Error fetching clerk requests:', error);
-    return NextResponse.json({ error: 'Failed to fetch requests' }, { status: 500 });
+    return apiError('Failed to fetch requests', 500);
   }
 }

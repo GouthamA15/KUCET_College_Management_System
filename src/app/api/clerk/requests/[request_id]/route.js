@@ -1,32 +1,16 @@
-import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-async function getClerkFromToken(request) {
-    const token = request.cookies.get('clerk_auth')?.value;
-    if (!token) {
-        return null;
-    }
-    try {
-        const { payload } = await jwtVerify(token, new TextEncoder().encode(JWT_SECRET));
-        return payload;
-    } catch (error) {
-        return null;
-    }
-}
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function PUT(request, { params }) {
-    const clerk = await getClerkFromToken(request);
+    const clerk = await getAuthUser('clerk');
     if (!clerk) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return apiError('Unauthorized', 401);
     }
 
     // Ensure token contains clerk DB id for auditability
     if (!clerk.id) {
         console.error('Attempted action without clerk.id in token payload');
-        return NextResponse.json({ error: 'Clerk identity missing. Approval blocked.' }, { status: 500 });
+        return apiError('Clerk identity missing. Approval blocked.', 500);
     }
 
     const resolvedParams = await params;
@@ -35,19 +19,19 @@ export async function PUT(request, { params }) {
     let { status, purpose } = body;
     const reject_reason = body.reject_reason;
     if (!status) {
-        return NextResponse.json({ error: 'Status is required' }, { status: 400 });
+        return apiError('Status is required', 400);
     }
     status = String(status).toUpperCase();
     const allowed = ['APPROVED', 'REJECTED', 'PENDING'];
     if (!allowed.includes(status)) {
-        return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+        return apiError('Invalid status', 400);
     }
 
     try {
                 // First, verify the clerk is authorized to update this request
                 const requests = await query('SELECT certificate_type FROM student_requests WHERE request_id = ?', [request_id]);
                 if (requests.length === 0) {
-                        return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+                        return apiError('Request not found', 404);
                 }
 
                 const requestToUpdate = requests[0];
@@ -67,14 +51,14 @@ export async function PUT(request, { params }) {
                 };
                 const allowedTypes = clerkToTypes[clerk.role] || [];
                 if (!allowedTypes.includes(requestToUpdate.certificate_type)) {
-                        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                        return apiError('Forbidden', 403);
                 }
 
         // Now, update the status. Require non-empty reject_reason when rejecting.
         let result;
         if (status === 'REJECTED') {
             if (!reject_reason || String(reject_reason).trim().length === 0) {
-                return NextResponse.json({ error: 'Rejection reason is required' }, { status: 400 });
+                return apiError('Rejection reason is required', 400);
             }
             result = await query(
                 'UPDATE student_requests SET status = ?, reject_reason = ?, completed_at = NOW(), updated_at = NOW(), action_by_clerk_id = ?, action_by_role = ? WHERE request_id = ?',
@@ -94,20 +78,20 @@ export async function PUT(request, { params }) {
         }
 
         if (result.affectedRows === 1) {
-            return NextResponse.json({ success: true });
+            return apiResponse({ success: true });
         } else {
-            return NextResponse.json({ error: 'Failed to update request' }, { status: 500 });
+            return apiError('Failed to update request', 500);
         }
     } catch (error) {
         console.error("Error updating request:", error);
-        return NextResponse.json({ error: 'An error occurred while updating the request', details: error.message }, { status: 500 });
+        return apiError('An error occurred while updating the request', 500, error.message);
     }
 }
 
 export async function GET(request, { params }) {
-    const clerk = await getClerkFromToken(request);
+    const clerk = await getAuthUser('clerk');
     if (!clerk) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return apiError('Unauthorized', 401);
     }
 
     const resolvedParams = await params;
@@ -117,7 +101,7 @@ export async function GET(request, { params }) {
         // Verify clerk can access this type of request
         const reqRows = await query('SELECT sr.request_id, sr.student_id, sr.certificate_type FROM student_requests sr WHERE sr.request_id = ?', [request_id]);
         if (reqRows.length === 0) {
-            return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+            return apiError('Request not found', 404);
         }
 
         const clerkToTypes = {
@@ -135,7 +119,7 @@ export async function GET(request, { params }) {
         };
         const allowedTypes = clerkToTypes[clerk.role] || [];
         if (!allowedTypes.includes(reqRows[0].certificate_type)) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return apiError('Forbidden', 403);
         }
 
         // Return full request details joined with student
@@ -163,11 +147,11 @@ export async function GET(request, { params }) {
 
         const rows = await query(sql, [request_id]);
         if (!rows || rows.length === 0) {
-            return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+            return apiError('Request not found', 404);
         }
-        return NextResponse.json(rows[0]);
+        return apiResponse(rows[0]);
     } catch (error) {
         console.error('Error fetching request details:', error);
-        return NextResponse.json({ error: 'Failed to fetch request details' }, { status: 500 });
+        return apiError('Failed to fetch request details', 500);
     }
 }

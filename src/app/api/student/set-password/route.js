@@ -1,5 +1,5 @@
 import { query } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 
 // GET: Check if password is set
@@ -8,21 +8,21 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const rollno = searchParams.get('rollno');
 
-    if (!rollno) return NextResponse.json({ error: 'Roll number required' }, { status: 400 });
+    if (!rollno) return apiError('Roll number required', 400);
 
     const rows = await query(
       'SELECT password_hash FROM students WHERE roll_no = ?',
       [rollno]
     );
 
-    if (rows.length === 0) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    if (rows.length === 0) return apiError('Student not found', 404);
 
     const isPasswordSet = !!rows[0].password_hash;
 
-    return NextResponse.json({ isPasswordSet }, { status: 200 });
+    return apiResponse({ isPasswordSet });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return apiError('Server error', 500);
   }
 }
 
@@ -33,7 +33,7 @@ export async function POST(req) {
     const { rollno, password } = body;
 
     if (!rollno || !password) {
-      return NextResponse.json({ error: 'Missing details' }, { status: 400 });
+      return apiError('Missing details', 400);
     }
 
     const saltRounds = 10;
@@ -44,9 +44,9 @@ export async function POST(req) {
       [hashedPassword, rollno]
     );
 
-    return NextResponse.json({ success: true, message: 'Password set successfully' }, { status: 200 });
+    return apiResponse({ success: true, message: 'Password set successfully' });
   } catch (err) {
     console.error('Password set error:', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return apiError('Server error', 500);
   }
 }

@@ -20,12 +20,12 @@ export async function GET(request) {
   const branchName = searchParams.get('branch'); // Renamed to branchName
 
   if (!studyingYear || !branchName) {
-    return NextResponse.json({ error: 'Studying year and branch are required' }, { status: 400 });
+    return apiError('Studying year and branch are required', 400);
   }
 
   const branchCode = getBranchCodeFromName(branchName);
   if (!branchCode) {
-    return NextResponse.json({ error: 'Invalid branch name provided' }, { status: 400 });
+    return apiError('Invalid branch name provided', 400);
   }
 
   try {
@@ -47,9 +47,9 @@ export async function GET(request) {
       return studentBranch === branchName && String(studentStudyingYear) === studyingYear;
     });
 
-    return NextResponse.json({ students: filteredStudents });
+    return apiResponse({ students: filteredStudents });
   } catch (error) {
     console.error('Failed to fetch students:', error);
-    return NextResponse.json({ error: 'Failed to fetch students' }, { status: 500 });
+    return apiError('Failed to fetch students', 500);
   }
 }

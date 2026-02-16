@@ -1,43 +1,11 @@
-// src/app/api/admin/college-info/route.js
 import { query } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { verifyJwt } from '@/lib/auth';
-import { cookies } from 'next/headers';
-
-async function getAdminId() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('admin_auth')?.value;
-
-  console.log("Admin auth token received:", token);
-
-  if (!token) {
-    console.log("No admin_auth token found.");
-    return null;
-  }
-
-  try {
-    const payload = await verifyJwt(token, process.env.JWT_SECRET);
-    console.log("JWT payload:", payload);
-
-    if (payload && payload.role === 'admin') {
-      console.log("Admin role verified.");
-      return 'admin'; // Return a non-null value indicating admin success
-    } else {
-      console.log("Payload does not indicate admin role or payload is null.");
-      return null;
-    }
-  } catch (error) {
-    console.error("Error verifying admin JWT:", error);
-    return null;
-  }
-}
-
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET() {
   try {
-    const adminId = await getAdminId();
-    if (!adminId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getAuthUser('admin');
+    if (!user) {
+      return apiError('Unauthorized', 401);
     }
 
     const rows = await query(
@@ -47,21 +15,21 @@ export async function GET() {
     );
 
     if (rows.length === 0) {
-      return NextResponse.json({ collegeInfo: {} }, { status: 200 });
+      return apiResponse({ collegeInfo: {} });
     }
 
-    return NextResponse.json({ collegeInfo: rows[0] }, { status: 200 });
+    return apiResponse({ collegeInfo: rows[0] });
   } catch (error) {
     console.error('Error fetching college info:', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return apiError('Server error', 500);
   }
 }
 
 export async function PUT(req) {
   try {
-    const adminId = await getAdminId();
-    if (!adminId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getAuthUser('admin');
+    if (!user) {
+      return apiError('Unauthorized', 401);
     }
 
     const { first_sem_start_month, first_sem_start_day, second_sem_start_month, second_sem_start_day } = await req.json();
@@ -74,13 +42,13 @@ export async function PUT(req) {
     };
 
     let error = validateDatePart(first_sem_start_month, 'first_sem_start_month');
-    if (error) return NextResponse.json({ error }, { status: 400 });
+    if (error) return apiError(error, 400);
     error = validateDatePart(first_sem_start_day, 'first_sem_start_day');
-    if (error) return NextResponse.json({ error }, { status: 400 });
+    if (error) return apiError(error, 400);
     error = validateDatePart(second_sem_start_month, 'second_sem_start_month');
-    if (error) return NextResponse.json({ error }, { status: 400 });
+    if (error) return apiError(error, 400);
     error = validateDatePart(second_sem_start_day, 'second_sem_start_day');
-    if (error) return NextResponse.json({ error }, { status: 400 });
+    if (error) return apiError(error, 400);
 
 
     const existing = await query(`SELECT id FROM college_info WHERE id = 1`);
@@ -99,9 +67,9 @@ export async function PUT(req) {
       );
     }
 
-    return NextResponse.json({ message: 'College information updated successfully' }, { status: 200 });
+    return apiResponse({ message: 'College information updated successfully' });
   } catch (error) {
     console.error('Error updating college info:', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return apiError('Server error', 500);
   }
 }

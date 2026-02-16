@@ -1,19 +1,19 @@
 import { query } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 
 export async function POST(req) {
   try {
     const { email } = await req.json();
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+      return apiError('Email is required', 400);
     }
 
     const [clerk] = await query('SELECT email FROM clerks WHERE email = ?', [email]);
 
     if (!clerk) {
-      return NextResponse.json({ error: 'Clerk not found' }, { status: 404 });
+      return apiError('Clerk not found', 404);
     }
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -37,9 +37,9 @@ export async function POST(req) {
 
     await sendEmail(clerk.email, subject, html);
 
-    return NextResponse.json({ message: 'Password reset link sent to your email' }, { status: 200 });
+    return apiResponse({ message: 'Password reset link sent to your email' });
   } catch (error) {
     console.error('FORGOT PASSWORD ERROR:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiError('Internal server error', 500);
   }
 }

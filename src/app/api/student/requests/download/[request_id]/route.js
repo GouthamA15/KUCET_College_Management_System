@@ -4,7 +4,7 @@ import React from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import path from 'path';
 import fs from 'fs';
 import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
@@ -18,40 +18,6 @@ import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCert
 import IncomeTaxCertificatePDF from '@/pdf/templates/IncomeTaxCertificatePDF';
 import TransferCertificatePDF from '@/pdf/templates/TransferCertificatePDF';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-async function getStudentFromToken(request) {
-    const token = request.cookies.get('student_auth')?.value;
-    if (!token) {
-        console.debug('[AUTH] No student_auth cookie present on request to', request.url);
-        return null;
-    }
-    try {
-        const { payload } = await jwtVerify(token, new TextEncoder().encode(JWT_SECRET));
-        console.debug('[AUTH] Decoded student token payload (safe):', { student_id: payload.student_id, roll_no: payload.roll_no, name: payload.name });
-        let student_id = payload.student_id || null;
-        const roll_no = payload.roll_no || null;
-        // If token doesn't include student_id (older tokens), try to resolve it from roll_no
-        if (!student_id && roll_no) {
-            try {
-                const rows = await query('SELECT id FROM students WHERE roll_no = ?', [roll_no]);
-                if (rows && rows.length > 0) {
-                    student_id = rows[0].id;
-                    console.debug('[AUTH] Resolved student_id from roll_no:', student_id);
-                } else {
-                    console.warn('[AUTH] No student found for roll_no while resolving student_id:', roll_no);
-                }
-            } catch (e) {
-                console.warn('[AUTH] Error resolving student_id from roll_no:', e && e.message ? e.message : e);
-            }
-        }
-        return { student_id, roll_no };
-    } catch (error) {
-        console.warn('[AUTH] Failed to verify student token:', error && error.message ? error.message : error);
-        return null;
-    }
-}
-
 const certificateComponents = {
     'Bonafide Certificate': BonafideCertificatePDF,
     'Custodian Certificate': CustodianCertificatePDF,
@@ -64,24 +30,24 @@ const certificateComponents = {
 
 // using bundled Puppeteer; helper closes browser internally
 export async function GET(request, { params }) {
-    const auth = await getStudentFromToken(request);
-    if (!auth || !auth.student_id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await getAuthUser('student');
+    if (!auth || !auth.student_id) return apiError('Unauthorized', 401);
 
     // Enforce verification: email present, verified, and password set
     try {
         const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
         const ver = verRows && verRows[0];
         if (!ver || !ver.email) {
-            return NextResponse.json({ error: 'Verification required: email address not found.' }, { status: 403 });
+            return apiError('Verification required: email address not found.', 403);
         }
         if (!ver.is_email_verified) {
-            return NextResponse.json({ error: 'Verification required: email not verified.' }, { status: 403 });
+            return apiError('Verification required: email not verified.', 403);
         }
         if (!ver.password_hash) {
-            return NextResponse.json({ error: 'Verification required: password not set.' }, { status: 403 });
+            return apiError('Verification required: password not set.', 403);
         }
     } catch (e) {
-        return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });
+        return apiError('Unable to validate verification status.', 500);
     }
 
     const { request_id } = await params;
@@ -96,14 +62,14 @@ export async function GET(request, { params }) {
         );
 
         if (requests.length === 0) {
-            return NextResponse.json({ error: 'Request not found or not authorized' }, { status: 404 });
+            return apiError('Request not found or not authorized', 404);
         }
 
         const certRequest = requests[0];
         const Template = certificateComponents[certRequest.certificate_type];
 
         if (!Template || certRequest.status !== 'APPROVED') {
-            return NextResponse.json({ error: 'Certificate not available for download' }, { status: 403 });
+            return apiError('Certificate not available for download', 403);
         }
 
         // 2. Fetch student details
@@ -116,7 +82,7 @@ export async function GET(request, { params }) {
         );
         
         if (students.length === 0) {
-            return NextResponse.json({ error: 'Student details not found' }, { status: 404 });
+            return apiError('Student details not found', 404);
         }
         const student = students[0];
 
@@ -336,7 +302,7 @@ export async function GET(request, { params }) {
 
     } catch (error) {
         console.error("Error generating certificate:", error);
-        return NextResponse.json({ error: 'An error occurred while generating the certificate.', details: error.message }, { status: 500 });
+        return apiError('An error occurred while generating the certificate.', 500, error.message);
     } finally {
         // nothing to clean up
     }

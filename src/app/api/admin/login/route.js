@@ -1,14 +1,14 @@
-import { NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
 import bcrypt from 'bcrypt';
 import { query } from '@/lib/db';
+import { apiResponse, apiError } from '@/lib/api-utils';
 
 export async function POST(request) {
   try {
     const { email, password, rememberMe } = await request.json();
 
     if (!email || !password) {
-      return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
+      return apiError('Email and password are required', 400);
     }
 
     const rows = await query(
@@ -17,14 +17,14 @@ export async function POST(request) {
     );
 
     if (rows.length === 0) {
-      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+      return apiError('Invalid credentials', 401);
     }
 
     const principal = rows[0];
     const isValidPassword = await bcrypt.compare(password, principal.password_hash);
 
     if (!isValidPassword) {
-      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+      return apiError('Invalid credentials', 401);
     }
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
@@ -37,7 +37,7 @@ export async function POST(request) {
       .setExpirationTime(sessionDuration)
       .sign(secret);
 
-    const response = NextResponse.json({ success: true, message: 'Admin login successful' });
+    const response = apiResponse({ success: true, message: 'Admin login successful' });
 
     // Clear other auth cookies
     response.cookies.delete('clerk_auth');
@@ -53,6 +53,6 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Admin Login error:', error);
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return apiError('An internal server error occurred.', 500);
   }
 }
