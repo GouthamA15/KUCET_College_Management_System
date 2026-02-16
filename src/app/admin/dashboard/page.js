@@ -7,17 +7,10 @@ import StudentProfileCard from '@/components/StudentProfileCard';
 import { useRef, useEffect, useState } from 'react';
 import { useAdmin } from '@/context/AdminContext';
 import CollegeInfoEditor from '@/components/admin/CollegeInfoEditor';
-import { validateRollNo } from '@/lib/rollNumber'; // Added this line back
+import { validateRollNo } from '@/lib/rollNumber';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
-const BRANCHES = [
-  { code: '09', name: 'CSE' },
-  { code: '30', name: 'CSD' },
-  { code: '15', name: 'ECE' },
-  { code: '12', name: 'EEE' },
-  { code: '00', name: 'CIVIL' },
-  { code: '18', name: 'IT' },
-  { code: '03', name: 'MECH' },
-];
+const BRANCHES = COLLEGE_CONFIG.branches;
 
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 4 }, (_, i) => (currentYear - i).toString()).reverse();

@@ -5,6 +5,7 @@ import { formatDate, parseDate } from '@/lib/date';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
   <input
@@ -131,8 +132,8 @@ export default function AddNewStudent() {
     }finally{ setAddLoading(false); }
   };
   
-  const genders = ['Male', 'Female'];
-  const categories = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'];
+  const genders = COLLEGE_CONFIG.genders;
+  const categories = COLLEGE_CONFIG.categories;
 
   const feeReimbursementOptions = ['NO', 'YES'];
 

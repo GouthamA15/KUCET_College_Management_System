@@ -3,7 +3,8 @@ import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import readXlsxFile from 'read-excel-file'; // Corrected import path
 import { parseDate } from '@/lib/date';
-import { validateRollNo, branchCodes } from '@/lib/rollNumber'; // Import validateRollNo and branchCodes
+import { validateRollNo, branchCodes } from '@/lib/rollNumber';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 // --- Constants for Client-Side Validation ---
 const HEADERS_MAP = {
@@ -40,8 +41,8 @@ const HEADERS_MAP = {
 
 };
 
-const CATEGORIES = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'];
-const GENDERS = ['Male', 'Female', 'Other'];
+const CATEGORIES = COLLEGE_CONFIG.categories;
+const GENDERS = [...COLLEGE_CONFIG.genders, 'Other'];
 const AREA_STATUSES = ['Local', 'Non-Local'];
 
 // Mobile number regex: 10 digits only or +91 followed by 10 digits

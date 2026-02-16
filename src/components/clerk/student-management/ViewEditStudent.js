@@ -7,6 +7,7 @@ import ImagePreviewModal from '@/components/ImagePreviewModal';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
     <input
@@ -181,6 +182,9 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
     }
   };
 
+  const genders = COLLEGE_CONFIG.genders;
+  const categories = COLLEGE_CONFIG.categories;
+
   const hasEdits = () => {
     try {
       if (!originalEditValues && !originalPersonalFull && !originalAcademicsList) return false;
@@ -190,9 +194,6 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       return false;
     } catch (e) { return false; }
   };
-  
-  const genders = ['Male', 'Female'];
-  const categories = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'];
 
   return (
     <div>
