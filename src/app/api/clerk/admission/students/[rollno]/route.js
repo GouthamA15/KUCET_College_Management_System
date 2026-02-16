@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 // Helper function to handle undefined/empty values and convert them to null
 const toNull = (value) => (value === undefined || value === '' ? null : value);
@@ -34,7 +35,7 @@ export async function PUT(req, context) {
     // Validate blood_group and fee_reimbursement early if provided
     if (updatedData.blood_group !== undefined) {
       const bg = updatedData.blood_group == null ? null : String(updatedData.blood_group).trim();
-      const validBloodGroups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+      const validBloodGroups = COLLEGE_CONFIG.bloodGroups;
       if (bg && !validBloodGroups.includes(bg)) {
         return apiError('Invalid blood group value', 400);
       }

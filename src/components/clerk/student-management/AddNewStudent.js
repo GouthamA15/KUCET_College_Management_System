@@ -244,14 +244,9 @@ export default function AddNewStudent() {
             <input placeholder="Aadhaar Number" value={personal.aadhaar_no} onChange={e=>setPersonal({...personal, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" maxLength={14} />
             <select value={personal.blood_group || ''} onChange={e=>setPersonal({...personal, blood_group: e.target.value})} className="p-2 border rounded">
               <option value="">Blood Group (optional)</option>
-              <option>A+</option>
-              <option>A-</option>
-              <option>B+</option>
-              <option>B-</option>
-              <option>AB+</option>
-              <option>AB-</option>
-              <option>O+</option>
-              <option>O-</option>
+              {COLLEGE_CONFIG.bloodGroups.map(bg => (
+                <option key={bg} value={bg}>{bg}</option>
+              ))}
             </select>
         </div>
         </div>

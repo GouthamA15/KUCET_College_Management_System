@@ -2,6 +2,7 @@ import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
 import { validateRollNo } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 export async function POST(req) {
   const user = await getAuthUser('clerk');
@@ -80,7 +81,7 @@ export async function POST(req) {
     }
 
     // Validate blood group if provided
-    const validBloodGroups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+    const validBloodGroups = COLLEGE_CONFIG.bloodGroups;
     const bloodGroupToSave = blood_group && String(blood_group).trim() ? String(blood_group).trim() : null;
     if (bloodGroupToSave && !validBloodGroups.includes(bloodGroupToSave)) {
       return apiError('Invalid blood group value', 400);

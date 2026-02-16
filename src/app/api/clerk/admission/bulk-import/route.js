@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -347,7 +348,7 @@ export async function POST(req) {
         // Validate blood_group if present
         if (personal.blood_group !== undefined && personal.blood_group !== null) {
           const bg = String(personal.blood_group || '').trim();
-          const VALID_BLOOD = new Set(['A+','A-','B+','B-','AB+','AB-','O+','O-']);
+          const VALID_BLOOD = new Set(COLLEGE_CONFIG.bloodGroups);
           if (bg && !VALID_BLOOD.has(bg)) return { error: `Invalid blood_group '${bg}'` };
           personal.blood_group = bg || null;
         } else {

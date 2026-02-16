@@ -21,4 +21,5 @@ export const COLLEGE_CONFIG = {
   ],
   genders: ['Male', 'Female'],
   categories: ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'],
+  bloodGroups: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
 };
