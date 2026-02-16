@@ -185,7 +185,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
               } else {
                 setFetchRollNoError('');
               }
-            }}
+            }}  
             className="w-full p-2 border rounded"
             maxLength={MAX_ROLL}
           />
