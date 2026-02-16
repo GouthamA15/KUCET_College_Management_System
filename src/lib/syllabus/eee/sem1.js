@@ -49,23 +49,17 @@ export const semester1 = [
     {
       "code": "ESC102",
       "title": "Engineering Graphics & Design",
-      "units": [
-        { "name": "UNIT-I Introduction", "topics": ["Introduction to Engineering Drawing: Principles of Engineering Graphics and their significance, Usage of Drawing Instruments, Lettering. Conic Sections including the Rectangular Hyperbola – General method only Cycloid, Epicycloid and Hypocycloid, Scales – Plain, Diagonal and vernier."] },
-        { "name": "UNIT-II Orthographic Projections", "topics": ["Orthographic Projections: Principles of Orthographic Projections – Conventions, Projections of Points and Lines, Projections of Plane regular geometric figures.—Auxiliary Planes."] },
-        { "name": "UNIT-III Projections of Regular Solids", "topics": ["Projections of Regular Solids: Auxiliary Views - Sections and Sectional views of Right Regular Solids – Prism, Cylinder, Pyramid, Cone – Auxiliary views – Sections of Sphere."] },
-        { "name": "UNIT-IV Isometric Projections", "topics": ["Isometric Projections: Principles of Isometric Projection – Isometric Scale , Isometric Views ,Conventions , Isometric Views of Lines, Plane Figures, Simple and Compound Solids – Isometric Projection of objects having non- isometric lines. Isometric Projection of Spherical Parts. Conversion of Isometric Views to Orthographic Views and Vice-versa – Conventions."] },
-        { "name": "UNIT-V Development of Surfaces & CAD", "topics": ["Development of Surfaces: Right Regular Solids – Prism, Cylinder, Pyramid and Cone.", "Introduction to CAD: (For Internal Evaluation Weightage only) Introduction to Auto CAD Commands, Draw Tools, Modify Tools, Text, Dimension Properties, DIMENSION, PROPERTIES tool bar, Standard Tool bar, LAYERS."] }
-      ]
-    },
-    {
-      "code": "ESC102L",
-      "title": "Engineering Graphics & Design Lab",
-      "units": [
-        { "name": "Drawing Practice", "topics": ["1. Introduction to Engineering Drawing & Conic Sections", "2. Orthographic Projections", "3. Projections of Regular Solids", "4. Isometric Projections", "5. Development of Surfaces & CAD"] }
-      ]
-    },
-    {
-      "code": "ESC104",
+          "units": [
+            { "name": "UNIT-I Introduction", "topics": ["Introduction to Engineering Drawing: Principles of Engineering Graphics and their significance, Usage of Drawing Instruments, Lettering. Conic Sections including the Rectangular Hyperbola – General method only Cycloid, Epicycloid and Hypocycloid, Scales – Plain, Diagonal and vernier."] },
+            { "name": "UNIT-II Orthographic Projections", "topics": ["Orthographic Projections: Principles of Orthographic Projections – Conventions, Projections of Points and Lines, Projections of Plane regular geometric figures.—Auxiliary Planes."] },
+            { "name": "UNIT-III Projections of Regular Solids", "topics": ["Projections of Regular Solids: Auxiliary Views - Sections and Sectional views of Right Regular Solids – Prism, Cylinder, Pyramid, Cone – Auxiliary views – Sections of Sphere."] },
+            { "name": "UNIT-IV Isometric Projections", "topics": ["Isometric Projections: Principles of Isometric Projection – Isometric Scale , Isometric Views ,Conventions , Isometric Views of Lines, Plane Figures, Simple and Compound Solids – Isometric Projection of objects having non- isometric lines. Isometric Projection of Spherical Parts. Conversion of Isometric Views to Orthographic Views and Vice-versa – Conventions."] },
+            { "name": "UNIT-V Development of Surfaces & CAD", "topics": ["Development of Surfaces: Right Regular Solids – Prism, Cylinder, Pyramid and Cone.", "Introduction to CAD: (For Internal Evaluation Weightage only) Introduction to Auto CAD Commands, Draw Tools, Modify Tools, Text, Dimension Properties, DIMENSION, PROPERTIES tool bar, Standard Tool bar, LAYERS."] }
+          ]
+        },
+        {
+          "code": "ESC104",
+      
       "title": "Engineering Mechanics",
       "units": [
         { "name": "UNIT–I Laws of Mechanics & Force Systems", "topics": ["Laws of Mechanics: Parallelogram law of forces, triangle law of forces, Newton's law of gravitation, law of superposition and transmissibility of forces.", "Force Systems: Types of forces, co-planar, concurrent and parallel forces, moment and couple, free body diagram, resultant of force systems, resolution of forces, composition of forces, Lami’s theorem, Varignon’s theorem, moment equilibrium equations, types of supports, beams and loadings, statically determinate structures, resultant and equilibrium of general force system."] },

@@ -58,13 +58,6 @@ export const semester1 = [
     ]
   },
   {
-    "code": "ESC102L",
-    "title": "Engineering Graphics & Design Lab",
-    "units": [
-      { "name": "Drawing Practice", "topics": ["1. Introduction to Engineering Drawing & Conic Sections", "2. Orthographic Projections", "3. Projections of Regular Solids", "4. Isometric Projections", "5. Development of Surfaces & CAD"] }
-    ]
-  },
-  {
     "code": "ESC104",
     "title": "Engineering Mechanics",
     "units": [
