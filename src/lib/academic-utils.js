@@ -1,44 +1,123 @@
-import { getEffectiveAcademicYear } from './rollNumber';
+import { getEffectiveAcademicYear, getCurrentStudyingYear } from './rollNumber';
+import { getNow, getNowSync } from './clock';
 
-export function getCollegeAcademicYear(collegeInfo = null) {
-  const startYear = getEffectiveAcademicYear(collegeInfo);
+/**
+ * SYNC FUNCTIONS (Mainly for Frontend / Client Components)
+ * Use getNowSync() to respect mock time travel via document.cookie
+ */
+
+export function getCollegeAcademicYearSync(collegeInfo = null) {
+  const startYear = getEffectiveAcademicYear(collegeInfo, getNowSync());
   return `${startYear}-${(startYear + 1).toString().slice(-2)}`;
 }
 
-export function isSemesterActive(semester, assignmentAcademicYear, collegeInfo = null) {
-  const currentAY = getCollegeAcademicYear(collegeInfo);
-  if (assignmentAcademicYear !== currentAY) return false;
+export function calculateYearAndSemesterSync(rollNo, collegeInfo = null) {
+  const now = getNowSync();
+  const yearOfStudy = getCurrentStudyingYear(rollNo, collegeInfo, now);
+  if (!yearOfStudy) return { yearOfStudy: null, semester: null, semesterLabel: 'N/A' };
 
-  const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentDay = now.getDate();
   const currentTime = currentMonth * 100 + currentDay;
 
-  const firstSemStartMonth = parseInt(collegeInfo?.first_sem_start_month) || 6;
-  const firstSemStartDay = parseInt(collegeInfo?.first_sem_start_day) || 1;
+  const firstSemStartMonth = parseInt(collegeInfo?.first_sem_start_month) || 8;
+  const firstSemStartDay = parseInt(collegeInfo?.first_sem_start_day) || 25;
   const firstSemTime = firstSemStartMonth * 100 + firstSemStartDay;
 
-  const secondSemStartMonth = parseInt(collegeInfo?.second_sem_start_month) || 1;
-  const secondSemStartDay = parseInt(collegeInfo?.second_sem_start_day) || 15;
+  const secondSemStartMonth = parseInt(collegeInfo?.second_sem_start_month) || 2;
+  const secondSemStartDay = parseInt(collegeInfo?.second_sem_start_day) || 8;
   const secondSemTime = secondSemStartMonth * 100 + secondSemStartDay;
 
-  // Logic: 
-  // If firstSemTime < secondSemTime (e.g. 6/1 < 1/15 is false, usually 1/15 < 6/1)
-  // Standard: Second Sem starts early in the year (Jan/Feb), First Sem starts middle (June/Aug)
-  
   let isOddPeriod = false;
   if (firstSemTime < secondSemTime) {
-      // First sem starts earlier in the calendar year than second sem
-      isOddPeriod = currentTime >= firstSemTime && currentTime < secondSemTime;
+    isOddPeriod = currentTime >= firstSemTime && currentTime < secondSemTime;
   } else {
-      // Second sem starts earlier in the calendar year (standard)
-      // Odd period is from firstSemTime until the end of year OR from start of year until secondSemTime? No.
-      // Usually: 
-      // Second Sem: Feb - Aug
-      // First Sem: Aug - Feb
-      isOddPeriod = currentTime >= firstSemTime || currentTime < secondSemTime;
+    isOddPeriod = currentTime >= firstSemTime || currentTime < secondSemTime;
+  }
+
+  const semester = isOddPeriod ? (yearOfStudy * 2) - 1 : (yearOfStudy * 2);
+  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+  
+  return {
+    yearOfStudy,
+    semester,
+    semesterLabel: `${yearOfStudy}${['st', 'nd', 'rd', 'th'][yearOfStudy-1]} Year - ${roman[semester-1]} Sem`
+  };
+}
+
+/**
+ * ASYNC FUNCTIONS (Mainly for API Routes / Server Components)
+ * Use await getNow() to respect mock time travel via next/headers
+ */
+
+export async function getCollegeAcademicYear(collegeInfo = null) {
+  const startYear = getEffectiveAcademicYear(collegeInfo, await getNow());
+  return `${startYear}-${(startYear + 1).toString().slice(-2)}`;
+}
+
+export async function calculateYearAndSemesterAsync(rollNo, collegeInfo = null) {
+  const now = await getNow();
+  const yearOfStudy = getCurrentStudyingYear(rollNo, collegeInfo, now);
+  if (!yearOfStudy) return { yearOfStudy: null, semester: null, semesterLabel: 'N/A' };
+
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  const currentTime = currentMonth * 100 + currentDay;
+
+  const firstSemStartMonth = parseInt(collegeInfo?.first_sem_start_month) || 8;
+  const firstSemStartDay = parseInt(collegeInfo?.first_sem_start_day) || 25;
+  const firstSemTime = firstSemStartMonth * 100 + firstSemStartDay;
+
+  const secondSemStartMonth = parseInt(collegeInfo?.second_sem_start_month) || 2;
+  const secondSemStartDay = parseInt(collegeInfo?.second_sem_start_day) || 8;
+  const secondSemTime = secondSemStartMonth * 100 + secondSemStartDay;
+
+  let isOddPeriod = false;
+  if (firstSemTime < secondSemTime) {
+    isOddPeriod = currentTime >= firstSemTime && currentTime < secondSemTime;
+  } else {
+    isOddPeriod = currentTime >= firstSemTime || currentTime < secondSemTime;
+  }
+
+  const semester = isOddPeriod ? (yearOfStudy * 2) - 1 : (yearOfStudy * 2);
+  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+  
+  return {
+    yearOfStudy,
+    semester,
+    semesterLabel: `${yearOfStudy}${['st', 'nd', 'rd', 'th'][yearOfStudy-1]} Year - ${roman[semester-1]} Sem`
+  };
+}
+
+export async function isSemesterActive(semester, assignmentAcademicYear, collegeInfo = null) {
+  const now = await getNow();
+  const startYear = getEffectiveAcademicYear(collegeInfo, now);
+  const currentAY = `${startYear}-${(startYear + 1).toString().slice(-2)}`;
+
+  if (assignmentAcademicYear !== currentAY) return false;
+
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  const currentTime = currentMonth * 100 + currentDay;
+
+  const firstSemStartMonth = parseInt(collegeInfo?.first_sem_start_month) || 8;
+  const firstSemStartDay = parseInt(collegeInfo?.first_sem_start_day) || 25;
+  const firstSemTime = firstSemStartMonth * 100 + firstSemStartDay;
+
+  const secondSemStartMonth = parseInt(collegeInfo?.second_sem_start_month) || 2;
+  const secondSemStartDay = parseInt(collegeInfo?.second_sem_start_day) || 8;
+  const secondSemTime = secondSemStartMonth * 100 + secondSemStartDay;
+
+  let isOddPeriod = false;
+  if (firstSemTime < secondSemTime) {
+    isOddPeriod = currentTime >= firstSemTime && currentTime < secondSemTime;
+  } else {
+    isOddPeriod = currentTime >= firstSemTime || currentTime < secondSemTime;
   }
 
   const isOddSemester = parseInt(semester) % 2 !== 0;
   return isOddSemester === isOddPeriod;
 }
+
+// Default export for convenience (Sync version for UI)
+export const calculateYearAndSemester = calculateYearAndSemesterSync;

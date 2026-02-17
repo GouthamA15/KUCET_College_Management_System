@@ -1,3 +1,5 @@
+import { getNowSync } from './clock';
+
 const branchCodes = {
   '09': 'CSE',
   '30': 'CSD',
@@ -86,7 +88,7 @@ function getAcademicYear(rollNo) {
  * Determines the effective start year of the current academic session.
  * Uses college-specific semester start dates if provided, otherwise defaults to June 1st.
  */
-function getEffectiveAcademicYear(collegeInfo = null, now = new Date()) {
+function getEffectiveAcademicYear(collegeInfo = null, now = getNowSync()) {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
   const currentDay = now.getDate();
@@ -101,7 +103,7 @@ function getEffectiveAcademicYear(collegeInfo = null, now = new Date()) {
   return currentTotal < boundaryTotal ? currentYear - 1 : currentYear;
 }
 
-function getCurrentStudyingYear(rollNo, collegeInfo = null) {
+function getCurrentStudyingYear(rollNo, collegeInfo = null, now = getNowSync()) {
   const entryYear = getEntryYearFromRoll(rollNo);
   const admissionType = getAdmissionTypeFromRoll(rollNo);
 
@@ -110,7 +112,6 @@ function getCurrentStudyingYear(rollNo, collegeInfo = null) {
   }
 
   const entryYearInt = parseInt(entryYear, 10);
-  const now = new Date();
   
   // Use collegeInfo to determine the effective academic year boundary
   const effectiveYear = getEffectiveAcademicYear(collegeInfo, now);
@@ -163,7 +164,7 @@ function getEntranceExamQualified(rollNo) {
   return null;
 }
 
-function getCurrentAcademicYear(rollNo, collegeInfo = null) {
+function getCurrentAcademicYear(rollNo, collegeInfo = null, now = getNowSync()) {
   let entryYear = getEntryYearFromRoll(rollNo);
   let admissionType = getAdmissionTypeFromRoll(rollNo);
 
@@ -179,7 +180,6 @@ function getCurrentAcademicYear(rollNo, collegeInfo = null) {
   if (!entryYear) return null;
 
   const admissionYear = parseInt(entryYear, 10);
-  const now = new Date();
   
   const effectiveYear = getEffectiveAcademicYear(collegeInfo, now);
   const academicYearIndex = effectiveYear - admissionYear + 1;
@@ -194,7 +194,7 @@ function getCurrentAcademicYear(rollNo, collegeInfo = null) {
 
 // Authoritative resolver for current academic year
 // Throws on invalid roll number format. Frontend must not compute academic year independently.
-function getResolvedCurrentAcademicYear(rollNo, collegeInfo = null) {
+function getResolvedCurrentAcademicYear(rollNo, collegeInfo = null, now = getNowSync()) {
   if (typeof rollNo !== 'string') {
     throw new Error('Invalid roll number format – cannot determine academic year');
   }
@@ -216,7 +216,6 @@ function getResolvedCurrentAcademicYear(rollNo, collegeInfo = null) {
   }
 
   const admissionYear = parseInt(entryYear, 10);
-  const now = new Date();
   
   // Use collegeInfo to determine the effective academic year boundary
   const effectiveYear = getEffectiveAcademicYear(collegeInfo, now);
@@ -243,6 +242,7 @@ export {
   getAcademicYearForStudyYear,
   getCurrentAcademicYear,
   getResolvedCurrentAcademicYear,
+  getEffectiveAcademicYear,
   getEntranceExamQualified,
   getBatchFromRoll,
   branchCodes,
