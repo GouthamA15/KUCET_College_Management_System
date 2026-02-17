@@ -25,8 +25,10 @@ export default function CustodianCertificatePDF({
       certId={certId}
       date={date}
       logoUrl={logoUrl}
-      signatureUrl={signatureUrl}
+      signatureUrl={stampSign || signatureUrl}
+      signatureImageStyle={styles.stampSign}
       qrUrl={qrUrl}
+      qrStyle={styles.qrSectionCenter}
     >
       <CertificateTitle text="CUSTODIAN CERTIFICATE" />
 
@@ -35,7 +37,7 @@ export default function CustodianCertificatePDF({
           This is to certify that Mr./Ms. <Text style={styles.bold}>{studentName}</Text> S/o., D/o. <Text style={styles.bold}>{fatherName}</Text> is a student of this institution studying B.Tech. <Text style={styles.bold}>{year}</Text> Yr. Semester <Text style={styles.bold}>{semester}</Text> in <Text style={styles.bold}>{course}</Text> branch, bearing Hall Ticket No. <Text style={styles.bold}>{hallTicket}</Text> has deposited his/her Original Certificates of:
         </Text>
 
-        <View style={{marginLeft: 30}}>
+        <View style={{marginLeft: 30, marginTop: 10, marginBottom: 10}}>
           <Text style={styles.paragraph}>1. S.S.C. Memorandum</Text>
           <Text style={styles.paragraph}>2. Intermediate Memorandum of Marks & Diploma Certificate</Text>
           <Text style={styles.paragraph}>3. Study Certificate / Bonafide Certificate</Text>
@@ -46,24 +48,19 @@ export default function CustodianCertificatePDF({
           with this institution at the time of his / her admission and they are in the custody of this Institution.
         </Text>
 
-        <Text style={styles.bold}>
+        <Text style={[styles.bold, { marginTop: 15 }]}>
           As per our record his/her date of birth is {dob}
         </Text>
       </View>
 
-      {/* Fixed elements specific to Custodian certificate */}
+      {/* College Seal - Positioned at bottom left */}
       {stampUrl ? (
         <Image
           src={stampUrl}
-          style={{ position: "absolute", left: 40, bottom: 50, width: 100, height: 100 }}
-          alt="Stamp"
+          style={{ position: "absolute", left: 40, bottom: 40, width: 100, height: 100 }}
+          alt="College Seal"
         />
       ) : null}
-
-      <View style={styles.custodianSignSection}>
-        <Image src={stampSign} style={styles.stampSign} alt="Principal Signature" />        
-        <Text style={styles.signatureLabel}>PRINCIPAL</Text> 
-      </View>  
     </BaseCertificate>
   );
 }

@@ -99,15 +99,6 @@ export const styles = StyleSheet.create({
       width: 300,
     },
 
-    custodianSignSection: {
-      marginTop: 50,
-      marginRight: 20,
-      alignSelf: "flex-end",
-      alignItems: "flex-end",
-      textAlign: "center",
-      width: 300,
-    },
-
     signatureImage: {
       width: 70,
       marginRight: 40,
@@ -135,6 +126,13 @@ export const styles = StyleSheet.create({
       left: 30,
       alignItems: "center",
       width: 100,
+    },
+    qrSectionCenter: {
+      position: "absolute",
+      bottom: 30,
+      left: 0,
+      right: 0,
+      alignItems: "center",
     },
     qrImage: {
       height: 80,

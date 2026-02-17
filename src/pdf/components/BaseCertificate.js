@@ -18,6 +18,9 @@ export default function BaseCertificate({
   signatureUrl,
   qrUrl,
   showWatermark = true,
+  showSignature = true,
+  signatureImageStyle,
+  qrStyle,
   children
 }) {
   return (
@@ -37,9 +40,14 @@ export default function BaseCertificate({
 
         {children}
 
-        <SignatureBlock signatureUrl={signatureUrl} />
+        {showSignature && (
+          <SignatureBlock 
+            signatureUrl={signatureUrl} 
+            imageStyle={signatureImageStyle} 
+          />
+        )}
 
-        <QRBlock qrUrl={qrUrl} />
+        <QRBlock qrUrl={qrUrl} style={qrStyle} />
       </PageBorder>
     </Document>
   );

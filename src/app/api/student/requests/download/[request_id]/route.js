@@ -277,7 +277,12 @@ export async function GET(request, { params }) {
                 };
                 break;
             case 'Custodian Certificate':
-                // No extra fields beyond common
+                data = {
+                    ...data,
+                    year: yearWords[yearOfStudy - 1] || 'N/A',
+                    semester: semesterWords[currentSemester - 1] || 'N/A',
+                    hallTicket: student.roll_no,
+                };
                 break;
             default:
                 // fallthrough, use common
