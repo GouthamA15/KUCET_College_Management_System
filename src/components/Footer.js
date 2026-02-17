@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { getNowSync } from '@/lib/clock';
 
 export default function Footer() {
   return (
@@ -13,7 +14,7 @@ export default function Footer() {
 
         <div className="text-center ">
           <p className="text-blue-50 text-sm">
-            © {new Date().getFullYear()}. All rights reserved. Developed by the Department of Computer Science & Engineering.
+            © {getNowSync().getFullYear()}. All rights reserved. Developed by the Department of Computer Science & Engineering.
             <Link href="/developers" className="ml-2 underline hover:text-white transition-colors duration-200 text-blue-200">
               View more details
             </Link>
