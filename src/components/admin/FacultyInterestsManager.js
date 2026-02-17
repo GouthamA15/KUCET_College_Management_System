@@ -26,19 +26,12 @@ export default function FacultyInterestsManager() {
   }, []);
 
   const handleAction = async (interestId, status) => {
-    let section = 'A';
-    if (status === 'APPROVED') {
-      const input = prompt('Enter section (e.g. A, B, C):', 'A');
-      if (input === null) return; // Cancelled
-      section = input || 'A';
-    }
-
     setProcessing(true);
     try {
       const res = await fetch('/api/admin/faculty/approve-interest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interest_id: interestId, status, section })
+        body: JSON.stringify({ interest_id: interestId, status })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update interest');
