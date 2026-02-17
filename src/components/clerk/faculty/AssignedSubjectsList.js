@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
-export default function AssignedSubjectsList({ onSelectAssignment }) {
+export default function AssignedSubjectsList({ onSelectAssignment, showActions = true }) {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -78,28 +78,30 @@ export default function AssignedSubjectsList({ onSelectAssignment }) {
                       <div className="text-gray-500">Semester: <span className="font-semibold text-gray-700">{asgn.semester}</span></div>
                     </div>
 
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => onSelectAssignment(asgn, 'attendance')}
-                        className={`flex-1 px-3 py-2 rounded text-xs font-bold transition-all ${
-                          asgn.is_active 
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md active:scale-95' 
-                            : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                        }`}
-                      >
-                        {asgn.is_active ? 'Attendance' : 'View Attendance'}
-                      </button>
-                      <button
-                        onClick={() => onSelectAssignment(asgn, 'marks')}
-                        className={`flex-1 px-3 py-2 rounded text-xs font-bold transition-all ${
-                          asgn.is_active 
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md active:scale-95' 
-                            : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                        }`}
-                      >
-                        {asgn.is_active ? 'Mid Marks' : 'View Marks'}
-                      </button>
-                    </div>
+                    {showActions && (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => onSelectAssignment(asgn, 'attendance')}
+                          className={`flex-1 px-3 py-2 rounded text-xs font-bold transition-all ${
+                            asgn.is_active 
+                              ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md active:scale-95' 
+                              : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                          }`}
+                        >
+                          {asgn.is_active ? 'Attendance' : 'View Attendance'}
+                        </button>
+                        <button
+                          onClick={() => onSelectAssignment(asgn, 'marks')}
+                          className={`flex-1 px-3 py-2 rounded text-xs font-bold transition-all ${
+                            asgn.is_active 
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md active:scale-95' 
+                              : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                          }`}
+                        >
+                          {asgn.is_active ? 'Mid Marks' : 'View Marks'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
