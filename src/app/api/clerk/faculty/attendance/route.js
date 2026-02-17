@@ -10,9 +10,9 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, date, attendance_data } = body;
+    const { assignment_id, date, slot, attendance_data } = body;
 
-    if (!assignment_id || !date || !Array.isArray(attendance_data)) {
+    if (!assignment_id || !date || !slot || !Array.isArray(attendance_data)) {
       return apiError('Missing required fields', 400);
     }
 
@@ -33,7 +33,7 @@ export async function POST(request) {
     const [collegeInfoRows] = await db.execute('SELECT * FROM college_info WHERE id = 1');
     const collegeInfo = collegeInfoRows[0] || null;
 
-    if (!isSemesterActive(assignment.semester, assignment.academic_year, collegeInfo)) {
+    if (!await isSemesterActive(assignment.semester, assignment.academic_year, collegeInfo)) {
       return apiError('Semester has ended. Attendance can no longer be modified.', 403);
     }
 
@@ -42,15 +42,21 @@ export async function POST(request) {
     await connection.beginTransaction();
 
     try {
-      for (const item of attendance_data) {
-        const { student_id, status } = item;
-        
-        // Insert or Update attendance
-        await connection.execute(`
-          INSERT INTO student_attendance (student_id, assignment_id, date, status)
-          VALUES (?, ?, ?, ?)
+      if (attendance_data.length > 0) {
+        // Build a single bulk insert query for high performance
+        const values = [];
+        const placeholders = attendance_data.map(item => {
+          values.push(item.student_id, assignment_id, date, slot, item.status);
+          return '(?, ?, ?, ?, ?)';
+        }).join(', ');
+
+        const sql = `
+          INSERT INTO student_attendance (student_id, assignment_id, date, slot, status)
+          VALUES ${placeholders}
           ON DUPLICATE KEY UPDATE status = VALUES(status)
-        `, [student_id, assignment_id, date, status]);
+        `;
+        
+        await connection.execute(sql, values);
       }
 
       await connection.commit();
@@ -77,8 +83,9 @@ export async function DELETE(request) {
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id');
     const date = searchParams.get('date');
+    const slot = searchParams.get('slot');
 
-    if (!assignment_id || !date) {
+    if (!assignment_id || !date || !slot) {
       return apiError('Missing required parameters', 400);
     }
 
@@ -97,13 +104,13 @@ export async function DELETE(request) {
     const [collegeInfoRows] = await db.execute('SELECT * FROM college_info WHERE id = 1');
     const collegeInfo = collegeInfoRows[0] || null;
 
-    if (!isSemesterActive(assignment.semester, assignment.academic_year, collegeInfo)) {
+    if (!await isSemesterActive(assignment.semester, assignment.academic_year, collegeInfo)) {
       return apiError('Semester has ended. Attendance can no longer be modified.', 403);
     }
 
     await db.execute(
-      'DELETE FROM student_attendance WHERE assignment_id = ? AND date = ?',
-      [assignment_id, date]
+      'DELETE FROM student_attendance WHERE assignment_id = ? AND date = ? AND slot = ?',
+      [assignment_id, date, slot]
     );
 
     return apiResponse({ message: 'Attendance for the selected date has been deleted' });

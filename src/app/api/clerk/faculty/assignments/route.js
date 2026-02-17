@@ -19,10 +19,10 @@ export async function GET(request) {
     const [collegeInfoRows] = await db.execute('SELECT * FROM college_info WHERE id = 1');
     const collegeInfo = collegeInfoRows[0] || null;
 
-    const assignmentsWithActivity = assignments.map(asgn => ({
+    const assignmentsWithActivity = await Promise.all(assignments.map(async (asgn) => ({
       ...asgn,
-      is_active: isSemesterActive(asgn.semester, asgn.academic_year, collegeInfo)
-    }));
+      is_active: await isSemesterActive(asgn.semester, asgn.academic_year, collegeInfo)
+    })));
 
     return apiResponse({ data: assignmentsWithActivity });
   } catch (error) {
