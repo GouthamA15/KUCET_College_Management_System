@@ -24,7 +24,7 @@ export default function RequestHistoryMobile({
             <div className="text-sm text-gray-600">Loading Request History...</div>
           </div>
         ) : !hasData ? (
-          <div className="flex items-center justify-center h-32 text-gray-500">No Request History Is Found</div>
+          <div className="flex items-center justify-center h-32 text-gray-600">No certificate requests found.</div>
         ) : (
           requests.map((req) => {
             const s = (req.status || '').toUpperCase();

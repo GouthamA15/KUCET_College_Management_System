@@ -28,10 +28,7 @@ export default function CertificateRequestsPage() {
   const [selectedCertificate, setSelectedCertificate] = useState(certificateOptions[0].value);
   const [downloadingId, setDownloadingId] = useState(null);
   const [downloadErrors, setDownloadErrors] = useState({});
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(max-width: 767px)').matches;
-  });
+  const [isMobile, setIsMobile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReq, setRejectReq] = useState(null);
@@ -74,6 +71,7 @@ export default function CertificateRequestsPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mq.matches);
     const handler = (e) => setIsMobile(e.matches);
     
     if (mq.addEventListener) {
