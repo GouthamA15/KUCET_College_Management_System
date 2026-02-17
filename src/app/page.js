@@ -28,9 +28,20 @@ export default function Home() {
 
 
   // Remove auto-redirect for login panels
+  const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
+      {isTesting && (
+        <a 
+          href="/dev/time-machine"
+          className="fixed top-0 left-0 z-[9999] bg-red-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-br-lg shadow-lg uppercase tracking-widest animate-pulse hover:bg-red-700 hover:scale-105 transition-all flex items-center gap-2 group"
+          title="Open Time Machine"
+        >
+          <span>Testing Mode</span>
+          <span className="bg-white/20 px-1.5 rounded text-[8px] group-hover:bg-white/40">Travel 🕒</span>
+        </a>
+      )}
       <Header />
       {/* Pass the state and setter to Navbar */}
       <Navbar activePanel={activePanel} setActivePanel={setActivePanel} />

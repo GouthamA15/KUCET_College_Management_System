@@ -10,10 +10,11 @@ import CollegeInfoEditor from '@/components/admin/CollegeInfoEditor';
 import { validateRollNo } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import FacultyInterestsManager from '@/components/admin/FacultyInterestsManager';
+import { getNowSync } from '@/lib/clock';
 
 const BRANCHES = COLLEGE_CONFIG.branches;
 
-const currentYear = new Date().getFullYear();
+const currentYear = getNowSync().getFullYear();
 const YEARS = Array.from({ length: 4 }, (_, i) => (currentYear - i).toString()).reverse();
 
 export default function AdminDashboardPage() {
