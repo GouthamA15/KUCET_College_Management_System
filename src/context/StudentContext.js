@@ -12,6 +12,8 @@ export function StudentProvider({ children }) {
   const [certificateRequests, setCertificateRequests] = useState(null);
   const [certificateRequestsLoaded, setCertificateRequestsLoaded] = useState(false);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [academicPerformance, setAcademicPerformance] = useState(null);
+  const [isLoadingAcademic, setIsLoadingAcademic] = useState(false);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -23,6 +25,23 @@ export function StudentProvider({ children }) {
     } catch (e) {
       console.error('Failed to fetch college info', e);
     }
+  }, []);
+
+  const fetchAcademicPerformance = useCallback(async () => {
+    setIsLoadingAcademic(true);
+    try {
+      const res = await fetch('/api/student/academic-info');
+      const json = await res.json();
+      if (res.ok) {
+        setAcademicPerformance(json.data || []);
+        return json.data;
+      }
+    } catch (e) {
+      console.error('Failed to fetch academic performance', e);
+    } finally {
+      setIsLoadingAcademic(false);
+    }
+    return null;
   }, []);
 
   const fetchProfile = useCallback(async (rollno) => {
@@ -51,7 +70,10 @@ export function StudentProvider({ children }) {
       if (me.ok) {
         const user = await me.json();
         await fetchCollegeInfo();
-        return await fetchProfile(user.roll_no);
+        const profilePromise = fetchProfile(user.roll_no);
+        const academicPromise = fetchAcademicPerformance();
+        const [profile] = await Promise.all([profilePromise, academicPromise]);
+        return profile;
       }
     } catch (e) {
       setError('Failed to refresh data');
@@ -87,7 +109,10 @@ export function StudentProvider({ children }) {
       setCertificateRequestsLoaded,
       isLoadingRequests,
       setIsLoadingRequests,
-      resetCertificateRequests
+      resetCertificateRequests,
+      academicPerformance,
+      isLoadingAcademic,
+      refreshAcademic: fetchAcademicPerformance
     }}>
       {children}
     </StudentContext.Provider>

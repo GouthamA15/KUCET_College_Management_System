@@ -9,6 +9,8 @@ export function AdminProvider({ children }) {
   const [collegeInfo, setCollegeInfo] = useState(null);
   const [clerks, setClerks] = useState([]);
   const [studentStats, setStudentStats] = useState(null);
+  const [facultyInterests, setFacultyInterests] = useState([]);
+  const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -66,16 +68,34 @@ export function AdminProvider({ children }) {
     return null;
   }, []);
 
+  const fetchFacultyInterests = useCallback(async () => {
+    setIsLoadingFaculty(true);
+    try {
+      const res = await fetch('/api/admin/faculty/interests');
+      const json = await res.json();
+      if (res.ok) {
+        setFacultyInterests(json.data || []);
+        return json.data;
+      }
+    } catch (e) {
+      console.error('Failed to fetch faculty interests', e);
+    } finally {
+      setIsLoadingFaculty(false);
+    }
+    return [];
+  }, []);
+
   const refreshAll = useCallback(async () => {
     setLoading(true);
     await Promise.all([
       fetchAdminMe(),
       fetchClerks(),
       fetchStudentStats(),
-      fetchCollegeInfo()
+      fetchCollegeInfo(),
+      fetchFacultyInterests()
     ]);
     setLoading(false);
-  }, [fetchAdminMe, fetchClerks, fetchStudentStats, fetchCollegeInfo]);
+  }, [fetchAdminMe, fetchClerks, fetchStudentStats, fetchCollegeInfo, fetchFacultyInterests]);
 
   useEffect(() => {
     refreshAll();
@@ -92,7 +112,10 @@ export function AdminProvider({ children }) {
       error, 
       refreshAll,
       refreshClerks: fetchClerks,
-      refreshStudentStats: fetchStudentStats
+      refreshStudentStats: fetchStudentStats,
+      facultyInterests,
+      isLoadingFaculty,
+      refreshFaculty: fetchFacultyInterests
     }}>
       {children}
     </AdminContext.Provider>
