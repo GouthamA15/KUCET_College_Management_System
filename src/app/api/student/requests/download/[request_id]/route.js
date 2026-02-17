@@ -8,7 +8,8 @@ import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import path from 'path';
 import fs from 'fs';
 import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
-import { calculateYearAndSemester } from '@/lib/academic-utils';
+import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
+import { getNow } from '@/lib/clock';
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
 import CustodianCertificatePDF from '@/pdf/templates/CustodianCertificatePDF';
@@ -91,7 +92,7 @@ export async function GET(request, { params }) {
         const collegeInfo = collegeInfoRows[0] || {};
 
         // CALCULATE YEAR AND SEMESTER ---
-        const { yearOfStudy, semester: currentSemester } = calculateYearAndSemester(student.roll_no, collegeInfo);
+        const { yearOfStudy, semester: currentSemester } = await calculateYearAndSemesterAsync(student.roll_no, collegeInfo);
         
         const rollNo = student.roll_no;
         const isLateral = rollNo.toUpperCase().endsWith('L');
@@ -103,7 +104,7 @@ export async function GET(request, { params }) {
         const batchEnd = batchStart + 4; 
         const batchString = `${batchStart}-${batchEnd}`;
         
-        const today = new Date();
+        const today = await getNow();
 
         const yearWords = ["I (FIRST)", "II (SECOND)", "III (THIRD)", "IV (FOURTH)"];
         const semesterWords = ["I (FIRST)", "II (SECOND)", "III (THIRD)", "IV (FOURTH)", "V (FIFTH)", "VI (SIXTH)", "VII (SEVENTH)", "VIII (EIGHTH)"];

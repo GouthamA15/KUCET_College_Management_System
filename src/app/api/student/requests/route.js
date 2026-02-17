@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { getNow } from '@/lib/clock';
 
 async function validateStudentVerification(studentId) {
   try {
@@ -104,19 +105,20 @@ export async function POST(request) {
     // compute academic_year from roll_no (single source of truth)
     let academicYear;
     try {
+      const now = await getNow();
       // Fetch college info for academic year boundary
       const collegeInfoRows = await query('SELECT * FROM college_info WHERE id = 1');
       const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
 
       try {
-        academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeInfo);
+        academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeInfo, now);
       } catch (e1) {
         // If token roll_no is malformed or not in expected format, try resolving from DB
         try {
           const rollRows = await query('SELECT roll_no FROM students WHERE id = ?', [user.student_id]);
           const dbRoll = rollRows && rollRows[0] && rollRows[0].roll_no;
           if (dbRoll) {
-            academicYear = getResolvedCurrentAcademicYear(dbRoll, collegeInfo);
+            academicYear = getResolvedCurrentAcademicYear(dbRoll, collegeInfo, now);
           }
         } catch (e2) {
           console.warn('[REQUESTS] Failed to resolve roll_no from DB', e2);
