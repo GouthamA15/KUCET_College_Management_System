@@ -1,20 +1,28 @@
 'use client';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { getNowSync } from '@/lib/clock';
 
 export default function AttendanceSheet({ assignment, onBack }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getNowSync().toISOString().split('T')[0]);
+  const [selectedSlot, setSelectedSlot] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'excel'
   const [historyStudent, setHistoryStudent] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // Excel Mode specific states
+  const [allAttendance, setAllAttendance] = useState([]); 
+  const [uniqueDates, setUniqueDates] = useState([]); 
+  const [loadingGrid, setLoadingGrid] = useState(false);
+
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/clerk/faculty/students?assignment_id=${assignment.id}`);
+      const res = await fetch(`/api/clerk/faculty/students?assignment_id=${assignment.id}&slot=${selectedSlot}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch students');
       
@@ -52,6 +60,63 @@ export default function AttendanceSheet({ assignment, onBack }) {
     }
   };
 
+  const fetchGridData = async () => {
+    setLoadingGrid(true);
+    try {
+      const res = await fetch(`/api/clerk/faculty/attendance/full-history?assignment_id=${assignment.id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch history');
+      
+      setAllAttendance(data.attendance || []);
+      setUniqueDates(data.uniqueDates || []);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setLoadingGrid(false);
+    }
+  };
+
+  // Optimization: Create a lookup map for the grid
+  const attendanceMap = allAttendance.reduce((acc, curr) => {
+    const key = `${curr.student_id}-${curr.date}-${curr.slot}`;
+    acc[key] = curr.status;
+    return acc;
+  }, {});
+
+  const handleToggleCell = async (studentId, dateStr, slot, currentStatus) => {
+    if (!assignment.is_active) return;
+    
+    // Cycle: N/A (+) -> PRESENT (P) -> ABSENT (A) -> PRESENT (P)
+    let newStatus = 'PRESENT';
+    if (currentStatus === 'PRESENT') newStatus = 'ABSENT';
+    else if (currentStatus === 'ABSENT') newStatus = 'PRESENT';
+    // If currentStatus is 'N/A', it will default to 'PRESENT'
+    
+    // Optimistic local update
+    const newRecord = { student_id: studentId, date: dateStr, slot: slot, status: newStatus };
+    setAllAttendance(prev => {
+      const filtered = prev.filter(a => !(a.student_id === studentId && a.date === dateStr && a.slot === slot));
+      return [...filtered, newRecord];
+    });
+
+    try {
+      const res = await fetch('/api/clerk/faculty/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          date: dateStr,
+          slot: slot,
+          attendance_data: [{ student_id: studentId, status: newStatus }]
+        })
+      });
+      if (!res.ok) throw new Error('Update failed');
+    } catch (error) {
+      toast.error('Update failed');
+      fetchGridData(); 
+    }
+  };
+
   const handleToggleHistory = async (record) => {
     if (!assignment.is_active) return;
 
@@ -86,8 +151,12 @@ export default function AttendanceSheet({ assignment, onBack }) {
   };
 
   useEffect(() => {
-    fetchStudents();
-  }, [assignment.id]);
+    if (viewMode === 'excel') {
+      fetchGridData();
+    } else {
+      fetchStudents();
+    }
+  }, [assignment.id, selectedSlot, viewMode]);
 
   const toggleStatus = (studentId) => {
     setStudents(students.map(s => 
@@ -104,6 +173,7 @@ export default function AttendanceSheet({ assignment, onBack }) {
         body: JSON.stringify({
           assignment_id: assignment.id,
           date: selectedDate,
+          slot: selectedSlot,
           attendance_data: students.map(s => ({ student_id: s.id, status: s.status }))
         })
       });
@@ -119,11 +189,11 @@ export default function AttendanceSheet({ assignment, onBack }) {
   };
 
   const handleDeleteAttendance = async () => {
-    if (!confirm(`Are you sure you want to delete all attendance records for ${selectedDate}? This action cannot be undone.`)) return;
+    if (!confirm(`Are you sure you want to delete attendance for Slot ${selectedSlot} on ${selectedDate}?`)) return;
     
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/clerk/faculty/attendance?assignment_id=${assignment.id}&date=${selectedDate}`, {
+      const res = await fetch(`/api/clerk/faculty/attendance?assignment_id=${assignment.id}&date=${selectedDate}&slot=${selectedSlot}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -201,7 +271,21 @@ export default function AttendanceSheet({ assignment, onBack }) {
             &larr; Back to Subjects
           </button>
           <h2 className="text-xl font-bold">{assignment.subject_name} - Attendance</h2>
-          <p className="text-sm text-gray-500">{assignment.branch} | Sem {assignment.semester} | Sec {assignment.section}</p>
+          <p className="text-sm text-gray-500">{assignment.branch} | Sem {assignment.semester}</p>
+          <div className="mt-3 flex bg-gray-100 p-1 rounded-lg w-fit">
+            <button
+              onClick={() => setViewMode('daily')}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition ${viewMode === 'daily' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Daily View
+            </button>
+            <button
+              onClick={() => setViewMode('excel')}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition ${viewMode === 'excel' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Excel Mode (Grid)
+            </button>
+          </div>
         </div>
         <div className="flex items-center space-x-4">
           <div>
@@ -213,6 +297,19 @@ export default function AttendanceSheet({ assignment, onBack }) {
               className="p-2 border rounded text-sm"
               disabled={!assignment.is_active}
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Slot</label>
+            <select
+              value={selectedSlot}
+              onChange={(e) => setSelectedSlot(parseInt(e.target.value))}
+              className="p-2 border rounded text-sm bg-white"
+              disabled={!assignment.is_active}
+            >
+              {[1, 2, 3, 4, 5].map(num => (
+                <option key={num} value={num}>Slot {num}</option>
+              ))}
+            </select>
           </div>
           {assignment.is_active ? (
             <div className="flex space-x-2">
@@ -240,51 +337,108 @@ export default function AttendanceSheet({ assignment, onBack }) {
       </div>
 
       <div className={`overflow-x-auto border rounded-lg ${!assignment.is_active ? 'bg-gray-50 opacity-90' : ''}`}>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Percentage</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">History</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {students.map((student) => (
-              <tr key={student.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.roll_no}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <span className={`px-2 py-1 rounded text-xs font-bold border ${getPercentageColor(student.attendance_percentage)}`}>
-                    {student.attendance_percentage.toFixed(1)}%
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <button
-                    onClick={() => assignment.is_active && toggleStatus(student.id)}
-                    disabled={!assignment.is_active}
-                    className={`px-4 py-1 rounded-full text-xs font-bold transition ${
-                      student.status === 'PRESENT' 
-                        ? 'bg-green-100 text-green-800 border border-green-200' 
-                        : 'bg-red-100 text-red-800 border border-red-200'
-                    } ${!assignment.is_active ? 'cursor-default grayscale-[0.5]' : 'cursor-pointer'}`}
-                  >
-                    {student.status}
-                  </button>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => fetchStudentHistory(student)}
-                    className="text-indigo-600 hover:text-indigo-900"
-                  >
-                    View History
-                  </button>
-                </td>
+        {viewMode === 'daily' ? (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Percentage</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">History</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {students.map((student) => (
+                <tr key={student.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.roll_no}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <span className={`px-2 py-1 rounded text-xs font-bold border ${getPercentageColor(student.attendance_percentage)}`}>
+                      {student.attendance_percentage.toFixed(1)}%
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <button
+                      onClick={() => assignment.is_active && toggleStatus(student.id)}
+                      disabled={!assignment.is_active}
+                      className={`px-4 py-1 rounded-full text-xs font-bold transition ${
+                        student.status === 'PRESENT' 
+                          ? 'bg-green-100 text-green-800 border border-green-200' 
+                          : 'bg-red-100 text-red-800 border border-red-200'
+                      } ${!assignment.is_active ? 'cursor-default grayscale-[0.5]' : 'cursor-pointer'}`}
+                    >
+                      {student.status}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => fetchStudentHistory(student)}
+                      className="text-indigo-600 hover:text-indigo-900"
+                    >
+                      View History
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          /* Excel/Grid Mode */
+          <div className="min-w-full inline-block align-middle">
+            {loadingGrid ? (
+              <div className="text-center py-12">Loading full attendance grid...</div>
+            ) : uniqueDates.length > 0 ? (
+              <table className="min-w-full divide-y divide-gray-200 border-collapse">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    <th className="sticky left-0 z-20 bg-gray-50 px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase border-r border-b">
+                      Students / Dates
+                    </th>
+                    {uniqueDates.map((col, i) => (
+                      <th key={i} className="px-2 py-3 text-center text-[10px] font-bold text-gray-500 uppercase border-b border-r min-w-[80px]">
+                        <div className="whitespace-nowrap">{new Date(col.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</div>
+                        <div className="text-indigo-600">Slot {col.slot}</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {students.map((student) => (
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="sticky left-0 z-10 bg-white px-4 py-2 whitespace-nowrap border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                        <div className="text-xs font-bold text-gray-900">{student.roll_no}</div>
+                        <div className="text-[10px] text-gray-500 truncate max-w-[120px]">{student.name}</div>
+                      </td>
+                      {uniqueDates.map((col, i) => {
+                        const status = attendanceMap[`${student.id}-${col.date}-${col.slot}`] || 'N/A';
+                        return (
+                          <td 
+                            key={i} 
+                            className="p-0 border-r border-b text-center align-middle"
+                          >
+                            <button
+                              onClick={() => handleToggleCell(student.id, col.date, col.slot, status)}
+                              disabled={!assignment.is_active}
+                              className={`w-full h-10 text-[10px] font-black transition-all ${
+                                status === 'PRESENT' ? 'bg-green-100 text-green-800' : 
+                                status === 'ABSENT' ? 'bg-red-100 text-red-800' : 'bg-gray-50 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
+                              } ${assignment.is_active ? 'cursor-pointer' : 'cursor-default'}`}
+                            >
+                              {status === 'PRESENT' ? 'P' : status === 'ABSENT' ? 'A' : '+'}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="text-center py-12 text-gray-500">No historical attendance data found to display in grid.</div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

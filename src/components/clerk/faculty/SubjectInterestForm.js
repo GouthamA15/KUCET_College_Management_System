@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { getNowSync } from '@/lib/clock';
 
 export default function SubjectInterestForm({ onInterestSubmitted }) {
   const [branches] = useState(COLLEGE_CONFIG.branches);
@@ -38,7 +39,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
 
   // Set default academic year (current)
   useEffect(() => {
-    const now = new Date();
+    const now = getNowSync();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     let yearStr = '';
@@ -54,7 +55,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
 
   const isSemesterAllowed = (sem) => {
     if (!collegeInfo) return true; // Default to allow if not loaded
-    const now = new Date();
+    const now = getNowSync();
     const currentMonth = now.getMonth() + 1;
     const currentDay = now.getDate();
     const currentTime = currentMonth * 100 + currentDay;

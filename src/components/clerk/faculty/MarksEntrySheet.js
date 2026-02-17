@@ -33,12 +33,33 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   }, [assignment.id]);
 
   const handleMarkChange = (studentId, field, value) => {
+    // Basic range validation
+    let numericValue = parseFloat(value);
+    if (!isNaN(numericValue)) {
+      if (field === 'assignment_marks') {
+        if (numericValue < 0) numericValue = 0;
+        if (numericValue > 10) numericValue = 10;
+      } else {
+        if (numericValue < 0) numericValue = 0;
+        if (numericValue > 20) numericValue = 20;
+      }
+      value = numericValue;
+    }
+
     setStudents(students.map(s => 
       s.id === studentId ? { ...s, [field]: value } : s
     ));
   };
 
   const handleSaveMarks = async () => {
+    // Final check before submission
+    for (const s of students) {
+      if (s.mid1_marks > 20 || s.mid2_marks > 20 || s.assignment_marks > 10) {
+        toast.error(`Invalid marks detected for ${s.roll_no}. Please correct them.`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch('/api/clerk/faculty/marks', {
@@ -74,7 +95,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
             &larr; Back to Subjects
           </button>
           <h2 className="text-xl font-bold">{assignment.subject_name} - Mid Marks</h2>
-          <p className="text-sm text-gray-500">{assignment.branch} | Sem {assignment.semester} | Sec {assignment.section}</p>
+          <p className="text-sm text-gray-500">{assignment.branch} | Sem {assignment.semester}</p>
         </div>
         {assignment.is_active ? (
           <button
@@ -100,51 +121,69 @@ export default function MarksEntrySheet({ assignment, onBack }) {
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Mid-I (20)</th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Mid-II (20)</th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Assignment (10)</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-indigo-600 bg-indigo-50 uppercase">Total (30)</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {students.map((student) => (
-              <tr key={student.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.roll_no}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    step="0.5"
-                    value={student.mid1_marks}
-                    onChange={(e) => handleMarkChange(student.id, 'mid1_marks', e.target.value)}
-                    className="w-16 p-1 border rounded text-center text-sm disabled:bg-gray-100 disabled:text-gray-500"
-                    disabled={!assignment.is_active}
-                  />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    max="20"
-                    step="0.5"
-                    value={student.mid2_marks}
-                    onChange={(e) => handleMarkChange(student.id, 'mid2_marks', e.target.value)}
-                    className="w-16 p-1 border rounded text-center text-sm disabled:bg-gray-100 disabled:text-gray-500"
-                    disabled={!assignment.is_active}
-                  />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    step="0.5"
-                    value={student.assignment_marks}
-                    onChange={(e) => handleMarkChange(student.id, 'assignment_marks', e.target.value)}
-                    className="w-16 p-1 border rounded text-center text-sm disabled:bg-gray-100 disabled:text-gray-500"
-                    disabled={!assignment.is_active}
-                  />
-                </td>
-              </tr>
-            ))}
+            {students.map((student) => {
+              const m1 = student.mid1_marks !== '' ? parseFloat(student.mid1_marks) : null;
+              const m2 = student.mid2_marks !== '' ? parseFloat(student.mid2_marks) : null;
+              const assgn = student.assignment_marks !== '' ? parseFloat(student.assignment_marks) : 0;
+              
+              let internalTotal = null;
+              if (m1 !== null || m2 !== null) {
+                const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
+                internalTotal = bestMid + assgn;
+              }
+
+              return (
+                <tr key={student.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.roll_no}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <input
+                      type="number"
+                      min="0"
+                      max="20"
+                      step="0.5"
+                      value={student.mid1_marks}
+                      onChange={(e) => handleMarkChange(student.id, 'mid1_marks', e.target.value)}
+                      className="w-16 p-1 border rounded text-center text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                      disabled={!assignment.is_active}
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <input
+                      type="number"
+                      min="0"
+                      max="20"
+                      step="0.5"
+                      value={student.mid2_marks}
+                      onChange={(e) => handleMarkChange(student.id, 'mid2_marks', e.target.value)}
+                      className="w-16 p-1 border rounded text-center text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                      disabled={!assignment.is_active}
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      step="0.5"
+                      value={student.assignment_marks}
+                      onChange={(e) => handleMarkChange(student.id, 'assignment_marks', e.target.value)}
+                      className="w-16 p-1 border rounded text-center text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                      disabled={!assignment.is_active}
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center bg-indigo-50/30">
+                    <span className={`font-mono font-bold ${internalTotal === null ? 'text-gray-300' : 'text-indigo-700'}`}>
+                      {internalTotal !== null ? internalTotal.toFixed(1) : '--'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
