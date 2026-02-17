@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { getBranchFromRoll, getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { getNow } from '@/lib/clock';
 
 // Helper function to handle undefined values
 const toNull = (value) => (value === undefined || value === '' ? null : value);
@@ -29,6 +30,8 @@ export async function GET(req, ctx) {
 
     if (!rollno) return apiError('Missing rollno parameter', 400);
 
+    const now = await getNow();
+
     // STEP A: Fetch student with pfp check
     const [student] = await query(
       `SELECT s.id, s.roll_no, s.name, s.fee_reimbursement, s.email, s.mobile, 
@@ -53,7 +56,7 @@ export async function GET(req, ctx) {
     const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
 
     // Server-resolved current academic year (e.g., 2025-26)
-    const current_year = getResolvedCurrentAcademicYear(student.roll_no, collegeInfo);
+    const current_year = getResolvedCurrentAcademicYear(student.roll_no, collegeInfo, now);
     // If client did not provide year, default to current_year to avoid UI-side hardcoding
     if (!year) {
       year = current_year;

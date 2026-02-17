@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { getBranchFromRoll, getCurrentStudyingYear, branchCodes } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { getNow } from '@/lib/clock';
 
 export async function GET(req) {
   // Verify admin
@@ -11,9 +12,10 @@ export async function GET(req) {
   }
 
   try {
+    const now = await getNow();
     // Fetch college info for academic year boundary
     const collegeInfoRows = await query('SELECT * FROM college_info WHERE id = 1');
-    const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
+    const collegeInfo = collegeInfoRows[0] || null;
 
     const students = await query('SELECT roll_no FROM students');
 
@@ -22,7 +24,7 @@ export async function GET(req) {
     for (const student of students) {
       const { roll_no } = student;
       const branch = getBranchFromRoll(roll_no);
-      const year = getCurrentStudyingYear(roll_no, collegeInfo);
+      const year = getCurrentStudyingYear(roll_no, collegeInfo, now);
 
       if (branch && year) {
         if (!stats[branch]) {
