@@ -43,8 +43,8 @@ A modern web interface built with **Next.js** for managing college academic data
 
 ### **Academic Records**
 - `student_attendance`: Tracks daily attendance.
-    - **Multi-Slot:** Includes a `slot` column (1-5) to handle multiple lectures per day.
-    - **Unique Constraint:** Composite key on `(student_id, assignment_id, date, slot)`.
+    - **Multi-Session:** Includes a `session` column (1-5) to handle multiple lectures per day.
+    - **Unique Constraint:** Composite key on `(student_id, assignment_id, date, session)`.
 - `student_marks`: Tracks internal performance.
     - **Formula:** Internal Total (30) = `Math.max(Mid1, Mid2) + Assignment`.
 
@@ -53,10 +53,17 @@ A modern web interface built with **Next.js** for managing college academic data
 ## 5. Key Module Documentation
 
 ### **Faculty Management Module**
-- **Dashboard:** Features a Chronological Subject History grouped by Academic Year.
-- **Daily View:** Standard checklist for today's attendance.
-- **Excel Mode (Grid):** A high-performance interactive matrix for bulk editing historical attendance. Uses O(1) map lookups for O(N) rendering.
-- **Bulk Save:** API uses multi-row `INSERT ... ON DUPLICATE KEY UPDATE` for high-speed saves.
+- **Dashboard:** Clearly separates "Active Assignments" from "Subject History" (Ended semesters) based on current chronological time.
+- **Daily View:** 
+    - **Dynamic Session Selector:** Replaces static slots with interactive session tokens (S1-S5).
+    - **Sequential Enforcement:** Sessions must be filled in order (Session 2 is disabled until Session 1 is recorded).
+    - **Bulk Mode:** Option to mark attendance for multiple sessions simultaneously.
+- **Excel Mode (Grid):** 
+    - **Interactive Matrix:** High-performance grid for bulk editing. Columns sorted in Ascending order (Oldest -> Newest).
+    - **Column Actions:** Header buttons to "Mark All Present/Absent" for an entire session.
+    - **Manual Insertion:** Feature to add custom Date/Session columns with smart logical defaults.
+    - **Cell-Level Sequence:** Enforces that a student's Session N cannot be marked if N-1 is empty.
+- **Student History Modal:** Polished UI with a summary section and a "Save Changes" workflow for bulk persistence.
 
 ### **Student Performance Module**
 - **Live Tab:** "Attendance / Mid Marks" shows current subjects and faculty names.
@@ -64,11 +71,10 @@ A modern web interface built with **Next.js** for managing college academic data
     - 🔴 Red: ≤ 50%
     - 🟠 Orange: ≤ 75%
     - 🟢 Green: > 75%
-- **Self-History:** Modal access to personal daily attendance logs.
+- **Self-History:** Modal access to personal daily logs, now including Session numbers (S1, S2, etc.).
 
 ### **Admin Faculty Management**
-- **Tabbed Interface:** Integrated into Admin Dashboard under "Faculty Management".
-- **Decision Engine:** Approve/Reject faculty subject requests for the current running semester.
+- **Decision Engine:** Centralized academic logic ensures admins see all current and pending subject interests across all semesters.
 
 ---
 

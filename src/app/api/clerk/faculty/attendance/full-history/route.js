@@ -21,7 +21,7 @@ export async function GET(request) {
     // If student_id is provided, fetch history for ONE student (existing functionality)
     if (student_id) {
       const [history] = await db.execute(
-        "SELECT DATE_FORMAT(date, '%Y-%m-%d') as date, status, slot FROM student_attendance WHERE student_id = ? AND assignment_id = ? ORDER BY date DESC, slot DESC",
+        "SELECT DATE_FORMAT(date, '%Y-%m-%d') as date, status, session FROM student_attendance WHERE student_id = ? AND assignment_id = ? ORDER BY date DESC, session DESC",
         [student_id, assignment_id]
       );
       return apiResponse({ data: history });
@@ -29,13 +29,13 @@ export async function GET(request) {
 
     // If no student_id, fetch FULL GRID DATA for all students in this assignment
     const [attendance] = await db.execute(
-      "SELECT student_id, DATE_FORMAT(date, '%Y-%m-%d') as date, slot, status FROM student_attendance WHERE assignment_id = ? ORDER BY date DESC, slot DESC",
+      "SELECT student_id, DATE_FORMAT(date, '%Y-%m-%d') as date, session, status FROM student_attendance WHERE assignment_id = ? ORDER BY date ASC, session ASC",
       [assignment_id]
     );
 
-    // Get unique dates/slots for columns
+    // Get unique dates/sessions for columns
     const [uniqueDates] = await db.execute(
-      "SELECT DISTINCT DATE_FORMAT(date, '%Y-%m-%d') as date, slot FROM student_attendance WHERE assignment_id = ? ORDER BY date DESC, slot DESC",
+      "SELECT DISTINCT DATE_FORMAT(date, '%Y-%m-%d') as date, session FROM student_attendance WHERE assignment_id = ? ORDER BY date ASC, session ASC",
       [assignment_id]
     );
 

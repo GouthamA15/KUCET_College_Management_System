@@ -89,6 +89,36 @@ export async function calculateYearAndSemesterAsync(rollNo, collegeInfo = null) 
   };
 }
 
+export function isSemesterActiveSync(semester, assignmentAcademicYear, collegeInfo = null) {
+  const now = getNowSync();
+  const startYear = getEffectiveAcademicYear(collegeInfo, now);
+  const currentAY = `${startYear}-${(startYear + 1).toString().slice(-2)}`;
+
+  if (assignmentAcademicYear !== currentAY) return false;
+
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  const currentTime = currentMonth * 100 + currentDay;
+
+  const firstSemStartMonth = parseInt(collegeInfo?.first_sem_start_month) || 8;
+  const firstSemStartDay = parseInt(collegeInfo?.first_sem_start_day) || 25;
+  const firstSemTime = firstSemStartMonth * 100 + firstSemStartDay;
+
+  const secondSemStartMonth = parseInt(collegeInfo?.second_sem_start_month) || 2;
+  const secondSemStartDay = parseInt(collegeInfo?.second_sem_start_day) || 8;
+  const secondSemTime = secondSemStartMonth * 100 + secondSemStartDay;
+
+  let isOddPeriod = false;
+  if (firstSemTime < secondSemTime) {
+    isOddPeriod = currentTime >= firstSemTime && currentTime < secondSemTime;
+  } else {
+    isOddPeriod = currentTime >= firstSemTime || currentTime < secondSemTime;
+  }
+
+  const isOddSemester = parseInt(semester) % 2 !== 0;
+  return isOddSemester === isOddPeriod;
+}
+
 export async function isSemesterActive(semester, assignmentAcademicYear, collegeInfo = null) {
   const now = await getNow();
   const startYear = getEffectiveAcademicYear(collegeInfo, now);

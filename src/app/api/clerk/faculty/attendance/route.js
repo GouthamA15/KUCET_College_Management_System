@@ -10,9 +10,9 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, date, slot, attendance_data } = body;
+    const { assignment_id, date, session, attendance_data } = body;
 
-    if (!assignment_id || !date || !slot || !Array.isArray(attendance_data)) {
+    if (!assignment_id || !date || !session || !Array.isArray(attendance_data)) {
       return apiError('Missing required fields', 400);
     }
 
@@ -46,12 +46,12 @@ export async function POST(request) {
         // Build a single bulk insert query for high performance
         const values = [];
         const placeholders = attendance_data.map(item => {
-          values.push(item.student_id, assignment_id, date, slot, item.status);
+          values.push(item.student_id, assignment_id, date, session, item.status);
           return '(?, ?, ?, ?, ?)';
         }).join(', ');
 
         const sql = `
-          INSERT INTO student_attendance (student_id, assignment_id, date, slot, status)
+          INSERT INTO student_attendance (student_id, assignment_id, date, session, status)
           VALUES ${placeholders}
           ON DUPLICATE KEY UPDATE status = VALUES(status)
         `;
@@ -83,9 +83,9 @@ export async function DELETE(request) {
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id');
     const date = searchParams.get('date');
-    const slot = searchParams.get('slot');
+    const session = searchParams.get('session');
 
-    if (!assignment_id || !date || !slot) {
+    if (!assignment_id || !date || !session) {
       return apiError('Missing required parameters', 400);
     }
 
@@ -109,8 +109,8 @@ export async function DELETE(request) {
     }
 
     await db.execute(
-      'DELETE FROM student_attendance WHERE assignment_id = ? AND date = ? AND slot = ?',
-      [assignment_id, date, slot]
+      'DELETE FROM student_attendance WHERE assignment_id = ? AND date = ? AND session = ?',
+      [assignment_id, date, session]
     );
 
     return apiResponse({ message: 'Attendance for the selected date has been deleted' });

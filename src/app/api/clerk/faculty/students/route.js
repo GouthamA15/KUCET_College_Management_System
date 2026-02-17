@@ -11,7 +11,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id');
-    const slot = searchParams.get('slot') || 1;
+    const session = searchParams.get('session') || 1;
 
     if (!assignment_id) {
       return apiError('Assignment ID is required', 400);
@@ -64,11 +64,11 @@ export async function GET(request) {
         (SELECT COUNT(*) FROM student_attendance WHERE student_id = s.id AND assignment_id = ?) as total_classes,
         (SELECT COUNT(*) FROM student_attendance WHERE student_id = s.id AND assignment_id = ? AND status = 'PRESENT') as attended_classes
       FROM students s
-      LEFT JOIN student_attendance curr_sa ON s.id = curr_sa.student_id AND curr_sa.assignment_id = ? AND curr_sa.date = CURDATE() AND curr_sa.slot = ?
+      LEFT JOIN student_attendance curr_sa ON s.id = curr_sa.student_id AND curr_sa.assignment_id = ? AND curr_sa.date = CURDATE() AND curr_sa.session = ?
       LEFT JOIN student_marks sm ON s.id = sm.student_id AND sm.assignment_id = ?
       WHERE (s.roll_no LIKE ?
     `;
-    let queryParams = [assignment_id, assignment_id, assignment_id, slot, assignment_id, regularPattern];
+    let queryParams = [assignment_id, assignment_id, assignment_id, session, assignment_id, regularPattern];
 
     if (studyingYear >= 2) {
       studentsQuery += ' OR s.roll_no LIKE ?';

@@ -10,7 +10,6 @@ BRANCH: CIVIL
     - ESC101: Basic Electrical Engineering [SUB]
     - ESC101L: Basic Electrical Engineering Lab [LAB]
     - ESC102: Engineering Graphics & Design [SUB]
-    - ESC102L: Engineering Graphics & Design Lab [LAB]
   SEMESTER 2:
     - BSC102: Chemistry [SUB]
     - BSC102L: Chemistry Laboratory [LAB]
@@ -109,7 +108,6 @@ BRANCH: CSD
     - ESC101: Basic Electrical Engineering [SUB]
     - ESC101L: Basic Electrical Engineering Lab [LAB]
     - ESC102: Engineering Graphics & Design [SUB]
-    - ESC102L: Engineering Graphics & Design Lab [LAB]
   SEMESTER 2:
     - BSC102: Chemistry [SUB]
     - BSC102L: Chemistry Laboratory [LAB]
@@ -200,7 +198,6 @@ BRANCH: CSE
     - ESC101: Basic Electrical Engineering [SUB]
     - ESC101L: Basic Electrical Engineering Lab [LAB]
     - ESC102: Engineering Graphics & Design [SUB]
-    - ESC102L: Engineering Graphics & Design Lab [LAB]
     - ESC104: Engineering Mechanics [SUB]
   SEMESTER 2:
     - BSC102: Chemistry [SUB]
@@ -298,7 +295,6 @@ BRANCH: ECE
     - ESC101: Basic Electrical Engineering [SUB]
     - ESC101L: Basic Electrical Engineering Lab [LAB]
     - ESC102: Engineering Graphics & Design [SUB]
-    - ESC102L: Engineering Graphics & Design Lab [LAB]
     - ESC104: Engineering Mechanics [SUB]
   SEMESTER 2:
     - BSC102: Chemistry [SUB]
@@ -398,7 +394,6 @@ BRANCH: EEE
     - ESC101: Basic Electrical Engineering [SUB]
     - ESC101L: Basic Electrical Engineering Lab [LAB]
     - ESC102: Engineering Graphics & Design [SUB]
-    - ESC102L: Engineering Graphics & Design Lab [LAB]
     - ESC104: Engineering Mechanics [SUB]
   SEMESTER 2:
     - BSC102: Chemistry [SUB]
@@ -488,7 +483,6 @@ BRANCH: IT
     - ESC101: Basic Electrical Engineering [SUB]
     - ESC101L: Basic Electrical Engineering Lab [LAB]
     - ESC102: Engineering Graphics & Design [SUB]
-    - ESC102L: Engineering Graphics & Design Lab [LAB]
     - ESC104: Engineering Mechanics [SUB]
   SEMESTER 2:
     - BSC102: Chemistry [SUB]
@@ -588,7 +582,6 @@ BRANCH: MECH
     - ESC101: Basic Electrical Engineering [SUB]
     - ESC101L: Basic Electrical Engineering Lab [LAB]
     - ESC102: Engineering Graphics & Design [SUB]
-    - ESC102L: Engineering Graphics & Design Lab [LAB]
   SEMESTER 2:
     - BSC102: Chemistry [SUB]
     - BSC102L: Chemistry Laboratory [LAB]
