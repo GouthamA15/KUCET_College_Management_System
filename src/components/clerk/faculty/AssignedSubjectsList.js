@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
-export default function AssignedSubjectsList({ onSelectAssignment, showActions = true }) {
+export default function AssignedSubjectsList({ onSelectAssignment = () => {}, showActions = true }) {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,7 +79,7 @@ export default function AssignedSubjectsList({ onSelectAssignment, showActions =
                     </div>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex gap-3" style={{ display: 'none' }}>
                     <button
                       onClick={() => onSelectAssignment(asgn, 'attendance')}
                       className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-black hover:bg-indigo-700 shadow-lg shadow-indigo-100 active:scale-95 transition-all"

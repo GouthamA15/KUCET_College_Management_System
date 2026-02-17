@@ -7,6 +7,7 @@ import Footer from '@/app/components/Footer/Footer';
 import { useClerk } from '@/context/ClerkContext';
 import AssignedSubjectsList from '@/components/clerk/faculty/AssignedSubjectsList';
 import SubjectInterestForm from '@/components/clerk/faculty/SubjectInterestForm';
+import InterestStatusList from '@/components/clerk/faculty/InterestStatusList';
 import ClassList from '@/components/clerk/faculty/ClassList';
 
 export default function FacultyDashboardOverview() {
@@ -91,11 +92,11 @@ export default function FacultyDashboardOverview() {
           <div className="space-y-4">
             <button onClick={() => setActiveSection(null)} className="text-[#0b3578] hover:underline font-medium">&larr; Back to overview</button>
             {activeSection === 'subjects' && (
-              totalAssigned > 0 ? (
+              <>
                 <AssignedSubjectsList showActions={false} />
-              ) : (
                 <SubjectInterestForm onInterestSubmitted={fetchAssignments} />
-              )
+                <InterestStatusList />
+              </>
             )}
             {activeSection === 'timetable' && (
               <div className="bg-white border rounded p-6 text-gray-600">Timetable module is under development and will be available soon.</div>

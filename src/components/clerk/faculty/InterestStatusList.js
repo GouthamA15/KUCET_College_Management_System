@@ -27,7 +27,7 @@ export default function InterestStatusList() {
   if (loading) return <div className="text-center py-4">Loading your interests...</div>;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md mt-6">
+    <div className="bg-white p-6 rounded-lg shadow-md mt-6 mb-6">
       <h2 className="text-xl font-semibold mb-4">Your Expressed Interests Status</h2>
       {interests.length > 0 ? (
         <div className="overflow-x-auto">
