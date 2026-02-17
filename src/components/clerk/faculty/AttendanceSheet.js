@@ -103,6 +103,15 @@ export default function AttendanceSheet({ assignment, onBack }) {
       return;
     }
 
+    // Sequential Check: Cannot add Session 2 if Session 1 doesn't exist for this date
+    if (newColSession > 1) {
+      const prevExists = uniqueDates.some(d => d.date === newColDate && d.session === newColSession - 1);
+      if (!prevExists) {
+        toast.error(`Please add Session ${newColSession - 1} for ${newColDate} first`);
+        return;
+      }
+    }
+
     const newUniqueDates = [...uniqueDates, { date: newColDate, session: newColSession }].sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return a.session - b.session;
@@ -124,6 +133,17 @@ export default function AttendanceSheet({ assignment, onBack }) {
   const handleBulkColumnUpdate = async (dateStr, session, status) => {
     if (!assignment.is_active || submitting) return;
     
+    // Sequential Check: Can we mark this entire column?
+    if (session > 1) {
+      const prevSessionKey = (studentId) => `${studentId}-${dateStr}-${session - 1}`;
+      const anyPrevEmpty = students.some(s => (attendanceMap[prevSessionKey(s.id)] || 'N/A') === 'N/A');
+      
+      if (anyPrevEmpty) {
+        toast.error(`Cannot bulk update Session ${session} because some students have no records for Session ${session - 1}`);
+        return;
+      }
+    }
+
     const confirmed = confirm(`Mark all students as ${status} for ${dateStr} Session ${session}?`);
     if (!confirmed) return;
 
@@ -708,16 +728,30 @@ export default function AttendanceSheet({ assignment, onBack }) {
                         {/* Column Actions */}
                         {assignment.is_active && (
                           <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => handleBulkColumnUpdate(col.date, col.session, 'PRESENT')}
-                              title="Mark all Present"
-                              className="w-6 h-6 rounded bg-green-50 text-green-600 hover:bg-green-600 hover:text-white transition-colors flex items-center justify-center border border-green-200"
-                            >P</button>
-                            <button 
-                              onClick={() => handleBulkColumnUpdate(col.date, col.session, 'ABSENT')}
-                              title="Mark all Absent"
-                              className="w-6 h-6 rounded bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors flex items-center justify-center border border-red-200"
-                            >A</button>
+                            {/* Sequential Logic Check for the Header Button Visibility */}
+                            {(() => {
+                              const isBlocked = col.session > 1 && students.some(s => (attendanceMap[`${s.id}-${col.date}-${col.session - 1}`] || 'N/A') === 'N/A');
+                              return (
+                                <>
+                                  <button 
+                                    onClick={() => handleBulkColumnUpdate(col.date, col.session, 'PRESENT')}
+                                    title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Present"}
+                                    disabled={isBlocked}
+                                    className={`w-6 h-6 rounded flex items-center justify-center border transition-colors ${
+                                      isBlocked ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : 'bg-green-50 text-green-600 hover:bg-green-600 hover:text-white border-green-200'
+                                    }`}
+                                  >P</button>
+                                  <button 
+                                    onClick={() => handleBulkColumnUpdate(col.date, col.session, 'ABSENT')}
+                                    title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Absent"}
+                                    disabled={isBlocked}
+                                    className={`w-6 h-6 rounded flex items-center justify-center border transition-colors ${
+                                      isBlocked ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border-red-200'
+                                    }`}
+                                  >A</button>
+                                </>
+                              );
+                            })()}
                           </div>
                         )}
                       </th>

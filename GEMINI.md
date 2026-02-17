@@ -60,8 +60,8 @@ A modern web interface built with **Next.js** for managing college academic data
     - **Bulk Mode:** Option to mark attendance for multiple sessions simultaneously.
 - **Excel Mode (Grid):** 
     - **Interactive Matrix:** High-performance grid for bulk editing. Columns sorted in Ascending order (Oldest -> Newest).
-    - **Column Actions:** Header buttons to "Mark All Present/Absent" for an entire session.
-    - **Manual Insertion:** Feature to add custom Date/Session columns with smart logical defaults.
+    - **Protected Column Actions:** Header buttons to "Mark All Present/Absent" for an entire session, which are automatically disabled if the preceding session is incomplete.
+    - **Manual Insertion:** Feature to add custom Date/Session columns with smart logical defaults and strict sequential verification (e.g., prevents adding Session 2 if Session 1 is missing).
     - **Cell-Level Sequence:** Enforces that a student's Session N cannot be marked if N-1 is empty.
 - **Student History Modal:** Polished UI with a summary section and a "Save Changes" workflow for bulk persistence.
 
