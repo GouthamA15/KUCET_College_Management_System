@@ -9,7 +9,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { interest_id, status, section } = body;
+    const { interest_id, status } = body;
 
     if (!interest_id || !status) {
       return apiError('Missing required fields', 400);
@@ -46,8 +46,8 @@ export async function POST(request) {
       if (status === 'APPROVED') {
         // Create assignment
         await connection.execute(
-          'INSERT INTO faculty_subject_assignments (faculty_id, subject_code, subject_name, branch, semester, academic_year, section) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [interest.faculty_id, interest.subject_code, interest.subject_name, interest.branch, interest.semester, interest.academic_year, section || 'A']
+          'INSERT INTO faculty_subject_assignments (faculty_id, subject_code, subject_name, branch, semester, academic_year) VALUES (?, ?, ?, ?, ?, ?)',
+          [interest.faculty_id, interest.subject_code, interest.subject_name, interest.branch, interest.semester, interest.academic_year]
         );
       }
 

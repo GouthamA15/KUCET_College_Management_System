@@ -1,5 +1,6 @@
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { getDb } from '@/lib/db';
+import { getNow } from '@/lib/clock';
 
 export async function GET(request) {
   try {
@@ -11,7 +12,7 @@ export async function GET(request) {
     const db = getDb();
     
     // Get current academic year and semester type
-    const now = new Date();
+    const now = await getNow();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     let academicYear = '';
