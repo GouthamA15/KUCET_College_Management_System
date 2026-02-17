@@ -70,9 +70,10 @@ export default function AcademicTab() {
               ) : historyData.length > 0 ? (
                 <div className="grid grid-cols-2 gap-3">
                   {historyData.map((record, i) => (
-                    <div key={i} className={`p-3 rounded-lg border text-center ${record.status === 'PRESENT' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                    <div key={i} className={`p-3 rounded-lg border relative overflow-hidden ${record.status === 'PRESENT' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
                       <div className="text-sm font-bold">{new Date(record.date).toLocaleDateString()}</div>
                       <div className="text-[10px] font-black uppercase tracking-widest">{record.status}</div>
+                      <div className="absolute top-1 right-1 bg-white/50 px-1.5 py-0.5 rounded text-[8px] font-bold">S{record.session}</div>
                     </div>
                   ))}
                 </div>

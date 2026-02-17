@@ -18,7 +18,7 @@ export async function GET(request) {
 
     const db = getDb();
     const [history] = await db.execute(
-      'SELECT date, status FROM student_attendance WHERE student_id = ? AND assignment_id = ? ORDER BY date DESC',
+      'SELECT date, status, session FROM student_attendance WHERE student_id = ? AND assignment_id = ? ORDER BY date DESC, session DESC',
       [student_id, assignment_id]
     );
 
