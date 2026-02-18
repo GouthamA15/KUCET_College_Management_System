@@ -22,6 +22,7 @@ export default function EditProfilePage() {
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(true);
   const [sigLoading, setSigLoading] = useState(true);
+  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
   
   // Profile/Signature States
   const [pfpDataUrl, setPfpDataUrl] = useState(null);
@@ -73,6 +74,8 @@ export default function EditProfilePage() {
       }
     } catch (err) {
       console.error('Failed to fetch profile data:', err);
+    } finally {
+      setProfileDataLoaded(true);
     }
   }
 
@@ -217,7 +220,11 @@ export default function EditProfilePage() {
                 {/* Photo Section */}
                 <div className="relative w-44">
                   <div className={`w-44 h-44 rounded-full border-4 ${pfpDataUrl ? 'border-indigo-400' : 'border-gray-300'} overflow-hidden flex items-center justify-center bg-gray-100 relative transition-colors`}>
-                    {displayedPhoto ? (
+                    {!profileDataLoaded ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                            <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+                        </div>
+                    ) : displayedPhoto ? (
                       <>
                         {photoLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
@@ -263,7 +270,11 @@ export default function EditProfilePage() {
                 <div className="mt-8 w-full flex flex-col items-center md:items-start">
                   <div className="text-sm font-semibold mb-2 text-gray-700">Signature</div>
                   <div className={`w-44 h-24 border-2 ${signatureDataUrl ? 'border-indigo-400 border-solid bg-indigo-50/30' : 'border-dashed border-gray-300 bg-gray-50'} rounded flex items-center justify-center overflow-hidden relative group transition-all`}>
-                    {displayedSignature ? (
+                    {!profileDataLoaded ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                            <div className="animate-spin h-6 w-6 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+                        </div>
+                    ) : displayedSignature ? (
                       <>
                         {sigLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
