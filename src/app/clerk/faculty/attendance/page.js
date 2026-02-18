@@ -6,6 +6,7 @@ import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/app/components/Footer/Footer';
 import { useClerk } from '@/context/ClerkContext';
 import AttendanceSheet from '@/components/clerk/faculty/AttendanceSheet';
+import MobileAttendanceSheet from '@/components/clerk/faculty/MobileAttendanceSheet';
 
 export default function FacultyAttendancePage() {
   const { clerkData: clerk, loading: isLoading } = useClerk();
@@ -92,7 +93,14 @@ export default function FacultyAttendancePage() {
             </div>
           )
         ) : (
-          <AttendanceSheet assignment={selectedAssignment} onBack={resetSelection} />
+          <>
+            <div className="hidden md:block">
+              <AttendanceSheet assignment={selectedAssignment} onBack={resetSelection} />
+            </div>
+            <div className="block md:hidden">
+              <MobileAttendanceSheet assignment={selectedAssignment} onBack={resetSelection} />
+            </div>
+          </>
         )}
       </main>
       <Footer />

@@ -3,17 +3,17 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { getNowSync } from '@/lib/clock';
 
-const SubjectIdentityPanel = ({ assignment }) => (
+const MobileSubjectIdentityPanel = ({ assignment }) => (
   <div className="bg-white border-2 border-gray-200 p-4 rounded-lg mb-6">
-    <div className="flex justify-between items-center border-b-2 border-gray-200 pb-2 mb-4">
-      <h2 className="text-xl font-bold text-gray-800">Attendance Register</h2>
-      <span className={`text-sm font-bold px-3 py-1 rounded-full ${assignment.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+    <div className="border-b-2 border-gray-200 pb-2 mb-4">
+      <h2 className="text-lg font-bold text-gray-800">Attendance Register</h2>
+      <span className={`text-xs font-bold px-3 py-1 rounded-full ${assignment.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
         {assignment.is_active ? 'Active' : 'History'}
       </span>
     </div>
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
       <div className="font-semibold text-gray-500">Subject:</div>
-      <div className="font-mono text-gray-900 col-span-3">{assignment.subject_name}</div>
+      <div className="font-mono text-gray-900">{assignment.subject_name}</div>
 
       <div className="font-semibold text-gray-500">Code:</div>
       <div className="font-mono text-gray-900">{assignment.subject_code}</div>
@@ -31,7 +31,7 @@ const SubjectIdentityPanel = ({ assignment }) => (
 );
 
 
-export default function AttendanceSheet({ assignment, onBack }) {
+export default function MobileAttendanceSheet({ assignment, onBack }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(getNowSync().toISOString().split('T')[0]);
@@ -389,7 +389,7 @@ export default function AttendanceSheet({ assignment, onBack }) {
       </button>
 
       {/* Subject Identity Panel */}
-      <SubjectIdentityPanel assignment={assignment} />
+      <MobileSubjectIdentityPanel assignment={assignment} />
 
       {/* View Mode Toggle */}
       <div className="mb-6">
@@ -410,13 +410,13 @@ export default function AttendanceSheet({ assignment, onBack }) {
       </div>
 
       {/* Controls and Tables */}
-      <div className="bg-white p-4 sm:p-6 rounded-lg border-2">
+      <div className="bg-white p-4 rounded-lg border-2">
         {viewMode === 'daily' && (
           <>
             {/* Daily Attendance Controls */}
             <div className="mb-6 pb-4 border-b-2">
               <h3 className="text-lg font-bold text-gray-700 mb-4">Attendance Management</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex flex-col gap-4">
                 {/* Date Selector */}
                 <div className="flex flex-col">
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Date</label>
@@ -446,7 +446,7 @@ export default function AttendanceSheet({ assignment, onBack }) {
                       <span className="text-[10px] font-bold text-gray-400 group-hover:text-indigo-600 uppercase">Bulk Mode</span>
                     </label>
                   </div>
-                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg border-2">
+                  <div className="flex flex-wrap gap-2 bg-gray-100 p-1 rounded-lg border-2">
                     {[1, 2, 3, 4, 5].map(num => {
                       const isExisting = existingSessionsForToday.includes(num);
                       const isSelected = isBulkMode ? bulkSessions.includes(num) : selectedSession === num;
@@ -456,7 +456,7 @@ export default function AttendanceSheet({ assignment, onBack }) {
                           key={num}
                           onClick={() => isBulkMode ? toggleBulkSession(num) : setSelectedSession(num)}
                           disabled={!assignment.is_active || !isAvailable}
-                          className={`flex-1 h-10 rounded-md text-xs font-bold transition-all flex items-center justify-center relative ${
+                          className={`flex-grow h-10 rounded-md text-xs font-bold transition-all flex items-center justify-center relative min-w-[60px] ${
                             isSelected ? 'bg-indigo-600 text-white shadow-md scale-105 z-10' :
                             isExisting ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200' :
                             isAvailable ? 'bg-white text-gray-600 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -471,24 +471,24 @@ export default function AttendanceSheet({ assignment, onBack }) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col justify-end">
+                <div className="flex flex-col gap-2">
                   {assignment.is_active ? (
-                    <div className="flex space-x-2 justify-end">
-                      <button
-                        onClick={handleDeleteAttendance}
-                        disabled={submitting || (isBulkMode ? bulkSessions.length === 0 : !existingSessionsForToday.includes(selectedSession))}
-                        className="bg-white text-red-600 border-2 border-red-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-50 disabled:opacity-50 transition"
-                      >
-                        Delete
-                      </button>
+                    <>
                       <button
                         onClick={handleSaveAttendance}
                         disabled={submitting}
-                        className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 transition"
+                        className="bg-indigo-600 text-white w-full py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 transition"
                       >
                         {submitting ? 'Saving...' : 'Save'}
                       </button>
-                    </div>
+                      <button
+                        onClick={handleDeleteAttendance}
+                        disabled={submitting || (isBulkMode ? bulkSessions.length === 0 : !existingSessionsForToday.includes(selectedSession))}
+                        className="bg-white text-red-600 border-2 border-red-200 w-full py-2 rounded-lg font-bold text-sm hover:bg-red-50 disabled:opacity-50 transition"
+                      >
+                        Delete
+                      </button>
+                    </>
                   ) : (
                     <div className="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold text-xs border uppercase tracking-wider text-center">Semester Ended</div>
                   )}
@@ -496,50 +496,54 @@ export default function AttendanceSheet({ assignment, onBack }) {
               </div>
             </div>
 
-            {/* Daily View Table */}
-            <table className="min-w-full divide-y-2 divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Roll No</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance %</th>
-                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">History</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {students.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">{student.roll_no}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{student.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${getPercentageColor(student.attendance_percentage)}`}>
-                        {student.attendance_percentage.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <button
-                        onClick={() => assignment.is_active && toggleStatus(student.id)}
-                        disabled={!assignment.is_active}
-                        className={`px-3 py-1 rounded text-xs font-bold uppercase ${
-                          student.status === 'PRESENT' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        } ${!assignment.is_active ? 'cursor-default' : 'cursor-pointer'}`}
-                      >
-                        {student.status}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => fetchStudentHistory(student)}
-                        className="text-indigo-600 hover:text-indigo-900 font-semibold"
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* Daily View Student Cards */}
+            <div className="mt-6">
+              {students.length > 0 ? (
+                students.map((student) => (
+                  <div key={student.id} className="bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm">
+                    <div className="grid grid-cols-2 gap-y-1 text-sm">
+                      <div className="font-semibold text-gray-600">Roll No:</div>
+                      <div className="font-mono text-gray-800 text-right">{student.roll_no}</div>
+
+                      <div className="font-semibold text-gray-600">Name:</div>
+                      <div className="text-gray-800 text-right">{student.name}</div>
+
+                      <div className="font-semibold text-gray-600">Attendance %:</div>
+                      <div className="text-right">
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${getPercentageColor(student.attendance_percentage)}`}>
+                          {student.attendance_percentage.toFixed(1)}%
+                        </span>
+                      </div>
+
+                      <div className="font-semibold text-gray-600">Status:</div>
+                      <div className="text-right">
+                        <button
+                          onClick={() => assignment.is_active && toggleStatus(student.id)}
+                          disabled={!assignment.is_active}
+                          className={`px-3 py-1 rounded text-xs font-bold uppercase ${
+                            student.status === 'PRESENT' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          } ${!assignment.is_active ? 'cursor-default' : 'cursor-pointer'}`}
+                        >
+                          {student.status}
+                        </button>
+                      </div>
+
+                      <div className="font-semibold text-gray-600">History:</div>
+                      <div className="text-right">
+                        <button
+                          onClick={() => fetchStudentHistory(student)}
+                          className="text-indigo-600 hover:text-indigo-900 font-semibold"
+                        >
+                          View
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">No students found.</div>
+              )}
+            </div>
           </>
         )}
 
@@ -575,25 +579,25 @@ export default function AttendanceSheet({ assignment, onBack }) {
             </div>
 
             {/* Excel/Grid Mode Table */}
-            <div className="overflow-x-auto border-2 rounded-lg">
+            <div className="overflow-x-auto border-2 rounded-lg text-xs"> {/* Added text-xs here */}
               {loadingGrid ? <div className="text-center py-12">Loading full attendance grid...</div>
               : uniqueDates.length > 0 ? (
                 <table className="min-w-full divide-y-2 divide-gray-200 border-collapse">
                   <thead className="bg-gray-100 sticky top-0 z-10">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-gray-100 px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase border-r-2 border-b-2 tracking-wider">
+                      <th className="sticky left-0 z-20 bg-gray-100 px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase border-r-2 border-b-2 tracking-wider">
                         Student
                       </th>
                       {uniqueDates.map((col, i) => (
-                        <th key={i} className="px-2 py-3 text-center text-[10px] font-bold text-gray-500 uppercase border-b-2 border-r-2 min-w-[120px] relative group">
+                        <th key={i} className="px-1 py-2 text-center text-[8px] font-bold text-gray-500 uppercase border-b-2 border-r-2 min-w-[80px] relative group"> {/* Reduced min-w and font size */}
                           <div className="whitespace-nowrap mb-1">{new Date(col.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</div>
-                          <div className="text-indigo-600 mb-2 font-black">SESSION {col.session}</div>
+                          <div className="text-indigo-600 mb-2 font-black">S{col.session}</div> {/* Changed to S{col.session} */}
                           {assignment.is_active && (() => {
                             const isBlocked = col.session > 1 && students.some(s => (attendanceMap[`${s.id}-${col.date}-${col.session - 1}`] || 'N/A') === 'N/A');
                             return (
-                              <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleBulkColumnUpdate(col.date, col.session, 'PRESENT')} title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Present"} disabled={isBlocked} className={`w-7 h-6 rounded flex items-center justify-center border transition-colors ${ isBlocked ? 'bg-gray-200 text-gray-300' : 'bg-green-100 text-green-600 hover:bg-green-600 hover:text-white' }`}>P</button>
-                                <button onClick={() => handleBulkColumnUpdate(col.date, col.session, 'ABSENT')} title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Absent"} disabled={isBlocked} className={`w-7 h-6 rounded flex items-center justify-center border transition-colors ${ isBlocked ? 'bg-gray-200 text-gray-300' : 'bg-red-100 text-red-600 hover:bg-red-600 hover:text-white' }`}>A</button>
+                              <div className="flex justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"> {/* Reduced gap */}
+                                <button onClick={() => handleBulkColumnUpdate(col.date, col.session, 'PRESENT')} title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Present"} disabled={isBlocked} className={`w-5 h-5 rounded flex items-center justify-center border text-[8px] transition-colors ${ isBlocked ? 'bg-gray-200 text-gray-300' : 'bg-green-100 text-green-600 hover:bg-green-600 hover:text-white' }`}>P</button>
+                                <button onClick={() => handleBulkColumnUpdate(col.date, col.session, 'ABSENT')} title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Absent"} disabled={isBlocked} className={`w-5 h-5 rounded flex items-center justify-center border text-[8px] transition-colors ${ isBlocked ? 'bg-gray-200 text-gray-300' : 'bg-red-100 text-red-600 hover:bg-red-600 hover:text-white' }`}>A</button>
                               </div>
                             );
                           })()}
@@ -604,9 +608,9 @@ export default function AttendanceSheet({ assignment, onBack }) {
                   <tbody className="bg-white divide-y-2 divide-gray-100">
                     {students.map((student) => (
                       <tr key={student.id} className="hover:bg-gray-50">
-                        <td className="sticky left-0 z-10 bg-white px-4 py-2 whitespace-nowrap border-r-2 shadow-[3px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                          <div className="text-sm font-bold text-gray-900">{student.roll_no}</div>
-                          <div className="text-xs text-gray-500 truncate max-w-[150px]">{student.name}</div>
+                        <td className="sticky left-0 z-10 bg-white px-2 py-2 whitespace-nowrap border-r-2 shadow-[3px_0_5px_-2px_rgba(0,0,0,0.05)]"> {/* Reduced padding */}
+                          <div className="text-[11px] font-bold text-gray-900">{student.roll_no}</div> {/* Reduced font size */}
+                          <div className="text-[9px] text-gray-500 truncate max-w-[100px]">{student.name}</div> {/* Reduced font size and max-w */}
                         </td>
                         {uniqueDates.map((col, i) => {
                           const status = attendanceMap[`${student.id}-${col.date}-${col.session}`] || 'N/A';
@@ -617,7 +621,7 @@ export default function AttendanceSheet({ assignment, onBack }) {
                               <button
                                 onClick={() => handleToggleCell(student.id, col.date, col.session, status)}
                                 disabled={isDisabled}
-                                className={`w-full h-14 text-sm font-black transition-all ${
+                                className={`w-full h-10 text-[10px] font-black transition-all ${ // Reduced height and font size
                                   status === 'PRESENT' ? 'bg-green-50 text-green-700' : 
                                   status === 'ABSENT' ? 'bg-red-50 text-red-700' : 
                                   isPrevEmpty ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-white text-gray-400 hover:bg-gray-50'
