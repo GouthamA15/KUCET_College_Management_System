@@ -90,7 +90,7 @@ export default function FacultyDashboardOverview() {
         {/* Active Section Rendering */}
         {activeSection && (
           <div className="space-y-4">
-            <button onClick={() => setActiveSection(null)} className="text-[#0b3578] hover:underline font-medium">&larr; Back to overview</button>
+            <button onClick={() => setActiveSection(null)} className="text-[#0b3578] hover:underline font-medium">&larr; Back to Home</button>
             {activeSection === 'subjects' && (
               <>
                 <AssignedSubjectsList showActions={false} />

@@ -3,6 +3,34 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { getNowSync } from '@/lib/clock';
 
+const SubjectIdentityPanel = ({ assignment }) => (
+  <div className="bg-white border-2 border-gray-200 p-4 rounded-lg mb-6">
+    <div className="flex justify-between items-center border-b-2 border-gray-200 pb-2 mb-4">
+      <h2 className="text-xl font-bold text-gray-800">Attendance Register</h2>
+      <span className={`text-sm font-bold px-3 py-1 rounded-full ${assignment.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+        {assignment.is_active ? 'Active' : 'History'}
+      </span>
+    </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
+      <div className="font-semibold text-gray-500">Subject:</div>
+      <div className="font-mono text-gray-900 col-span-3">{assignment.subject_name}</div>
+
+      <div className="font-semibold text-gray-500">Code:</div>
+      <div className="font-mono text-gray-900">{assignment.subject_code}</div>
+
+      <div className="font-semibold text-gray-500">Branch:</div>
+      <div className="font-mono text-gray-900">{assignment.branch}</div>
+
+      <div className="font-semibold text-gray-500">Semester:</div>
+      <div className="font-mono text-gray-900">{assignment.semester}</div>
+
+      <div className="font-semibold text-gray-500">Academic Year:</div>
+      <div className="font-mono text-gray-900">{assignment.academic_year}</div>
+    </div>
+  </div>
+);
+
+
 export default function AttendanceSheet({ assignment, onBack }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -180,13 +208,10 @@ export default function AttendanceSheet({ assignment, onBack }) {
   const handleToggleCell = async (studentId, dateStr, session, currentStatus) => {
     if (!assignment.is_active) return;
     
-    // Cycle: N/A (+) -> PRESENT (P) -> ABSENT (A) -> PRESENT (P)
     let newStatus = 'PRESENT';
     if (currentStatus === 'PRESENT') newStatus = 'ABSENT';
     else if (currentStatus === 'ABSENT') newStatus = 'PRESENT';
-    // If currentStatus is 'N/A', it will default to 'PRESENT'
     
-    // Optimistic local update
     const newRecord = { student_id: studentId, date: dateStr, session: session, status: newStatus };
     setAllAttendance(prev => {
       const filtered = prev.filter(a => !(a.student_id === studentId && a.date === dateStr && a.session === session));
@@ -205,7 +230,6 @@ export default function AttendanceSheet({ assignment, onBack }) {
         })
       });
       if (!res.ok) throw new Error('Update failed');
-      // If this was a new session, refresh grid data to update existingSessionsForToday
       if (!uniqueDates.some(d => d.date === dateStr && d.session === session)) {
         fetchGridData();
       }
@@ -236,7 +260,6 @@ export default function AttendanceSheet({ assignment, onBack }) {
 
     setSavingHistory(true);
     try {
-      // Execute saves sequentially or in parallel
       const savePromises = changes.map(change => 
         fetch('/api/clerk/faculty/attendance', {
           method: 'POST',
@@ -252,7 +275,7 @@ export default function AttendanceSheet({ assignment, onBack }) {
 
       await Promise.all(savePromises);
       toast.success(`Updated ${changes.length} records`);
-      fetchStudents(); // Refresh percentages
+      fetchStudents(); 
       setHistoryStudent(null);
     } catch (error) {
       toast.error('Failed to save some changes');
@@ -262,7 +285,6 @@ export default function AttendanceSheet({ assignment, onBack }) {
   };
 
   useEffect(() => {
-    // Always fetch grid data to know existing sessions
     fetchGridData();
   }, [assignment.id]);
 
@@ -282,12 +304,8 @@ export default function AttendanceSheet({ assignment, onBack }) {
     setSubmitting(true);
     try {
       const sessionsToSave = isBulkMode ? bulkSessions : [selectedSession];
+      if (sessionsToSave.length === 0) throw new Error('Please select at least one session');
       
-      if (sessionsToSave.length === 0) {
-        throw new Error('Please select at least one session');
-      }
-
-      // Execute saves in parallel
       const savePromises = sessionsToSave.map(sessionNum => 
         fetch('/api/clerk/faculty/attendance', {
           method: 'POST',
@@ -306,8 +324,8 @@ export default function AttendanceSheet({ assignment, onBack }) {
       if (firstError) throw new Error(firstError.data.error || 'Failed to save attendance');
 
       toast.success(isBulkMode ? `Attendance saved for ${sessionsToSave.length} sessions` : 'Attendance saved successfully');
-      fetchStudents(); // Refresh to update percentages
-      fetchGridData(); // Update existing sessions
+      fetchStudents();
+      fetchGridData();
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -334,8 +352,8 @@ export default function AttendanceSheet({ assignment, onBack }) {
       if (firstError) throw new Error(firstError.data.error || 'Failed to delete attendance');
 
       toast.success('Attendance deleted successfully');
-      fetchStudents(); // Refresh to update percentages
-      fetchGridData(); // Update existing sessions
+      fetchStudents();
+      fetchGridData();
       if (!isBulkMode) setSelectedSession(1);
     } catch (error) {
       toast.error(error.message);
@@ -347,47 +365,291 @@ export default function AttendanceSheet({ assignment, onBack }) {
   const toggleBulkSession = (num) => {
     setBulkSessions(prev => {
       if (prev.includes(num)) {
-        // Removing: also remove all sessions AFTER this one to maintain sequence
         return prev.filter(n => n < num);
       } else {
-        // Adding: handled by the 'isAvailable' logic in the button disabled prop
         return [...prev, num].sort();
       }
     });
   };
 
   const getPercentageColor = (pct) => {
-    if (pct <= 50) return 'text-red-600 bg-red-50 border-red-200';
-    if (pct <= 75) return 'text-orange-600 bg-orange-50 border-orange-200';
-    return 'text-green-600 bg-green-50 border-green-200';
+    if (pct <= 50) return 'text-red-700 bg-red-100';
+    if (pct <= 75) return 'text-orange-700 bg-orange-100';
+    return 'text-green-700 bg-green-100';
   };
 
   if (loading && !uniqueDates.length) return <div className="text-center py-4">Loading students...</div>;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md mt-6">
-      {/* History Modal Overlay */}
+    <div>
+      {/* Back Button */}
+      <button onClick={onBack} className="text-sm font-medium text-indigo-600 hover:text-indigo-800 mb-4 inline-flex items-center">
+        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+        Back to Subjects
+      </button>
+
+      {/* Subject Identity Panel */}
+      <SubjectIdentityPanel assignment={assignment} />
+
+      {/* View Mode Toggle */}
+      <div className="mb-6">
+        <div className="flex bg-gray-100 p-1 rounded-lg w-fit border">
+          <button
+            onClick={() => setViewMode('daily')}
+            className={`px-4 py-1.5 rounded-md text-sm font-bold transition ${viewMode === 'daily' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Daily View
+          </button>
+          <button
+            onClick={() => setViewMode('excel')}
+            className={`px-4 py-1.5 rounded-md text-sm font-bold transition ${viewMode === 'excel' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Excel Mode (Grid)
+          </button>
+        </div>
+      </div>
+
+      {/* Controls and Tables */}
+      <div className="bg-white p-4 sm:p-6 rounded-lg border-2">
+        {viewMode === 'daily' && (
+          <>
+            {/* Daily Attendance Controls */}
+            <div className="mb-6 pb-4 border-b-2">
+              <h3 className="text-lg font-bold text-gray-700 mb-4">Attendance Management</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Date Selector */}
+                <div className="flex flex-col">
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Date</label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="p-2 border-2 rounded-lg text-sm bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full"
+                    disabled={!assignment.is_active}
+                  />
+                </div>
+                
+                {/* Session Selector */}
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-gray-500 uppercase">Sessions</label>
+                    <label className="flex items-center gap-1.5 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        checked={isBulkMode} 
+                        onChange={(e) => {
+                          setIsBulkMode(e.target.checked);
+                          if (e.target.checked) setBulkSessions([selectedSession]);
+                        }}
+                        className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <span className="text-[10px] font-bold text-gray-400 group-hover:text-indigo-600 uppercase">Bulk Mode</span>
+                    </label>
+                  </div>
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg border-2">
+                    {[1, 2, 3, 4, 5].map(num => {
+                      const isExisting = existingSessionsForToday.includes(num);
+                      const isSelected = isBulkMode ? bulkSessions.includes(num) : selectedSession === num;
+                      const isAvailable = num === 1 || isExisting || existingSessionsForToday.includes(num - 1) || (isBulkMode && bulkSessions.includes(num - 1));
+                      return (
+                        <button
+                          key={num}
+                          onClick={() => isBulkMode ? toggleBulkSession(num) : setSelectedSession(num)}
+                          disabled={!assignment.is_active || !isAvailable}
+                          className={`flex-1 h-10 rounded-md text-xs font-bold transition-all flex items-center justify-center relative ${
+                            isSelected ? 'bg-indigo-600 text-white shadow-md scale-105 z-10' :
+                            isExisting ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200' :
+                            isAvailable ? 'bg-white text-gray-600 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          }`}
+                          title={!isAvailable ? `Fill Session ${num-1} first` : (isExisting ? `Recorded Session ${num}` : `New Session ${num}`)}
+                        >
+                          S{num}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col justify-end">
+                  {assignment.is_active ? (
+                    <div className="flex space-x-2 justify-end">
+                      <button
+                        onClick={handleDeleteAttendance}
+                        disabled={submitting || (isBulkMode ? bulkSessions.length === 0 : !existingSessionsForToday.includes(selectedSession))}
+                        className="bg-white text-red-600 border-2 border-red-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-50 disabled:opacity-50 transition"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={handleSaveAttendance}
+                        disabled={submitting}
+                        className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 transition"
+                      >
+                        {submitting ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold text-xs border uppercase tracking-wider text-center">Semester Ended</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Daily View Table */}
+            <table className="min-w-full divide-y-2 divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Roll No</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance %</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">History</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {students.map((student) => (
+                  <tr key={student.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">{student.roll_no}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{student.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${getPercentageColor(student.attendance_percentage)}`}>
+                        {student.attendance_percentage.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <button
+                        onClick={() => assignment.is_active && toggleStatus(student.id)}
+                        disabled={!assignment.is_active}
+                        className={`px-3 py-1 rounded text-xs font-bold uppercase ${
+                          student.status === 'PRESENT' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        } ${!assignment.is_active ? 'cursor-default' : 'cursor-pointer'}`}
+                      >
+                        {student.status}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => fetchStudentHistory(student)}
+                        className="text-indigo-600 hover:text-indigo-900 font-semibold"
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {viewMode === 'excel' && (
+          <div>
+            {/* Excel Mode Controls */}
+            <div className="mb-6 pb-4 border-b-2">
+              <h3 className="text-lg font-bold text-gray-700 mb-4">Grid Management</h3>
+              <div className="flex flex-wrap items-end gap-3 bg-gray-50 p-4 rounded-xl border-2">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5">Add Column Date</label>
+                  <input type="date" value={newColDate} onChange={(e) => setNewColDate(e.target.value)} className="p-2 border-2 rounded-lg text-sm bg-white" disabled={!assignment.is_active}/>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1.5">Session</label>
+                  <select value={newColSession} onChange={(e) => setNewColSession(parseInt(e.target.value))} className="p-2 border-2 rounded-lg text-sm bg-white" disabled={!assignment.is_active}>
+                    {[1,2,3,4,5].map(n => <option key={n} value={n}>Session {n}</option>)}
+                  </select>
+                </div>
+                <button onClick={handleAddColumn} disabled={!assignment.is_active} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50">
+                  + Add Column
+                </button>
+              </div>
+            </div>
+
+            {/* Excel Mode Legend */}
+            <div className="mb-4 p-2 bg-gray-100 rounded-lg text-xs">
+              <span className="font-bold mr-4">Legend:</span>
+              <span className="mr-3"><span className="font-mono font-bold text-green-600">P</span> = Present</span>
+              <span className="mr-3"><span className="font-mono font-bold text-red-600">A</span> = Absent</span>
+              <span className="mr-3"><span className="font-mono font-bold text-gray-400">+</span> = Not Marked</span>
+              <span className="mr-3"><span className="font-mono font-bold text-gray-400">×</span> = Locked</span>
+            </div>
+
+            {/* Excel/Grid Mode Table */}
+            <div className="overflow-x-auto border-2 rounded-lg">
+              {loadingGrid ? <div className="text-center py-12">Loading full attendance grid...</div>
+              : uniqueDates.length > 0 ? (
+                <table className="min-w-full divide-y-2 divide-gray-200 border-collapse">
+                  <thead className="bg-gray-100 sticky top-0 z-10">
+                    <tr>
+                      <th className="sticky left-0 z-20 bg-gray-100 px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase border-r-2 border-b-2 tracking-wider">
+                        Student
+                      </th>
+                      {uniqueDates.map((col, i) => (
+                        <th key={i} className="px-2 py-3 text-center text-[10px] font-bold text-gray-500 uppercase border-b-2 border-r-2 min-w-[120px] relative group">
+                          <div className="whitespace-nowrap mb-1">{new Date(col.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</div>
+                          <div className="text-indigo-600 mb-2 font-black">SESSION {col.session}</div>
+                          {assignment.is_active && (() => {
+                            const isBlocked = col.session > 1 && students.some(s => (attendanceMap[`${s.id}-${col.date}-${col.session - 1}`] || 'N/A') === 'N/A');
+                            return (
+                              <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleBulkColumnUpdate(col.date, col.session, 'PRESENT')} title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Present"} disabled={isBlocked} className={`w-7 h-6 rounded flex items-center justify-center border transition-colors ${ isBlocked ? 'bg-gray-200 text-gray-300' : 'bg-green-100 text-green-600 hover:bg-green-600 hover:text-white' }`}>P</button>
+                                <button onClick={() => handleBulkColumnUpdate(col.date, col.session, 'ABSENT')} title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Absent"} disabled={isBlocked} className={`w-7 h-6 rounded flex items-center justify-center border transition-colors ${ isBlocked ? 'bg-gray-200 text-gray-300' : 'bg-red-100 text-red-600 hover:bg-red-600 hover:text-white' }`}>A</button>
+                              </div>
+                            );
+                          })()}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y-2 divide-gray-100">
+                    {students.map((student) => (
+                      <tr key={student.id} className="hover:bg-gray-50">
+                        <td className="sticky left-0 z-10 bg-white px-4 py-2 whitespace-nowrap border-r-2 shadow-[3px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                          <div className="text-sm font-bold text-gray-900">{student.roll_no}</div>
+                          <div className="text-xs text-gray-500 truncate max-w-[150px]">{student.name}</div>
+                        </td>
+                        {uniqueDates.map((col, i) => {
+                          const status = attendanceMap[`${student.id}-${col.date}-${col.session}`] || 'N/A';
+                          const isPrevEmpty = col.session > 1 && (attendanceMap[`${student.id}-${col.date}-${col.session - 1}`] || 'N/A') === 'N/A';
+                          const isDisabled = !assignment.is_active || isPrevEmpty;
+                          return (
+                            <td key={i} className="p-0 border-r-2 text-center align-middle">
+                              <button
+                                onClick={() => handleToggleCell(student.id, col.date, col.session, status)}
+                                disabled={isDisabled}
+                                className={`w-full h-14 text-sm font-black transition-all ${
+                                  status === 'PRESENT' ? 'bg-green-50 text-green-700' : 
+                                  status === 'ABSENT' ? 'bg-red-50 text-red-700' : 
+                                  isPrevEmpty ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-white text-gray-400 hover:bg-gray-50'
+                                } ${!isDisabled ? 'cursor-pointer' : ''}`}
+                                title={isPrevEmpty ? `Fill Session ${col.session - 1} first` : ''}
+                              >
+                                {status === 'PRESENT' ? 'P' : status === 'ABSENT' ? 'A' : isPrevEmpty ? '×' : '+'}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div className="text-center py-12 text-gray-500">No historical attendance data to display.</div>}
+            </div>
+          </div>
+        )}
+      </div>
+
       {historyStudent && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-            {/* Modal Header */}
             <div className="p-6 border-b bg-gray-50 flex justify-between items-start">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{historyStudent.name}</h3>
                 <p className="text-sm text-gray-500 font-medium">{historyStudent.roll_no} • {assignment.subject_name}</p>
-                
-                {/* Stats Summary */}
                 {!loadingHistory && historyData.length > 0 && (
                   <div className="flex gap-4 mt-3">
-                    <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">
-                      Present: {historyData.filter(r => r.status === 'PRESENT').length}
-                    </div>
-                    <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
-                      Absent: {historyData.filter(r => r.status === 'ABSENT').length}
-                    </div>
-                    <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold border border-indigo-200">
-                      Total: {historyData.length}
-                    </div>
+                    <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">Present: {historyData.filter(r => r.status === 'PRESENT').length}</div>
+                    <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200">Absent: {historyData.filter(r => r.status === 'ABSENT').length}</div>
                   </div>
                 )}
               </div>
@@ -395,414 +657,44 @@ export default function AttendanceSheet({ assignment, onBack }) {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-0">
-              {loadingHistory ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                  <p className="text-gray-500 font-medium">Loading history records...</p>
-                </div>
-              ) : historyData.length > 0 ? (
-                <div className="min-w-full">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Session</th>
-                        <th className="px-6 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
-                      {historyData.map((record, i) => {
-                        const isModified = record.status !== originalHistoryData[i]?.status;
-                        return (
-                          <tr key={i} className={`group hover:bg-gray-50 transition-colors ${isModified ? 'bg-amber-50/30' : ''}`}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">
-                              {new Date(record.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center">
-                              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">S{record.session}</span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border transition-colors ${
-                                record.status === 'PRESENT' 
-                                  ? 'bg-green-100 text-green-800 border-green-200' 
-                                  : 'bg-red-100 text-red-800 border-red-200'
-                              }`}>
-                                {record.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                              <button 
-                                onClick={() => handleToggleHistory(record)}
-                                disabled={!assignment.is_active || savingHistory}
-                                className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all ${
-                                  assignment.is_active 
-                                    ? 'border-gray-200 text-gray-600 hover:bg-white hover:shadow-sm hover:border-indigo-300 hover:text-indigo-600 active:scale-95' 
-                                    : 'opacity-0 cursor-default'
-                                }`}
-                              >
-                                Toggle
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-20">
-                  <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                  </div>
-                  <p className="text-gray-500 font-medium">No attendance history found.</p>
-                </div>
-              )}
+            <div className="flex-1 overflow-y-auto">
+              {loadingHistory ? <div className="text-center py-20">Loading history...</div>
+              : historyData.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-gray-400 uppercase">Date</th>
+                      <th className="px-6 py-3 text-center text-xs font-bold text-gray-400 uppercase">Session</th>
+                      <th className="px-6 py-3 text-center text-xs font-bold text-gray-400 uppercase">Status</th>
+                      <th className="px-6 py-3 text-right text-xs font-bold text-gray-400 uppercase">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {historyData.map((record, i) => {
+                      const isModified = record.status !== originalHistoryData[i]?.status;
+                      return (
+                        <tr key={i} className={`hover:bg-gray-50 ${isModified ? 'bg-amber-50' : ''}`}>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-700">{new Date(record.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                          <td className="px-6 py-4 text-center"><span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-black">S{record.session}</span></td>
+                          <td className="px-6 py-4 text-center"><span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${record.status === 'PRESENT' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{record.status}</span></td>
+                          <td className="px-6 py-4 text-right"><button onClick={() => handleToggleHistory(record)} disabled={!assignment.is_active || savingHistory} className="text-xs font-bold px-3 py-1 rounded border text-gray-600 hover:bg-gray-200">Toggle</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : <div className="text-center py-20 text-gray-500">No history found.</div>}
             </div>
-
-            {/* Modal Footer */}
             <div className="p-6 border-t bg-gray-50 flex justify-between items-center">
-              <div className="text-xs text-gray-400 font-medium">
-                {historyData.filter((r, i) => r.status !== originalHistoryData[i]?.status).length} changes pending
-              </div>
+              <div className="text-xs text-gray-400">{historyData.filter((r, i) => r.status !== originalHistoryData[i]?.status).length} changes pending</div>
               <div className="flex gap-3">
-                <button 
-                  onClick={() => setHistoryStudent(null)}
-                  disabled={savingHistory}
-                  className="px-6 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                {assignment.is_active && (
-                  <button 
-                    onClick={handleSaveHistory}
-                    disabled={savingHistory || historyData.length === 0}
-                    className="bg-indigo-600 text-white px-8 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 active:scale-95 flex items-center gap-2"
-                  >
-                    {savingHistory ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Changes'
-                    )}
-                  </button>
-                )}
+                <button onClick={() => setHistoryStudent(null)} disabled={savingHistory} className="px-6 py-2 text-sm font-bold text-gray-600">Cancel</button>
+                {assignment.is_active && <button onClick={handleSaveHistory} disabled={savingHistory} className="bg-indigo-600 text-white px-8 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700">{savingHistory ? 'Saving...' : 'Save Changes'}</button>}
               </div>
             </div>
           </div>
         </div>
       )}
-
-      <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
-        <div>
-          <button onClick={onBack} className="text-indigo-600 hover:text-indigo-800 font-medium mb-2 block">
-            &larr; Back to Subjects
-          </button>
-          <h2 className="text-xl font-bold">{assignment.subject_name} - Attendance</h2>
-          <p className="text-sm text-gray-500">{assignment.branch} | Sem {assignment.semester}</p>
-          <div className="mt-3 flex bg-gray-100 p-1 rounded-lg w-fit">
-            <button
-              onClick={() => setViewMode('daily')}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition ${viewMode === 'daily' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Daily View
-            </button>
-            <button
-              onClick={() => setViewMode('excel')}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition ${viewMode === 'excel' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Excel Mode (Grid)
-            </button>
-          </div>
-        </div>
-
-        {viewMode === 'daily' ? (
-          <div className="flex flex-wrap items-end gap-4 bg-gray-50 p-4 rounded-xl border">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Date</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="p-2 border rounded-lg text-sm bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                disabled={!assignment.is_active}
-              />
-            </div>
-            
-            <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <label className="block text-xs font-bold text-gray-500 uppercase">Sessions Today</label>
-                <label className="flex items-center gap-1.5 cursor-pointer group">
-                  <input 
-                    type="checkbox" 
-                    checked={isBulkMode} 
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setIsBulkMode(checked);
-                      if (checked) {
-                        // Reset bulkSessions to current single selection when entering bulk mode
-                        setBulkSessions([selectedSession]);
-                      }
-                    }}
-                    className="w-3.5 h-3.5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
-                  />
-                  <span className="text-[10px] font-bold text-gray-400 group-hover:text-indigo-600 uppercase tracking-tighter transition-colors">Multiple</span>
-                </label>
-              </div>
-              <div className="flex gap-1.5 bg-white p-1 rounded-lg border shadow-sm">
-                {[1, 2, 3, 4, 5].map(num => {
-                  const isExisting = existingSessionsForToday.includes(num);
-                  const isSelected = isBulkMode ? bulkSessions.includes(num) : selectedSession === num;
-                  
-                  // Session is available if:
-                  // 1. It's the first session
-                  // 2. It already has data (existing)
-                  // 3. The previous session has data
-                  // 4. In bulk mode, the previous session is currently selected
-                  const isAvailable = num === 1 || 
-                                     isExisting || 
-                                     existingSessionsForToday.includes(num - 1) ||
-                                     (isBulkMode && bulkSessions.includes(num - 1));
-
-                  return (
-                    <button
-                      key={num}
-                      onClick={() => isBulkMode ? toggleBulkSession(num) : setSelectedSession(num)}
-                      disabled={!assignment.is_active || !isAvailable}
-                      className={`w-10 h-8 rounded-md text-xs font-bold transition-all flex items-center justify-center relative ${
-                        isSelected 
-                          ? 'bg-indigo-600 text-white shadow-md scale-110 z-10' 
-                          : isExisting
-                            ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                            : isAvailable
-                              ? 'bg-gray-50 text-gray-600 hover:bg-gray-200'
-                              : 'bg-gray-50 text-gray-300 cursor-not-allowed opacity-50'
-                      }`}
-                      title={!isAvailable ? `Fill Session ${num-1} first` : (isExisting ? `Recorded Session ${num}` : `New Session ${num}`)}
-                    >
-                      {isExisting && !isSelected && (
-                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border border-white"></span>
-                      )}
-                      {isBulkMode && isSelected && (
-                        <span className="absolute -top-1 -right-1">
-                          <svg className="w-3 h-3 text-white fill-indigo-600" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                        </span>
-                      )}
-                      {isExisting ? `S${num}` : num}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {assignment.is_active ? (
-              <div className="flex space-x-2">
-                <button
-                  onClick={handleDeleteAttendance}
-                  disabled={submitting || (isBulkMode ? bulkSessions.length === 0 : !existingSessionsForToday.includes(selectedSession))}
-                  className="bg-white text-red-600 border border-red-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-50 disabled:opacity-30 transition shadow-sm"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={handleSaveAttendance}
-                  disabled={submitting}
-                  className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 transition shadow-md"
-                >
-                  {submitting ? 'Saving...' : 'Save Attendance'}
-                </button>
-              </div>
-            ) : (
-              <div className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg font-bold text-xs border uppercase tracking-wider">
-                Semester Ended
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Excel Mode Add Column UI */
-          <div className="flex flex-wrap items-end gap-3 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-            <div>
-              <label className="block text-[10px] font-black text-indigo-400 uppercase mb-1.5 tracking-widest">Add Column Date</label>
-              <input
-                type="date"
-                value={newColDate}
-                onChange={(e) => setNewColDate(e.target.value)}
-                className="p-2 border rounded-lg text-sm bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                disabled={!assignment.is_active}
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-indigo-400 uppercase mb-1.5 tracking-widest">Session</label>
-              <select
-                value={newColSession}
-                onChange={(e) => setNewColSession(parseInt(e.target.value))}
-                className="p-2 border rounded-lg text-sm bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                disabled={!assignment.is_active}
-              >
-                {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>Session {n}</option>)}
-              </select>
-            </div>
-            <button
-              onClick={handleAddColumn}
-              disabled={!assignment.is_active}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-indigo-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
-            >
-              + Add Column
-            </button>
-            <div className="ml-auto text-[10px] font-medium text-gray-400 italic max-w-[150px] leading-tight text-right">
-              Added columns appear in the grid. Toggle cells to save.
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className={`overflow-x-auto border rounded-lg ${!assignment.is_active ? 'bg-gray-50 opacity-90' : ''}`}>
-        {viewMode === 'daily' ? (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Percentage</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">History</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {students.map((student) => (
-                <tr key={student.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.roll_no}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className={`px-2 py-1 rounded text-xs font-bold border ${getPercentageColor(student.attendance_percentage)}`}>
-                      {student.attendance_percentage.toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <button
-                      onClick={() => assignment.is_active && toggleStatus(student.id)}
-                      disabled={!assignment.is_active}
-                      className={`px-4 py-1 rounded-full text-xs font-bold transition ${
-                        student.status === 'PRESENT' 
-                          ? 'bg-green-100 text-green-800 border border-green-200' 
-                          : 'bg-red-100 text-red-800 border border-red-200'
-                      } ${!assignment.is_active ? 'cursor-default grayscale-[0.5]' : 'cursor-pointer'}`}
-                    >
-                      {student.status}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => fetchStudentHistory(student)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      View History
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          /* Excel/Grid Mode */
-          <div className="min-w-full inline-block align-middle">
-            {loadingGrid ? (
-              <div className="text-center py-12">Loading full attendance grid...</div>
-            ) : uniqueDates.length > 0 ? (
-              <table className="min-w-full divide-y divide-gray-200 border-collapse">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="sticky left-0 z-20 bg-gray-50 px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase border-r border-b">
-                      Students / Dates
-                    </th>
-                    {uniqueDates.map((col, i) => (
-                      <th key={i} className="px-2 py-3 text-center text-[10px] font-bold text-gray-500 uppercase border-b border-r min-w-[100px] relative group">
-                        <div className="whitespace-nowrap mb-1">{new Date(col.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</div>
-                        <div className="text-indigo-600 mb-2">Session {col.session}</div>
-                        
-                        {/* Column Actions */}
-                        {assignment.is_active && (
-                          <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {/* Sequential Logic Check for the Header Button Visibility */}
-                            {(() => {
-                              const isBlocked = col.session > 1 && students.some(s => (attendanceMap[`${s.id}-${col.date}-${col.session - 1}`] || 'N/A') === 'N/A');
-                              return (
-                                <>
-                                  <button 
-                                    onClick={() => handleBulkColumnUpdate(col.date, col.session, 'PRESENT')}
-                                    title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Present"}
-                                    disabled={isBlocked}
-                                    className={`w-6 h-6 rounded flex items-center justify-center border transition-colors ${
-                                      isBlocked ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : 'bg-green-50 text-green-600 hover:bg-green-600 hover:text-white border-green-200'
-                                    }`}
-                                  >P</button>
-                                  <button 
-                                    onClick={() => handleBulkColumnUpdate(col.date, col.session, 'ABSENT')}
-                                    title={isBlocked ? `Complete Session ${col.session - 1} first` : "Mark all Absent"}
-                                    disabled={isBlocked}
-                                    className={`w-6 h-6 rounded flex items-center justify-center border transition-colors ${
-                                      isBlocked ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border-red-200'
-                                    }`}
-                                  >A</button>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {students.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50">
-                      <td className="sticky left-0 z-10 bg-white px-4 py-2 whitespace-nowrap border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                        <div className="text-xs font-bold text-gray-900">{student.roll_no}</div>
-                        <div className="text-[10px] text-gray-500 truncate max-w-[120px]">{student.name}</div>
-                      </td>
-                      {uniqueDates.map((col, i) => {
-                        const status = attendanceMap[`${student.id}-${col.date}-${col.session}`] || 'N/A';
-                        
-                        // Sequential Logic: Is the previous session for THIS STUDENT empty?
-                        const isPrevEmpty = col.session > 1 && (attendanceMap[`${student.id}-${col.date}-${col.session - 1}`] || 'N/A') === 'N/A';
-                        const isDisabled = !assignment.is_active || isPrevEmpty;
-
-                        return (
-                          <td 
-                            key={i} 
-                            className="p-0 border-r border-b text-center align-middle"
-                          >
-                            <button
-                              onClick={() => handleToggleCell(student.id, col.date, col.session, status)}
-                              disabled={isDisabled}
-                              className={`w-full h-12 text-[10px] font-black transition-all ${
-                                status === 'PRESENT' ? 'bg-green-100 text-green-800' : 
-                                status === 'ABSENT' ? 'bg-red-100 text-red-800' : 
-                                isPrevEmpty ? 'bg-gray-50 text-gray-200 cursor-not-allowed' :
-                                'bg-gray-50 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
-                              } ${!isDisabled ? 'cursor-pointer' : ''}`}
-                              title={isPrevEmpty ? `Fill Session ${col.session - 1} first` : ''}
-                            >
-                              {status === 'PRESENT' ? 'P' : status === 'ABSENT' ? 'A' : isPrevEmpty ? '×' : '+'}
-                            </button>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="text-center py-12 text-gray-500">No historical attendance data found to display in grid.</div>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
