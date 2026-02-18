@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useClerk } from '@/context/ClerkContext';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
@@ -10,6 +11,7 @@ import CertificateDashboard from '@/components/clerk/certificates/CertificateDas
 import toast from 'react-hot-toast';
 
 export default function ClerkDashboard() {
+  const router = useRouter();
   const { clerkData: clerk, loading: isLoading } = useClerk();
   const [openModule, setOpenModule] = useState(null);
 
@@ -57,6 +59,16 @@ export default function ClerkDashboard() {
                 <div>
                   <h3 className="font-semibold">Certificates</h3>
                   <p className="text-sm text-gray-600">View and process student certificate requests.</p>
+                </div>
+              </div>
+            </div>
+
+            <div onClick={() => router.push('/clerk/admission/student-requests')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-orange-50 rounded flex items-center justify-center">✍️</div>
+                <div>
+                  <h3 className="font-semibold">Student Requests</h3>
+                  <p className="text-sm text-gray-600">Approve or reject student profile updates.</p>
                 </div>
               </div>
             </div>

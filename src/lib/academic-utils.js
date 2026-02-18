@@ -36,12 +36,10 @@ export function calculateYearAndSemesterSync(rollNo, collegeInfo = null) {
   }
 
   const semester = isOddPeriod ? (yearOfStudy * 2) - 1 : (yearOfStudy * 2);
-  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
-  
   return {
     yearOfStudy,
     semester,
-    semesterLabel: `${yearOfStudy}${['st', 'nd', 'rd', 'th'][yearOfStudy-1]} Year - ${roman[semester-1]} Sem`
+    semesterLabel: `Year ${yearOfStudy} Sem ${semester}`
   };
 }
 
@@ -80,12 +78,10 @@ export async function calculateYearAndSemesterAsync(rollNo, collegeInfo = null) 
   }
 
   const semester = isOddPeriod ? (yearOfStudy * 2) - 1 : (yearOfStudy * 2);
-  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
-  
   return {
     yearOfStudy,
     semester,
-    semesterLabel: `${yearOfStudy}${['st', 'nd', 'rd', 'th'][yearOfStudy-1]} Year - ${roman[semester-1]} Sem`
+    semesterLabel: `Year ${yearOfStudy} Sem ${semester}`
   };
 }
 

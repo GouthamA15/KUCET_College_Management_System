@@ -73,8 +73,45 @@ A modern web interface built with **Next.js** for managing college academic data
     - 🟢 Green: > 75%
 - **Self-History:** Modal access to personal daily logs, now including Session numbers (S1, S2, etc.).
 
+### **Student Profile & Signature Management**
+- **Workflow:** Every signature and profile picture update requires mandatory **Admission Clerk** approval.
+- **Student UI:** 
+    - Dedicated signature and photo upload section in the Edit Profile page (`/student/settings/edit-profile`).
+    - Real-time status indicators for "Pending Approval" or "Rejected" requests.
+    - Feedback loop: Displays clerk-provided rejection reasons directly to the student for immediate correction.
+- **Clerk UI:** 
+    - "Student Requests" module in the Admission Dashboard (`/clerk/admission/student-requests`).
+    - Side-by-side comparison of old vs. new data (Photos and Signatures) for quick verification.
+    - Rejection workflow with mandatory reason description.
+- **Database:** Managed via `student_signatures`, `student_images`, and `student_profile_requests` (unified request table).
+
 ### **Admin Faculty Management**
 - **Decision Engine:** Centralized academic logic ensures admins see all current and pending subject interests across all semesters.
+
+---
+
+## 9. Recent Activity Log (Feb 2026)
+
+### **Session 1: Profile & Signature Request Workflow**
+- **Unified Request System:** Implemented a single table `student_profile_requests` to handle both signature and profile picture updates.
+- **Student Dashboard:** Updated the Edit Profile page to support file uploads for signatures and photos, with a status tracking badge.
+- **Clerk Interface:** Built the Student Requests management page for Admission Clerks to review and process updates.
+- **API Implementation:** Created consolidated endpoints for student submission and clerk management.
+
+### **Session 2 (Current): Fixes, Standardization & UI Enhancements**
+- **Bug Fix:** Resolved `ER_BAD_NULL_ERROR` in `student_profile_requests` by making `new_signature` and `new_pfp` nullable (allowing independent updates).
+- **Naming Standard:** Synchronized naming conventions to "Student Requests" across UI and API for the Clerk role.
+- **Navbar Update:** Added "Profile Updates" link to the student REQUESTS menu and fixed Clerk Navbar rendering.
+- **Request History:** Created a dedicated page for students to view their profile/signature update history (`/student/requests/profile-updates`) with a corresponding API.
+- **Context Integration:** 
+    - Updated `StudentContext` to track `latestProfileRequest` status globally.
+    - Updated `ClerkContext` to automatically fetch and store `pendingProfileRequests` for admission clerks.
+- **UI Enhancements:**
+    - Simplified Student Dashboard labels: Changed academic status to a concise format (e.g., "Year 3 Sem 6").
+    - Improved UX: Added loading animations/spinners for profile photo and signature previews in the Edit Profile page.
+    - Placeholder Fix: Resolved flickering issue where "Upload profile picture" showed briefly during data load by introducing a `profileDataLoaded` state.
+- **SQL Consolidation:** Created `final_signature_fix.sql` to simplify database setup and fixes.
+- **Documentation:** Updated technical documentation to reflect the unified profile management system.
 
 ---
 
