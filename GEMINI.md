@@ -73,6 +73,18 @@ A modern web interface built with **Next.js** for managing college academic data
     - 🟢 Green: > 75%
 - **Self-History:** Modal access to personal daily logs, now including Session numbers (S1, S2, etc.).
 
+### **Student Signature Management**
+- **Workflow:** Every signature update (including the initial one) requires mandatory **Admission Clerk** approval.
+- **Student UI:** 
+    - Dedicated signature upload section in the Edit Profile page.
+    - Status indicators for "Pending Approval" or "Rejected".
+    - Displays clerk-provided rejection reasons to the student for correction.
+- **Clerk UI:** 
+    - "Signature Requests" module in the Admission Dashboard.
+    - Side-by-side comparison of old vs. new signatures.
+    - Rejection workflow requiring a mandatory reason/description.
+- **Database:** Managed via `student_signatures` (approved records) and `student_signature_requests` (pending/history).
+
 ### **Admin Faculty Management**
 - **Decision Engine:** Centralized academic logic ensures admins see all current and pending subject interests across all semesters.
 
