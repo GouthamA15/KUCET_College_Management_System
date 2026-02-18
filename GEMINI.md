@@ -103,6 +103,9 @@ A modern web interface built with **Next.js** for managing college academic data
 - **Naming Standard:** Synchronized naming conventions to "Student Requests" across UI and API for the Clerk role.
 - **Navbar Update:** Added "Profile Updates" link to the student REQUESTS menu and fixed Clerk Navbar rendering.
 - **Request History:** Created a dedicated page for students to view their profile/signature update history (`/student/requests/profile-updates`) with a corresponding API.
+- **Context Integration:** 
+    - Updated `StudentContext` to track `latestProfileRequest` status globally.
+    - Updated `ClerkContext` to automatically fetch and store `pendingProfileRequests` for admission clerks.
 - **UI Enhancements:**
     - Simplified Student Dashboard labels: Changed academic status to a concise format (e.g., "Year 3 Sem 6").
     - Improved UX: Added loading animations/spinners for profile photo and signature previews in the Edit Profile page.
