@@ -109,6 +109,7 @@ A modern web interface built with **Next.js** for managing college academic data
 - **UI Enhancements:**
     - Simplified Student Dashboard labels: Changed academic status to a concise format (e.g., "Year 3 Sem 6").
     - Improved UX: Added loading animations/spinners for profile photo and signature previews in the Edit Profile page.
+    - Placeholder Fix: Resolved flickering issue where "Upload profile picture" showed briefly during data load by introducing a `profileDataLoaded` state.
 - **SQL Consolidation:** Created `final_signature_fix.sql` to simplify database setup and fixes.
 - **Documentation:** Updated technical documentation to reflect the unified profile management system.
 
