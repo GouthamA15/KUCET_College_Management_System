@@ -20,7 +20,8 @@ export default function EditProfilePage() {
   const [originalMobile, setOriginalMobile] = useState('');
   const [originalAddress, setOriginalAddress] = useState('');
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
+  const [photoLoading, setPhotoLoading] = useState(true);
+  const [sigLoading, setSigLoading] = useState(true);
   
   // Profile/Signature States
   const [pfpDataUrl, setPfpDataUrl] = useState(null);
@@ -39,9 +40,15 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     if (displayedPhoto) {
-      setImageLoading(true);
+      setPhotoLoading(true);
     }
   }, [displayedPhoto]);
+
+  useEffect(() => {
+    if (displayedSignature) {
+      setSigLoading(true);
+    }
+  }, [displayedSignature]);
 
   useEffect(() => {
     if (student) {
@@ -212,7 +219,7 @@ export default function EditProfilePage() {
                   <div className={`w-44 h-44 rounded-full border-4 ${pfpDataUrl ? 'border-indigo-400' : 'border-gray-300'} overflow-hidden flex items-center justify-center bg-gray-100 relative transition-colors`}>
                     {displayedPhoto ? (
                       <>
-                        {imageLoading && (
+                        {photoLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
                                 <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
                             </div>
@@ -223,8 +230,8 @@ export default function EditProfilePage() {
                             width={176} 
                             height={176} 
                             unoptimized
-                            className={`object-cover w-full h-full transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`} 
-                            onLoad={() => setImageLoading(false)}
+                            className={`object-cover w-full h-full transition-opacity duration-300 ${photoLoading ? 'opacity-0' : 'opacity-100'}`} 
+                            onLoad={() => setPhotoLoading(false)}
                         />
                       </>
                     ) : (
@@ -257,7 +264,22 @@ export default function EditProfilePage() {
                   <div className="text-sm font-semibold mb-2 text-gray-700">Signature</div>
                   <div className={`w-44 h-24 border-2 ${signatureDataUrl ? 'border-indigo-400 border-solid bg-indigo-50/30' : 'border-dashed border-gray-300 bg-gray-50'} rounded flex items-center justify-center overflow-hidden relative group transition-all`}>
                     {displayedSignature ? (
-                      <Image src={displayedSignature} alt="Signature" width={176} height={96} unoptimized className="object-contain w-full h-full" />
+                      <>
+                        {sigLoading && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                                <div className="animate-spin h-6 w-6 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+                            </div>
+                        )}
+                        <Image 
+                            src={displayedSignature} 
+                            alt="Signature" 
+                            width={176} 
+                            height={96} 
+                            unoptimized 
+                            className={`object-contain w-full h-full transition-opacity duration-300 ${sigLoading ? 'opacity-0' : 'opacity-100'}`} 
+                            onLoad={() => setSigLoading(false)}
+                        />
+                      </>
                     ) : (
                       <span className="text-xs text-gray-400">No signature uploaded</span>
                     )}
