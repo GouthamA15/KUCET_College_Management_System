@@ -12,6 +12,8 @@ export function ClerkProvider({ children }) {
   const [facultyAssignments, setFacultyAssignments] = useState([]);
   const [facultyInterests, setFacultyInterests] = useState([]);
   const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
+  const [pendingProfileRequests, setPendingProfileRequests] = useState([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -60,6 +62,21 @@ export function ClerkProvider({ children }) {
     }
   }, []);
 
+  const fetchPendingProfileRequests = useCallback(async () => {
+    setIsLoadingRequests(true);
+    try {
+      const res = await fetch('/api/clerk/admission/student-requests');
+      const json = await res.json();
+      if (res.ok) {
+        setPendingProfileRequests(json.data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch pending profile requests', e);
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -68,11 +85,14 @@ export function ClerkProvider({ children }) {
       if (clerk?.role === 'faculty') {
         promises.push(fetchFacultyData());
       }
+      if (clerk?.role === 'admission') {
+        promises.push(fetchPendingProfileRequests());
+      }
       await Promise.all(promises);
       setLoading(false);
     };
     init();
-  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData]);
+  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests]);
 
   return (
     <ClerkContext.Provider value={{ 
@@ -85,7 +105,10 @@ export function ClerkProvider({ children }) {
       facultyAssignments,
       facultyInterests,
       isLoadingFaculty,
-      refreshFaculty: fetchFacultyData
+      refreshFaculty: fetchFacultyData,
+      pendingProfileRequests,
+      isLoadingRequests,
+      refreshProfileRequests: fetchPendingProfileRequests
     }}>
       {children}
     </ClerkContext.Provider>

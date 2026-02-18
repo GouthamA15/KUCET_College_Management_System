@@ -14,6 +14,7 @@ export function StudentProvider({ children }) {
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [academicPerformance, setAcademicPerformance] = useState(null);
   const [isLoadingAcademic, setIsLoadingAcademic] = useState(false);
+  const [latestProfileRequest, setLatestProfileRequest] = useState(null);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -46,14 +47,23 @@ export function StudentProvider({ children }) {
 
   const fetchProfile = useCallback(async (rollno) => {
     try {
-      const res = await fetch(`/api/student/${rollno}`);
-      const data = await res.json();
-      if (res.ok) {
+      const [profileRes, sigRes] = await Promise.all([
+        fetch(`/api/student/${rollno}`),
+        fetch('/api/student/signature')
+      ]);
+      
+      const data = await profileRes.json();
+      if (profileRes.ok) {
         if (data.student && data.student.pfp) {
-          // Append timestamp to avoid caching issues if pfp changes
           data.student.pfp = `${data.student.pfp}?t=${new Date().getTime()}`;
         }
         setStudentData(data);
+        
+        if (sigRes.ok) {
+          const sigData = await sigRes.json();
+          setLatestProfileRequest(sigData.latestRequest);
+        }
+        
         return data;
       } else {
         setError(data.message || 'Failed to fetch profile');
@@ -112,7 +122,15 @@ export function StudentProvider({ children }) {
       resetCertificateRequests,
       academicPerformance,
       isLoadingAcademic,
-      refreshAcademic: fetchAcademicPerformance
+      refreshAcademic: fetchAcademicPerformance,
+      latestProfileRequest,
+      refreshProfile: async () => {
+        const me = await fetch('/api/student/me');
+        if (me.ok) {
+          const user = await me.json();
+          return fetchProfile(user.roll_no);
+        }
+      }
     }}>
       {children}
     </StudentContext.Provider>
