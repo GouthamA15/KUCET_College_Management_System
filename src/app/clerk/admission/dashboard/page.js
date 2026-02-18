@@ -35,7 +35,7 @@ export default function ClerkDashboard() {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
-      <Navbar clerkMode={true} />
+      <Navbar role={'clerk'} />
       <main className="flex-1 p-4 md:p-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Admission Clerk Dashboard</h1>
 
