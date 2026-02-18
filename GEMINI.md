@@ -98,10 +98,11 @@ A modern web interface built with **Next.js** for managing college academic data
 - **Clerk Interface:** Built the Student Requests management page for Admission Clerks to review and process updates.
 - **API Implementation:** Created consolidated endpoints for student submission and clerk management.
 
-### **Session 2 (Current): Fixes & Standardization**
+### **Session 2 (Current): Fixes, Standardization & Request History**
 - **Bug Fix:** Resolved `ER_BAD_NULL_ERROR` in `student_profile_requests` by making `new_signature` and `new_pfp` nullable (allowing independent updates).
 - **Naming Standard:** Synchronized naming conventions to "Student Requests" across UI and API for the Clerk role.
-- **Navbar Correction:** Fixed `Navbar` prop usage for the Clerk role to ensure correct menu rendering.
+- **Navbar Update:** Added "Profile Updates" link to the student REQUESTS menu and fixed Clerk Navbar rendering.
+- **Request History:** Created a dedicated page for students to view their profile/signature update history (`/student/requests/profile-updates`) with a corresponding API.
 - **SQL Consolidation:** Created `final_signature_fix.sql` to simplify database setup and fixes.
 - **Documentation:** Updated technical documentation to reflect the unified profile management system.
 
