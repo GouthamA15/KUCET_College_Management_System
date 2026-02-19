@@ -3,33 +3,23 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 const EditDayModal = ({ day, data, academicYear, semester, onClose, onSave }) => {
-    const [isWorkingDay, setIsWorkingDay] = useState(data?.is_working_day || false);
-    const [isHoliday, setIsHoliday] = useState(data?.is_holiday || false);
+    const [dayType, setDayType] = useState(data?.day_type || 'WORKING');
     const [holidayName, setHolidayName] = useState(data?.holiday_name || '');
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        setIsWorkingDay(data?.is_working_day || false);
-        setIsHoliday(data?.is_holiday || false);
+        setDayType(data?.day_type || 'WORKING');
         setHolidayName(data?.holiday_name || '');
     }, [data]);
 
-    const handleWorkingDayToggle = () => {
-        setIsWorkingDay(prev => {
-            if (!prev) setIsHoliday(false);
-            return !prev;
-        });
-    };
-
-    const handleHolidayToggle = () => {
-        setIsHoliday(prev => {
-            if (!prev) setIsWorkingDay(false);
-            return !prev;
-        });
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (dayType === 'HOLIDAY' && !holidayName.trim()) {
+            toast.error('Holiday name is required.');
+            return;
+        }
+
         setSubmitting(true);
 
         const date = `${day.year}-${String(day.month).padStart(2, '0')}-${String(day.day).padStart(2, '0')}`;
@@ -42,9 +32,8 @@ const EditDayModal = ({ day, data, academicYear, semester, onClose, onSave }) =>
                     date,
                     academic_year: academicYear,
                     semester,
-                    is_working_day: isWorkingDay,
-                    is_holiday: isHoliday,
-                    holiday_name: isHoliday ? holidayName : null,
+                    day_type: dayType,
+                    holiday_name: dayType === 'HOLIDAY' ? holidayName : null,
                 }),
             });
 
@@ -69,28 +58,24 @@ const EditDayModal = ({ day, data, academicYear, semester, onClose, onSave }) =>
                         <p className="text-gray-500">{`${String(day.day).padStart(2, '0')}-${String(day.month).padStart(2, '0')}-${day.year}`}</p>
                     </div>
                     <div className="p-6 space-y-4">
-                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md border">
-                            <label htmlFor="isWorkingDay" className="font-medium text-gray-700">Mark as Working Day</label>
-                            <input
-                                type="checkbox"
-                                id="isWorkingDay"
-                                checked={isWorkingDay}
-                                onChange={handleWorkingDayToggle}
-                                className="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                            />
+                        <div>
+                            <label htmlFor="dayType" className="block text-sm font-medium text-gray-700 mb-1">Day Type</label>
+                            <select
+                                id="dayType"
+                                value={dayType}
+                                onChange={(e) => setDayType(e.target.value)}
+                                className="w-full p-2 border-gray-300 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                                <option value="WORKING">Working Day</option>
+                                <option value="HOLIDAY">Holiday</option>
+                                <option value="EXAM">Exam Day</option>
+                                <option value="INTERNAL">Internal Test Day</option>
+                                <option value="EVENT">College Event</option>
+                            </select>
                         </div>
-                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md border">
-                            <label htmlFor="isHoliday" className="font-medium text-gray-700">Mark as Holiday</label>
-                            <input
-                                type="checkbox"
-                                id="isHoliday"
-                                checked={isHoliday}
-                                onChange={handleHolidayToggle}
-                                className="h-6 w-6 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                            />
-                        </div>
-                        {isHoliday && (
-                            <div className="mt-4">
+                        
+                        {dayType === 'HOLIDAY' && (
+                            <div className="animate-in fade-in duration-300">
                                 <label htmlFor="holidayName" className="block text-sm font-medium text-gray-700 mb-1">Holiday Name</label>
                                 <input
                                     type="text"

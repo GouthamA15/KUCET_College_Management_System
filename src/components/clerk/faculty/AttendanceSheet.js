@@ -40,6 +40,36 @@ export default function AttendanceSheet({ assignment, onBack }) {
   const [bulkSessions, setBulkSessions] = useState([1]);
   const [submitting, setSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState('daily'); // 'daily' or 'excel'
+  const [dateValidation, setDateValidation] = useState({ isValid: true, message: null });
+
+  // When date changes, validate it against the academic calendar
+  useEffect(() => {
+    const validateDate = async () => {
+      if (!selectedDate || !assignment) return;
+      try {
+        const res = await fetch(`/api/public/academic-calendar/day-info?date=${selectedDate}&academic_year=${assignment.academic_year}&semester=${assignment.semester}`);
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Could not verify date');
+
+        const dayInfo = result.data;
+        if (dayInfo.day_type !== 'WORKING') {
+          let message = `Attendance cannot be marked. Reason: ${dayInfo.day_type}`;
+          if (dayInfo.day_type === 'HOLIDAY' && dayInfo.holiday_name) {
+            message = `This day is a holiday: ${dayInfo.holiday_name}.`;
+          }
+          setDateValidation({ isValid: false, message });
+        } else {
+          setDateValidation({ isValid: true, message: null });
+        }
+      } catch (error) {
+        // Fail-safe: if API fails, assume it's not a working day to be safe
+        setDateValidation({ isValid: false, message: 'Could not verify if this is a working day.' });
+        toast.error(error.message);
+      }
+    };
+    validateDate();
+  }, [selectedDate, assignment]);
+
   const [historyStudent, setHistoryStudent] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [originalHistoryData, setOriginalHistoryData] = useState([]);
@@ -427,6 +457,11 @@ export default function AttendanceSheet({ assignment, onBack }) {
                     className="p-2 border-2 rounded-lg text-sm bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full"
                     disabled={!assignment.is_active}
                   />
+                  {!dateValidation.isValid && (
+                    <div className="mt-2 text-sm text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-200">
+                      {dateValidation.message}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Session Selector */}
@@ -455,13 +490,13 @@ export default function AttendanceSheet({ assignment, onBack }) {
                         <button
                           key={num}
                           onClick={() => isBulkMode ? toggleBulkSession(num) : setSelectedSession(num)}
-                          disabled={!assignment.is_active || !isAvailable}
+                          disabled={!assignment.is_active || !isAvailable || !dateValidation.isValid}
                           className={`flex-1 h-10 rounded-md text-xs font-bold transition-all flex items-center justify-center relative ${
                             isSelected ? 'bg-indigo-600 text-white shadow-md scale-105 z-10' :
                             isExisting ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200' :
                             isAvailable ? 'bg-white text-gray-600 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
-                          title={!isAvailable ? `Fill Session ${num-1} first` : (isExisting ? `Recorded Session ${num}` : `New Session ${num}`)}
+                          } ${!dateValidation.isValid ? '!bg-gray-100 !text-gray-400' : ''}`}
+                          title={!dateValidation.isValid ? dateValidation.message : (!isAvailable ? `Fill Session ${num-1} first` : (isExisting ? `Recorded Session ${num}` : `New Session ${num}`))}
                         >
                           S{num}
                         </button>
@@ -476,14 +511,14 @@ export default function AttendanceSheet({ assignment, onBack }) {
                     <div className="flex space-x-2 justify-end">
                       <button
                         onClick={handleDeleteAttendance}
-                        disabled={submitting || (isBulkMode ? bulkSessions.length === 0 : !existingSessionsForToday.includes(selectedSession))}
+                        disabled={submitting || !dateValidation.isValid || (isBulkMode ? bulkSessions.length === 0 : !existingSessionsForToday.includes(selectedSession))}
                         className="bg-white text-red-600 border-2 border-red-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-50 disabled:opacity-50 transition"
                       >
                         Delete
                       </button>
                       <button
                         onClick={handleSaveAttendance}
-                        disabled={submitting}
+                        disabled={submitting || !dateValidation.isValid}
                         className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 transition"
                       >
                         {submitting ? 'Saving...' : 'Save'}
@@ -520,10 +555,10 @@ export default function AttendanceSheet({ assignment, onBack }) {
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <button
                         onClick={() => assignment.is_active && toggleStatus(student.id)}
-                        disabled={!assignment.is_active}
+                        disabled={!assignment.is_active || !dateValidation.isValid}
                         className={`px-3 py-1 rounded text-xs font-bold uppercase ${
                           student.status === 'PRESENT' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        } ${!assignment.is_active ? 'cursor-default' : 'cursor-pointer'}`}
+                        } ${!assignment.is_active || !dateValidation.isValid ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
                       >
                         {student.status}
                       </button>
