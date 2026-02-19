@@ -79,7 +79,7 @@ export async function PUT(req, context) {
     const personalUpdateFields = [];
     const personalUpdateValues = [];
     const personalInsertValues = [];
-    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
+    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'guardian_mobile', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
 
     let hasPersonalUpdates = false;
     // Validate and prepare personal columns. blood_group must be one of allowed values when provided.
@@ -128,7 +128,7 @@ export async function PUT(req, context) {
     // --- Update `student_academic_background` table ---
     const academicUpdateFields = [];
     const academicUpdateValues = [];
-    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks'];
+    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks', 'ssc_marks', 'inter_marks'];
 
     let hasAcademicUpdates = false;
     academicColumns.forEach(col => {
@@ -144,19 +144,28 @@ export async function PUT(req, context) {
         if (existingAcademic) {
             await query(`UPDATE student_academic_background SET ${academicUpdateFields.join(', ')} WHERE student_id = ?`, [...academicUpdateValues, studentId]);
         } else {
-            // If no academic background exists, insert it
             const insertCols = ['student_id'];
             const insertVals = [studentId];
             academicColumns.forEach(col => {
-                if (updatedData[col] !== undefined) { // Only include columns present in updatedData
+                if (updatedData[col] !== undefined) {
                     insertCols.push(col);
                     insertVals.push(toNull(updatedData[col]));
                 }
             });
-            if (insertCols.length > 1) { // More than just student_id
+            if (insertCols.length > 1) {
                 await query(`INSERT INTO student_academic_background (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`, insertVals);
             }
         }
+    }
+
+    // --- Update `student_images` and `student_signatures` if provided ---
+    if (updatedData.pfp && typeof updatedData.pfp === 'string' && updatedData.pfp.includes(',')) {
+        const pfpBuffer = Buffer.from(updatedData.pfp.split(',')[1], 'base64');
+        await query('INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ON DUPLICATE KEY UPDATE pfp = ?', [studentId, pfpBuffer, pfpBuffer]);
+    }
+    if (updatedData.signature && typeof updatedData.signature === 'string' && updatedData.signature.includes(',')) {
+        const sigBuffer = Buffer.from(updatedData.signature.split(',')[1], 'base64');
+        await query('INSERT INTO student_signatures (student_id, signature) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature = ?', [studentId, sigBuffer, sigBuffer]);
     }
 
     // If personal/academic updates were applied but students table was not modified above,

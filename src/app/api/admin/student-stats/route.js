@@ -46,7 +46,7 @@ export async function GET(req) {
     }
 
 
-    return apiResponse(stats);
+    return apiResponse({ data: stats });
   } catch (error) {
     console.error('Error fetching student stats:', error);
     return apiError('Internal Server Error', 500);

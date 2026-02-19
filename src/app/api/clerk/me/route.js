@@ -14,7 +14,7 @@ export async function GET(req) {
       return apiError('Clerk not found', 404);
     }
     const clerk = rows[0];
-    return apiResponse(clerk);
+    return apiResponse({ data: clerk });
   } catch (error) {
     console.error('Database error:', error);
     return apiError('Internal Server Error', 500);

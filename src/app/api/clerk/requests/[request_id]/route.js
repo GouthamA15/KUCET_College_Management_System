@@ -149,7 +149,7 @@ export async function GET(request, { params }) {
         if (!rows || rows.length === 0) {
             return apiError('Request not found', 404);
         }
-        return apiResponse(rows[0]);
+        return apiResponse({ data: rows[0] });
     } catch (error) {
         console.error('Error fetching request details:', error);
         return apiError('Failed to fetch request details', 500);

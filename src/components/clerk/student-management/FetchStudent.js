@@ -54,6 +54,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         place_of_birth: pd.place_of_birth || '',
         father_occupation: pd.father_occupation || '',
         annual_income: pd.annual_income || '',
+        guardian_mobile: pd.guardian_mobile || '',
         aadhaar_no: pd.aadhaar_no || '',
         address: pd.address || student.address || '',
         seat_allotted_category: pd.seat_allotted_category || '',
@@ -63,15 +64,17 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
       const initialAcademics = Array.isArray(data.academics) ? data.academics : [];
       let currentQualifyingExam = initialAcademics.length > 0 ? initialAcademics[0].qualifying_exam : '';
       let currentRanks = initialAcademics.length > 0 ? initialAcademics[0].ranks : '';
+      let currentSscMarks = initialAcademics.length > 0 ? initialAcademics[0].ssc_marks : '';
+      let currentInterMarks = initialAcademics.length > 0 ? initialAcademics[0].inter_marks : '';
 
       if (!currentQualifyingExam) {
         currentQualifyingExam = getEntranceExamQualified(student.roll_no) || 'EAMCET';
       }
       
       if (initialAcademics.length === 0) {
-        initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks });
+        initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks });
       } else {
-        initialAcademics[0] = { ...initialAcademics[0], qualifying_exam: currentQualifyingExam, ranks: currentRanks };
+        initialAcademics[0] = { ...initialAcademics[0], qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks };
       }
       setAcademicsList(initialAcademics);
       setOriginalAcademicsList(JSON.parse(JSON.stringify(initialAcademics)));
@@ -109,6 +112,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         place_of_birth: pd.place_of_birth || null,
         father_occupation: pd.father_occupation || null,
         annual_income: pd.annual_income || null,
+        guardian_mobile: pd.guardian_mobile || null,
         aadhaar_no: pd.aadhaar_no || null,
         address: pd.address || student.address || null,
         seat_allotted_category: pd.seat_allotted_category || null,

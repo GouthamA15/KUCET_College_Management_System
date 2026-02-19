@@ -40,14 +40,19 @@ export async function POST(req) {
       identification_marks,
       // additional personal/academic fields
       annual_income,
+      guardian_mobile,
       aadhaar_no,
       seat_allotted_category,
       area_status,
       previous_college_details,
       medium_of_instruction,
       ranks, // Added ranks
+      ssc_marks,
+      inter_marks,
       blood_group,
       fee_reimbursement,
+      pfp, // Profile Picture (base64)
+      signature, // Signature (base64)
     } = studentData;
 
     const providedRoll = roll_no || studentData.rollno || null;
@@ -111,8 +116,8 @@ export async function POST(req) {
         // Insert personal details into `student_personal_details`. Include optional blood_group.
         await query(
           `INSERT INTO student_personal_details (
-                      student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, place_of_birth, father_occupation, annual_income, aadhaar_no, address, seat_allotted_category, identification_marks, blood_group
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,          [
+                      student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, place_of_birth, father_occupation, annual_income, guardian_mobile, aadhaar_no, address, seat_allotted_category, identification_marks, blood_group
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,          [
             studentId,
             father_name || null,
             mother_name || null,
@@ -125,6 +130,7 @@ export async function POST(req) {
             place_of_birth || null,
             father_occupation || null,
             annual_income ? Number(annual_income) : null,
+            guardian_mobile || null,
             aadhaarToSave,
             address || null,
             seat_allotted_category || null,
@@ -136,16 +142,30 @@ export async function POST(req) {
       // Insert academic background into `student_academic_background`
       await query(
         `INSERT INTO student_academic_background (
-          student_id, qualifying_exam, previous_college_details, medium_of_instruction, ranks
-        ) VALUES (?, ?, ?, ?, ?)`,
+          student_id, qualifying_exam, previous_college_details, medium_of_instruction, ranks, ssc_marks, inter_marks
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           studentId,
           qualifying_exam || null,
           previous_college_details || null,
           medium_of_instruction || null,
-          ranks ? Number(ranks) : null
+          ranks ? Number(ranks) : null,
+          ssc_marks || null,
+          inter_marks || null
         ]
       );
+
+      // Insert profile picture if provided
+      if (pfp && typeof pfp === 'string' && pfp.includes(',')) {
+        const pfpBuffer = Buffer.from(pfp.split(',')[1], 'base64');
+        await query('INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ON DUPLICATE KEY UPDATE pfp = ?', [studentId, pfpBuffer, pfpBuffer]);
+      }
+
+      // Insert signature if provided
+      if (signature && typeof signature === 'string' && signature.includes(',')) {
+        const sigBuffer = Buffer.from(signature.split(',')[1], 'base64');
+        await query('INSERT INTO student_signatures (student_id, signature) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature = ?', [studentId, sigBuffer, sigBuffer]);
+      }
 
       // Fetch inserted records to return for debugging/confirmation
       const savedStudentRows = await query('SELECT * FROM students WHERE id = ?', [studentId]);

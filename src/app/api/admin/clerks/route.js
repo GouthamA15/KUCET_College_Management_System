@@ -10,7 +10,7 @@ export async function GET() {
 
   try {
     const clerks = await query('SELECT id, name, email, employee_id, role, is_active, created_at, updated_at FROM clerks');
-    return apiResponse(clerks);
+    return apiResponse({ data: clerks });
   } catch (error) {
     console.error('Error fetching clerks:', error);
     return apiError('Internal Server Error', 500);

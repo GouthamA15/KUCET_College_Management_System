@@ -1,200 +1,118 @@
 # KUCET College Management System - Technical Documentation
 
 ## 1. Project Overview
-A modern web interface built with **Next.js** for managing college academic data. The system handles three distinct user roles: **Super Admin**, **Clerk/Faculty**, and **Student**. It features real-time attendance tracking, internal marks management, scholarship processing, and certificate generation.
+A robust, centralized web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports three primary user roles: **Super Admin**, **Clerk/Faculty**, and **Student**. It automates complex processes including admissions, attendance, internal marks, scholarship management, and digital certificate generation.
 
 ---
 
 ## 2. Technical Stack
 - **Frontend:** Next.js 16.1.6, React 19.2.4, Tailwind CSS.
 - **Backend:** Next.js API Routes (App Router).
-- **Database:** MySQL (using `mysql2/promise`).
-- **Auth:** `jsonwebtoken` (JWT), `bcrypt` (Hashing), `jose` (Edge-compatible JWT).
-- **PDF Engine:** `@react-pdf/renderer` for template-based certificate generation.
-- **Email:** Brevo HTTP API (Port 443) for firewall-proof OTP delivery.
+- **Database:** MySQL (hosted on Railway, accessed via `mysql2/promise`).
+- **Auth:** JWT-based authentication using `jsonwebtoken` and `jose` (Edge-compatible).
+- **PDF Engine:** Custom template-based PDF generation using `@react-pdf/renderer`.
+- **Utilities:** `bcrypt` for hashing, `react-hot-toast` for notifications, `react-datepicker` for formal inputs.
 
 ---
 
 ## 3. Core Architectural Concepts
 
-### A. Authentication & Role-Based Access Control (RBAC)
-- **Middleware Logic:** Managed via `src/proxy.js`. It intercepts requests to `/admin`, `/clerk`, and `/student`, verifying the corresponding HTTP-only cookie (`admin_auth`, `clerk_auth`, `student_auth`).
-- **JWT Payload:** Includes `student_id`/`clerkId`, `roll_no`, `name`, and `role`.
-- **Clerk Roles:** Sub-roles include `admission`, `scholarship`, and `faculty`.
+### A. Middleware & Route Protection (`src/proxy.js`)
+- **Technology:** Uses `jose` library for Edge-runtime compatible JWT verification (replacing standard `jsonwebtoken` which fails in edge middleware).
+- **Logic:** Intercepts requests to protected paths (`/admin`, `/clerk`, `/student`). Decodes the HTTP-only cookie, verifies the signature using `HS256`, and redirects unauthorized users to `/`.
+- **Sub-Role Enforcement:** Clerk routes are further guarded; e.g., `/clerk/admission` is accessible only if the JWT payload contains `role: 'admission'`.
 
-### B. Time Management & Mocking (Time Machine)
-- **Authorized Source:** `src/lib/clock.js` provides `getNow()` (Async/Server) and `getNowSync()` (Sync/Client).
-- **Mocking:** In development, setting a `dev_mock_date` cookie allows the entire application to "travel" to a different date.
-- **Safe Mode:** Mock logic is automatically disabled if `NEXT_PUBLIC_WORKING_ENV !== 'testing'`.
+### B. Global State Management (`src/context/`)
+- **StudentContext:** Tracks student identity, profile completion, and pending requests.
+- **ClerkContext:** Manages clerk profile, role (admission/scholarship/faculty), and pending tasks.
+- **AdminContext:** Provides global statistics and administrative control state.
 
-### C. Academic Lifecycle & Semester Transitions
-- **Boundaries:** Defined in `college_info` table (First Sem Start, Second Sem Start).
-- **Transition Logic:** `src/lib/academic-utils.js` determines the current Academic Year and Semester (Odd/Even) based on the "Current Date" (Real or Mocked).
-- **Lifecycle Locking:** Subjects from ended semesters automatically move to **History Mode** (Read-Only/Grayed out) in both UI and API.
+### C. Time Management & The "Time Machine"
+- **Authoritative Clock:** `src/lib/clock.js` provides `getNow()` to ensure server-side consistency.
+- **Dev Tool:** `/dev/time-machine` allows developers to mock the system date, enabling testing of date-dependent logic like semester transitions and attendance "graying out."
 
----
-
-## 4. Database Schema (`faculty_features.sql`)
-
-### **Faculty & Assignments**
-- `faculty_subject_interests`: Stores subjects faculty want to teach.
-- `faculty_subject_assignments`: Official records of approved subjects per branch/semester/AY.
-- **Note:** "Section" logic has been removed; the system assumes a single class per branch.
-
-### **Academic Records**
-- `student_attendance`: Tracks daily attendance.
-    - **Multi-Session:** Includes a `session` column (1-5) to handle multiple lectures per day.
-    - **Unique Constraint:** Composite key on `(student_id, assignment_id, date, session)`.
-- `student_marks`: Tracks internal performance.
-    - **Formula:** Internal Total (30) = `Math.max(Mid1, Mid2) + Assignment`.
+### D. Academic Intelligence (`src/lib/rollNumber.js`)
+- **Regex-Based Parsing:** Decodes entrance year, branch, and admission type (Regular/Lateral) directly from roll numbers using patterns like `/^(\d{2})567T(\d{2})(\d{2})$/`.
+- **Dynamic Logic:** Calculates batch years, current studying semester, and effective academic years based on institution-specific boundaries.
 
 ---
 
-## 5. Key Module Documentation
+## 4. Database Schema
 
-### **Faculty Management Module**
-- **Dashboard:** Clearly separates "Active Assignments" from "Subject History" (Ended semesters) based on current chronological time.
-- **Daily View:** 
-    - **Dynamic Session Selector:** Replaces static slots with interactive session tokens (S1-S5).
-    - **Sequential Enforcement:** Sessions must be filled in order (Session 2 is disabled until Session 1 is recorded).
-    - **Bulk Mode:** Option to mark attendance for multiple sessions simultaneously.
-- **Excel Mode (Grid):** 
-    - **Interactive Matrix:** High-performance grid for bulk editing. Columns sorted in Ascending order (Oldest -> Newest).
-    - **Protected Column Actions:** Header buttons to "Mark All Present/Absent" for an entire session, which are automatically disabled if the preceding session is incomplete.
-    - **Manual Insertion:** Feature to add custom Date/Session columns with smart logical defaults and strict sequential verification (e.g., prevents adding Session 2 if Session 1 is missing).
-    - **Cell-Level Sequence:** Enforces that a student's Session N cannot be marked if N-1 is empty.
-- **Student History Modal:** Polished UI with a summary section and a "Save Changes" workflow for bulk persistence.
+### **1. Core Identity & Auth**
+- `students`: Core records including `roll_no`, `email`, and `password_hash`.
+- `clerks`: Administrative staff records with `role` (admission, scholarship, faculty).
+- `principal`: Auth for principal-level approvals.
+- `otp_codes` & `password_reset_tokens`: Security flow data.
 
-### **Student Performance Module**
-- **Live Tab:** "Attendance / Mid Marks" shows current subjects and faculty names.
-- **Regularity Stats:** Real-time percentage calculation with color urgency:
-    - 🔴 Red: ≤ 50%
-    - 🟠 Orange: ≤ 75%
-    - 🟢 Green: > 75%
-- **Self-History:** Modal access to personal daily logs, now including Session numbers (S1, S2, etc.).
+### **2. Academic & Attendance**
+- `student_admission_drafts`: Holds applicant data before roll number assignment.
+- `student_academic_background`: Stores SSC, Inter/Diploma marks, and entrance ranks.
+- `student_attendance`: Multi-session (S1-S5) daily tracking with composite unique keys.
+- `student_marks`: Mid-exam performance and internal assignments.
 
-### **Student Profile & Signature Management**
-- **Workflow:** Every signature and profile picture update requires mandatory **Admission Clerk** approval.
-- **Student UI:** 
-    - Dedicated signature and photo upload section in the Edit Profile page (`/student/settings/edit-profile`).
-    - Real-time status indicators for "Pending Approval" or "Rejected" requests.
-    - Feedback loop: Displays clerk-provided rejection reasons directly to the student for immediate correction.
-- **Clerk UI:** 
-    - "Student Requests" module in the Admission Dashboard (`/clerk/admission/student-requests`).
-    - Side-by-side comparison of old vs. new data (Photos and Signatures) for quick verification.
-    - Rejection workflow with mandatory reason description.
-- **Database:** Managed via `student_signatures`, `student_images`, and `student_profile_requests` (unified request table).
+### **3. Student Records & Media**
+- `student_personal_details`: Extended info including Aadhaar, guardian contact, and identification marks.
+- `student_images` & `student_signatures`: Binary BLOB storage for profile media.
+- `student_profile_requests`: Unified request table for student-initiated photo/signature updates.
 
-### **Admin Faculty Management**
-- **Decision Engine:** Centralized academic logic ensures admins see all current and pending subject interests across all semesters.
+### **4. Finance & Scholarship**
+- `student_fee_payments`: Records of tuition and other fees.
+- `scholarship_sanctions`: Tracking of government-provided reimbursements and amounts.
+
+---
+
+## 5. Specialized Modules
+
+### **A. Digital Certificate Engine (`src/pdf/` & `src/app/api/.../download`)**
+- **Server-Side Rendering:** Uses `@react-pdf/renderer`'s `pdf().toBuffer()` method to generate binary streams on the server.
+- **Asset Handling:** Local images (logos, signatures) are converted to Base64 strings (`fs.readFileSync`) before being passed to the React-PDF template to prevent file access errors during rendering.
+- **Security:** Generates a unique Certificate ID using `HMAC-SHA256` of the roll number and certificate type.
+- **Templates:** Modular React components (`BonafideCertificatePDF.js`, etc.) assembled from shared blocks (`QRBlock`, `SignatureBlock`).
+
+### **B. Faculty Performance Grid**
+- **Excel Mode:** High-performance matrix for bulk attendance/marks entry with sequential validation (prevents marking Session 2 if Session 1 is empty).
+- **Responsive View:** `MobileAttendanceSheet.js` provides a card-based alternative for smartphones.
+
+### **C. Syllabus Aggregation (`src/lib/syllabus-data.js`)**
+- **Static Definition:** Syllabus structures are defined as static JS objects in `src/lib/syllabus/`.
+- **Aggregation:** `syllabus-data.js` imports and maps these definitions by branch (CSE, ECE, etc.), acting as the single source of truth for the "Materials" module.
+
+### **D. Institutional Academic Calendar**
+- **Control:** Clerks define working days, holidays, and Sundays per semester.
+- **Impact:** Automatically restricts attendance entry on non-working days.
+
+---
+
+## 6. Development Guidelines
+- **Date Handling:** Never use `new Date()` for business logic; always use `getNowSync()` from `src/lib/clock.js`.
+- **API Standards:** All data responses should be wrapped in a `{ data: [...] }` object.
+- **BLOB Uploads:** Enforce a **4MB limit** client-side and use `Buffer.from(base64, 'base64')` server-side for `MEDIUMBLOB` storage.
+- **SQL Best Practices:** Prefer `ON DUPLICATE KEY UPDATE` for settings and profile data to ensure atomicity.
 
 ---
 
 ## 9. Recent Activity Log (Feb 2026)
 
-### **Session 1: Profile & Signature Request Workflow**
-- **Unified Request System:** Implemented a single table `student_profile_requests` to handle both signature and profile picture updates.
-- **Student Dashboard:** Updated the Edit Profile page to support file uploads for signatures and photos, with a status tracking badge.
-- **Clerk Interface:** Built the Student Requests management page for Admission Clerks to review and process updates.
-- **API Implementation:** Created consolidated endpoints for student submission and clerk management.
+### **Session 4: Advanced Admission Workflow (Latest)**
+- **Draft Pipeline:** Created `/admission` public form and clerk verification/finalization modules.
+- **Data Expansion:** Added `ssc_marks`, `inter_marks`, and `guardian_mobile` fields.
+- **Security:** Implemented cross-table uniqueness checks for system-wide data integrity.
 
-### **Session 2 (Current): Fixes, Standardization & UI Enhancements**
-- **Bug Fix:** Resolved `ER_BAD_NULL_ERROR` in `student_profile_requests` by making `new_signature` and `new_pfp` nullable (allowing independent updates).
-- **Naming Standard:** Synchronized naming conventions to "Student Requests" across UI and API for the Clerk role.
-- **Navbar Update:** Added "Profile Updates" link to the student REQUESTS menu and fixed Clerk Navbar rendering.
-- **Request History:** Created a dedicated page for students to view their profile/signature update history (`/student/requests/profile-updates`) with a corresponding API.
-- **Context Integration:** 
-    - Updated `StudentContext` to track `latestProfileRequest` status globally.
-    - Updated `ClerkContext` to automatically fetch and store `pendingProfileRequests` for admission clerks.
-- **UI Enhancements:**
-    - Simplified Student Dashboard labels: Changed academic status to a concise format (e.g., "Year 3 Sem 6").
-    - Improved UX: Added loading animations/spinners for profile photo and signature previews in the Edit Profile page.
-    - Placeholder Fix: Resolved flickering issue where "Upload profile picture" showed briefly during data load by introducing a `profileDataLoaded` state.
-- **SQL Consolidation:** Created `final_signature_fix.sql` to simplify database setup and fixes.
-- **Documentation:** Updated technical documentation to reflect the unified profile management system.
+### **Session 3: Mobile UX & Academic Calendar**
+- **Responsive Web:** Developed `MobileAttendanceSheet.js` for on-the-go faculty access.
+- **Calendar Management:** Built the institutional calendar system with bulk holiday actions.
 
 ---
 
-## 6. Developer Tools
+### Goutham's Changes: Advanced Admission Workflow & Data Expansion (Session 4)
 
-### **The Time Machine (`/dev/time-machine`)**
-- Allows testing of date-specific features (e.g., verifying that a subject "grays out" exactly on the semester end date).
-- **Presets:** Quick travel to start/mid semester dates.
-- **Indicator:** A red pulsing "Testing Mode" badge on the homepage allows instant access.
+**Objective 1: Multi-Stage Admission Pipeline**
+*   **Registration:** Built a 27-field formal registration form (`/admission`) with dynamic year calculation (EAMCET/ECET).
+*   **Verification:** Created `student_admission_drafts` and a clerk module to verify and correct applicant data.
+*   **Finalization:** Implemented a roll-number assignment tool that graduates drafts to official student records.
 
----
-
-## 7. Configuration & Environment
-
-### **Prerequisites**
-- Node.js (Latest LTS recommended).
-- MySQL Server.
-
-### **Environment Variables (.env.local)**
-```dotenv
-DB_HOST=...
-DB_PORT=...
-DB_USER=...
-DB_PASSWORD=...
-DB_DATABASE=...
-JWT_SECRET=...
-NEXT_PUBLIC_WORKING_ENV=testing  # 'testing' or 'production'
-NEXT_PUBLIC_BASE_URL=...
-BREVO_API_KEY=...
-EMAIL_USER=...
-```
-
----
-
-## 8. Gemini CLI Usage Guidelines
-- **Date Checks:** Never use `new Date()` directly for business logic. Always use `getNow()`/`getNowSync()` from `@/lib/clock`.
-- **API Responses:** All new data arrays must be wrapped in `{ data: [...] }`.
-- **SQL Updates:** Use bulk inserts for high-traffic tables like `student_attendance`.
-- **Production Safety:** Always verify that `NEXT_PUBLIC_WORKING_ENV` is respected before adding debug routes.
----
-
-### Goutham's Changes: Refactor Faculty Attendance Page Architecture
-
-**Objective:** Redesigned the Faculty Attendance page to shift from a filter-based subject selection to an assignment-driven model, reflecting a government-level academic control system.
-
-**Key Changes Implemented:**
-
-*   **Subject Selection Layer (Phase 1):**
-    *   Removed academic year, branch, semester, and subject dropdown filters from the main attendance page.
-    *   Implemented a new UI displaying a grid of subjects assigned to the logged-in faculty.
-    *   Each subject card shows Subject Name, Subject Code, Branch, Semester, Academic Year, and Status (Active/Inactive).
-    *   Faculty now select a subject directly from this list to manage attendance.
-    *   A message is displayed if no subjects are assigned.
-
-*   **Subject Identity Panel (Phase 2):**
-    *   Introduced a formal "Attendance Register" identity block that appears once a subject is selected.
-    *   This block displays the selected subject's Name, Code, Branch, Semester, Academic Year, and Status in an institutional, structured layout.
-
-*   **Attendance Control Section (Phase 3):**
-    *   Refactored the daily view controls to separate the Date selector, Session selector, and Save/Delete action buttons into distinct, well-organized sections. This avoids a crowded interface.
-
-*   **Daily View Table Refinements (Phase 4):**
-    *   Enhanced the styling of the daily attendance table. Table headers now use uppercase, a smaller font, strong grid lines, and consistent padding for a more official appearance.
-    *   Status badges for student attendance are now flat, minimal, and official-looking, replacing overly rounded pills and excessive hover animations.
-
-*   **Excel Mode Structure Enhancements (Phase 5):**
-    *   Added a clear legend above the grid for status indicators: `P = Present`, `A = Absent`, `× = Locked (Previous session missing)`, `+ = Not Marked`.
-    *   Introduced an official heading: "Attendance Register – [Subject Name]" with "Academic Year: [AY]".
-    *   Ensured Roll No and Name columns remain visually frozen (sticky) for improved usability in the grid view.
-    *   The backend sequential validation for sessions remains preserved.
-
-*   **Back Navigation (Phase 6):**
-    *   Implemented a prominent "← Back to Subjects" button for easy navigation back to the subject selection screen.
-
-*   **Removal of Old Filter Model (Phase 7):**
-    *   Completely eliminated the previous dropdown-based filter system.
-
-**Unaltered Aspects (as per instructions):**
-
-*   API endpoints were not changed.
-*   Sequential validation logic was preserved.
-*   Attendance backend logic was not modified.
-*   Database schema was not altered.
-*   Other faculty pages were not affected.
-
-This refactoring strictly focused on architectural and UX-level improvements to provide an institutional, assignment-driven attendance management experience.
+**Objective 2: Student Data Expansion**
+*   **New Fields:** Added `ssc_marks`, `inter_marks`, and `guardian_mobile` to the database and frontend.
+*   **Rich Media:** Integrated binary Photo and Signature uploads with 4MB validation and base64 handling.
+*   **Validation:** Added cross-database uniqueness checks for Email, Student Mobile, and Aadhaar card.

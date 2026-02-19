@@ -32,7 +32,7 @@ export async function GET(request) {
        ORDER BY sr.created_at DESC`,
       [user.student_id]
     );
-    return apiResponse(rows);
+    return apiResponse({ data: rows });
   } catch (error) {
     console.error('Error fetching student requests:', error);
     return apiError('Failed to fetch requests', 500);
