@@ -42,7 +42,7 @@ export default function ClerkDashboard() {
         <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Admission Clerk Dashboard</h1>
 
         {!openModule && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             <div onClick={() => setOpenModule('student')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-indigo-50 rounded flex items-center justify-center">🎓</div>
@@ -63,22 +63,32 @@ export default function ClerkDashboard() {
               </div>
             </div>
 
+            <div onClick={() => router.push('/clerk/admission/requests')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col border-t-4 border-purple-500">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-purple-50 rounded flex items-center justify-center">📩</div>
+                <div>
+                  <h3 className="font-semibold">Admission Requests</h3>
+                  <p className="text-sm text-gray-600">Verify new student applications.</p>
+                </div>
+              </div>
+            </div>
+
+            <div onClick={() => router.push('/clerk/admission/finalize')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col border-t-4 border-blue-500">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-blue-50 rounded flex items-center justify-center">🆔</div>
+                <div>
+                  <h3 className="font-semibold">Finalize Admissions</h3>
+                  <p className="text-sm text-gray-600">Assign roll numbers.</p>
+                </div>
+              </div>
+            </div>
+
             <div onClick={() => router.push('/clerk/admission/student-requests')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-orange-50 rounded flex items-center justify-center">✍️</div>
                 <div>
-                  <h3 className="font-semibold">Student Requests</h3>
-                  <p className="text-sm text-gray-600">Approve or reject student profile updates.</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow flex flex-col">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">📈</div>
-                <div>
-                  <h3 className="font-semibold">Reports</h3>
-                  <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
+                  <h3 className="font-semibold">Update Requests</h3>
+                  <p className="text-sm text-gray-600">Approve profile updates.</p>
                 </div>
               </div>
             </div>
