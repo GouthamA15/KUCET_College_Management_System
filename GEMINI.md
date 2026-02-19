@@ -18,7 +18,7 @@ A modern web interface built with **Next.js** for managing college academic data
 ## 3. Core Architectural Concepts
 
 ### A. Authentication & Role-Based Access Control (RBAC)
-- **Middleware Logic:** Managed via `src/proxy.js`. It intercepts requests to `/admin`, `/clerk`, and `/student`, verifying the corresponding HTTP-only cookie (`admin_auth`, `clerk_auth`, `student_auth`).
+- **Middleware Logic:** Managed via `src/middleware.js`. It intercepts requests to `/admin`, `/clerk`, and `/student`, verifying the corresponding HTTP-only cookie (`admin_auth`, `clerk_auth`, `student_auth`).
 - **JWT Payload:** Includes `student_id`/`clerkId`, `roll_no`, `name`, and `role`.
 - **Clerk Roles:** Sub-roles include `admission`, `scholarship`, and `faculty`.
 
@@ -112,6 +112,11 @@ A modern web interface built with **Next.js** for managing college academic data
     - Placeholder Fix: Resolved flickering issue where "Upload profile picture" showed briefly during data load by introducing a `profileDataLoaded` state.
 - **SQL Consolidation:** Created `final_signature_fix.sql` to simplify database setup and fixes.
 - **Documentation:** Updated technical documentation to reflect the unified profile management system.
+
+### **Session 3 (Current): Architectural Refinement & Standardization**
+- **Middleware Correction:** Renamed `src/proxy.js` to `src/middleware.js` to enable native Next.js middleware functionality and centralized JWT verification using `src/lib/auth.js`.
+- **Logic Consolidation:** Refactored `src/lib/academic-utils.js` to eliminate duplication between Sync and Async functions by introducing shared core logic.
+- **API Standardization:** Standardized API responses across the system by wrapping data in a consistent `{ data: ... }` property for better predictability.
 
 ---
 

@@ -126,7 +126,7 @@ export async function GET(req, ctx) {
       student_payments,
     };
 
-    return apiResponse(response);
+    return apiResponse({ data: response });
   } catch (error) {
     console.error('Error fetching student data:', error);
     return apiError('Internal Server Error', 500);

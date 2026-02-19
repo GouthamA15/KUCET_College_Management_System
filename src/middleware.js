@@ -1,17 +1,5 @@
 import { NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
-
-async function verify(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    return null;
-  }
-}
+import { verifyJwt } from '@/lib/auth';
 
 function clerkDashboardPath(role) {
   switch (role) {
@@ -26,7 +14,7 @@ function clerkDashboardPath(role) {
   }
 }
 
-export async function proxy(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
   const { cookies } = request;
 
@@ -37,18 +25,18 @@ export async function proxy(request) {
 
   // Home ("/") is a pure login gate. Authenticated users are redirected server-side.
   if (pathname === '/') {
-    const adminPayload = adminAuth ? await verify(adminAuth.value, jwtSecret) : null;
+    const adminPayload = adminAuth ? await verifyJwt(adminAuth.value, jwtSecret) : null;
     if (adminPayload) {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
     }
 
-    const clerkPayload = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : null;
+    const clerkPayload = clerkAuth ? await verifyJwt(clerkAuth.value, jwtSecret) : null;
     if (clerkPayload) {
       const dashboard = clerkDashboardPath(clerkPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
 
-    const studentPayload = studentAuth ? await verify(studentAuth.value, jwtSecret) : null;
+    const studentPayload = studentAuth ? await verifyJwt(studentAuth.value, jwtSecret) : null;
     if (studentPayload) {
       return NextResponse.redirect(new URL('/student/profile', request.url), 303);
     }
@@ -59,7 +47,7 @@ export async function proxy(request) {
 
   // Protect /admin routes
   if (pathname.startsWith('/admin')) {
-    const adminPayload = adminAuth ? await verify(adminAuth.value, jwtSecret) : null;
+    const adminPayload = adminAuth ? await verifyJwt(adminAuth.value, jwtSecret) : null;
     if (!adminPayload) {
       return NextResponse.redirect(new URL('/', request.url), 303);
     }
@@ -70,7 +58,7 @@ export async function proxy(request) {
 
   // Protect /clerk routes
   else if (pathname.startsWith('/clerk')) {
-    const clerkPayload = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : null;
+    const clerkPayload = clerkAuth ? await verifyJwt(clerkAuth.value, jwtSecret) : null;
     if (!clerkPayload) {
       return NextResponse.redirect(new URL('/', request.url), 303);
     }
@@ -95,7 +83,7 @@ export async function proxy(request) {
 
   // Protect /student routes
   else if (pathname.startsWith('/student')) {
-    const studentPayload = studentAuth ? await verify(studentAuth.value, jwtSecret) : null;
+    const studentPayload = studentAuth ? await verifyJwt(studentAuth.value, jwtSecret) : null;
     if (!studentPayload) {
       return NextResponse.redirect(new URL('/', request.url), 303);
     }
@@ -110,4 +98,3 @@ export async function proxy(request) {
 export const config = {
   matcher: ['/', '/admin/:path*', '/clerk/:path*', '/student/:path*'],
 };
-
