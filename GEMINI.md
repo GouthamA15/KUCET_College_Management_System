@@ -88,30 +88,29 @@ A modern web interface built with **Next.js** for managing college academic data
 ### **Admin Faculty Management**
 - **Decision Engine:** Centralized academic logic ensures admins see all current and pending subject interests across all semesters.
 
+### **Academic Calendar Module**
+- **Clerk Management:** Dedicated interface for Clerks to define institutional working days and holidays.
+- **Monthly Grid:** Interactive calendar grid with color-coded day statuses (Working, Holiday, Sunday).
+- **Sequential Validation:** Prevents a day from being both a holiday and a working day.
+- **Bulk Sundays:** One-click feature to mark all Sundays in a month as holidays.
+
 ---
 
 ## 9. Recent Activity Log (Feb 2026)
 
-### **Session 1: Profile & Signature Request Workflow**
-- **Unified Request System:** Implemented a single table `student_profile_requests` to handle both signature and profile picture updates.
-- **Student Dashboard:** Updated the Edit Profile page to support file uploads for signatures and photos, with a status tracking badge.
-- **Clerk Interface:** Built the Student Requests management page for Admission Clerks to review and process updates.
-- **API Implementation:** Created consolidated endpoints for student submission and clerk management.
+### **Session 3: Mobile UX & Academic Calendar (Latest)**
+- **Responsive Attendance:** Implemented `MobileAttendanceSheet.js` with a card-based layout and optimized controls for faculty on mobile devices.
+- **Academic Calendar:** Built a complete calendar management system for Clerks, including UPSERT APIs and an interactive grid UI.
+- **Global Navigation:** Added "ACADEMIC CALENDAR" to the Clerk Navbar.
 
-### **Session 2 (Current): Fixes, Standardization & UI Enhancements**
-- **Bug Fix:** Resolved `ER_BAD_NULL_ERROR` in `student_profile_requests` by making `new_signature` and `new_pfp` nullable (allowing independent updates).
-- **Naming Standard:** Synchronized naming conventions to "Student Requests" across UI and API for the Clerk role.
-- **Navbar Update:** Added "Profile Updates" link to the student REQUESTS menu and fixed Clerk Navbar rendering.
-- **Request History:** Created a dedicated page for students to view their profile/signature update history (`/student/requests/profile-updates`) with a corresponding API.
-- **Context Integration:** 
-    - Updated `StudentContext` to track `latestProfileRequest` status globally.
-    - Updated `ClerkContext` to automatically fetch and store `pendingProfileRequests` for admission clerks.
-- **UI Enhancements:**
-    - Simplified Student Dashboard labels: Changed academic status to a concise format (e.g., "Year 3 Sem 6").
-    - Improved UX: Added loading animations/spinners for profile photo and signature previews in the Edit Profile page.
-    - Placeholder Fix: Resolved flickering issue where "Upload profile picture" showed briefly during data load by introducing a `profileDataLoaded` state.
-- **SQL Consolidation:** Created `final_signature_fix.sql` to simplify database setup and fixes.
-- **Documentation:** Updated technical documentation to reflect the unified profile management system.
+### **Session 2: Fixes, Standardization & UI Enhancements**
+- **Bug Fix:** Resolved `ER_BAD_NULL_ERROR` in `student_profile_requests` by making `new_signature` and `new_pfp` nullable.
+- **Naming Standard:** Synchronized naming conventions to "Student Requests" across UI and API.
+- **Context Integration:** Updated `StudentContext` and `ClerkContext` for real-time profile request tracking.
+
+### **Session 1: Profile & Signature Request Workflow**
+- **Unified Request System:** Implemented a single table `student_profile_requests` for signature and photo updates.
+- **Clerk Interface:** Built the Student Requests management page for Admission Clerks.
 
 ---
 
@@ -153,48 +152,29 @@ EMAIL_USER=...
 - **Production Safety:** Always verify that `NEXT_PUBLIC_WORKING_ENV` is respected before adding debug routes.
 ---
 
-### Goutham's Changes: Refactor Faculty Attendance Page Architecture
+### Goutham's Changes: Implement Mobile Attendance View & Academic Calendar (Session 3)
 
-**Objective:** Redesigned the Faculty Attendance page to shift from a filter-based subject selection to an assignment-driven model, reflecting a government-level academic control system.
+**Objective 1: Mobile-Responsive Attendance**
+*   **Mobile View:** Created `MobileAttendanceSheet.js` for faculty to manage attendance via a card-based layout on small screens.
+*   **Dynamic Switch:** Added screen-size detection in `src/app/clerk/faculty/attendance/page.js` to toggle between desktop and mobile versions.
+*   **Optimized UI:** Replaced tables with student cards and full-width session/action buttons for touch interfaces.
+
+**Objective 2: Institutional Academic Calendar**
+*   **Clerk Interface:** New page `/clerk/academic-calendar` for semester scheduling.
+*   **Calendar Logic:** Built a standard grid with color coding for Sundays, holidays, and working days.
+*   **Efficiency:** Bulk action to mark all Sundays as holidays and UPSERT logic for persistent storage.
+
+---
+
+### Goutham's Changes: Refactor Faculty Attendance Page Architecture (Session 2)
+
+**Objective:** Redesigned the Faculty Attendance page to shift from a filter-based subject selection to an assignment-driven model.
 
 **Key Changes Implemented:**
+*   **Subject Selection:** Removed dropdown filters; implemented a direct grid of assigned subjects for faculty.
+*   **Identity Panel:** Introduced a formal "Attendance Register" block showing subject and academic year details.
+*   **Control Layout:** Restructured Date/Session/Action buttons into clean, logical sections.
+*   **Grid Enhancements:** Fixed Roll No/Name columns (sticky) and added a status legend (P/A/×/+) for the Excel-style view.
+*   **Validation:** Preserved backend sequential session enforcement while improving visual clarity.
 
-*   **Subject Selection Layer (Phase 1):**
-    *   Removed academic year, branch, semester, and subject dropdown filters from the main attendance page.
-    *   Implemented a new UI displaying a grid of subjects assigned to the logged-in faculty.
-    *   Each subject card shows Subject Name, Subject Code, Branch, Semester, Academic Year, and Status (Active/Inactive).
-    *   Faculty now select a subject directly from this list to manage attendance.
-    *   A message is displayed if no subjects are assigned.
-
-*   **Subject Identity Panel (Phase 2):**
-    *   Introduced a formal "Attendance Register" identity block that appears once a subject is selected.
-    *   This block displays the selected subject's Name, Code, Branch, Semester, Academic Year, and Status in an institutional, structured layout.
-
-*   **Attendance Control Section (Phase 3):**
-    *   Refactored the daily view controls to separate the Date selector, Session selector, and Save/Delete action buttons into distinct, well-organized sections. This avoids a crowded interface.
-
-*   **Daily View Table Refinements (Phase 4):**
-    *   Enhanced the styling of the daily attendance table. Table headers now use uppercase, a smaller font, strong grid lines, and consistent padding for a more official appearance.
-    *   Status badges for student attendance are now flat, minimal, and official-looking, replacing overly rounded pills and excessive hover animations.
-
-*   **Excel Mode Structure Enhancements (Phase 5):**
-    *   Added a clear legend above the grid for status indicators: `P = Present`, `A = Absent`, `× = Locked (Previous session missing)`, `+ = Not Marked`.
-    *   Introduced an official heading: "Attendance Register – [Subject Name]" with "Academic Year: [AY]".
-    *   Ensured Roll No and Name columns remain visually frozen (sticky) for improved usability in the grid view.
-    *   The backend sequential validation for sessions remains preserved.
-
-*   **Back Navigation (Phase 6):**
-    *   Implemented a prominent "← Back to Subjects" button for easy navigation back to the subject selection screen.
-
-*   **Removal of Old Filter Model (Phase 7):**
-    *   Completely eliminated the previous dropdown-based filter system.
-
-**Unaltered Aspects (as per instructions):**
-
-*   API endpoints were not changed.
-*   Sequential validation logic was preserved.
-*   Attendance backend logic was not modified.
-*   Database schema was not altered.
-*   Other faculty pages were not affected.
-
-This refactoring strictly focused on architectural and UX-level improvements to provide an institutional, assignment-driven attendance management experience.
+This refactoring focused on architectural and UX improvements to provide an institutional, assignment-driven experience.

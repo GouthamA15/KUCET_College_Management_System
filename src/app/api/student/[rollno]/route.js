@@ -70,8 +70,26 @@ export async function GET(req, context) {
       date: f.transaction_date ?? f.date ?? null,
     }));
 
-    // const academicsSql = 'SELECT * FROM academics WHERE student_id = ? ORDER BY year';
-    // const academics = await query(academicsSql, [studentId]);
+    // Fetch academics from student_academic_background
+    let academics = [];
+    try {
+      academics = await query('SELECT * FROM student_academic_background WHERE student_id = ?', [studentId]);
+    } catch (e) {
+      console.warn('Could not fetch academics:', e.message || e);
+    }
+
+    // Fetch signature
+    try {
+        const sigRows = await query('SELECT signature FROM student_signatures WHERE student_id = ?', [studentId]);
+        if (sigRows.length > 0 && sigRows[0].signature) {
+            student.signature = `data:image/png;base64,${sigRows[0].signature.toString('base64')}`;
+        } else {
+            student.signature = null;
+        }
+    } catch (e) {
+        console.warn('Could not fetch signature:', e.message || e);
+        student.signature = null;
+    }
 
     // Fetch personal details from separate table if present
     let personalDetails = {};
@@ -85,7 +103,7 @@ export async function GET(req, context) {
     // Merge some commonly used fields for backward compatibility
     const mergedStudent = { ...student, personal_details: personalDetails };
 
-    return apiResponse({ student: mergedStudent, scholarship, fees });
+    return apiResponse({ student: mergedStudent, scholarship, fees, academics });
   } catch (error) {
     console.error('Error fetching student profile data:', error);
     return apiError('Failed to fetch student profile data', 500, error.message);
