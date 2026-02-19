@@ -17,7 +17,7 @@ export default function StudentRequestsPage() {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && clerk) {
+    if (!isLoading && clerk && clerk.role === 'admission') {
       fetchRequests();
     }
   }, [clerk, isLoading]);

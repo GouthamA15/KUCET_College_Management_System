@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { getAuthUser, apiError } from '@/lib/api-utils';
 
 export async function POST(request) {
   try {
+    const user = await getAuthUser('clerk');
+    if (!user) {
+      return apiError('Unauthorized', 401);
+    }
+    
     const {
       academic_year,
       semester,

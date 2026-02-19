@@ -1,12 +1,21 @@
 import { query } from '@/lib/db';
-import { apiResponse, apiError } from '@/lib/api-utils';
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 
 // GET: Check if password is set
 export async function GET(req) {
   try {
+    const user = await getAuthUser('student');
+    if (!user) {
+      return apiError('Unauthorized', 401);
+    }
+
     const { searchParams } = new URL(req.url);
     const rollno = searchParams.get('rollno');
+
+    if (user.roll_no !== rollno) {
+        return apiError('Forbidden', 403);
+    }
 
     if (!rollno) return apiError('Roll number required', 400);
 
@@ -29,8 +38,17 @@ export async function GET(req) {
 // POST: Set new password
 export async function POST(req) {
   try {
+    const user = await getAuthUser('student');
+    if (!user) {
+      return apiError('Unauthorized', 401);
+    }
+
     const body = await req.json();
     const { rollno, password } = body;
+
+    if (user.roll_no !== rollno) {
+        return apiError('Forbidden', 403);
+    }
 
     if (!rollno || !password) {
       return apiError('Missing details', 400);

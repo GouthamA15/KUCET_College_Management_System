@@ -1,12 +1,21 @@
 import { query } from '@/lib/db';
-import { apiError, apiResponse } from '@/lib/api-utils';
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
   try {
+    const user = await getAuthUser('student');
+    if (!user) {
+      return apiError('Unauthorized', 401);
+    }
+
     const url = new URL(request.url);
     const rollno = url.searchParams.get('rollno');
     if (!rollno) {
       return apiError('Roll number required', 400);
+    }
+
+    if (user.roll_no !== rollno) {
+        return apiError('Forbidden: You can only view your own requests.', 403);
     }
 
       const sql = `SELECT sr.request_id, sr.certificate_type, sr.status, sr.reject_reason, sr.created_at

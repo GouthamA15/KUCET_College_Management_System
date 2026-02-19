@@ -32,8 +32,8 @@ export function ClerkProvider({ children }) {
       const res = await fetch('/api/clerk/me');
       const data = await res.json();
       if (res.ok) {
-        setClerkData(data);
-        return data;
+        setClerkData(data.data); // Correctly access the nested data
+        return data.data; // Return the nested data object
       } else {
         setError(data.error || 'Failed to fetch clerk data');
       }

@@ -1,8 +1,13 @@
 import { query } from '@/lib/db';
-import { apiResponse, apiError } from '@/lib/api-utils';
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
   try {
+    const user = await getAuthUser('student');
+    if (!user) {
+      return apiError('Unauthorized', 401);
+    }
+    
     const { searchParams } = new URL(req.url);
     const email = searchParams.get('email');
     const currentRollno = searchParams.get('currentRollno'); // Optional: student's own rollno

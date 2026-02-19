@@ -9,7 +9,7 @@ export default function CertificatePageLayout({ title = "Certificate Requests", 
   return (
     <>
       <Header />
-      <Navbar studentProfileMode={true} activeTab="requests" />
+      <Navbar studentProfileMode={true} activeTab={'requests'} onLogout={async () => { try { await fetch('/api/student/logout', { method: 'POST' }); } catch {} finally { localStorage.removeItem('logged_in_student'); sessionStorage.clear(); window.location.replace('/'); } }} />
       <main className="min-h-screen bg-gray-100">
         <div className="mx-auto max-w-screen-2xl px-6 lg:px-20 py-6">
           <h1 className="text-3xl font-bold text-[#0b2447] mb-4">{title}</h1>

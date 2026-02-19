@@ -33,8 +33,6 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
       { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
       { label: 'DEPARTMENTS', route: '/clerk/departments' },
       { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
-      { label: 'ADMISSION REQUESTS', route: '/clerk/admission/requests' },
-      ...(clerkMinimal ? [] : [{ label: 'FINALIZE ADMISSIONS', route: '/clerk/admission/finalize' }]),
       { label: 'TIME TABLE', route: '/clerk/timetable' },
       { label: 'FACULTIES', route: '/clerk/faculties' },
       { label: 'MENU', children: [

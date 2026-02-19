@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getNow } from '@/lib/clock';
+import { getAuthUser, apiError } from '@/lib/api-utils';
 
 export async function GET(request) {
+  const user = await getAuthUser('clerk');
+  if (!user) {
+    return apiError('Unauthorized', 401);
+  }
 
 
   const { searchParams } = new URL(request.url);
@@ -35,6 +40,11 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+    const user = await getAuthUser('clerk');
+    if (!user) {
+      return apiError('Unauthorized', 401);
+    }
+
     try {
         const body = await request.json();
         let { date, academic_year, semester, day_type, holiday_name } = body;
