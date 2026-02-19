@@ -75,7 +75,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   // Role selection: prefer explicit `role` prop. Fall back to studentProfileMode for backward compatibility.
   const effectiveRole = role || (studentProfileMode ? 'student' : 'guest');
   const menuItems = menuConfig[effectiveRole] || [
-    // { label: 'HOME', route: '/' },
+    { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'EMPLOYEE LOGIN', action: 'open-panel-clerk' },
     { label: 'SUPER ADMIN', action: 'open-panel-admin' }
