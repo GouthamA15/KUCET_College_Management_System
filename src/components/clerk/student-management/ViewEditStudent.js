@@ -75,6 +75,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         place_of_birth: pd.place_of_birth || null,
         father_occupation: pd.father_occupation || null,
         annual_income: pd.annual_income || null,
+        guardian_mobile: pd.guardian_mobile || null,
         aadhaar_no: pd.aadhaar_no || null,
         blood_group: pd.blood_group || null,
         address: pd.address || fetchedStudent.address || null,
@@ -88,13 +89,16 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       const initialAcademics = Array.isArray(fetchedStudent.academics) ? fetchedStudent.academics : [];
       let currentQualifyingExam = initialAcademics.length > 0 ? initialAcademics[0].qualifying_exam : '';
       let currentRanks = initialAcademics.length > 0 ? initialAcademics[0].ranks : '';
+      let currentSscMarks = initialAcademics.length > 0 ? initialAcademics[0].ssc_marks : '';
+      let currentInterMarks = initialAcademics.length > 0 ? initialAcademics[0].inter_marks : '';
+
       if (!currentQualifyingExam) {
         currentQualifyingExam = getEntranceExamQualified(fetchedStudent.roll_no) || 'EAMCET';
       }
       if (initialAcademics.length === 0) {
-        initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks });
+        initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks });
       } else {
-        initialAcademics[0] = { ...initialAcademics[0], qualifying_exam: currentQualifyingExam, ranks: currentRanks };
+        initialAcademics[0] = { ...initialAcademics[0], qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks };
       }
       setAcademicsList(initialAcademics);
       setOriginalAcademicsList(JSON.parse(JSON.stringify(initialAcademics)));
@@ -151,6 +155,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         place_of_birth: personalFull.place_of_birth,
         father_occupation: personalFull.father_occupation,
         annual_income: personalFull.annual_income,
+        guardian_mobile: personalFull.guardian_mobile,
         aadhaar_no: personalFull.aadhaar_no,
         address: personalFull.address,
         seat_allotted_category: personalFull.seat_allotted_category,
@@ -160,6 +165,8 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         previous_college_details: academicsList[0]?.previous_college_details,
         medium_of_instruction: academicsList[0]?.medium_of_instruction,
         ranks: academicsList[0]?.ranks,
+        ssc_marks: academicsList[0]?.ssc_marks,
+        inter_marks: academicsList[0]?.inter_marks,
       };
 
       const res = await fetch(`/api/clerk/admission/students/${roll}`, {
@@ -202,43 +209,64 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-1 bg-gray-50 p-4 rounded">
-              <h4 className="font-semibold mb-3">Profile</h4>
-              <div className="w-28 h-28 rounded-full bg-gray-100 overflow-hidden mb-3 flex items-center justify-center relative">
-                {(() => {
-                  const p = fetchedStudent.pfp;
-                  const has = p && String(p).trim() !== '';
-                  const isData = has && String(p).startsWith('data:');
-                  const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
-                  if (has && dataHasBody) {
-                    return (
-                        <>
-                            {imageLoading && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-1">
-                                    <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
-                                    <span className="text-[10px] text-gray-500 font-medium">Image is loading...</span>
-                                </div>
-                            )}
-                            <Image 
-                                src={String(p)} 
-                                alt="Profile" 
-                                width={112} 
-                                height={112} 
-                                unoptimized
-                                onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} 
-                                className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                                onLoad={() => setImageLoading(false)}
-                            />
-                        </>
-                    );
-                  }
-                  return <div className="text-gray-500">No Photo</div>;
-                })()}
+              <h4 className="font-semibold mb-3 text-indigo-700">Profile Sidebar</h4>
+              <div className="space-y-6">
+                <div>
+                  <div className="text-xs font-bold text-gray-500 mb-2 uppercase">Profile Photo</div>
+                  <div className="w-28 h-28 rounded-full bg-gray-100 overflow-hidden mb-3 flex items-center justify-center relative border-2 border-indigo-100">
+                    {(() => {
+                      const p = fetchedStudent.pfp;
+                      const has = p && String(p).trim() !== '';
+                      const isData = has && String(p).startsWith('data:');
+                      const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
+                      if (has && dataHasBody) {
+                        return (
+                            <>
+                                {imageLoading && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-1">
+                                        <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                                        <span className="text-[10px] text-gray-500 font-medium">Loading...</span>
+                                    </div>
+                                )}
+                                <Image 
+                                    src={String(p)} 
+                                    alt="Profile" 
+                                    width={112} 
+                                    height={112} 
+                                    unoptimized
+                                    onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} 
+                                    className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                                    onLoad={() => setImageLoading(false)}
+                                />
+                            </>
+                        );
+                      }
+                      return <div className="text-gray-400 text-xs">No Photo</div>;
+                    })()}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs font-bold text-gray-500 mb-2 uppercase">Signature</div>
+                  <div className="w-32 h-12 bg-white rounded border border-gray-200 overflow-hidden mb-1 flex items-center justify-center">
+                    {fetchedStudent.signature ? (
+                      <img 
+                        src={fetchedStudent.signature} 
+                        alt="Signature" 
+                        className="max-h-full max-w-full object-contain"
+                        onClick={() => { setImagePreviewSrc(fetchedStudent.signature); setImagePreviewOpen(true); }}
+                      />
+                    ) : (
+                      <div className="text-gray-400 text-[10px]">No Signature</div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="text-sm">
-                <div className="font-medium">{fetchedStudent.name}</div>
-                <div className="text-xs text-gray-600 mt-1">Admission No: {fetchedStudent.admission_no || 'N/A'}</div>
-                <div className="text-xs text-gray-600">DOB: {formatDate(fetchedStudent.date_of_birth)}</div>
-                <div className="text-xs text-gray-600">Course: {getBranchFromRoll(fetchedStudent.roll_no) || 'N/A'}</div>
+              <div className="mt-4 text-xs">
+                <div className="font-bold text-gray-800">{fetchedStudent.name}</div>
+                <div className="text-gray-600 mt-1">Admission No: {fetchedStudent.admission_no || 'N/A'}</div>
+                <div className="text-gray-600">DOB: {formatDate(fetchedStudent.date_of_birth)}</div>
+                <div className="text-gray-600">Course: {getBranchFromRoll(fetchedStudent.roll_no) || 'N/A'}</div>
               </div>
             </div>
 
@@ -322,6 +350,20 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   inputMode="numeric"
                   onPaste={(e) => { const pasted=(e.clipboardData||window.clipboardData).getData('text'); const digits=pasted.replace(/\D/g,'').slice(0, String(MAX_ANNUAL_INCOME).length); setPersonalFull(prev=>({...prev, annual_income: digits})); setAnnualIncomeDisplay(formatIndianNumber(digits)); e.preventDefault(); }}
                 />
+                <div className="flex items-center">
+                  <span className="px-3 py-2 border border-r-0 bg-gray-100 text-sm text-gray-500 font-medium">+91</span>
+                  <input
+                    placeholder="Guardian Mobile"
+                    value={personalFull.guardian_mobile || ''}
+                    onChange={(e) => {
+                      const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, 10);
+                      setPersonalFull({...personalFull, guardian_mobile: digits});
+                    }}
+                    className="p-2 border rounded rounded-l-none w-full"
+                    inputMode="numeric"
+                    maxLength={10}
+                  />
+                </div>
                 <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" />
                 <select value={personalFull.blood_group || ''} onChange={e=>setPersonalFull({...personalFull, blood_group: e.target.value})} className="p-2 border rounded">
                   <option value="">Blood Group (optional)</option>
@@ -347,10 +389,22 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 <option>ECET</option>
                 <option>PGECET</option>
               </select>
+              <input 
+                placeholder="SSC (10th) Marks"
+                value={(academicsList[0] && academicsList[0].ssc_marks) || ''}
+                onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), ssc_marks: e.target.value}; setAcademicsList(copy); }}
+                className="p-2 border rounded"
+              />
+              <input 
+                placeholder="Inter / Diploma Marks"
+                value={(academicsList[0] && academicsList[0].inter_marks) || ''}
+                onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), inter_marks: e.target.value}; setAcademicsList(copy); }}
+                className="p-2 border rounded"
+              />
               <textarea placeholder="Previous College Details" value={(academicsList[0] && academicsList[0].previous_college_details) || ''} onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), previous_college_details: e.target.value}; setAcademicsList(copy); }} className="p-2 border rounded md:col-span-3 h-20 resize-none" />
               <select value={(academicsList[0] && academicsList[0].medium_of_instruction) || 'English'} onChange={e=>{ const copy=[...academicsList]; copy[0] = {...(copy[0]||{}), medium_of_instruction: e.target.value}; setAcademicsList(copy); }} className="p-2 border rounded"><option>English</option><option>Telugu</option><option>Other</option></select>
               <input
-                placeholder="Rank"
+                placeholder="Entrance Rank"
                 type="number"
                 value={academicsList[0]?.ranks || ''}
                 onChange={e=>{ const copy=[...academicsList]; copy[0] = {...(copy[0]||{}), ranks: e.target.value}; setAcademicsList(copy); }}

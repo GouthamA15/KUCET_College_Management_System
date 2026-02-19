@@ -1,78 +1,119 @@
 export const semester8 = [
   {
-    "code": "PE-VII*",
-    "title": "Professional Elective – VII",
+    "code": "PE-V*",
+    "title": "Professional Elective - V",
     "isGroup": true,
     "variants": [
       {
-        "code": "PE4201CS",
-        "title": "Data Science",
+        "code": "PE8501CS",
+        "title": "Cryptography and Network Security",
         "units": [
           {
-            "name": "UNIT – I",
+            "name": "UNIT I",
             "topics": [
-              "Introduction to core concepts and technologies: Introduction, Terminology, data science process, data science toolkit, Types of data, Example applications."
+              "Security Attacks: Interruption, Interception, Modification and Fabrication, Security Services: Confidentiality, Authentication, Integrity, Non-repudiation, Access Control and Security Mechanisms, A model for Network Security."
             ]
           },
           {
-            "name": "UNIT – II",
+            "name": "UNIT II",
             "topics": [
-              "Data collection and management: Introduction, Sources of data, Data collection and APIs, Exploring and fixing data, Data storage and management, Using multiple data Sources"
+              "Conventional Encryption: Principles, Feistel Cipher Model, Conventional encryption algorithms (DES, RC4 and Blowfish, cipher block modes of operation, location of encryption devices, key distribution, Approaches of Message Authentication, Secure Hash Functions and HMAC."
             ]
           },
           {
-            "name": "UNIT-III",
+            "name": "UNIT III",
             "topics": [
-              "Data analysis: Introduction, Terminology and concepts, Introduction to statistics, Central tendencies and distributions, Variance, Distribution properties and arithmetic, Samples/CLT, Basic machine learning algorithms: Linear regression, SVM, Naive Bayes."
+              "Public key cryptography principles, Euclid's Algorithm, Fennat's and Euler's Theorem, public key cryptography algorithms, digital signatures, digital Certificates, Certificate Authority and key management: Kerberos, X.509 Directory Authentication Service."
             ]
           },
           {
-            "name": "UNIT-IV",
+            "name": "UNIT IV",
             "topics": [
-              "Data visualization: Introduction, Types of data visualization, Data for visualization: Data types, Data encodings, Retinal variables, Mapping variables to encodings, Visual encodings."
+              "Email Security: Pretty Good Privacy (PGP) and S/MIME. IP Security: Overview, IP Security Architecture, Authentication Header, Encapsulating Security Payload, Combining Security, Associations and Key Management."
             ]
           },
           {
-            "name": "UNIT-V",
+            "name": "UNIT V",
             "topics": [
-              "Applications of Data Science, Technologies for visualization, Bokeh (Python). Recent trends in various data collection and analysis techniques, various visualization techniques, application development methods of used in data science."
+              "Web Security: Requirements, Secure Socket Layer (SSL) and Transport Layer Security (TLS), Secure Electronic Transaction (SET). Intruders, Viruses and related threats, Firewall Design Principles, Trusted Systems, Intrusion Detection Systems."
             ]
           }
         ]
       },
       {
-        "code": "PE4202CS",
-        "title": "Big Data Analytics",
+        "code": "PE8502CS",
+        "title": "Mobile Application Development",
         "units": [
           {
-            "name": "UNIT – I",
+            "name": "UNIT I",
             "topics": [
-              "Big Data Analytics: What is big data, History of Data Management; Structuring Big Data; Elements of Big Data; Big Data Analytics; Distributed and Parallel Computing for Big Data;",
-              "Big Data Analytics: What is Big Data Analytics, What Big Data Analytics Isn’t, Why this sudden Hype Around Big Data Analytics, Classification of Analytics, Greatest Challenges that Prevent Business from Capitalizing Big Data; Top Challenges Facing Big Data; Why Big Data Analytics Important"
+              "Android Operating System: Android OS design and Features – Android development framework, SDK features, Installing and running applications on Eclipse platform, Creating AVDs, Types of Android applications, Best practices in Android programming, Android tools.",
+              "Discussion on Android application components: Android Manifest file, Externalizing resources like values, themes, layouts, Menus etc, Resources for different devices and languages, Runtime Configuration Changes.",
+              "What is Android Application Lifecycle: Activities, Activity lifecycle, activity states, monitoring state changes"
             ]
           },
           {
-            "name": "UNIT – II",
+            "name": "UNIT II",
             "topics": [
-              "Understanding Analytics and Big Data: Comparing Reporting and Analysis, Types of Analytics; Points to Consider through Analysis; Developing an Analytic Team; Understanding Text Analytics; Analytical Approach and Tools to Analyze Data: Analytical Approaches; History of Analytical Tools; Introducing Popular Analytical Tools; Comparing Various Analytical Tools."
+              "How to Create Android User Interface: Measurements Device and pixel density independent Measuring units. Layouts: Linear, Relative, Grid and Table Layouts.",
+              "Various components of User Interface (UI); Editable and non-editable Text Views, Buttons, Radio and Toggle Buttons, Checkboxes, Spinners, Dialog and pickers. Event Handling: Handling clicks or changes of various UI components.",
+              "Fragments& Life cycle: Creating fragments, Lifecycle of fragments, Fragment States, Adding fragments to Activity, adding, removing and replacing fragments with fragment transactions, interfacing between fragments and Activities, Multi-screen Activities"
             ]
           },
           {
-            "name": "UNIT – III",
+            "name": "UNIT III",
             "topics": [
-              "Understanding Map Reduce Fundamentals and HBase : The MapReduce Framework; Techniques to Optimize Map Reduce Jobs; Uses of MapReduce; Role of HBase in Big Data Processing; Storing Data in Hadoop : Introduction of HDFS, Architecture, HDFS Files, File system types, commands, org.apache.hadoop.io package, HDF, HDFS High Availability; Introducing HBase, Architecture, Storing Big Data with HBase , Interacting with the Hadoop Ecosystem; HBase in Operations- Programming with HBase; Installation, Combining HBase and HDFS;"
+              "Intents and Broadcasts: Intent – Using intents to launch Activities, Explicitly starting new Activity, Implicit Intents, Passing data to Intents, Getting results from Activities, Native Actions, using Intent to dial a number or to send SMS.",
+              "Broadcast Receivers and Notifications – Using Intent filters to service implicit Intents, Resolving Intent filters, finding and using Intents received within an Activity Notifications – Creating and Displaying notifications, Displaying Toasts"
             ]
           },
           {
-            "name": "UNIT – IV",
+            "name": "UNIT IV",
             "topics": [
-              "Big Data Technology Landscape and Hadoop: NoSQL, Hadoop; RDBMS versus Hadoop; Distributed Computing Challenges; History of Hadoop; Hadoop Overview; Use Case of Hadoop; Hadoop Distributors; HDFC (Hadoop Distributed File System), HDFC Daemons, read, write, Replica Processing of Data with Hadoop; Managing Resources and Applications with Hadoop YARN."
+              "Persistent Storage: Files, Saving state and Preferences– Using application specific folders and files, creating files, reading data from files, listing contents of a directory Shared Preferences – Creating shared preferences, saving and retrieving data using Shared Preference.",
+              "Introducing Android Databases – Introduction to SQLite database, creating and opening a database, creating tables, inserting retrieving and deleting data, Registering Content Providers, Using content Providers (insert, delete, retrieve and update)"
             ]
           },
           {
-            "name": "UNIT – V",
+            "name": "UNIT V",
             "topics": [
-              "Social Media Analytics and Text Mining: Introducing Social Media; Key elements of Social Media; Text mining; Understanding Text Mining Process; Sentiment Analysis, Performing Social Media Analytics and Opinion Mining on Tweets"
+              "Advanced Topics: Alarms – Creating and using alarms. Using Internet Resources – Connecting to internet resource, using download manager Location Based Services – Finding Current Location and showing location on the Map, updating location. Publishing Android Applications, Using Eclipse for Android Development, Using the Android Emulator"
+            ]
+          }
+        ]
+      },
+      {
+        "code": "PE8503CS",
+        "title": "Web Security",
+        "units": [
+          {
+            "name": "UNIT I",
+            "topics": [
+              "The Web Security, The Web Security Problem, Risk Analysis and Best Practices. Cryptography and the Web: Cryptography and Web Security, Working Cryptographic Systems and Protocols, Legal Restrictions on Cryptography, Digital Identification"
+            ]
+          },
+          {
+            "name": "UNIT II",
+            "topics": [
+              "The Web’s War on Your Privacy, Privacy-Protecting Techniques, Backups and Antitheft, Web Server Security, Physical Security for Servers, Host Security for Servers, Securing Web Applications."
+            ]
+          },
+          {
+            "name": "UNIT III",
+            "topics": [
+              "Database Security: Recent Advances in Access Control, Access Control Models for XML, Database Issues in Trust Management and Trust Negotiation, Security in Data Warehouses and OLAP Systems."
+            ]
+          },
+          {
+            "name": "UNIT IV",
+            "topics": [
+              "Security Re-engineering for Databases: Concepts and Techniques, Database Watermarking for Copyright Protection, Trustworthy Records Retention, Damage Quarantine and Recovery in Data Processing Systems, Hippocratic Databases: Current Capabilities and Future Trends."
+            ]
+          },
+          {
+            "name": "UNIT V",
+            "topics": [
+              "Privacy in Database Publishing: A Bayesian Perspective, Privacy-enhanced Location-based Access Control, Efficiently Enforcing the Security and Privacy Policies in a Mobile Environment."
             ]
           }
         ]
@@ -80,83 +121,116 @@ export const semester8 = [
     ]
   },
   {
-    "code": "PE-VIII*",
-    "title": "Professional Elective – VIII",
+    "code": "PE-VI**",
+    "title": "Professional Elective - VI",
     "isGroup": true,
     "variants": [
       {
-        "code": "PE4203CS",
-        "title": "Image Processing",
+        "code": "PE8601CS",
+        "title": "Block Chain Technology",
         "units": [
           {
-            "name": "UNIT– I",
+            "name": "UNIT I",
             "topics": [
-              "FUNDAMENTALS OF IMAGE PROCESSING: Fundamental steps in digital image processing, Components of image processing system, A simple image formation model, Image sampling and quantization, Basic relationships between pixels, Introduction to Fourier Transform and DFT – properties of 2D Fourier Transform, FFT."
+              "Block chain: The growth of block chain technology, Distributed systems, The history of block chain, Types of block chain. Consensus: Consensus mechanism, Types of consensus mechanisms, Consensus in block chain. Decentralization: Decentralization using block chain, Methods of decentralization, Routes to decentralization, Block chain and full ecosystem decentralization"
             ]
           },
           {
-            "name": "UNIT – II",
+            "name": "UNIT II",
             "topics": [
-              "IMAGE ENHANCEMENT IN THE SPATIAL AND FREQUENCY DOMAINS: Basic gray – level transformations, Histogram processing, Basics of spatial filtering, Smoothing spatial filters, Sharpening spatial filters, The basics of filtering in the frequency domain, Image smoothing in frequency domain filters, Image sharpening in frequency domain filters."
+              "Symmetric Cryptography: Working with the open SSL command line, Cryptography, Confidentiality, Integrity, Authentication, Non-repudiation, Accountability. Cryptographic Primitives: Keyless primitives, Symmetric cryptography, Data Encryption Standard(DES), Advanced Encryption Standard(AES). Public Key Cryptography: Mathematics, Asymmetric cryptography, Cryptographic constructs and block chain technology."
             ]
           },
           {
-            "name": "UNIT – III",
+            "name": "UNIT III",
             "topics": [
-              "IMAGE SEGMENTATION: Fundamentals, Point, Line and edge detection, Thresholding, Region-based segmentation, Segmentation using morphological watersheds, The use of motion in segmentation."
+              "Introducing Bitcoin: Bitcoin-an overview: The beginnings of bitcoin, Egalitarianism versus authoritarianism, Bitcoin definition, Bitcoin - A users perspective.",
+              "Cryptographic keys: Private keys in bitcoin, Public keys in bitcoin, Addresses in bitcoin. Transactions: The transaction life cycle, The transaction data structure, Types of scripts, Coin base transactions, Transaction validation, Transaction bugs, Block chain, Mining, Mining pools"
             ]
           },
           {
-            "name": "UNIT – IV",
+            "name": "UNIT IV",
             "topics": [
-              "IMAGE RESTORATION: A model of image degradation/restoration, Noise models, inverse filtering, wiener filtering, Constrained Least Squares Filtering, Geometric Mean Filter.",
-              "IMAGE COMPRESSION: Fundamentals, Huffman coding, Arithmetic coding, Golomb coding, LZW coding, Run-length coding."
+              "Bitcoin Network and Payments: The Bitcoin Network, Wallets, Bitcoin Payments, Innovation in Bitcoin, Advanced protocols, Bitcoin investment and buying and selling.",
+              "Bitcoin Clients and APIs: Bitcoin client Installation, Experimenting further with bitcoin-cli, Bitcoin programming. Alternative Coins: Introducing altcoins, Theoretical foundations: Alternatives to proof of work (PoW), Proof of stake (PoS), Proof of activity (PoA), Non-out sourceable puzzles"
             ]
           },
           {
-            "name": "UNIT – V",
+            "name": "UNIT V",
             "topics": [
-              "MORPHOLOGICAL IMAGE PROCESSING: Erosion, Dilation, Opening, Closing, The hit-or-miss transformation; Basic morphological algorithms - boundary extraction, hole filling, extraction of connected components, thinning, thickening, skeletons, pruning.",
-              "FEATURE EXTRACTION: Background, Boundary preprocessing, Boundary Feature Descriptors, Region Feature Descriptors, Whole-image features."
+              "Smart Contracts: Introduction, History, Ricardian contracts, Smart contract templates, Deploying smart contracts. Ethereum: Introduction, The ethereum network, Components of the ethereum ecosystem Transactions and messages, Ether cryptocurrency / tokens (ETC and ETH), The Ethereum Virtual Machine (EVM)"
             ]
           }
         ]
       },
       {
-        "code": "PE4204CS",
-        "title": "Pattern Recognition",
+        "code": "PE8602CS",
+        "title": "Web and Social Media Analysis",
         "units": [
           {
-            "name": "UNIT-I",
+            "name": "UNIT I",
             "topics": [
-              "Introduction: Machine perception, Pattern recognition systems, Design cycle, Learning and Adaptation .",
-              "Bayesian Decision Theory: Bayesian decision theory: Continuous features, Minimum-error rate classification."
+              "An Overview of Business Intelligence, Analytics, and Decision Support: Analytics to Manage a Vaccine Supply Chain Effectively and Safely, Changing Business Environments and Computerized Decision Support, Information Systems Support for Decision Making, The Concept of Decision Support Systems (DSS), Business Analytics Overview, Brief Introduction to Big Data Analytics"
             ]
           },
           {
-            "name": "UNIT-II",
+            "name": "UNIT II",
             "topics": [
-              "Classification and Bayes Decision theory: classification, Classifiers, Discriminant functions and Decision surfaces, Normal density, Discriminant functions for normal density, Bayes Decision theory: discrete features, Missing and noisy features;",
-              "Maximum Likelihood estimation: General principle, Estimation in Gaussian case."
+              "Text Analytics and Text Mining: Machine Versus Men on Jeopardy!: The Story of Watson, Text Analytics and Text Mining Concepts and Definitions, Natural Language Processing, Text Mining Applications, Text Mining Process, Text Mining Tools."
             ]
           },
           {
-            "name": "UNIT-III",
+            "name": "UNIT III",
             "topics": [
-              "Bayesian estimation: Bayesian estimation general theory, Bayesian parameter estimation: Gaussian case, Problems of dimensionality, Principle Component Analysis, Expectation-Maximization (E-M) method."
+              "Sentiment Analysis: Sentiment Analysis Overview, Sentiment Analysis Applications, Sentiment Analysis Process, Sentiment Analysis and Speech Analytics."
             ]
           },
           {
-            "name": "UNIT-IV",
+            "name": "UNIT IV",
             "topics": [
-              "Hidden Markov Model(HMM) and Non parametric estimation: Hidden Markov Model, Working Principle, HMM computation and problems.",
-              "Density estimation kn-Nearest- Neighbor estimation, Nearest-Neighbor rule, Metrics and Nearest- Neighbor classification."
+              "Web Analytics, Web Mining: Security First Insurance Deepens Connection with Policyholders, Web Mining Overview, Web Content and Web Structure Mining, Search Engines, Search Engine Optimization, Web Usage Mining (Web Analytics), Web Analytics Maturity Model and Web Analytics Tools."
             ]
           },
           {
-            "name": "UNIT-V",
+            "name": "UNIT V",
             "topics": [
-              "Unsupervised Learning and Clustering: Mixture densities and Identifiability, Maximum-Likelihood estimations, Unsupervised Bayesian learning, Data description and clustering criterion function for clustering, k-means clustering."
+              "Social Analytics and Social Network Analysis: Social Analytics and Social Network Analysis, Social Media Definitions and Concepts, Social Media Analytics. Prescriptive Analytics - Optimization and Multi-Criteria Systems: Multiple Goals, Sensitivity Analysis, What-If Analysis, and Goal Seeking."
+            ]
+          }
+        ]
+      },
+      {
+        "code": "PE8603CS",
+        "title": "Data Science Applications",
+        "units": [
+          {
+            "name": "UNIT I",
+            "topics": [
+              "Introduction to Data Science and Data Analysis Workflow: Definition and Scope of Data Science, Datafication and Big Data Ecosystem, Data Science Process (Problem -> Data -> Analysis -> Model -> Decision), Data Acquisition and Cleaning (CSV, JSON, APIs, Web Scraping), Exploratory Data Analysis (EDA), Descriptive Statistics, Data Visualization Techniques (Histogram, Boxplot, Correlation Maps), Python Libraries – NumPy, Pandas, Matplotlib, Seaborn, Data Wrangling, Data Summarization, Visualization Dashboards. Applications: Market Trend Analysis, Weather Pattern Analytics, Student Performance Prediction. Case Studies: RealDirect Data Analysis, COVID-19 Dataset Exploration."
+            ]
+          },
+          {
+            "name": "UNIT II",
+            "topics": [
+              "Statistical Modeling and Supervised Learning: Statistical Inference, Sampling and Estimation, Linear Regression and Multivariate Regression, Logistic Regression and Binary Classification, k-Nearest Neighbors (kNN), Naïve Bayes Classifier, Model Evaluation Metrics (Accuracy, Precision, Recall, F1-Score, ROC Curves), Cross-Validation and Hyperparameter Tuning, Model Deployment using Scikit-learn, Training and Testing Splits, Performance Evaluation Techniques. Applications: Spam Email Detection, Credit Risk Scoring, Customer Purchase Prediction, Employee Attrition Analysis. Case Studies: Spam Detection using Email Dataset, Loan Default Prediction using Bank Dataset."
+            ]
+          },
+          {
+            "name": "UNIT III",
+            "topics": [
+              "Feature Engineering, Clustering, and Model Optimization: Data Transformation and Feature Scaling, Feature Selection Techniques (Filter, Wrapper, Embedded), Dimensionality Reduction (PCA, SVD), Decision Trees, Random Forests, Ensemble Learning, Clustering Techniques (k-Means, Hierarchical), Model Optimization and Regularization, Bias-Variance Tradeoff, Model Interpretability, Data Leakage and Overfitting, Model Explainability using SHAP or LIME, Feature Importance Evaluation. Applications: Customer Segmentation, Fault Detection in Manufacturing, Sentiment Analysis, Healthcare Risk Grouping. Case Studies: Customer Segmentation using Retail Dataset, Sentiment Analysis using Movie Reviews, Patient Health Risk Prediction."
+            ]
+          },
+          {
+            "name": "UNIT IV",
+            "topics": [
+              "Data Products, Visualization, and Big Data Frameworks: Recommendation Systems (Content-Based, Collaborative Filtering), Matrix Factorization (SVD, ALS), Advanced Data Visualization (Dashboards, Interactive Charts, Storytelling with Data), Data Engineering Concepts (Data Pipelines, ETL, Workflow Design), Big Data Tools and Frameworks (Hadoop, MapReduce, Pregel), Real-Time Data Analysis using PySpark, Fraud Detection Models, Risk Analytics, Deployment using Streamlit or Flask, Data Product Design and Scaling. Applications: E-Commerce Product Recommendations, Financial Fraud Detection, Social Media Trend Visualization, Real-Time Analytics. Case Studies: MovieLens Recommendation System, Square Risk Analytics, New York Times Data Visualization Projects."
+            ]
+          },
+          {
+            "name": "UNIT V",
+            "topics": [
+              "Causality, Ethics, and Responsible AI: Correlation vs. Causality, Causal Inference and Randomized Controlled Trials, A/B Testing and Experimental Design, Observational Studies and Confounding Variables, Social Network Analysis (Graph Representation, Centrality Measures), Ethical AI and Data Privacy, Fairness and Accountability in AI Systems, Algorithmic Bias Detection, Responsible AI Practices, Model Auditing and Transparency Tools, Legal and Societal Implications of Data Science. Applications: Medical Treatment Effect Analysis, Website Optimization through A/B Testing, Social Network Influence Mapping, Ethical AI Design Frameworks. Case Studies: COVID-19 Epidemiology Modeling, Facebook Social Graph Analysis, Data Journalism Projects from NY Times, Fairness Audit on Loan Approval Dataset."
             ]
           }
         ]
@@ -164,161 +238,7 @@ export const semester8 = [
     ]
   },
   {
-    "code": "OE-II *",
-    "title": "Open Elective – II",
-    "isGroup": true,
-    "variants": [
-      {
-        "code": "OE4201EE",
-        "title": "Non-Conventional Energy Sources",
-        "units": [
-          {
-            "name": "UNIT-I",
-            "topics": [
-              "Review of Conventional and Non-Conventional energy sources - Need for non-conventional energy sources Types of Non- conventional energy sources - Fuel Cells - Principle of operation with special reference to H2O2 Cell - Classification and Block diagram of fuel cell systems - Ion exchange membrane cell – Molten carbonate cells - Solid oxide electrolyte cells - Regenerative system- Regenerative Fuel Cell – Advantages and disadvantages of Fuel Cells-Polarization - Conversion efficiency and Applications of Fuel Cells."
-            ]
-          },
-          {
-            "name": "UNIT-II",
-            "topics": [
-              "Solar energy - Solar radiation and its measurements - Solar Energy collectors -Solar Energy storage systems - Solar Pond - Application of Solar Pond - Applications of solar energy."
-            ]
-          },
-          {
-            "name": "UNIT-III",
-            "topics": [
-              "Wind energy- Principles of wind energy conversion systems - Nature of wind - Power in the Wind-Basic components of WECS -Classification of WECS -Site selection considerations -Advantages and disadvantages of WECS -Wind energy collectors -Wind electric generating and control systems - Applications of Wind energy -Environmental aspects."
-            ]
-          },
-          {
-            "name": "UNIT-IV",
-            "topics": [
-              "Energy from the Oceans - Ocean Thermal Electric Conversion (OTEC) methods - Principles of tidal power generation -Advantages and limitations of tidal power generation -Ocean waves - Wave energy conversion devices -Advantages and disadvantages of wave energy - Geo-Thermal Energy - Types of Geo-Thermal Energy Systems - Applications of Geo-Thermal Energy."
-            ]
-          },
-          {
-            "name": "UNIT-V",
-            "topics": [
-              "Energy from Biomass - Biomass conversion technologies / processes - Photosynthesis - Photosynthetic efficiency - Biogas generation - Selection of site for Biogas plant - Classification of Biogas plants – Details of commonly used Biogas plants in India - Advantages and disadvantages of Biogas generation – Thermal gasification of biomass -Biomass gasifiers."
-            ]
-          }
-        ]
-      },
-      {
-        "code": "OE4206EC",
-        "title": "Basics of IoT",
-        "units": [
-          {
-            "name": "UNIT- I",
-            "topics": [
-              "Introduction to Internet of Things: IoT vision, Strategic research and innovation directions, IOT Applications, Related future technologies, Infrastructure, Networks and communications, Processes, Data Management, Security, Device level energy issues."
-            ]
-          },
-          {
-            "name": "UNIT- II",
-            "topics": [
-              "Internet Principles and communication technology: Internet Communications: An Overview – IP, TCP, IP protocol Suite, UDP. IP addresses – DNS, Static and Dynamic IP addresses, MAC Addresses, TCP and UDP Ports, Application Layer Protocols – HTTP, HTTPS, Cost Vs Ease of Production, Prototypes and Production, Open-Source Vs Closed Source."
-            ]
-          },
-          {
-            "name": "UNIT- III",
-            "topics": [
-              "Prototyping for IoT: Prototyping Embedded Devices – Sensors, Actuators, Microcontrollers, SoC, Choosing a platform, Prototyping Hardware platforms – Arduino, Raspberry Pi."
-            ]
-          },
-          {
-            "name": "UNIT- IV",
-            "topics": [
-              "Cloud computing and Data Analytics: Introduction to Cloud storage models -SAAS, PAAS, and IAAS. Communication APIs, Amazon web services for IOT."
-            ]
-          },
-          {
-            "name": "UNIT- V",
-            "topics": [
-              "IoT Product Manufacturing - From prototype to reality: Business model for IoT product manufacturing, Business models canvas, Funding an IoT Startup."
-            ]
-          }
-        ]
-      },
-      {
-        "code": "OE4207ME",
-        "title": "Basics of Alloy Steel Structures",
-        "units": [
-          {
-            "name": "UNIT-I",
-            "topics": [
-              "Introduction: Level of structures, structure property relationship, Defects in materials, Strengthening Mechanisms."
-            ]
-          },
-          {
-            "name": "UNIT-II",
-            "topics": [
-              "The Iron carbon systems: Definition of phase, phase diagram. Iron Carbon phase diagram. Definition of phases in Fe-C system. Concept of steel and Cast Iron. effect of alloying elements on steel"
-            ]
-          },
-          {
-            "name": "UNIT-III",
-            "topics": [
-              "Heat Treatment of Steels: Annealing, Normalizing, Hardening and tempering. Thermo Mechanical Treatments. Surface Heat Treatments."
-            ]
-          },
-          {
-            "name": "UNIT-IV",
-            "topics": [
-              "Steels: Plain Carbon Steels: Low-carbon Mild steels, Medium Carbon Steels, High Carbon Steels, properties and applications of Plain Carbon Steels. High Strength Steels, Tool Steels, Creep Resistance Steel"
-            ]
-          },
-          {
-            "name": "UNIT-V",
-            "topics": [
-              "Stainless steels: Composition, properties and applications of Austenitic Stainless steel, Ferritic Stainless steel, Martensitic Stainless steel, Precipitation Hardened Stainless steel."
-            ]
-          }
-        ]
-      },
-      {
-        "code": "OE4208EC",
-        "title": "VLSI Design",
-        "units": [
-          {
-            "name": "UNIT –I:",
-            "topics": [
-              "Introduction: Introduction to IC Technology – MOS, PMOS, NMOS, CMOS & BiCMOS",
-              "Basic Electrical Properties: Basic Electrical Properties of MOS and BiCMOS Circuits: Ids-Vds relationships, MOS transistor threshold Voltage, gm, gds, Figure of merit ωo; Pass transistor, NMOS Inverter, Various pull ups, CMOS Inverter analysis and design, Bi-CMOS Inverters."
-            ]
-          },
-          {
-            "name": "UNIT –II:",
-            "topics": [
-              "VLSI Circuit Design Processes: VLSI Design Flow, MOS Layers, Stick Diagrams, Design Rules and Layout, 2 μm CMOS Design rules for wires, Contacts and Transistors Layout Diagrams for NMOS and CMOS Inverters and Gates, Scaling of MOS circuits."
-            ]
-          },
-          {
-            "name": "UNIT –III:",
-            "topics": [
-              "Gate Level Design: Logic Gates and Other complex gates, Switch logic, Alternate gate circuits, Time delays, Driving large capacitive loads, Wiring capacitance, Fan – in, Fan – out, Choice of layers."
-            ]
-          },
-          {
-            "name": "UNIT –IV:",
-            "topics": [
-              "Data Path Subsystems: Subsystem Design, Shifters, Adders, ALUs, Multipliers, Parity generators, Comparators, Zero/One Detectors, Counters.",
-              "Array Subsystems: SRAM, DRAM, ROM, Serial Access Memories."
-            ]
-          },
-          {
-            "name": "UNIT –V:",
-            "topics": [
-              "Programmable Logic Devices: PLAs, FPGAs, CPLDs, Standard Cells, Programmable Array Logic, Design Approach, Parameters influencing low power design.",
-              "CMOS Testing: CMOS Testing, Need for testing, Test Principles, Design Strategies for test, Chip level Test Techniques, Contemporary Topics."
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "code": "PW4205CS",
+    "code": "PCS-PW801DS",
     "title": "Project Work",
     "units": [
       {
@@ -338,40 +258,40 @@ export const semester8 = [
     ]
   },
   {
-    "code": "MC",
-    "title": "Mandatory Non-Credit course",
+    "code": "MC***",
+    "title": "Mandatory Non-Credit Course",
     "isGroup": true,
     "variants": [
       {
-        "code": "MC- 42aHS",
+        "code": "MC-802aHS",
         "title": "Yoga Practice",
         "units": [
           {
-            "name": "UNIT – I",
+            "name": "UNIT I",
             "topics": [
               "Introduction: Yoga definition, health definition from WHO, yoga versus health, basis of yoga, yoga is beyond science, Gist of eighteen chapters of Bhagavad-Gita, four types of yoga: Karma, Bhakti, Gnyana and Raja yoga, Internal and External yoga, elements of Ashtanga yoga (Yama, Niyama, Asana, Pranayama, Prathyahara, Dharana, Dhyana and Samadhi), Panchakoshas and their purification through Asana, Pranayama and Dhyana."
             ]
           },
           {
-            "name": "UNIT – II",
+            "name": "UNIT II",
             "topics": [
               "Suryanamaskaras (Sun Salutations): Definition of sun salutations, seven chakras (Mooladhaar, Swadhish- taan, Manipura, Anahata, Vishuddhi, Agnya and Sahasrar), various manthras (Om Mitraya, Om Ravaye, Om Suryaya, Om Bhanave, Om Marichaye, Om Khagaye, Om Pushne, Om HiranyaGarbhaye, Om Adhityaya, Om Savitre, Om Arkhaya, and Om Bhaskaraya) and their meaning while performing sun salutations, physiology, seven systems of human anatomy, significance of performing sun salutations."
             ]
           },
           {
-            "name": "UNIT – III",
+            "name": "UNIT III",
             "topics": [
               "Asanas (Postures): Pathanjali’s definition of asana, sthiramsukhamasanam, 3rd limb of Ashtanga yoga, loosening or warming up exercises, sequence of perform in asanas (standing, sitting, prone, supine and inverted), nomenclature of asanas (animals, trees, rishis and so on), asanas versus chakras, asanas versus systems, asanas versus physical health, activation of Annamayakosha."
             ]
           },
           {
-            "name": "UNIT – IV",
+            "name": "UNIT IV",
             "topics": [
               "Pranayama (Breathing Techniques): Definition of Pranayama as per Shankaracharya, 4th limb of Ashtanga yoga, various techniques of breathing, Pranayama techniques versus seasons, bandhas and their significance in Pranayama, mudras and their significance in Pranayama, restrictions of applying bandhas with reference to health disorders, Pranayama versus concentration, pranayama is the bridge between mind and body, pranayam versus mental health, activation of Pranamayakosha through Pranayama."
             ]
           },
           {
-            "name": "UNIT – V",
+            "name": "UNIT V",
             "topics": [
               "Dhyana (Meditation): Definition of meditation, 7th limb of Ashtanga yoga, types of mind (Conscious and Sub-Conscious), various types of dhyana. Meditation versus spiritual health, Dharana and Dhyana, extention of Dhyana to Samadhi, Dhyana and mental stress, activation of Manomayakosha through dhyana, silencing the mind."
             ]
@@ -379,7 +299,7 @@ export const semester8 = [
         ]
       },
       {
-        "code": "MC- 42bHS",
+        "code": "MC-802bHS",
         "title": "NSS",
         "units": [
           {
