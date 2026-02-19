@@ -31,6 +31,7 @@ export function getDb() {
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
       port: process.env.DB_PORT, // Add this line
+      dateStrings: true, // Prevent timezone conversion issues
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
