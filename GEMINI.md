@@ -110,7 +110,7 @@ A robust, centralized web application built with **Next.js** for managing the co
 **Objective 1: Multi-Stage Admission Pipeline**
 *   **Registration:** Built a 27-field formal registration form (`/admission`) with dynamic year calculation (EAMCET/ECET).
 *   **Verification:** Created `student_admission_drafts` and a clerk module to verify and correct applicant data.
-*   **Finalization:** Implemented a roll-number assignment tool that graduates drafts to official student records.
+*   **Finalization:** Implemented a roll-number assignment tool that graduates drafts to official student records. The finalization page (`/clerk/admission/finalize`) has been polished with the standard application layout (Header, Navbar, Footer) for a consistent user experience.
 
 **Objective 2: Student Data Expansion**
 *   **New Fields:** Added `ssc_marks`, `inter_marks`, and `guardian_mobile` to the database and frontend.
