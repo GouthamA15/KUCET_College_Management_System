@@ -1,7 +1,10 @@
-'use client';
-import React, { useState, useEffect, useCallback } from 'react';
-import toast from 'react-hot-toast';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
+"use client";
+import React, { useState, useEffect, useCallback } from "react";
+import toast from "react-hot-toast";
+import Header from "@/app/components/Header/Header";
+import Navbar from "@/app/components/Navbar/Navbar";
+import Footer from "@/components/Footer";
+import { COLLEGE_CONFIG } from "@/lib/college-config";
 
 const FinalizeAdmissionPage = () => {
     const [drafts, setDrafts] = useState([]);
@@ -58,7 +61,11 @@ const FinalizeAdmissionPage = () => {
     };
 
     return (
-        <main className="p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+            <Header />
+            <Navbar role={"clerk"} />
+
+            <main className="flex-1 p-4 sm:p-6 lg:p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Finalize Student Admissions</h1>
@@ -137,7 +144,9 @@ const FinalizeAdmissionPage = () => {
                     </div>
                 )}
             </div>
-        </main>
+            </main>
+            <Footer />
+        </div>
     );
 };
 
