@@ -1,6 +1,8 @@
 import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { computeAcademicYear } from '@/app/lib/academicYear';
+import { getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
 
 export async function GET(req, context) {
   const user = await getAuthUser('clerk');
@@ -12,32 +14,89 @@ export async function GET(req, context) {
   try {
     const params = await context.params;
     const { rollno } = params;
-    if (!rollno) {
-      return apiError('Roll number is required', 400);
-    }
 
-    const rows = await query(`
-      SELECT s.*, CASE WHEN si.pfp IS NOT NULL THEN 1 ELSE 0 END as has_pfp 
-      FROM students s 
-      LEFT JOIN student_images si ON s.id = si.student_id 
-      WHERE s.roll_no = ?`, [rollno]);
+    const studentSql = `
+      SELECT
+        s.*,
+        pd.father_name, pd.mother_name, pd.nationality, pd.religion, pd.category, pd.sub_caste, pd.area_status, pd.mother_tongue, pd.place_of_birth, pd.father_occupation, pd.guardian_mobile, pd.annual_income, pd.aadhaar_no, pd.address, pd.seat_allotted_category, pd.identification_marks, pd.blood_group,
+        ab.qualifying_exam, ab.previous_college_details, ab.medium_of_instruction, ab.ranks, ab.ssc_marks, ab.inter_marks
+      FROM students s
+      LEFT JOIN student_personal_details pd ON s.id = pd.student_id
+      LEFT JOIN student_academic_background ab ON s.id = ab.student_id
+      WHERE s.roll_no = ?
+    `;
+    const studentResult = await query(studentSql, [rollno]);
 
-    if (!rows || rows.length === 0) {
+    if (studentResult.length === 0) {
       return apiError('Student not found', 404);
     }
-    
-    const student = rows[0];
-    if (student.has_pfp) {
-        student.pfp = `/api/student/image/${student.roll_no}`;
-    } else {
-        student.pfp = null;
-    }
-    delete student.has_pfp;
 
-    return apiResponse({ student });
-  } catch (err) {
-    console.error('Fetch Student Error:', err);
-    return apiError('Server error', 500, err.message);
+    const studentData = studentResult[0];
+    const studentId = studentData.id;
+
+    const personalDetailsFields = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'guardian_mobile', 'annual_income', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
+    const academicFields = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks', 'ssc_marks', 'inter_marks'];
+    
+    const student = {};
+    const personal_details = {};
+    const academic_record = {};
+    let hasAcademicData = false;
+
+    Object.keys(studentData).forEach(key => {
+      if (personalDetailsFields.includes(key)) {
+        personal_details[key] = studentData[key];
+      } else if (academicFields.includes(key)) {
+        if (studentData[key] !== null) hasAcademicData = true;
+        academic_record[key] = studentData[key];
+      } else {
+        student[key] = studentData[key];
+      }
+    });
+
+    student.personal_details = personal_details;
+    const academics = hasAcademicData ? [academic_record] : [];
+    
+    student.course = getBranchFromRoll(student.roll_no);
+    student.admission_type = getAdmissionTypeFromRoll(student.roll_no);
+
+    // Fetch pfp and signature separately
+    const pfpResult = await query('SELECT 1 FROM student_images WHERE student_id = ?', [studentId]);
+    student.pfp = pfpResult.length > 0 ? `/api/student/image/${student.roll_no}` : null;
+
+    const sigRows = await query('SELECT signature FROM student_signatures WHERE student_id = ?', [studentId]);
+    if (sigRows.length > 0 && sigRows[0].signature) {
+        student.signature = `data:image/png;base64,${sigRows[0].signature.toString('base64')}`;
+    } else {
+        student.signature = null;
+    }
+
+    // Fetch one-to-many relationships separately
+    const scholarshipSql = 'SELECT * FROM scholarship_sanctions WHERE student_id = ? ORDER BY sanction_date';
+    let scholarship = await query(scholarshipSql, [studentId]);
+    scholarship = scholarship.map(s => {
+      const academic_year = s.academic_year || (s.year ? computeAcademicYear(student.roll_no, s.year) : null);
+      return {
+        ...s,
+        academic_year,
+        application_no: s.application_no ?? s.application_no,
+        proceeding_no: s.proceeding_no ?? s.proceeding_no,
+        sanctioned_amount: s.sanctioned_amount ?? s.amount_sanctioned ?? s.sanctioned_amount,
+        sanction_date: s.sanction_date ?? s.date ?? s.sanction_date,
+      };
+    });
+
+    const feesSql = 'SELECT * FROM student_fee_payments WHERE student_id = ? ORDER BY academic_year, transaction_date';
+    const feesRaw = await query(feesSql, [studentId]);
+    const fees = feesRaw.map(f => ({
+      ...f,
+      transaction_ref: f.transaction_ref_no ?? f.transaction_ref ?? f.transactionRef ?? null,
+      date: f.transaction_date ?? f.date ?? null,
+    }));
+
+    return apiResponse({ student, scholarship, fees, academics });
+  } catch (error) {
+    console.error('Error fetching student profile data:', error);
+    return apiError('Failed to fetch student profile data', 500, error.message);
   }
 }
 
