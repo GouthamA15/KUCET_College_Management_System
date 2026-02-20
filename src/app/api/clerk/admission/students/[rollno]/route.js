@@ -42,7 +42,7 @@ export async function PUT(req, context) {
     }
     if (updatedData.fee_reimbursement !== undefined) {
       const fr = updatedData.fee_reimbursement == null ? null : String(updatedData.fee_reimbursement).trim().toUpperCase();
-      const validFeeReimbursement = ['YES', 'NO'];
+      const validFeeReimbursement = ['YES', 'NO', 'GOV'];
       if (fr && !validFeeReimbursement.includes(fr)) {
         return apiError('Invalid fee_reimbursement value', 400);
       }

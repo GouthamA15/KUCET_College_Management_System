@@ -29,7 +29,7 @@ export async function POST(req, context) {
       `INSERT INTO students (
         admission_no, roll_no, name, date_of_birth, gender, mobile, email, added_by_clerk_id, fee_reimbursement, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [null, roll_no, draft.name, draft.dob, draft.gender, draft.student_mobile, draft.email, user.clerkId, draft.fee_reimbursement === 'GOV' ? 'YES' : draft.fee_reimbursement]
+      [null, roll_no, draft.name, draft.dob, draft.gender, draft.student_mobile, draft.email, user.clerkId, draft.fee_reimbursement]
     );
 
     const studentId = studentResult.insertId;

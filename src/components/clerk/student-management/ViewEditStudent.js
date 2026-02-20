@@ -295,6 +295,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 <select value={editValues.fee_reimbursement || 'NO'} onChange={e=>setEditValues({...editValues, fee_reimbursement: e.target.value})} className="p-2 border rounded">
                   <option value="NO">Fee Reimbursement: NO</option>
                   <option value="YES">Fee Reimbursement: YES</option>
+                  <option value="GOV">Fee Reimbursement: GOV</option>
                 </select>
                 <input placeholder="Course" value={getBranchFromRoll(editValues.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
                 <div className="relative">

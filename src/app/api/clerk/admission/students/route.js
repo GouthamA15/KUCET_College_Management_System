@@ -93,7 +93,7 @@ export async function POST(req) {
     }
 
     // Validate fee_reimbursement if provided
-    const validFeeReimbursement = ['YES', 'NO'];
+    const validFeeReimbursement = ['YES', 'NO', 'GOV'];
     const feeReimbursementToSave = fee_reimbursement == null ? null : String(fee_reimbursement).trim().toUpperCase();
     if (feeReimbursementToSave && !validFeeReimbursement.includes(feeReimbursementToSave)) {
       return apiError('Invalid fee_reimbursement value', 400);

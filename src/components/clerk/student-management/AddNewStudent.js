@@ -160,7 +160,7 @@ export default function AddNewStudent() {
   const genders = COLLEGE_CONFIG.genders;
   const categories = COLLEGE_CONFIG.categories;
 
-  const feeReimbursementOptions = ['NO', 'YES'];
+  const feeReimbursementOptions = ['NO', 'YES', 'GOV'];
 
   return (
     showAddForm ? (
@@ -192,7 +192,15 @@ export default function AddNewStudent() {
               {genders.map(g=> <option key={g} value={g}>{g}</option>)}
             </select>
             <select value={basic.fee_reimbursement || 'NO'} onChange={e=>setBasic({...basic, fee_reimbursement: e.target.value})} className="p-2 border rounded">
-              {feeReimbursementOptions.map(o => <option key={o} value={o}>{o === 'YES' ? 'Fee Reimbursement: YES' : 'Fee Reimbursement: NO'}</option>)}
+              {feeReimbursementOptions.map(o => (
+                <option key={o} value={o}>
+                  {o === 'YES'
+                    ? 'Fee Reimbursement: YES'
+                    : o === 'NO'
+                      ? 'Fee Reimbursement: NO'
+                      : 'Fee Reimbursement: GOV'}
+                </option>
+              ))}
             </select>
             <input placeholder="Course" value={getBranchFromRoll(basic.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
             <input placeholder="Admission Type" value={getAdmissionTypeFromRoll(basic.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />

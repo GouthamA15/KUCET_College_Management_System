@@ -363,7 +363,7 @@ export async function POST(req) {
         // Validate fee_reimbursement (students level) if provided
         if (student.fee_reimbursement !== undefined && student.fee_reimbursement !== null) {
           const fr = String(student.fee_reimbursement || '').trim().toUpperCase();
-          if (fr && !['YES','NO'].includes(fr)) return { error: `Invalid fee_reimbursement '${fr}'` };
+          if (fr && !['YES','NO','GOV'].includes(fr)) return { error: `Invalid fee_reimbursement '${fr}'` };
           student.fee_reimbursement = fr || null;
         } else {
           student.fee_reimbursement = null;

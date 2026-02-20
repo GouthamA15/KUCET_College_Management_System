@@ -43,7 +43,9 @@ export default function CertificateRequestsPage() {
       const response = await fetch('/api/student/requests', { method: 'GET', cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
-        setCertificateRequests(data);
+        // API returns an object like { data: [...] } – store just the array
+        const rows = Array.isArray(data) ? data : (data?.data || []);
+        setCertificateRequests(rows);
         setCertificateRequestsLoaded(true);
       } else {
         toast.error('Failed to fetch requests.');
