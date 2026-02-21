@@ -94,7 +94,16 @@ A robust, centralized web application built with **Next.js** for managing the co
 
 ## 9. Recent Activity Log (Feb 2026)
 
-### **Session 4: Advanced Admission Workflow (Latest)**
+### **Session 5: Clerk & Admission Form Enhancements (Latest)**
+- **API Security & Refactoring:** Addressed a security concern by separating clerk and student API endpoints. Created a dedicated, secure endpoint (`/api/clerk/students/[rollno]`) for clerks to fetch full student profiles, and updated the frontend to use it. This improves API design and ensures correct role-based access.
+- **Clerk Student Search:** Enhanced the clerk's student search API (`/api/clerk/students/search`) to include personal and academic details (`father_name`, `ssc_marks`, etc.) in the search results by joining `students`, `student_personal_details`, and `student_academic_background` tables.
+- **Admission Form Validation:**
+    - Made numerous fields mandatory, with visual indicators (`*`), to enforce data integrity.
+    - Implemented client-side validation to prevent student and guardian mobile numbers from being the same.
+    - Restricted SSC and Intermediate marks fields to numeric input only.
+    - Set a maximum value for the entrance exam rank.
+
+### **Session 4: Advanced Admission Workflow**
 - **Draft Pipeline:** Created `/admission` public form and clerk verification/finalization modules.
 - **Data Expansion:** Added `ssc_marks`, `inter_marks`, and `guardian_mobile` fields.
 - **Security:** Implemented cross-table uniqueness checks for system-wide data integrity.
@@ -110,7 +119,7 @@ A robust, centralized web application built with **Next.js** for managing the co
 **Objective 1: Multi-Stage Admission Pipeline**
 *   **Registration:** Built a 27-field formal registration form (`/admission`) with dynamic year calculation (EAMCET/ECET).
 *   **Verification:** Created `student_admission_drafts` and a clerk module to verify and correct applicant data.
-*   **Finalization:** Implemented a roll-number assignment tool that graduates drafts to official student records.
+*   **Finalization:** Implemented a roll-number assignment tool that graduates drafts to official student records. The finalization page (`/clerk/admission/finalize`) has been polished with the standard application layout (Header, Navbar, Footer) for a consistent user experience.
 
 **Objective 2: Student Data Expansion**
 *   **New Fields:** Added `ssc_marks`, `inter_marks`, and `guardian_mobile` to the database and frontend.

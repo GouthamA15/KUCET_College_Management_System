@@ -36,7 +36,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
     setFetchError('');
     setFetchedStudent(null);
     try{
-      const res = await fetch(`/api/student/${roll}`);
+      const res = await fetch(`/api/clerk/students/${roll}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'Student not found');
       const student = data.student;

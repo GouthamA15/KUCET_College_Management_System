@@ -18,18 +18,34 @@ export async function GET(req) {
       return apiError('Provide name or admission_no or roll_no', 400);
     }
 
-    let sql = 'SELECT * FROM students WHERE ';
+    let sql = `
+      SELECT
+        s.id,
+        s.roll_no,
+        s.admission_no,
+        s.name,
+        s.email,
+        s.mobile,
+        pd.father_name,
+        pd.mother_name,
+        pd.aadhaar_no,
+        ab.ssc_marks,
+        ab.inter_marks
+      FROM students s
+      LEFT JOIN student_personal_details pd ON s.id = pd.student_id
+      LEFT JOIN student_academic_background ab ON s.id = ab.student_id
+      WHERE
+    `;
     const params = [];
 
     if (roll_no) {
-      sql += 'roll_no = ?';
+      sql += 's.roll_no = ?';
       params.push(roll_no);
     } else if (admission_no) {
-      sql += 'admission_no = ?';
+      sql += 's.admission_no = ?';
       params.push(admission_no);
     } else {
-      // name search (case-insensitive)
-      sql += 'name LIKE ?';
+      sql += 's.name LIKE ?';
       params.push(`%${name}%`);
     }
 
