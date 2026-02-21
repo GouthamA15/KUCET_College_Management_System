@@ -12,10 +12,13 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const assignment_id = searchParams.get('assignment_id');
     const session = searchParams.get('session') || 1;
+    const date = searchParams.get('date');
 
     if (!assignment_id) {
       return apiError('Assignment ID is required', 400);
     }
+
+    // date is optional: when absent we return student list without per-day attendance_status
 
     const db = getDb();
     // Verify assignment belongs to faculty
@@ -29,12 +32,12 @@ export async function GET(request) {
     }
 
     const assignment = assignments[0];
-    const { branch, semester, academic_year } = assignment;
+    const { branch, course_semester, academic_year } = assignment;
 
     // Calculate Entry Year based on Semester and Academic Year
     // academic_year format "2024-25" -> start year 2024
     const startYear = parseInt(academic_year.split('-')[0]);
-    const studyingYear = Math.ceil(semester / 2);
+    const studyingYear = Math.ceil(course_semester / 2);
     
     // For Regular: EntryYear = startYear - (studyingYear - 1)
     // For Lateral: EntryYear = startYear - (studyingYear - 2) if studyingYear >= 2
@@ -54,32 +57,25 @@ export async function GET(request) {
     const regularPattern = `${entryYearRegular}567T${branchCode}%`;
     const lateralPattern = `${entryYearLateral}567${branchCode}%L`;
 
-    // Fetch students matching the patterns
-    // Also fetch attendance summary and marks for this assignment
+    // Fetch students matching the patterns (base student list only)
     let studentsQuery = `
-      SELECT 
-        s.id, s.roll_no, s.name,
-        curr_sa.status as attendance_status,
-        sm.mid1_marks, sm.mid2_marks, sm.assignment_marks,
-        (SELECT COUNT(*) FROM student_attendance WHERE student_id = s.id AND assignment_id = ?) as total_classes,
-        (SELECT COUNT(*) FROM student_attendance WHERE student_id = s.id AND assignment_id = ? AND status = 'PRESENT') as attended_classes
+      SELECT s.id, s.roll_no, s.name
       FROM students s
-      LEFT JOIN student_attendance curr_sa ON s.id = curr_sa.student_id AND curr_sa.assignment_id = ? AND curr_sa.date = CURDATE() AND curr_sa.session = ?
-      LEFT JOIN student_marks sm ON s.id = sm.student_id AND sm.assignment_id = ?
       WHERE (s.roll_no LIKE ?
     `;
-    let queryParams = [assignment_id, assignment_id, assignment_id, session, assignment_id, regularPattern];
 
+    const params = [regularPattern];
     if (studyingYear >= 2) {
       studentsQuery += ' OR s.roll_no LIKE ?';
-      queryParams.push(lateralPattern);
+      params.push(lateralPattern);
     }
-    
     studentsQuery += ') ORDER BY s.roll_no ASC';
 
-    const [students] = await db.execute(studentsQuery, queryParams);
+    const [students] = await db.execute(studentsQuery, params);
 
-    return apiResponse({ data: students });
+    // This route now returns only the base student list. Attendance status per date/session
+    // is served by the attendance status endpoint. Return empty sessions here.
+    return apiResponse({ data: students, sessions: [] });
   } catch (error) {
     console.error('Students Fetch Error:', error);
     return apiError('Internal Server Error', 500);

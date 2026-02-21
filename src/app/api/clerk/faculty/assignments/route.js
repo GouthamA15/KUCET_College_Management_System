@@ -11,7 +11,7 @@ export async function GET(request) {
 
     const db = getDb();
     const [assignments] = await db.execute(
-      'SELECT * FROM faculty_subject_assignments WHERE faculty_id = ? ORDER BY academic_year DESC, semester ASC',
+      'SELECT * FROM faculty_subject_assignments WHERE faculty_id = ? ORDER BY academic_year DESC, course_semester ASC',
       [user.id]
     );
 
@@ -21,7 +21,10 @@ export async function GET(request) {
 
     const assignmentsWithActivity = await Promise.all(assignments.map(async (asgn) => ({
       ...asgn,
-      is_active: await isSemesterActive(asgn.semester, asgn.academic_year, collegeInfo)
+      // course_semester is the stored column; we still use its
+      // odd/even nature to determine whether the assignment is
+      // currently active within the academic year.
+      is_active: await isSemesterActive(asgn.course_semester, asgn.academic_year, collegeInfo)
     })));
 
     return apiResponse({ data: assignmentsWithActivity });

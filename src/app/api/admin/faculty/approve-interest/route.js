@@ -46,8 +46,16 @@ export async function POST(request) {
       if (status === 'APPROVED') {
         // Create assignment
         await connection.execute(
-          'INSERT INTO faculty_subject_assignments (faculty_id, subject_code, subject_name, branch, semester, academic_year) VALUES (?, ?, ?, ?, ?, ?)',
-          [interest.faculty_id, interest.subject_code, interest.subject_name, interest.branch, interest.semester, interest.academic_year]
+          'INSERT INTO faculty_subject_assignments (faculty_id, subject_code, subject_name, branch, course_semester, academic_year) VALUES (?, ?, ?, ?, ?, ?)',
+          [
+            interest.faculty_id,
+            interest.subject_code,
+            interest.subject_name,
+            interest.branch,
+            // faculty_subject_interests.semester now maps to course_semester
+            interest.semester,
+            interest.academic_year,
+          ]
         );
       }
 

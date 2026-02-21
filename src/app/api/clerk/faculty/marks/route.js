@@ -33,7 +33,7 @@ export async function POST(request) {
     const [collegeInfoRows] = await db.execute('SELECT * FROM college_info WHERE id = 1');
     const collegeInfo = collegeInfoRows[0] || null;
 
-    if (!await isSemesterActive(assignment.semester, assignment.academic_year, collegeInfo)) {
+    if (!await isSemesterActive(assignment.course_semester, assignment.academic_year, collegeInfo)) {
       return apiError('Semester has ended. Marks can no longer be modified.', 403);
     }
 

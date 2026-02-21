@@ -39,7 +39,7 @@ export async function GET(request) {
       FROM faculty_subject_assignments fsa
       JOIN clerks c ON fsa.faculty_id = c.id
       LEFT JOIN student_marks sm ON sm.assignment_id = fsa.id AND sm.student_id = ?
-      WHERE fsa.branch = ? AND fsa.semester = ? AND fsa.academic_year = ?
+      WHERE fsa.branch = ? AND fsa.course_semester = ? AND fsa.academic_year = ?
     `, [studentId, studentId, studentId, branch, semester, academicYear]);
 
     return apiResponse({ 
