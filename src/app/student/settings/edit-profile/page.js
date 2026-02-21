@@ -193,7 +193,7 @@ export default function EditProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
       <Header />
-      <Navbar studentProfileMode={true} activeTab={'menu'} onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); location.href = '/'; }} />
+      <Navbar role={'student'} activeTab={'menu'} onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); location.href = '/'; }} />
 
       <main className="flex-1 flex items-start justify-center px-6 py-6 overflow-y-auto">
         <div className="w-full max-w-6xl bg-white shadow-xl rounded-lg p-6">
