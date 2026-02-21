@@ -40,6 +40,7 @@ const AdmissionPage = () => {
     const [files, setFiles] = useState({ pfp: null, signature: null });
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
 
     useEffect(() => {
         const year = getEffectiveAcademicYear();
@@ -49,6 +50,20 @@ const AdmissionPage = () => {
             setAdmissionYear(`${year}-${year + 3}`);
         }
     }, [form.entrance_exam]);
+
+    const formatAadhaar = (val) => {
+        const digits = val.replace(/\D/g, '').slice(0, 12);
+        return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    };
+
+    const formatIndianNumber = (digits) => {
+        if (!digits) return '';
+        const s = String(digits).replace(/\D/g, '');
+        if (s.length <= 3) return s;
+        const last3 = s.slice(-3);
+        const rest = s.slice(0, -3);
+        return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
+    };
 
     const handleFileChange = (e, type) => {
         const file = e.target.files[0];
@@ -80,6 +95,8 @@ const AdmissionPage = () => {
 
         const payload = {
             ...form,
+            aadhaar_no: form.aadhaar_no.replace(/\s/g, ''),
+            annual_income: form.annual_income.toString().replace(/,/g, ''),
             admission_year: admissionYear,
             pfp: files.pfp,
             signature: files.signature,
@@ -168,13 +185,13 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>2. Father's Name (as per memo) <span className="text-red-500">*</span></label>
-                            <input required maxLength="50" value={form.father_name} onChange={e => setForm({...form, father_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="FATHER'S FULL NAME" />
+                            <label className={labelClasses}>2. Father&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
+                            <input required maxLength="50" value={form.father_name} onChange={e => setForm({...form, father_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="FATHER&apos;S FULL NAME" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>3. Mother's Name (as per memo) <span className="text-red-500">*</span></label>
-                            <input required maxLength="50" value={form.mother_name} onChange={e => setForm({...form, mother_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER'S FULL NAME" />
+                            <label className={labelClasses}>3. Mother&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
+                            <input required maxLength="50" value={form.mother_name} onChange={e => setForm({...form, mother_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER&apos;S FULL NAME" />
                         </div>
 
                         <div className="space-y-1">
@@ -216,8 +233,8 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>9. Seat Allotted Category <span className="text-red-500">*</span></label>
-                            <input required maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
+                            <label className={labelClasses}>9. Seat Allotted Category</label>
+                            <input maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
                         </div>
 
                         <div className="space-y-1">
@@ -272,18 +289,39 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>19. Father's Occupation</label>
+                            <label className={labelClasses}>19. Father&apos;s Occupation</label>
                             <input maxLength="50" value={form.father_occupation} onChange={e => setForm({...form, father_occupation: e.target.value.toUpperCase()})} className={inputClasses} />
                         </div>
 
                         <div className="space-y-1">
                             <label className={labelClasses}>20. Annual Income <span className="text-red-500">*</span></label>
-                            <input required type="number" min="0" value={form.annual_income} onChange={e => setForm({...form, annual_income: e.target.value})} className={inputClasses} />
+                            <input 
+                                required 
+                                type="text" 
+                                inputMode="numeric"
+                                value={annualIncomeDisplay} 
+                                onChange={e => {
+                                    const raw = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                    setForm({...form, annual_income: raw});
+                                    setAnnualIncomeDisplay(formatIndianNumber(raw));
+                                }} 
+                                className={inputClasses} 
+                                placeholder="ANNUAL INCOME"
+                            />
                         </div>
 
                         <div className="space-y-1">
                             <label className={labelClasses}>21. Student Aadhaar Number <span className="text-red-500">*</span></label>
-                            <input required pattern="[0-9]{12}" title="Enter a valid 12-digit Aadhaar number" value={form.aadhaar_no} onChange={e => setForm({...form, aadhaar_no: e.target.value})} maxLength={12} className={inputClasses} placeholder="12 DIGIT AADHAAR" />
+                            <input 
+                                required 
+                                pattern="[0-9]{4}\s[0-9]{4}\s[0-9]{4}" 
+                                title="Enter a valid 12-digit Aadhaar number" 
+                                value={form.aadhaar_no} 
+                                onChange={e => setForm({...form, aadhaar_no: formatAadhaar(e.target.value)})} 
+                                maxLength={14} 
+                                className={inputClasses} 
+                                placeholder="XXXX XXXX XXXX" 
+                            />
                         </div>
 
                         <div className="space-y-1">

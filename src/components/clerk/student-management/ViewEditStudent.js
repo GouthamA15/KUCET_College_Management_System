@@ -365,7 +365,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                     maxLength={10}
                   />
                 </div>
-                <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" />
+                <input placeholder="Aadhaar Number" value={personalFull.aadhaar_no || ''} onChange={e=>setPersonalFull({...personalFull, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" maxLength={14} />
                 <select value={personalFull.blood_group || ''} onChange={e=>setPersonalFull({...personalFull, blood_group: e.target.value})} className="p-2 border rounded">
                   <option value="">Blood Group (optional)</option>
                   {COLLEGE_CONFIG.bloodGroups.map(bg => (
