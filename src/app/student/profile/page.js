@@ -57,7 +57,7 @@ export default function StudentProfileNew() {
   return (
     <StudentProfileLayout>
       <Header />
-      <Navbar studentProfileMode={true} activeTab={'profile'} onLogout={async () => { try { await fetch('/api/student/logout', { method: 'POST' }); } catch {} finally { localStorage.removeItem('logged_in_student'); sessionStorage.clear(); window.location.replace('/'); } }} />
+      <Navbar role={'student'} activeTab={'profile'} onLogout={async () => { try { await fetch('/api/student/logout', { method: 'POST' }); } catch {} finally { localStorage.removeItem('logged_in_student'); sessionStorage.clear(); window.location.replace('/'); } }} />
 
       <SetPasswordGate show={password.showSetPasswordModal} rollno={student.roll_no} email={profileEdit.email} onPasswordSet={() => { password.setShowSetPasswordModal(false); refreshData(); }} />
 
