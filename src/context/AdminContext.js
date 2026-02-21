@@ -30,9 +30,10 @@ export function AdminProvider({ children }) {
     try {
       const res = await fetch('/api/admin/clerks');
       if (res.ok) {
-        const data = await res.json();
-        setClerks(data);
-        return data;
+        const json = await res.json();
+        const payload = json?.data ?? json ?? [];
+        setClerks(payload);
+        return payload;
       }
     } catch (e) {
       console.error('Failed to fetch clerks', e);
@@ -44,9 +45,10 @@ export function AdminProvider({ children }) {
     try {
       const res = await fetch('/api/admin/student-stats');
       if (res.ok) {
-        const data = await res.json();
-        setStudentStats(data);
-        return data;
+        const json = await res.json();
+        const payload = json?.data ?? json ?? null;
+        setStudentStats(payload);
+        return payload;
       }
     } catch (e) {
       console.error('Failed to fetch student stats', e);
@@ -58,9 +60,10 @@ export function AdminProvider({ children }) {
     try {
       const res = await fetch('/api/admin/verify'); // Assuming verify endpoint gives admin info
       if (res.ok) {
-        const data = await res.json();
-        setAdminData(data);
-        return data;
+        const json = await res.json();
+        const payload = json?.admin ?? json ?? null;
+        setAdminData(payload);
+        return payload;
       }
     } catch (e) {
       console.error('Failed to verify admin', e);

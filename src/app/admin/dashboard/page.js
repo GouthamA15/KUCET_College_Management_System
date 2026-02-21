@@ -29,8 +29,8 @@ export default function AdminDashboardPage() {
   const [selectedStudyingYear, setSelectedStudyingYear] = useState('1'); 
   const [activeTab, setActiveTab] = useState('stats'); // 'stats', 'faculty'
 
-  const totalClerks = clerks?.length || 0;
-  const activeClerks = clerks?.filter(c => c.is_active).length || 0;
+  const totalClerks = Array.isArray(clerks) ? clerks.length : 0;
+  const activeClerks = Array.isArray(clerks) ? clerks.filter(c => c.is_active).length : 0;
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -96,7 +96,7 @@ export default function AdminDashboardPage() {
       <Header />
       <AdminNavbar />
       <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center py-8">
-        <div className="w-full max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
+        <div className="w-full max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
           <h1 className="text-2xl font-bold text-[#0b3578] mb-6">Admin Dashboard</h1>
           <form onSubmit={handleSearch} className="w-full flex flex-col sm:flex-row gap-2 mb-6">
             <input
