@@ -150,6 +150,11 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
     return dateStr >= semesterStartDate && dateStr <= semesterEndDate;
   };
 
+  const isFutureDate = (dateStr) => {
+    if (!dateStr) return false;
+    return dateStr > todayString;
+  };
+
   const changeMonth = (offset) => {
     setCurrentMonth((prevMonth) => {
       let newMonth = prevMonth + offset;
@@ -180,6 +185,11 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
 
   const handleDayClick = async (dateStr) => {
     if (!isWithinSemester(dateStr)) return;
+
+    if (isFutureDate(dateStr)) {
+      toast.error("Attendance for future dates is not allowed.");
+      return;
+    }
 
     try {
       const res = await fetch(
@@ -245,6 +255,7 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
       const dayStr = `${currentYear}-${String(currentMonth).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
       const isToday = dayStr === todayString;
       const withinSemester = isWithinSemester(dayStr);
+      const isFuture = isFutureDate(dayStr);
       const dayData = calendarData[dayStr] || { day_type: "WORKING", holiday_name: null };
 
       const style = DAY_TYPE_STYLES[dayData.day_type] || {
@@ -254,25 +265,27 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
       };
 
       const baseClasses = withinSemester
-        ? `${style.bg} ${style.border} ${style.text} cursor-pointer hover:bg-gray-100`
+        ? isFuture
+          ? `${style.bg} ${style.border} ${style.text} cursor-not-allowed opacity-60`
+          : `${style.bg} ${style.border} ${style.text} cursor-pointer hover:bg-gray-100`
         : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60";
 
       cells.push(
         <button
           key={dayStr}
           type="button"
-          onClick={() => withinSemester && handleDayClick(dayStr)}
+          onClick={() => withinSemester && !isFuture && handleDayClick(dayStr)}
           className={`relative border-b border-r px-2 py-1 text-left text-xs flex flex-col gap-1 ${baseClasses}`}
         >
           <span className="font-semibold text-sm">{dayNum}</span>
-          {dayData.day_type !== "WORKING" && withinSemester && (
+          {dayData.day_type !== "WORKING" && withinSemester && !isFuture && (
             <span className="text-[10px] font-semibold uppercase tracking-wide">
               {dayData.day_type === "HOLIDAY" && dayData.holiday_name
                 ? dayData.holiday_name
                 : dayData.day_type}
             </span>
           )}
-          {isToday && withinSemester && (
+          {isToday && withinSemester && !isFuture && (
             <span className="absolute inset-0 border-2 border-gray-700 pointer-events-none" />
           )}
           {selectedDate === dayStr && (
@@ -373,6 +386,7 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
             const dayNum = i + 1;
             const dayStr = `${currentYear}-${String(currentMonth).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
             const withinSemester = isWithinSemester(dayStr);
+            const isFuture = isFutureDate(dayStr);
             const isToday = dayStr === todayString;
             const dayData = calendarData[dayStr] || { day_type: "WORKING", holiday_name: null };
             const style = DAY_TYPE_STYLES[dayData.day_type] || {
@@ -381,9 +395,11 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
               text: "text-gray-700",
             };
 
-            const rowClasses = withinSemester
-              ? `${style.bg} ${style.border} ${style.text} cursor-pointer`
-              : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60";
+            const rowClasses = !withinSemester
+              ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60"
+              : isFuture
+              ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60"
+              : `${style.bg} ${style.border} ${style.text} cursor-pointer`;
 
             const weekday = new Date(currentYear, currentMonth - 1, dayNum).toLocaleDateString("en-US", {
               weekday: "long",
@@ -393,7 +409,7 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
               <button
                 key={dayStr}
                 type="button"
-                onClick={() => withinSemester && handleDayClick(dayStr)}
+                onClick={() => withinSemester && !isFuture && handleDayClick(dayStr)}
                 className={`w-full flex items-center justify-between px-3 py-2 border-b ${rowClasses}`}
               >
                 <div className="flex items-center gap-3">

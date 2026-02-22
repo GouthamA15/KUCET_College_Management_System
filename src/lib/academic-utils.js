@@ -32,7 +32,7 @@ function calculateYearAndSemesterCore(rollNo, collegeInfo, now) {
   return {
     yearOfStudy,
     semester,
-    semesterLabel: `Year ${yearOfStudy} Sem ${semester}`
+    semesterLabel: `Year ${yearOfStudy} / Sem ${semester}`
   };
 }
 
