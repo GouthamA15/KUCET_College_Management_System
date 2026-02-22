@@ -7,6 +7,7 @@ import Footer from '@/app/components/Footer/Footer';
 import { useClerk } from '@/context/ClerkContext';
 import AttendanceSheet from '@/components/clerk/faculty/AttendanceSheet';
 import MobileAttendanceSheet from '@/components/clerk/faculty/MobileAttendanceSheet';
+import { FacultyAttendanceProvider } from '@/context/FacultyAttendanceContext';
 
 export default function FacultyAttendancePage() {
   const { clerkData: clerk, loading: isLoading } = useClerk();
@@ -35,35 +36,46 @@ export default function FacultyAttendancePage() {
     setSelectedAssignment(null);
   };
 
-  const SubjectCard = ({ assignment, onSelect }) => {
-    const statusColor = assignment.is_active ? 'text-green-600 bg-green-100' : 'text-gray-600 bg-gray-100';
-    return (
-      <div 
-        onClick={() => onSelect(assignment)}
-        className="bg-white border rounded-lg shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-indigo-400 transition-all group"
-      >
-        <div className="flex justify-between items-start">
-          <h3 className="font-bold text-gray-800 group-hover:text-indigo-600">{assignment.subject_name}</h3>
-          <span className={`text-xs font-bold px-2 py-1 rounded-full ${statusColor}`}>{assignment.is_active ? 'Active' : 'Inactive'}</span>
-        </div>
-        <p className="text-sm text-gray-500 mt-1">{assignment.subject_code}</p>
-        <div className="mt-4 text-xs text-gray-600 space-y-1">
-          <div className="flex justify-between">
-            <span className="font-medium text-gray-500">Branch:</span>
-            <span className="font-bold">{assignment.branch}</span>
+  const SubjectCard = ({ assignment, onSelect }) => (
+    <div
+      onClick={() => onSelect(assignment)}
+      className="bg-white border-2 border-indigo-50 rounded-2xl p-5 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 relative group overflow-hidden cursor-pointer"
+    >
+      <div className="absolute -right-4 -top-4 w-16 h-16 bg-indigo-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+
+      <div className="relative">
+          <div className="flex justify-between items-start mb-2">
+          <div className="flex-1 min-w-0">
+            <div className="font-black text-xl leading-tight mb-1 text-indigo-900 break-words">
+              {assignment.subject_name}
+            </div>
+            <div className="text-xs font-mono font-bold mb-2 text-indigo-500 uppercase tracking-widest">
+              {assignment.subject_code}
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="font-medium text-gray-500">Semester:</span>
-            <span className="font-bold">{assignment.semester}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="font-medium text-gray-500">Academic Year:</span>
-            <span className="font-bold">{assignment.academic_year}</span>
+          <div className="ml-3 flex-shrink-0">
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+              {assignment.is_active ? 'Active' : 'History'}
+            </span>
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-2">
+          <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-bold uppercase">Branch</div>
+            <div className="text-xs font-bold text-gray-700 truncate">{assignment.branch}</div>
+          </div>
+          <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-bold uppercase">Semester</div>
+            <div className="text-xs font-bold text-gray-700"> {assignment.semester}</div>
+          </div>
+        </div>
+
+        <div className="text-[10px] text-gray-400 font-bold uppercase mt-2">Academic Year</div>
+        <div className="text-xs font-bold text-gray-700">{assignment.academic_year}</div>
       </div>
-    );
-  };
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -81,7 +93,7 @@ export default function FacultyAttendancePage() {
           loadingAssignments ? (
             <div className="text-center py-6">Loading assignments...</div>
           ) : assignments.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {assignments.map(assignment => (
                 <SubjectCard key={assignment.id} assignment={assignment} onSelect={setSelectedAssignment} />
               ))}
@@ -93,14 +105,14 @@ export default function FacultyAttendancePage() {
             </div>
           )
         ) : (
-          <>
+          <FacultyAttendanceProvider assignment={selectedAssignment}>
             <div className="hidden md:block">
-              <AttendanceSheet assignment={selectedAssignment} onBack={resetSelection} />
+              <AttendanceSheet onBack={resetSelection} />
             </div>
             <div className="block md:hidden">
-              <MobileAttendanceSheet assignment={selectedAssignment} onBack={resetSelection} />
+              <MobileAttendanceSheet onBack={resetSelection} />
             </div>
-          </>
+          </FacultyAttendanceProvider>
         )}
       </main>
       <Footer />

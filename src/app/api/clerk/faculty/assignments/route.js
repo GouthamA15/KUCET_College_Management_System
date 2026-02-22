@@ -11,7 +11,7 @@ export async function GET(request) {
 
     const db = getDb();
     const [assignments] = await db.execute(
-      'SELECT * FROM faculty_subject_assignments WHERE faculty_id = ? ORDER BY academic_year DESC, course_semester ASC',
+      'SELECT *, course_semester AS semester FROM faculty_subject_assignments WHERE faculty_id = ? ORDER BY academic_year DESC, course_semester ASC',
       [user.id]
     );
 

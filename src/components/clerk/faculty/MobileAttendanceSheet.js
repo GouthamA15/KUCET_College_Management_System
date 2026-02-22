@@ -1,9 +1,18 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
+import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 
-const MobileSubjectIdentityPanel = ({ assignment }) => (
+const formatDisplayDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const [year, month, day] = parts;
+  return `${day}-${month}-${year}`;
+};
+
+const MobileSubjectIdentityPanel = () => {
+  const { assignment } = useFacultyAttendance();
+  return (
   <div className="bg-white border-2 border-gray-200 p-4 rounded-lg mb-6">
     <div className="border-b-2 border-gray-200 pb-2 mb-4">
       <h2 className="text-lg font-bold text-gray-800">Attendance Register</h2>
@@ -28,160 +37,27 @@ const MobileSubjectIdentityPanel = ({ assignment }) => (
       <div className="font-mono text-gray-900">{assignment.academic_year}</div>
     </div>
   </div>
-);
+  );
+};
 
-
-export default function MobileAttendanceSheet({ assignment, onBack }) {
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedSession, setSelectedSession] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [dateValidation, setDateValidation] = useState({
-    isValid: false,
-    message: 'Select a WORKING day from the academic calendar.',
-  });
-  const [dayInfo, setDayInfo] = useState(null);
-
-  const [existingSessionsForSelectedDate, setExistingSessionsForSelectedDate] = useState([]);
-
-  // Removed attendance percentage for mobile.
-
-  const [baseStudents, setBaseStudents] = useState([]);
-
-  const fetchBaseStudents = useCallback(async () => {
-    setLoading(true);
-    try {
-      const url = `/api/clerk/faculty/students?assignment_id=${assignment.id}&base=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch students');
-
-      const base = (data.data || []).map(s => ({ id: s.id, roll_no: s.roll_no, name: s.name }));
-      setBaseStudents(base);
-      setStudents(base.map(s => ({ ...s, status: null })));
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [assignment.id, selectedSession, selectedDate]);
-
-  const fetchAttendanceStatus = useCallback(async () => {
-    if (!selectedDate) return;
-    setLoading(true);
-    try {
-      const url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}&date=${encodeURIComponent(selectedDate)}&session=${encodeURIComponent(selectedSession)}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch attendance status');
-
-      const statusMap = (data.data || []).reduce((acc, r) => { acc[r.student_id] = r.status; return acc; }, {});
-      const merged = baseStudents.map(s => ({ ...s, status: statusMap[s.id] ?? null }));
-      setStudents(merged);
-      setExistingSessionsForSelectedDate(data.sessions || []);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [assignment.id, selectedDate, selectedSession, baseStudents]);
-
-  // History/grid removed for mobile — single-session flow only
-
-  useEffect(() => {
-    fetchBaseStudents();
-  }, [assignment.id, fetchBaseStudents]);
-
-  useEffect(() => {
-    if (selectedDate) {
-      fetchAttendanceStatus();
-    } else {
-      setStudents(baseStudents.map(s => ({ ...s, status: null })));
-      setExistingSessionsForSelectedDate([]);
-    }
-  }, [selectedDate, selectedSession, baseStudents, fetchAttendanceStatus]);
-
-  const toggleStatus = (studentId) => {
-    setStudents(students.map(s => {
-      if (s.id !== studentId) return s;
-      if (s.status === null) return { ...s, status: 'PRESENT' };
-      if (s.status === 'PRESENT') return { ...s, status: 'ABSENT' };
-      return { ...s, status: 'PRESENT' };
-    }));
-  };
-
-  const handleSaveAttendance = async () => {
-    setSubmitting(true);
-    try {
-      if (!selectedDate || !dateValidation.isValid) {
-        throw new Error('Select a valid WORKING day from the calendar.');
-      }
-
-      // Saving allowed for new sessions; do not block on NOT SET here.
-
-      const res = await fetch('/api/clerk/faculty/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assignment_id: assignment.id,
-          date: selectedDate,
-          session: selectedSession,
-          attendance_data: students.map(s => ({ student_id: s.id, status: s.status }))
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to save attendance');
-
-      toast.success('Attendance saved successfully');
-      await fetchAttendanceStatus();
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteAttendance = async () => {
-    if (!selectedDate) return toast.error('No date selected');
-
-    if (!confirm(`Are you sure you want to delete attendance for Session ${selectedSession} on ${selectedDate}?`)) return;
-    
-    setSubmitting(true);
-    try {
-      const res = await fetch(`/api/clerk/faculty/attendance?assignment_id=${assignment.id}&date=${selectedDate}&session=${selectedSession}`, {
-        method: 'DELETE'
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete attendance');
-
-      toast.success('Attendance deleted successfully');
-      await fetchAttendanceStatus();
-      setSelectedSession(1);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // percentage removed in mobile UI
-
-  const handleCalendarSelect = (dateStr, info) => {
-    setSelectedDate(dateStr);
-    if (info) {
-      setDayInfo(info);
-      if (info.day_type === 'WORKING') {
-        setDateValidation({ isValid: true, message: null });
-      } else {
-        setDateValidation({ isValid: false, message: `Attendance cannot be marked. Reason: ${info.day_type}` });
-      }
-    }
-  };
-
-  // history save removed
-
-  if (loading) return <div className="text-center py-4">Loading students...</div>;
+export default function MobileAttendanceSheet({ onBack }) {
+  const {
+    assignment,
+    students,
+    loading,
+    statusLoading,
+    selectedDate,
+    selectedSession,
+    setSelectedSession,
+    submitting,
+    dateValidation,
+    dayInfo,
+    existingSessionsForSelectedDate,
+    handleSaveAttendance,
+    handleDeleteAttendance,
+    handleCalendarSelect,
+    toggleAttendanceStatus,
+  } = useFacultyAttendance();
 
   return (
     <div>
@@ -192,7 +68,7 @@ export default function MobileAttendanceSheet({ assignment, onBack }) {
       </button>
 
       {/* Subject Identity Panel */}
-      <MobileSubjectIdentityPanel assignment={assignment} />
+      <MobileSubjectIdentityPanel />
 
       {/* FACULTY ACADEMIC CALENDAR (MOBILE) */}
       <FacultyAcademicCalendar
@@ -214,7 +90,7 @@ export default function MobileAttendanceSheet({ assignment, onBack }) {
           <div className="flex justify-between text-[11px] text-gray-600">
             <div>
               <span className="font-semibold mr-2">DATE</span>
-              <span className="font-mono text-gray-900">{selectedDate || '—'}</span>
+              <span className="font-mono text-gray-900">{selectedDate ? formatDisplayDate(selectedDate) : '—'}</span>
             </div>
             <div className="text-right">
               <span className="font-semibold mr-2">DAY TYPE</span>
@@ -308,7 +184,9 @@ export default function MobileAttendanceSheet({ assignment, onBack }) {
 
             {/* Mobile table view */}
             <div className="mt-2">
-              {students.length > 0 ? (
+              {loading && students.length === 0 ? (
+                <div className="text-center py-4 text-gray-500 text-xs">Loading students...</div>
+              ) : students.length > 0 ? (
                 <table className="w-full table-fixed border-collapse" style={{ tableLayout: 'fixed' }}>
                   <colgroup>
                     <col style={{ width: '28%' }} />
@@ -319,7 +197,14 @@ export default function MobileAttendanceSheet({ assignment, onBack }) {
                     <tr className="bg-gray-50">
                       <th className="px-3 py-2 text-left font-semibold text-gray-600" style={{ fontSize: '12px' }}>Roll No</th>
                       <th className="px-3 py-2 text-left font-semibold text-gray-600" style={{ fontSize: '12px' }}>Name</th>
-                      <th className="px-3 py-2 text-center font-semibold text-gray-600" style={{ fontSize: '12px' }}>Status</th>
+                      <th className="px-3 py-2 text-center font-semibold text-gray-600" style={{ fontSize: '12px' }}>
+                        <span className="inline-flex items-center justify-center gap-1">
+                          <span>Status</span>
+                          {statusLoading && (
+                            <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                          )}
+                        </span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -328,15 +213,19 @@ export default function MobileAttendanceSheet({ assignment, onBack }) {
                         <td className="px-3 py-2 align-middle font-mono text-gray-800" style={{ fontSize: '12px', fontWeight: 600 }}>{student.roll_no}</td>
                         <td className="px-3 py-2 align-middle text-gray-800" style={{ fontSize: '13px', fontWeight: 500, wordBreak: 'break-word', whiteSpace: 'normal' }}>{student.name}</td>
                         <td className="px-3 py-2 align-middle text-center">
-                          <button
-                            type="button"
-                            onClick={() => assignment.is_active && dateValidation.isValid && toggleStatus(student.id)}
-                            disabled={!assignment.is_active || !dateValidation.isValid}
-                            style={{ width: '48px', height: '32px', textAlign: 'center', fontWeight: 700, fontSize: '12px', borderRadius: '6px' }}
-                            className={`${student.status === null ? 'bg-gray-100 text-gray-700' : student.status === 'PRESENT' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
-                          >
-                            {student.status === null ? 'N/A' : student.status === 'PRESENT' ? 'P' : 'A'}
-                          </button>
+                          {statusLoading ? (
+                            <span className="inline-block h-6 w-6 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => assignment.is_active && dateValidation.isValid && toggleAttendanceStatus(student.id)}
+                              disabled={!assignment.is_active || !dateValidation.isValid}
+                              style={{ width: '48px', height: '32px', textAlign: 'center', fontWeight: 700, fontSize: '12px', borderRadius: '6px' }}
+                              className={`${student.status === null ? 'bg-gray-100 text-gray-700' : student.status === 'PRESENT' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
+                            >
+                              {student.status === null ? 'N/A' : student.status === 'PRESENT' ? 'P' : 'A'}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

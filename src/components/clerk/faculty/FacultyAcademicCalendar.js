@@ -180,7 +180,6 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
 
   const handleDayClick = async (dateStr) => {
     if (!isWithinSemester(dateStr)) return;
-    const dayData = calendarData[dateStr] || { day_type: "WORKING", holiday_name: null };
 
     try {
       const res = await fetch(
@@ -206,10 +205,21 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
       }
 
       if (attendanceSectionId) {
-        const el = document.getElementById(attendanceSectionId);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
+        // Scroll after state update so the view focuses slightly below the top
+        // (keeping the ATTENDANCE ENTRY label near the top and rows visible).
+        setTimeout(() => {
+          const el = document.getElementById(attendanceSectionId);
+          if (!el || typeof window === "undefined") return;
+
+          const rect = el.getBoundingClientRect();
+          // Scroll so the attendance entry section starts at the very top
+          // of the viewport, ensuring the calendar UI is completely above
+          // (out of view) on mobile.
+          const headerOffset = 0; // px
+          const targetY = window.scrollY + rect.top - headerOffset;
+
+          window.scrollTo({ top: targetY < 0 ? 0 : targetY, behavior: "smooth" });
+        }, 0);
       }
     } catch (error) {
       toast.error(error.message || "Could not validate day");

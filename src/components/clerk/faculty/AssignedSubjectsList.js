@@ -75,7 +75,7 @@ export default function AssignedSubjectsList({ onSelectAssignment = () => {}, sh
                     </div>
                     <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
                       <div className="text-[10px] text-gray-400 font-bold uppercase">Semester</div>
-                      <div className="text-xs font-bold text-gray-700">Sem {asgn.semester}</div>
+                      <div className="text-xs font-bold text-gray-700">{asgn.semester}</div>
                     </div>
                   </div>
 
