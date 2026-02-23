@@ -52,13 +52,16 @@ export async function POST(request) {
     const clerkType = formData.get('clerkType');
     const paymentAmount = formData.get('paymentAmount');
     const transactionId = formData.get('transactionId');
-    const purpose = formData.get('purpose')
+    const purpose = formData.get('purpose');
+    const fromDateStr = formData.get('fromDate');
+    const toDateStr = formData.get('toDate');
     const paymentScreenshotFile = formData.get('paymentScreenshot');
 
     let paymentScreenshotBuffer = null;
-    if (paymentScreenshotFile) {
-        const bytes = await paymentScreenshotFile.arrayBuffer();
-        paymentScreenshotBuffer = Buffer.from(bytes);
+    // Only attempt to read the file if it's truly a file-like object
+    if (paymentScreenshotFile && typeof paymentScreenshotFile.arrayBuffer === 'function') {
+      const bytes = await paymentScreenshotFile.arrayBuffer();
+      paymentScreenshotBuffer = Buffer.from(bytes);
     }
     
     if (!certificateType || !clerkType || (paymentAmount === null || paymentAmount === undefined)) {
@@ -67,6 +70,7 @@ export async function POST(request) {
 
     // Certificate validation rules
     const certificateRules = {
+      'No Objection Certificate': { requiresPayment: false, requiresUTR: false },
       'Income Tax (IT) Certificate': { requiresPayment: false, requiresUTR: false },
       'Bonafide Certificate': { requiresPayment: true, requiresUTR: true },
       'Course Completion Certificate': { requiresPayment: true, requiresUTR: true },
@@ -77,6 +81,46 @@ export async function POST(request) {
     };
 
     const rule = certificateRules[certificateType] || { requiresPayment: true, requiresUTR: true };
+
+    // Helper: validate free-text purpose for NOC (server-side guardrail)
+    const validateNocPurpose = (text) => {
+      if (!text) return 'Purpose is required for No Objection Certificate.';
+      const trimmed = String(text).trim();
+      if (trimmed.length < 20) return 'Purpose must be at least 20 characters.';
+      if (trimmed.length > 300) return 'Purpose must not exceed 300 characters.';
+      const words = trimmed.split(/\s+/).filter(Boolean);
+      if (words.length < 3) return 'Purpose must contain at least three words.';
+      // ensure it contains at least one alphanumeric character (avoid only symbols/punctuation)
+      if (!/[A-Za-z0-9]/.test(trimmed)) return 'Purpose must contain valid descriptive text, not only symbols.';
+      return null;
+    };
+
+    // Validate NOC-specific purpose and date range
+    let fromDateSql = null;
+    let toDateSql = null;
+    if (certificateType === 'No Objection Certificate') {
+      const nocPurposeError = validateNocPurpose(purpose);
+      if (nocPurposeError) {
+        return apiError(nocPurposeError, 400);
+      }
+
+      if (!fromDateStr || !toDateStr) {
+        return apiError('From Date and To Date are required for No Objection Certificate.', 400);
+      }
+
+      const fromDate = new Date(`${fromDateStr}T00:00:00`);
+      const toDate = new Date(`${toDateStr}T00:00:00`);
+      if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+        return apiError('Invalid date range for No Objection Certificate.', 400);
+      }
+      if (toDate.getTime() < fromDate.getTime()) {
+        return apiError('To Date cannot be earlier than From Date for No Objection Certificate.', 400);
+      }
+
+      // store exactly what the user selected (YYYY-MM-DD) to avoid timezone shifts
+      fromDateSql = fromDateStr;
+      toDateSql = toDateStr;
+    }
 
     // Normalize payment amount to number
     const paymentAmountNum = Number(paymentAmount) || 0;
@@ -149,8 +193,8 @@ export async function POST(request) {
         // status === 'REJECTED' -> allow re-request by reusing the same row (UPDATE)
         try {
           const updateResult = await query(
-            `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, purpose = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
-            [paymentAmountToStore, transactionIdToStore, purpose||null, 'PENDING', existing.request_id]
+            `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, purpose = ?, from_date = ?, to_date = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
+            [paymentAmountToStore, transactionIdToStore, purpose || null, fromDateSql, toDateSql, 'PENDING', existing.request_id]
           );
           
           if (paymentScreenshotBuffer) {
@@ -176,8 +220,8 @@ export async function POST(request) {
 
       // No existing row - safe to insert
       const result = await query(
-        'INSERT INTO student_requests (student_id, certificate_type,  academic_year, payment_amount, transaction_id, purpose, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [user.student_id, certificateType,  academicYear, paymentAmountToStore, transactionIdToStore, purpose|| null, 'PENDING']
+        'INSERT INTO student_requests (student_id, certificate_type, academic_year, payment_amount, transaction_id, purpose, from_date, to_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [user.student_id, certificateType, academicYear, paymentAmountToStore, transactionIdToStore, purpose || null, fromDateSql, toDateSql, 'PENDING']
       );
       
       const newRequestId = result.insertId;

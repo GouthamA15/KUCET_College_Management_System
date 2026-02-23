@@ -29,6 +29,7 @@ export async function GET(request) {
     const clerkToTypes = {
       admission: [
         'Bonafide Certificate',
+        'No Objection Certificate',
         'Course Completion Certificate',
         'Transfer Certificate (TC)',
         'Migration Certificate',

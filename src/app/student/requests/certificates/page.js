@@ -14,6 +14,7 @@ import RejectDetailsModal from '../../../../components/student/requests/RejectDe
 
 const certificateOptions = [
   { value: 'Bonafide Certificate', label: 'Bonafide Certificate', fee: 100, clerk: 'admission' },
+  { value: 'No Objection Certificate', label: 'No Objection Certificate', fee: 0, clerk: 'admission'},
   { value: 'Course Completion Certificate', label: 'Course Completion Certificate', fee: 100, clerk: 'admission' },
   { value: 'Income Tax (IT) Certificate', label: 'Income Tax (IT) Certificate', fee: 0, clerk: 'scholarship' },
   { value: 'Custodian Certificate', label: 'Custodian Certificate', fee: 100, clerk: 'scholarship' },
@@ -152,17 +153,18 @@ export default function CertificateRequestsPage() {
     }
   };
 
-  const handleSubmit = async ({ transactionId, paymentScreenshot, finalPurpose }) => {
+  const handleSubmit = async ({ transactionId, paymentScreenshot, finalPurpose, fromDate, toDate }) => {
     setIsLoading(true);
     const formData = new FormData();
     formData.append('certificateType', selectedCertificate);
     formData.append('clerkType', selectedOption.clerk);
     formData.append('paymentAmount', fee);
     formData.append('purpose', finalPurpose);
-    if (fee >= 0) {
-      formData.append('transactionId', transactionId);
-      formData.append('paymentScreenshot', paymentScreenshot);
-    }
+    if (fromDate) formData.append('fromDate', fromDate);
+    if (toDate) formData.append('toDate', toDate);
+    // append transaction and screenshot only when provided (avoid sending null)
+    if (transactionId) formData.append('transactionId', transactionId);
+    if (paymentScreenshot) formData.append('paymentScreenshot', paymentScreenshot);
 
     try {
       const response = await fetch('/api/student/requests', {

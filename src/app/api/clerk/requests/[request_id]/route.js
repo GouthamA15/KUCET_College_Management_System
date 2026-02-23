@@ -1,5 +1,6 @@
 import { query } from '@/lib/db';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import crypto from 'crypto';
 
 export async function PUT(request, { params }) {
     const clerk = await getAuthUser('clerk');
@@ -27,18 +28,22 @@ export async function PUT(request, { params }) {
         return apiError('Invalid status', 400);
     }
 
-    try {
-                // First, verify the clerk is authorized to update this request
-                const requests = await query('SELECT certificate_type FROM student_requests WHERE request_id = ?', [request_id]);
-                if (requests.length === 0) {
-                        return apiError('Request not found', 404);
-                }
+        try {
+            // First, verify the clerk is authorized to update this request
+            const requests = await query(
+                'SELECT sr.certificate_type, sr.generated_certificate_id, sr.student_id, s.roll_no FROM student_requests sr JOIN students s ON sr.student_id = s.id WHERE sr.request_id = ?',
+                [request_id]
+            );
+            if (requests.length === 0) {
+                return apiError('Request not found', 404);
+            }
 
-                const requestToUpdate = requests[0];
+            const requestToUpdate = requests[0];
                 // Map clerk roles to certificate types (must match mapping used in listing)
                 const clerkToTypes = {
                     admission: [
                         'Bonafide Certificate',
+                        'No Objection Certificate',
                         'Course Completion Certificate',
                         'Transfer Certificate (TC)',
                         'Migration Certificate',
@@ -54,6 +59,16 @@ export async function PUT(request, { params }) {
                         return apiError('Forbidden', 403);
                 }
 
+        // Prepare (or reuse) certificate ID when approving
+        let generatedCertId = requestToUpdate.generated_certificate_id;
+        if (status === 'APPROVED' && !generatedCertId) {
+            const SECRET_SALT = process.env.CERTIFICATE_SECRET || 'fallback_salt';
+            const hash = crypto.createHmac('sha256', SECRET_SALT)
+                               .update(`${requestToUpdate.roll_no}-${requestToUpdate.certificate_type}`)
+                               .digest('hex');
+            generatedCertId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
+        }
+
         // Now, update the status. Require non-empty reject_reason when rejecting.
         let result;
         if (status === 'REJECTED') {
@@ -65,9 +80,10 @@ export async function PUT(request, { params }) {
                 [status, String(reject_reason).trim(), clerk.id ?? null, clerk.role ?? null, request_id]
             );
         } else if (status === 'APPROVED') {
+            // Freeze purpose / date range as stored on the request; do not overwrite purpose from body.
             result = await query(
-                'UPDATE student_requests SET status = ?, purpose = ?, reject_reason = NULL, completed_at = NOW(), updated_at = NOW(), action_by_clerk_id = ?, action_by_role = ? WHERE request_id = ?',
-                [status, purpose || null, clerk.id ?? null, clerk.role ?? null, request_id]
+                'UPDATE student_requests SET status = ?, reject_reason = NULL, completed_at = NOW(), updated_at = NOW(), action_by_clerk_id = ?, action_by_role = ?, generated_certificate_id = COALESCE(generated_certificate_id, ?) WHERE request_id = ?',
+                [status, clerk.id ?? null, clerk.role ?? null, generatedCertId || null, request_id]
             );
         } else {
             // PENDING or other non-final state: don't set completed_at or reject_reason
@@ -107,6 +123,7 @@ export async function GET(request, { params }) {
         const clerkToTypes = {
             admission: [
                 'Bonafide Certificate',
+                'No Objection Certificate',
                 'Course Completion Certificate',
                 'Transfer Certificate (TC)',
                 'Migration Certificate',
@@ -149,7 +166,8 @@ export async function GET(request, { params }) {
         if (!rows || rows.length === 0) {
             return apiError('Request not found', 404);
         }
-        return apiResponse({ data: rows[0] });
+        // Return the request object directly to match frontend expectations
+        return apiResponse(rows[0]);
     } catch (error) {
         console.error('Error fetching request details:', error);
         return apiError('Failed to fetch request details', 500);

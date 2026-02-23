@@ -18,6 +18,7 @@ import MigrationCertificatePDF from '@/pdf/templates/MigrationCertificatePDF';
 import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCertificatePDF';
 import IncomeTaxCertificatePDF from '@/pdf/templates/IncomeTaxCertificatePDF';
 import TransferCertificatePDF from '@/pdf/templates/TransferCertificatePDF';
+import NoObjectionCertificatePDF from '@/pdf/templates/NoObjectionCertificatePDF';
 
 const certificateComponents = {
     'Bonafide Certificate': BonafideCertificatePDF,
@@ -27,6 +28,7 @@ const certificateComponents = {
     'Course Completion Certificate': CourseCompletionCertificatePDF,
     'Income Tax (IT) Certificate': IncomeTaxCertificatePDF,
     'Transfer Certificate (TC)': TransferCertificatePDF,
+    'No Objection Certificate': NoObjectionCertificatePDF,
 };
 
 // using bundled Puppeteer; helper closes browser internally
@@ -110,10 +112,18 @@ export async function GET(request, { params }) {
         const semesterWords = ["I (FIRST)", "II (SECOND)", "III (THIRD)", "IV (FOURTH)", "V (FIFTH)", "VI (SIXTH)", "VII (SEVENTH)", "VIII (EIGHTH)"];
         // 4. SECURITY: Generate Certificate ID & QR URL
         const SECRET_SALT = process.env.CERTIFICATE_SECRET || "fallback_salt";
-        const hash = crypto.createHmac('sha256', SECRET_SALT)
-                           .update(`${student.roll_no}-${certRequest.certificate_type}`)
-                           .digest('hex');
-        const certId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
+        let certId = certRequest.generated_certificate_id;
+        if (!certId) {
+            const hash = crypto.createHmac('sha256', SECRET_SALT)
+                               .update(`${student.roll_no}-${certRequest.certificate_type}`)
+                               .digest('hex');
+            certId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
+            // persist only if not already set (older records)
+            await query(
+                'UPDATE student_requests SET generated_certificate_id = ? WHERE request_id = ?',
+                [certId, request_id]
+            );
+        }
 
         // Attendance Values are only assigned in Bonafide
         const isBonafide = certRequest.certificate_type === 'Bonafide Certificate';
@@ -125,8 +135,8 @@ export async function GET(request, { params }) {
 
         // Persist cert ID and attendance (bonafide only)
         await query(
-            'UPDATE student_requests SET generated_certificate_id = ?, generated_attendance = ? WHERE request_id = ?',
-            [certId, attendanceValue, request_id]
+            'UPDATE student_requests SET generated_attendance = ? WHERE request_id = ?',
+            [attendanceValue, request_id]
         );
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://10.163.82.43:${process.env.PORT || 3000}`;
@@ -215,6 +225,16 @@ export async function GET(request, { params }) {
         }
         const stampUrl = getBase64Image(path.join(publicDir, 'assets', 'ku-college-seal.png'));
 
+        const formatDate = (d) => {
+            if (!d) return '';
+            const dt = new Date(d);
+            if (Number.isNaN(dt.getTime())) return '';
+            const dd = String(dt.getDate()).padStart(2, '0');
+            const mm = String(dt.getMonth() + 1).padStart(2, '0');
+            const yyyy = dt.getFullYear();
+            return `${dd}/${mm}/${yyyy}`;
+        };
+
         const commonData = {
             certId,
             date: formattedDate,
@@ -283,6 +303,16 @@ export async function GET(request, { params }) {
                     year: yearWords[yearOfStudy - 1] || 'N/A',
                     semester: semesterWords[currentSemester - 1] || 'N/A',
                     hallTicket: student.roll_no,
+                };
+                break;
+            case 'No Objection Certificate':
+                data = {
+                    ...data,
+                    year: yearWords[yearOfStudy - 1] || 'N/A',
+                    semester: semesterWords[currentSemester - 1] || 'N/A',
+                    purpose: certRequest.purpose || '',
+                    fromDate: formatDate(certRequest.from_date),
+                    toDate: formatDate(certRequest.to_date),
                 };
                 break;
             default:
