@@ -6,8 +6,6 @@ export const styles = StyleSheet.create({
       fontSize: 16,
       color: "#000",
       padding: 40, // approx ~15mm equivalent
-      borderWidth: 4,
-      borderColor: "#000",
       borderStyle: "solid",
       position: "relative",
     },
