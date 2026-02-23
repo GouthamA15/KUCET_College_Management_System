@@ -450,22 +450,6 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     {studentLoading ? 'Logging in...' : 'Login'}
                   </button>
 
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                      <div className="w-full border-t border-gray-200"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase tracking-widest font-black">
-                      <span className="px-4 bg-white text-gray-400">New Students</span>
-                    </div>
-                  </div>
-
-                  <a
-                    href="/admission"
-                    className="w-full flex items-center justify-center bg-white border-2 border-indigo-600 text-indigo-700 py-3 rounded-lg font-bold hover:bg-indigo-50 transform hover:scale-[1.02] transition-all duration-200 shadow-md hover:shadow-lg text-center"
-                  >
-                    Admission Registration Form
-                  </a>
-
                   {studentError && (
                     <div className="text-red-600 text-sm mt-2 text-center">{studentError}</div>
                   )}
