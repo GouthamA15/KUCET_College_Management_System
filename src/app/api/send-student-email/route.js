@@ -1,10 +1,10 @@
 import { apiResponse, apiError } from '@/lib/api-utils';
-import { sendEmail } from '@/lib/email';
+import { sendInstitutionalEmail } from '@/lib/email';
 import { query } from '@/lib/db';
 
 export async function POST(request) {
   try {
-    const { rollNo, subject, html } = await request.json();
+    const { rollNo, subject, html, title, infoRows } = await request.json();
 
     if (!rollNo || !subject || !html) {
       return apiError('rollNo, subject, and html body are required', 400);
@@ -28,7 +28,14 @@ export async function POST(request) {
       return apiError('Student email is not verified. Email not sent.', 403);
     }
 
-    const emailResult = await sendEmail(studentEmail, subject, html);
+    const emailResult = await sendInstitutionalEmail({
+      to: studentEmail,
+      subject,
+      title: title || 'KUCET Notification',
+      bodyHtml: html,
+      // bodyText: optional, fallback will be derived from HTML
+      infoRows: Array.isArray(infoRows) ? infoRows : undefined
+    });
 
     if (emailResult.success) {
       return apiResponse({ success: true, message: 'Email sent successfully.' });

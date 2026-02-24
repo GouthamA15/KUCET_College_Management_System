@@ -1,6 +1,6 @@
 import { query } from '@/lib/db';
 import bcrypt from 'bcrypt';
-import { sendEmail } from '@/lib/email';
+import { sendInstitutionalEmail } from '@/lib/email';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 // Helper function to generate the HTML content for the clerk account email
@@ -68,10 +68,40 @@ export async function POST(req) {
       [name, email, passwordHash, employee_id, role]
     );
 
-    // Send email with credentials
+    // Send email with credentials using institutional template
     const subject = `Your KUCET CMS ${role} Account Credentials`;
-    const htmlContent = generateClerkAccountEmailHtml(name, email, password, role, employee_id);
-    const emailResult = await sendEmail(email, subject, htmlContent);
+    const title = 'Account Activation';
+
+    const bodyHtml = `
+      <p>Dear ${name},</p>
+      <p>Your account for the KUCET College Management System has been created.</p>
+      <p>Please find your account details below. Keep these credentials confidential and change your password after first login.</p>
+    `;
+
+    const bodyText = `Dear ${name},
+
+Your account for the KUCET College Management System has been created.
+Please find your account details below. Keep these credentials confidential and change your password after first login.
+
+Email: ${email}
+Employee ID: ${employee_id}
+Role: ${role}
+Password: ${password}`;
+
+    const emailResult = await sendInstitutionalEmail({
+      to: email,
+      subject,
+      title,
+      bodyHtml,
+      bodyText,
+      infoRows: [
+        { label: 'Name', value: name },
+        { label: 'Email', value: email },
+        { label: 'Employee ID', value: employee_id },
+        { label: 'Role', value: role },
+        { label: 'Temporary Password', value: password }
+      ]
+    });
 
     if (!emailResult.success) {
       console.error(`Failed to send welcome email to ${email}: ${emailResult.message}`);

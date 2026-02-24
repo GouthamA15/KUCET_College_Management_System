@@ -1,5 +1,5 @@
 import { query } from '@/lib/db';
-import { sendEmail } from '@/lib/email';
+import { getBaseUrl, sendInstitutionalEmail } from '@/lib/email';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 
@@ -27,16 +27,39 @@ export async function POST(req) {
       [tokenHash, email, 'admin', created_at, expires_at]
     );
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrl();
     const resetLink = `${baseUrl}/reset-password/${token}`;
-    
-    const subject = 'KUCET Admin Password Reset Request';
-    const html = `<p>You are receiving this because you (or someone else) have requested the reset of the password for your account.</p>
-                  <p>Please click on the following link, or paste this into your browser to complete the process:</p>
-                  <p><a href="${resetLink}">${resetLink}</a></p>
-                  <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>`;
 
-    await sendEmail(admin.email, subject, html);
+    const subject = 'KUCET Admin Password Reset Request';
+    const title = 'Admin Password Reset Request';
+
+    const bodyHtml = `
+      <p>Dear Administrator,</p>
+      <p>A request has been received to reset the password for your KUCET College Portal account.</p>
+      <p>Please use the button below to securely reset your password.</p>
+    `;
+
+    const bodyText = `Dear Administrator,
+
+A request has been received to reset the password for your KUCET College Portal account.
+Please use the link below to securely reset your password:
+
+${resetLink}
+
+If you did not initiate this request, please ignore this email or contact the administration immediately.`;
+
+    await sendInstitutionalEmail({
+      to: admin.email,
+      subject,
+      title,
+      bodyHtml,
+      bodyText,
+      action: {
+        url: resetLink,
+        label: 'Reset Password',
+        expiresIn: '10 minutes'
+      }
+    });
 
     return apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
   } catch (error) {

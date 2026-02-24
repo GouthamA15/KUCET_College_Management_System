@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db';
-import { sendEmail } from '@/lib/email';
+import { sendInstitutionalEmail } from '@/lib/email';
 import crypto from 'crypto';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
@@ -112,7 +112,13 @@ export async function POST(req) {
     
     let emailResponse;
     try {
-      emailResponse = await sendEmail(email, subject, html);
+      emailResponse = await sendInstitutionalEmail({
+        to: email,
+        subject,
+        title: 'OTP for Email Change Verification',
+        bodyHtml: html,
+        // bodyText will be derived from HTML
+      });
     } catch (mailError) {
       console.error('[MAIL EXCEPTION] Failed during sendEmail:', mailError);
       return apiError('Email service exception occurred.', 500);
