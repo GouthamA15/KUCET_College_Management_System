@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import toast from 'react-hot-toast';
 // import { useRouter } from 'next/navigation';
 // import Header from '@/components/Header';
 // import Navbar from '@/components/Navbar';
@@ -13,6 +15,31 @@ import Footer from '@/app/components/Footer/Footer';
 
 export default function Home() {
   const [activePanel, setActivePanel] = useState(null); // Re-add activePanel state
+  const searchParams = useSearchParams();
+  const error = searchParams.get('error');
+
+  useEffect(() => {
+    if (error) {
+      switch (error) {
+        case 'ClerkNotFound':
+          toast.error('This email is not registered as an employee.');
+          break;
+        case 'ClerkInactive':
+          toast.error('Your employee account is inactive. Please contact support.');
+          break;
+        case 'GoogleAuthError':
+          toast.error('Google authentication failed. Please try again.');
+          break;
+        default:
+          toast.error('An unknown authentication error occurred.');
+          break;
+      }
+      // Remove the error query parameter from the URL to prevent it from showing again on refresh
+      const url = new URL(window.location.href);
+      url.searchParams.delete('error');
+      window.history.replaceState({}, document.title, url.pathname + url.search);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (!activePanel) return;

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import { getDashboardPathByRole } from '@/lib/auth-utils';
 
 async function verify(token, secret) {
   try {
@@ -10,19 +11,6 @@ async function verify(token, secret) {
     return payload;
   } catch (error) {
     return null;
-  }
-}
-
-function clerkDashboardPath(role) {
-  switch (role) {
-    case 'scholarship':
-      return '/clerk/scholarship/dashboard';
-    case 'admission':
-      return '/clerk/admission/dashboard';
-    case 'faculty':
-      return '/clerk/faculty/dashboard';
-    default:
-      return '/';
   }
 }
 
@@ -44,7 +32,7 @@ export async function proxy(request) {
 
     const clerkPayload = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : null;
     if (clerkPayload) {
-      const dashboard = clerkDashboardPath(clerkPayload.role);
+      const dashboard = getDashboardPathByRole(clerkPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
 
@@ -75,20 +63,20 @@ export async function proxy(request) {
       return NextResponse.redirect(new URL('/', request.url), 303);
     }
     if (pathname === '/clerk') {
-      const dashboard = clerkDashboardPath(clerkPayload.role);
+      const dashboard = getDashboardPathByRole(clerkPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
     // Enforce role-based access for clerk subpaths via server-only redirects
     if (pathname.startsWith('/clerk/scholarship') && clerkPayload.role !== 'scholarship') {
-      const dashboard = clerkDashboardPath(clerkPayload.role);
+      const dashboard = getDashboardPathByRole(clerkPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
     if (pathname.startsWith('/clerk/admission') && clerkPayload.role !== 'admission') {
-      const dashboard = clerkDashboardPath(clerkPayload.role);
+      const dashboard = getDashboardPathByRole(clerkPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
     if (pathname.startsWith('/clerk/faculty') && clerkPayload.role !== 'faculty') {
-      const dashboard = clerkDashboardPath(clerkPayload.role);
+      const dashboard = getDashboardPathByRole(clerkPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
   }
