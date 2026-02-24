@@ -94,7 +94,31 @@ A robust, centralized web application built with **Next.js** for managing the co
 
 ## 9. Recent Activity Log (Feb 2026)
 
-### **Session 5: Clerk & Admission Form Enhancements (Latest)**
+### **Session 7: Advanced Attendance Tools & Certificate Expansion (Latest)**
+- **Attendance "Follow Previous" Feature:** Implemented a one-click "Follow previous session" button in both desktop and mobile views. This allows faculty to instantly copy attendance data from the preceding session (e.g., S1 to S2), significantly reducing manual entry time for multi-hour classes.
+- **Certificate Engine Expansion:**
+    - Added support for **No Objection Certificate (NOC)** with a dedicated React-PDF template and frontend request flow.
+    - Integrated purpose-specific date ranges (From/To) for NOC requests.
+    - Enhanced certificate verification portal to display the specific certificate type.
+- **PDF Rendering Refinement:**
+    - Improved aesthetic quality of generated certificates by reducing border thickness and optimizing white space.
+    - Implemented server-side certificate ID generation during the approval process to ensure unique, traceable identifiers.
+- **Security & Validation:**
+    - Strengthened attendance API validation to prevent null/undefined status submissions.
+    - Added robust client-side validation for NOC purposes (length, word count, and content checks).
+- **UI/UX Cleanup:**
+    - Streamlined the Login Panel by removing redundant admission links for registered users.
+    - Optimized the verification portal layout for better mobile responsiveness.
+
+### **Session 6: Faculty Attendance & Performance Optimization**
+- **Attendance Architecture Refactor:** Migrated faculty attendance logic to a dedicated `FacultyAttendanceContext` to centralize state management and improve component modularity.
+- **Performance Optimization:** Optimized attendance data fetching by separating base student info from status records and implementing a frontend cache to reduce redundant API calls.
+- **Calendar-Driven Attendance:** Integrated the institutional academic calendar into the attendance workflow, restricting data entry to valid "WORKING" days and providing clear visual feedback.
+- **Enhanced Mobile Experience:** Completely redesigned the mobile attendance interface (`MobileAttendanceSheet.js`) with a card-based layout, sequential session unlocking, and optimized touch targets.
+- **Data Integrity:** Strengthened sequential attendance validation, ensuring sessions are recorded in order (S1 -> S2 -> S3, etc.) with improved error handling and user guidance.
+- **UI/UX Polishing:** Refined student profile status bars and academic labels for better readability and institutional consistency.
+
+### **Session 5: Clerk & Admission Form Enhancements**
 - **API Security & Refactoring:** Addressed a security concern by separating clerk and student API endpoints. Created a dedicated, secure endpoint (`/api/clerk/students/[rollno]`) for clerks to fetch full student profiles, and updated the frontend to use it. This improves API design and ensures correct role-based access.
 - **Clerk Student Search:** Enhanced the clerk's student search API (`/api/clerk/students/search`) to include personal and academic details (`father_name`, `ssc_marks`, etc.) in the search results by joining `students`, `student_personal_details`, and `student_academic_background` tables.
 - **Admission Form Validation:**
