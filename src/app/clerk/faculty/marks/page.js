@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
@@ -11,12 +11,6 @@ export default function FacultyInternalAssessmentPage() {
   const { clerkData: clerk, loading: isLoading } = useClerk();
   const [assignments, setAssignments] = useState([]);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
-
-  const [selectedAY, setSelectedAY] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState('');
-  const [selectedSemester, setSelectedSemester] = useState('');
-  const [selectedSubjectCode, setSelectedSubjectCode] = useState('');
-
   const [selectedAssignment, setSelectedAssignment] = useState(null);
 
   useEffect(() => {
@@ -36,27 +30,50 @@ export default function FacultyInternalAssessmentPage() {
     fetchAssignments();
   }, []);
 
-  const years = useMemo(() => Array.from(new Set(assignments.map(a => a.academic_year))).sort((a,b)=> b.localeCompare(a)), [assignments]);
-  const branches = useMemo(() => Array.from(new Set(assignments.filter(a => (!selectedAY || a.academic_year === selectedAY)).map(a => a.branch))).sort(), [assignments, selectedAY]);
-  const semesters = useMemo(() => Array.from(new Set(assignments.filter(a => (!selectedAY || a.academic_year === selectedAY) && (!selectedBranch || a.branch === selectedBranch)).map(a => a.semester))).sort((a,b)=> parseInt(a)-parseInt(b)), [assignments, selectedAY, selectedBranch]);
-  const subjects = useMemo(() => assignments.filter(a => (!selectedAY || a.academic_year === selectedAY) && (!selectedBranch || a.branch === selectedBranch) && (!selectedSemester || String(a.semester) === String(selectedSemester))), [assignments, selectedAY, selectedBranch, selectedSemester]);
-
-  useEffect(() => {
-    if (selectedAY && selectedBranch && selectedSemester && selectedSubjectCode) {
-      const match = assignments.find(a => a.academic_year === selectedAY && a.branch === selectedBranch && String(a.semester) === String(selectedSemester) && a.subject_code === selectedSubjectCode);
-      setSelectedAssignment(match || null);
-    } else {
-      setSelectedAssignment(null);
-    }
-  }, [selectedAY, selectedBranch, selectedSemester, selectedSubjectCode, assignments]);
-
   const resetSelection = () => {
-    setSelectedSubjectCode('');
-    setSelectedSemester('');
-    setSelectedBranch('');
-    setSelectedAY('');
     setSelectedAssignment(null);
   };
+
+  const SubjectCard = ({ assignment, onSelect }) => (
+    <div
+      onClick={() => onSelect(assignment)}
+      className="bg-white border-2 border-indigo-50 rounded-2xl p-5 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 relative group overflow-hidden cursor-pointer"
+    >
+      <div className="absolute -right-4 -top-4 w-16 h-16 bg-indigo-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
+
+      <div className="relative">
+          <div className="flex justify-between items-start mb-2">
+          <div className="flex-1 min-w-0">
+            <div className="font-black text-xl leading-tight mb-1 text-indigo-900 break-words">
+              {assignment.subject_name}
+            </div>
+            <div className="text-xs font-mono font-bold mb-2 text-indigo-500 uppercase tracking-widest">
+              {assignment.subject_code}
+            </div>
+          </div>
+          <div className="ml-3 flex-shrink-0">
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+              {assignment.is_active ? 'Active' : 'History'}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-2">
+          <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-bold uppercase">Branch</div>
+            <div className="text-xs font-bold text-gray-700 truncate">{assignment.branch}</div>
+          </div>
+          <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-bold uppercase">Semester</div>
+            <div className="text-xs font-bold text-gray-700"> {assignment.semester}</div>
+          </div>
+        </div>
+
+        <div className="text-[10px] text-gray-400 font-bold uppercase mt-2">Academic Year</div>
+        <div className="text-xs font-bold text-gray-700">{assignment.academic_year}</div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -65,48 +82,28 @@ export default function FacultyInternalAssessmentPage() {
       <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold">Internal Assessment</h1>
-          <p className="text-gray-600">Select a subject to enter mid and assignment marks.</p>
+          <p className="text-gray-600">
+            {selectedAssignment ? `Managing marks for ${selectedAssignment.subject_name}` : 'Select a subject to enter mid and assignment marks.'}
+          </p>
         </div>
 
-        {!selectedAssignment && (
-          <div className="bg-white border rounded p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Academic Year</label>
-                <select value={selectedAY} onChange={(e)=>setSelectedAY(e.target.value)} className="w-full p-2 border rounded bg-white">
-                  <option value="">Select</option>
-                  {years.map(ay => (<option key={ay} value={ay}>{ay}</option>))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Branch</label>
-                <select value={selectedBranch} onChange={(e)=>setSelectedBranch(e.target.value)} className="w-full p-2 border rounded bg-white" disabled={!selectedAY}>
-                  <option value="">Select</option>
-                  {branches.map(b => (<option key={b} value={b}>{b}</option>))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Semester</label>
-                <select value={selectedSemester} onChange={(e)=>setSelectedSemester(e.target.value)} className="w-full p-2 border rounded bg-white" disabled={!selectedBranch}>
-                  <option value="">Select</option>
-                  {semesters.map(s => (<option key={s} value={s}>Sem {s}</option>))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Subject</label>
-                <select value={selectedSubjectCode} onChange={(e)=>setSelectedSubjectCode(e.target.value)} className="w-full p-2 border rounded bg-white" disabled={!selectedSemester}>
-                  <option value="">Select</option>
-                  {subjects.map(s => (<option key={s.id} value={s.subject_code}>{s.subject_name} ({s.subject_code})</option>))}
-                </select>
-              </div>
+        {!selectedAssignment ? (
+          loadingAssignments ? (
+            <div className="text-center py-6">Loading assignments...</div>
+          ) : assignments.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {assignments.map(assignment => (
+                <SubjectCard key={assignment.id} assignment={assignment} onSelect={setSelectedAssignment} />
+              ))}
             </div>
-          </div>
-        )}
-
-        {selectedAssignment ? (
-          <MarksEntrySheet assignment={selectedAssignment} onBack={resetSelection} />
+          ) : (
+            <div className="text-center py-10 bg-white border rounded-lg">
+              <h3 className="text-lg font-medium text-gray-800">No Subjects Assigned</h3>
+              <p className="text-gray-500 mt-2">You are not assigned to any subjects for marks management.</p>
+            </div>
+          )
         ) : (
-          loadingAssignments ? <div className="text-center py-6">Loading assignments...</div> : null
+          <MarksEntrySheet assignment={selectedAssignment} onBack={resetSelection} />
         )}
       </main>
       <Footer />
