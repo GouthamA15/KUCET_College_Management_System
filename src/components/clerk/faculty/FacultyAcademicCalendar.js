@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
+import { getNowSync } from "@/lib/clock";
 
 const DAY_TYPE_STYLES = {
   WORKING: {
@@ -38,7 +39,7 @@ function compareYearMonth(aYear, aMonth, bYear, bMonth) {
 
 export default function FacultyAcademicCalendar({ assignment, selectedDate, onSelectDate, attendanceSectionId }) {
   const [todayString] = useState(() => {
-    const now = new Date();
+    const now = getNowSync();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, "0");
     const d = String(now.getDate()).padStart(2, "0");
@@ -48,8 +49,8 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
   const [semesterStartDate, setSemesterStartDate] = useState(null);
   const [semesterEndDate, setSemesterEndDate] = useState(null);
   const [calendarData, setCalendarData] = useState({}); // key: YYYY-MM-DD
-  const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth() + 1); // 1-12
+  const [currentYear, setCurrentYear] = useState(() => getNowSync().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(() => getNowSync().getMonth() + 1); // 1-12
   const [loading, setLoading] = useState(true);
 
   const academicYear = assignment?.academic_year;
@@ -73,7 +74,7 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
         if (start && end) {
           const [sYear, sMonth] = start.split("-").map((p) => parseInt(p, 10));
           const [eYear, eMonth] = end.split("-").map((p) => parseInt(p, 10));
-            const now = new Date();
+            const now = getNowSync();
             const nowYear = now.getFullYear();
             const nowMonth = now.getMonth() + 1;
             let initYear = nowYear;

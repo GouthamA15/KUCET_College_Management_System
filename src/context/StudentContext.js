@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { getNowSync } from '@/lib/clock';
 
 const StudentContext = createContext();
 
@@ -55,7 +56,7 @@ export function StudentProvider({ children }) {
       const data = await profileRes.json();
       if (profileRes.ok) {
         if (data.student && data.student.pfp) {
-          data.student.pfp = `${data.student.pfp}?t=${new Date().getTime()}`;
+          data.student.pfp = `${data.student.pfp}?t=${getNowSync().getTime()}`;
         }
         setStudentData(data);
         

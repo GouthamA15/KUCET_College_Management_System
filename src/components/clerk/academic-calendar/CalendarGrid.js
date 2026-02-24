@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { getNowSync } from '@/lib/clock';
 import EditDayModal from './EditDayModal';
 
 const dayTypeColors = {
@@ -27,9 +28,9 @@ const Legend = () => (
 );
 
 const CalendarGrid = ({ academicYear, semester }) => {
-    const [todayString] = useState(new Date().toISOString().split('T')[0]);
-    const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
-    const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth() + 1); // 1-12
+    const [todayString] = useState(getNowSync().toISOString().split('T')[0]);
+    const [currentYear, setCurrentYear] = useState(() => getNowSync().getFullYear());
+    const [currentMonth, setCurrentMonth] = useState(() => getNowSync().getMonth() + 1); // 1-12
     const [calendarData, setCalendarData] = useState({});
     const [loading, setLoading] = useState(true);
     const [selectedDay, setSelectedDay] = useState(null);
