@@ -102,6 +102,8 @@ A robust, centralized web application built with **Next.js** for managing the co
     - Implemented client-side validation to prevent student and guardian mobile numbers from being the same.
     - Restricted SSC and Intermediate marks fields to numeric input only.
     - Set a maximum value for the entrance exam rank.
+    - Added client-side formatting for Aadhaar number (XXXX XXXX XXXX) and Annual Income (Indian number system with commas) to improve readability.
+    - Made "Seat Allotted Category" an optional field to accommodate various admission scenarios.
 
 ### **Session 4: Advanced Admission Workflow**
 - **Draft Pipeline:** Created `/admission` public form and clerk verification/finalization modules.
