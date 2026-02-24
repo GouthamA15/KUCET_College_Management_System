@@ -1,4 +1,6 @@
 'use client';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 
@@ -121,6 +123,59 @@ const SaveControls = () => {
   );
 };
 
+const FollowPreviousButton = () => {
+  const { assignment, selectedSession, selectedDate, existingSessionsForSelectedDate, setAttendanceStatus, students } = useFacultyAttendance();
+  const [loadingCopy, setLoadingCopy] = useState(false);
+
+  if (!selectedDate) return null;
+  if (selectedSession <= 1) return null;
+
+  const prev = selectedSession - 1;
+  if (!existingSessionsForSelectedDate.includes(prev)) return null;
+
+  const handleFollow = async () => {
+    if (!assignment?.id) return;
+    setLoadingCopy(true);
+    try {
+      const url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}&date=${encodeURIComponent(
+        selectedDate,
+      )}&session=${encodeURIComponent(prev)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch previous session');
+
+      const statusMap = (data.data || []).reduce((acc, r) => {
+        acc[r.student_id] = r.status;
+        return acc;
+      }, {});
+
+      (students || []).forEach((s) => {
+        setAttendanceStatus(s.id, statusMap[s.id] ?? null);
+      });
+
+      toast.success('Session attendance copied from previous session');
+    } catch (err) {
+      toast.error(err.message || 'Unable to copy previous session');
+    } finally {
+      setLoadingCopy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center md:justify-center w-full md:w-auto">
+      <button
+        type="button"
+        onClick={handleFollow}
+        disabled={loadingCopy}
+        className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 text-sm font-semibold text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-60"
+        title="Copy attendance from previous session"
+      >
+        {loadingCopy ? 'Copying…' : 'Follow previous session'}
+      </button>
+    </div>
+  );
+};
+
 const AttendanceGrid = () => {
   const { students, assignment, dateValidation, toggleAttendanceStatus, statusLoading } = useFacultyAttendance();
 
@@ -228,6 +283,7 @@ export default function AttendanceSheet({ onBack }) {
           <>
             <div className="mb-4 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <SessionSelector />
+              <FollowPreviousButton />
               <SaveControls />
             </div>
 

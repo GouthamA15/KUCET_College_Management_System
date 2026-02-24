@@ -1,4 +1,6 @@
 'use client';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 
@@ -49,6 +51,7 @@ export default function MobileAttendanceSheet({ onBack }) {
     selectedDate,
     selectedSession,
     setSelectedSession,
+    setAttendanceStatus,
     submitting,
     dateValidation,
     dayInfo,
@@ -156,12 +159,23 @@ export default function MobileAttendanceSheet({ onBack }) {
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-2 mb-4">
-                  {assignment.is_active ? (
+              {assignment.is_active ? (
                 <>
+                  {/* Follow previous session button (mobile) */}
+                  {selectedSession > 1 && existingSessionsForSelectedDate.includes(selectedSession - 1) && dateValidation.isValid && (
+                    <FollowPreviousMobileButton
+                      assignment={assignment}
+                      prevSession={selectedSession - 1}
+                      selectedDate={selectedDate}
+                      students={students}
+                      setAttendanceStatus={setAttendanceStatus}
+                    />
+                  )}
+
                   <button
                     type="button"
-                        onClick={handleSaveAttendance}
-                        disabled={submitting || !students.length || !dateValidation.isValid}
+                    onClick={handleSaveAttendance}
+                    disabled={submitting || !students.length || !dateValidation.isValid}
                     className="bg-gray-900 text-white w-full py-2 rounded-lg font-bold text-xs uppercase tracking-wide border border-gray-900 disabled:opacity-50"
                   >
                     {submitting ? 'Saving…' : 'Save Attendance'}
@@ -169,7 +183,7 @@ export default function MobileAttendanceSheet({ onBack }) {
                   <button
                     type="button"
                     onClick={handleDeleteAttendance}
-                        disabled={submitting || !existingSessionsForSelectedDate.includes(selectedSession) || !dateValidation.isValid}
+                    disabled={submitting || !existingSessionsForSelectedDate.includes(selectedSession) || !dateValidation.isValid}
                     className="bg-white text-red-700 border-2 border-red-200 w-full py-2 rounded-lg font-bold text-xs uppercase tracking-wide disabled:opacity-50"
                   >
                     Delete Session
@@ -248,3 +262,48 @@ export default function MobileAttendanceSheet({ onBack }) {
     </div>
   );
 }
+
+  {/* Follow Previous Mobile Button Component */}
+  function FollowPreviousMobileButton({ assignment, prevSession, selectedDate, students, setAttendanceStatus }) {
+    const [loading, setLoading] = useState(false);
+
+    const handleFollow = async () => {
+      if (!assignment?.id || !selectedDate) return;
+      setLoading(true);
+      try {
+        const url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}&date=${encodeURIComponent(
+          selectedDate,
+        )}&session=${encodeURIComponent(prevSession)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch previous session');
+
+        const statusMap = (data.data || []).reduce((acc, r) => {
+          acc[r.student_id] = r.status;
+          return acc;
+        }, {});
+
+        (students || []).forEach((s) => {
+          setAttendanceStatus(s.id, statusMap[s.id] ?? null);
+        });
+
+        toast.success('Session attendance copied from previous session');
+      } catch (err) {
+        toast.error(err.message || 'Unable to copy previous session');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <button
+        type="button"
+        onClick={handleFollow}
+        disabled={loading}
+        className="w-full py-2 rounded-lg bg-white border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+      >
+        {loading ? 'Copying…' : 'Follow previous session'}
+      </button>
+    );
+  }
+

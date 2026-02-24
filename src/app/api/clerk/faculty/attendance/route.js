@@ -16,6 +16,16 @@ export async function POST(request) {
       return apiError('Missing required fields', 400);
     }
 
+      // Validate each attendance record: status must not be null/undefined
+      for (const item of attendance_data) {
+        if (item == null || item.student_id == null) {
+          return apiError('Missing attendance item or student_id', 400);
+        }
+
+        if (item.status === null || item.status === undefined) {
+          return apiError('Status cannot be null', 400);
+        }
+      }
     const db = getDb();
     // Verify assignment belongs to faculty and get details for activity check
     const [assignments] = await db.execute(
