@@ -55,6 +55,8 @@ export async function POST(request) {
             roll_no: certData.roll_no,
             cert_id: certData.generated_certificate_id,
             issue_date: certData.completed_at ? new Date(certData.completed_at).toLocaleDateString('en-GB') : 'N/A', // New field
+            cert_type: certData.certificate_type,
+            // keep `type` for backward compatibility
             type: certData.certificate_type
             }
         });
