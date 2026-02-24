@@ -4,10 +4,9 @@ import Header from '@/app/components/Header/Header';
 import Footer from '@/app/components/Footer/Footer';
 import ClientShell from '@/components/ClientShell.client';
 
-export default function Home({ searchParams }) {
-  const error = Array.isArray(searchParams?.error)
-    ? searchParams.error[0]
-    : searchParams?.error ?? null;
+export default async function Home({ searchParams }) {
+  const sp = await searchParams;
+  const error = Array.isArray(sp?.error) ? sp.error[0] : sp?.error ?? null;
 
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
 
