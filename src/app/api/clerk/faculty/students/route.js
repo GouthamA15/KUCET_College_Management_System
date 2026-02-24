@@ -57,14 +57,21 @@ export async function GET(request) {
     const regularPattern = `${entryYearRegular}567T${branchCode}%`;
     const lateralPattern = `${entryYearLateral}567${branchCode}%L`;
 
-    // Fetch students matching the patterns (base student list only)
+    // Fetch students and their marks for this assignment
     let studentsQuery = `
-      SELECT s.id, s.roll_no, s.name
+      SELECT 
+        s.id, 
+        s.roll_no, 
+        s.name,
+        sm.mid1_marks,
+        sm.mid2_marks,
+        sm.assignment_marks
       FROM students s
+      LEFT JOIN student_marks sm ON s.id = sm.student_id AND sm.assignment_id = ?
       WHERE (s.roll_no LIKE ?
     `;
 
-    const params = [regularPattern];
+    const params = [assignment_id, regularPattern];
     if (studyingYear >= 2) {
       studentsQuery += ' OR s.roll_no LIKE ?';
       params.push(lateralPattern);
@@ -73,8 +80,7 @@ export async function GET(request) {
 
     const [students] = await db.execute(studentsQuery, params);
 
-    // This route now returns only the base student list. Attendance status per date/session
-    // is served by the attendance status endpoint. Return empty sessions here.
+    // This route now returns the student list with their marks.
     return apiResponse({ data: students, sessions: [] });
   } catch (error) {
     console.error('Students Fetch Error:', error);
