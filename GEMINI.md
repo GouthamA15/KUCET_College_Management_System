@@ -1,17 +1,37 @@
 # KUCET College Management System - Technical Documentation
 
+**Last Updated:** February 25, 2026
+
 ## 1. Project Overview
-A robust, centralized web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports three primary user roles: **Super Admin**, **Clerk/Faculty**, and **Student**. It automates complex processes including admissions, attendance, internal marks, scholarship management, and digital certificate generation.
+A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports three primary user roles: **Super Admin**, **Clerk/Faculty**, and **Student**. 
+
+### Core Capabilities:
+- **Admissions Management:** Multi-stage admission pipeline with draft verification and roll-number assignment
+- **Student Records:** Comprehensive academic and personal information management
+- **Attendance Tracking:** Faculty-driven attendance with session-wise records and calendar integration
+- **Internal Marks:** Marks entry with validation and student visibility
+- **Scholarship Management:** Government scholarship tracking and distribution workflows
+- **Digital Certificates:** Automated generation of Bonafide, Transfer, No Objection, and Completion certificates
+- **Fee Management:** Year-wise fee tracking with payment history and scholarship impact
+- **Academic Calendar:** Institutional calendar with holidays and working day management
 
 ---
 
 ## 2. Technical Stack
-- **Frontend:** Next.js 16.1.6, React 19.2.4, Tailwind CSS.
-- **Backend:** Next.js API Routes (App Router).
-- **Database:** MySQL (hosted on Railway, accessed via `mysql2/promise`).
-- **Auth:** JWT-based authentication using `jsonwebtoken` and `jose` (Edge-compatible).
-- **PDF Engine:** Custom template-based PDF generation using `@react-pdf/renderer`.
-- **Utilities:** `bcrypt` for hashing, `react-hot-toast` for notifications, `react-datepicker` for formal inputs.
+- **Frontend:** Next.js 16.1.6, React 19.2.4, Tailwind CSS 4
+- **Backend:** Next.js API Routes (App Router), Node.js
+- **Database:** MySQL (Railway-hosted, accessed via `mysql2/promise`)
+- **Authentication:** JWT-based (HTTP-only cookies) using `jose` for edge-runtime compatibility
+- **PDF Generation:** Custom template-based certificates using `@react-pdf/renderer` 4.3.2
+- **Additional Libraries:**
+  - `bcrypt` 6.0.0 - Password hashing
+  - `react-hot-toast` 2.6.0 - Toast notifications
+  - `react-datepicker` 9.1.0 - Date input components
+  - `qrcode` 1.5.4 - QR code generation for certificates
+  - `xlsx-js-style` 1.2.0 - Excel file handling
+  - `docxtemplater` 3.67.6 - Document templating (future use)
+  - `next-auth` 4.24.13 - Authentication support
+  - `js-cookie` 3.0.5 - Cookie management
 
 ---
 
@@ -19,68 +39,312 @@ A robust, centralized web application built with **Next.js** for managing the co
 
 ### A. Middleware & Route Protection (`src/proxy.js`)
 - **Technology:** Uses `jose` library for Edge-runtime compatible JWT verification (replacing standard `jsonwebtoken` which fails in edge middleware).
-- **Logic:** Intercepts requests to protected paths (`/admin`, `/clerk`, `/student`). Decodes the HTTP-only cookie, verifies the signature using `HS256`, and redirects unauthorized users to `/`.
-- **Sub-Role Enforcement:** Clerk routes are further guarded; e.g., `/clerk/admission` is accessible only if the JWT payload contains `role: 'admission'`.
+- **Logic:** Intercepts requests to protected paths:
+  - `/admin` - Super Admin routes (principals, key administrators)
+  - `/clerk` - Administrative clerk routes (admission, scholarship, faculty management)
+  - `/student` - Student self-service routes (profile, attendance, marks, certificates)
+- **JWT Verification:** Decodes the HTTP-only cookie, verifies signature using `HS256`, and redirects unauthorized users to `/`.
+- **Sub-Role Enforcement:** Clerk routes are further guarded by role:
+  - `role: 'admission'` - Admission draft verification and roll-number assignment
+  - `role: 'scholarship'` - Scholarship record management and approval
+  - `role: 'faculty'` - Attendance entry and marks management
+- **Cookie-Based Auth:** Server sets three cookie types: `admin_auth`, `clerk_auth`, `student_auth` (all HTTP-only)
 
 ### B. Global State Management (`src/context/`)
-- **StudentContext:** Tracks student identity, profile completion, and pending requests.
-- **ClerkContext:** Manages clerk profile, role (admission/scholarship/faculty), and pending tasks.
-- **AdminContext:** Provides global statistics and administrative control state.
+- **StudentContext** (`src/context/StudentContext.js`): Tracks student profile status, pending certificate requests, and academic performance data
+- **ClerkContext** (`src/context/ClerkContext.js`): Manages clerk profile, role assignment, and pending tasks (admissions to verify, scholarship records to process)
+- **AdminContext** (`src/context/AdminContext.js`): Provides system-wide statistics, pending approvals, and administrative control state
+- **FacultyAttendanceContext** (`src/context/FacultyAttendanceContext.js`): Specialized context for attendance data fetching and caching during high-volume entry
 
 ### C. Time Management & The "Time Machine"
-- **Authoritative Clock:** `src/lib/clock.js` provides `getNow()` to ensure server-side consistency.
-- **Dev Tool:** `/dev/time-machine` allows developers to mock the system date, enabling testing of date-dependent logic like semester transitions and attendance "graying out."
+- **Authoritative Clock:** `src/lib/clock.js` provides:
+  - `getNow()` - Async server-side time retrieval
+  - `getNowSync()` - Synchronous client-side time (for UI logic)
+- **Mock Time Support:** In testing environment (`NEXT_PUBLIC_WORKING_ENV=testing`), can set `dev_mock_date` cookie to simulate different dates
+- **Dev Tool:** `/dev/time-machine` page allows developers to mock system date for testing:
+  - Semester transitions
+  - Academic year rollovers
+  - Attendance "graying out" on specific dates
+  - Fee deadline enforcement
+- **Consistency:** All business logic uses `getNow()` instead of `new Date()` to respect mock time
 
 ### D. Academic Intelligence (`src/lib/rollNumber.js`)
-- **Regex-Based Parsing:** Decodes entrance year, branch, and admission type (Regular/Lateral) directly from roll numbers using patterns like `/^(\d{2})567T(\d{2})(\d{2})$/`.
-- **Dynamic Logic:** Calculates batch years, current studying semester, and effective academic years based on institution-specific boundaries.
+- **Regex-Based Parsing:** Decodes roll number components using institutional patterns:
+  - **Regular:** `/^(\d{2})567T(\d{2})(\d{2})$/` (e.g., `23567T0901`)
+  - **Lateral:** `/^(\d{2})567(\d{2})(\d{2})L$/` (e.g., `23567001L`)
+- **Components Extracted:**
+  - `YY` (first 2 digits) → Entry year (20YY)
+  - Branch code (3 digits) → CSE, ECE, EEE, MECH, CIVIL, CSD, IT
+  - Serial number (2 digits) → Student sequence (01-99)
+  - `T` vs `L` suffix → Academic type (Regular vs Lateral)
+- **Dynamic Calculations:**
+  - Academic year duration (Regular: 4 years, Lateral: 3 years)
+  - Current studying year based on entry date and current date
+  - Effective academic year (considers semester start date from college config)
+  - Semester calculation with admission type consideration
+
+### E. College Configuration (`src/lib/college-config.js`)
+- **Centralized Settings:**
+  - `COLLEGE_CONFIG` object stores:
+    - Semester start month and day
+    - Fee structure by branch (Self-Finance vs Non-Self-Finance)
+    - Blood group options
+    - Scholarship categories
+    - Category allotment information
+- **Usage:** All APIs and UI components reference this single source of truth
+- **Benefit:** Changes to college policies don't require code changes, only config updates
+
+### F. Academic Calendar System
+- **Database-Driven:** Clerks define holiday and working day patterns per semester
+- **Impact Areas:**
+  - Attendance entry restricted to WORKING days only
+  - Faculty receives visual feedback when trying to mark on non-working days
+  - Semester closure prevents retroactive attendance/marks entry
+- **Tables:**
+  - `academic_calendar` - Semester metadata and working day tracking
+  - `calendar_holidays` - Explicit holiday dates within semesters
 
 ---
 
 ## 4. Database Schema
 
-### **1. Core Identity & Auth**
-- `students`: Core records including `roll_no`, `email`, and `password_hash`.
-- `clerks`: Administrative staff records with `role` (admission, scholarship, faculty).
-- `principal`: Auth for principal-level approvals.
-- `otp_codes` & `password_reset_tokens`: Security flow data.
+### **1. Core Identity & Authentication**
+- `students` - Core student records
+  - `roll_no` (PK) - Unique identifier
+  - `email` (UNIQUE) - Login credential
+  - `password_hash` - bcrypt-hashed password
+  - `created_at`, `updated_at` - Audit timestamps
+- `clerks` - Administrative staff
+  - `id` (PK), `email`, `password_hash`
+  - `role` ENUM('admission', 'scholarship', 'faculty')
+  - `status` ENUM('active', 'inactive')
+- `principal` - Principal/Admin accounts
+  - `id`, `email`, `password_hash`, `approval_signature` (BLOB)
+- `otp_codes` - One-time passwords for password reset flow
+- `password_reset_tokens` - Token-based password recovery
 
-### **2. Academic & Attendance**
-- `student_admission_drafts`: Holds applicant data before roll number assignment.
-- `student_academic_background`: Stores SSC, Inter/Diploma marks, and entrance ranks.
-- `student_attendance`: Multi-session (S1-S5) daily tracking with composite unique keys.
-- `student_marks`: Mid-exam performance and internal assignments.
+### **2. Student Personal & Academic Records**
+- `student_personal_details` - Extended student information
+  - `roll_no` (FK to students)
+  - Name, DOB, gender, blood group
+  - Father name, mother name, guardian mobile
+  - Aadhaar number, permanent address
+  - Identification marks, caste category
+- `student_academic_background` - Entrance exam and prior education
+  - `roll_no` (FK)
+  - `entrance_exam` (EAMCET/ECET), `rank`, `marks`
+  - `ssc_marks`, `inter_marks` - Prior education performance
+  - `seat_allotted`, `seat_allotted_category`
+- `student_admission_drafts` - Pre-enrollment applicant data
+  - Temporary storage before roll-number assignment
+  - Clerk verification status and notes
+  - Converted to official `students` record on finalization
+- `student_images` - Profile photographs (MEDIUMBLOB, max 4MB)
+- `student_signatures` - Digital signatures (MEDIUMBLOB, max 4MB)
 
-### **3. Student Records & Media**
-- `student_personal_details`: Extended info including Aadhaar, guardian contact, and identification marks.
-- `student_images` & `student_signatures`: Binary BLOB storage for profile media.
-- `student_profile_requests`: Unified request table for student-initiated photo/signature updates.
+### **3. Academic & Attendance**
+- `college_info` - Institution-wide academic configuration
+  - `first_sem_start_month`, `first_sem_start_day`
+  - Faculty interest mapping, semester boundaries
+- `academic_calendar` - Semester timelines
+  - `semester`, `start_date`, `end_date`
+  - `is_open` - Controls data entry permissions
+- `student_attendance` - Multi-session daily tracking
+  - Composite key: `(roll_no, session, date)`
+  - `status` ENUM('present', 'absent', 'leave', 'medical')
+  - Supports sessions S1 through S5
+- `student_marks` - Internal examination marks
+  - `roll_no`, `subject_code`, `session`
+  - `marks_obtained` (out of subject max)
+  - Assignment and test scores
+- `faculty_interests` - Faculty subject preferences
+  - `clerk_id` (FK), `subject_code`, `semester`
+  - Approved/pending status
 
-### **4. Finance & Scholarship**
-- `student_fee_payments`: Records of tuition and other fees.
-- `scholarship_sanctions`: Tracking of government-provided reimbursements and amounts.
+### **4. Student Requests & Records**
+- `student_profile_requests` - Unified request system
+  - Request type: 'photo_update', 'signature_update'
+  - `status` ENUM('pending', 'approved', 'rejected')
+  - Clerk approval workflow
+- `certificate_requests` - Certificate generation pipeline
+  - Types: Bonafide, Transfer, NoObjection, Completion
+  - Request metadata (purpose, date range for NOC)
+  - `certificate_id` (HMAC-SHA256 hash for verification)
+  - `is_downloaded` tracking
+
+### **5. Finance & Scholarship**
+- `student_fee_payments` - Tuition transaction history
+  - `roll_no`, `academic_year`, `amount_paid`, `payment_date`
+  - Payment method and reference tracking
+- `scholarship_sanctions` - Government scholarship records
+  - `roll_no`, `academic_year`, `scholarship_name`
+  - Sanction amount, reimbursement status
+  - Clerk and principal signatures
+
+### **6. Support Tables**
+- `syllabus_mapping` - Branch-wise course catalog
+- `roles` - System-wide permission definitions (future)
+- `audit_logs` - Change tracking for compliance (future)
 
 ---
 
-## 5. Specialized Modules
+## 5. Specialized Modules & Features
 
-### **A. Digital Certificate Engine (`src/pdf/` & `src/app/api/.../download`)**
-- **Server-Side Rendering:** Uses `@react-pdf/renderer`'s `pdf().toBuffer()` method to generate binary streams on the server.
-- **Asset Handling:** Local images (logos, signatures) are converted to Base64 strings (`fs.readFileSync`) before being passed to the React-PDF template to prevent file access errors during rendering.
-- **Security:** Generates a unique Certificate ID using `HMAC-SHA256` of the roll number and certificate type.
-- **Templates:** Modular React components (`BonafideCertificatePDF.js`, etc.) assembled from shared blocks (`QRBlock`, `SignatureBlock`).
+### **A. Digital Certificate Engine** (`src/pdf/` & `src/app/api/.../certificate`)
+**Architecture:**
+- Server-side rendering using `@react-pdf/renderer` v4.3.2
+- Security: Certificate ID generated as `HMAC-SHA256(roll_no + type)` for tamper detection
+- Base64 asset encoding to prevent file access errors during PDF generation
 
-### **B. Faculty Performance Grid**
-- **Excel Mode:** High-performance matrix for bulk attendance/marks entry with sequential validation (prevents marking Session 2 if Session 1 is empty).
-- **Responsive View:** `MobileAttendanceSheet.js` provides a card-based alternative for smartphones.
+**Supported Certificate Templates:**
+- **Bonafide Certificate** - Proof of enrollment/good standing
+- **Transfer Certificate** - For transfer to other institutions
+- **No Objection Certificate (NOC)** - With purpose and date range customization
+- **Completion Certificate** - Program completion proof
+- **ID Card Reissue** - Lost/damaged ID replacement (placeholder)
 
-### **C. Syllabus Aggregation (`src/lib/syllabus-data.js`)**
-- **Static Definition:** Syllabus structures are defined as static JS objects in `src/lib/syllabus/`.
-- **Aggregation:** `syllabus-data.js` imports and maps these definitions by branch (CSE, ECE, etc.), acting as the single source of truth for the "Materials" module.
+**Request Workflow:**
+1. Student initiates request via `/student/profile` + purpose/date inputs
+2. Request stored in `certificate_requests` table with pending status
+3. Clerk approves from admin dashboard
+4. API generates PDF via template component
+5. Certificate ID calculated and stored in database
+6. Student downloads from `/student/profile` or verification portal
 
-### **D. Institutional Academic Calendar**
-- **Control:** Clerks define working days, holidays, and Sundays per semester.
-- **Impact:** Automatically restricts attendance entry on non-working days.
+**PDF Rendering Details:**
+- **Modular Design:**
+  - `BaseCertificate.js` - Shared layout and styling
+  - `QRBlock.js` - Embedded verification QR code
+  - `SignatureBlock.js` - Principal/clerk signature areas
+  - Template-specific files (e.g., `BonafideCertificatePDF.js`)
+- **Asset Handling:**
+  - College logo: `fs.readFileSync()` → Base64 → embedded in PDF
+  - Signatures: Retrieved from database → Base64 → embedded
+  - QR data: `qrcode.toDataURL()` → embedded
+- **Mock Time Support:** Uses `getNow()` for certificate generation date
+
+**Verification Portal:**
+- Public endpoint `/verify` enables anyone to validate certificate authenticity
+- Displays certificate type, issue date, and QR verification status
+
+### **B. Faculty Attendance & Marks System** (`src/components/clerk/faculty/`)
+**Attendance Entry Modes:**
+1. **Excel Mode** - High-performance grid for bulk entry
+   - Session-wise columns (S1, S2, S3, etc.)
+   - Sequential validation: Can't mark S2 until S1 is complete
+   - Date filtering: Only shows WORKING days from academic calendar
+   - One-click "Follow Previous Session" - Copies S1 data to S2 (saves repetitive manual entry)
+   - Real-time validation toast feedback
+   
+2. **Mobile View** (`MobileAttendanceSheet.js`)
+   - Card-based responsive layout
+   - Progressive session unlocking (S1 → S2 → S3)
+   - Touch-optimized input targets
+   - Simplified navigation
+
+**Marks Entry Features:**
+- Subject-wise marks recording per student per session
+- Validation: Marks ≤ subject maximum
+- Only available during open academic calendar periods
+- Clerk signature auto-captured via session context
+
+**Data Persistence:**
+- Real-time sync to database via `PATCH /api/clerk/attendance/[rollno]`
+- Optimized fetch: Separates student metadata from daily status records
+- Caching in `FacultyAttendanceContext` to reduce redundant DB calls
+
+**Calendar Integration:**
+- Reads `academic_calendar` for semester date boundaries
+- Restricts entry to calendar `WORKING` days
+- Displays visual feedback when attempting to mark on holidays
+- Semester closure prevents further modifications
+
+### **C. Syllabus Management** (`src/lib/syllabus/` & `src/lib/syllabus-data.js`)
+**Architecture:**
+- **Static Definition:** Branch-semester specific course trees in `/src/lib/syllabus/` files
+  - `cse.js`, `ece.js`, `eee.js`, `mech.js`, `civil.js`, `csd.js`, `it.js`
+  - Each file exports semester-wise course arrays with code, name, credits, and max marks
+  
+- **Aggregation:** `syllabus-data.js` imports all branch files and creates `syllabusData` object
+  - Maps branch name to course structure
+  - Single source of truth for Materials/Subjects modules
+  
+- **Usage:**
+  - Faculty interest selection uses syllabus for valid subject codes
+  - Marks entry validates subject codes against syllabus
+  - Student dashboard displays expected coursework
+
+**Example Structure:**
+```javascript
+// cse.js
+export const cseSyllabus = {
+  1: [
+    { code: '01', name: 'Mathematics II', credits: 4, maxMarks: 100 },
+    { code: '02', name: 'Physics II', credits: 4, maxMarks: 100 },
+    ...
+  ],
+  2: [ ... ],
+};
+```
+
+### **D. Academic Calendar Management** (`/clerk/academic-calendar`)
+**Clerk Controls:**
+- Define working day patterns per semester
+- Bulk holiday marking (e.g., "Mark every Sunday as holiday")
+- Open/close semesters for attendance and marks entry
+- Edit existing calendar entries
+
+**System Impact:**
+- Restricts faculty from marking attendance on non-working days
+- Prevents semester-closed attendance/marks modifications
+- Powers Time Machine validation (semester boundaries)
+
+**Database Tables:**
+- `academic_calendar` - Semester timelines
+- `calendar_holidays` - Holiday date tracking
+
+### **E. Admission Pipeline** (`/admission`, `/clerk/admission`)
+**Three-Stage Process:**
+
+1. **Public Registration** (`/admission`)
+   - 27-field form with validation:
+     - Personal: Name, DOB, gender, blood group, Aadhaar
+     - Academic: SSC marks, Intermediate marks, entrance exam scores
+     - Contact: Email, mobile, guardian details
+     - Category: Seat allotted category (optional)
+   - Client-side constraints: Numeric fields, phone/Aadhaar formatting
+   - Draft storage in `student_admission_drafts` table
+
+2. **Clerk Verification** (`/clerk/admission`)
+   - Search and review applicant drafts
+   - Edit and correct data before finalization
+   - Verify document authenticity
+
+3. **Roll-Number Assignment** (`/clerk/admission/finalize`)
+   - Approve draft → generates institutional Roll Number
+   - Assigns final `students` record
+   - Creates `student_personal_details` and `student_academic_background` entries
+   - Triggers automation: Generates initial student ID card, sends welcome email
+
+**Validation:**
+- Cross-table uniqueness: Email, mobile, Aadhaar checks
+- Entrance exam score validation against exam type (EAMCET vs ECET max marks)
+- Mandatory fields enforcement with visual indicators (*)
+
+### **F. Student Profile & Request Management**
+**Student Self-Service:**
+- `/student/profile` displays:
+  - Personal information (name, DOB, contact)
+  - Academic background (batch, entrance details)
+  - Current semester and studying year
+  - Profile photo and signature
+  - Activity bar with recent requests
+
+**Profile Update Requests:**
+- Students can request photo/signature updates
+- Unified request system in `student_profile_requests` table
+- Clerk approval workflow from admin dashboard
+- Prevents direct overwrites (audit trail)
 
 ---
 
@@ -92,51 +356,250 @@ A robust, centralized web application built with **Next.js** for managing the co
 
 ---
 
-## 9. Recent Activity Log (Feb 2026)
+## 7. Key API Routes
 
-### **Session 7: Advanced Attendance Tools & Certificate Expansion (Latest)**
-- **Attendance "Follow Previous" Feature:** Implemented a one-click "Follow previous session" button in both desktop and mobile views. This allows faculty to instantly copy attendance data from the preceding session (e.g., S1 to S2), significantly reducing manual entry time for multi-hour classes.
+### **Authentication APIs** (`/api/auth/`)
+- `POST /api/auth/login` - Student/clerk login, returns JWT token
+- `POST /api/auth/logout` - Clear auth cookies
+- `POST /api/auth/forgot-password` - Initiate password reset flow
+- `POST /api/auth/reset-password/[token]` - Complete password reset
+
+### **Student APIs** (`/api/student/`)
+- `GET /api/student/profile` - Fetch logged-in student data
+- `PATCH /api/student/profile` - Update student personal details
+- `GET /api/student/attendance` - View own attendance records
+- `GET /api/student/marks` - View own marks
+- `GET /api/student/fees` - View fee information
+- `GET /api/student/requests/latest` - Fetch recent profile/certificate requests
+- `POST /api/student/certificate-request` - Submit certificate request
+- `GET /api/student/certificates/[type]/download` - Download approved certificate
+
+### **Clerk APIs** (`/api/clerk/`)
+**Admission:**
+- `GET /api/clerk/admission/drafts` - List applicant drafts
+- `GET /api/clerk/admission/drafts/[id]` - Fetch specific draft
+- `PATCH /api/clerk/admission/drafts/[id]` - Edit draft details
+- `POST /api/clerk/admission/finalize` - Assign roll number and create student
+
+**Student Management:**
+- `GET /api/clerk/students/search` - Search students (name, roll no, email)
+- `GET /api/clerk/students/[rollno]` - Fetch full student profile
+- `PATCH /api/clerk/students/[rollno]` - Update student details
+- `GET /api/clerk/students/[rollno]/requests` - View student's update requests
+
+**Attendance & Marks:**
+- `GET /api/clerk/attendance/[rollno]` - Fetch student attendance history
+- `PATCH /api/clerk/attendance/[rollno]` - Update attendance for session
+- `GET /api/clerk/marks/[rollno]` - Fetch student marks
+- `PATCH /api/clerk/marks/[rollno]` - Update marks for subject/session
+
+**Academic Calendar:**
+- `GET /api/clerk/academic-calendar` - Fetch semester calendars
+- `POST /api/clerk/academic-calendar` - Create/update calendar entries
+- `PATCH /api/clerk/academic-calendar/[semesterId]` - Modify semester
+
+**Scholarship:**
+- `GET /api/clerk/scholarship/students` - Search students for scholarship
+- `GET /api/clerk/scholarship/summary` - View scholarship statistics
+- `POST /api/clerk/scholarship/sanctions` - Record scholarship sanction
+- `PATCH /api/clerk/scholarship/sanctions/[id]` - Update sanction record
+
+**Certificate Management:**
+- `GET /api/clerk/certificate-requests` - List pending certificate requests
+- `PATCH /api/clerk/certificate-requests/[requestId]/approve` - Approve request
+- `PATCH /api/clerk/certificate-requests/[requestId]/reject` - Reject request
+
+### **Admin APIs** (`/api/admin/`)
+- `GET /api/admin/statistics` - Dashboard statistics
+- `GET /api/admin/pending-approvals` - Items awaiting admin action
+- `PATCH /api/admin/approve-[type]/[id]` - Approve various pending items
+- `GET /api/admin/audit-logs` - Change history
+
+### **Public APIs** (`/api/public/`, `/api/verify/`)
+- `POST /api/public/admission/register` - Submit admission draft
+- `POST /api/public/otp/send` - Send OTP for password reset
+- `GET /api/verify/certificate` - Verify certificate authenticity
+- `POST /api/verify/certificate/check` - Validate certificate ID
+
+---
+
+## 8. Role-Based Feature Matrix
+
+| Feature | Student | Admission Clerk | Scholarship Clerk | Faculty Clerk | Super Admin |
+|---------|---------|-----------------|-------------------|---------------|-------------|
+| **Login**              | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **View Own Profile**   | ✓ | ✗ | ✗ | ✗ | ✗ |
+| **Edit Own Profile**   | ✓ | ✗ | ✗ | ✗ | ✓ |
+| **Register Admission** | ✓* | ✓ | ✗ | ✗ | ✗ |
+| **Approve Admission**  | ✗ | ✓ | ✗ | ✗ | ✓ |
+| **Assign Roll Number** | ✗ | ✓ | ✗ | ✗ | ✓ |
+| **Mark Attendance**    | ✗ | ✗ | ✗ | ✓ | ✓ |
+| **Entry Marks**        | ✗ | ✗ | ✗ | ✓ | ✓ |
+| **Request Certificate**| ✓ | ✗ | ✗ | ✗ | ✗ |
+| **Approve Certificate**| ✗ | ✓ | ✓ | ✓ | ✓ |
+| **Manage Scholarships**| ✗ | ✗ | ✓ | ✗ | ✓ |
+| **Manage Calendar**    | ✗ | ✗ | ✗ | ✗ | ✓ |
+| **Verify Certificates**| ✓ | ✓ | ✓ | ✓ | ✓ |
+
+***Public role before login
+
+---
+
+## 9. Development Guidelines & Best Practices
+
+### **Code Standards**
+- **Language:** JavaScript (ES6+, Node.js 18+)
+- **Indentation:** 2 spaces (enforced by ESLint)
+- **Semicolons:** Required (enforced)
+- **File Naming:**
+  - React components: PascalCase (`StudentProfileCard.js`)
+  - Utilities/helpers: camelCase (`rollNumber.js`)
+  - Pages: lowercase or with brackets for dynamic routes (`page.js`, `[id].js`)
+  - Client-only components: `.client.js` suffix
+
+### **Date & Time Rules**
+- **NEVER** use `new Date()` directly in business logic
+- **ALWAYS** use `getNowSync()` (client) or `getNow()` (server) from `src/lib/clock.js`
+- This ensures mock time compatibility and consistent behavior across environments
+
+### **API Response Format**
+```javascript
+// Standard response wrapper
+{ data: [...] }              // Success with array
+{ data: { key: value } }     // Success with object
+{ error: "message" }         // Error response
+{ error: "message", code: 400 } // Error with HTTP code
+```
+
+### **Authentication & Sessions**
+- **HTTP-Only Cookies:** All auth tokens stored as HTTP-only (no JavaScript access)
+- **Cookie Names:** `admin_auth`, `clerk_auth`, `student_auth`
+- **JWT Algorithm:** HS256 only
+- **Token Expiry:** Configure in `.env.local` (`JWT_EXPIRY`)
+- **Verify in Middleware:** Never trust client-provided role claims; always verify JWT signature
+
+### **Binary Data Handling (Images/Signatures)**
+- **Max Size:** 4MB enforced client-side and server-side
+- **Format:** Base64 encoding for transmission
+- **Storage:** `MEDIUMBLOB` type in MySQL
+- **Conversion:** 
+  ```javascript
+  // Client to server
+  const binaryData = Buffer.from(base64String, 'base64');
+  
+  // Server to client
+  const base64String = binaryData.toString('base64');
+  ```
+- **Rendering:** Always convert to Base64 before passing to PDF components (avoids file access errors)
+
+### **Database Best Practices**
+```javascript
+// Use ON DUPLICATE KEY UPDATE for idempotency
+const query = `
+  INSERT INTO table (col1, col2) VALUES (?, ?)
+  ON DUPLICATE KEY UPDATE col2 = VALUES(col2)
+`;
+
+// Use parameterized queries to prevent SQL injection
+await db.execute('SELECT * FROM students WHERE roll_no = ?', [rollNo]);
+
+// Handle timezone: Always use UTC, collate with 'utf8mb4_general_ci'
+```
+
+### **Performance Optimization**
+- **Context Caching:** Use `FacultyAttendanceContext` to cache fetched student data (avoid N+1 queries)
+- **Composite Keys:** Use composite unique keys for historical data (e.g., attendance: roll_no + session + date)
+- **Lazy Loading:** Load student images only when needed (defer Base64 conversion)
+- **Connection Pooling:** MySQL pool configured with `connectionLimit: 10`
+
+### **Security Checklist**
+- ✓ Always verify JWT signature (don't trust header alone)
+- ✓ Sanitize user input before database queries
+- ✓ Use parameterized SQL queries (prevent SQL injection)
+- ✓ Enforce HTTP-only cookies (prevent XSS token theft)
+- ✓ Validate file sizes and types (4MB limit)
+- ✓ Never log sensitive data (passwords, tokens)
+- ✓ Use `bcrypt` for password hashing (not MD5 or plain text)
+- ✓ Check role in JWT payload before sensitive operations
+
+### **Testing & Debugging**
+- **Time Travel:** Access `/dev/time-machine` to mock system date
+- **Mock Time Cookie:** `dev_mock_date=2026-02-25T10:30:00Z`
+- **No Automated Tests:** Currently use manual verification
+- **Linting:** Run `npm run lint` before commits
+
+### **Common Pitfalls to Avoid**
+- ❌ Using `new Date()` instead of `getNowSync()`
+- ❌ Storing derived data (academic year, semester) instead of calculating it
+- ❌ Trust client-provided JWT claims without server verification
+- ❌ Hardcoding college-specific config (use `COLLEGE_CONFIG`)
+- ❌ Forgetting to convert Base64 before PDF rendering
+- ❌ Not wrapping API responses in `{ data: ... }` object
+
+---
+
+## 10. Recent Activity Log (Feb 2026)
+
+---
+
+## 10. Recent Activity Log (Feb 2026)
+
+### **Session 8: Authentication Refactoring & Email Improvements (Latest - Feb 2026)**
+- **NextAuth Integration:** Added next-auth dependency for enhanced OAuth support
+- **Login Flow Refinement:** Debugged and fixed NextAuth redirect logic, improved login panel UX
+- **Email Templates:** Improved Brevo email templates for better formatting and deliverability
+- **Build Stability:** Fixed home page server-side rendering issues
+- **Dependency Updates:** Updated ESLint and related packages to latest versions
+- **Google OAuth:** Integrated Google login option for faster registration/login
+- **Marks Fetching:** Fixed critical issue in marks retrieval for student dashboard
+- **Clock Improvements:** Enhanced time Machine features and mock date handling
+
+### **Session 7: Advanced Attendance Tools & Certificate Expansion**
+- **Attendance "Follow Previous" Feature:** Implemented one-click button to copy attendance data from preceding session (e.g., S1 to S2)
 - **Certificate Engine Expansion:**
-    - Added support for **No Objection Certificate (NOC)** with a dedicated React-PDF template and frontend request flow.
-    - Integrated purpose-specific date ranges (From/To) for NOC requests.
-    - Enhanced certificate verification portal to display the specific certificate type.
+    - Added support for **No Objection Certificate (NOC)** with purpose and date range
+    - Enhanced certificate verification portal to show certificate type
+    - Integrated purpose-specific date ranges for context-aware certificates
 - **PDF Rendering Refinement:**
-    - Improved aesthetic quality of generated certificates by reducing border thickness and optimizing white space.
-    - Implemented server-side certificate ID generation during the approval process to ensure unique, traceable identifiers.
+    - Improved aesthetic quality by reducing border thickness and optimizing white space
+    - Implemented server-side certificate ID generation during approval
 - **Security & Validation:**
-    - Strengthened attendance API validation to prevent null/undefined status submissions.
-    - Added robust client-side validation for NOC purposes (length, word count, and content checks).
+    - Strengthened attendance API validation to prevent null/undefined submissions
+    - Added robust client-side validation for NOC purposes (length, word count checks)
 - **UI/UX Cleanup:**
-    - Streamlined the Login Panel by removing redundant admission links for registered users.
-    - Optimized the verification portal layout for better mobile responsiveness.
+    - Streamlined Login Panel by removing redundant links
+    - Optimized verification portal layout for mobile responsiveness
 
 ### **Session 6: Faculty Attendance & Performance Optimization**
-- **Attendance Architecture Refactor:** Migrated faculty attendance logic to a dedicated `FacultyAttendanceContext` to centralize state management and improve component modularity.
-- **Performance Optimization:** Optimized attendance data fetching by separating base student info from status records and implementing a frontend cache to reduce redundant API calls.
-- **Calendar-Driven Attendance:** Integrated the institutional academic calendar into the attendance workflow, restricting data entry to valid "WORKING" days and providing clear visual feedback.
-- **Enhanced Mobile Experience:** Completely redesigned the mobile attendance interface (`MobileAttendanceSheet.js`) with a card-based layout, sequential session unlocking, and optimized touch targets.
-- **Data Integrity:** Strengthened sequential attendance validation, ensuring sessions are recorded in order (S1 -> S2 -> S3, etc.) with improved error handling and user guidance.
-- **UI/UX Polishing:** Refined student profile status bars and academic labels for better readability and institutional consistency.
+- **Attendance Architecture Refactor:** Migrated to dedicated `FacultyAttendanceContext` for centralized state management
+- **Performance Optimization:** Separated student metadata from status records; implemented frontend caching
+- **Calendar-Driven Attendance:** Integrated academic calendar, restricting entry to WORKING days only
+- **Enhanced Mobile Experience:** Completely redesigned `MobileAttendanceSheet.js` with card-based layout and sequential session unlocking
+- **Data Integrity:** Strengthened sequential attendance validation (S1 → S2 → S3 order enforced)
+- **UI/UX Polishing:** Refined student profile status bars and academic labels
 
 ### **Session 5: Clerk & Admission Form Enhancements**
-- **API Security & Refactoring:** Addressed a security concern by separating clerk and student API endpoints. Created a dedicated, secure endpoint (`/api/clerk/students/[rollno]`) for clerks to fetch full student profiles, and updated the frontend to use it. This improves API design and ensures correct role-based access.
-- **Clerk Student Search:** Enhanced the clerk's student search API (`/api/clerk/students/search`) to include personal and academic details (`father_name`, `ssc_marks`, etc.) in the search results by joining `students`, `student_personal_details`, and `student_academic_background` tables.
+- **API Security Refactoring:** Separated clerk and student API endpoints for better role-based access
+- **Clerk Student Search:** Enhanced search API to include personal/academic details in results
 - **Admission Form Validation:**
-    - Made numerous fields mandatory, with visual indicators (`*`), to enforce data integrity.
-    - Implemented client-side validation to prevent student and guardian mobile numbers from being the same.
-    - Restricted SSC and Intermediate marks fields to numeric input only.
-    - Set a maximum value for the entrance exam rank.
-    - Added client-side formatting for Aadhaar number (XXXX XXXX XXXX) and Annual Income (Indian number system with commas) to improve readability.
-    - Made "Seat Allotted Category" an optional field to accommodate various admission scenarios.
+    - Made numerous fields mandatory with visual indicators (*)
+    - Implemented client-side validation (e.g., prevent same mobile for student and guardian)
+    - Restricted numeric field input (SSC/Intermediate marks)
+    - Added formatting for Aadhaar (XXXX XXXX XXXX) and Annual Income (Indian number system)
+    - Made "Seat Allotted Category" optional
 
 ### **Session 4: Advanced Admission Workflow**
-- **Draft Pipeline:** Created `/admission` public form and clerk verification/finalization modules.
-- **Data Expansion:** Added `ssc_marks`, `inter_marks`, and `guardian_mobile` fields.
-- **Security:** Implemented cross-table uniqueness checks for system-wide data integrity.
+- **Three-Stage Pipeline:** 
+  - Public registration form (`/admission`)
+  - Clerk verification module (`/clerk/admission`)
+  - Roll-number assignment (`/clerk/admission/finalize`)
+- **Data Expansion:** Added `ssc_marks`, `inter_marks`, `guardian_mobile` fields
+- **Security:** Implemented cross-table uniqueness checks (email, mobile, Aadhaar)
+- **Rich Media:** Integrated photo and signature uploads with 4MB validation
 
 ### **Session 3: Mobile UX & Academic Calendar**
-- **Responsive Web:** Developed `MobileAttendanceSheet.js` for on-the-go faculty access.
-- **Calendar Management:** Built the institutional calendar system with bulk holiday actions.
+- **Responsive Web:** Developed `MobileAttendanceSheet.js` for on-the-go faculty access
+- **Calendar Management:** Built institutional calendar system with bulk holiday actions
 
 ---
 
@@ -151,3 +614,128 @@ A robust, centralized web application built with **Next.js** for managing the co
 *   **New Fields:** Added `ssc_marks`, `inter_marks`, and `guardian_mobile` to the database and frontend.
 *   **Rich Media:** Integrated binary Photo and Signature uploads with 4MB validation and base64 handling.
 *   **Validation:** Added cross-database uniqueness checks for Email, Student Mobile, and Aadhaar card.
+
+---
+
+## 11. Environment Configuration
+
+### **Required Environment Variables** (`.env.local`)
+```
+# Database
+DB_HOST=<railway-host>
+DB_PORT=<mysql-port>
+DB_USER=<mysql-user>
+DB_PASSWORD=<mysql-password>
+DB_DATABASE=kucet_cms
+
+# Authentication
+JWT_SECRET=<long-random-string>
+JWT_EXPIRY=7d
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=<google-oauth-id>
+GOOGLE_CLIENT_SECRET=<google-oauth-secret>
+NEXTAUTH_URL=https://<your-domain>
+
+# Email (Brevo)
+BREVO_API_KEY=<brevo-api-key>
+SENDER_EMAIL=noreply@kucet.edu.in
+
+# Environment
+NEXT_PUBLIC_WORKING_ENV=production  # or 'testing' for time machine
+```
+
+---
+
+## 12. Deployment & Maintenance
+
+### **Build & Start**
+```bash
+npm install         # Install dependencies
+npm run build       # Production build
+npm run start       # Start production server (requires .next build)
+npm run dev         # Development server with hot reload
+npm run lint        # Check for ESLint violations
+```
+
+### **Database Initialization**
+- Run `.sql` files in order (check schema dependencies)
+- Seed `college_info` with institution-specific data
+- Initialize `academic_calendar` for current academic year
+
+### **Monitoring & Logs**
+- Server logs output to stdout (check hosting platform logs)
+- Database connection errors logged with `[DB_CONNECT]` prefix
+- JWT verification errors include token type information
+
+### **Security Hardening Checklist**
+- ✓ Use strong `JWT_SECRET` (minimum 32 characters)
+- ✓ Enable HTTPS in production (enforce via `next.config.mjs`)
+- ✓ Restrict database access to application server only
+- ✓ Rotate credentials every 6 months
+- ✓ Enable database backups (Railway provides this)
+- ✓ Monitor failed login attempts
+
+---
+
+## 13. Troubleshooting Guide
+
+### **Common Issues:**
+
+**Issue:** "JWT Verification failed"
+- **Cause:** Token expired, wrong secret, or corrupted cookie
+- **Fix:** Clear cookies, re-login; verify `JWT_SECRET` matches in code and `.env.local`
+
+**Issue:** "Certificate PDF rendering fails"
+- **Cause:** Image paths are absolute, not Base64
+- **Fix:** Ensure all images converted via `fs.readFileSync()` and passed as Base64 strings
+
+**Issue:** "Attendance can't be marked on certain dates"
+- **Cause:** Date not set as WORKING in academic calendar
+- **Fix:** Check `/clerk/academic-calendar`, ensure semester is open and date is marked WORKING
+
+**Issue:** "Roll number validation fails"
+- **Cause:** Invalid roll number pattern
+- **Fix:** Verify format matches regex: `YY567T/LBB SS` where YY=year, T=regular, BB=branch, SS=serial
+
+**Issue:** "Email not sending"
+- **Cause:** Brevo API key invalid or rate limited
+- **Fix:** Verify `BREVO_API_KEY` in `.env.local`; check Brevo dashboard for quota
+
+---
+
+## 14. Future Enhancements & TODOs
+
+- [ ] Implement comprehensive automated test suite
+- [ ] Add role-based permission matrix to database (currently hardcoded)
+- [ ] Implement digital signature verification for offline certificates
+- [ ] Add multi-language support (currently English only)
+- [ ] Implement ID Card Reissue workflow (placeholder exists)
+- [ ] Add fee payment gateway integration (Razorpay/PayU)
+- [ ] Implement document scanning for admission verification
+- [ ] Add analytics dashboard for admin
+- [ ] Implement attendance analytics by semester/branch
+- [ ] Add student grievance portal
+- [ ] Implement hostel management module
+- [ ] Add internal exam schedule automation
+
+---
+
+## Summary
+
+The KUCET College Management System is a comprehensive, production-ready application designed to digitalize the complete student lifecycle. It emphasizes role-based access control, data integrity through normalized schemas, and smart automation via intelligent parsing and context-aware calculations. The system is built with modern Next.js practices, includes comprehensive error handling, and provides multiple user-friendly interfaces tailored to each role's needs.
+
+**Key Strengths:**
+- Centralized configuration management
+- Robust JWT-based authentication
+- Flexible PDF certificate engine
+- Performance-optimized attendance system
+- Comprehensive audit trails and request workflows
+
+**Primary Use Cases:**
+- Student admission and enrollment
+- Attendance tracking and management
+- Internal marks recording
+- Scholarship administration
+- Digital certificate generation and verification
+- Fee and fee payment management
