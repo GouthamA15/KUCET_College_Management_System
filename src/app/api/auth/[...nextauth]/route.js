@@ -7,15 +7,12 @@ if (process.env.NODE_ENV === 'production' && publicBaseUrlRaw) {
   const publicBaseUrl = /^https?:\/\//i.test(publicBaseUrlRaw)
     ? publicBaseUrlRaw
     : `https://${publicBaseUrlRaw}`;
-  const nextAuthUrl = process.env.NEXTAUTH_URL || '';
-  const isLocal = /localhost|127\.0\.0\.1/.test(nextAuthUrl);
-  const hasScheme = /^https?:\/\//i.test(nextAuthUrl);
-  if (!nextAuthUrl || !hasScheme || isLocal) {
-    process.env.NEXTAUTH_URL = publicBaseUrl;
-  }
+  process.env.NEXTAUTH_URL = publicBaseUrl;
+  process.env.NEXTAUTH_URL_INTERNAL = publicBaseUrl;
 }
 
 export const authOptions = {
+  trustHost: true,
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
