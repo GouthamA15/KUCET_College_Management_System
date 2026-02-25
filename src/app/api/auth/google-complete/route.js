@@ -4,6 +4,20 @@ import { SignJWT } from 'jose';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { query } from '@/lib/db';
 
+function resolveBaseRedirect(request) {
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  if (forwardedHost) {
+    const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+    return new URL(`${forwardedProto}://${forwardedHost}/`);
+  }
+
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return new URL(process.env.NEXT_PUBLIC_BASE_URL);
+  }
+
+  return new URL('/', request.url);
+}
+
 async function buildClerkAuthToken(clerk) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
   return new SignJWT({
@@ -20,7 +34,7 @@ async function buildClerkAuthToken(clerk) {
 
 export async function GET(request) {
   const session = await getServerSession(authOptions);
-  const baseRedirect = new URL('/', request.url);
+  const baseRedirect = resolveBaseRedirect(request);
 
   if (!session?.user?.email) {
     return NextResponse.redirect(baseRedirect, 303);

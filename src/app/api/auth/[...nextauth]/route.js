@@ -2,6 +2,14 @@ import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google";
 import { getDb } from "@/lib/db";
 
+const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+if (process.env.NODE_ENV === 'production' && publicBaseUrl) {
+  const nextAuthUrl = process.env.NEXTAUTH_URL;
+  if (!nextAuthUrl || /localhost|127\.0\.0\.1/.test(nextAuthUrl)) {
+    process.env.NEXTAUTH_URL = publicBaseUrl;
+  }
+}
+
 export const authOptions = {
   providers: [
     GoogleProvider({
