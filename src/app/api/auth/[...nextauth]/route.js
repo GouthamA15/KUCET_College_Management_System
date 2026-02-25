@@ -66,8 +66,16 @@ export const authOptions = {
       session.user.role = token.role;
       return session;
     },
-    async redirect({ url, baseUrl, token }) {
-      return url;
+    async redirect({ url, baseUrl }) {
+      const preferredBase = process.env.NEXT_PUBLIC_BASE_URL || baseUrl;
+      const normalizedBase = preferredBase.replace(/\/$/, '');
+      if (url.startsWith('/')) {
+        return `${normalizedBase}${url}`;
+      }
+      if (url.startsWith(normalizedBase)) {
+        return url;
+      }
+      return normalizedBase;
     }
   },
   secret: process.env.JWT_SECRET,
