@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { apiError, apiResponse } from '@/lib/api-utils';
 
 export async function POST(request) {
     try {
@@ -10,7 +10,7 @@ export async function POST(request) {
         const rollNo = body.rollNo || null;
 
         if (!certId || !rollNo) {
-            return NextResponse.json({ valid: false, message: "Missing params" }, { status: 400 });
+            return apiResponse({ valid: false, message: "Missing params" }, 400);
         }
 
         // 1. Check for the certificate
@@ -26,7 +26,7 @@ export async function POST(request) {
         // 2. If no result found or not approved, return valid: false
         if (!results || results.length === 0 || results[0].status !== 'APPROVED') {
             console.log(`[VERIFY] No valid record found for ID: ${certId}`);
-            return NextResponse.json({ valid: false });
+            return apiResponse({ valid: false });
         }
 
         const certData = results[0];
@@ -48,19 +48,21 @@ export async function POST(request) {
         }
 
         // 4. Return success details to the frontend
-        return NextResponse.json({
+        return apiResponse({
             valid: true,
         details: {
             name: certData.name,
             roll_no: certData.roll_no,
             cert_id: certData.generated_certificate_id,
             issue_date: certData.completed_at ? new Date(certData.completed_at).toLocaleDateString('en-GB') : 'N/A', // New field
+            cert_type: certData.certificate_type,
+            // keep `type` for backward compatibility
             type: certData.certificate_type
             }
         });
 
     } catch (error) {
         console.error("Critical Verification Error:", error);
-        return NextResponse.json({ valid: false, error: "Internal Server Error" }, { status: 500 });
+        return apiError("Internal Server Error", 500, { valid: false });
     }
 }

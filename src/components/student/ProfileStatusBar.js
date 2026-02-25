@@ -5,10 +5,10 @@ export default function ProfileStatusBar({ courseLabel, yearOfStudy, semesterLab
   return (
     <div className="space-y-1">
       <div className="text-xl font-semibold">{courseLabel}</div>
-      <div className="text-blue-700 font-semibold">Year: {yearOfStudy} | Semester: {semesterLabel}</div>
       {currentAcademicYearLabel && (
         <>
-          <div className="text-blue-700 font-semibold">Academic Year: {currentAcademicYearLabel} (Current Academic)</div>
+          <div className="text-blue-700 font-semibold"> {semesterLabel}</div>
+          <div className="text-blue-700 font-semibold">Academic Year: {currentAcademicYearLabel} </div>
           <div className="text-blue-700 font-semibold">Batch: {batchString}</div>
         </>
       )}

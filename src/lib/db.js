@@ -20,7 +20,7 @@ try {
 
 let pool;
 
-function getPool() {
+export function getDb() {
   if (!pool) {
     // Log the environment variables that are being used for connection
     console.log(`[DB_CONNECT] Creating pool with user: ${process.env.DB_USER}, host: ${process.env.DB_HOST}, database: ${process.env.DB_DATABASE}`);
@@ -31,6 +31,7 @@ function getPool() {
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
       port: process.env.DB_PORT, // Add this line
+      dateStrings: true, // Prevent timezone conversion issues
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
@@ -39,10 +40,8 @@ function getPool() {
   return pool;
 }
 
-export const getDb = getPool;
-
 export async function query(sql, params) {
-  const pool = getPool();
-  const [rows] = await pool.execute(sql, params);
+  const db = getDb();
+  const [rows] = await db.execute(sql, params);
   return rows;
 }

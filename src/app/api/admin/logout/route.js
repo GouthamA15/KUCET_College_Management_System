@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError } from '@/lib/api-utils';
 
 export async function POST() {
   try {
-    const response = NextResponse.json({ success: true, message: 'Admin logout successful' });
+    const response = apiResponse({ success: true, message: 'Admin logout successful' });
 
     // Clear admin cookies by setting them to expire immediately
     response.cookies.set('admin_auth', '', {
@@ -21,6 +21,6 @@ export async function POST() {
     return response;
   } catch (error) {
     console.error('Admin Logout error:', error);
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return apiError('An internal server error occurred.', 500);
   }
 }

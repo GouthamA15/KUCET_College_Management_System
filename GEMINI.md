@@ -1,121 +1,153 @@
-# Project: KUCET College Management System
+# KUCET College Management System - Technical Documentation
 
-## Project Overview
+## 1. Project Overview
+A robust, centralized web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports three primary user roles: **Super Admin**, **Clerk/Faculty**, and **Student**. It automates complex processes including admissions, attendance, internal marks, scholarship management, and digital certificate generation.
 
-This project is a "KUCET College Management System" built using Next.js. It provides a modern web interface for managing college-related data, including students, clerks, and administrative staff. The application utilizes a MySQL database for data persistence and employs `bcrypt` for secure password hashing and `jsonwebtoken` for robust session management. It features distinct login flows and dashboards tailored for students, clerks, and a super admin, with routes protected by Next.js middleware. The user interface is styled using Tailwind CSS, ensuring a consistent and responsive design.
+---
 
-## Key Technologies and Architecture
+## 2. Technical Stack
+- **Frontend:** Next.js 16.1.6, React 19.2.4, Tailwind CSS.
+- **Backend:** Next.js API Routes (App Router).
+- **Database:** MySQL (hosted on Railway, accessed via `mysql2/promise`).
+- **Auth:** JWT-based authentication using `jsonwebtoken` and `jose` (Edge-compatible).
+- **PDF Engine:** Custom template-based PDF generation using `@react-pdf/renderer`.
+- **Utilities:** `bcrypt` for hashing, `react-hot-toast` for notifications, `react-datepicker` for formal inputs.
 
-*   **Frontend Framework:** Next.js (version 16.1.6) with React (version 19.2.4).
-*   **Styling:** Tailwind CSS.
-*   **Database:** MySQL, accessed via `mysql2/promise` for asynchronous database interactions. Database credentials are managed through environment variables.
-*   **Authentication & Authorization:**
-    *   **Super Admin:** Uses JSON Web Tokens (JWTs) stored in an `admin_auth` HTTP-only cookie.
-    *   **Clerk:** Authenticates against a `clerk` table in the MySQL database, verifying email and hashed password. JWTs are used for session management, stored in a `clerk_auth` HTTP-only cookie.
-    *   **Student:** Authentication against student database, session managed by a `student_auth` cookie. Supports login via Date of Birth (initial) or custom password.
-*   **API Routes:** Next.js API Routes handle backend logic, including authentication, student management, and certificate processing.
-*   **Email Service:** Integrated with **Brevo HTTP API** for reliable OTP and notification delivery in production environments.
-*   **Performance:** Utilizes `babel-plugin-react-compiler` for React Compiler optimization and optimized image handling for large BLOBs.
+---
 
-## Building and Running
+## 3. Core Architectural Concepts
 
-### Prerequisites
+### A. Middleware & Route Protection (`src/proxy.js`)
+- **Technology:** Uses `jose` library for Edge-runtime compatible JWT verification (replacing standard `jsonwebtoken` which fails in edge middleware).
+- **Logic:** Intercepts requests to protected paths (`/admin`, `/clerk`, `/student`). Decodes the HTTP-only cookie, verifies the signature using `HS256`, and redirects unauthorized users to `/`.
+- **Sub-Role Enforcement:** Clerk routes are further guarded; e.g., `/clerk/admission` is accessible only if the JWT payload contains `role: 'admission'`.
 
-*   Node.js (version compatible with Next.js 16)
-*   MySQL server instance
-*   `.env.local` file (development) or environment variables (production) configured.
+### B. Global State Management (`src/context/`)
+- **StudentContext:** Tracks student identity, profile completion, and pending requests.
+- **ClerkContext:** Manages clerk profile, role (admission/scholarship/faculty), and pending tasks.
+- **AdminContext:** Provides global statistics and administrative control state.
 
-### Available Scripts
+### C. Time Management & The "Time Machine"
+- **Authoritative Clock:** `src/lib/clock.js` provides `getNow()` to ensure server-side consistency.
+- **Dev Tool:** `/dev/time-machine` allows developers to mock the system date, enabling testing of date-dependent logic like semester transitions and attendance "graying out."
 
-To manage the project, you can use the following `npm` scripts:
+### D. Academic Intelligence (`src/lib/rollNumber.js`)
+- **Regex-Based Parsing:** Decodes entrance year, branch, and admission type (Regular/Lateral) directly from roll numbers using patterns like `/^(\d{2})567T(\d{2})(\d{2})$/`.
+- **Dynamic Logic:** Calculates batch years, current studying semester, and effective academic years based on institution-specific boundaries.
 
-*   **`npm install`**: Installs all project dependencies.
-*   **`npm run dev`**: Starts the development server with hot-reloading.
-*   **`npm run build`**: Builds the application for production deployment.
-*   **`npm run start`**: Starts the Next.js production server.
-*   **`npm run lint`**: Runs ESLint to check for code quality and style issues.
+---
 
-### Environment Variables
+## 4. Database Schema
 
-Ensure your environment is configured with the following variables:
+### **1. Core Identity & Auth**
+- `students`: Core records including `roll_no`, `email`, and `password_hash`.
+- `clerks`: Administrative staff records with `role` (admission, scholarship, faculty).
+- `principal`: Auth for principal-level approvals.
+- `otp_codes` & `password_reset_tokens`: Security flow data.
 
-```dotenv
-DB_HOST=your_mysql_host
-DB_USER=your_mysql_user
-DB_PASSWORD=your_mysql_password
-DB_DATABASE=your_mysql_database_name
-DB_PORT=your_mysql_port
-JWT_SECRET=a_strong_random_secret_key
-EMAIL_USER=your_sender_email
-BREVO_API_KEY=your_brevo_api_key
-NEXT_PUBLIC_BASE_URL=https://your-deployment-url.com
-CERTIFICATE_SECRET=your_qr_verification_secret
-```
+### **2. Academic & Attendance**
+- `student_admission_drafts`: Holds applicant data before roll number assignment.
+- `student_academic_background`: Stores SSC, Inter/Diploma marks, and entrance ranks.
+- `student_attendance`: Multi-session (S1-S5) daily tracking with composite unique keys.
+- `student_marks`: Mid-exam performance and internal assignments.
 
-## Recent Changes
+### **3. Student Records & Media**
+- `student_personal_details`: Extended info including Aadhaar, guardian contact, and identification marks.
+- `student_images` & `student_signatures`: Binary BLOB storage for profile media.
+- `student_profile_requests`: Unified request table for student-initiated photo/signature updates.
 
-*   **General Enhancements:**
-    *   **Developers Page:** Added a dedicated page (`src/app/developers/page.js`) listing the development team with animations and responsive layout. Included a "View more details" link in the global footer.
-    *   **Academic Year Logic Overhaul:** Integrated `college_info` configuration into `src/lib/rollNumber.js`. The system now respects super admin-defined semester start dates (e.g., first semester start month/day) for calculating the current studying year and academic year labels.
-        *   Updated dependent API routes: `admin/students`, `admin/student-stats`, `clerk/scholarship/summary`, and `student/requests`.
-        *   Updated student profile UI to correctly resolve and display the academic year based on college settings.
+### **4. Finance & Scholarship**
+- `student_fee_payments`: Records of tuition and other fees.
+- `scholarship_sanctions`: Tracking of government-provided reimbursements and amounts.
 
-*   **Student Features & Fixes:**
-    *   **ID Card Reissue Placeholder:** Added a professional "Coming Soon" landing page for ID Card Reissue (`src/app/student/requests/id-card/page.js`) and updated the student navbar to include the link.
-    *   **Profile Editing:** Implemented the "Edit Profile" page (`src/app/student/settings/edit-profile/page.js`), allowing students to update their phone number, address, and profile picture. Integrated with existing API routes (`upload-photo`, `update-profile`) and includes client-side validation for image size/type.
-    *   **Request API Fixes:** Resolved a critical syntax error in the student requests POST handler and removed unused imports in profile settings.
-    *   **Request Image Caching:** Fixed an issue where resubmitted payment screenshots were not updating in the clerk dashboard due to aggressive browser caching.
-        *   Updated `src/app/api/student/requests/image/[request_id]/route.js` to set `Cache-Control: no-store` and other headers to prevent caching.
-        *   Updated `src/components/clerk/certificates/CertificateActionPanel.js` to append a timestamp (based on `updated_at` or `created_at`) to the image URL, ensuring the latest version is always fetched.
+---
 
-*   **Production Readiness & Stability Fixes:**
-    *   **Brevo API Integration:** Migrated from Gmail SMTP to the **Brevo HTTP API** (`src/lib/email.js`). This bypasses outbound SMTP port blocking (465/587) common on cloud platforms like Render, ensuring 100% reliability for OTP delivery.
-    *   **Critical React Fixes:** Resolved multiple "cascading render" errors in `useEffect` hooks across `NoDuesRequestPage`, `VerifyPage`, and `AdminContext`. State updates are now handled via direct initialization or guarded conditions to prevent infinite loops.
-    *   **Dependency Cleanup:** Uninstalled `nodemailer` as it was replaced by standard `fetch` calls to the Brevo API, reducing bundle size and security risk.
-    *   **Accessibility:** Added missing `alt` text to all PDF generation components (`CertificateHeader`, `CertificateWatermark`, `QRBlock`, `SignatureBlock`) to comply with standards.
+## 5. Specialized Modules
 
-*   **Clerk Security & Navigation Enhancements:**
-    *   **Clerk Change Password:** Implemented a dedicated "Security & Privacy" page for Clerks (`src/app/clerk/settings/security/page.js`). It includes a secure password update form with a real-time **strength meter** and current password verification.
-    *   **Navbar Overhaul:** Updated the Clerk Navbar to point to actual routes instead of placeholders (`#`).
-    *   **"Coming Soon" Placeholders:** Created a reusable `ComingSoon.js` component and implemented professional placeholder pages for Departments, Admissions, Time Table, and Faculties to ensure a smooth user experience.
+### **A. Digital Certificate Engine (`src/pdf/` & `src/app/api/.../download`)**
+- **Server-Side Rendering:** Uses `@react-pdf/renderer`'s `pdf().toBuffer()` method to generate binary streams on the server.
+- **Asset Handling:** Local images (logos, signatures) are converted to Base64 strings (`fs.readFileSync`) before being passed to the React-PDF template to prevent file access errors during rendering.
+- **Security:** Generates a unique Certificate ID using `HMAC-SHA256` of the roll number and certificate type.
+- **Templates:** Modular React components (`BonafideCertificatePDF.js`, etc.) assembled from shared blocks (`QRBlock`, `SignatureBlock`).
 
-*   **Student OTP & Email Sanitization:**
-    *   **Robust Sanitization:** Updated OTP APIs to aggressively clean email inputs, removing all whitespace and invalid characters globally. This prevents delivery failures caused by accidental spaces (e.g., "user @gmail.com").
-    *   **Improved Logging:** Added detailed server-side logging for OTP requests, distinguishing between database management and email service responses.
+### **B. Faculty Performance Grid**
+- **Excel Mode:** High-performance matrix for bulk attendance/marks entry with sequential validation (prevents marking Session 2 if Session 1 is empty).
+- **Responsive View:** `MobileAttendanceSheet.js` provides a card-based alternative for smartphones.
 
-*   **Database Optimization and Image Handling Overhaul:**
-    *   **Architecture Change:** Heavy BLOB columns (profile pictures, payment screenshots) moved to dedicated tables (`student_images`, `student_request_images`) to drastically improve query performance for student lists.
-    *   **Image Serving APIs:** New routes created to serve images on-demand with role-based authorization.
-    *   **Frontend Optimization:** Implemented a 4MB size limit and unoptimized rendering for full-quality image display.
+### **C. Syllabus Aggregation (`src/lib/syllabus-data.js`)**
+- **Static Definition:** Syllabus structures are defined as static JS objects in `src/lib/syllabus/`.
+- **Aggregation:** `syllabus-data.js` imports and maps these definitions by branch (CSE, ECE, etc.), acting as the single source of truth for the "Materials" module.
 
-*   **Certificate Request System Improvements:**
-    *   **Rejection Reasons:** Added functionality for clerks to provide, and students to view, detailed rejection reasons for certificate requests.
-    *   **Dynamic QR Codes:** Certificates now generate dynamic QR codes based on the certificate type and fee, using the UPI standard.
-    *   **PDF Generation System:** Replaced HTML templates with a robust, component-based PDF generation system utilizing `@react-pdf/renderer`.
-    *   **New Template:** Added `TransferCertificatePDF.js` to support Transfer Certificate (TC) generation.
+### **D. Institutional Academic Calendar**
+- **Control:** Clerks define working days, holidays, and Sundays per semester.
+- **Impact:** Automatically restricts attendance entry on non-working days.
 
-*   **Syllabus System Refactoring & Data Integrity:**
-    *   **Modular Architecture:** Refactored the monolithic syllabus data into a modular structure. Each branch (CSE, IT, ECE, EEE, CIVIL, MECH, CSD) now has its own subdirectory in `src/lib/syllabus/` containing individual files for each semester (`sem1.js` through `sem8.js`).
-    *   **Data Synchronization:** Updated and synchronized syllabus data with official PDF assets.
-        *   Populated missing unit-level details for **ECE and CIVIL 8th Semester**.
-        *   Aligned **CSD branch** with the "Data Science" curriculum from Semester 3-2 onwards.
-        *   Fixed shared curriculum data for **ECE and EEE 8th Semester** based on matching course codes.
-    *   **Enhanced UI Data Structure:** Implemented `isGroup: true` and `variants` keys for Professional and Open Electives. This allows the `SyllabusTab.js` component to render elective groups with specialized badges ("Faculty Selection" / "Student Group Choice") and restriction warnings.
-    *   **Syntax & Quality Control:** Performed a comprehensive syntax check across all 56 new JavaScript files using `node -c` to ensure zero parsing errors. Fixed specific typos like unescaped quotes in `eee/sem4.js`.
+---
 
-## Code Documentation
+## 6. Development Guidelines
+- **Date Handling:** Never use `new Date()` for business logic; always use `getNowSync()` from `src/lib/clock.js`.
+- **API Standards:** All data responses should be wrapped in a `{ data: [...] }` object.
+- **BLOB Uploads:** Enforce a **4MB limit** client-side and use `Buffer.from(base64, 'base64')` server-side for `MEDIUMBLOB` storage.
+- **SQL Best Practices:** Prefer `ON DUPLICATE KEY UPDATE` for settings and profile data to ensure atomicity.
 
-### Email System (`src/lib/email.js`)
-Uses the Brevo SMTP API v3. It requires `BREVO_API_KEY` and `EMAIL_USER`. The system is designed to be "firewall-proof" by using standard HTTPS (Port 443).
+---
 
-### Password Management
-*   **Students:** Can set a password upon first login (DOB). Requires verified email.
-*   **Clerks/Admins:** Have dedicated "Security & Privacy" pages for changing passwords. All passwords are hashed using `bcrypt` with 10 salt rounds.
+## 9. Recent Activity Log (Feb 2026)
 
-### Role-Based Access Control
-Managed via `src/middleware.js` and `src/proxy.js`, ensuring students, clerks, and admins are restricted to their respective dashboards and API endpoints.
+### **Session 7: Advanced Attendance Tools & Certificate Expansion (Latest)**
+- **Attendance "Follow Previous" Feature:** Implemented a one-click "Follow previous session" button in both desktop and mobile views. This allows faculty to instantly copy attendance data from the preceding session (e.g., S1 to S2), significantly reducing manual entry time for multi-hour classes.
+- **Certificate Engine Expansion:**
+    - Added support for **No Objection Certificate (NOC)** with a dedicated React-PDF template and frontend request flow.
+    - Integrated purpose-specific date ranges (From/To) for NOC requests.
+    - Enhanced certificate verification portal to display the specific certificate type.
+- **PDF Rendering Refinement:**
+    - Improved aesthetic quality of generated certificates by reducing border thickness and optimizing white space.
+    - Implemented server-side certificate ID generation during the approval process to ensure unique, traceable identifiers.
+- **Security & Validation:**
+    - Strengthened attendance API validation to prevent null/undefined status submissions.
+    - Added robust client-side validation for NOC purposes (length, word count, and content checks).
+- **UI/UX Cleanup:**
+    - Streamlined the Login Panel by removing redundant admission links for registered users.
+    - Optimized the verification portal layout for better mobile responsiveness.
 
-## Gemini CLI Usage Guidelines
+### **Session 6: Faculty Attendance & Performance Optimization**
+- **Attendance Architecture Refactor:** Migrated faculty attendance logic to a dedicated `FacultyAttendanceContext` to centralize state management and improve component modularity.
+- **Performance Optimization:** Optimized attendance data fetching by separating base student info from status records and implementing a frontend cache to reduce redundant API calls.
+- **Calendar-Driven Attendance:** Integrated the institutional academic calendar into the attendance workflow, restricting data entry to valid "WORKING" days and providing clear visual feedback.
+- **Enhanced Mobile Experience:** Completely redesigned the mobile attendance interface (`MobileAttendanceSheet.js`) with a card-based layout, sequential session unlocking, and optimized touch targets.
+- **Data Integrity:** Strengthened sequential attendance validation, ensuring sessions are recorded in order (S1 -> S2 -> S3, etc.) with improved error handling and user guidance.
+- **UI/UX Polishing:** Refined student profile status bars and academic labels for better readability and institutional consistency.
 
-*   **SMTP Port Issues:** Never attempt to fix connection timeouts on cloud hosts by changing ports (465/587) if the platform blocks them. Always prefer HTTP-based API services for production email.
-*   **Production Builds:** Always run `npm run lint` before committing major changes to catch synchronous state updates that Next.js might optimize away in dev but crash in production.
+### **Session 5: Clerk & Admission Form Enhancements**
+- **API Security & Refactoring:** Addressed a security concern by separating clerk and student API endpoints. Created a dedicated, secure endpoint (`/api/clerk/students/[rollno]`) for clerks to fetch full student profiles, and updated the frontend to use it. This improves API design and ensures correct role-based access.
+- **Clerk Student Search:** Enhanced the clerk's student search API (`/api/clerk/students/search`) to include personal and academic details (`father_name`, `ssc_marks`, etc.) in the search results by joining `students`, `student_personal_details`, and `student_academic_background` tables.
+- **Admission Form Validation:**
+    - Made numerous fields mandatory, with visual indicators (`*`), to enforce data integrity.
+    - Implemented client-side validation to prevent student and guardian mobile numbers from being the same.
+    - Restricted SSC and Intermediate marks fields to numeric input only.
+    - Set a maximum value for the entrance exam rank.
+    - Added client-side formatting for Aadhaar number (XXXX XXXX XXXX) and Annual Income (Indian number system with commas) to improve readability.
+    - Made "Seat Allotted Category" an optional field to accommodate various admission scenarios.
+
+### **Session 4: Advanced Admission Workflow**
+- **Draft Pipeline:** Created `/admission` public form and clerk verification/finalization modules.
+- **Data Expansion:** Added `ssc_marks`, `inter_marks`, and `guardian_mobile` fields.
+- **Security:** Implemented cross-table uniqueness checks for system-wide data integrity.
+
+### **Session 3: Mobile UX & Academic Calendar**
+- **Responsive Web:** Developed `MobileAttendanceSheet.js` for on-the-go faculty access.
+- **Calendar Management:** Built the institutional calendar system with bulk holiday actions.
+
+---
+
+### Goutham's Changes: Advanced Admission Workflow & Data Expansion (Session 4)
+
+**Objective 1: Multi-Stage Admission Pipeline**
+*   **Registration:** Built a 27-field formal registration form (`/admission`) with dynamic year calculation (EAMCET/ECET).
+*   **Verification:** Created `student_admission_drafts` and a clerk module to verify and correct applicant data.
+*   **Finalization:** Implemented a roll-number assignment tool that graduates drafts to official student records. The finalization page (`/clerk/admission/finalize`) has been polished with the standard application layout (Header, Navbar, Footer) for a consistent user experience.
+
+**Objective 2: Student Data Expansion**
+*   **New Fields:** Added `ssc_marks`, `inter_marks`, and `guardian_mobile` to the database and frontend.
+*   **Rich Media:** Integrated binary Photo and Signature uploads with 4MB validation and base64 handling.
+*   **Validation:** Added cross-database uniqueness checks for Email, Student Mobile, and Aadhaar card.

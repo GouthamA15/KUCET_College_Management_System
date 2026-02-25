@@ -188,7 +188,7 @@ export default function SecurityPrivacyPage() {
         </div>
       )}
       <Header />
-      <Navbar studentProfileMode={true} activeTab={'menu'} onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); location.href = '/'; }} />
+      <Navbar role={'student'} activeTab={'menu'} onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); location.href = '/'; }} />
 
       <main className="flex-1 flex items-start justify-center px-6 py-8">
         <div className="w-full max-w-4xl bg-white shadow-xl rounded-lg p-6 md:p-8">

@@ -8,7 +8,7 @@ export default function ClerkDepartmentsPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
-      <Navbar clerkMode={true} />
+      <Navbar role={'clerk'} />
       <main className="flex-1 flex items-center justify-center p-6">
         <ComingSoon title="Departments" icon="🏢" />
       </main>

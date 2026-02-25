@@ -1,34 +1,11 @@
 import { query } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
-  const cookieStore = await cookies();
-  const clerkAuthCookie = cookieStore.get('clerk_auth');
-  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
@@ -38,30 +15,46 @@ export async function GET(req) {
     const roll_no = url.searchParams.get('roll_no');
 
     if (!name && !admission_no && !roll_no) {
-      return NextResponse.json({ message: 'Provide name or admission_no or roll_no' }, { status: 400 });
+      return apiError('Provide name or admission_no or roll_no', 400);
     }
 
-    let sql = 'SELECT * FROM students WHERE ';
+    let sql = `
+      SELECT
+        s.id,
+        s.roll_no,
+        s.admission_no,
+        s.name,
+        s.email,
+        s.mobile,
+        pd.father_name,
+        pd.mother_name,
+        pd.aadhaar_no,
+        ab.ssc_marks,
+        ab.inter_marks
+      FROM students s
+      LEFT JOIN student_personal_details pd ON s.id = pd.student_id
+      LEFT JOIN student_academic_background ab ON s.id = ab.student_id
+      WHERE
+    `;
     const params = [];
 
     if (roll_no) {
-      sql += 'roll_no = ?';
+      sql += 's.roll_no = ?';
       params.push(roll_no);
     } else if (admission_no) {
-      sql += 'admission_no = ?';
+      sql += 's.admission_no = ?';
       params.push(admission_no);
     } else {
-      // name search (case-insensitive)
-      sql += 'name LIKE ?';
+      sql += 's.name LIKE ?';
       params.push(`%${name}%`);
     }
 
     sql += ' LIMIT 100';
 
     const rows = await query(sql, params);
-    return NextResponse.json({ students: rows });
+    return apiResponse({ students: rows });
   } catch (err) {
     console.error('Search students error:', err);
-    return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
+    return apiError('Server error', 500, err.message);
   }
 }

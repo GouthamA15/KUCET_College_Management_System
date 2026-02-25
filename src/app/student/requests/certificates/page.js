@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import { useRouter } from 'next/navigation';
 import ScrollHandler from './ScrollHandler';
@@ -14,6 +14,7 @@ import RejectDetailsModal from '../../../../components/student/requests/RejectDe
 
 const certificateOptions = [
   { value: 'Bonafide Certificate', label: 'Bonafide Certificate', fee: 100, clerk: 'admission' },
+  { value: 'No Objection Certificate', label: 'No Objection Certificate', fee: 0, clerk: 'admission'},
   { value: 'Course Completion Certificate', label: 'Course Completion Certificate', fee: 100, clerk: 'admission' },
   { value: 'Income Tax (IT) Certificate', label: 'Income Tax (IT) Certificate', fee: 0, clerk: 'scholarship' },
   { value: 'Custodian Certificate', label: 'Custodian Certificate', fee: 100, clerk: 'scholarship' },
@@ -24,9 +25,8 @@ const certificateOptions = [
 
 export default function CertificateRequestsPage() {
   const router = useRouter();
-  const { studentData, loading: contextLoading } = useStudent();
+  const { studentData, loading: contextLoading, certificateRequests, setCertificateRequests, certificateRequestsLoaded, setCertificateRequestsLoaded, isLoadingRequests, setIsLoadingRequests } = useStudent();
   const [selectedCertificate, setSelectedCertificate] = useState(certificateOptions[0].value);
-  const [requests, setRequests] = useState([]);
   const [downloadingId, setDownloadingId] = useState(null);
   const [downloadErrors, setDownloadErrors] = useState({});
   const [isMobile, setIsMobile] = useState(false);
@@ -38,8 +38,27 @@ export default function CertificateRequestsPage() {
   const selectedOption = certificateOptions.find(o => o.value === selectedCertificate) || certificateOptions[0];
   const fee = selectedOption.fee;
 
+  const fetchRequests = useCallback(async () => {
+    try {
+      setIsLoadingRequests(true);
+      const response = await fetch('/api/student/requests', { method: 'GET', cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        // API returns an object like { data: [...] } – store just the array
+        const rows = Array.isArray(data) ? data : (data?.data || []);
+        setCertificateRequests(rows);
+        setCertificateRequestsLoaded(true);
+      } else {
+        toast.error('Failed to fetch requests.');
+      }
+    } catch (error) {
+      toast.error('An error occurred while fetching requests.');
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  }, [setCertificateRequests, setCertificateRequestsLoaded, setIsLoadingRequests]);
+
   useEffect(() => {
-    if (contextLoading) return;
     if (!studentData) return;
     const s = studentData.student;
     const verified = !!(s?.email) && !!(s?.is_email_verified) && !!(s?.password_hash);
@@ -47,21 +66,24 @@ export default function CertificateRequestsPage() {
       router.replace('/student/requests/verification-required');
       return;
     }
-    fetchRequests();
-  }, [studentData, contextLoading, router]);
-
-  // Scroll handling moved to client child `ScrollHandler` (wrapped in Suspense)
+    if (!certificateRequestsLoaded) {
+      fetchRequests();
+    }
+  }, [studentData, certificateRequestsLoaded, fetchRequests, router]);
 
   useEffect(() => {
-    const mq = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
-    const handler = (e) => setIsMobile(!!e.matches);
-    if (mq) {
-      setIsMobile(!!mq.matches);
-      mq.addEventListener ? mq.addEventListener('change', handler) : mq.addListener(handler);
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mq.matches);
+    const handler = (e) => setIsMobile(e.matches);
+    
+    if (mq.addEventListener) {
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    } else {
+      mq.addListener(handler);
+      return () => mq.removeListener(handler);
     }
-    return () => {
-      if (mq) mq.removeEventListener ? mq.removeEventListener('change', handler) : mq.removeListener(handler);
-    };
   }, []);
 
   const handleDownload = async (req) => {
@@ -131,30 +153,18 @@ export default function CertificateRequestsPage() {
     }
   };
 
-  const fetchRequests = async () => {
-    try {
-      const response = await fetch('/api/student/requests', { method: 'GET', cache: 'no-store' });
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data);
-      } else {
-        toast.error('Failed to fetch requests.');
-      }
-    } catch (error) {
-      toast.error('An error occurred while fetching requests.');
-    }
-  };
-  const handleSubmit = async ({ transactionId, paymentScreenshot, finalPurpose }) => {
+  const handleSubmit = async ({ transactionId, paymentScreenshot, finalPurpose, fromDate, toDate }) => {
     setIsLoading(true);
     const formData = new FormData();
     formData.append('certificateType', selectedCertificate);
     formData.append('clerkType', selectedOption.clerk);
     formData.append('paymentAmount', fee);
     formData.append('purpose', finalPurpose);
-    if (fee >= 0) {
-      formData.append('transactionId', transactionId);
-      formData.append('paymentScreenshot', paymentScreenshot);
-    }
+    if (fromDate) formData.append('fromDate', fromDate);
+    if (toDate) formData.append('toDate', toDate);
+    // append transaction and screenshot only when provided (avoid sending null)
+    if (transactionId) formData.append('transactionId', transactionId);
+    if (paymentScreenshot) formData.append('paymentScreenshot', paymentScreenshot);
 
     try {
       const response = await fetch('/api/student/requests', {
@@ -163,9 +173,10 @@ export default function CertificateRequestsPage() {
         cache: 'no-store'
       });
       if (response.ok) {
+        // refresh request history from server to avoid optimistic / placeholder rows
+        await fetchRequests();
         toast.success('Request submitted successfully!');
         setSelectedCertificate(certificateOptions[0].value);
-        fetchRequests();
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || 'Failed to submit request.');
@@ -182,6 +193,7 @@ export default function CertificateRequestsPage() {
       <Suspense fallback={null}>
         <ScrollHandler />
       </Suspense>
+
       <CertificatePageLayout
         title="Certificate Requests"
         left={
@@ -196,30 +208,28 @@ export default function CertificateRequestsPage() {
           />
         }
         bottom={
-          <div
-            id="request-history-section"
-            className={historyFlash ? 'bg-indigo-50 transition-colors duration-1000 rounded-lg' : ''}
-          >
-            {isMobile ? (
-              <RequestHistoryMobile
-                requests={requests}
-                downloadingId={downloadingId}
-                downloadErrors={downloadErrors}
-                onDownload={handleDownload}
-                onOpenRejectModal={openRejectModal}
-              />
-            ) : (
-              <RequestHistoryDesktop
-                requests={requests}
-                downloadingId={downloadingId}
-                downloadErrors={downloadErrors}
-                onDownload={handleDownload}
-                onOpenRejectModal={openRejectModal}
-              />
-            )}
-          </div>
+          isMobile ? (
+            <RequestHistoryMobile
+              requests={certificateRequests || []}
+              downloadingId={downloadingId}
+              downloadErrors={downloadErrors}
+              onDownload={handleDownload}
+              onOpenRejectModal={openRejectModal}
+              isLoadingRequests={isLoadingRequests}
+            />
+          ) : (
+            <RequestHistoryDesktop
+              requests={certificateRequests || []}
+              downloadingId={downloadingId}
+              downloadErrors={downloadErrors}
+              onDownload={handleDownload}
+              onOpenRejectModal={openRejectModal}
+              isLoadingRequests={isLoadingRequests}
+            />
+          )
         }
       />
+
       <RejectDetailsModal isOpen={showRejectModal} request={rejectReq} onClose={closeRejectModal} onReapply={handleReapply} />
       <Footer />
     </>

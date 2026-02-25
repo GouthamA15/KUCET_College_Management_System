@@ -18,6 +18,7 @@
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.16.0",
     "next": "^16.1.6",
+    "next-auth": "^4.24.13",
     "pizzip": "^3.2.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
@@ -26,6 +27,7 @@
     "react-hot-toast": "^2.6.0",
     "read-excel-file": "^6.0.3",
     "xlsx-js-style": "^1.2.0"
+    
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -35,3 +37,4 @@
     "tailwindcss": "^4"
   }
 }
+

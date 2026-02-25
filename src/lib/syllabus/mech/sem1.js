@@ -56,12 +56,5 @@ export const semester1 = [
       { "name": "UNIT-IV Isometric Projections", "topics": ["Isometric Projections: Principles of Isometric Projection – Isometric Scale , Isometric Views ,Conventions , Isometric Views of Lines, Plane Figures, Simple and Compound Solids – Isometric Projection of objects having non- isometric lines. Isometric Projection of Spherical Parts. Conversion of Isometric Views to Orthographic Views and Vice-versa – Conventions."] },
       { "name": "UNIT-V Development of Surfaces & CAD", "topics": ["Development of Surfaces: Right Regular Solids – Prism, Cylinder, Pyramid and Cone.", "Introduction to CAD: (For Internal Evaluation Weightage only) Introduction to Auto CAD Commands, Draw Tools, Modify Tools, Text, Dimension Properties, DIMENSION, PROPERTIES tool bar, Standard Tool bar, LAYERS."] }
       ]
-  },
-  {
-    "code": "ESC102L",
-    "title": "Engineering Graphics & Design Lab",
-    "units": [
-      { "name": "Drawing Practice", "topics": ["1. Introduction to Engineering Drawing & Conic Sections", "2. Orthographic Projections", "3. Projections of Regular Solids", "4. Isometric Projections", "5. Development of Surfaces & CAD"] }
-    ]
   }
 ];

@@ -1,12 +1,21 @@
-import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
   try {
+    const user = await getAuthUser('student');
+    if (!user) {
+      return apiError('Unauthorized', 401);
+    }
+
     const url = new URL(request.url);
     const rollno = url.searchParams.get('rollno');
     if (!rollno) {
-      return NextResponse.json({ success: false, message: 'Roll number required' }, { status: 400 });
+      return apiError('Roll number required', 400);
+    }
+
+    if (user.roll_no !== rollno) {
+        return apiError('Forbidden: You can only view your own requests.', 403);
     }
 
       const sql = `SELECT sr.request_id, sr.certificate_type, sr.status, sr.reject_reason, sr.created_at
@@ -18,7 +27,7 @@ export async function GET(request) {
 
     const rows = await query(sql, [rollno]);
     if (!rows || rows.length === 0) {
-      return NextResponse.json({ success: true, latestRequest: null });
+      return apiResponse({ success: true, latestRequest: null });
     }
 
     const r = rows[0];
@@ -37,9 +46,9 @@ export async function GET(request) {
       updated_at: r.updated_at || null,
     };
 
-    return NextResponse.json({ success: true, latestRequest });
+    return apiResponse({ success: true, latestRequest });
   } catch (error) {
     console.error('Failed to fetch latest request', error);
-    return NextResponse.json({ success: false, message: 'Failed to fetch latest request' }, { status: 500 });
+    return apiError('Failed to fetch latest request', 500);
   }
 }

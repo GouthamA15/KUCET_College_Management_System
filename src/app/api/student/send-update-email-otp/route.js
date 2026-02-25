@@ -1,35 +1,13 @@
 import { getDb } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/email';
+import { sendInstitutionalEmail } from '@/lib/email';
 import crypto from 'crypto';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(req) {
-  const cookieStore = await cookies();
-  const studentAuthCookie = cookieStore.get('student_auth');
-  const token = studentAuthCookie ? studentAuthCookie.value : null;
+  const user = await getAuthUser('student');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
@@ -42,7 +20,7 @@ export async function POST(req) {
     console.log(`[DEBUG] OTP Request: rollno=${rollno}, rawEmail="${rawEmail}", cleanedEmail="${email}"`);
 
     if (!rollno || !email) {
-      return NextResponse.json({ message: 'Missing roll number or email' }, { status: 400 });
+      return apiError('Missing roll number or email', 400);
     }
 
     const db = getDb();
@@ -50,14 +28,10 @@ export async function POST(req) {
     // Server-side email uniqueness check
     const uniquenessQuery = 'SELECT roll_no FROM students WHERE email = ? AND roll_no != ?';
     const uniquenessParams = [email, rollno];
-    console.log(`[DEBUG] Uniqueness check query: "${uniquenessQuery}" with params: [${uniquenessParams.join(', ')}]`);
-
     const [existingEmailRows] = await db.execute(uniquenessQuery, uniquenessParams);
 
-    console.log(`[DEBUG] Uniqueness check results for email ${email}:`, existingEmailRows);
-
     if (existingEmailRows.length > 0) {
-      return NextResponse.json({ message: 'This email is already registered to another student.' }, { status: 409 });
+      return apiError('This email is already registered to another student.', 409);
     }
     
     // Generate a secure 6-digit OTP
@@ -76,7 +50,7 @@ export async function POST(req) {
       );
     } catch (dbError) {
       console.error('[DATABASE ERROR] OTP management failed:', dbError);
-      return NextResponse.json({ message: 'Database error occurred during OTP generation.' }, { status: 500 });
+      return apiError('Database error occurred during OTP generation.', 500);
     }
 
     // Send the OTP email
@@ -138,20 +112,26 @@ export async function POST(req) {
     
     let emailResponse;
     try {
-      emailResponse = await sendEmail(email, subject, html);
+      emailResponse = await sendInstitutionalEmail({
+        to: email,
+        subject,
+        title: 'OTP for Email Change Verification',
+        bodyHtml: html,
+        // bodyText will be derived from HTML
+      });
     } catch (mailError) {
       console.error('[MAIL EXCEPTION] Failed during sendEmail:', mailError);
-      return NextResponse.json({ message: 'Email service exception occurred.' }, { status: 500 });
+      return apiError('Email service exception occurred.', 500);
     }
 
     if (emailResponse.success) {
-      return NextResponse.json({ message: 'OTP sent to your new email address.' }, { status: 200 });
+      return apiResponse({ message: 'OTP sent to your new email address.' });
     } else {
       console.error('[MAIL FAILURE] sendEmail returned false:', emailResponse.message);
-      return NextResponse.json({ message: emailResponse.message || 'Failed to send OTP email.' }, { status: 500 });
+      return apiError(emailResponse.message || 'Failed to send OTP email.', 500);
     }
   } catch (error) {
     console.error('[GENERAL ERROR] send-update-email-otp:', error);
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return apiError('An internal server error occurred.', 500);
   }
 }

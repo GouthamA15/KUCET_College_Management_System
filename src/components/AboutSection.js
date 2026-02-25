@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 export default function AboutSection() {
   const [isVisible, setIsVisible] = useState(false);
@@ -38,8 +39,8 @@ export default function AboutSection() {
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'
           }`}
         >
-          <h2 className="text-3xl md:text-4xl font-bold text-blue-900 mb-4">
-            About KU College of Engineering and Technology
+          <h2 className="text-3xl md:text-4xl font-bold text-blue-900 mb-4 uppercase">
+            About {COLLEGE_CONFIG.name}
           </h2>
           <div className="w-24 h-1 bg-blue-600 mx-auto"></div>
         </div>
@@ -48,9 +49,9 @@ export default function AboutSection() {
           <p className={`text-base md:text-lg transition-all duration-700 ease-out delay-100 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'
           }`}>
-            KU College of Engineering and Technology (KUCET) is a premier engineering institution 
-            affiliated with Kakatiya University, Warangal. Established with a vision to provide 
-            quality technical education, KUCET has been at the forefront of producing skilled 
+            {COLLEGE_CONFIG.name} ({COLLEGE_CONFIG.shortName}) is a premier engineering institution 
+            affiliated with Kakatiya University, {COLLEGE_CONFIG.location}. Established with a vision to provide 
+            quality technical education, {COLLEGE_CONFIG.shortName} has been at the forefront of producing skilled 
             engineers and technologists who contribute significantly to the nation&rsquo;s technological 
             advancement. The college is accredited with NAAC A+ grade, reflecting its commitment 
             to academic excellence and quality education.
@@ -59,23 +60,23 @@ export default function AboutSection() {
           <p className={`text-base md:text-lg transition-all duration-700 ease-out delay-200 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'
           }`}>
-            Located in the historic city of Warangal, Telangana, KUCET offers undergraduate and 
+            Located in the historic city of {COLLEGE_CONFIG.location}, Telangana, {COLLEGE_CONFIG.shortName} offers undergraduate and 
             postgraduate programs in various engineering disciplines including Computer Science, 
             Electronics and Communication, Mechanical, Civil, and Electrical Engineering. The 
             institution is recognized for its state-of-the-art infrastructure, well-equipped 
             laboratories, experienced faculty, and vibrant campus life. With admission codes 
-            KUWL for EAPCET, KUWL1 for PGECET, and KUWL for ECET, the college attracts talented 
+            {COLLEGE_CONFIG.entranceCodes.eapcet} for EAPCET, {COLLEGE_CONFIG.entranceCodes.pgecet} for PGECET, and {COLLEGE_CONFIG.entranceCodes.ecet} for ECET, the college attracts talented 
             students from across the state.
           </p>
 
           <p className={`text-base md:text-lg transition-all duration-700 ease-out delay-300 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'
           }`}>
-            KUCET emphasizes holistic development through a balanced curriculum that combines 
+            {COLLEGE_CONFIG.shortName} emphasizes holistic development through a balanced curriculum that combines 
             theoretical knowledge with practical skills. The college fosters research and 
             innovation through various initiatives, industry partnerships, and collaborative 
             projects. With a strong placement record and alumni network spread across leading 
-            organizations globally, KUCET continues to uphold its legacy of excellence in 
+            organizations globally, {COLLEGE_CONFIG.shortName} continues to uphold its legacy of excellence in 
             engineering education and remains committed to shaping future leaders in technology 
             and innovation.
           </p>

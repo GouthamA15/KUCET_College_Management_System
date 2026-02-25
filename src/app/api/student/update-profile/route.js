@@ -1,33 +1,11 @@
 import { query, getDb } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(req) {
-  const cookieStore = await cookies();
-  const studentAuthCookie = cookieStore.get('student_auth');
-  const token = studentAuthCookie ? studentAuthCookie.value : null;
+  const user = await getAuthUser('student');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
@@ -35,7 +13,7 @@ export async function POST(req) {
     const { rollno } = body; 
 
     if (!rollno) {
-      return NextResponse.json({ error: 'Missing rollno' }, { status: 400 });
+      return apiError('Missing rollno', 400);
     }
 
     const db = getDb();
@@ -53,7 +31,7 @@ export async function POST(req) {
     // Now, handle personal details
     const studentRows = await query('SELECT id FROM students WHERE roll_no = ?', [rollno]);
     if (!studentRows || studentRows.length === 0) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
     const student_id = studentRows[0].id;
 
@@ -84,9 +62,9 @@ export async function POST(req) {
     }
 
 
-    return NextResponse.json({ success: true, message: "Profile updated successfully" }, { status: 200 });
+    return apiResponse({ success: true, message: "Profile updated successfully" });
   } catch (err) {
     console.error("Update profile error:", err);
-    return NextResponse.json({ error: 'Server error', details: err.message }, { status: 500 });
+    return apiError('Server error', 500, err.message);
   }
 }

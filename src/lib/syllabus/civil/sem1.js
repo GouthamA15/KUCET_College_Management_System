@@ -52,12 +52,5 @@ export const semester1 = [
     "units": [
       { "name": "UNIT-I Introduction", "topics": ["Introduction to Engineering Drawing: Principles of Engineering Graphics and their significance, Usage of Drawing Instruments, Lettering. Conic Sections including the Rectangular Hyperbola – General method only Cycloid, Epicycloid and Hypocycloid, Scales – Plain, Diagonal and vernier."] }
     ]
-  },
-  {
-    "code": "ESC102L",
-    "title": "Engineering Graphics & Design Lab",
-    "units": [
-      { "name": "Drawing Practice", "topics": ["1. Introduction to Engineering Drawing & Conic Sections", "2. Orthographic Projections", "3. Projections of Regular Solids", "4. Isometric Projections", "5. Development of Surfaces & CAD"] }
-    ]
   }
 ];

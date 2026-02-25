@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { getStatusStyles } from "@/lib/ui-utils";
 
 export default function CertificateActionPanel({ request }) {
   const [imageLoading, setImageLoading] = useState(true);
@@ -78,7 +79,7 @@ export default function CertificateActionPanel({ request }) {
               <div className="flex items-start gap-3">
                 <div className="w-36 text-sm text-gray-500">Status</div>
                 <div>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-sm font-semibold" style={{ backgroundColor: request?.status === 'APPROVED' ? '#ecfdf5' : request?.status === 'REJECTED' ? '#fff1f2' : '#fffbeb', color: request?.status === 'APPROVED' ? '#166534' : request?.status === 'REJECTED' ? '#991b1b' : '#92400e' }}>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-sm font-semibold border ${getStatusStyles(request?.status)}`}>
                     {request?.status ?? '—'}
                   </span>
                 </div>
