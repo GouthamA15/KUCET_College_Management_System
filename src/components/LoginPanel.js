@@ -544,7 +544,11 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                 {mode === 'login' ? (
                 <div>
                   <button
-                    onClick={() => signIn('google', { callbackUrl: '/api/auth/google-complete' })}
+                    onClick={() => {
+                      const base = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '');
+                      const callbackUrl = base ? `${base}/api/auth/google-complete` : '/api/auth/google-complete';
+                      return signIn('google', { callbackUrl });
+                    }}
                     className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-700 py-2.5 rounded-md font-medium hover:bg-gray-50 transition-all duration-150 mb-4"
                   >
                     <svg className="w-4 h-4 mr-2" viewBox="0 0 48 48" aria-hidden>
