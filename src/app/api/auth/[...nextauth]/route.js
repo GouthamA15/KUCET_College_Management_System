@@ -2,6 +2,19 @@ import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google";
 import { getDb } from "@/lib/db";
 
+const publicBaseUrlRaw = process.env.NEXT_PUBLIC_BASE_URL;
+if (process.env.NODE_ENV === 'production' && publicBaseUrlRaw) {
+  const publicBaseUrl = /^https?:\/\//i.test(publicBaseUrlRaw)
+    ? publicBaseUrlRaw
+    : `https://${publicBaseUrlRaw}`;
+  const nextAuthUrl = process.env.NEXTAUTH_URL || '';
+  const isLocal = /localhost|127\.0\.0\.1/.test(nextAuthUrl);
+  const hasScheme = /^https?:\/\//i.test(nextAuthUrl);
+  if (!nextAuthUrl || !hasScheme || isLocal) {
+    process.env.NEXTAUTH_URL = publicBaseUrl;
+  }
+}
+
 export const authOptions = {
   providers: [
     GoogleProvider({
