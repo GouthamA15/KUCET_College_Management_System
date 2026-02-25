@@ -67,6 +67,17 @@ export const authOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
+      if (!globalThis.__nextauth_redirect_logged) {
+        globalThis.__nextauth_redirect_logged = true;
+        console.log('[NEXTAUTH_REDIRECT]', {
+          url,
+          baseUrl,
+          NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+          NEXTAUTH_URL_INTERNAL: process.env.NEXTAUTH_URL_INTERNAL,
+          NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+          NODE_ENV: process.env.NODE_ENV,
+        });
+      }
       const preferredBase = process.env.NEXT_PUBLIC_BASE_URL || baseUrl;
       const normalizedBase = preferredBase.replace(/\/$/, '');
       if (url.startsWith('/')) {
