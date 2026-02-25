@@ -216,7 +216,11 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                 }
                 // Render a real link only when a valid route exists and is not a placeholder
                 if (item.route && item.route !== '#') {
-                  const routeActive = pathname && pathname.startsWith(item.route);
+                  // Treat clerk dashboards generically: any /clerk/*/dashboard should highlight the DASHBOARD item
+                  const routeActive = pathname && (
+                    pathname.startsWith(item.route) ||
+                    (item.label === 'DASHBOARD' && item.route.includes('/clerk/') && pathname.startsWith('/clerk/') && pathname.endsWith('/dashboard'))
+                  );
                   return (
                     <Link key={idx} href={item.route} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                       {item.label}
