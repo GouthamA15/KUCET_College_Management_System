@@ -1,11 +1,7 @@
 import React from "react";
-import { Document, Text, View, Font } from "@react-pdf/renderer";
-import PageBorder from "../components/PageBorder";
-import CertificateHeader from "../components/CertificateHeader";
+import { Text, View } from "@react-pdf/renderer";
 import CertificateTitle from "../components/CertificateTitle";
-import CertificateWatermark from "../components/CertificateWatermark";
-import SignatureBlock from "../components/SignatureBlock";
-import QRBlock from "../components/QRBlock";
+import BaseCertificate from "../components/BaseCertificate";
 import { styles } from "../components/Styles";
 
 export default function BonafideCertificatePDF({
@@ -23,44 +19,30 @@ export default function BonafideCertificatePDF({
   signatureUrl,
   qrUrl,
 }) {
-  // Disable automatic word hyphenation globally for this document
-  Font.registerHyphenationCallback((word) => [word]);
-
   return (
-    <Document>
-      <PageBorder>
-        {certId ? <Text style={styles.certId}>Certificate ID: {certId}</Text> : null}
+    <BaseCertificate
+      certId={certId}
+      date={date}
+      logoUrl={logoUrl}
+      signatureUrl={signatureUrl}
+      qrUrl={qrUrl}
+    >
+      <CertificateTitle text="BONAFIDE CERTIFICATE" />
 
-        <CertificateHeader
-          logoUrl={logoUrl}
-          collegeName={"KU COLLEGE OF ENGINEERING & TECHNOLOGY"}
-          collegeAddress={"KAKATIYA UNIVERSITY CAMPUS, WARANGAL – 506 009"}
-        />
-
-        {date ? <Text style={styles.date}>Date: {date}</Text> : null}
-
-        <CertificateTitle text="BONAFIDE CERTIFICATE" />
-
-        <View style={styles.content}>
-          <CertificateWatermark imageUrl={logoUrl} />
-            <Text style={[styles.paragraph, { lineHeight: 1.7, fontSize: 14, textAlign: "justify" }]}>
-            This is to certify that Mr./Ms. <Text style={styles.bold}>{studentName}</Text>,
-            {" "}S/o., D/o. <Text style={styles.bold}>{fatherName}</Text>{" "}
-            bearing Admission No. <Text style={styles.bold}>{admissionNo}</Text>{" "}
-            is a Bonafide student of this college studying B.Tech
-            {" "}<Text style={styles.bold}>{year}</Text>{" "}Year Semester
-            {" "}<Text style={styles.bold}>{semester}</Text>{" "}and
-            {" "}branch <Text style={styles.bold}>{course}</Text>{" "}during the academic year
-            {" "}<Text style={styles.bold}>{academicYear}</Text>{" "}
-            for the purpose of Scholarship. His/her percentage of attendance is
-            {" "}<Text style={styles.bold}>{attendancePercentage}</Text>.
-          </Text>
-        </View>
-
-        <SignatureBlock  signatureUrl={signatureUrl} />
-
-        <QRBlock qrUrl={qrUrl} />
-      </PageBorder>
-    </Document>
+      <View style={styles.content}>
+          <Text style={[styles.paragraph, { lineHeight: 1.7, fontSize: 14, textAlign: "justify" }]}>
+          This is to certify that Mr./Ms. <Text style={styles.bold}>{studentName}</Text>,
+          {" "}S/o., D/o. <Text style={styles.bold}>{fatherName}</Text>{" "}
+          bearing Admission No. <Text style={styles.bold}>{admissionNo}</Text>{" "}
+          is a Bonafide student of this college studying B.Tech
+          {" "}<Text style={styles.bold}>{year}</Text>{" "}Year Semester
+          {" "}<Text style={styles.bold}>{semester}</Text>{" "}and
+          {" "}branch <Text style={styles.bold}>{course}</Text>{" "}during the academic year
+          {" "}<Text style={styles.bold}>{academicYear}</Text>{" "}
+          for the purpose of Scholarship. His/her percentage of attendance is
+          {" "}<Text style={styles.bold}>{attendancePercentage}</Text>.
+        </Text>
+      </View>
+    </BaseCertificate>
   );
 }

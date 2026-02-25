@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { apiResponse } from '@/lib/api-utils';
 
 export async function POST() {
-  const response = NextResponse.json({ success: true, message: 'Logout successful' });
+  const response = apiResponse({ success: true, message: 'Logout successful' });
   response.cookies.set('clerk_auth', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

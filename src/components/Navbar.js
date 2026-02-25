@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
-export default function Navbar({ activePanel, setActivePanel, clerkMode = false, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false }) {
+export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,6 +18,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
       { label: 'TIME TABLE', route: '/student/timetable' },
       { label: 'REQUESTS', children: [
           { label: 'Certificates', route: '/student/requests/certificates' },
+          { label: 'Profile Updates', route: '/student/requests/profile-updates' },
           { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
         ]
       },
@@ -31,7 +32,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
     clerk: [
       { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
       { label: 'DEPARTMENTS', route: '/clerk/departments' },
-      { label: 'ADMISSIONS', route: '/clerk/admissions' },
+      { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
       { label: 'TIME TABLE', route: '/clerk/timetable' },
       { label: 'FACULTIES', route: '/clerk/faculties' },
       { label: 'MENU', children: [
@@ -40,6 +41,20 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
           { label: 'Logout', action: 'logout' }
         ]
       },
+    ],
+    faculty: [
+      { label: 'DASHBOARD', route: '/clerk/faculty/dashboard' },
+      { label: 'ATTENDANCE', route: '/clerk/faculty/attendance' },
+      { label: 'MARKS', route: '/clerk/faculty/marks' },
+      { label: 'TIME TABLE', route: '/clerk/faculty/time-table' },
+      { label: 'MATERIALS', route: '/clerk/faculty/materials' },
+      { label: 'PROFILE', route: '/clerk/faculty/profile' },
+      { label: 'MENU', children: [
+          { label: 'Edit Profile', route: '/clerk/faculty/settings/edit-profile' },
+          { label: 'Security & Privacy', route: '/clerk/faculty/settings/security' },
+          { label: 'Logout', action: 'logout' }
+        ]
+      }
     ],
     superAdmin: [
       { label: 'HOME', route: '/' },
@@ -55,13 +70,10 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
     ]
   };
 
-  // Determine current role: student -> 'student', clerk -> 'clerk', admin pages -> 'superAdmin', else 'guest'
-  let role = 'guest';
-  if (studentProfileMode) role = 'student';
-  else if (clerkMode) role = 'clerk';
-  else if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) role = 'superAdmin';
-  const menuItems = menuConfig[role] || [
-    // { label: 'HOME', route: '/' },
+  // Role selection: prefer explicit `role` prop. Fall back to studentProfileMode for backward compatibility.
+  const effectiveRole = role || (studentProfileMode ? 'student' : 'guest');
+  const menuItems = menuConfig[effectiveRole] || [
+    { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'EMPLOYEE LOGIN', action: 'open-panel-clerk' },
     { label: 'SUPER ADMIN', action: 'open-panel-admin' }
@@ -85,7 +97,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
   const performAction = async (action) => {
     if (action === 'logout') {
       // Prefer explicit onLogout handler for student role (preserve original behavior)
-      if (role === 'student' && typeof onLogout === 'function') {
+      if (effectiveRole === 'student' && typeof onLogout === 'function') {
         try {
           await onLogout();
         } catch (e) {
@@ -95,12 +107,13 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
         }
         return;
       }
-      // Clerk-specific logout endpoint
-      if (role === 'clerk') {
+      // Clerk and Faculty logout endpoint
+      if (effectiveRole === 'clerk' || effectiveRole === 'faculty') {
         await fetch('/api/clerk/logout', { method: 'POST' });
         window.location.replace('/');
         return;
       }
+
       // Default auth logout
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.replace('/');
@@ -146,7 +159,7 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
               <span className="text-white text-lg font-bold tracking-wide">LOGIN PORTAL</span>
             </div>
             {/* Desktop Menu */}
-            <div className="hidden md:flex items-center space-x-6">
+            <div className="hidden md:flex items-center gap-4">
               {(menuItems || []).map((item, idx) => {
                 const hasChildren = Array.isArray(item.children) && item.children.length > 0;
                 if (hasChildren) {
@@ -319,9 +332,9 @@ export default function Navbar({ activePanel, setActivePanel, clerkMode = false,
         show={showChangePasswordModal} 
         onClose={() => setShowChangePasswordModal(false)}
         apiEndpoint={
-          studentProfileMode ? '/api/auth/change-password/student' :
-          clerkMode ? '/api/auth/change-password/clerk' : ''
-        }
+            effectiveRole === 'student' ? '/api/auth/change-password/student' :
+            effectiveRole === 'clerk' ? '/api/auth/change-password/clerk' : ''
+          }
       />
     </>
   );

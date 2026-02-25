@@ -1,44 +1,22 @@
 import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 // Helper function to handle undefined/empty values and convert them to null
 const toNull = (value) => (value === undefined || value === '' ? null : value);
 
 export async function PUT(req, context) {
-  const cookieStore = await cookies();
-  const clerkAuthCookie = cookieStore.get('clerk_auth');
-  const token = clerkAuthCookie ? clerkAuthCookie.value : null;
+  const user = await getAuthUser('clerk');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded || decoded.role !== 'admission') {
-    return NextResponse.json({ error: 'Forbidden: Only admission clerks can update student details' }, { status: 403 });
+  if (!user || user.role !== 'admission') {
+    return apiError('Forbidden: Only admission clerks can update student details', 403);
   }
 
   // Ensure clerk id is present in token and use it for audit fields
-  const clerkId = decoded?.clerkId || null;
+  const clerkId = user?.clerkId || null;
   if (!clerkId) {
-    return NextResponse.json({ error: 'Unauthorized: clerk id missing in token' }, { status: 401 });
+    return apiError('Unauthorized: clerk id missing in token', 401);
   }
 
   try {
@@ -46,7 +24,7 @@ export async function PUT(req, context) {
     const { rollno } = params;
 
     if (!rollno) {
-      return NextResponse.json({ error: 'Missing rollno parameter' }, { status: 400 });
+      return apiError('Missing rollno parameter', 400);
     }
 
     const updatedData = await req.json();
@@ -57,23 +35,23 @@ export async function PUT(req, context) {
     // Validate blood_group and fee_reimbursement early if provided
     if (updatedData.blood_group !== undefined) {
       const bg = updatedData.blood_group == null ? null : String(updatedData.blood_group).trim();
-      const validBloodGroups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+      const validBloodGroups = COLLEGE_CONFIG.bloodGroups;
       if (bg && !validBloodGroups.includes(bg)) {
-        return NextResponse.json({ error: 'Invalid blood group value' }, { status: 400 });
+        return apiError('Invalid blood group value', 400);
       }
     }
     if (updatedData.fee_reimbursement !== undefined) {
       const fr = updatedData.fee_reimbursement == null ? null : String(updatedData.fee_reimbursement).trim().toUpperCase();
-      const validFeeReimbursement = ['YES', 'NO'];
+      const validFeeReimbursement = ['YES', 'NO', 'GOV'];
       if (fr && !validFeeReimbursement.includes(fr)) {
-        return NextResponse.json({ error: 'Invalid fee_reimbursement value' }, { status: 400 });
+        return apiError('Invalid fee_reimbursement value', 400);
       }
     }
 
     // Find student ID
     const [student] = await query('SELECT id FROM students WHERE roll_no = ?', [rollno]);
     if (!student) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
     const studentId = student.id;
 
@@ -101,7 +79,7 @@ export async function PUT(req, context) {
     const personalUpdateFields = [];
     const personalUpdateValues = [];
     const personalInsertValues = [];
-    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
+    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'guardian_mobile', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
 
     let hasPersonalUpdates = false;
     // Validate and prepare personal columns. blood_group must be one of allowed values when provided.
@@ -150,7 +128,7 @@ export async function PUT(req, context) {
     // --- Update `student_academic_background` table ---
     const academicUpdateFields = [];
     const academicUpdateValues = [];
-    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks'];
+    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks', 'ssc_marks', 'inter_marks'];
 
     let hasAcademicUpdates = false;
     academicColumns.forEach(col => {
@@ -166,19 +144,28 @@ export async function PUT(req, context) {
         if (existingAcademic) {
             await query(`UPDATE student_academic_background SET ${academicUpdateFields.join(', ')} WHERE student_id = ?`, [...academicUpdateValues, studentId]);
         } else {
-            // If no academic background exists, insert it
             const insertCols = ['student_id'];
             const insertVals = [studentId];
             academicColumns.forEach(col => {
-                if (updatedData[col] !== undefined) { // Only include columns present in updatedData
+                if (updatedData[col] !== undefined) {
                     insertCols.push(col);
                     insertVals.push(toNull(updatedData[col]));
                 }
             });
-            if (insertCols.length > 1) { // More than just student_id
+            if (insertCols.length > 1) {
                 await query(`INSERT INTO student_academic_background (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`, insertVals);
             }
         }
+    }
+
+    // --- Update `student_images` and `student_signatures` if provided ---
+    if (updatedData.pfp && typeof updatedData.pfp === 'string' && updatedData.pfp.includes(',')) {
+        const pfpBuffer = Buffer.from(updatedData.pfp.split(',')[1], 'base64');
+        await query('INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ON DUPLICATE KEY UPDATE pfp = ?', [studentId, pfpBuffer, pfpBuffer]);
+    }
+    if (updatedData.signature && typeof updatedData.signature === 'string' && updatedData.signature.includes(',')) {
+        const sigBuffer = Buffer.from(updatedData.signature.split(',')[1], 'base64');
+        await query('INSERT INTO student_signatures (student_id, signature) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature = ?', [studentId, sigBuffer, sigBuffer]);
     }
 
     // If personal/academic updates were applied but students table was not modified above,
@@ -188,9 +175,9 @@ export async function PUT(req, context) {
     }
 
 
-    return NextResponse.json({ success: true, message: 'Student details updated successfully' });
+    return apiResponse({ success: true, message: 'Student details updated successfully' });
   } catch (error) {
     console.error('Error updating student details:', error);
-    return NextResponse.json({ error: 'Failed to update student details', details: error.message }, { status: 500 });
+    return apiError('Failed to update student details', 500, error.message);
   }
 }

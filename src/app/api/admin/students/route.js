@@ -1,22 +1,7 @@
-import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-import { getBranchFromRoll, getCurrentStudyingYear, branchCodes } from '@/lib/rollNumber'; // Import branchCodes
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { getBranchFromRoll, getCurrentStudyingYear, branchCodes } from '@/lib/rollNumber';
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { getNow } from '@/lib/clock';
 
 // Helper to get branch code from branch name
 function getBranchCodeFromName(branchName) {
@@ -25,17 +10,10 @@ function getBranchCodeFromName(branchName) {
 }
 
 export async function GET(request) {
-  const cookieStore = await cookies();
-  const adminAuthCookie = cookieStore.get('admin_auth');
-  const token = adminAuthCookie ? adminAuthCookie.value : null;
+  const user = await getAuthUser('admin');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded || decoded.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   const { searchParams } = new URL(request.url);
@@ -43,15 +21,16 @@ export async function GET(request) {
   const branchName = searchParams.get('branch'); // Renamed to branchName
 
   if (!studyingYear || !branchName) {
-    return NextResponse.json({ error: 'Studying year and branch are required' }, { status: 400 });
+    return apiError('Studying year and branch are required', 400);
   }
 
   const branchCode = getBranchCodeFromName(branchName);
   if (!branchCode) {
-    return NextResponse.json({ error: 'Invalid branch name provided' }, { status: 400 });
+    return apiError('Invalid branch name provided', 400);
   }
 
   try {
+    const now = await getNow();
     // Fetch college info for academic year boundary
     const collegeInfoRows = await query('SELECT * FROM college_info WHERE id = 1');
     const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
@@ -65,14 +44,14 @@ export async function GET(request) {
 
     const filteredStudents = studentsFromDb.filter(student => {
       const studentBranch = getBranchFromRoll(student.roll_no);
-      const studentStudyingYear = getCurrentStudyingYear(student.roll_no, collegeInfo);
+      const studentStudyingYear = getCurrentStudyingYear(student.roll_no, collegeInfo, now);
 
       return studentBranch === branchName && String(studentStudyingYear) === studyingYear;
     });
 
-    return NextResponse.json({ students: filteredStudents });
+    return apiResponse({ students: filteredStudents });
   } catch (error) {
     console.error('Failed to fetch students:', error);
-    return NextResponse.json({ error: 'Failed to fetch students' }, { status: 500 });
+    return apiError('Failed to fetch students', 500);
   }
 }

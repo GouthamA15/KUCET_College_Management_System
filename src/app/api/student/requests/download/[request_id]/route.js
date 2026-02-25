@@ -4,11 +4,12 @@ import React from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import path from 'path';
 import fs from 'fs';
 import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
-import { calculateYearAndSemester } from '@/lib/academic-utils';
+import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
+import { getNow } from '@/lib/clock';
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
 import CustodianCertificatePDF from '@/pdf/templates/CustodianCertificatePDF';
@@ -17,40 +18,7 @@ import MigrationCertificatePDF from '@/pdf/templates/MigrationCertificatePDF';
 import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCertificatePDF';
 import IncomeTaxCertificatePDF from '@/pdf/templates/IncomeTaxCertificatePDF';
 import TransferCertificatePDF from '@/pdf/templates/TransferCertificatePDF';
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-async function getStudentFromToken(request) {
-    const token = request.cookies.get('student_auth')?.value;
-    if (!token) {
-        console.debug('[AUTH] No student_auth cookie present on request to', request.url);
-        return null;
-    }
-    try {
-        const { payload } = await jwtVerify(token, new TextEncoder().encode(JWT_SECRET));
-        console.debug('[AUTH] Decoded student token payload (safe):', { student_id: payload.student_id, roll_no: payload.roll_no, name: payload.name });
-        let student_id = payload.student_id || null;
-        const roll_no = payload.roll_no || null;
-        // If token doesn't include student_id (older tokens), try to resolve it from roll_no
-        if (!student_id && roll_no) {
-            try {
-                const rows = await query('SELECT id FROM students WHERE roll_no = ?', [roll_no]);
-                if (rows && rows.length > 0) {
-                    student_id = rows[0].id;
-                    console.debug('[AUTH] Resolved student_id from roll_no:', student_id);
-                } else {
-                    console.warn('[AUTH] No student found for roll_no while resolving student_id:', roll_no);
-                }
-            } catch (e) {
-                console.warn('[AUTH] Error resolving student_id from roll_no:', e && e.message ? e.message : e);
-            }
-        }
-        return { student_id, roll_no };
-    } catch (error) {
-        console.warn('[AUTH] Failed to verify student token:', error && error.message ? error.message : error);
-        return null;
-    }
-}
+import NoObjectionCertificatePDF from '@/pdf/templates/NoObjectionCertificatePDF';
 
 const certificateComponents = {
     'Bonafide Certificate': BonafideCertificatePDF,
@@ -60,28 +28,29 @@ const certificateComponents = {
     'Course Completion Certificate': CourseCompletionCertificatePDF,
     'Income Tax (IT) Certificate': IncomeTaxCertificatePDF,
     'Transfer Certificate (TC)': TransferCertificatePDF,
+    'No Objection Certificate': NoObjectionCertificatePDF,
 };
 
 // using bundled Puppeteer; helper closes browser internally
 export async function GET(request, { params }) {
-    const auth = await getStudentFromToken(request);
-    if (!auth || !auth.student_id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await getAuthUser('student');
+    if (!auth || !auth.student_id) return apiError('Unauthorized', 401);
 
     // Enforce verification: email present, verified, and password set
     try {
         const verRows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [auth.student_id]);
         const ver = verRows && verRows[0];
         if (!ver || !ver.email) {
-            return NextResponse.json({ error: 'Verification required: email address not found.' }, { status: 403 });
+            return apiError('Verification required: email address not found.', 403);
         }
         if (!ver.is_email_verified) {
-            return NextResponse.json({ error: 'Verification required: email not verified.' }, { status: 403 });
+            return apiError('Verification required: email not verified.', 403);
         }
         if (!ver.password_hash) {
-            return NextResponse.json({ error: 'Verification required: password not set.' }, { status: 403 });
+            return apiError('Verification required: password not set.', 403);
         }
     } catch (e) {
-        return NextResponse.json({ error: 'Unable to validate verification status.' }, { status: 500 });
+        return apiError('Unable to validate verification status.', 500);
     }
 
     const { request_id } = await params;
@@ -96,14 +65,14 @@ export async function GET(request, { params }) {
         );
 
         if (requests.length === 0) {
-            return NextResponse.json({ error: 'Request not found or not authorized' }, { status: 404 });
+            return apiError('Request not found or not authorized', 404);
         }
 
         const certRequest = requests[0];
         const Template = certificateComponents[certRequest.certificate_type];
 
         if (!Template || certRequest.status !== 'APPROVED') {
-            return NextResponse.json({ error: 'Certificate not available for download' }, { status: 403 });
+            return apiError('Certificate not available for download', 403);
         }
 
         // 2. Fetch student details
@@ -116,7 +85,7 @@ export async function GET(request, { params }) {
         );
         
         if (students.length === 0) {
-            return NextResponse.json({ error: 'Student details not found' }, { status: 404 });
+            return apiError('Student details not found', 404);
         }
         const student = students[0];
 
@@ -125,7 +94,7 @@ export async function GET(request, { params }) {
         const collegeInfo = collegeInfoRows[0] || {};
 
         // CALCULATE YEAR AND SEMESTER ---
-        const { yearOfStudy, semester: currentSemester } = calculateYearAndSemester(student.roll_no, collegeInfo);
+        const { yearOfStudy, semester: currentSemester } = await calculateYearAndSemesterAsync(student.roll_no, collegeInfo);
         
         const rollNo = student.roll_no;
         const isLateral = rollNo.toUpperCase().endsWith('L');
@@ -137,16 +106,24 @@ export async function GET(request, { params }) {
         const batchEnd = batchStart + 4; 
         const batchString = `${batchStart}-${batchEnd}`;
         
-        const today = new Date();
+        const today = await getNow();
 
         const yearWords = ["I (FIRST)", "II (SECOND)", "III (THIRD)", "IV (FOURTH)"];
         const semesterWords = ["I (FIRST)", "II (SECOND)", "III (THIRD)", "IV (FOURTH)", "V (FIFTH)", "VI (SIXTH)", "VII (SEVENTH)", "VIII (EIGHTH)"];
         // 4. SECURITY: Generate Certificate ID & QR URL
         const SECRET_SALT = process.env.CERTIFICATE_SECRET || "fallback_salt";
-        const hash = crypto.createHmac('sha256', SECRET_SALT)
-                           .update(`${student.roll_no}-${certRequest.certificate_type}`)
-                           .digest('hex');
-        const certId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
+        let certId = certRequest.generated_certificate_id;
+        if (!certId) {
+            const hash = crypto.createHmac('sha256', SECRET_SALT)
+                               .update(`${student.roll_no}-${certRequest.certificate_type}`)
+                               .digest('hex');
+            certId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
+            // persist only if not already set (older records)
+            await query(
+                'UPDATE student_requests SET generated_certificate_id = ? WHERE request_id = ?',
+                [certId, request_id]
+            );
+        }
 
         // Attendance Values are only assigned in Bonafide
         const isBonafide = certRequest.certificate_type === 'Bonafide Certificate';
@@ -158,8 +135,8 @@ export async function GET(request, { params }) {
 
         // Persist cert ID and attendance (bonafide only)
         await query(
-            'UPDATE student_requests SET generated_certificate_id = ?, generated_attendance = ? WHERE request_id = ?',
-            [certId, attendanceValue, request_id]
+            'UPDATE student_requests SET generated_attendance = ? WHERE request_id = ?',
+            [attendanceValue, request_id]
         );
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://10.163.82.43:${process.env.PORT || 3000}`;
@@ -248,6 +225,16 @@ export async function GET(request, { params }) {
         }
         const stampUrl = getBase64Image(path.join(publicDir, 'assets', 'ku-college-seal.png'));
 
+        const formatDate = (d) => {
+            if (!d) return '';
+            const dt = new Date(d);
+            if (Number.isNaN(dt.getTime())) return '';
+            const dd = String(dt.getDate()).padStart(2, '0');
+            const mm = String(dt.getMonth() + 1).padStart(2, '0');
+            const yyyy = dt.getFullYear();
+            return `${dd}/${mm}/${yyyy}`;
+        };
+
         const commonData = {
             certId,
             date: formattedDate,
@@ -269,12 +256,12 @@ export async function GET(request, { params }) {
         let data = { ...commonData };
         switch (certRequest.certificate_type) {
             case 'Bonafide Certificate':
-                data = {
-                    ...data,
-                    year: yearWords[yearOfStudy - 1] || 'N/A',
-                    semester: semesterWords[currentSemester - 1] || 'N/A',
-                    attendancePercentage: attendanceValue || '',
-                };
+                    data = {
+                        ...data,
+                        year: yearWords[yearOfStudy - 1] || 'N/A',
+                        semester: semesterWords[currentSemester - 1] || 'N/A',
+                        attendancePercentage: (attendanceValue !== null && attendanceValue !== undefined) ? attendanceValue : '',
+                    };
                 break;
             case 'Course Completion Certificate':
                 data = {
@@ -311,7 +298,22 @@ export async function GET(request, { params }) {
                 };
                 break;
             case 'Custodian Certificate':
-                // No extra fields beyond common
+                data = {
+                    ...data,
+                    year: yearWords[yearOfStudy - 1] || 'N/A',
+                    semester: semesterWords[currentSemester - 1] || 'N/A',
+                    hallTicket: student.roll_no,
+                };
+                break;
+            case 'No Objection Certificate':
+                data = {
+                    ...data,
+                    year: yearWords[yearOfStudy - 1] || 'N/A',
+                    semester: semesterWords[currentSemester - 1] || 'N/A',
+                    purpose: certRequest.purpose || '',
+                    fromDate: formatDate(certRequest.from_date),
+                    toDate: formatDate(certRequest.to_date),
+                };
                 break;
             default:
                 // fallthrough, use common
@@ -336,7 +338,7 @@ export async function GET(request, { params }) {
 
     } catch (error) {
         console.error("Error generating certificate:", error);
-        return NextResponse.json({ error: 'An error occurred while generating the certificate.', details: error.message }, { status: 500 });
+        return apiError('An error occurred while generating the certificate.', 500, error.message);
     } finally {
         // nothing to clean up
     }

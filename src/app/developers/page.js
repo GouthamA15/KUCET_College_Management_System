@@ -66,7 +66,6 @@ export default function DevelopersPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <Header />
       {/* Navbar with no specific active tab, just generic navigation */}
-      <Navbar />
 
       <main className="flex-grow container mx-auto px-4 py-12">
         <div className="text-center mb-16">

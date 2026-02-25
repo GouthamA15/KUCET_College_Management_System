@@ -118,7 +118,7 @@ export default function StudentHistoryCard({ currentClerkId }) {
     });
 
     return { groups, keys };
-  }, [recordsRaw, historyScope, appliedFilters, currentClerkId]);
+  }, [recordsRaw, appliedFilters.actionTypes]);
 
   const toggleActionType = (type) => {
     setHistoryFilters(h => {

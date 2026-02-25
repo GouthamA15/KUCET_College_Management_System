@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 
 export default function usePasswordSetup(rollno) {
@@ -9,7 +9,7 @@ export default function usePasswordSetup(rollno) {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
 
-  const checkPasswordStatus = async () => {
+  const checkPasswordStatus = useCallback(async () => {
     try {
       const passRes = await fetch(`/api/student/set-password?rollno=${rollno}`);
       if (passRes.ok) {
@@ -19,9 +19,13 @@ export default function usePasswordSetup(rollno) {
     } catch (e) {
       console.error('Error checking password status', e);
     }
-  };
+  }, [rollno]);
 
-  useEffect(() => { if (rollno) checkPasswordStatus(); }, [rollno]);
+  useEffect(() => { 
+    if (rollno) {
+      checkPasswordStatus();
+    }
+  }, [rollno, checkPasswordStatus]);
 
   const handlePasswordSave = async () => {
     if (newPassword !== confirmPassword) {

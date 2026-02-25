@@ -1,7 +1,8 @@
 "use client";
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import PaymentSection from './PaymentSection';
+import Image from 'next/image';
 
 export default function CertificateRequestForm({
   certificateOptions,
@@ -17,9 +18,64 @@ export default function CertificateRequestForm({
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
   const [purposeOption, setPurposeOption] = useState('Select');
   const [customPurpose, setCustomPurpose] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [purposeError, setPurposeError] = useState('');
+  const [dateError, setDateError] = useState('');
   const commonPurposes = ['Scholarship', 'Internship', 'Education Loan', 'Higher Studies', 'Passport/Visa'];
 
-  const needsValidation = fee > 0 || selectedCertificate === 'Income Tax (IT) Certificate';
+  const isIncomeTax = selectedCertificate === 'Income Tax (IT) Certificate';
+  const isNoObjection = selectedCertificate === 'No Objection Certificate';
+
+  // Certificates that should display QR / UPI payment options
+  const upiRequiredTypes = [
+    'Bonafide Certificate',
+    'Course Completion Certificate',
+    'Custodian Certificate',
+    'Transfer Certificate (TC)',
+    'Migration Certificate',
+    'Study Conduct Certificate',
+  ];
+  const isUPIRequired = upiRequiredTypes.includes(selectedCertificate);
+
+  // Show the form whenever a certificate requires any payment proof or fee-related action
+  // Also show for No Objection certificate which has no fee/upload but needs a purpose + submit
+  const showForm = isNoObjection || isUPIRequired || isIncomeTax || fee > 0;
+
+  // Transaction ID is required for certificates that expect a UPI transaction
+  const requiresTransactionId = isUPIRequired;
+
+  const fileInputRef = useRef(null);
+
+  const validateNocPurpose = (text) => {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return 'Please clearly describe the purpose.';
+    if (trimmed.length < 20) return 'Purpose must be at least 20 characters.';
+    if (trimmed.length > 300) return 'Purpose must not exceed 300 characters.';
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    if (words.length < 3) return 'Purpose must contain at least three words.';
+    if (!/[A-Za-z0-9]/.test(trimmed)) return 'Purpose must contain valid descriptive text, not only symbols.';
+    return '';
+  };
+
+  const validateNocDates = (fromVal, toVal) => {
+    if (!fromVal || !toVal) return 'Both From Date and To Date are required.';
+    const from = new Date(`${fromVal}T00:00:00`);
+    const to = new Date(`${toVal}T00:00:00`);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 'Invalid date range.';
+    if (to.getTime() < from.getTime()) return 'To Date cannot be earlier than From Date.';
+    return '';
+  };
+
+  const handleUploadClick = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const handleRemoveImage = () => {
+    setPaymentScreenshot(null);
+    if (fileInputRef.current) fileInputRef.current.value = null;
+    toast('Image removed.');
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -37,151 +93,289 @@ export default function CertificateRequestForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (needsValidation && (!transactionId || !paymentScreenshot)) {
-      toast.error('Payment details (UTR and Screenshot) are required.');
+    // Special handling for No Objection: only require a manual purpose
+    if (isNoObjection) {
+      const purposeValidationError = validateNocPurpose(customPurpose);
+      const dateValidationError = validateNocDates(fromDate, toDate);
+      setPurposeError(purposeValidationError);
+      setDateError(dateValidationError);
+      if (purposeValidationError || dateValidationError) {
+        toast.error('Please fix the highlighted issues before submitting.');
+        return;
+      }
+
+      const finalPurpose = customPurpose.trim();
+      await onSubmit({ transactionId: '', paymentScreenshot: null, finalPurpose, fromDate, toDate });
+      setTransactionId('');
+      setPaymentScreenshot(null);
+      setPurposeOption('Select');
+      setCustomPurpose('');
+      setFromDate('');
+      setToDate('');
+      setPurposeError('');
+      setDateError('');
       return;
     }
+    // Conditional validation per certificate type
+    if (isUPIRequired || (!isIncomeTax && fee > 0)) {
+      // Requires both UTR and screenshot
+      if (!transactionId || !paymentScreenshot) {
+        toast.error('Please enter UTR and upload payment screenshot.');
+        return;
+      }
+    } else if (isIncomeTax) {
+      // Requires only screenshot
+      if (!paymentScreenshot) {
+        toast.error('Please upload college fee payment screenshot.');
+        return;
+      }
+    }
     const finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
-    await onSubmit({ transactionId, paymentScreenshot, finalPurpose });
+    await onSubmit({ transactionId, paymentScreenshot, finalPurpose, fromDate: null, toDate: null });
     // Reset local state on success (page controls success via onSubmit)
     setTransactionId('');
     setPaymentScreenshot(null);
     setPurposeOption('Select');
     setCustomPurpose('');
+    setFromDate('');
+    setToDate('');
+    setPurposeError('');
+    setDateError('');
   };
 
   return (
-    <div className="bg-white p-5 md:p-6 rounded-lg shadow-md">
-      <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-4">New Request</h2>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div>
-          <label htmlFor="certificate-type" className="block text-sm font-medium text-gray-700">Certificate Type</label>
-          <select
-            id="certificate-type"
-            value={selectedCertificate}
-            onChange={(e) => setSelectedCertificate(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          >
-            {certificateOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <p className="text-sm font-medium text-gray-700">Fee: <span className="font-semibold text-indigo-600">₹{fee}</span></p>
-        </div>
-
-        {selectedCertificate === 'Income Tax (IT) Certificate' && (
-          <div className="mt-2 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-md">
-            <div className="flex gap-2">
-              <div className="text-blue-600 font-bold">!</div>
-              <p className="text-xs text-blue-700">
-                This certificate is free, but you must upload proof of your ₹35,000 yearly college fee payment below. Requests without a valid UTR will be rejected.
-              </p>
+    <div className="w-full">
+      <div className="space-y-6">
+        {/* Certificate Selection Section */}
+        <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
+          <h2 className="text-2xl font-semibold text-[#0b2447] mb-2">New Certificate Request</h2>
+          <p className="text-sm text-gray-600 mb-3">Select certificate type and proceed with payment to submit your request.</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-center">
+            <div className="lg:col-span-2">
+              <label htmlFor="certificate-type" className="block text-sm font-medium text-gray-700">Certificate Type</label>
+              <select
+                id="certificate-type"
+                value={selectedCertificate}
+                onChange={(e) => setSelectedCertificate(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              >
+                {certificateOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
+            {/* <div className="lg:col-span-1">
+              <p className="text-sm font-medium text-gray-700">Fee</p>
+              <div className="mt-1 text-lg font-semibold text-indigo-600">₹{fee}</div>
+            </div> */}
           </div>
-        )}
-
-        {needsValidation && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* LEFT: Payment Details */}
-            <div className="bg-gray-50 border rounded-lg p-4">
-              <div className="mb-3">
-                <div className="inline-block px-3 py-1 text-xs md:text-sm bg-red-50 text-red-700 border border-red-200 rounded">
-                  Only UPI payments are accepted currently
-                </div>
-              </div>
-              <PaymentSection fee={fee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />
-              <div className="mt-3">
-                <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-indigo-600">₹{fee}</span></p>
-              </div>
-              <div className="mt-3">
-                <label htmlFor="transaction-id" className="block text-sm font-medium text-gray-700">
-                  Transaction ID / UTR <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  id="transaction-id"
-                  value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-              </div>
-              <div className="mt-3">
-                <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>
-                <select
-                  value={purposeOption}
-                  onChange={(e) => setPurposeOption(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                >
-                  <option value="Select">Select</option>
-                  {['Scholarship', 'Internship', 'Education Loan', 'Higher Studies', 'Passport/Visa'].map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                  <option value="Other">Other (Please specify)</option>
-                </select>
-                {purposeOption === 'Other' && (
-                  <>
-                    <div className="mt-2 space-y-2 flex items-start gap-2 p-3 bg-amber-50 border-l-4 border-amber-400 rounded-md">
-                      <svg className="h-5 w-5 text-amber-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <p className="text-xs text-amber-800">Note: This text prints on the certificate. Include organization name if relevant.</p>
-                    </div>
-                    <textarea
-                      required
-                      rows={2}
-                      value={customPurpose}
-                      onChange={(e) => setCustomPurpose(e.target.value)}
-                      className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      placeholder="Describe your purpose here..."
-                    />
-                  </>
-                )}
-              </div>
-              <div className="mt-3">
-                <label htmlFor="payment-screenshot" className="block text-sm font-medium text-gray-700">Payment Screenshot <span className="text-red-500">*</span></label>
-                <input
-                  type="file"
-                  id="payment-screenshot"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"
-                />
-                {paymentScreenshot && (
-                  <p className="text-xs text-green-600 mt-1">Image ready ({(paymentScreenshot.size / 1024).toFixed(2)} KB)</p>
-                )}
-              </div>
+          {isIncomeTax && (
+            <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-sm">
+              <h4 className="text-sm font-semibold text-blue-800">Upload College Fee Payment Proof</h4>
+              <p className="text-sm text-blue-700">Upload screenshot of college fee payment receipt.</p>
             </div>
+          )}
+        </div>
 
-            {/* RIGHT: Screenshot Preview */}
-            <div className="bg-gray-50 border rounded-lg p-4 flex flex-col">
-              <h3 className="text-base md:text-lg font-semibold text-gray-700 mb-2">Screenshot Preview</h3>
-              <div className="flex-1 flex items-center justify-center">
-                {!paymentScreenshot ? (
-                  <div className="text-sm text-gray-500">No Screenshot Selected</div>
-                ) : (
-                  <img
-                    src={URL.createObjectURL(paymentScreenshot)}
-                    alt="Payment Screenshot Preview"
-                    className="max-h-96 w-auto object-contain"
-                  />
-                )}
-              </div>
+        {/* Payment & Upload Sections */}
+        {showForm && (
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Payment Card */}
+            <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
+                {/* Removed step pills - structured single form */}
+              {/* Render payment/QR section only for certificate types that require UPI (Bonafide) */}
+              {isUPIRequired && <PaymentSection fee={fee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />}
               <div className="mt-4">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex justify-center py-2 px-4 rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400"
-                >
-                  {isLoading ? 'Submitting...' : 'Submit Request'}
-                </button>
+                {fee > 0 ? (
+                  <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-indigo-600">₹{fee}</span></p>
+                ) : (
+                  <p className="text-sm text-gray-700 font-semibold text-green-600">No additional payment required.</p>
+                )}
+              </div>
+              {requiresTransactionId && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-600">Transaction ID / UTR</p>
+                  <input
+                    type="text"
+                    id="transaction-id"
+                    value={transactionId}
+                    // Allow only digits for Transaction ID / UTR
+                    onChange={(e) => setTransactionId((e.target.value || '').replace(/\D/g, ''))}
+                    onPaste={(e) => {
+                      const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
+                      const digits = paste.replace(/\D/g, '');
+                      e.preventDefault();
+                      // insert only numeric characters
+                      const el = e.target;
+                      const start = el.selectionStart || 0;
+                      const end = el.selectionEnd || 0;
+                      const newVal = (el.value || '').slice(0, start) + digits + (el.value || '').slice(end);
+                      setTransactionId(newVal);
+                      // move caret after inserted text
+                      requestAnimationFrame(() => {
+                        el.selectionStart = el.selectionEnd = start + digits.length;
+                      });
+                    }}
+                    inputMode="numeric"
+                    pattern="\d*"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                </div>
+              )}
+            </div>
+
+            {/* Upload & Submit Card */}
+            <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm flex flex-col">
+              {isNoObjection ? (
+                <div className="w-full">
+                  <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>
+                  <textarea
+                    rows={3}
+                    value={customPurpose}
+                    onChange={(e) => {
+                      setCustomPurpose(e.target.value);
+                      setPurposeError(validateNocPurpose(e.target.value));
+                    }}
+                    className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    placeholder="Ex: Internship programme in X institution, passport verification, higher studies, event participation, etc."
+                  />
+                  <p className="text-xs mt-1 text-gray-500">
+                    Please clearly describe the purpose (internship, passport verification, higher studies, event participation, etc.).
+                  </p>
+                  {purposeError && (
+                    <p className="text-xs text-red-600 mt-1">{purposeError}</p>
+                  )}
+
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">From Date <span className="text-red-500">*</span></label>
+                      <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFromDate(val);
+                          setDateError(validateNocDates(val, toDate));
+                        }}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">To Date <span className="text-red-500">*</span></label>
+                      <input
+                        type="date"
+                        value={toDate}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setToDate(val);
+                          setDateError(validateNocDates(fromDate, val));
+                        }}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      />
+                    </div>
+                  </div>
+                  {dateError && (
+                    <p className="text-xs text-red-600 mt-1">{dateError}</p>
+                  )}
+
+                  <p className="text-sm text-gray-500 mt-3">No upload or payment required for No Objection certificate.</p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    {isUPIRequired ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <4MB).'}
+                  </p>
+
+                  <div className="mb-3">
+                    <div className="max-h-[250px] border-2 border-dashed border-gray-300 rounded-sm flex items-center justify-center p-4 relative">
+                      {!paymentScreenshot ? (
+                        <div className="text-center text-gray-500">
+                          <div className="mb-2 font-medium">No Screenshot Selected</div>
+                          <div className="text-sm">Use the button below to upload an image</div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center relative">
+                          <Image src={URL.createObjectURL(paymentScreenshot)} alt="Payment Screenshot Preview" width={400} height={400} unoptimized className="max-h-[220px] w-auto object-contain" />
+                          <button type="button" onClick={handleRemoveImage} className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full p-1 text-gray-600 hover:bg-gray-100">
+                            ×
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Controlled upload UI: hidden input + visible button */}
+                  <div className="mt-2 flex flex-col items-center">
+                    <input
+                      type="file"
+                      id="payment-screenshot"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      ref={fileInputRef}
+                      className="hidden"
+                    />
+                    <button type="button" onClick={handleUploadClick} className="px-4 py-2 bg-[#3258a8] text-white rounded-sm text-sm font-medium hover:bg-[#274f8f]">Upload Image</button>
+                    <div className="mt-3 text-center">
+                      {paymentScreenshot ? (
+                        <>
+                          <div className="text-sm text-gray-700">{paymentScreenshot.name}</div>
+                          <div className="text-xs text-green-600">Image ready ({(paymentScreenshot.size / 1024).toFixed(2)} KB)</div>
+                        </>
+                      ) : (
+                        <div className="text-sm text-gray-500">No image selected</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>
+                    <select
+                      value={purposeOption}
+                      onChange={(e) => setPurposeOption(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    >
+                      <option value="Select">Select</option>
+                      {commonPurposes.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                      <option value="Other">Other (Please specify)</option>
+                    </select>
+                    {purposeOption === 'Other' && (
+                      <textarea
+                        required
+                        rows={2}
+                        value={customPurpose}
+                        onChange={(e) => setCustomPurpose(e.target.value)}
+                        className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        placeholder="Describe your purpose here..."
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="mt-6 flex justify-center">
+                {(() => {
+                  const nocPurposeInvalid = isNoObjection && !!validateNocPurpose(customPurpose);
+                  const nocDatesInvalid = isNoObjection && !!validateNocDates(fromDate, toDate);
+                  const isSubmitDisabled = isLoading || (isNoObjection && (nocPurposeInvalid || nocDatesInvalid));
+                  return (
+                    <button
+                      type="submit"
+                      disabled={isSubmitDisabled}
+                      className="inline-flex items-center px-6 py-2 rounded-sm text-sm font-semibold text-white bg-[#3258a8] hover:bg-[#274f8f] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3258a8] disabled:bg-gray-400 w-[220px] justify-center"
+                    >
+                      {isLoading ? 'Submitting...' : 'Submit Request'}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
-          </div>
+          </form>
         )}
-      </form>
+      </div>
     </div>
   );
 }

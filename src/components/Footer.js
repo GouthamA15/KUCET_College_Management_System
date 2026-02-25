@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { getNowSync } from '@/lib/clock';
 
 export default function Footer() {
   return (
@@ -11,15 +12,13 @@ export default function Footer() {
         {/* Divider */}
         {/* <div className="border-t border-blue-700 my-6"></div> */}
 
-        {/* Bottom Footer */}
         <div className="text-center ">
           <p className="text-blue-50 text-sm">
-            © 2026. All rights reserved. Developed by the Department of Computer Science & Engineering.
+            © {getNowSync().getFullYear()}. All rights reserved. Developed by the Department of Computer Science & Engineering.
             <Link href="/developers" className="ml-2 underline hover:text-white transition-colors duration-200 text-blue-200">
               View more details
             </Link>
           </p>
-
         </div>
       </div>
     </footer>

@@ -5,24 +5,30 @@ import Link from 'next/link';
 export default function ProfileActivityBar({ activity, student }) {
   const { latestRequest, dismissCount, incrementVisit, dismiss, reset } = activity || {};
   const [visible, setVisible] = useState(true);
-  const [didIncrement, setDidIncrement] = useState(false);
+  const processedRef = React.useRef(null);
   const isProd = typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : true;
 
-  // reset increment state when a new request or status arrives
-  useEffect(() => {
-    setDidIncrement(false);
-    setVisible(true);
-  }, [latestRequest && latestRequest.request_id, latestRequest && latestRequest.status]);
+  const reqId = latestRequest?.request_id;
+  const reqStatus = latestRequest?.status;
 
+  // Handle visibility reset and increment logic
   useEffect(() => {
-    if (!latestRequest) return;
-    // Only increment when the bar will actually render. In development ignore the limit.
-    const canIncrement = isProd ? (dismissCount < 4) : true;
-    if (!didIncrement && typeof incrementVisit === 'function' && canIncrement && visible) {
-      incrementVisit();
-      setDidIncrement(true);
+    if (!reqId) return;
+
+    // If this is a new request we haven't processed yet
+    if (processedRef.current !== reqId) {
+      // Defer state update to avoid synchronous set warning
+      const timer = setTimeout(() => setVisible(true), 0);
+      
+      const canIncrement = isProd ? (dismissCount < 4) : true;
+      if (canIncrement && typeof incrementVisit === 'function') {
+        incrementVisit();
+      }
+      
+      processedRef.current = reqId;
+      return () => clearTimeout(timer);
     }
-  }, [latestRequest, dismissCount, didIncrement, incrementVisit, visible, isProd]);
+  }, [reqId, reqStatus, dismissCount, incrementVisit, isProd]);
 
   // Hide entirely if user dismissed enough times (only in production)
   if (latestRequest && dismissCount >= 4 && isProd) return null;
@@ -134,7 +140,7 @@ export default function ProfileActivityBar({ activity, student }) {
       <div className="w-full max-w-6xl">
         <div className="border border-blue-200 bg-blue-50 text-blue-800 rounded-md p-3">
           <div className="flex items-center justify-between gap-4">
-            <div className="text-sm">Your {type} request is <span className="font-semibold">pending</span>. We'll notify you when it's processed.</div>
+            <div className="text-sm">Your {type} request is <span className="font-semibold">pending</span>. We&apos;ll notify you when it&apos;s processed.</div>
             <div className="flex items-center gap-2">
               <Link href={`/student/requests/certificates?request_id=${encodeURIComponent(id)}&scroll=history`} className="text-sm text-blue-700 hover:underline">View Details</Link>
               <button onClick={handleDismiss} className="ml-2 text-sm text-gray-600">✕</button>

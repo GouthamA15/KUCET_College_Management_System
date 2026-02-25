@@ -9,6 +9,8 @@ export function AdminProvider({ children }) {
   const [collegeInfo, setCollegeInfo] = useState(null);
   const [clerks, setClerks] = useState([]);
   const [studentStats, setStudentStats] = useState(null);
+  const [facultyInterests, setFacultyInterests] = useState([]);
+  const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -28,9 +30,10 @@ export function AdminProvider({ children }) {
     try {
       const res = await fetch('/api/admin/clerks');
       if (res.ok) {
-        const data = await res.json();
-        setClerks(data);
-        return data;
+        const json = await res.json();
+        const payload = json?.data ?? json ?? [];
+        setClerks(payload);
+        return payload;
       }
     } catch (e) {
       console.error('Failed to fetch clerks', e);
@@ -42,9 +45,10 @@ export function AdminProvider({ children }) {
     try {
       const res = await fetch('/api/admin/student-stats');
       if (res.ok) {
-        const data = await res.json();
-        setStudentStats(data);
-        return data;
+        const json = await res.json();
+        const payload = json?.data ?? json ?? null;
+        setStudentStats(payload);
+        return payload;
       }
     } catch (e) {
       console.error('Failed to fetch student stats', e);
@@ -56,14 +60,32 @@ export function AdminProvider({ children }) {
     try {
       const res = await fetch('/api/admin/verify'); // Assuming verify endpoint gives admin info
       if (res.ok) {
-        const data = await res.json();
-        setAdminData(data);
-        return data;
+        const json = await res.json();
+        const payload = json?.admin ?? json ?? null;
+        setAdminData(payload);
+        return payload;
       }
     } catch (e) {
       console.error('Failed to verify admin', e);
     }
     return null;
+  }, []);
+
+  const fetchFacultyInterests = useCallback(async () => {
+    setIsLoadingFaculty(true);
+    try {
+      const res = await fetch('/api/admin/faculty/interests');
+      const json = await res.json();
+      if (res.ok) {
+        setFacultyInterests(json.data || []);
+        return json.data;
+      }
+    } catch (e) {
+      console.error('Failed to fetch faculty interests', e);
+    } finally {
+      setIsLoadingFaculty(false);
+    }
+    return [];
   }, []);
 
   const refreshAll = useCallback(async () => {
@@ -72,10 +94,11 @@ export function AdminProvider({ children }) {
       fetchAdminMe(),
       fetchClerks(),
       fetchStudentStats(),
-      fetchCollegeInfo()
+      fetchCollegeInfo(),
+      fetchFacultyInterests()
     ]);
     setLoading(false);
-  }, [fetchAdminMe, fetchClerks, fetchStudentStats, fetchCollegeInfo]);
+  }, [fetchAdminMe, fetchClerks, fetchStudentStats, fetchCollegeInfo, fetchFacultyInterests]);
 
   useEffect(() => {
     refreshAll();
@@ -92,7 +115,10 @@ export function AdminProvider({ children }) {
       error, 
       refreshAll,
       refreshClerks: fetchClerks,
-      refreshStudentStats: fetchStudentStats
+      refreshStudentStats: fetchStudentStats,
+      facultyInterests,
+      isLoadingFaculty,
+      refreshFaculty: fetchFacultyInterests
     }}>
       {children}
     </AdminContext.Provider>

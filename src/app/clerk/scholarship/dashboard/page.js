@@ -327,7 +327,7 @@ export default function ScholarshipDashboard() {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
-      <Navbar clerkMode={true} onLogout={handleLogout} />
+      <Navbar role={'clerk'} onLogout={handleLogout} />
       <main className="flex-1 p-4 md:p-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Scholarship Clerk Dashboard</h1>
         {view === 'certificates' ? (

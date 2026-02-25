@@ -9,6 +9,11 @@ export function ClerkProvider({ children }) {
   const [collegeInfo, setCollegeInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [facultyAssignments, setFacultyAssignments] = useState([]);
+  const [facultyInterests, setFacultyInterests] = useState([]);
+  const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
+  const [pendingProfileRequests, setPendingProfileRequests] = useState([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -27,8 +32,8 @@ export function ClerkProvider({ children }) {
       const res = await fetch('/api/clerk/me');
       const data = await res.json();
       if (res.ok) {
-        setClerkData(data);
-        return data;
+        setClerkData(data.data); // Correctly access the nested data
+        return data.data; // Return the nested data object
       } else {
         setError(data.error || 'Failed to fetch clerk data');
       }
@@ -38,17 +43,73 @@ export function ClerkProvider({ children }) {
     return null;
   }, []);
 
+  const fetchFacultyData = useCallback(async () => {
+    setIsLoadingFaculty(true);
+    try {
+      const [asgnRes, intRes] = await Promise.all([
+        fetch('/api/clerk/faculty/assignments'),
+        fetch('/api/clerk/faculty/interests')
+      ]);
+      const asgnJson = await asgnRes.json();
+      const intJson = await intRes.json();
+      
+      if (asgnRes.ok) setFacultyAssignments(asgnJson.data || []);
+      if (intRes.ok) setFacultyInterests(intJson.data || []);
+    } catch (e) {
+      console.error('Failed to fetch faculty data', e);
+    } finally {
+      setIsLoadingFaculty(false);
+    }
+  }, []);
+
+  const fetchPendingProfileRequests = useCallback(async () => {
+    setIsLoadingRequests(true);
+    try {
+      const res = await fetch('/api/clerk/admission/student-requests');
+      const json = await res.json();
+      if (res.ok) {
+        setPendingProfileRequests(json.data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch pending profile requests', e);
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await Promise.all([fetchClerk(), fetchCollegeInfo()]);
+      const clerk = await fetchClerk();
+      const promises = [fetchCollegeInfo()];
+      if (clerk?.role === 'faculty') {
+        promises.push(fetchFacultyData());
+      }
+      if (clerk?.role === 'admission') {
+        promises.push(fetchPendingProfileRequests());
+      }
+      await Promise.all(promises);
       setLoading(false);
     };
     init();
-  }, [fetchClerk, fetchCollegeInfo]);
+  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests]);
 
   return (
-    <ClerkContext.Provider value={{ clerkData, collegeInfo, setClerkData, loading, error, refreshClerk: fetchClerk }}>
+    <ClerkContext.Provider value={{ 
+      clerkData, 
+      collegeInfo, 
+      setClerkData, 
+      loading, 
+      error, 
+      refreshClerk: fetchClerk,
+      facultyAssignments,
+      facultyInterests,
+      isLoadingFaculty,
+      refreshFaculty: fetchFacultyData,
+      pendingProfileRequests,
+      isLoadingRequests,
+      refreshProfileRequests: fetchPendingProfileRequests
+    }}>
       {children}
     </ClerkContext.Provider>
   );

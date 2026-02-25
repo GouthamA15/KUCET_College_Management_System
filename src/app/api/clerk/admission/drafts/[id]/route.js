@@ -1,0 +1,87 @@
+import { query } from '@/lib/db';
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { toMySQLDate } from '@/lib/date';
+
+export async function GET(req, context) {
+  const user = await getAuthUser('clerk');
+  if (!user || user.role !== 'admission') {
+    return apiError('Forbidden', 403);
+  }
+
+  try {
+    const params = await context.params;
+    const { id } = params;
+
+    const sql = `SELECT * FROM student_admission_drafts WHERE id = ?`;
+    const rows = await query(sql, [id]);
+
+    if (rows.length === 0) return apiError('Draft not found', 404);
+
+    const draft = rows[0];
+    
+    // Convert BLOBs to base64 for frontend display
+    if (draft.pfp) draft.pfp = `data:image/jpeg;base64,${draft.pfp.toString('base64')}`;
+    if (draft.signature) draft.signature = `data:image/jpeg;base64,${draft.signature.toString('base64')}`;
+
+    return apiResponse({ data: draft });
+  } catch (error) {
+    console.error('Error fetching draft detail:', error);
+    return apiError('Server Error', 500);
+  }
+}
+
+export async function PUT(req, context) {
+    const user = await getAuthUser('clerk');
+    if (!user || user.role !== 'admission') {
+      return apiError('Forbidden', 403);
+    }
+  
+    try {
+      const params = await context.params;
+      const { id } = params;
+      const body = await req.json();
+
+      // If only status is provided (legacy or simple verification)
+      if (Object.keys(body).length === 1 && body.status) {
+          if (!['DRAFT', 'PROCESSED', 'FINALIZED'].includes(body.status)) {
+              return apiError('Invalid status', 400);
+          }
+          await query(`UPDATE student_admission_drafts SET status = ? WHERE id = ?`, [body.status, id]);
+          return apiResponse({ success: true, message: `Status updated to ${body.status}` });
+      }
+
+      // Full update logic
+      const allowedFields = [
+        'name', 'father_name', 'mother_name', 'dob', 'gender', 'email', 'student_mobile', 'guardian_mobile',
+        'exam_rank', 'area_status', 'category', 'sub_caste', 'seat_allotted_category', 'ssc_marks', 'inter_diploma_marks',
+        'nationality', 'religion', 'mother_tongue', 'blood_group', 'place_of_birth', 'father_occupation', 'annual_income', 
+        'aadhaar_no', 'fee_reimbursement', 'identification_mark_1', 'identification_mark_2', 'permanent_address', 'branch', 'entrance_exam'
+      ];
+
+      const updates = [];
+      const values = [];
+
+      for (const field of allowedFields) {
+          if (body[field] !== undefined) {
+              updates.push(`${field} = ?`);
+              if (field === 'dob') {
+                  values.push(toMySQLDate(body[field]));
+              } else {
+                  values.push(body[field] === '' ? null : body[field]);
+              }
+          }
+      }
+
+      if (updates.length === 0) {
+          return apiError('No valid fields provided for update', 400);
+      }
+
+      const sql = `UPDATE student_admission_drafts SET ${updates.join(', ')} WHERE id = ?`;
+      await query(sql, [...values, id]);
+  
+      return apiResponse({ success: true, message: 'Draft updated successfully' });
+    } catch (error) {
+      console.error('Error updating draft:', error);
+      return apiError('Server Error', 500);
+    }
+}

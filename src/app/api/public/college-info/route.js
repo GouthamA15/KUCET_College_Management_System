@@ -1,6 +1,6 @@
 // src/app/api/public/college-info/route.js
 import { query } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError } from '@/lib/api-utils';
 
 export async function GET() {
   try {
@@ -12,12 +12,12 @@ export async function GET() {
 
     if (rows.length === 0) {
       // If no record exists, return default/empty values
-      return NextResponse.json({ collegeInfo: {} }, { status: 200 });
+      return apiResponse({ collegeInfo: {} });
     }
 
-    return NextResponse.json({ collegeInfo: rows[0] }, { status: 200 });
+    return apiResponse({ collegeInfo: rows[0] });
   } catch (error) {
     console.error('Error fetching public college info:', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return apiError('Server error', 500);
   }
 }

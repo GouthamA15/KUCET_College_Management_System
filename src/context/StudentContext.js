@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { getNowSync } from '@/lib/clock';
 
 const StudentContext = createContext();
 
@@ -9,6 +10,12 @@ export function StudentProvider({ children }) {
   const [collegeInfo, setCollegeInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [certificateRequests, setCertificateRequests] = useState(null);
+  const [certificateRequestsLoaded, setCertificateRequestsLoaded] = useState(false);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [academicPerformance, setAcademicPerformance] = useState(null);
+  const [isLoadingAcademic, setIsLoadingAcademic] = useState(false);
+  const [latestProfileRequest, setLatestProfileRequest] = useState(null);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -22,16 +29,42 @@ export function StudentProvider({ children }) {
     }
   }, []);
 
+  const fetchAcademicPerformance = useCallback(async () => {
+    setIsLoadingAcademic(true);
+    try {
+      const res = await fetch('/api/student/academic-info');
+      const json = await res.json();
+      if (res.ok) {
+        setAcademicPerformance(json.data || []);
+        return json.data;
+      }
+    } catch (e) {
+      console.error('Failed to fetch academic performance', e);
+    } finally {
+      setIsLoadingAcademic(false);
+    }
+    return null;
+  }, []);
+
   const fetchProfile = useCallback(async (rollno) => {
     try {
-      const res = await fetch(`/api/student/${rollno}`);
-      const data = await res.json();
-      if (res.ok) {
+      const [profileRes, sigRes] = await Promise.all([
+        fetch(`/api/student/${rollno}`),
+        fetch('/api/student/signature')
+      ]);
+      
+      const data = await profileRes.json();
+      if (profileRes.ok) {
         if (data.student && data.student.pfp) {
-          // Append timestamp to avoid caching issues if pfp changes
-          data.student.pfp = `${data.student.pfp}?t=${new Date().getTime()}`;
+          data.student.pfp = `${data.student.pfp}?t=${getNowSync().getTime()}`;
         }
         setStudentData(data);
+        
+        if (sigRes.ok) {
+          const sigData = await sigRes.json();
+          setLatestProfileRequest(sigData.latestRequest);
+        }
+        
         return data;
       } else {
         setError(data.message || 'Failed to fetch profile');
@@ -48,7 +81,10 @@ export function StudentProvider({ children }) {
       if (me.ok) {
         const user = await me.json();
         await fetchCollegeInfo();
-        return await fetchProfile(user.roll_no);
+        const profilePromise = fetchProfile(user.roll_no);
+        const academicPromise = fetchAcademicPerformance();
+        const [profile] = await Promise.all([profilePromise, academicPromise]);
+        return profile;
       }
     } catch (e) {
       setError('Failed to refresh data');
@@ -65,8 +101,38 @@ export function StudentProvider({ children }) {
     init();
   }, [refreshData]);
 
+  const resetCertificateRequests = () => {
+    setCertificateRequests(null);
+    setCertificateRequestsLoaded(false);
+  };
+
   return (
-    <StudentContext.Provider value={{ studentData, collegeInfo, setStudentData, loading, error, refreshData }}>
+    <StudentContext.Provider value={{
+      studentData,
+      collegeInfo,
+      setStudentData,
+      loading,
+      error,
+      refreshData,
+      certificateRequests,
+      setCertificateRequests,
+      certificateRequestsLoaded,
+      setCertificateRequestsLoaded,
+      isLoadingRequests,
+      setIsLoadingRequests,
+      resetCertificateRequests,
+      academicPerformance,
+      isLoadingAcademic,
+      refreshAcademic: fetchAcademicPerformance,
+      latestProfileRequest,
+      refreshProfile: async () => {
+        const me = await fetch('/api/student/me');
+        if (me.ok) {
+          const user = await me.json();
+          return fetchProfile(user.roll_no);
+        }
+      }
+    }}>
       {children}
     </StudentContext.Provider>
   );

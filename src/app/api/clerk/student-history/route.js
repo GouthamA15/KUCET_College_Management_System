@@ -1,33 +1,17 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
 import { query } from '@/lib/db';
-
-// Verify JWT (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
+  const user = await getAuthUser('clerk');
+
+  if (!user) {
+    return apiError('Unauthorized', 401);
+  }
+
+  const currentClerkId = user?.clerkId || null;
+  if (!currentClerkId) return apiError('Unauthorized: clerk id missing in token', 401);
+
   try {
-    const cookieStore = await cookies();
-    const clerkAuthCookie = cookieStore.get('clerk_auth');
-    const token = clerkAuthCookie ? clerkAuthCookie.value : null;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-    if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const currentClerkId = decoded?.clerkId || null;
-    if (!currentClerkId) return NextResponse.json({ error: 'Unauthorized: clerk id missing in token' }, { status: 401 });
-
     const url = new URL(req.url);
     const params = url.searchParams;
 
@@ -109,9 +93,9 @@ export async function GET(req) {
     const myCountRows = await query(myCountSql, [currentClerkId]);
     const myCount = (myCountRows && myCountRows[0] && myCountRows[0].cnt) ? Number(myCountRows[0].cnt) : 0;
 
-    return NextResponse.json({ records, myCount, allCount }, { status: 200 });
+    return apiResponse({ records, myCount, allCount });
   } catch (error) {
     console.error('Error in student-history GET:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return apiError('Internal Server Error', 500);
   }
 }

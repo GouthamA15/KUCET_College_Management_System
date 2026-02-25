@@ -49,8 +49,8 @@ function VerifyContent() {
   return (
    <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
          <Header />
-         <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+         <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50 ">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-0">
           <div className="flex justify-between items-center h-13">
             <div className="flex-shrink-0">
               <span className="text-white text-lg font-bold tracking-wide">VERIFICATION PORTAL</span>
@@ -58,7 +58,7 @@ function VerifyContent() {
             </div>
             </div>
             </nav>
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-5">
+    <div className="min-h-screen bg-slate-50 flex items-start sm:items-center justify-center p-5">
       
     
       <div className="bg-white shadow-2xl rounded-2xl max-w-md w-full overflow-hidden border border-slate-200">
@@ -91,6 +91,10 @@ function VerifyContent() {
                 <div className="flex flex-col border-b border-slate-200 pb-2">
                   <span className="text-xs text-slate-500 uppercase font-semibold">Hall Ticket Number</span>
                   <span className="text-slate-900 font-medium text-lg">{data.roll_no}</span>
+                </div>
+                <div className="flex flex-col border-b border-slate-200 pb-2">
+                  <span className="text-xs text-slate-500 uppercase font-semibold">Certificate Type</span>
+                  <span className="text-slate-900 font-medium text-lg">{data.cert_type}</span>
                 </div>
                 <div className="flex flex-col border-b border-slate-200 pb-2">
                   <span className="text-xs text-slate-500 uppercase font-semibold">Certificate ID</span>

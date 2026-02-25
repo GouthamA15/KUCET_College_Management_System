@@ -1,51 +1,14 @@
 import { query } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { computeAcademicYear } from '@/app/lib/academicYear';
 import { getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
-import { jwtVerify } from 'jose'; // Import jwtVerify
-
-// Helper function to verify JWT using jose (Edge compatible)
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req, context) {
-  const cookieStore = await cookies();
-  const studentAuthCookie = cookieStore.get('student_auth');
-  const clerkAuthCookie = cookieStore.get('clerk_auth'); // Get clerk auth cookie
+  // Check any valid auth
+  const user = await getAuthUser();
 
-  let isAuthenticated = false;
-
-  // Check student authentication
-  if (studentAuthCookie) {
-    const token = studentAuthCookie.value;
-    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-    if (decoded) {
-      isAuthenticated = true;
-    }
-  }
-
-  // If not authenticated as student, check clerk authentication
-  if (!isAuthenticated && clerkAuthCookie) {
-    const token = clerkAuthCookie.value;
-    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-    if (decoded && decoded.role === 'admission') { // Check if role is 'admission'
-      isAuthenticated = true;
-    }
-  }
-
-  if (!isAuthenticated) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
 
   try {
@@ -53,36 +16,63 @@ export async function GET(req, context) {
     const { rollno } = params;
 
     const studentSql = `
-      SELECT s.*, CASE WHEN si.pfp IS NOT NULL THEN 1 ELSE 0 END as has_pfp 
-      FROM students s 
-      LEFT JOIN student_images si ON s.id = si.student_id 
+      SELECT
+        s.*,
+        pd.father_name, pd.mother_name, pd.nationality, pd.religion, pd.category, pd.sub_caste, pd.area_status, pd.mother_tongue, pd.place_of_birth, pd.father_occupation, pd.guardian_mobile, pd.annual_income, pd.aadhaar_no, pd.address, pd.seat_allotted_category, pd.identification_marks, pd.blood_group,
+        ab.qualifying_exam, ab.previous_college_details, ab.medium_of_instruction, ab.ranks, ab.ssc_marks, ab.inter_marks
+      FROM students s
+      LEFT JOIN student_personal_details pd ON s.id = pd.student_id
+      LEFT JOIN student_academic_background ab ON s.id = ab.student_id
       WHERE s.roll_no = ?
     `;
     const studentResult = await query(studentSql, [rollno]);
 
     if (studentResult.length === 0) {
-      return NextResponse.json({ message: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
 
-    const student = studentResult[0];
-    const studentId = student.id;
+    const studentData = studentResult[0];
+    const studentId = studentData.id;
 
-    // Set pfp URL if image exists
-    if (student.has_pfp) {
-      student.pfp = `/api/student/image/${student.roll_no}`;
-    } else {
-      student.pfp = null;
-    }
-    // Remove temporary field
-    delete student.has_pfp;
+    const personalDetailsFields = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'guardian_mobile', 'annual_income', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
+    const academicFields = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks', 'ssc_marks', 'inter_marks'];
+    
+    const student = {};
+    const personal_details = {};
+    const academic_record = {};
+    let hasAcademicData = false;
 
-    // Derive course and admission type
+    Object.keys(studentData).forEach(key => {
+      if (personalDetailsFields.includes(key)) {
+        personal_details[key] = studentData[key];
+      } else if (academicFields.includes(key)) {
+        if (studentData[key] !== null) hasAcademicData = true;
+        academic_record[key] = studentData[key];
+      } else {
+        student[key] = studentData[key];
+      }
+    });
+
+    student.personal_details = personal_details;
+    const academics = hasAcademicData ? [academic_record] : [];
+    
     student.course = getBranchFromRoll(student.roll_no);
     student.admission_type = getAdmissionTypeFromRoll(student.roll_no);
 
+    // Fetch pfp and signature separately
+    const pfpResult = await query('SELECT 1 FROM student_images WHERE student_id = ?', [studentId]);
+    student.pfp = pfpResult.length > 0 ? `/api/student/image/${student.roll_no}` : null;
+
+    const sigRows = await query('SELECT signature FROM student_signatures WHERE student_id = ?', [studentId]);
+    if (sigRows.length > 0 && sigRows[0].signature) {
+        student.signature = `data:image/png;base64,${sigRows[0].signature.toString('base64')}`;
+    } else {
+        student.signature = null;
+    }
+
+    // Fetch one-to-many relationships separately
     const scholarshipSql = 'SELECT * FROM scholarship_sanctions WHERE student_id = ? ORDER BY sanction_date';
     let scholarship = await query(scholarshipSql, [studentId]);
-    // Normalize scholarship fields to support both old and new schemas.
     scholarship = scholarship.map(s => {
       const academic_year = s.academic_year || (s.year ? computeAcademicYear(student.roll_no, s.year) : null);
       return {
@@ -97,31 +87,15 @@ export async function GET(req, context) {
 
     const feesSql = 'SELECT * FROM student_fee_payments WHERE student_id = ? ORDER BY academic_year, transaction_date';
     const feesRaw = await query(feesSql, [studentId]);
-    // Normalize fee field names (transaction_ref_no -> transaction_ref, transaction_date -> date)
     const fees = feesRaw.map(f => ({
       ...f,
       transaction_ref: f.transaction_ref_no ?? f.transaction_ref ?? f.transactionRef ?? null,
       date: f.transaction_date ?? f.date ?? null,
     }));
 
-    // const academicsSql = 'SELECT * FROM academics WHERE student_id = ? ORDER BY year';
-    // const academics = await query(academicsSql, [studentId]);
-
-    // Fetch personal details from separate table if present
-    let personalDetails = {};
-    try {
-      const pd = await query('SELECT * FROM student_personal_details WHERE student_id = ?', [studentId]);
-      if (pd && pd.length > 0) personalDetails = pd[0];
-    } catch (e) {
-      console.warn('Could not fetch personal details:', e.message || e);
-    }
-
-    // Merge some commonly used fields for backward compatibility
-    const mergedStudent = { ...student, personal_details: personalDetails };
-
-    return NextResponse.json({ student: mergedStudent, scholarship, fees });
+    return apiResponse({ student, scholarship, fees, academics });
   } catch (error) {
     console.error('Error fetching student profile data:', error);
-    return NextResponse.json({ message: 'Failed to fetch student profile data', error: error.message }, { status: 500 });
+    return apiError('Failed to fetch student profile data', 500, error.message);
   }
 }

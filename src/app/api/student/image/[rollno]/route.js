@@ -1,8 +1,14 @@
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { getAuthUser, apiError } from '@/lib/api-utils';
 
 export async function GET(req, context) {
   try {
+    const user = await getAuthUser();
+    if (!user) {
+      return apiError('Unauthorized', 401);
+    }
+    
     const params = await context.params;
     const { rollno } = params;
 

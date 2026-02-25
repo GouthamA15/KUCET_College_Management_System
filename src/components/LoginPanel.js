@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
+import { signIn } from "next-auth/react";
 
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
@@ -318,13 +319,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   if (!activePanel) return null;
 
   return (
-    <div id="login-panels"
-      className={`overflow-hidden transition-all duration-500 ease-out ${
-        activePanel ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
-      }`}
-    >
-      <div className="bg-gradient-to-b from-[#0b3578] to-[#1a4a8f] py-8 px-4">
-        <div className="max-w-md mx-auto">
+    <div id="login-panels" className="mb-8">
+      <div className="bg-gradient-to-b from-[#0b3578] to-[#1a4a8f] py-8 lg:py-12 px-4">
+        <div className="w-full max-w-md mx-auto">
           
           {/* Student Login Panel */}
           <div 
@@ -335,19 +332,18 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
             }`}
           >
             {activePanel === 'student' && (
-              <div className="bg-white rounded-xl shadow-2xl p-8 animate-slideDown">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                    <svg className="w-8 h-8 text-[#0b3578]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-white rounded-md border shadow-sm p-6 md:p-8 animate-slideDown">
+                <div className="text-center mb-6 space-y-1">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 rounded mb-2">
+                    <svg className="w-6 h-6 text-[#0b3578]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold text-[#0b3578]">Student Login</h2>
+                  <h2 className="text-2xl font-semibold text-[#0b3578]">Student Login</h2>
                   <p className="text-gray-500 text-sm mt-1">Access your academic portal</p>
                 </div>
-                
                 {mode === 'login' ? (
                 <form onSubmit={handleStudentSubmit} className="space-y-5">
                   <div>
@@ -375,7 +371,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         }
                       }}
                       placeholder="Enter your Roll Number"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
                       required
                       maxLength={MAX_ROLL}
                     />
@@ -395,7 +391,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         value={studentForm.dob ?? ''}
                         onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
                         placeholder="Enter Password"
-                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800"
+                        className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-150 text-gray-800 text-sm"
                         required
                       />
                       <button
@@ -435,7 +431,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         <button
                           type="button"
                           onClick={() => { if (activeRole === 'student') { setMode('forgot-password'); setFpRollno(studentForm.rollNumber ?? ''); } }}
-                          className="text-xs text-blue-500 hover:text-blue-700"
+                          className="text-xs text-blue-600 hover:text-blue-800"
                         >
                           Forgot Password?
                         </button>
@@ -444,11 +440,12 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   
                   <button
                     type="submit"
-                    className="w-full bg-[#0b3578] text-white py-3 rounded-lg font-semibold hover:bg-[#0a2d66] transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full mt-2 bg-[#0b3578] text-white py-2.5 rounded-md font-medium hover:bg-[#0a2d66] transition-colors duration-150 text-sm"
                     disabled={studentLoading || !!studentRollNoError}
                   >
                     {studentLoading ? 'Logging in...' : 'Login'}
                   </button>
+
                   {studentError && (
                     <div className="text-red-600 text-sm mt-2 text-center">{studentError}</div>
                   )}
@@ -477,7 +474,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                           }
                         }}
                         placeholder="Enter your Roll Number"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
                         required
                         disabled={fpIsCheckingStatus || fpIsLoading}
                         maxLength={MAX_ROLL}
@@ -505,7 +502,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       <div className="flex items-center justify-center">
                         <button
                           type="submit"
-                          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-md focus:outline-none text-sm"
                           disabled={fpIsLoading || !fpRollnoValid || !!fpRollnoError}
                         >
                           {fpIsLoading ? 'Sending...' : 'Send Reset Link'}
@@ -517,7 +514,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   </form>
                 )}
 
-                <p className="text-center text-xs text-gray-700 mt-4">
+                <p className="mt-6 text-center text-xs text-gray-600">
                   Note : Login by DOB will work only for the students who haven&apos;t set their password yet
                 </p>
               </div>
@@ -533,18 +530,40 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
             }`}
           >
             {activePanel === 'clerk' && (
-              <div className="bg-white rounded-xl shadow-2xl p-8 animate-slideDown">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                    <svg className="w-8 h-8 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-white rounded-md border shadow-sm p-6 md:p-8 animate-slideDown">
+                <div className="text-center mb-6 space-y-1">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-green-50 rounded mb-2">
+                    <svg className="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold text-[#0b3578]">Employee Login</h2>
+                  <h2 className="text-2xl font-semibold text-[#0b3578]">Employee Login</h2>
                   <p className="text-gray-500 text-sm mt-1">Administrative staff portal</p>
                 </div>
                 
                 {mode === 'login' ? (
+                <div>
+                  <button
+                    onClick={() => signIn('google', { callbackUrl: '/api/auth/google-complete' })}
+                    className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-700 py-2.5 rounded-md font-medium hover:bg-gray-50 transition-all duration-150 mb-4"
+                  >
+                    <svg className="w-4 h-4 mr-2" viewBox="0 0 48 48" aria-hidden>
+                      <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+                      <path fill="#FF3D00" d="M6.306 14.691c-1.413 3.453-2.306 7.243-2.306 11.309C4 28.061 5.484 31.402 7.727 34.091l5.657-5.657C12.015 26.68 11.231 25.158 11.231 24s.784-2.68 2.14-3.64l-5.657-5.657z" />
+                      <path fill="#4CAF50" d="M24 48c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 40.776 26.753 42 24 42c-5.223 0-9.641-3.343-11.303-7.918l-5.657 5.657C10.237 43.945 16.598 48 24 48z" />
+                      <path fill="#1976D2" d="M43.611 20.083L43.595 20L42 20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.022 36.372 44 30.636 44 24c0-1.341-.138-2.65-.389-3.917z" />
+                    </svg>
+                    Sign in with Google
+                  </button>
+
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                      <div className="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="px-2 bg-white text-gray-500">Or</span>
+                    </div>
+                  </div>
                 <form onSubmit={handleClerkSubmit} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -555,7 +574,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       value={clerkForm.email ?? ''}
                       onChange={(e) => setClerkForm({ ...clerkForm, email: e.target.value })}
                       placeholder="Enter your email"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
                       required
                     />
                   </div>
@@ -570,7 +589,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         value={clerkForm.password ?? ''}
                         onChange={(e) => setClerkForm({ ...clerkForm, password: e.target.value })}
                         placeholder="Enter your password"
-                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
                         required
                       />
                       <button
@@ -618,7 +637,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   
                   <button
                     type="submit"
-                    className="w-full bg-green-700 text-white py-3 rounded-lg font-semibold hover:bg-green-800 transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full mt-2 bg-green-700 text-white py-2.5 rounded-md font-medium hover:bg-green-800 transition-colors duration-150 text-sm"
                   >
                     Login
                   </button>
@@ -626,6 +645,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="text-red-600 text-sm mt-2 text-center">{clerkError}</div>
                   )}
                 </form>
+                </div>
                 ) : (
                   <form onSubmit={handleForgotEmployeeSubmit} className="space-y-5">
                     <div>
@@ -671,8 +691,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
               </div>
             )}
           </div>
-
-          {/* Super Admin Login Panel */}
+                    {/* Super Admin Login Panel */}
           <div 
             className={`transition-all duration-400 ease-out ${
               activePanel === 'admin' 
@@ -681,14 +700,14 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
             }`}
           >
             {activePanel === 'admin' && (
-              <div className="bg-white rounded-xl shadow-2xl p-8 animate-slideDown">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-                    <svg className="w-8 h-8 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-white rounded-md border shadow-sm p-6 md:p-8 animate-slideDown">
+                <div className="text-center mb-6 space-y-1">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-red-50 rounded mb-2">
+                    <svg className="w-6 h-6 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold text-[#0b3578]">Super Admin</h2>
+                  <h2 className="text-2xl font-semibold text-[#0b3578]">Super Admin</h2>
                   <p className="text-gray-500 text-sm mt-1">System administrator access</p>
                 </div>
                 
@@ -703,7 +722,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       value={adminForm.email ?? ''}
                       onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
                       placeholder="Enter admin email"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
                       required
                     />
                   </div>
@@ -718,7 +737,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         value={adminForm.password ?? ''}
                         onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
                         placeholder="Enter admin password"
-                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
+                        className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
                         required
                       />
                       <button
@@ -766,7 +785,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   
                   <button
                     type="submit"
-                    className="w-full bg-red-700 text-white py-3 rounded-lg font-semibold hover:bg-red-800 transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full mt-2 bg-red-700 text-white py-2.5 rounded-md font-medium hover:bg-red-800 transition-colors duration-150 text-sm"
                   >
                     Login
                   </button>

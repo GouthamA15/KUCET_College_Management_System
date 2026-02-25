@@ -5,6 +5,7 @@ import { formatDate, parseDate } from '@/lib/date';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
   <input
@@ -25,13 +26,13 @@ export default function AddNewStudent() {
   const [mobileError, setMobileError] = useState('');
   const [incomeError, setIncomeError] = useState('');
   const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
-  const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '' });
-  const [academic, setAcademic] = useState({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
+  const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '', guardian_mobile: '' });
+  const [academic, setAcademic] = useState({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'', ssc_marks:'', inter_marks:'' });
+  const [files, setFiles] = useState({ pfp: null, signature: null });
   const [addLoading, setAddLoading] = useState(false);
   const [savedRollLocked, setSavedRollLocked] = useState(false);
   const [showAddForm, setShowAddForm] = useState(true);
   const [rollNoError, setRollNoError] = useState('');
-  const [isQualifyingExamAutofilled, setIsQualifyingExamAutofilled] = useState(false);
   const [isTotalMarksAutofilled, setIsTotalMarksAutofilled] = useState(false);
 
   useEffect(() => {
@@ -48,18 +49,13 @@ export default function AddNewStudent() {
         setRollNoError(`Roll Number must be exactly ${MAX_ROLL} characters long`);
       }
       const entranceExam = getEntranceExamQualified(basic.roll_no);
-      let newQualifyingExam = 'EAMCET'; // Default
+      let newQualifyingExam = entranceExam || 'EAMCET';
 
-      if (entranceExam) {
-        newQualifyingExam = entranceExam;
-      }
       setAcademic(prev => ({ ...prev, qualifying_exam: newQualifyingExam, ranks: '' })); // Initialize ranks to empty
-      setIsQualifyingExamAutofilled(!!entranceExam);
       setIsTotalMarksAutofilled(false); // Ranks is not autofilled based on exam
     } else {
       setRollNoError('');
       setAcademic(prev => ({ ...prev, qualifying_exam: 'EAMCET', ranks: '' })); // Reset to default if rollNo is empty
-      setIsQualifyingExamAutofilled(false);
       setIsTotalMarksAutofilled(false);
     }
   }, [basic.roll_no]);
@@ -82,6 +78,24 @@ export default function AddNewStudent() {
     const last3 = s.slice(-3);
     const rest = s.slice(0, -3);
     return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
+  };
+
+  const handleFileChange = (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // 4MB limit
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} file is too large. Max limit is 4MB.`);
+      e.target.value = null;
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFiles(prev => ({ ...prev, [type]: reader.result }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAddStudent = async (e) => {
@@ -111,9 +125,14 @@ export default function AddNewStudent() {
         mother_tongue: personal.mother_tongue || null,
         father_occupation: personal.father_occupation || null,
         annual_income: personal.annual_income || null,
+        guardian_mobile: personal.guardian_mobile || null,
         student_aadhar_no: personal.aadhaar_no || null,
         ranks: academic.ranks ? Number(academic.ranks) : null,
+        ssc_marks: academic.ssc_marks || null,
+        inter_marks: academic.inter_marks || null,
         blood_group: personal.blood_group || null,
+        pfp: files.pfp,
+        signature: files.signature,
       };
 
       const res = await fetch('/api/clerk/admission/students', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -124,11 +143,12 @@ export default function AddNewStudent() {
       setShowAddForm(false);
       try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
       setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', email:''});
-      setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '' });
+      setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '', guardian_mobile: '' });
       // reset fee_reimbursement
       setBasic(prev => ({ ...prev, fee_reimbursement: undefined }));
       setAnnualIncomeDisplay('');
-      setAcademic({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'' });
+      setAcademic({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'', ssc_marks:'', inter_marks:'' });
+      setFiles({ pfp: null, signature: null });
       setSavedRollLocked(false);
       setTimeout(()=>{ setShowAddForm(true); }, 1500);
     }catch(err){
@@ -137,10 +157,10 @@ export default function AddNewStudent() {
     }finally{ setAddLoading(false); }
   };
   
-  const genders = ['Male', 'Female'];
-  const categories = ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'];
+  const genders = COLLEGE_CONFIG.genders;
+  const categories = COLLEGE_CONFIG.categories;
 
-  const feeReimbursementOptions = ['NO', 'YES'];
+  const feeReimbursementOptions = ['NO', 'YES', 'GOV'];
 
   return (
     showAddForm ? (
@@ -172,7 +192,15 @@ export default function AddNewStudent() {
               {genders.map(g=> <option key={g} value={g}>{g}</option>)}
             </select>
             <select value={basic.fee_reimbursement || 'NO'} onChange={e=>setBasic({...basic, fee_reimbursement: e.target.value})} className="p-2 border rounded">
-              {feeReimbursementOptions.map(o => <option key={o} value={o}>{o === 'YES' ? 'Fee Reimbursement: YES' : 'Fee Reimbursement: NO'}</option>)}
+              {feeReimbursementOptions.map(o => (
+                <option key={o} value={o}>
+                  {o === 'YES'
+                    ? 'Fee Reimbursement: YES'
+                    : o === 'NO'
+                      ? 'Fee Reimbursement: NO'
+                      : 'Fee Reimbursement: GOV'}
+                </option>
+              ))}
             </select>
             <input placeholder="Course" value={getBranchFromRoll(basic.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
             <input placeholder="Admission Type" value={getAdmissionTypeFromRoll(basic.roll_no) || ''} disabled className="p-2 border rounded bg-gray-100" />
@@ -245,45 +273,82 @@ export default function AddNewStudent() {
                 e.preventDefault();
               }}
             />
+            <div className="flex items-center">
+              <span className="px-3 py-2 border border-r-0 bg-gray-100 text-sm text-gray-500 font-medium">+91</span>
+              <input
+                placeholder="Guardian Mobile"
+                value={personal.guardian_mobile}
+                onChange={(e) => {
+                  const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, 10);
+                  setPersonal({...personal, guardian_mobile: digits});
+                }}
+                className="p-2 border rounded rounded-l-none w-full"
+                inputMode="numeric"
+                maxLength={10}
+              />
+            </div>
             {incomeError && <div className="text-xs text-red-600 mt-1">{incomeError}</div>}
             <input placeholder="Aadhaar Number" value={personal.aadhaar_no} onChange={e=>setPersonal({...personal, aadhaar_no: formatAadhaar(e.target.value)})} className="p-2 border rounded" maxLength={14} />
             <select value={personal.blood_group || ''} onChange={e=>setPersonal({...personal, blood_group: e.target.value})} className="p-2 border rounded">
               <option value="">Blood Group (optional)</option>
-              <option>A+</option>
-              <option>A-</option>
-              <option>B+</option>
-              <option>B-</option>
-              <option>AB+</option>
-              <option>AB-</option>
-              <option>O+</option>
-              <option>O-</option>
+              {COLLEGE_CONFIG.bloodGroups.map(bg => (
+                <option key={bg} value={bg}>{bg}</option>
+              ))}
             </select>
         </div>
         </div>
               <textarea placeholder="Address" value={personal.address} onChange={e=>setPersonal({...personal, address:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" style={{overflow: 'hidden'}} />
-        <div>
               <textarea placeholder="Identification Marks (optional)" value={personal.identification_marks} onChange={e=>setPersonal({...personal, identification_marks:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" style={{overflow: 'hidden'}} />
+        <div>
+          <h3 className="font-bold">Section C: Academic & Identification</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
             <select
               value={academic.qualifying_exam}
               onChange={e => setAcademic({...academic, qualifying_exam:e.target.value})}
-              disabled={isQualifyingExamAutofilled}
-              className={`p-2 border rounded ${isQualifyingExamAutofilled ? 'bg-gray-100' : ''}`}
+              className="p-2 border rounded"
             >
               <option>EAMCET</option>
               <option>ECET</option>
               <option>PGECET</option>
             </select>
+            <input
+              placeholder="SSC (10th) Marks"
+              value={academic.ssc_marks}
+              onChange={e => setAcademic({...academic, ssc_marks:e.target.value})}
+              className="p-2 border rounded"
+            />
+            <input
+              placeholder="Inter / Diploma Marks"
+              value={academic.inter_marks}
+              onChange={e => setAcademic({...academic, inter_marks:e.target.value})}
+              className="p-2 border rounded"
+            />
             <textarea placeholder="Previous College Details" value={academic.previous_college_details} onChange={e=>setAcademic({...academic, previous_college_details:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" rows={3} style={{overflow:'hidden'}} />
             <select value={academic.medium_of_instruction} onChange={e=>setAcademic({...academic, medium_of_instruction:e.target.value})} className="p-2 border rounded"><option>Telugu</option><option>English</option><option>Other</option></select>
             
             <input
-              placeholder="Ranks"
+              placeholder="Entrance Rank"
               type="number"
               value={academic.ranks}
               onChange={e => setAcademic({...academic, ranks:e.target.value})}
               className="p-2 border rounded"
             />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="font-bold">Section D: Documents Upload (Max 4MB)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Student Photo (PFP)</label>
+              <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="p-2 border rounded w-full" />
+              {files.pfp && <img src={files.pfp} alt="Preview" className="h-20 w-20 object-cover border rounded mt-1" />}
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Student Signature</label>
+              <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="p-2 border rounded w-full" />
+              {files.signature && <img src={files.signature} alt="Preview" className="h-12 w-32 object-contain border rounded mt-1" />}
+            </div>
           </div>
         </div>
 

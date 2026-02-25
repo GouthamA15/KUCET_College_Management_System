@@ -1,9 +1,10 @@
 'use client';
 import Image from 'next/image';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 export default function Header() {
   const handlePhoneClick = () => {
-    navigator.clipboard.writeText('0870-2970125');
+    navigator.clipboard.writeText(COLLEGE_CONFIG.contact);
     alert('Phone number copied to clipboard!');
   };
 
@@ -47,14 +48,14 @@ export default function Header() {
 
         {/* Center Title Block */}
         <div className="text-center flex-1 px-2">
-          <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-[#0d47a1] m-0 leading-none">
-            KU COLLEGE OF ENGINEERING AND TECHNOLOGY
+          <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-[#0d47a1] m-0 leading-none uppercase">
+            {COLLEGE_CONFIG.name}
           </h2>
-          <h3 className="text-base md:text-lg lg:text-xl font-semibold text-[#1565c0] mt-0.5 mb-0 leading-tight">
+          <h3 className="text-base md:text-lg lg:text-xl font-semibold text-[#1565c0] mt-0.5 mb-0 leading-tight uppercase">
             KAKATIYA UNIVERSITY
           </h3>
           <p className="text-xs md:text-sm text-[#444] mt-0 mb-0">
-            Warangal - 506009
+            {COLLEGE_CONFIG.location} - {COLLEGE_CONFIG.pincode}
           </p>
         </div>
         
@@ -82,9 +83,9 @@ export default function Header() {
           
           <div className="flex flex-col justify-center h-full py-0.5">
             <div className="text-[11px] lg:text-[12px] text-[#333] leading-tight">
-              <p className="m-0"><b>PGECET:</b> KUWL1</p>
-              <p className="m-0"><b>EAPCET:</b> KUWL</p>
-              <p className="m-0"><b>ECET:</b> KUWL</p>
+              <p className="m-0"><b>PGECET:</b> {COLLEGE_CONFIG.entranceCodes.pgecet}</p>
+              <p className="m-0"><b>EAPCET:</b> {COLLEGE_CONFIG.entranceCodes.eapcet}</p>
+              <p className="m-0"><b>ECET:</b> {COLLEGE_CONFIG.entranceCodes.ecet}</p>
             </div>
             
             {/* Contact Number */}
@@ -93,7 +94,7 @@ export default function Header() {
               className="text-[12px] text-[#e91e63] font-bold cursor-pointer hover:text-pink-700 transition-colors whitespace-nowrap mt-1 leading-none"
               title="Click to copy phone number"
             >
-              ☎️ 0870-2970125
+              ☎️ {COLLEGE_CONFIG.contact}
             </p>
           </div>
         </div>
@@ -133,32 +134,32 @@ export default function Header() {
 
         {/* Title Block */}
         <div className="text-center mb-1.5">
-          <h2 className="text-sm font-bold text-[#0d47a1] m-0 leading-tight">
-            KU COLLEGE OF ENGINEERING AND TECHNOLOGY
+          <h2 className="text-sm font-bold text-[#0d47a1] m-0 leading-tight uppercase">
+            {COLLEGE_CONFIG.name}
           </h2>
-          <h3 className="text-xs font-semibold text-[#1565c0] mt-0.5 mb-0">
+          <h3 className="text-xs font-semibold text-[#1565c0] mt-0.5 mb-0 uppercase">
             KAKATIYA UNIVERSITY
           </h3>
           <p className="text-[10px] text-[#444] mt-0 mb-0">
-            Warangal - 506009
+            {COLLEGE_CONFIG.location} - {COLLEGE_CONFIG.pincode}
           </p>
         </div>
 
         {/* Contact & Codes Row */}
         <div className="flex items-center justify-between text-[10px] border-t border-blue-100 pt-1 mt-1">
           <div className="text-[#333]">
-            <span><b>PGECET:</b> KUWL1</span>
+            <span><b>PGECET:</b> {COLLEGE_CONFIG.entranceCodes.pgecet}</span>
             <span className="mx-1">|</span>
-            <span><b>EAPCET:</b> KUWL</span>
+            <span><b>EAPCET:</b> {COLLEGE_CONFIG.entranceCodes.eapcet}</span>
             <span className="mx-1">|</span>
-            <span><b>ECET:</b> KUWL</span>
+            <span><b>ECET:</b> {COLLEGE_CONFIG.entranceCodes.ecet}</span>
           </div>
           <p 
             onClick={handlePhoneClick}
             className="text-[#e91e63] font-bold cursor-pointer m-0"
             title="Click to copy phone number"
           >
-            ☎️ 0870-2970125
+            ☎️ {COLLEGE_CONFIG.contact}
           </p>
         </div>
       </div>

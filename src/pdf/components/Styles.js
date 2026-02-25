@@ -6,8 +6,6 @@ export const styles = StyleSheet.create({
       fontSize: 16,
       color: "#000",
       padding: 40, // approx ~15mm equivalent
-      borderWidth: 4,
-      borderColor: "#000",
       borderStyle: "solid",
       position: "relative",
     },
@@ -80,10 +78,10 @@ export const styles = StyleSheet.create({
     },
     watermark: {
       position: "absolute",
-      top: -70,
-      left: 70, 
-      width: 300,
-      opacity: 0.12,
+      top: 160,
+      left: 60, 
+      width: 400,
+      opacity: 0.1,
       zIndex: -1,
     },
     bold: {
@@ -92,15 +90,6 @@ export const styles = StyleSheet.create({
     
     signatureSection: {
       marginTop: 40,
-      marginRight: 20,
-      alignSelf: "flex-end",
-      alignItems: "flex-end",
-      textAlign: "center",
-      width: 300,
-    },
-
-    custodianSignSection: {
-      marginTop: 50,
       marginRight: 20,
       alignSelf: "flex-end",
       alignItems: "flex-end",
@@ -135,6 +124,13 @@ export const styles = StyleSheet.create({
       left: 30,
       alignItems: "center",
       width: 100,
+    },
+    qrSectionCenter: {
+      position: "absolute",
+      bottom: 30,
+      left: 0,
+      right: 0,
+      alignItems: "center",
     },
     qrImage: {
       height: 80,

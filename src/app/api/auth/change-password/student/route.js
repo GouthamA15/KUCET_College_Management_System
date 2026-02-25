@@ -1,45 +1,37 @@
 import { query } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
-import * as nextHeaders from 'next/headers';
-import { verifyJwt } from '@/lib/auth';
 
 export async function POST(req) {
   try {
-    const token = (await nextHeaders.cookies()).get('student_auth')?.value;
+    const user = await getAuthUser('student');
 
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-
-    if (!decoded) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) {
+      return apiError('Unauthorized', 401);
     }
 
     const { oldPassword, newPassword } = await req.json();
 
-    const [student] = await query('SELECT password_hash FROM students WHERE roll_no = ?', [decoded.roll_no]);
+    const [student] = await query('SELECT password_hash FROM students WHERE roll_no = ?', [user.roll_no]);
 
     if (!student) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      return apiError('Student not found', 404);
     }
 
     const match = await bcrypt.compare(oldPassword, student.password_hash);
 
     if (!match) {
-      return NextResponse.json({ error: 'Invalid old password' }, { status: 400 });
+      return apiError('Invalid old password', 400);
     }
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-    await query('UPDATE students SET password_hash = ? WHERE roll_no = ?', [hashedPassword, decoded.roll_no]);
+    await query('UPDATE students SET password_hash = ? WHERE roll_no = ?', [hashedPassword, user.roll_no]);
 
-    return NextResponse.json({ message: 'Password changed successfully' }, { status: 200 });
+    return apiResponse({ message: 'Password changed successfully' });
   } catch (error) {
     console.error('CHANGE PASSWORD ERROR:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return apiError('Internal server error', 500);
   }
 }

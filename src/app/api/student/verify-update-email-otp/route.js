@@ -1,40 +1,18 @@
 import { getDb } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-async function verifyJwt(token, secret) {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey, {
-      algorithms: ['HS256'],
-    });
-    return payload;
-  } catch (error) {
-    console.error('JWT Verification failed:', error);
-    return null;
-  }
-}
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(req) {
-  const cookieStore = await cookies();
-  const studentAuthCookie = cookieStore.get('student_auth');
-  const token = studentAuthCookie ? studentAuthCookie.value : null;
+  const user = await getAuthUser('student');
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const decoded = await verifyJwt(token, process.env.JWT_SECRET);
-  if (!decoded) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return apiError('Unauthorized', 401);
   }
   
   try {
     const { rollno, otp, email } = await req.json();
 
     if (!rollno || !otp || !email) {
-      return NextResponse.json({ message: 'Missing roll number, OTP, or email' }, { status: 400 });
+      return apiError('Missing roll number, OTP, or email', 400);
     }
 
     const db = getDb();
@@ -43,7 +21,7 @@ export async function POST(req) {
     const [rows] = await db.execute('SELECT * FROM otp_codes WHERE roll_no = ? AND otp_code = ?', [rollno, otp]);
 
     if (rows.length === 0) {
-      return NextResponse.json({ message: 'Invalid or expired OTP.' }, { status: 400 });
+      return apiError('Invalid or expired OTP.', 400);
     }
 
     const otpData = rows[0];
@@ -52,7 +30,7 @@ export async function POST(req) {
     if (new Date() > new Date(otpData.expires_at)) {
       // Clean up expired OTP
       await db.execute('DELETE FROM otp_codes WHERE id = ?', [otpData.id]);
-      return NextResponse.json({ message: 'OTP has expired. Please request a new one.' }, { status: 400 });
+      return apiError('OTP has expired. Please request a new one.', 400);
     }
     
     // OTP is valid, update the student's email and mark it verified
@@ -61,10 +39,10 @@ export async function POST(req) {
     // Clean up the used OTP
     await db.execute('DELETE FROM otp_codes WHERE id = ?', [otpData.id]);
     
-    return NextResponse.json({ message: 'Email address verified and updated successfully!' }, { status: 200 });
+    return apiResponse({ message: 'Email address verified and updated successfully!' });
 
   } catch (error) {
     console.error('Verify OTP Error:', error);
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return apiError('An internal server error occurred.', 500);
   }
 }

@@ -7,19 +7,14 @@ import StudentProfileCard from '@/components/StudentProfileCard';
 import { useRef, useEffect, useState } from 'react';
 import { useAdmin } from '@/context/AdminContext';
 import CollegeInfoEditor from '@/components/admin/CollegeInfoEditor';
-import { validateRollNo } from '@/lib/rollNumber'; // Added this line back
+import { validateRollNo } from '@/lib/rollNumber';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
+import FacultyInterestsManager from '@/components/admin/FacultyInterestsManager';
+import { getNowSync } from '@/lib/clock';
 
-const BRANCHES = [
-  { code: '09', name: 'CSE' },
-  { code: '30', name: 'CSD' },
-  { code: '15', name: 'ECE' },
-  { code: '12', name: 'EEE' },
-  { code: '00', name: 'CIVIL' },
-  { code: '18', name: 'IT' },
-  { code: '03', name: 'MECH' },
-];
+const BRANCHES = COLLEGE_CONFIG.branches;
 
-const currentYear = new Date().getFullYear();
+const currentYear = getNowSync().getFullYear();
 const YEARS = Array.from({ length: 4 }, (_, i) => (currentYear - i).toString()).reverse();
 
 export default function AdminDashboardPage() {
@@ -32,9 +27,10 @@ export default function AdminDashboardPage() {
   const [allError, setAllError] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('CSE');
   const [selectedStudyingYear, setSelectedStudyingYear] = useState('1'); 
+  const [activeTab, setActiveTab] = useState('stats'); // 'stats', 'faculty'
 
-  const totalClerks = clerks?.length || 0;
-  const activeClerks = clerks?.filter(c => c.is_active).length || 0;
+  const totalClerks = Array.isArray(clerks) ? clerks.length : 0;
+  const activeClerks = Array.isArray(clerks) ? clerks.filter(c => c.is_active).length : 0;
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -100,7 +96,7 @@ export default function AdminDashboardPage() {
       <Header />
       <AdminNavbar />
       <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center py-8">
-        <div className="w-full max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
+        <div className="w-full max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
           <h1 className="text-2xl font-bold text-[#0b3578] mb-6">Admin Dashboard</h1>
           <form onSubmit={handleSearch} className="w-full flex flex-col sm:flex-row gap-2 mb-6">
             <input
@@ -112,63 +108,81 @@ export default function AdminDashboardPage() {
             />
             <button type="submit" className="bg-[#0b3578] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#0a2d66] transition-all cursor-pointer">Search</button>
           </form>
+
+          <div className="w-full flex border-b mb-6">
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`px-6 py-2 font-semibold transition ${activeTab === 'stats' ? 'text-[#0b3578] border-b-2 border-[#0b3578]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Overview & Stats
+            </button>
+            <button
+              onClick={() => setActiveTab('faculty')}
+              className={`px-6 py-2 font-semibold transition ${activeTab === 'faculty' ? 'text-[#0b3578] border-b-2 border-[#0b3578]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Faculty Management
+            </button>
+          </div>
+
           {searchError && <div className="text-red-600 text-sm mb-2">{searchError}</div>}
           {searchedStudent && (
             <div className="w-full mb-6">
               <StudentProfileCard student={searchedStudent} />
             </div>
           )}
-          <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-blue-50 rounded-lg p-4 flex justify-between items-center">
-              <span className="font-semibold text-blue-900">Total Clerks</span>
-              <span className="text-xl font-bold text-blue-700">{totalClerks}</span>
-            </div>
-            <div className="bg-green-50 rounded-lg p-4 flex justify-between items-center">
-              <span className="font-semibold text-green-900">Active Clerks</span>
-              <span className="text-xl font-bold text-green-700">{activeClerks}</span>
-            </div>
-            {/* New card for Total Students in College */}
-            <div className="bg-purple-50 rounded-lg p-4 flex justify-between items-center">
-              <span className="font-semibold text-purple-900">Total Students</span>
-              <span className="text-xl font-bold text-purple-700">{totalStudentsInCollege}</span>
-            </div>
-            {/* Original "Pending Requests" card moved or replaced */}
-            {/* If you want to keep "Pending Requests", you can add it back here */}
-            {/* <div className="bg-yellow-50 rounded-lg p-4 flex justify-between items-center">
-              <span className="font-semibold text-yellow-900">Pending Requests</span>
-              <span className="text-xl font-bold text-yellow-700">0</span>
-            </div> */}
-          </div>
 
-          <div className="w-full mb-4 overflow-x-auto">
-            <h2 className="text-lg font-semibold text-[#0b3578] mb-2">Student Statistics</h2>
-            {studentStats ? (
-              <table className="min-w-full bg-white border border-gray-200">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">Branch</th>
-                    {studyYears.map(year => (
-                      <th key={year} className="py-2 px-4 border-b text-center text-sm font-semibold text-gray-600">Year {year}</th>
-                    ))}
-                    <th className="py-2 px-4 border-b text-center text-sm font-semibold text-gray-600">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.keys(studentStats).sort().map(branch => (
-                    <tr key={branch} className="hover:bg-gray-50">
-                      <td className="py-2 px-4 border-b text-sm text-gray-800 font-medium">{branch}</td>
-                      {studyYears.map(year => (
-                        <td key={year} className="py-2 px-4 border-b text-center text-sm text-gray-800">{studentStats[branch][year]}</td>
+          {activeTab === 'stats' ? (
+            <>
+              <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-lg p-4 flex justify-between items-center">
+                  <span className="font-semibold text-blue-900">Total Clerks</span>
+                  <span className="text-xl font-bold text-blue-700">{totalClerks}</span>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 flex justify-between items-center">
+                  <span className="font-semibold text-green-900">Active Clerks</span>
+                  <span className="text-xl font-bold text-green-700">{activeClerks}</span>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-4 flex justify-between items-center">
+                  <span className="font-semibold text-purple-900">Total Students</span>
+                  <span className="text-xl font-bold text-purple-700">{totalStudentsInCollege}</span>
+                </div>
+              </div>
+
+              <div className="w-full mb-4 overflow-x-auto">
+                <h2 className="text-lg font-semibold text-[#0b3578] mb-2">Student Statistics</h2>
+                {studentStats ? (
+                  <table className="min-w-full bg-white border border-gray-200">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">Branch</th>
+                        {studyYears.map(year => (
+                          <th key={year} className="py-2 px-4 border-b text-center text-sm font-semibold text-gray-600">Year {year}</th>
+                        ))}
+                        <th className="py-2 px-4 border-b text-center text-sm font-semibold text-gray-600">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.keys(studentStats).sort().map(branch => (
+                        <tr key={branch} className="hover:bg-gray-50">
+                          <td className="py-2 px-4 border-b text-sm text-gray-800 font-medium">{branch}</td>
+                          {studyYears.map(year => (
+                            <td key={year} className="py-2 px-4 border-b text-center text-sm text-gray-800">{studentStats[branch][year]}</td>
+                          ))}
+                          <td className="py-2 px-4 border-b text-center text-sm text-gray-800 font-bold">{studentStats[branch].total}</td>
+                        </tr>
                       ))}
-                      <td className="py-2 px-4 border-b text-center text-sm text-gray-800 font-bold">{studentStats[branch].total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p>Loading student stats...</p>
-            )}
-          </div>
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>Loading student stats...</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="w-full">
+              <FacultyInterestsManager />
+            </div>
+          )}
 
         </div>
           <div className="w-full max-w-4xl mx-auto mt-8">
