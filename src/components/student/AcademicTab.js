@@ -99,35 +99,52 @@ export default function AcademicTab() {
               <tr>
                 <th className="px-4 py-3 text-left font-bold text-gray-600">Subject</th>
                 <th className="px-4 py-3 text-center font-bold text-gray-600">Attendance</th>
-                <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-I</th>
-                <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-II</th>
-                <th className="px-4 py-3 text-center font-bold text-gray-600">Assign.</th>
+                <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-I / Execution</th>
+                <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-II / Writing</th>
+                <th className="px-4 py-3 text-center font-bold text-gray-600">Assign. / Record</th>
                 <th className="px-4 py-3 text-center font-bold text-indigo-600 bg-indigo-50">Total Marks</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {data.map((sub) => {
                 const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
-                const mMax = sub.mid_max || 20;
-                const assignMax = mMax === 25 ? 5 : 10;
-                const totalMax = 30;
+                const isLab = sub.subject_type === 'lab';
                 
+                // Max Mark Calculation
+                const m1m = isLab ? 10 : (sub.mid_max || 20);
+                const m2m = isLab ? 10 : (sub.mid_max || 20);
+                const am = isLab ? 5 : (sub.mid_max === 25 ? 5 : 10);
+                const totalMax = isLab ? 25 : 30;
+                
+                // Mark labels
+                const l1 = isLab ? 'Execution' : 'Mid-I';
+                const l2 = isLab ? 'Writing' : 'Mid-II';
+                const l3 = isLab ? 'Record' : 'Assign.';
+
                 // Calculate Internal Total
-                // Typically: (Best of Mid1, Mid2) + Assignment
                 const m1 = sub.mid1_marks !== null ? parseFloat(sub.mid1_marks) : null;
                 const m2 = sub.mid2_marks !== null ? parseFloat(sub.mid2_marks) : null;
                 const assgn = sub.assignment_marks !== null ? parseFloat(sub.assignment_marks) : 0;
                 
                 let internalTotal = null;
-                if (m1 !== null || m2 !== null) {
-                  const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
-                  internalTotal = bestMid + assgn;
+                if (isLab) {
+                  // Lab: sum of everything
+                  internalTotal = (m1 ?? 0) + (m2 ?? 0) + (assgn ?? 0);
+                } else {
+                  // Theory: Best of mid + assignment
+                  if (m1 !== null || m2 !== null) {
+                    const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
+                    internalTotal = bestMid + assgn;
+                  }
                 }
 
                 return (
                   <tr key={sub.assignment_id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-4">
-                      <div className="font-bold text-gray-900">{sub.subject_name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-bold text-gray-900">{sub.subject_name}</div>
+                        {isLab && <span className="text-[8px] bg-amber-50 text-amber-600 border border-amber-100 px-1 rounded font-black uppercase">Lab</span>}
+                      </div>
                       <div className="text-[10px] text-gray-400 font-mono">{sub.subject_code} • {sub.faculty_name}</div>
                     </td>
                     <td className="px-4 py-4 text-center">
@@ -144,7 +161,7 @@ export default function AcademicTab() {
                         <span className={`font-mono font-bold ${sub.mid1_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
                           {sub.mid1_marks ?? '--'}
                         </span>
-                        <span className="text-[8px] text-gray-400 font-bold uppercase">Max: {mMax}</span>
+                        <span className="text-[8px] text-gray-400 font-bold uppercase">{l1} Max: {m1m}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-center">
@@ -152,7 +169,7 @@ export default function AcademicTab() {
                         <span className={`font-mono font-bold ${sub.mid2_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
                           {sub.mid2_marks ?? '--'}
                         </span>
-                        <span className="text-[8px] text-gray-400 font-bold uppercase">Max: {mMax}</span>
+                        <span className="text-[8px] text-gray-400 font-bold uppercase">{l2} Max: {m2m}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-center">
@@ -160,7 +177,7 @@ export default function AcademicTab() {
                         <span className={`font-mono font-bold ${sub.assignment_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
                           {sub.assignment_marks ?? '--'}
                         </span>
-                        <span className="text-[8px] text-gray-400 font-bold uppercase">Max: {assignMax}</span>
+                        <span className="text-[8px] text-gray-400 font-bold uppercase">{l3} Max: {am}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-center bg-indigo-50/30">
@@ -168,7 +185,7 @@ export default function AcademicTab() {
                         <span className={`font-mono font-black text-lg ${internalTotal === null ? 'text-gray-300' : 'text-indigo-700'}`}>
                           {internalTotal !== null ? internalTotal.toFixed(1) : '--'}
                         </span>
-                        <span className="text-[9px] text-indigo-400 font-bold uppercase">Out of 30</span>
+                        <span className="text-[9px] text-indigo-400 font-bold uppercase">Out of {totalMax}</span>
                       </div>
                     </td>
                   </tr>

@@ -7,6 +7,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [midMax, setMidMax] = useState(20);
+  const [subjectType, setSubjectType] = useState('theory'); // 'theory' | 'lab'
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -24,6 +25,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
       }));
       setStudents(studentsWithMarks);
       if (data.mid_max) setMidMax(data.mid_max);
+      if (data.subject_type) setSubjectType(data.subject_type);
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -45,16 +47,25 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   const handleMarkChange = (studentId, field, value) => {
     // Basic range validation
     let numericValue = parseFloat(value);
-    const assignMax = midMax === 25 ? 5 : 10;
+    
+    // Determine max based on subject type and pattern
+    let max;
+    if (subjectType === 'lab') {
+      if (field === 'mid1_marks') max = 10; // Execution
+      else if (field === 'mid2_marks') max = 10; // Writing
+      else if (field === 'assignment_marks') max = 5; // Record
+    } else {
+      // Theory
+      if (field === 'assignment_marks') {
+        max = midMax === 25 ? 5 : 10;
+      } else {
+        max = midMax;
+      }
+    }
 
     if (!isNaN(numericValue)) {
-      if (field === 'assignment_marks') {
-        if (numericValue < 0) numericValue = 0;
-        if (numericValue > assignMax) numericValue = assignMax;
-      } else {
-        if (numericValue < 0) numericValue = 0;
-        if (numericValue > midMax) numericValue = midMax;
-      }
+      if (numericValue < 0) numericValue = 0;
+      if (numericValue > max) numericValue = max;
       value = numericValue;
     }
 
@@ -64,11 +75,16 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   };
 
   const handleSaveMarks = async () => {
-    const assignMax = midMax === 25 ? 5 : 10;
-    
-    // Final check before submission
+    // Final validation loop
     for (const s of students) {
-      if (s.mid1_marks > midMax || s.mid2_marks > midMax || s.assignment_marks > assignMax) {
+      let m1Max, m2Max, aMax;
+      if (subjectType === 'lab') {
+        m1Max = 10; m2Max = 10; aMax = 5;
+      } else {
+        m1Max = midMax; m2Max = midMax; aMax = (midMax === 25 ? 5 : 10);
+      }
+
+      if (s.mid1_marks > m1Max || s.mid2_marks > m2Max || s.assignment_marks > aMax) {
         toast.error(`Invalid marks detected for ${s.roll_no}. Please correct them.`);
         return;
       }
@@ -102,6 +118,11 @@ export default function MarksEntrySheet({ assignment, onBack }) {
 
   if (loading) return <div className="text-center py-4">Loading students...</div>;
 
+  // UI Helper for Labels
+  const labels = subjectType === 'lab' 
+    ? { m1: 'Execution', m2: 'Writing', a: 'Record', m1m: 10, m2m: 10, am: 5, total: 25 }
+    : { m1: 'Mid-I', m2: 'Mid-II', a: 'Assignment', m1m: midMax, m2m: midMax, am: (midMax === 25 ? 5 : 10), total: 30 };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-md mt-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -109,12 +130,17 @@ export default function MarksEntrySheet({ assignment, onBack }) {
           <button onClick={onBack} className="text-indigo-600 hover:text-indigo-800 font-medium mb-2 block">
             &larr; Back to Subjects
           </button>
-          <h2 className="text-xl font-bold">{assignment.subject_name} - Mid Marks</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold">{assignment.subject_name}</h2>
+            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${subjectType === 'lab' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+              {subjectType}
+            </span>
+          </div>
           <p className="text-sm text-gray-500">{assignment.branch} | Sem {assignment.semester}</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-4">
-          {assignment.is_active && (
+          {assignment.is_active && subjectType === 'theory' && (
             hasExistingMarks ? (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border rounded-lg text-gray-500">
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -141,6 +167,12 @@ export default function MarksEntrySheet({ assignment, onBack }) {
             )
           )}
 
+          {subjectType === 'lab' && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-100 rounded-lg text-amber-700">
+               <span className="text-xs font-black uppercase tracking-tight">Lab Pattern: 10 + 10 + 5</span>
+            </div>
+          )}
+
           {assignment.is_active ? (
             <button
               onClick={handleSaveMarks}
@@ -163,10 +195,10 @@ export default function MarksEntrySheet({ assignment, onBack }) {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase font-black">Mid-I ({midMax})</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase font-black">Mid-II ({midMax})</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase font-black">Assignment ({midMax === 25 ? 5 : 10})</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-indigo-600 bg-indigo-50 uppercase font-black">Total (30)</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase font-black">{labels.m1} ({labels.m1m})</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase font-black">{labels.m2} ({labels.m2m})</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase font-black">{labels.a} ({labels.am})</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-indigo-600 bg-indigo-50 uppercase font-black">Total ({labels.total})</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -174,12 +206,17 @@ export default function MarksEntrySheet({ assignment, onBack }) {
               const m1 = student.mid1_marks !== '' ? parseFloat(student.mid1_marks) : null;
               const m2 = student.mid2_marks !== '' ? parseFloat(student.mid2_marks) : null;
               const assgn = student.assignment_marks !== '' ? parseFloat(student.assignment_marks) : 0;
-              const assignMax = midMax === 25 ? 5 : 10;
               
               let internalTotal = null;
-              if (m1 !== null || m2 !== null) {
-                const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
-                internalTotal = bestMid + assgn;
+              if (subjectType === 'lab') {
+                // Lab Total = Execution + Writing + Record
+                internalTotal = (m1 ?? 0) + (m2 ?? 0) + (assgn ?? 0);
+              } else {
+                // Theory Total = Best of Mid + Assignment
+                if (m1 !== null || m2 !== null) {
+                  const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
+                  internalTotal = bestMid + assgn;
+                }
               }
 
               return (
@@ -190,7 +227,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
                     <input
                       type="number"
                       min="0"
-                      max={midMax}
+                      max={labels.m1m}
                       step="0.5"
                       value={student.mid1_marks}
                       onChange={(e) => handleMarkChange(student.id, 'mid1_marks', e.target.value)}
@@ -202,7 +239,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
                     <input
                       type="number"
                       min="0"
-                      max={midMax}
+                      max={labels.m2m}
                       step="0.5"
                       value={student.mid2_marks}
                       onChange={(e) => handleMarkChange(student.id, 'mid2_marks', e.target.value)}
@@ -214,7 +251,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
                     <input
                       type="number"
                       min="0"
-                      max={assignMax}
+                      max={labels.am}
                       step="0.5"
                       value={student.assignment_marks}
                       onChange={(e) => handleMarkChange(student.id, 'assignment_marks', e.target.value)}

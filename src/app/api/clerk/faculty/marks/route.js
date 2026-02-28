@@ -19,9 +19,9 @@ export async function GET(request) {
 
     const db = getDb();
     
-    // Fetch assignment details including mid_max and subject_type
+    // Fetch assignment details including mid_max
     const [assignments] = await db.execute(
-      'SELECT id, mid_max, subject_type, branch, course_semester, academic_year FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
+      'SELECT id, mid_max, branch, course_semester, academic_year, subject_name, subject_code FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
       [assignment_id, user.id]
     );
 
@@ -30,16 +30,23 @@ export async function GET(request) {
     }
 
     const assignment = assignments[0];
-    const { branch, course_semester, academic_year, subject_type } = assignment;
+    const { branch, course_semester, academic_year, subject_name, subject_code } = assignment;
     const midMax = assignment.mid_max || 20;
+    const isLab = subject_name?.toLowerCase().includes('lab');
+
+    // --- SHARED DATA LOGIC: Canonical ID ---
+    // Multiple faculty sharing the same subject identity will see the same marks data
+    const [canonicalRows] = await db.execute(`
+      SELECT id FROM faculty_subject_assignments 
+      WHERE subject_code = ? AND branch = ? AND course_semester = ? AND academic_year = ?
+      ORDER BY created_at ASC LIMIT 1
+    `, [subject_code, branch, course_semester, academic_year]);
+    
+    const canonicalId = canonicalRows[0]?.id || assignment_id;
 
     // --- PRECISE SEMESTER-AWARE STUDENT FILTERING ---
-    // academic_year format "2024-25" -> start year 2024
     const startYear = parseInt(academic_year.split('-')[0]);
     const studyingYear = Math.ceil(course_semester / 2);
-    
-    // For Regular: EntryYear = startYear - (studyingYear - 1)
-    // For Lateral: EntryYear = startYear - (studyingYear - 2) if studyingYear >= 2
     const entryYearRegular = (startYear - (studyingYear - 1)).toString().slice(-2);
     const entryYearLateral = (startYear - (studyingYear - 2)).toString().slice(-2);
 
@@ -60,7 +67,7 @@ export async function GET(request) {
       WHERE (s.roll_no LIKE ?
     `;
 
-    const params = [assignment_id, regularPattern];
+    const params = [canonicalId, regularPattern];
     if (studyingYear >= 2) {
       studentsQuery += ' OR s.roll_no LIKE ?';
       params.push(lateralPattern);
@@ -69,7 +76,12 @@ export async function GET(request) {
 
     const [students] = await db.execute(studentsQuery, params);
 
-    return apiResponse({ data: students, mid_max: midMax, subject_type: subject_type || 'theory' });
+    return apiResponse({ 
+      data: students, 
+      mid_max: midMax, 
+      subject_type: isLab ? 'lab' : 'theory',
+      canonical_id: canonicalId 
+    });
   } catch (error) {
     console.error('Marks Fetch Error:', error);
     return apiError('Internal Server Error', 500);
@@ -92,7 +104,7 @@ export async function POST(request) {
 
     const db = getDb();
     const [assignments] = await db.execute(
-      'SELECT * FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
+      'SELECT id, subject_code, branch, course_semester, academic_year FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
       [assignment_id, user.id]
     );
 
@@ -101,10 +113,21 @@ export async function POST(request) {
     }
 
     const assignment = assignments[0];
+    const { subject_code, branch, course_semester, academic_year } = assignment;
+
+    // --- SHARED DATA LOGIC: Target Canonical ID ---
+    const [canonicalRows] = await db.execute(`
+      SELECT id FROM faculty_subject_assignments 
+      WHERE subject_code = ? AND branch = ? AND course_semester = ? AND academic_year = ?
+      ORDER BY created_at ASC LIMIT 1
+    `, [subject_code, branch, course_semester, academic_year]);
+    
+    const targetAssignmentId = canonicalRows[0]?.id || assignment_id;
+
     const [collegeInfoRows] = await db.execute('SELECT * FROM college_info WHERE id = 1');
     const collegeInfo = collegeInfoRows[0] || null;
 
-    if (!await isSemesterActive(assignment.course_semester, assignment.academic_year, collegeInfo)) {
+    if (!await isSemesterActive(course_semester, academic_year, collegeInfo)) {
       return apiError('Semester has ended. Marks locked.', 403);
     }
 
@@ -112,16 +135,13 @@ export async function POST(request) {
     await connection.beginTransaction();
 
     try {
-      // 1. Bulk Update mid_max if provided
       if (mid_max !== undefined) {
         await connection.execute(
           'UPDATE faculty_subject_assignments SET mid_max = ? WHERE id = ?',
-          [mid_max, assignment_id]
+          [mid_max, targetAssignmentId]
         );
       }
 
-      // 2. HIGH PERFORMANCE BULK INSERT/UPDATE
-      // Prepare values and placeholders for a single query
       const values = [];
       const placeholders = [];
       
@@ -129,7 +149,7 @@ export async function POST(request) {
         placeholders.push('(?, ?, ?, ?, ?)');
         values.push(
           item.student_id, 
-          assignment_id, 
+          targetAssignmentId, 
           item.mid1_marks ?? null, 
           item.mid2_marks ?? null, 
           item.assignment_marks ?? null

@@ -17,8 +17,19 @@ export async function GET(request) {
     const currentAcademicYear = await getCollegeAcademicYear(collegeInfo);
 
     // Fetch interests for current year (all semesters) + any pending from previous years
+    // Join with assignments to see if subject is already allocated
     const [interests] = await db.execute(`
-      SELECT fsi.*, c.name as faculty_name, c.employee_id
+      SELECT 
+        fsi.*, 
+        c.name as faculty_name, 
+        c.employee_id,
+        (SELECT c2.name FROM faculty_subject_assignments fsa 
+         JOIN clerks c2 ON fsa.faculty_id = c2.id
+         WHERE fsa.subject_code = fsi.subject_code 
+         AND fsa.branch = fsi.branch 
+         AND fsa.course_semester = fsi.semester 
+         AND fsa.academic_year = fsi.academic_year
+         LIMIT 1) as allocated_faculty_name
       FROM faculty_subject_interests fsi
       JOIN clerks c ON fsi.faculty_id = c.id
       WHERE fsi.academic_year = ? OR fsi.status = 'PENDING'

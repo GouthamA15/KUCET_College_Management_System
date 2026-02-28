@@ -544,7 +544,43 @@ await db.execute('SELECT * FROM students WHERE roll_no = ?', [rollNo]);
 
 ## 10. Recent Activity Log (Feb 2026)
 
-### **Session 13: Marks Management Optimizations (Latest - Feb 28, 2026)**
+### **Session 16: Allocation Warning System (Latest - Feb 28, 2026)**
+- **Intelligent Allocation Warnings:**
+    - Implemented a real-time warning system to alert users when a subject is already allocated to another faculty member for the current academic year.
+    - **Faculty-Side:** Added warnings in the `SubjectInterestForm` list so faculty members are informed before expressing interest.
+    - **Admin-Side:** Enhanced the `FacultyInterestsManager` to display existing allocation details (including faculty name) directly in the management table, assisting in approval decisions.
+- **API Enhancements:**
+    - Updated Syllabus and Admin Interests APIs to perform conditional joins with the `faculty_subject_assignments` table to detect existing allocations dynamically based on Branch, Semester, and Academic Year.
+
+### **Session 15: Lab Marks Support & Name-Based Inference (Feb 28, 2026)**
+- **Reusable Marks Schema:**
+    - Implemented specialized marking logic for Lab subjects by repurposing existing database columns:
+        - `mid1_marks` -> **Execution** (Max 10)
+        - `mid2_marks` -> **Writing** (Max 10)
+        - `assignment_marks` -> **Record/Observation** (Max 5)
+    - Ensured Lab subjects total exactly **25 marks**, distinguishing them from Theory subjects (30 marks).
+- **Dynamic Type Inference:**
+    - Eliminated the need for a database schema change by implementing intelligent name-based inference.
+    - The system now automatically detects `subject_type` by checking for the word "Lab" in the `subject_name`.
+- **Dynamic UI Adaptation:**
+    - Updated `MarksEntrySheet` to automatically switch labels and validation rules based on inferred type.
+    - Enhanced student `AcademicTab` to display "Execution", "Writing", and "Record" labels for lab subjects with appropriate "Max: X" indicators.
+- **API Integration:**
+    - Refactored Marks and Academic-Info APIs to calculate and return `subject_type` dynamically based on assignment metadata.
+
+### **Session 14: System Stability & Marks Logic Finalization (Feb 28, 2026)**
+- **Auth Stability Fix:**
+    - Resolved a critical bug in `AuthProvider.js` where authenticated users were forced back to the dashboard on every page refresh. The system now correctly preserves the current sub-page state.
+- **Marks Logic Finalization:**
+    - Refined the flexible marks pattern to strictly enforce a 30-mark internal total:
+        - **Pattern A:** 20 (Mid) + 10 (Assignment)
+        - **Pattern B:** 25 (Mid) + 5 (Assignment)
+    - Updated validation and UI headers across both Faculty and Student views to reflect these specific pairings.
+- **API Debugging & Synchronization:**
+    - Synchronized `branchCodes` mappings across all faculty-facing APIs to ensure reliable student list loading for all engineering branches.
+    - Fixed several production-level bugs including SQL column mismatches (`spd.name` vs `s.name`) and missing dependency imports.
+
+### **Session 13: Marks Management Optimizations (Feb 28, 2026)**
 - **Flexible Mid-Marks Logic:**
     - Implemented dynamic max-mark configuration (20 vs 25) for mid-examinations.
     - Updated `MarksEntrySheet` with a toggle UI and auto-lock mechanism once marks are saved.
