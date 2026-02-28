@@ -102,14 +102,17 @@ export default function AcademicTab() {
                 <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-I</th>
                 <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-II</th>
                 <th className="px-4 py-3 text-center font-bold text-gray-600">Assign.</th>
-                <th className="px-4 py-3 text-center font-bold text-indigo-600 bg-indigo-50">Total (30)</th>
+                <th className="px-4 py-3 text-center font-bold text-indigo-600 bg-indigo-50">Total Marks</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {data.map((sub) => {
                 const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+                const mMax = sub.mid_max || 20;
+                const assignMax = mMax === 25 ? 5 : 10;
+                const totalMax = 30;
                 
-                // Calculate Internal Total out of 30
+                // Calculate Internal Total
                 // Typically: (Best of Mid1, Mid2) + Assignment
                 const m1 = sub.mid1_marks !== null ? parseFloat(sub.mid1_marks) : null;
                 const m2 = sub.mid2_marks !== null ? parseFloat(sub.mid2_marks) : null;
@@ -137,24 +140,36 @@ export default function AcademicTab() {
                       </button>
                     </td>
                     <td className="px-4 py-4 text-center">
-                      <span className={`font-mono font-bold ${sub.mid1_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {sub.mid1_marks ?? '--'}
-                      </span>
+                      <div className="flex flex-col items-center">
+                        <span className={`font-mono font-bold ${sub.mid1_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {sub.mid1_marks ?? '--'}
+                        </span>
+                        <span className="text-[8px] text-gray-400 font-bold uppercase">Max: {mMax}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-center">
-                      <span className={`font-mono font-bold ${sub.mid2_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {sub.mid2_marks ?? '--'}
-                      </span>
+                      <div className="flex flex-col items-center">
+                        <span className={`font-mono font-bold ${sub.mid2_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {sub.mid2_marks ?? '--'}
+                        </span>
+                        <span className="text-[8px] text-gray-400 font-bold uppercase">Max: {mMax}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-center">
-                      <span className={`font-mono font-bold ${sub.assignment_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {sub.assignment_marks ?? '--'}
-                      </span>
+                      <div className="flex flex-col items-center">
+                        <span className={`font-mono font-bold ${sub.assignment_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {sub.assignment_marks ?? '--'}
+                        </span>
+                        <span className="text-[8px] text-gray-400 font-bold uppercase">Max: {assignMax}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-center bg-indigo-50/30">
-                      <span className={`font-mono font-black text-lg ${internalTotal === null ? 'text-gray-300' : 'text-indigo-700'}`}>
-                        {internalTotal !== null ? internalTotal.toFixed(1) : '--'}
-                      </span>
+                      <div className="flex flex-col items-center">
+                        <span className={`font-mono font-black text-lg ${internalTotal === null ? 'text-gray-300' : 'text-indigo-700'}`}>
+                          {internalTotal !== null ? internalTotal.toFixed(1) : '--'}
+                        </span>
+                        <span className="text-[9px] text-indigo-400 font-bold uppercase">Out of 30</span>
+                      </div>
                     </td>
                   </tr>
                 );
