@@ -19,9 +19,9 @@ export async function GET(request) {
 
     const db = getDb();
     
-    // Fetch assignment details including mid_max
+    // Fetch assignment details including mid_max and subject_type
     const [assignments] = await db.execute(
-      'SELECT id, mid_max, branch, course_semester, academic_year FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
+      'SELECT id, mid_max, subject_type, branch, course_semester, academic_year FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
       [assignment_id, user.id]
     );
 
@@ -30,7 +30,7 @@ export async function GET(request) {
     }
 
     const assignment = assignments[0];
-    const { branch, course_semester, academic_year } = assignment;
+    const { branch, course_semester, academic_year, subject_type } = assignment;
     const midMax = assignment.mid_max || 20;
 
     // --- PRECISE SEMESTER-AWARE STUDENT FILTERING ---
@@ -69,7 +69,7 @@ export async function GET(request) {
 
     const [students] = await db.execute(studentsQuery, params);
 
-    return apiResponse({ data: students, mid_max: midMax });
+    return apiResponse({ data: students, mid_max: midMax, subject_type: subject_type || 'theory' });
   } catch (error) {
     console.error('Marks Fetch Error:', error);
     return apiError('Internal Server Error', 500);
