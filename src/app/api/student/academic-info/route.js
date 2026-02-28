@@ -30,6 +30,7 @@ export async function GET(request) {
         fsa.id as assignment_id,
         fsa.subject_code,
         fsa.subject_name,
+        fsa.mid_max,
         c.name as faculty_name,
         sm.mid1_marks,
         sm.mid2_marks,
