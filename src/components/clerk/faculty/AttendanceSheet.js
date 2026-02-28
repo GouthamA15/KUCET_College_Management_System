@@ -177,7 +177,7 @@ const FollowPreviousButton = () => {
 };
 
 const AttendanceGrid = () => {
-  const { students, assignment, dateValidation, toggleAttendanceStatus, statusLoading } = useFacultyAttendance();
+  const { students, assignment, dateValidation, toggleAttendanceStatus, setAllAttendanceStatus, statusLoading } = useFacultyAttendance();
 
   return (
     <table className="min-w-full divide-y-2 divide-gray-200 border">
@@ -186,11 +186,34 @@ const AttendanceGrid = () => {
           <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Roll No</th>
           <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
           <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
-            <div className="inline-flex items-center justify-center gap-2">
-              <span>Status</span>
-              {statusLoading && (
-                <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-              )}
+            <div className="flex flex-col items-center gap-2">
+              <div className="inline-flex items-center justify-center gap-2">
+                <span>Status</span>
+                {statusLoading && (
+                  <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                )}
+              </div>
+              {/* Bulk Toggle Buttons */}
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
+                  disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
+                  className="px-2 py-1 bg-green-600 text-white text-[9px] font-black rounded hover:bg-green-700 disabled:opacity-50 transition-colors uppercase"
+                  title="Mark All Present"
+                >
+                  All P
+                </button>
+                <button
+                  type="button"
+                  onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
+                  disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
+                  className="px-2 py-1 bg-red-600 text-white text-[9px] font-black rounded hover:bg-red-700 disabled:opacity-50 transition-colors uppercase"
+                  title="Mark All Absent"
+                >
+                  All A
+                </button>
+              </div>
             </div>
           </th>
         </tr>
