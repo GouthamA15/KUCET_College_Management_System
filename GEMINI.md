@@ -825,7 +825,67 @@ npm run lint        # Check for ESLint violations
 
 ---
 
+## 15. Core Utility Library (`src/lib/`)
+
+The application logic is supported by a centralized library of utility functions, ensuring consistency across both frontend components and backend API routes.
+
+### **A. Academic Utilities (`academic-utils.js`)**
+- **Functions:**
+    - `calculateYearAndSemesterSync/Async`: Determines a student's current year and semester based on roll number and college configuration.
+    - `getCollegeAcademicYearSync/Async`: Resolves the current institutional academic year (e.g., "2025-26").
+    - `isSemesterActiveSync/Async`: Validates if a specific semester is currently open for data entry based on the institutional calendar.
+- **Feature:** Implements dual Sync/Async patterns to support both Client-side UI and Server-side API contexts while respecting "Time Machine" mock dates.
+
+### **B. API & Auth Utilities (`api-utils.js`, `auth.js`, `auth-utils.js`)**
+- **Functions:**
+    - `apiResponse(data, status)`: Standardized JSON success wrapper.
+    - `apiError(message, status)`: Standardized error response format.
+    - `getAuthUser(role)`: Server-side helper to verify JWT from cookies and return the authenticated payload.
+    - `verifyJwt(token, secret)`: Low-level `jose`-based JWT verification.
+    - `getDashboardPathByRole(role)`: Maps user roles (admission, scholarship, faculty, admin) to their respective dashboard entry points.
+
+### **C. Time & Clock (`clock.js`)**
+- **Functions:**
+    - `getNow()`: Async server-side "current time" resolver.
+    - `getNowSync()`: Synchronous client-side time resolver.
+- **Feature:** Supports the "Time Machine" by checking for the `dev_mock_date` cookie in testing environments, ensuring global time consistency.
+
+### **D. Database Layer (`db.js`)**
+- **Functions:**
+    - `getDb()`: Initializes and returns a MySQL connection pool with `connectionLimit: 10`.
+    - `query(sql, params)`: Shorthand helper for executing parameterized SQL queries.
+- **Feature:** Manages environment-aware database configuration and prevents timezone conversion issues using `dateStrings: true`.
+
+### **E. Email Engine (`email.js`)**
+- **Functions:**
+    - `sendInstitutionalEmail()`: High-level helper for transactional emails.
+    - `buildInstitutionalEmailHtml()`: Generates responsive HTML templates with institutional branding (KUCET logo, colors).
+    - `sendEmail()`: Low-level Brevo (formerly Sendinblue) API integration.
+- **Feature:** Supports structured `infoRows` and call-to-action buttons with automated plain-text fallback generation.
+
+### **F. Date & Formatting (`date.js`, `ui-utils.js`)**
+- **Functions:**
+    - `formatDate(date)`: Converts various date formats to institutional standard (DD-MM-YYYY).
+    - `toMySQLDate(date)`: Formats dates for MySQL `DATE` columns (YYYY-MM-DD).
+    - `parseDate(str)`: Robust parser handling DD-MM-YYYY, MM/DD/YYYY, and Excel serial dates.
+    - `getStatusStyles(status)`: Returns Tailwind CSS classes for status badges (Approved, Pending, Rejected).
+
+### **G. Academic Intelligence (`rollNumber.js`)**
+- **Functions:**
+    - `validateRollNo(rollNo)`: Validates format and extracts entry year, branch, and admission type (Regular/Lateral).
+    - `getCurrentStudyingYear()`: Calculates 1st, 2nd, 3rd, or 4th year status.
+    - `getEffectiveAcademicYear()`: Resolves the institutional session start year.
+    - `getBatchFromRoll()`: Calculates the 4-year batch window (e.g., "2023-2027").
+
+### **H. Syllabus & Student Utils (`syllabus-data.js`, `student-utils.js`)**
+- **Functions:**
+    - `syllabusData`: Aggregated object containing course structures for all engineering branches.
+    - `getStudentEmail(rollNo)`: Sanitized database lookup for student contact information.
+
+---
+
 ## Summary
+
 
 The KUCET College Management System is a comprehensive, production-ready application designed to digitalize the complete student lifecycle. It emphasizes role-based access control, data integrity through normalized schemas, and smart automation via intelligent parsing and context-aware calculations. The system is built with modern Next.js practices, includes comprehensive error handling, and provides multiple user-friendly interfaces tailored to each role's needs.
 
