@@ -50,8 +50,8 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
       { label: 'MATERIALS', route: '/clerk/faculty/materials' },
       { label: 'PROFILE', route: '/clerk/faculty/profile' },
       { label: 'MENU', children: [
-          { label: 'Edit Profile', route: '/clerk/faculty/settings/edit-profile' },
-          { label: 'Security & Privacy', route: '/clerk/faculty/settings/security' },
+          { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
+          { label: 'Security & Privacy', route: '/clerk/settings/security' },
           { label: 'Logout', action: 'logout' }
         ]
       }
@@ -71,8 +71,14 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   };
 
   // Role selection: prefer explicit `role` prop. Fall back to studentProfileMode for backward compatibility.
-  const effectiveRole = role || (studentProfileMode ? 'student' : 'guest');
-  const menuItems = menuConfig[effectiveRole] || [
+  let effectiveRole = role || (studentProfileMode ? 'student' : 'guest');
+  
+  // Normalize clerk sub-roles to use the standard 'clerk' menu if they don't have their own
+  if (effectiveRole === 'admission' || effectiveRole === 'scholarship') {
+    effectiveRole = 'clerk';
+  }
+
+  const menuItems = menuConfig[effectiveRole] || menuConfig['guest'] || [
     { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'EMPLOYEE LOGIN', action: 'open-panel-clerk' },
