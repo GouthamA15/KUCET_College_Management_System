@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** February 25, 2026
+**Last Updated:** February 28, 2026
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports three primary user roles: **Super Admin**, **Clerk/Faculty**, and **Student**. 
@@ -544,7 +544,54 @@ await db.execute('SELECT * FROM students WHERE roll_no = ?', [rollNo]);
 
 ## 10. Recent Activity Log (Feb 2026)
 
-### **Session 8: Authentication Refactoring & Email Improvements (Latest - Feb 2026)**
+### **Session 13: Marks Management Optimizations (Latest - Feb 28, 2026)**
+- **Flexible Mid-Marks Logic:**
+    - Implemented dynamic max-mark configuration (20 vs 25) for mid-examinations.
+    - Updated `MarksEntrySheet` with a toggle UI and auto-lock mechanism once marks are saved.
+    - Enhanced `AcademicTab` to provide clear "Out of X" labels for students based on subject-specific settings.
+- **High-Performance Bulk APIs:**
+    - Refactored `POST /api/clerk/faculty/marks` to use a single bulk `INSERT ... ON DUPLICATE KEY UPDATE` query, eliminating slow per-student database roundtrips.
+    - Optimized `GET` query with intelligent roll-number pattern matching to automatically filter students by branch code (e.g., '05' for CSE).
+- **Database & API Synchronization:**
+    - Added `mid_max` column to `faculty_subject_assignments` via migration script.
+    - Refactored API routes to ensure max-mark settings are persisted and correctly served to all roles.
+
+### **Session 12: Settings Navigation & Role Mapping Fixes (Feb 28, 2026)**
+- **Centralized Settings Navigation:**
+    - Fixed broken "Security & Privacy" and "Edit Profile" links for Faculty role by redirecting them to centralized `/clerk/settings/` paths.
+    - Updated `Navbar.js` to automatically map `admission` and `scholarship` sub-roles to the standard `clerk` menu configuration, preventing navigation failures for these roles.
+- **Dynamic Settings Pages:**
+    - Enhanced `ClerkSecurityPage` and `ClerkEditProfilePage` to dynamically detect and pass the correct role (`clerk` or `faculty`) to the Navbar, ensuring appropriate menu visibility regardless of the entry path.
+    - Improved robustness of settings pages when handling different clerk sub-roles.
+
+### **Session 11: Attendance Bulk Actions & Mobile UI Polishing (Feb 28, 2026)**
+- **Bulk Attendance Toggle:**
+    - Implemented `setAllAttendanceStatus` in `FacultyAttendanceContext` to enable one-click status updates for all students.
+    - Added "All P" (Present) and "All A" (Absent) buttons to the Desktop Attendance Grid header.
+    - Added "Mark All Present" and "Mark All Absent" buttons to the Mobile Attendance interface.
+- **Mobile UX Refinements:**
+    - Optimized mobile attendance table layout with fixed column widths and better word-wrapping for student names.
+    - Enhanced visual feedback for attendance status on mobile (P/A/N/A shorthand).
+
+### **Session 10: Faculty Dashboard UI Enhancements (Feb 28, 2026)**
+- **Attendance & Marks Pages Optimization:**
+    - Implemented sorting for assigned subjects: Active subjects now appear at the top, while historical (inactive) subjects are moved to the bottom.
+    - Enhanced `SubjectCard` styling for inactive subjects: cards now feature a gray background, grayscale filter, and reduced opacity for better visual distinction.
+    - Applied these UI/UX improvements consistently across both Attendance and Internal Marks management pages.
+
+### **Session 9: Scholarship Dashboard Optimization & Email System Refinement (Feb 28, 2026)**
+- **Scholarship Dashboard Improvements:**
+    - Enhanced API data fetching to support both direct and wrapped (`{ data: ... }`) responses.
+    - Improved data normalization for year-wise scholarship summaries and fee status.
+    - Refined UI state management for student info and academic year lists.
+- **Email System Refinement:**
+    - Refactored OTP email logic to utilize the shared `sendInstitutionalEmail` helper for consistent branding.
+    - Implemented absolute URL resolution for email assets (campus image) to ensure cross-client compatibility.
+    - Streamlined email templates by decoupling content from structural layout.
+- **Navigation UX:**
+    - Improved Navbar active state logic for Clerk roles, ensuring the "DASHBOARD" item remains highlighted across all `/clerk/*/dashboard` routes.
+
+### **Session 8: Authentication Refactoring & Email Improvements (Feb 2026)**
 - **NextAuth Integration:** Added next-auth dependency for enhanced OAuth support
 - **Login Flow Refinement:** Debugged and fixed NextAuth redirect logic, improved login panel UX
 - **Email Templates:** Improved Brevo email templates for better formatting and deliverability
