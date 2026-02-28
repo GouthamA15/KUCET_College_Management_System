@@ -544,7 +544,28 @@ await db.execute('SELECT * FROM students WHERE roll_no = ?', [rollNo]);
 
 ## 10. Recent Activity Log (Feb 2026)
 
-### **Session 16: Allocation Warning System (Latest - Feb 28, 2026)**
+### **Session 18: Elective Allocation Warnings & Messaging (Latest - Feb 28, 2026)**
+- **Elective Allocation Fix:**
+    - Resolved a bug where elective groups with placeholder codes (e.g., `PE-II*`) skipped variant-level allocation checks.
+    - Updated Syllabus API to prioritize variant-level allocation mapping, ensuring each elective subject correctly displays its status.
+    - Enhanced `SubjectInterestForm` to preserve allocation flags during the `flatMap` expansion of elective groups.
+- **Improved Warning UX:**
+    - Refined the warning message to be more welcoming: *"Note: This subject is already allocated to another faculty but You can express interest."*
+    - Ensured consistent display of warnings across both Core and Elective subjects.
+
+### **Session 17: Flexible Marks, Lab Support & Shared Data (Feb 28, 2026)**
+- **Advanced Marks Configuration:**
+    - Implemented a unified marks schema supporting both Theory (30 total) and Lab (25 total) patterns.
+    - Added support for flexible Theory distributions: **20 (Mid) + 10 (Assignment)** or **25 (Mid) + 5 (Assignment)** via `mid_max` toggle.
+    - Developed intelligent name-based inference for Lab subjects (e.g., detecting "Lab" in title) to automatically switch UI labels to **Execution**, **Writing**, and **Record**.
+- **Shared Subject Records:**
+    - Refactored backend logic to use a canonical `subject_code` + `academic_year` matching system.
+    - Multiple faculty members teaching the same subject now automatically share the same attendance and marks records.
+    - Implemented aggregated student views that unify data entry from multiple teachers into a single performance metric.
+- **Database Synchronization:**
+    - Applied migrations for the `mid_max` column and enforced the `unique_student_subject` constraint to prevent duplicate records in shared scenarios.
+
+### **Session 16: Allocation Warning System (Feb 28, 2026)**
 - **Intelligent Allocation Warnings:**
     - Implemented a real-time warning system to alert users when a subject is already allocated to another faculty member for the current academic year.
     - **Faculty-Side:** Added warnings in the `SubjectInterestForm` list so faculty members are informed before expressing interest.
