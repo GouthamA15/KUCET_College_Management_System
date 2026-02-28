@@ -129,6 +129,16 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     });
   }, []);
 
+  const setAllAttendanceStatus = useCallback((status) => {
+    setAttendanceStatusMap((prev) => {
+      const next = { ...prev };
+      baseStudents.forEach((s) => {
+        next[s.id] = status;
+      });
+      return next;
+    });
+  }, [baseStudents]);
+
   const handleSaveAttendance = useCallback(async () => {
     if (!assignment?.id) return;
     setSubmitting(true);
@@ -249,6 +259,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     attendanceStatusMap,
     setAttendanceStatus,
     toggleAttendanceStatus,
+    setAllAttendanceStatus,
     existingSessionsForSelectedDate,
     dayInfo,
     dateValidation,
