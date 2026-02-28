@@ -60,6 +60,7 @@ export default function MobileAttendanceSheet({ onBack }) {
     handleDeleteAttendance,
     handleCalendarSelect,
     toggleAttendanceStatus,
+    setAllAttendanceStatus,
   } = useFacultyAttendance();
 
   return (
@@ -171,6 +172,26 @@ export default function MobileAttendanceSheet({ onBack }) {
                       setAttendanceStatus={setAttendanceStatus}
                     />
                   )}
+
+                  {/* Bulk Mark All Buttons */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
+                      disabled={submitting || !students.length || !dateValidation.isValid}
+                      className="bg-green-600 text-white py-2 rounded-lg font-bold text-[10px] uppercase tracking-wide border border-green-600 disabled:opacity-50"
+                    >
+                      Mark All Present
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
+                      disabled={submitting || !students.length || !dateValidation.isValid}
+                      className="bg-red-600 text-white py-2 rounded-lg font-bold text-[10px] uppercase tracking-wide border border-red-600 disabled:opacity-50"
+                    >
+                      Mark All Absent
+                    </button>
+                  </div>
 
                   <button
                     type="button"
