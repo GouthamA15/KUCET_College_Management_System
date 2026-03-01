@@ -122,8 +122,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     setAttendanceStatusMap((prev) => {
       const current = prev[studentId] ?? null;
       let next;
+      // Cycle: NOT SET -> PRESENT -> ABSENT -> NCC -> MEDICAL -> PRESENT
       if (current === null) next = 'PRESENT';
       else if (current === 'PRESENT') next = 'ABSENT';
+      else if (current === 'ABSENT') next = 'NCC';
+      else if (current === 'NCC') next = 'MEDICAL';
       else next = 'PRESENT';
       return { ...prev, [studentId]: next };
     });

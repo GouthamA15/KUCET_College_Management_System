@@ -51,7 +51,7 @@ export async function GET(request) {
          )) as total_classes,
          
         (SELECT COUNT(*) FROM student_attendance sa 
-         WHERE sa.student_id = ? AND sa.status = 'PRESENT' AND sa.assignment_id IN (
+         WHERE sa.student_id = ? AND sa.status IN ('PRESENT', 'NCC', 'MEDICAL') AND sa.assignment_id IN (
            SELECT id FROM faculty_subject_assignments fsa2 
            WHERE fsa2.subject_code = fsa.subject_code AND fsa2.branch = fsa.branch 
            AND fsa2.course_semester = fsa.course_semester AND fsa2.academic_year = fsa.academic_year

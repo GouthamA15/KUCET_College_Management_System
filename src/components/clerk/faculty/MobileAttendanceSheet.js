@@ -255,10 +255,26 @@ export default function MobileAttendanceSheet({ onBack }) {
                               type="button"
                               onClick={() => assignment.is_active && dateValidation.isValid && toggleAttendanceStatus(student.id)}
                               disabled={!assignment.is_active || !dateValidation.isValid}
-                              style={{ width: '48px', height: '32px', textAlign: 'center', fontWeight: 700, fontSize: '12px', borderRadius: '6px' }}
-                              className={`${student.status === null ? 'bg-gray-100 text-gray-700' : student.status === 'PRESENT' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
+                              style={{ width: '56px', height: '32px', textAlign: 'center', fontWeight: 700, fontSize: '12px', borderRadius: '6px' }}
+                              className={`${
+                                student.status === null 
+                                  ? 'bg-gray-100 text-gray-700' 
+                                  : student.status === 'PRESENT' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : student.status === 'ABSENT' 
+                                  ? 'bg-red-100 text-red-800'
+                                  : student.status === 'NCC'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : student.status === 'MEDICAL'
+                                  ? 'bg-purple-100 text-purple-800'
+                                  : 'bg-gray-100 text-gray-700'
+                              } ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
                             >
-                              {student.status === null ? 'N/A' : student.status === 'PRESENT' ? 'P' : 'A'}
+                              {student.status === null ? 'N/A' : 
+                               student.status === 'PRESENT' ? 'P' : 
+                               student.status === 'ABSENT' ? 'A' :
+                               student.status === 'NCC' ? 'NCC' :
+                               student.status === 'MEDICAL' ? 'M' : '?'}
                             </button>
                           )}
                         </td>
