@@ -60,8 +60,17 @@ const SessionControlPanel = () => {
   const verifiedList = students.filter(s => verifiedStudentIds.has(s.id));
 
   const handleConfirmAll = () => {
-    verifiedList.forEach(s => setAttendanceStatus(s.id, 'PRESENT'));
-    toast.success(`Marked ${verifiedList.length} verified students as PRESENT`);
+    students.forEach(s => {
+      if (verifiedStudentIds.has(s.id)) {
+        setAttendanceStatus(s.id, 'PRESENT');
+      } else {
+        // Only set to ABSENT if they aren't already marked with a valid excused status
+        if (s.status !== 'NCC' && s.status !== 'MEDICAL') {
+          setAttendanceStatus(s.id, 'ABSENT');
+        }
+      }
+    });
+    toast.success(`Attendance synchronized: ${verifiedList.length} PRESENT, others marked ABSENT.`);
   };
 
   const handleManualRefresh = () => {
