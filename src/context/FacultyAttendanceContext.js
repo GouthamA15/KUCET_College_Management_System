@@ -237,13 +237,14 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [selectedDate, selectedSession, fetchAttendanceStatus]);
 
-  // Manual refresh only - removed auto-polling interval
+  // Manual refresh only - removed auto-polling interval and recursive loop
   useEffect(() => {
+    // We only fetch once when the session is first detected or changed
+    // No recursive calls here anymore
     if (activeSession) {
       fetchAttendanceStatus();
-      fetchActiveSession();
     }
-  }, [activeSession, fetchAttendanceStatus, fetchActiveSession]);
+  }, [activeSession]); // Only depend on the session existence, not the fetch functions themselves
 
   const setAttendanceStatus = useCallback((studentId, status) => {
     setAttendanceStatusMap((prev) => ({ ...prev, [studentId]: status }));
