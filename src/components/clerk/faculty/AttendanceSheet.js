@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
+import QRCode from 'qrcode';
 
 const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -39,6 +40,104 @@ const SubjectIdentityPanel = () => {
       <div className="font-mono text-gray-900">{assignment.academic_year}</div>
     </div>
   </div>
+  );
+};
+
+const SessionControlPanel = () => {
+  const { activeSession, startSession, endSession, submitting, verifiedStudentIds, students, setAttendanceStatus } = useFacultyAttendance();
+  const [qrDataUrl, setQrDataUrl] = useState('');
+
+  // Filter students who have verified but aren't yet saved as PRESENT
+  const verifiedList = students.filter(s => verifiedStudentIds.has(s.id));
+
+  const handleConfirmAll = () => {
+    verifiedList.forEach(s => setAttendanceStatus(s.id, 'PRESENT'));
+    toast.success(`Marked ${verifiedList.length} verified students as PRESENT`);
+  };
+
+  useEffect(() => {
+    if (activeSession?.session_token) {
+      QRCode.toDataURL(activeSession.session_token, { width: 512, margin: 2 }, (err, url) => {
+        if (!err) setQrDataUrl(url);
+      });
+    }
+  }, [activeSession]);
+
+  return (
+    <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl mb-6 shadow-sm">
+      <div className="flex flex-col lg:flex-row justify-between gap-6">
+        <div className="flex-1">
+          <h3 className="text-indigo-900 font-bold flex items-center gap-2">
+            <span className="relative flex h-3 w-3">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${activeSession ? 'bg-green-400' : 'bg-gray-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-3 w-3 ${activeSession ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+            </span>
+            PROXY-FREE ATTENDANCE
+          </h3>
+          <p className="text-xs text-indigo-700 mt-1">
+            {activeSession 
+              ? 'Session is live! Students can scan the QR or enter the PIN.' 
+              : 'Start a secure session to allow students to mark their own attendance via GPS verification.'}
+          </p>
+
+          {activeSession && (
+            <div className="mt-4 p-3 bg-white rounded-lg border border-indigo-100 shadow-inner">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-black text-indigo-400 uppercase">Live Verifications ({verifiedList.length})</span>
+                {verifiedList.length > 0 && (
+                  <button 
+                    onClick={handleConfirmAll}
+                    className="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded font-bold hover:bg-indigo-700"
+                  >
+                    Confirm All
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto pr-1">
+                {verifiedList.length > 0 ? verifiedList.map(s => (
+                  <div key={s.id} className="text-[10px] font-bold bg-green-50 text-green-700 px-2 py-1 rounded border border-green-100 animate-fadeIn">
+                    {s.roll_no}
+                  </div>
+                )) : (
+                  <p className="text-[10px] text-gray-400 italic">Waiting for students to scan...</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {activeSession ? (
+          <div className="flex items-center gap-6 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm shrink-0">
+            <div className="text-center">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">SESSION PIN</p>
+              <p className="text-3xl font-black text-indigo-600 tracking-tighter">{activeSession.session_pin}</p>
+            </div>
+            {qrDataUrl && (
+              <div className="border-l pl-6 flex flex-col items-center">
+                <img src={qrDataUrl} alt="Session QR" className="w-40 h-40" />
+                <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Scan to Verify</p>
+              </div>
+            )}
+            <button
+              onClick={endSession}
+              disabled={submitting}
+              className="ml-4 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors uppercase"
+            >
+              End
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={startSession}
+            disabled={submitting}
+            className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md active:scale-95 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3c4.183 0 7.66 2.567 9.106 6H22.25m-9.448 10a10.003 10.003 0 01-1.106-2.04m0 0l.054-.09A10.003 10.003 0 0122.5 12"></path></svg>
+            START SECURE SESSION
+          </button>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -177,7 +276,7 @@ const FollowPreviousButton = () => {
 };
 
 const AttendanceGrid = () => {
-  const { students, assignment, dateValidation, toggleAttendanceStatus, setAllAttendanceStatus, statusLoading } = useFacultyAttendance();
+  const { students, assignment, dateValidation, toggleAttendanceStatus, setAllAttendanceStatus, statusLoading, verifiedStudentIds } = useFacultyAttendance();
 
   return (
     <table className="min-w-full divide-y-2 divide-gray-200 border">
@@ -221,8 +320,22 @@ const AttendanceGrid = () => {
       <tbody className="bg-white divide-y divide-gray-200">
         {students.map((student) => (
           <tr key={student.id} className="hover:bg-gray-50">
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">{student.roll_no}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{student.name}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">
+              <div className="flex items-center gap-2">
+                {student.roll_no}
+                {verifiedStudentIds.has(student.id) && (
+                  <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
+                )}
+              </div>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+              <div className="flex items-center gap-2">
+                {student.name}
+                {verifiedStudentIds.has(student.id) && (
+                  <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
+                )}
+              </div>
+            </td>
             <td className="px-6 py-4 whitespace-nowrap text-center">
               {statusLoading ? (
                 <div className="flex justify-center">
@@ -272,6 +385,9 @@ export default function AttendanceSheet({ onBack }) {
 
       {/* Subject Identity Panel */}
       <SubjectIdentityPanel assignment={assignment} />
+
+      {/* SECURE SESSION PANEL */}
+      {assignment.is_active && <SessionControlPanel />}
 
       {/* FACULTY ACADEMIC CALENDAR */}
       <FacultyAcademicCalendar

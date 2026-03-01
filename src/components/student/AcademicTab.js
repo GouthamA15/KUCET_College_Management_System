@@ -2,19 +2,194 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
+const MarkAttendanceCard = ({ session, onVerified }) => {
+  const [pin, setPin] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+
+  const handleVerify = async (providedPin, providedToken) => {
+    setSubmitting(true);
+    try {
+      // 1. Get Location (Strict Requirement)
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { 
+          enableHighAccuracy: true,
+          timeout: 10000 // 10 seconds
+        });
+      });
+
+      // 2. Submit Verification
+      const res = await fetch('/api/student/attendance/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: session.assignment_id,
+          pin: providedPin || null,
+          token: providedToken || null,
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Verification failed');
+
+      toast.success(json.message);
+      if (showScanner) setShowScanner(false);
+      onVerified(); 
+    } catch (err) {
+      let msg = err.message;
+      if (err.code === 1) msg = "Location access denied. Please enable GPS.";
+      if (err.code === 3) msg = "Location request timed out. Stand near a window or retry.";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="bg-indigo-600 rounded-xl p-4 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse">
+        <div className="flex items-center gap-4">
+          <div className="bg-white/20 p-3 rounded-full">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3c4.183 0 7.66 2.567 9.106 6H22.25m-9.448 10a10.003 10.003 0 01-1.106-2.04m0 0l.054-.09A10.003 10.003 0 0122.5 12"></path></svg>
+          </div>
+          <div>
+            <h4 className="font-bold text-lg leading-tight text-center md:text-left">Active Attendance Session!</h4>
+            <p className="text-indigo-100 text-xs text-center md:text-left">{session.subject_name} ({session.subject_code})</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex-1 flex items-center gap-2 bg-white/10 p-1.5 rounded-lg border border-white/20">
+            <input 
+              type="text" 
+              maxLength="4" 
+              placeholder="PIN" 
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+              className="w-16 bg-white text-gray-900 text-center font-bold text-lg py-1.5 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-gray-300 placeholder:font-normal"
+            />
+            <button
+              onClick={() => handleVerify(pin, null)}
+              disabled={submitting || pin.length !== 4}
+              className="flex-1 bg-white text-indigo-600 px-3 py-1.5 rounded-md font-black uppercase text-xs hover:bg-indigo-50 disabled:opacity-50 transition-all whitespace-nowrap"
+            >
+              {submitting ? '...' : 'Enter PIN'}
+            </button>
+          </div>
+          
+          <div className="h-10 w-[1px] bg-white/20 hidden md:block mx-1"></div>
+
+          <button
+            onClick={() => setShowScanner(true)}
+            className="bg-indigo-500 hover:bg-indigo-400 text-white p-2.5 rounded-lg border border-white/30 transition-all flex items-center justify-center group"
+            title="Scan QR Code"
+          >
+            <svg className="w-6 h-6 group-active:scale-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {showScanner && (
+        <QRScannerModal 
+          onScan={(token) => handleVerify(null, token)} 
+          onClose={() => setShowScanner(false)} 
+        />
+      )}
+    </>
+  );
+};
+
+const QRScannerModal = ({ onScan, onClose }) => {
+  useEffect(() => {
+    // Load html5-qrcode dynamically
+    const script = document.createElement('script');
+    script.src = "https://unpkg.com/html5-qrcode";
+    script.async = true;
+    document.body.appendChild(script);
+
+    script.onload = () => {
+      const html5QrCode = new window.Html5Qrcode("reader");
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          html5QrCode.stop().then(() => {
+            onScan(decodedText);
+          });
+        }
+      ).catch(err => {
+        console.error("Scanner Error:", err);
+        const isInsecure = window.location.protocol !== 'https:' && window.location.hostname !== 'localhost';
+        toast.error(isInsecure ? "Camera requires HTTPS on mobile. Use PIN instead." : "Camera access denied.");
+      });
+
+      return () => {
+        if (html5QrCode.isScanning) {
+          html5QrCode.stop();
+        }
+      };
+    };
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md">
+      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+        <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+          <h3 className="font-bold text-gray-800">Scan Class QR</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div className="p-6">
+          <div id="reader" className="overflow-hidden rounded-xl bg-black aspect-square"></div>
+          <p className="text-center text-xs text-gray-500 mt-4">Point your camera at the QR code on the faculty's screen.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function AcademicTab() {
   const [data, setData] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [historySubject, setHistorySubject] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const fetchActiveSessions = async (subjects) => {
+    if (!subjects.length) return;
+    try {
+      const assignmentIds = subjects.map(s => s.assignment_id).join(',');
+      const res = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds}`);
+      const json = await res.json();
+      if (res.ok) {
+        setActiveSessions(json.data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch active sessions');
+    }
+  };
 
   const fetchAcademicInfo = async () => {
     try {
       const res = await fetch('/api/student/academic-info');
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
-      setData(json.data || []);
+      const subjects = json.data || [];
+      setData(subjects);
+      fetchActiveSessions(subjects);
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -51,6 +226,19 @@ export default function AcademicTab() {
 
   return (
     <div className="space-y-6">
+      {/* Active Attendance Sessions (Self-Verification) */}
+      {activeSessions.length > 0 && (
+        <div className="space-y-3">
+          {activeSessions.map((session) => (
+            <MarkAttendanceCard 
+              key={session.assignment_id} 
+              session={session} 
+              onVerified={fetchAcademicInfo} 
+            />
+          ))}
+        </div>
+      )}
+
       {/* Attendance History Modal */}
       {historySubject && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">

@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
+import QRCode from 'qrcode';
 
 const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -42,6 +43,64 @@ const MobileSubjectIdentityPanel = () => {
   );
 };
 
+const MobileSessionControlPanel = () => {
+  const { activeSession, startSession, endSession, submitting } = useFacultyAttendance();
+  const [qrDataUrl, setQrDataUrl] = useState('');
+
+  useEffect(() => {
+    if (activeSession?.session_token) {
+      QRCode.toDataURL(activeSession.session_token, { width: 256, margin: 2 }, (err, url) => {
+        if (!err) setQrDataUrl(url);
+      });
+    }
+  }, [activeSession]);
+
+  return (
+    <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl mb-6 shadow-sm">
+      <h3 className="text-indigo-900 font-bold flex items-center gap-2 text-sm mb-3">
+        <span className="relative flex h-3 w-3">
+          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${activeSession ? 'bg-green-400' : 'bg-gray-400'} opacity-75`}></span>
+          <span className={`relative inline-flex rounded-full h-3 w-3 ${activeSession ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+        </span>
+        SECURE ATTENDANCE
+      </h3>
+
+      {activeSession ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-indigo-100">
+            <div className="text-center">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">PIN</p>
+              <p className="text-3xl font-black text-indigo-600">{activeSession.session_pin}</p>
+            </div>
+            {qrDataUrl && (
+              <div className="flex flex-col items-center">
+                <img src={qrDataUrl} alt="Session QR" className="w-16 h-16" />
+                <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase">Scan QR</p>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={endSession}
+            disabled={submitting}
+            className="w-full py-2.5 bg-red-600 text-white text-xs font-bold rounded-lg uppercase tracking-wider"
+          >
+            End Session
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={startSession}
+          disabled={submitting}
+          className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-sm"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3c4.183 0 7.66 2.567 9.106 6H22.25m-9.448 10a10.003 10.003 0 01-1.106-2.04m0 0l.054-.09A10.003 10.003 0 0122.5 12"></path></svg>
+          START SESSION
+        </button>
+      )}
+    </div>
+  );
+};
+
 export default function MobileAttendanceSheet({ onBack }) {
   const {
     assignment,
@@ -61,6 +120,7 @@ export default function MobileAttendanceSheet({ onBack }) {
     handleCalendarSelect,
     toggleAttendanceStatus,
     setAllAttendanceStatus,
+    verifiedStudentIds
   } = useFacultyAttendance();
 
   return (
@@ -73,6 +133,9 @@ export default function MobileAttendanceSheet({ onBack }) {
 
       {/* Subject Identity Panel */}
       <MobileSubjectIdentityPanel />
+
+      {/* SECURE SESSION PANEL (MOBILE) */}
+      {assignment.is_active && <MobileSessionControlPanel />}
 
       {/* FACULTY ACADEMIC CALENDAR (MOBILE) */}
       <FacultyAcademicCalendar
@@ -245,8 +308,20 @@ export default function MobileAttendanceSheet({ onBack }) {
                   <tbody>
                     {students.map(student => (
                       <tr key={student.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 align-middle font-mono text-gray-800" style={{ fontSize: '12px', fontWeight: 600 }}>{student.roll_no}</td>
-                        <td className="px-3 py-2 align-middle text-gray-800" style={{ fontSize: '13px', fontWeight: 500, wordBreak: 'break-word', whiteSpace: 'normal' }}>{student.name}</td>
+                        <td className="px-3 py-2 align-middle font-mono text-gray-800" style={{ fontSize: '12px', fontWeight: 600 }}>
+                          <div className="flex items-center gap-1">
+                            {student.roll_no}
+                            {verifiedStudentIds.has(student.id) && (
+                              <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 align-middle text-gray-800" style={{ fontSize: '13px', fontWeight: 500, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                          {student.name}
+                          {verifiedStudentIds.has(student.id) && (
+                            <div className="text-[8px] font-black text-green-600 uppercase">Verified</div>
+                          )}
+                        </td>
                         <td className="px-3 py-2 align-middle text-center">
                           {statusLoading ? (
                             <span className="inline-block h-6 w-6 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />

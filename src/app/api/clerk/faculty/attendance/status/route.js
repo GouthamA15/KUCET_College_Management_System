@@ -54,7 +54,18 @@ export async function GET(request) {
 
     const sessions = sessRows.map(r => r.session);
 
-    return apiResponse({ data: rows, sessions });
+    // --- FETCH SELF-VERIFIED STUDENTS ---
+    // Look for successful logs in the active session for this assignment
+    const [logRows] = await db.execute(`
+      SELECT student_id 
+      FROM attendance_session_logs asl
+      JOIN attendance_sessions asess ON asl.session_id = asess.id
+      WHERE asess.assignment_id = ? AND asess.is_active = 1 AND asl.status = 'SUCCESS'
+    `, [targetAssignmentId]);
+
+    const verified_ids = logRows.map(r => r.student_id);
+
+    return apiResponse({ data: rows, sessions, verified_ids });
   } catch (error) {
     console.error('Attendance Status Error:', error);
     return apiError('Internal Server Error', 500);
