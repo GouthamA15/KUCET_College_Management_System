@@ -33,7 +33,29 @@ const MobileSubjectIdentityPanel = () => {
 };
 
 const MobileSessionControlPanel = () => {
-  const { activeSession, startSession, endSession, submitting, selectedDate, dateValidation } = useFacultyAttendance();
+  const { 
+    activeSession, 
+    startSession, 
+    endSession, 
+    submitting, 
+    selectedDate, 
+    dateValidation,
+    verifiedStudentIds,
+    students,
+    setAttendanceStatus,
+    fetchAttendanceStatus
+  } = useFacultyAttendance();
+
+  const verifiedList = students.filter(s => verifiedStudentIds.has(s.id));
+
+  const handleConfirmAll = () => {
+    students.forEach(s => {
+      if (verifiedStudentIds.has(s.id)) {
+        setAttendanceStatus(s.id, 'PRESENT');
+      }
+    });
+    toast.success(`Marked ${verifiedList.length} verified students as PRESENT.`);
+  };
 
   return (
     <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl mb-6 shadow-sm">
@@ -47,17 +69,51 @@ const MobileSessionControlPanel = () => {
 
       {activeSession ? (
         <div className="space-y-4">
-          <div className="bg-white p-4 rounded-lg border border-indigo-100 text-center">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ATTENDANCE PIN</p>
-            <p className="text-4xl font-black text-indigo-600 tracking-tight">{activeSession.session_pin}</p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 bg-white p-3 rounded-lg border border-indigo-100 text-center">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">PIN</p>
+              <p className="text-3xl font-black text-indigo-600 tracking-tight">{activeSession.session_pin}</p>
+            </div>
+            <button
+              onClick={endSession}
+              disabled={submitting}
+              className="px-4 py-3 bg-red-600 text-white text-xs font-bold rounded-lg uppercase shadow-sm active:bg-red-700"
+            >
+              End
+            </button>
           </div>
-          <button
-            onClick={endSession}
-            disabled={submitting}
-            className="w-full py-3 bg-red-600 text-white text-xs font-bold rounded-lg uppercase tracking-wider shadow-sm active:bg-red-700"
-          >
-            End Session
-          </button>
+
+          {/* Live verification list for mobile */}
+          <div className="bg-white p-3 rounded-lg border border-indigo-100 shadow-inner">
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Live Logs ({verifiedList.length})</span>
+                <button 
+                  onClick={() => fetchAttendanceStatus()}
+                  className="p-1 text-indigo-500 hover:bg-indigo-50 rounded-full transition-all"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+              </div>
+              {verifiedList.length > 0 && (
+                <button 
+                  onClick={handleConfirmAll}
+                  className="text-[9px] bg-indigo-600 text-white px-2 py-1 rounded-md font-bold uppercase active:scale-95 transition-all"
+                >
+                  Confirm All
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto pr-1">
+              {verifiedList.length > 0 ? verifiedList.map(s => (
+                <div key={s.id} className="text-[9px] font-bold bg-green-50 text-green-700 px-1.5 py-0.5 rounded border border-green-100">
+                  {s.roll_no}
+                </div>
+              )) : (
+                <p className="text-[9px] text-gray-400 italic">No one has entered PIN yet...</p>
+              )}
+            </div>
+          </div>
         </div>
       ) : (
         <button
