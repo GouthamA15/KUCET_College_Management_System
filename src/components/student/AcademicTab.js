@@ -159,9 +159,6 @@ export default function AcademicTab() {
       const res = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds}`);
       const json = await res.json();
       if (res.ok) {
-        // Only show sessions where the student HAS NOT verified yet
-        // subjects[i].attended_today would work if we had that flag, 
-        // but for now we filter sessions that the user just successfully verified
         setActiveSessions(json.data || []);
       }
     } catch (e) {
@@ -169,7 +166,18 @@ export default function AcademicTab() {
     }
   };
 
-  const onVerificationSuccess = (assignmentId) => {
+  const onVerificationSuccess = (assignmentId, subjectName) => {
+    // Add confirmation message
+    const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    setVerifiedMessages(prev => {
+      // Prevent duplicate messages if already present
+      if (prev.find(m => m.id === assignmentId)) return prev;
+      return [...prev, { 
+        id: assignmentId, 
+        text: `Your attendance for ${subjectName} has been successfully taken on ${today}.` 
+      }];
+    });
+
     // Remove the verified session from the active list immediately
     setActiveSessions(prev => prev.filter(s => s.assignment_id !== assignmentId));
     // Refresh the academic data to show the new attendance count
@@ -238,14 +246,7 @@ export default function AcademicTab() {
             <MarkAttendanceCard 
               key={session.assignment_id} 
               session={session} 
-              onVerified={() => {
-                const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                setVerifiedMessages(prev => [...prev, { 
-                  id: session.assignment_id, 
-                  text: `Your attendance for ${session.subject_name} has been successfully taken on ${today}.` 
-                }]);
-                onVerificationSuccess(session.assignment_id);
-              }} 
+              onVerified={() => onVerificationSuccess(session.assignment_id, session.subject_name)} 
             />
           ))}
         </div>
