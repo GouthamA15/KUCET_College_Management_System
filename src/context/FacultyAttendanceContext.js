@@ -237,20 +237,19 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [selectedDate, selectedSession, fetchAttendanceStatus]);
 
-  // Poll for verified students when a session is active
+  // Poll for verified students AND session validity when a session is active
   useEffect(() => {
     let interval;
     if (activeSession) {
       interval = setInterval(() => {
-        // If date is selected, this refreshes the grid + verified IDs
-        // If no date, we still need to refresh verified IDs for the list
         fetchAttendanceStatus();
+        fetchActiveSession();
       }, 5000); 
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [activeSession, fetchAttendanceStatus]);
+  }, [activeSession, fetchAttendanceStatus, fetchActiveSession]);
 
   const setAttendanceStatus = useCallback((studentId, status) => {
     setAttendanceStatusMap((prev) => ({ ...prev, [studentId]: status }));
