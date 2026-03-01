@@ -10,6 +10,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [selectedSession, setSelectedSession] = useState(1);
   const [baseStudents, setBaseStudents] = useState([]);
   const [attendanceStatusMap, setAttendanceStatusMap] = useState({});
+  const [absentCountMap, setAbsentCountMap] = useState({}); // Tracking variable for absent clicks
   const [existingSessionsForSelectedDate, setExistingSessionsForSelectedDate] = useState([]);
   const [dayInfo, setDayInfo] = useState(null);
   const [dateValidation, setDateValidation] = useState({
@@ -214,6 +215,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     setSelectedDate(null);
     setSelectedSession(1);
     setAttendanceStatusMap({});
+    setAbsentCountMap({}); // FIX: Reset stage tracker on assignment change
     setExistingSessionsForSelectedDate([]);
     setDayInfo(null);
     setDateValidation({
@@ -233,46 +235,69 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       fetchAttendanceStatus();
     } else {
       setAttendanceStatusMap({});
+      setAbsentCountMap({}); // FIX: Reset stage tracker on date/session change to ensure fresh cycle
       setExistingSessionsForSelectedDate([]);
     }
   }, [selectedDate, selectedSession, fetchAttendanceStatus]);
 
-  // Manual refresh only - removed auto-polling interval and recursive loop
-  useEffect(() => {
-    // We only fetch once when the session is first detected or changed
-    // No recursive calls here anymore
-    if (activeSession) {
-      fetchAttendanceStatus();
-    }
-  }, [activeSession]); // Only depend on the session existence, not the fetch functions themselves
+  // ... (Manual refresh useEffect same) ...
 
   const setAttendanceStatus = useCallback((studentId, status) => {
     setAttendanceStatusMap((prev) => ({ ...prev, [studentId]: status }));
   }, []);
 
   const toggleAttendanceStatus = useCallback((studentId) => {
-    setAttendanceStatusMap((prev) => {
-      const current = prev[studentId] ?? null;
-      let next;
-      // Cycle: NOT SET -> PRESENT -> ABSENT -> NCC -> MEDICAL -> PRESENT
-      if (current === null) next = 'PRESENT';
-      else if (current === 'PRESENT') next = 'ABSENT';
-      else if (current === 'ABSENT') next = 'NCC';
-      else if (current === 'NCC') next = 'MEDICAL';
-      else next = 'PRESENT';
-      return { ...prev, [studentId]: next };
+    setAbsentCountMap((prevStages) => {
+      const currentStage = prevStages[studentId] || 0;
+      let nextStage = currentStage + 1;
+      
+      // The Cycle: N/A(0) -> P(1) -> A(2) -> P(3) -> A(4) -> NCC(5) -> MED(6) -> P(7)
+      // Repeat from second absent (Stage 4)
+      if (nextStage > 7) nextStage = 4;
+
+      const stageToStatus = {
+        0: null,
+        1: 'PRESENT',
+        2: 'ABSENT',
+        3: 'PRESENT',
+        4: 'ABSENT',
+        5: 'NCC',
+        6: 'MEDICAL',
+        7: 'PRESENT'
+      };
+
+      const nextStatus = stageToStatus[nextStage];
+
+      setAttendanceStatusMap(prevStatus => ({
+        ...prevStatus,
+        [studentId]: nextStatus
+      }));
+
+      return { ...prevStages, [studentId]: nextStage };
     });
   }, []);
 
   const setAllAttendanceStatus = useCallback((status) => {
     setAttendanceStatusMap((prev) => {
       const next = { ...prev };
+      const nextStages = { ...absentCountMap };
+      
       baseStudents.forEach((s) => {
         next[s.id] = status;
+        // Align stages for bulk actions
+        if (status === 'ABSENT') {
+          nextStages[s.id] = 2; // Jump to first ABSENT stage
+        } else if (status === 'PRESENT') {
+          nextStages[s.id] = 1; // Jump to first PRESENT stage
+        } else {
+          nextStages[s.id] = 0; // Reset to N/A
+        }
       });
+      
+      setAbsentCountMap(nextStages);
       return next;
     });
-  }, [baseStudents]);
+  }, [baseStudents, absentCountMap]);
 
   const handleSaveAttendance = useCallback(async () => {
     if (!assignment?.id) return;
