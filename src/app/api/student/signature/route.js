@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function GET(req) {
   const user = await getAuthUser('student');
@@ -29,23 +30,37 @@ export async function GET(req) {
 
     let latestRequest = null;
     if (reqRows.length > 0) {
+      const row = reqRows[0];
+      
+      const newSig = row.new_signature;
+      const newSigData = (typeof newSig === 'string' && newSig.startsWith('http')) 
+        ? newSig 
+        : (newSig ? `data:image/png;base64,${newSig.toString('base64')}` : null);
+
+      const newPfp = row.new_pfp;
+      const newPfpData = (typeof newPfp === 'string' && newPfp.startsWith('http'))
+        ? newPfp
+        : (newPfp ? `data:image/png;base64,${newPfp.toString('base64')}` : null);
+
       latestRequest = {
-        id: reqRows[0].id,
-        status: reqRows[0].status,
-        rejection_reason: reqRows[0].rejection_reason,
-        created_at: reqRows[0].created_at,
-        new_signature: reqRows[0].new_signature ? `data:image/png;base64,${reqRows[0].new_signature.toString('base64')}` : null,
-        new_pfp: reqRows[0].new_pfp ? `data:image/png;base64,${reqRows[0].new_pfp.toString('base64')}` : null
+        id: row.id,
+        status: row.status,
+        rejection_reason: row.rejection_reason,
+        created_at: row.created_at,
+        new_signature: newSigData,
+        new_pfp: newPfpData
       };
     }
 
-    const currentSignature = sigRows.length > 0 
-      ? `data:image/png;base64,${sigRows[0].signature.toString('base64')}` 
-      : null;
+    const sig = sigRows.length > 0 ? sigRows[0].signature : null;
+    const currentSignature = (typeof sig === 'string' && sig.startsWith('http'))
+      ? sig
+      : (sig ? `data:image/png;base64,${sig.toString('base64')}` : null);
     
-    const currentPfp = pfpRows.length > 0
-      ? `data:image/png;base64,${pfpRows[0].pfp.toString('base64')}`
-      : null;
+    const pfp = pfpRows.length > 0 ? pfpRows[0].pfp : null;
+    const currentPfp = (typeof pfp === 'string' && pfp.startsWith('http'))
+      ? pfp
+      : (pfp ? `data:image/png;base64,${pfp.toString('base64')}` : null);
 
     return apiResponse({
       signature: currentSignature,
@@ -69,8 +84,10 @@ export async function POST(req) {
     if (!signature && !pfp) return apiError('Either signature or profile picture is required', 400);
 
     const db = getDb();
-    const signatureBuffer = signature ? Buffer.from(signature.split(',')[1], 'base64') : null;
-    const pfpBuffer = pfp ? Buffer.from(pfp.split(',')[1], 'base64') : null;
+    
+    // Upload to Cloudinary if provided
+    const signatureUrl = signature ? await uploadToCloudinary(signature, 'requests/signatures') : null;
+    const pfpUrl = pfp ? await uploadToCloudinary(pfp, 'requests/pfp') : null;
 
     // Check if there's already a pending request
     const [pending] = await db.execute(
@@ -82,13 +99,13 @@ export async function POST(req) {
       // Update existing pending request
       let updateSql = 'UPDATE student_profile_requests SET updated_at = CURRENT_TIMESTAMP';
       let params = [];
-      if (signatureBuffer) {
+      if (signatureUrl) {
         updateSql += ', new_signature = ?';
-        params.push(signatureBuffer);
+        params.push(signatureUrl);
       }
-      if (pfpBuffer) {
+      if (pfpUrl) {
         updateSql += ', new_pfp = ?';
-        params.push(pfpBuffer);
+        params.push(pfpUrl);
       }
       updateSql += ' WHERE id = ?';
       params.push(pending[0].id);
@@ -98,7 +115,7 @@ export async function POST(req) {
       // Create a new request (status defaults to 'pending')
       await db.execute(
         'INSERT INTO student_profile_requests (student_id, new_signature, new_pfp) VALUES (?, ?, ?)',
-        [user.student_id, signatureBuffer, pfpBuffer]
+        [user.student_id, signatureUrl, pfpUrl]
       );
     }
 

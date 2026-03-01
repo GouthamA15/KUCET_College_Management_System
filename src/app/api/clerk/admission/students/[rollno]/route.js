@@ -159,13 +159,13 @@ export async function PUT(req, context) {
     }
 
     // --- Update `student_images` and `student_signatures` if provided ---
-    if (updatedData.pfp && typeof updatedData.pfp === 'string' && updatedData.pfp.includes(',')) {
-        const pfpBuffer = Buffer.from(updatedData.pfp.split(',')[1], 'base64');
-        await query('INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ON DUPLICATE KEY UPDATE pfp = ?', [studentId, pfpBuffer, pfpBuffer]);
+    if (updatedData.pfp) {
+        const pfpUrl = await uploadToCloudinary(updatedData.pfp, 'students/pfp');
+        await query('INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ON DUPLICATE KEY UPDATE pfp = ?', [studentId, pfpUrl, pfpUrl]);
     }
-    if (updatedData.signature && typeof updatedData.signature === 'string' && updatedData.signature.includes(',')) {
-        const sigBuffer = Buffer.from(updatedData.signature.split(',')[1], 'base64');
-        await query('INSERT INTO student_signatures (student_id, signature) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature = ?', [studentId, sigBuffer, sigBuffer]);
+    if (updatedData.signature) {
+        const sigUrl = await uploadToCloudinary(updatedData.signature, 'students/signatures');
+        await query('INSERT INTO student_signatures (student_id, signature) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature = ?', [studentId, sigUrl, sigUrl]);
     }
 
     // If personal/academic updates were applied but students table was not modified above,

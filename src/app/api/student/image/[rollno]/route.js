@@ -29,17 +29,18 @@ export async function GET(req, context) {
       return new NextResponse('Image not found', { status: 404 });
     }
 
-    const imageBuffer = rows[0].pfp;
+    const imageBufferOrUrl = rows[0].pfp;
 
-    // Determine content type (simple check, or default to jpeg)
-    // Most uploaded were forced to jpeg in frontend previously, but we removed compression.
-    // It's safer to just serve as image/jpeg or detect magic numbers if needed. 
-    // Browsers are good at sniffing images even with generic headers, but let's send image/jpeg.
-    
-    return new NextResponse(imageBuffer, {
+    // If it's a Cloudinary URL (string), redirect to it
+    if (typeof imageBufferOrUrl === 'string' && imageBufferOrUrl.startsWith('http')) {
+      return NextResponse.redirect(imageBufferOrUrl);
+    }
+
+    // Otherwise, treat as Buffer (old BLOB data)
+    return new NextResponse(imageBufferOrUrl, {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=86400, must-revalidate', // Cache for 1 day
+        'Cache-Control': 'public, max-age=86400, must-revalidate', 
       },
     });
 
