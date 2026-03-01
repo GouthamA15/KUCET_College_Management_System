@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function POST(req) {
   try {
@@ -12,8 +13,7 @@ export async function POST(req) {
     }
     
     // 1. Comprehensive Uniqueness Checks
-    
-    // Check Email uniqueness across Drafts, Students, and Clerks
+    // ... same uniqueness logic ...
     const [emailInDraft] = await query('SELECT id FROM student_admission_drafts WHERE email = ?', [draftData.email]);
     const [emailInStudent] = await query('SELECT id FROM students WHERE email = ?', [draftData.email]);
     const [emailInClerk] = await query('SELECT id FROM clerks WHERE email = ?', [draftData.email]);
@@ -22,7 +22,6 @@ export async function POST(req) {
         return apiError('This email address is already registered in our system.', 409);
     }
 
-    // Check Mobile uniqueness across Drafts and Students
     const [mobileInDraft] = await query('SELECT id FROM student_admission_drafts WHERE student_mobile = ?', [draftData.student_mobile]);
     const [mobileInStudent] = await query('SELECT id FROM students WHERE mobile = ?', [draftData.student_mobile]);
     
@@ -30,7 +29,6 @@ export async function POST(req) {
         return apiError('This mobile number is already in use.', 409);
     }
 
-    // Check Aadhaar uniqueness across Drafts and Personal Details
     if (draftData.aadhaar_no) {
         const [aadhaarInDraft] = await query('SELECT id FROM student_admission_drafts WHERE aadhaar_no = ?', [draftData.aadhaar_no]);
         const [aadhaarInStudent] = await query('SELECT student_id FROM student_personal_details WHERE aadhaar_no = ?', [draftData.aadhaar_no]);
@@ -40,9 +38,16 @@ export async function POST(req) {
         }
     }
 
-    const pfpBuffer = draftData.pfp ? Buffer.from(draftData.pfp.split(',')[1], 'base64') : null;
-    const signatureBuffer = draftData.signature ? Buffer.from(draftData.signature.split(',')[1], 'base64') : null;
+    // 2. Upload to Cloudinary
+    let pfpUrl = null;
+    let signatureUrl = null;
 
+    if (draftData.pfp) {
+      pfpUrl = await uploadToCloudinary(draftData.pfp, 'admission_drafts/pfp');
+    }
+    if (draftData.signature) {
+      signatureUrl = await uploadToCloudinary(draftData.signature, 'admission_drafts/signatures');
+    }
 
     const sql = `
       INSERT INTO student_admission_drafts (
@@ -62,7 +67,7 @@ export async function POST(req) {
       draftData.admission_year, draftData.entrance_exam, draftData.branch, draftData.name,
       draftData.father_name || null, draftData.mother_name || null, toMySQLDate(draftData.dob),
       draftData.gender || null, draftData.email || null, draftData.student_mobile || null,
-      draftData.guardian_mobile || null, pfpBuffer, signatureBuffer, draftData.exam_rank || null,
+      draftData.guardian_mobile || null, pfpUrl, signatureUrl, draftData.exam_rank || null,
       draftData.area_status || null, draftData.category || null, draftData.sub_caste || null,
       draftData.seat_allotted_category || null, draftData.ssc_marks || null,
       draftData.inter_diploma_marks || null, draftData.nationality || null, draftData.religion || null,
@@ -78,9 +83,6 @@ export async function POST(req) {
 
   } catch (error) {
     console.error('Error saving admission draft:', error);
-    if (error.code === 'ER_DATA_TOO_LONG') {
-        return apiError('One of the provided files is too large.', 413) // 413 Payload Too Large
-    }
     return apiError('Failed to submit application.', 500);
   }
 }

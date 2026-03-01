@@ -27,17 +27,25 @@ export async function GET(req) {
       ORDER BY spr.created_at DESC
     `);
 
-    const data = rows.map(row => ({
-      id: row.id,
-      student_id: row.student_id,
-      roll_no: row.roll_no,
-      name: row.name,
-      new_signature: row.new_signature ? `data:image/png;base64,${row.new_signature.toString('base64')}` : null,
-      new_pfp: row.new_pfp ? `data:image/png;base64,${row.new_pfp.toString('base64')}` : null,
-      old_signature: row.old_signature ? `data:image/png;base64,${row.old_signature.toString('base64')}` : null,
-      old_pfp: row.old_pfp ? `data:image/png;base64,${row.old_pfp.toString('base64')}` : null,
-      created_at: row.created_at
-    }));
+    const data = rows.map(row => {
+      const helper = (val) => {
+        if (!val) return null;
+        if (typeof val === 'string' && val.startsWith('http')) return val;
+        return `data:image/png;base64,${val.toString('base64')}`;
+      };
+
+      return {
+        id: row.id,
+        student_id: row.student_id,
+        roll_no: row.roll_no,
+        name: row.name,
+        new_signature: helper(row.new_signature),
+        new_pfp: helper(row.new_pfp),
+        old_signature: helper(row.old_signature),
+        old_pfp: helper(row.old_pfp),
+        created_at: row.created_at
+      };
+    });
 
     return apiResponse({ data });
   } catch (err) {

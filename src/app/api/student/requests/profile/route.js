@@ -15,15 +15,23 @@ export async function GET(req) {
       [user.student_id]
     );
 
-    const requests = rows.map(row => ({
-      id: row.id,
-      status: row.status,
-      rejection_reason: row.rejection_reason,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      new_signature: row.new_signature ? `data:image/png;base64,${row.new_signature.toString('base64')}` : null,
-      new_pfp: row.new_pfp ? `data:image/png;base64,${row.new_pfp.toString('base64')}` : null
-    }));
+    const requests = rows.map(row => {
+      const helper = (val) => {
+        if (!val) return null;
+        if (typeof val === 'string' && val.startsWith('http')) return val;
+        return `data:image/png;base64,${val.toString('base64')}`;
+      };
+
+      return {
+        id: row.id,
+        status: row.status,
+        rejection_reason: row.rejection_reason,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        new_signature: helper(row.new_signature),
+        new_pfp: helper(row.new_pfp)
+      };
+    });
 
     return apiResponse({ data: requests });
   } catch (err) {

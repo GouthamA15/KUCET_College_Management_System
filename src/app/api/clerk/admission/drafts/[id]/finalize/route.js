@@ -58,6 +58,7 @@ ${draft.identification_mark_2 || ''}`.trim()
     );
 
     // 6. Insert Images if they exist in draft
+    // Note: With Cloudinary, draft.pfp and draft.signature are now URL strings
     if (draft.pfp) {
       await query('INSERT INTO student_images (student_id, pfp) VALUES (?, ?)', [studentId, draft.pfp]);
     }
