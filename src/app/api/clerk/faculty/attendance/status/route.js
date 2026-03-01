@@ -55,13 +55,13 @@ export async function GET(request) {
     const sessions = sessRows.map(r => r.session);
 
     // --- FETCH SELF-VERIFIED STUDENTS ---
-    // Look for successful logs in the active session for this assignment
+    // Look for successful logs in the active session for THIS specific assignment
     const [logRows] = await db.execute(`
       SELECT student_id 
       FROM attendance_session_logs asl
       JOIN attendance_sessions asess ON asl.session_id = asess.id
       WHERE asess.assignment_id = ? AND asess.is_active = 1 AND asl.status = 'SUCCESS'
-    `, [targetAssignmentId]);
+    `, [assignment_id]);
 
     const verified_ids = logRows.map(r => r.student_id);
 

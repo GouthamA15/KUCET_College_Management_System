@@ -152,53 +152,58 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   };
 
-  const fetchAttendanceStatus = useCallback(async () => {
-    if (!assignment?.id || !selectedDate) return;
+  const fetchAttendanceStatus = useCallback(async (forcedDate, forcedSession) => {
+    if (!assignment?.id) return;
 
-    const cacheKey = `${selectedDate}-${selectedSession}`;
-    // We don't cache if there is an active session because we want to see live-verified students
-    if (!activeSession && attendanceCache[cacheKey]) {
+    const dateToUse = forcedDate || selectedDate;
+    const sessionToUse = forcedSession || selectedSession;
+
+    // Even if no date is selected, we want to fetch verified IDs if a session is active
+    if (!dateToUse && !activeSession) return;
+
+    const cacheKey = `${dateToUse}-${sessionToUse}`;
+    if (!activeSession && dateToUse && attendanceCache[cacheKey]) {
       setAttendanceStatusMap(attendanceCache[cacheKey].statusMap || {});
       setExistingSessionsForSelectedDate(attendanceCache[cacheKey].sessions || []);
       return;
     }
 
-    setStatusLoading(true);
+    if (dateToUse) setStatusLoading(true);
     try {
-      const url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}&date=${encodeURIComponent(
-        selectedDate,
-      )}&session=${encodeURIComponent(selectedSession)}`;
+      let url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}`;
+      if (dateToUse) url += `&date=${encodeURIComponent(dateToUse)}&session=${encodeURIComponent(sessionToUse)}`;
+      
       const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch attendance status');
 
-      // data.verified_ids would be returned if we update the status API to show logs
       const verifiedIds = new Set(data.verified_ids || []);
       setVerifiedStudentIds(verifiedIds);
 
-      const statusMap = (data.data || []).reduce((acc, r) => {
-        acc[r.student_id] = r.status;
-        return acc;
-      }, {});
+      if (dateToUse) {
+        const statusMap = (data.data || []).reduce((acc, r) => {
+          acc[r.student_id] = r.status;
+          return acc;
+        }, {});
 
-      // Auto-set PRESENT for verified students who aren't in the DB yet
-      verifiedIds.forEach(id => {
-        if (!statusMap[id]) statusMap[id] = 'PRESENT';
-      });
+        // Auto-set PRESENT for verified students who aren't in the DB yet
+        verifiedIds.forEach(id => {
+          if (!statusMap[id]) statusMap[id] = 'PRESENT';
+        });
 
-      const sessions = data.sessions || [];
+        const sessions = data.sessions || [];
+        setAttendanceStatusMap(statusMap);
+        setExistingSessionsForSelectedDate(sessions);
 
-      setAttendanceStatusMap(statusMap);
-      setExistingSessionsForSelectedDate(sessions);
-
-      if (!activeSession) {
-        setAttendanceCache((prev) => ({
-          ...prev,
-          [cacheKey]: { statusMap, sessions },
-        }));
+        if (!activeSession) {
+          setAttendanceCache((prev) => ({
+            ...prev,
+            [cacheKey]: { statusMap, sessions },
+          }));
+        }
       }
     } catch (error) {
-      toast.error(error.message);
+      if (dateToUse) toast.error(error.message);
     } finally {
       setStatusLoading(false);
     }
@@ -235,15 +240,17 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   // Poll for verified students when a session is active
   useEffect(() => {
     let interval;
-    if (activeSession && selectedDate) {
+    if (activeSession) {
       interval = setInterval(() => {
+        // If date is selected, this refreshes the grid + verified IDs
+        // If no date, we still need to refresh verified IDs for the list
         fetchAttendanceStatus();
-      }, 5000); // Refresh every 5 seconds
+      }, 5000); 
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [activeSession, selectedDate, fetchAttendanceStatus]);
+  }, [activeSession, fetchAttendanceStatus]);
 
   const setAttendanceStatus = useCallback((studentId, status) => {
     setAttendanceStatusMap((prev) => ({ ...prev, [studentId]: status }));
@@ -407,7 +414,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     activeSession,
     startSession,
     endSession,
-    verifiedStudentIds
+    verifiedStudentIds,
+    fetchAttendanceStatus
   };
 
   return <FacultyAttendanceContext.Provider value={value}>{children}</FacultyAttendanceContext.Provider>;

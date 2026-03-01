@@ -5,16 +5,25 @@ import toast from 'react-hot-toast';
 const MarkAttendanceCard = ({ session, onVerified }) => {
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
 
-  const handleVerify = async (providedPin, providedToken) => {
+  const handleVerify = async () => {
+    if (pin.length !== 4) {
+      toast.error('Enter the 4-digit PIN shown on faculty screen');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // 1. Get Location (Strict Requirement)
+      if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+        toast.error("GPS requires HTTPS on mobile. Please host on Render don't use a laptop on 'localhost'.", { duration: 6000 });
+        return;
+      }
+
+      // 1. Get Location (Mandatory for security)
       const pos = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, { 
-          enableHighAccuracy: true,
-          timeout: 10000 // 10 seconds
+          enableHighAccuracy: true, 
+          timeout: 10000 
         });
       });
 
@@ -24,8 +33,7 @@ const MarkAttendanceCard = ({ session, onVerified }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assignment_id: session.assignment_id,
-          pin: providedPin || null,
-          token: providedToken || null,
+          pin: pin,
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude
         }),
@@ -35,12 +43,11 @@ const MarkAttendanceCard = ({ session, onVerified }) => {
       if (!res.ok) throw new Error(json.error || 'Verification failed');
 
       toast.success(json.message);
-      if (showScanner) setShowScanner(false);
       onVerified(); 
     } catch (err) {
       let msg = err.message;
       if (err.code === 1) msg = "Location access denied. Please enable GPS.";
-      if (err.code === 3) msg = "Location request timed out. Stand near a window or retry.";
+      if (err.code === 3) msg = "Location request timed out. Please retry.";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -48,61 +55,37 @@ const MarkAttendanceCard = ({ session, onVerified }) => {
   };
 
   return (
-    <>
-      <div className="bg-indigo-600 rounded-xl p-4 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse">
-        <div className="flex items-center gap-4">
-          <div className="bg-white/20 p-3 rounded-full">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3c4.183 0 7.66 2.567 9.106 6H22.25m-9.448 10a10.003 10.003 0 01-1.106-2.04m0 0l.054-.09A10.003 10.003 0 0122.5 12"></path></svg>
-          </div>
-          <div>
-            <h4 className="font-bold text-lg leading-tight text-center md:text-left">Active Attendance Session!</h4>
-            <p className="text-indigo-100 text-xs text-center md:text-left">{session.subject_name} ({session.subject_code})</p>
-          </div>
+    <div className="bg-indigo-600 rounded-xl p-4 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse">
+      <div className="flex items-center gap-4">
+        <div className="bg-white/20 p-3 rounded-full">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3c4.183 0 7.66 2.567 9.106 6H22.25m-9.448 10a10.003 10.003 0 01-1.106-2.04m0 0l.054-.09A10.003 10.003 0 0122.5 12"></path></svg>
         </div>
-
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <div className="flex-1 flex items-center gap-2 bg-white/10 p-1.5 rounded-lg border border-white/20">
-            <input 
-              type="text" 
-              maxLength="4" 
-              placeholder="PIN" 
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              className="w-16 bg-white text-gray-900 text-center font-bold text-lg py-1.5 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-gray-300 placeholder:font-normal"
-            />
-            <button
-              onClick={() => handleVerify(pin, null)}
-              disabled={submitting || pin.length !== 4}
-              className="flex-1 bg-white text-indigo-600 px-3 py-1.5 rounded-md font-black uppercase text-xs hover:bg-indigo-50 disabled:opacity-50 transition-all whitespace-nowrap"
-            >
-              {submitting ? '...' : 'Enter PIN'}
-            </button>
-          </div>
-          
-          <div className="h-10 w-[1px] bg-white/20 hidden md:block mx-1"></div>
-
-          <button
-            onClick={() => setShowScanner(true)}
-            className="bg-indigo-500 hover:bg-indigo-400 text-white p-2.5 rounded-lg border border-white/30 transition-all flex items-center justify-center group"
-            title="Scan QR Code"
-          >
-            <svg className="w-6 h-6 group-active:scale-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-            </svg>
-          </button>
+        <div>
+          <h4 className="font-bold text-lg leading-tight">Secure Attendance Active</h4>
+          <p className="text-indigo-100 text-xs">{session.subject_name} ({session.subject_code})</p>
         </div>
       </div>
 
-      {showScanner && (
-        <QRScannerModal 
-          onScan={(token) => handleVerify(null, token)} 
-          onClose={() => setShowScanner(false)} 
+      <div className="flex items-center gap-2 bg-white/10 p-2 rounded-lg border border-white/20">
+        <input 
+          type="text" 
+          maxLength="4" 
+          placeholder="PIN" 
+          value={pin}
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+          className="w-20 bg-white text-gray-900 text-center font-bold text-xl py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-gray-300"
         />
-      )}
-    </>
+        <button
+          onClick={handleVerify}
+          disabled={submitting || pin.length !== 4}
+          className="bg-white text-indigo-600 px-4 py-2 rounded-md font-black uppercase text-sm hover:bg-indigo-50 disabled:opacity-50 transition-all whitespace-nowrap"
+        >
+          {submitting ? 'Verifying...' : 'Mark Present'}
+        </button>
+      </div>
+    </div>
   );
 };
-
 const QRScannerModal = ({ onScan, onClose }) => {
   useEffect(() => {
     // Load html5-qrcode dynamically
@@ -162,6 +145,7 @@ const QRScannerModal = ({ onScan, onClose }) => {
 export default function AcademicTab() {
   const [data, setData] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
+  const [verifiedMessages, setVerifiedMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [historySubject, setHistorySubject] = useState(null);
@@ -175,11 +159,21 @@ export default function AcademicTab() {
       const res = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds}`);
       const json = await res.json();
       if (res.ok) {
+        // Only show sessions where the student HAS NOT verified yet
+        // subjects[i].attended_today would work if we had that flag, 
+        // but for now we filter sessions that the user just successfully verified
         setActiveSessions(json.data || []);
       }
     } catch (e) {
       console.error('Failed to fetch active sessions');
     }
+  };
+
+  const onVerificationSuccess = (assignmentId) => {
+    // Remove the verified session from the active list immediately
+    setActiveSessions(prev => prev.filter(s => s.assignment_id !== assignmentId));
+    // Refresh the academic data to show the new attendance count
+    fetchAcademicInfo();
   };
 
   const fetchAcademicInfo = async () => {
@@ -227,13 +221,31 @@ export default function AcademicTab() {
   return (
     <div className="space-y-6">
       {/* Active Attendance Sessions (Self-Verification) */}
-      {activeSessions.length > 0 && (
+      {(activeSessions.length > 0 || verifiedMessages.length > 0) && (
         <div className="space-y-3">
+          {/* Confirmation Messages */}
+          {verifiedMessages.map((m, idx) => (
+            <div key={`msg-${idx}`} className="bg-green-50 border border-green-200 p-4 rounded-xl flex items-center gap-3 animate-fadeIn">
+              <div className="bg-green-100 p-2 rounded-full text-green-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+              </div>
+              <p className="text-sm font-bold text-green-800">{m.text}</p>
+            </div>
+          ))}
+
+          {/* Active Session Cards */}
           {activeSessions.map((session) => (
             <MarkAttendanceCard 
               key={session.assignment_id} 
               session={session} 
-              onVerified={fetchAcademicInfo} 
+              onVerified={() => {
+                const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                setVerifiedMessages(prev => [...prev, { 
+                  id: session.assignment_id, 
+                  text: `Your attendance for ${session.subject_name} has been successfully taken on ${today}.` 
+                }]);
+                onVerificationSuccess(session.assignment_id);
+              }} 
             />
           ))}
         </div>

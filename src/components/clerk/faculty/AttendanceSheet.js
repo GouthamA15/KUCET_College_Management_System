@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
-import QRCode from 'qrcode';
 
 const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -44,8 +43,18 @@ const SubjectIdentityPanel = () => {
 };
 
 const SessionControlPanel = () => {
-  const { activeSession, startSession, endSession, submitting, verifiedStudentIds, students, setAttendanceStatus } = useFacultyAttendance();
-  const [qrDataUrl, setQrDataUrl] = useState('');
+  const { 
+    activeSession, 
+    startSession, 
+    endSession, 
+    submitting, 
+    verifiedStudentIds, 
+    students, 
+    setAttendanceStatus, 
+    fetchAttendanceStatus,
+    selectedDate,
+    dateValidation
+  } = useFacultyAttendance();
 
   // Filter students who have verified but aren't yet saved as PRESENT
   const verifiedList = students.filter(s => verifiedStudentIds.has(s.id));
@@ -55,13 +64,10 @@ const SessionControlPanel = () => {
     toast.success(`Marked ${verifiedList.length} verified students as PRESENT`);
   };
 
-  useEffect(() => {
-    if (activeSession?.session_token) {
-      QRCode.toDataURL(activeSession.session_token, { width: 512, margin: 2 }, (err, url) => {
-        if (!err) setQrDataUrl(url);
-      });
-    }
-  }, [activeSession]);
+  const handleManualRefresh = () => {
+    fetchAttendanceStatus();
+    toast.success('List updated', { duration: 1000, id: 'refresh-sync' });
+  };
 
   return (
     <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl mb-6 shadow-sm">
@@ -72,22 +78,31 @@ const SessionControlPanel = () => {
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${activeSession ? 'bg-green-400' : 'bg-gray-400'} opacity-75`}></span>
               <span className={`relative inline-flex rounded-full h-3 w-3 ${activeSession ? 'bg-green-500' : 'bg-gray-500'}`}></span>
             </span>
-            PROXY-FREE ATTENDANCE
+            SECURE ATTENDANCE (PIN + GPS)
           </h3>
           <p className="text-xs text-indigo-700 mt-1">
             {activeSession 
-              ? 'Session is live! Students can scan the QR or enter the PIN.' 
+              ? 'Session is live! Students must enter the 4-digit PIN on their dashboard to verify.' 
               : 'Start a secure session to allow students to mark their own attendance via GPS verification.'}
           </p>
 
           {activeSession && (
             <div className="mt-4 p-3 bg-white rounded-lg border border-indigo-100 shadow-inner">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] font-black text-indigo-400 uppercase">Live Verifications ({verifiedList.length})</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-indigo-400 uppercase">Live Verifications ({verifiedList.length})</span>
+                  <button 
+                    onClick={handleManualRefresh}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors group"
+                    title="Manual Refresh"
+                  >
+                    <svg className="w-3.5 h-3.5 text-indigo-500 group-active:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                  </button>
+                </div>
                 {verifiedList.length > 0 && (
                   <button 
                     onClick={handleConfirmAll}
-                    className="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded font-bold hover:bg-indigo-700"
+                    className="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded font-bold hover:bg-indigo-700 active:scale-95 transition-all"
                   >
                     Confirm All
                   </button>
@@ -99,7 +114,7 @@ const SessionControlPanel = () => {
                     {s.roll_no}
                   </div>
                 )) : (
-                  <p className="text-[10px] text-gray-400 italic">Waiting for students to scan...</p>
+                  <p className="text-[10px] text-gray-400 italic">Waiting for students to enter PIN...</p>
                 )}
               </div>
             </div>
@@ -107,30 +122,25 @@ const SessionControlPanel = () => {
         </div>
 
         {activeSession ? (
-          <div className="flex items-center gap-6 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm shrink-0">
-            <div className="text-center">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">SESSION PIN</p>
-              <p className="text-3xl font-black text-indigo-600 tracking-tighter">{activeSession.session_pin}</p>
+          <div className="flex items-center gap-8 bg-white p-4 rounded-lg border border-indigo-100 shadow-sm shrink-0">
+            <div className="text-center px-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ATTENDANCE PIN</p>
+              <p className="text-5xl font-black text-indigo-600 tracking-tighter">{activeSession.session_pin}</p>
             </div>
-            {qrDataUrl && (
-              <div className="border-l pl-6 flex flex-col items-center">
-                <img src={qrDataUrl} alt="Session QR" className="w-40 h-40" />
-                <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Scan to Verify</p>
-              </div>
-            )}
             <button
               onClick={endSession}
               disabled={submitting}
-              className="ml-4 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors uppercase"
+              className="ml-4 px-6 py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors uppercase"
             >
-              End
+              End Session
             </button>
           </div>
         ) : (
           <button
             onClick={startSession}
-            disabled={submitting}
-            className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md active:scale-95 flex items-center gap-2"
+            disabled={submitting || !selectedDate || !dateValidation.isValid}
+            className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale"
+            title={!selectedDate ? "Please select a date first" : !dateValidation.isValid ? "Please select a valid working day" : "Start Secure Session"}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3c4.183 0 7.66 2.567 9.106 6H22.25m-9.448 10a10.003 10.003 0 01-1.106-2.04m0 0l.054-.09A10.003 10.003 0 0122.5 12"></path></svg>
             START SECURE SESSION
