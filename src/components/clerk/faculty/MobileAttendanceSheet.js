@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
-import QRCode from 'qrcode';
 
 const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -16,44 +15,25 @@ const formatDisplayDate = (dateStr) => {
 const MobileSubjectIdentityPanel = () => {
   const { assignment } = useFacultyAttendance();
   return (
-  <div className="bg-white border-2 border-gray-200 p-4 rounded-lg mb-6">
-    <div className="border-b-2 border-gray-200 pb-2 mb-4">
-      <h2 className="text-lg font-bold text-gray-800">Attendance Register</h2>
-      <span className={`text-xs font-bold px-3 py-1 rounded-full ${assignment.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
-        {assignment.is_active ? 'Active' : 'History'}
-      </span>
+    <div className="bg-white border-b shadow-sm p-3 mb-4 -mx-4 sticky top-0 z-20">
+      <div className="flex justify-between items-start gap-2">
+        <div className="flex-1">
+          <h2 className="text-sm font-black text-gray-900 uppercase leading-tight line-clamp-1">{assignment.subject_name}</h2>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[10px] font-bold bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 uppercase">{assignment.subject_code}</span>
+            <span className="text-[10px] font-bold text-indigo-600">{assignment.branch} • Sem {assignment.semester}</span>
+          </div>
+        </div>
+        <div className={`text-[10px] font-black px-2 py-1 rounded-full shrink-0 ${assignment.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+          {assignment.is_active ? 'ACTIVE' : 'HISTORY'}
+        </div>
+      </div>
     </div>
-    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-      <div className="font-semibold text-gray-500">Subject:</div>
-      <div className="font-mono text-gray-900">{assignment.subject_name}</div>
-
-      <div className="font-semibold text-gray-500">Code:</div>
-      <div className="font-mono text-gray-900">{assignment.subject_code}</div>
-
-      <div className="font-semibold text-gray-500">Branch:</div>
-      <div className="font-mono text-gray-900">{assignment.branch}</div>
-
-      <div className="font-semibold text-gray-500">Semester:</div>
-      <div className="font-mono text-gray-900">{assignment.semester}</div>
-
-      <div className="font-semibold text-gray-500">Academic Year:</div>
-      <div className="font-mono text-gray-900">{assignment.academic_year}</div>
-    </div>
-  </div>
   );
 };
 
 const MobileSessionControlPanel = () => {
   const { activeSession, startSession, endSession, submitting } = useFacultyAttendance();
-  const [qrDataUrl, setQrDataUrl] = useState('');
-
-  useEffect(() => {
-    if (activeSession?.session_token) {
-      QRCode.toDataURL(activeSession.session_token, { width: 256, margin: 2 }, (err, url) => {
-        if (!err) setQrDataUrl(url);
-      });
-    }
-  }, [activeSession]);
 
   return (
     <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl mb-6 shadow-sm">
@@ -67,22 +47,14 @@ const MobileSessionControlPanel = () => {
 
       {activeSession ? (
         <div className="space-y-4">
-          <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-indigo-100">
-            <div className="text-center">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">PIN</p>
-              <p className="text-3xl font-black text-indigo-600">{activeSession.session_pin}</p>
-            </div>
-            {qrDataUrl && (
-              <div className="flex flex-col items-center">
-                <img src={qrDataUrl} alt="Session QR" className="w-16 h-16" />
-                <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase">Scan QR</p>
-              </div>
-            )}
+          <div className="bg-white p-4 rounded-lg border border-indigo-100 text-center">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ATTENDANCE PIN</p>
+            <p className="text-4xl font-black text-indigo-600 tracking-tight">{activeSession.session_pin}</p>
           </div>
           <button
             onClick={endSession}
             disabled={submitting}
-            className="w-full py-2.5 bg-red-600 text-white text-xs font-bold rounded-lg uppercase tracking-wider"
+            className="w-full py-3 bg-red-600 text-white text-xs font-bold rounded-lg uppercase tracking-wider shadow-sm active:bg-red-700"
           >
             End Session
           </button>
@@ -91,10 +63,10 @@ const MobileSessionControlPanel = () => {
         <button
           onClick={startSession}
           disabled={submitting}
-          className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-sm"
+          className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-sm active:bg-indigo-700"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3c4.183 0 7.66 2.567 9.106 6H22.25m-9.448 10a10.003 10.003 0 01-1.106-2.04m0 0l.054-.09A10.003 10.003 0 0122.5 12"></path></svg>
-          START SESSION
+          START SECURE SESSION
         </button>
       )}
     </div>
@@ -124,7 +96,7 @@ export default function MobileAttendanceSheet({ onBack }) {
   } = useFacultyAttendance();
 
   return (
-    <div>
+    <div className="pb-24">
       {/* Back Button */}
       <button onClick={onBack} className="text-sm font-medium text-indigo-600 hover:text-indigo-800 mb-4 inline-flex items-center">
         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
@@ -178,16 +150,24 @@ export default function MobileAttendanceSheet({ onBack }) {
           </div>
         )}
 
-        {selectedDate && (
+        {selectedDate && dateValidation.isValid && (
           <>
             {/* Session Selector */}
-            <div className="flex flex-col gap-2 mb-4">
-              <label className="block text-[11px] font-bold text-gray-500 uppercase">Sessions</label>
-              <div className="flex flex-wrap gap-2 bg-gray-100 p-1 rounded-lg border-2">
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase">Sessions</label>
+                {verifiedStudentIds.size > 0 && (
+                  <div className="flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                    <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                    <span className="text-[9px] font-black text-green-700">{verifiedStudentIds.size} VERIFIED</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
                 {[1, 2, 3, 4, 5].map(num => {
                   const isExisting = existingSessionsForSelectedDate.includes(num);
                   const isAllowedSequential = num === 1 || existingSessionsForSelectedDate.includes(num - 1);
-                  const isDisabled = !assignment.is_active || !isAllowedSequential || !dateValidation.isValid;
+                  const isDisabled = !assignment.is_active || !isAllowedSequential;
                   const isSelected = selectedSession === num;
 
                   return (
@@ -196,37 +176,45 @@ export default function MobileAttendanceSheet({ onBack }) {
                       type="button"
                       onClick={() => !isDisabled && setSelectedSession(num)}
                       disabled={isDisabled}
-                      className={`flex-grow h-9 rounded-md text-[11px] font-bold flex items-center justify-center min-w-[60px] border ${
+                      className={`flex-1 h-10 rounded-lg text-[11px] font-black flex items-center justify-center min-w-[50px] border-2 transition-all ${
                         isSelected
-                          ? 'bg-gray-900 text-white border-gray-900'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                           : isExisting
-                          ? 'bg-gray-50 text-gray-900 border-gray-300'
-                          : 'bg-white text-gray-600 border-gray-200'
-                      } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                      title={
-                        isDisabled && num !== 1
-                          ? `Session S${num} will be available after S${num - 1} is recorded.`
-                          : isExisting
-                          ? `S${num} already has attendance records.`
-                          : ''
-                      }
+                          ? 'bg-indigo-50 text-indigo-900 border-indigo-100'
+                          : 'bg-white text-gray-400 border-gray-100'
+                      } ${isDisabled ? 'opacity-30' : 'active:scale-95'}`}
                     >
                       S{num}
                     </button>
                   );
                 })}
               </div>
-              <p className="text-[11px] text-gray-500">
-                Sessions unlock sequentially. S2 requires recorded attendance for S1, and so on.
-              </p>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-2 mb-4">
-              {assignment.is_active ? (
+            {/* Action Buttons (Condensed) */}
+            <div className="space-y-2 mb-6">
+              {assignment.is_active && (
                 <>
-                  {/* Follow previous session button (mobile) */}
-                  {selectedSession > 1 && existingSessionsForSelectedDate.includes(selectedSession - 1) && dateValidation.isValid && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
+                      disabled={submitting || !students.length}
+                      className="bg-green-50 text-green-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-green-100 active:bg-green-100"
+                    >
+                      All Present
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
+                      disabled={submitting || !students.length}
+                      className="bg-red-50 text-red-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border-2 border-red-100 active:bg-red-100"
+                    >
+                      All Absent
+                    </button>
+                  </div>
+                  
+                  {selectedSession > 1 && existingSessionsForSelectedDate.includes(selectedSession - 1) && (
                     <FollowPreviousMobileButton
                       assignment={assignment}
                       prevSession={selectedSession - 1}
@@ -235,57 +223,16 @@ export default function MobileAttendanceSheet({ onBack }) {
                       setAttendanceStatus={setAttendanceStatus}
                     />
                   )}
-
-                  {/* Bulk Mark All Buttons */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
-                      disabled={submitting || !students.length || !dateValidation.isValid}
-                      className="bg-green-600 text-white py-2 rounded-lg font-bold text-[10px] uppercase tracking-wide border border-green-600 disabled:opacity-50"
-                    >
-                      Mark All Present
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
-                      disabled={submitting || !students.length || !dateValidation.isValid}
-                      className="bg-red-600 text-white py-2 rounded-lg font-bold text-[10px] uppercase tracking-wide border border-red-600 disabled:opacity-50"
-                    >
-                      Mark All Absent
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleSaveAttendance}
-                    disabled={submitting || !students.length || !dateValidation.isValid}
-                    className="bg-gray-900 text-white w-full py-2 rounded-lg font-bold text-xs uppercase tracking-wide border border-gray-900 disabled:opacity-50"
-                  >
-                    {submitting ? 'Saving…' : 'Save Attendance'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDeleteAttendance}
-                    disabled={submitting || !existingSessionsForSelectedDate.includes(selectedSession) || !dateValidation.isValid}
-                    className="bg-white text-red-700 border-2 border-red-200 w-full py-2 rounded-lg font-bold text-xs uppercase tracking-wide disabled:opacity-50"
-                  >
-                    Delete Session
-                  </button>
                 </>
-              ) : (
-                <div className="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold text-[11px] border uppercase tracking-[0.18em] text-center">
-                  Semester Ended
-                </div>
               )}
             </div>
 
-            {/* Mobile table view */}
+            {/* Mobile Table */}
             <div className="mt-2">
               {loading && students.length === 0 ? (
                 <div className="text-center py-4 text-gray-500 text-xs">Loading students...</div>
               ) : students.length > 0 ? (
-                <table className="w-full table-fixed border-collapse" style={{ tableLayout: 'fixed' }}>
+                <table className="w-full table-fixed border-collapse">
                   <colgroup>
                     <col style={{ width: '28%' }} />
                     <col style={{ width: '52%' }} />
@@ -293,9 +240,9 @@ export default function MobileAttendanceSheet({ onBack }) {
                   </colgroup>
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="px-3 py-2 text-left font-semibold text-gray-600" style={{ fontSize: '12px' }}>Roll No</th>
-                      <th className="px-3 py-2 text-left font-semibold text-gray-600" style={{ fontSize: '12px' }}>Name</th>
-                      <th className="px-3 py-2 text-center font-semibold text-gray-600" style={{ fontSize: '12px' }}>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-600 text-[12px]">Roll No</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-600 text-[12px]">Name</th>
+                      <th className="px-3 py-2 text-center font-semibold text-gray-600 text-[12px]">
                         <span className="inline-flex items-center justify-center gap-1">
                           <span>Status</span>
                           {statusLoading && (
@@ -308,7 +255,7 @@ export default function MobileAttendanceSheet({ onBack }) {
                   <tbody>
                     {students.map(student => (
                       <tr key={student.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 align-middle font-mono text-gray-800" style={{ fontSize: '12px', fontWeight: 600 }}>
+                        <td className="px-3 py-2 align-middle font-mono text-gray-800 text-[12px] font-semibold">
                           <div className="flex items-center gap-1">
                             {student.roll_no}
                             {verifiedStudentIds.has(student.id) && (
@@ -316,7 +263,7 @@ export default function MobileAttendanceSheet({ onBack }) {
                             )}
                           </div>
                         </td>
-                        <td className="px-3 py-2 align-middle text-gray-800" style={{ fontSize: '13px', fontWeight: 500, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                        <td className="px-3 py-2 align-middle text-gray-800 text-[13px] font-medium break-words">
                           {student.name}
                           {verifiedStudentIds.has(student.id) && (
                             <div className="text-[8px] font-black text-green-600 uppercase">Verified</div>
@@ -365,12 +312,32 @@ export default function MobileAttendanceSheet({ onBack }) {
         )}
       </section>
 
-      {/* ATTENDANCE HISTORY (READ-ONLY) */}
-      <section className="bg-white p-4 rounded-lg border-2">
-        <div className="text-sm text-gray-600">
-          Attendance history is available in the desktop view. Mobile supports single-session daily entry only.
+      {/* STICKY BOTTOM ACTION BAR */}
+      {selectedDate && dateValidation.isValid && assignment.is_active && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3 z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+          <button
+            type="button"
+            onClick={handleDeleteAttendance}
+            disabled={submitting || !existingSessionsForSelectedDate.includes(selectedSession)}
+            className="p-3 text-red-600 border-2 border-red-50 rounded-xl active:bg-red-50 disabled:opacity-30"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveAttendance}
+            disabled={submitting || !students.length}
+            className="flex-1 bg-indigo-600 text-white font-black py-3 rounded-xl shadow-lg shadow-indigo-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-wider text-sm disabled:bg-gray-300 disabled:shadow-none"
+          >
+            {submitting ? (
+              <span className="inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+            )}
+            Save Session S{selectedSession}
+          </button>
         </div>
-      </section>
+      )}
     </div>
   );
 }
@@ -418,4 +385,3 @@ export default function MobileAttendanceSheet({ onBack }) {
       </button>
     );
   }
-
