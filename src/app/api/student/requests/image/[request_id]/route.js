@@ -48,9 +48,15 @@ export async function GET(req, context) {
       return new NextResponse('Image not found', { status: 404 });
     }
 
-    const imageBuffer = rows[0].payment_screenshot;
+    const imageBufferOrUrl = rows[0].payment_screenshot;
 
-    return new NextResponse(imageBuffer, {
+    // If it's a Cloudinary URL (string), redirect to it
+    if (typeof imageBufferOrUrl === 'string' && imageBufferOrUrl.startsWith('http')) {
+      return NextResponse.redirect(imageBufferOrUrl);
+    }
+
+    // Otherwise, treat as Buffer (old BLOB data)
+    return new NextResponse(imageBufferOrUrl, {
       headers: {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',

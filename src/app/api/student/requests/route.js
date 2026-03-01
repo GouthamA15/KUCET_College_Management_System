@@ -2,9 +2,11 @@ import { query } from '@/lib/db';
 import { getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 async function validateStudentVerification(studentId) {
-  try {
+// ...
+
     const rows = await query('SELECT email, is_email_verified, password_hash FROM students WHERE id = ?', [studentId]);
     const s = rows && rows[0];
     if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
@@ -188,28 +190,30 @@ export async function POST(request) {
         if (existing.status && existing.status !== 'REJECTED') {
           // active (PENDING/APPROVED) - block
           return apiError('An active request already exists for this certificate and academic year.', 409);
-        }
-
-        // status === 'REJECTED' -> allow re-request by reusing the same row (UPDATE)
         try {
-          const updateResult = await query(
-            `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, purpose = ?, from_date = ?, to_date = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
-            [paymentAmountToStore, transactionIdToStore, purpose || null, fromDateSql, toDateSql, 'PENDING', existing.request_id]
-          );
-          
-          if (paymentScreenshotBuffer) {
-             await query(
-                `INSERT INTO student_request_images (request_id, payment_screenshot) VALUES (?, ?) ON DUPLICATE KEY UPDATE payment_screenshot = VALUES(payment_screenshot)`,
-                [existing.request_id, paymentScreenshotBuffer]
-             );
-          }
+          // status === 'REJECTED' -> allow re-request by reusing the same row (UPDATE)
+          try {
+            const updateResult = await query(
+              `UPDATE student_requests SET payment_amount = ?, transaction_id = ?, purpose = ?, from_date = ?, to_date = ?, status = ?, updated_at = NOW(), completed_at = NULL WHERE request_id = ?`,
+              [paymentAmountToStore, transactionIdToStore, purpose || null, fromDateSql, toDateSql, 'PENDING', existing.request_id]
+            );
 
-          if (updateResult.affectedRows === 1) {
-            return apiResponse({ success: true, requestId: existing.request_id });
-          } else {
-            return apiError('Failed to update rejected request', 500);
-          }
-        } catch (err) {
+            if (paymentScreenshotFile) {
+               const screenshotUrl = await uploadToCloudinary(paymentScreenshotFile, 'certificates/payments');
+               await query(
+                  `INSERT INTO student_request_images (request_id, payment_screenshot) VALUES (?, ?) ON DUPLICATE KEY UPDATE payment_screenshot = VALUES(payment_screenshot)`,
+                  [existing.request_id, screenshotUrl]
+               );
+            }
+
+            if (updateResult.affectedRows === 1) {
+              return apiResponse({ success: true, requestId: existing.request_id });
+            } else {
+              return apiError('Failed to update rejected request', 500);
+            }
+          } catch (err) {
+        // ...
+
           if (err && (err.code === 'ER_DUP_ENTRY' || err.errno === 1062)) {
             return apiError('Certificate already requested for this academic year.', 409);
           }
@@ -225,10 +229,11 @@ export async function POST(request) {
       );
       
       const newRequestId = result.insertId;
-      if (paymentScreenshotBuffer) {
+      if (paymentScreenshotFile) {
+          const screenshotUrl = await uploadToCloudinary(paymentScreenshotFile, 'certificates/payments');
           await query(
              `INSERT INTO student_request_images (request_id, payment_screenshot) VALUES (?, ?)`,
-             [newRequestId, paymentScreenshotBuffer]
+             [newRequestId, screenshotUrl]
           );
       }
 
