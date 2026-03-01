@@ -75,7 +75,7 @@ export default function ClerkSecurityPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
       <Header />
-      <Navbar role={'clerk'} activeTab={'menu'} onLogout={async () => { await fetch('/api/clerk/logout', { method: 'POST' }); location.href = '/'; }} />
+      <Navbar role={clerk?.role === 'faculty' ? 'faculty' : 'clerk'} activeTab={'menu'} onLogout={async () => { await fetch('/api/clerk/logout', { method: 'POST' }); location.href = '/'; }} />
 
       <main className="flex-1 flex items-start justify-center px-6 py-8">
         <div className="w-full max-w-4xl bg-white shadow-xl rounded-lg p-6 md:p-8">

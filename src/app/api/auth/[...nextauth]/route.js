@@ -2,15 +2,17 @@ import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google";
 import { getDb } from "@/lib/db";
 
-const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-if (process.env.NODE_ENV === 'production' && publicBaseUrl) {
-  const nextAuthUrl = process.env.NEXTAUTH_URL;
-  if (!nextAuthUrl || /localhost|127\.0\.0\.1/.test(nextAuthUrl)) {
-    process.env.NEXTAUTH_URL = publicBaseUrl;
-  }
+const publicBaseUrlRaw = process.env.NEXT_PUBLIC_BASE_URL;
+if (process.env.NODE_ENV === 'production' && publicBaseUrlRaw) {
+  const publicBaseUrl = /^https?:\/\//i.test(publicBaseUrlRaw)
+    ? publicBaseUrlRaw
+    : `https://${publicBaseUrlRaw}`;
+  process.env.NEXTAUTH_URL = publicBaseUrl;
+  process.env.NEXTAUTH_URL_INTERNAL = publicBaseUrl;
 }
 
 export const authOptions = {
+  trustHost: true,
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -64,8 +66,27 @@ export const authOptions = {
       session.user.role = token.role;
       return session;
     },
-    async redirect({ url, baseUrl, token }) {
-      return url;
+    async redirect({ url, baseUrl }) {
+      if (!globalThis.__nextauth_redirect_logged) {
+        globalThis.__nextauth_redirect_logged = true;
+        console.log('[NEXTAUTH_REDIRECT]', {
+          url,
+          baseUrl,
+          NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+          NEXTAUTH_URL_INTERNAL: process.env.NEXTAUTH_URL_INTERNAL,
+          NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+          NODE_ENV: process.env.NODE_ENV,
+        });
+      }
+      const preferredBase = process.env.NEXT_PUBLIC_BASE_URL || baseUrl;
+      const normalizedBase = preferredBase.replace(/\/$/, '');
+      if (url.startsWith('/')) {
+        return `${normalizedBase}${url}`;
+      }
+      if (url.startsWith(normalizedBase)) {
+        return url;
+      }
+      return normalizedBase;
     }
   },
   secret: process.env.JWT_SECRET,

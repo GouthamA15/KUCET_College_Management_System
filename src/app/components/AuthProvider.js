@@ -11,21 +11,17 @@ function SessionMonitor({ children }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    console.log('AuthProvider SessionMonitor useEffect:', { status, session });
-
     // Allow certain public routes (like password reset) even for authenticated users
     const isPasswordResetRoute = pathname?.startsWith('/reset-password');
+    const isHome = pathname === '/';
 
-    if (status === "authenticated" && session?.user?.role && !isPasswordResetRoute) {
+    // Only redirect to dashboard if user is authenticated AND they are on the login/home page
+    // This prevents redirecting when the user is already on a deeper protected page (e.g. attendance)
+    if (status === "authenticated" && session?.user?.role && isHome && !isPasswordResetRoute) {
       const redirectPath = getDashboardPathByRole(session.user.role);
-      console.log('AuthProvider SessionMonitor: Initiating redirect to', redirectPath);
       router.push(redirectPath);
-    } else if (status === "unauthenticated") {
-      console.log('AuthProvider SessionMonitor: User is unauthenticated.');
-    } else if (status === "loading") {
-      console.log('AuthProvider SessionMonitor: Session is loading.');
     }
-  }, [status, session, router]);
+  }, [status, session, router, pathname]);
 
   return children;
 }

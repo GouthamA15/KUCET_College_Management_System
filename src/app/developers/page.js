@@ -28,7 +28,7 @@ export default function DevelopersPage() {
     },
     {
       name: 'Uzair',
-      role: 'Tester & Debugger',
+      role: 'System Interface and API designer',
       image: '/assets/default-avatar.svg',
       delay: '0.4s',
     },

@@ -35,6 +35,16 @@ async function buildClerkAuthToken(clerk) {
 export async function GET(request) {
   const session = await getServerSession(authOptions);
   const baseRedirect = resolveBaseRedirect(request);
+  if (!globalThis.__google_complete_redirect_logged) {
+    globalThis.__google_complete_redirect_logged = true;
+    console.log('[GOOGLE_COMPLETE_REDIRECT]', {
+      requestUrl: request.url,
+      forwardedHost: request.headers.get('x-forwarded-host'),
+      forwardedProto: request.headers.get('x-forwarded-proto'),
+      resolvedBase: baseRedirect.toString(),
+      NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+    });
+  }
 
   if (!session?.user?.email) {
     return NextResponse.redirect(baseRedirect, 303);

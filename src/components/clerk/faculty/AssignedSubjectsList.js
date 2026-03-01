@@ -79,20 +79,22 @@ export default function AssignedSubjectsList({ onSelectAssignment = () => {}, sh
                     </div>
                   </div>
 
-                  <div className="flex gap-3" style={{ display: 'none' }}>
-                    <button
-                      onClick={() => onSelectAssignment(asgn, 'attendance')}
-                      className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-black hover:bg-indigo-700 shadow-lg shadow-indigo-100 active:scale-95 transition-all"
-                    >
-                      Attendance
-                    </button>
-                    <button
-                      onClick={() => onSelectAssignment(asgn, 'marks')}
-                      className="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100 active:scale-95 transition-all"
-                    >
-                      Mid Marks
-                    </button>
-                  </div>
+                  {showActions && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => onSelectAssignment(asgn, 'attendance')}
+                        className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-black hover:bg-indigo-700 shadow-lg shadow-indigo-100 active:scale-95 transition-all"
+                      >
+                        View Attendance
+                      </button>
+                      <button
+                        onClick={() => onSelectAssignment(asgn, 'marks')}
+                        className="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100 active:scale-95 transition-all"
+                      >
+                        View Marks
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

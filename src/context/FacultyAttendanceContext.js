@@ -20,6 +20,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [statusLoading, setStatusLoading] = useState(false); // attendance status loading for grid
   const [submitting, setSubmitting] = useState(false);
   const [attendanceCache, setAttendanceCache] = useState({}); // { `${date}-${session}`: { statusMap, sessions } }
+  const [activeSession, setActiveSession] = useState(null);
+  const [verifiedStudentIds, setVerifiedStudentIds] = useState(new Set());
 
   const fetchBaseStudents = useCallback(async () => {
     if (!assignment?.id) {
@@ -47,46 +49,165 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [assignment]);
 
-  const fetchAttendanceStatus = useCallback(async () => {
-    if (!assignment?.id || !selectedDate) return;
+  const fetchActiveSession = useCallback(async () => {
+    if (!assignment?.id) return;
+    try {
+      const res = await fetch(`/api/clerk/faculty/attendance/session?assignment_id=${assignment.id}`);
+      const json = await res.json();
+      if (res.ok && json.active) {
+        setActiveSession(json.session);
+      } else {
+        setActiveSession(null);
+      }
+    } catch (e) {
+      console.error('Failed to fetch active session:', e);
+    }
+  }, [assignment]);
 
-    const cacheKey = `${selectedDate}-${selectedSession}`;
-    const cached = attendanceCache[cacheKey];
-    if (cached) {
-      setAttendanceStatusMap(cached.statusMap || {});
-      setExistingSessionsForSelectedDate(cached.sessions || []);
+  const startSession = async () => {
+    if (!assignment?.id) return;
+
+    let latitude = null;
+    let longitude = null;
+
+    try {
+      setSubmitting(true);
+
+      if (navigator.geolocation) {
+        toast.loading('Requesting location access...', { id: 'geo-loading' });
+        try {
+          const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { 
+              enableHighAccuracy: true,
+              timeout: 8000,
+              maximumAge: 0
+            });
+          });
+          latitude = pos.coords.latitude;
+          longitude = pos.coords.longitude;
+          toast.dismiss('geo-loading');
+        } catch (geoErr) {
+          toast.dismiss('geo-loading');
+          console.warn('Geolocation failed, falling back to PIN-only:', geoErr);
+          const proceed = window.confirm('GPS is blocked or unavailable (requires HTTPS on mobile). Start session with PIN-only security?');
+          if (!proceed) throw new Error('Session cancelled by user.');
+        }
+      } else {
+        const proceed = window.confirm('Your browser doesn\'t support GPS. Start session with PIN-only security?');
+        if (!proceed) return;
+      }
+
+      toast.loading('Creating secure session...', { id: 'session-loading' });
+
+  // ... rest same ...
+
+      const res = await fetch('/api/clerk/faculty/attendance/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          latitude,
+          longitude
+        }),
+      });
+      
+      const json = await res.json();
+      toast.dismiss('session-loading');
+
+      if (!res.ok) throw new Error(json.error || 'Failed to start session');
+      
+      setActiveSession(json.session);
+      toast.success('Attendance session started!');
+    } catch (error) {
+      toast.dismiss('geo-loading');
+      toast.dismiss('session-loading');
+      console.error('Start Session Error:', error);
+      
+      let msg = error.message;
+      if (error.code === 1) msg = 'Location permission denied. Please enable location in your browser settings.';
+      if (error.code === 2) msg = 'Location unavailable.';
+      if (error.code === 3) msg = 'Location request timed out. Please try again.';
+      
+      toast.error(msg || 'Geolocation is required to start a session.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const endSession = async () => {
+    if (!assignment?.id) return;
+    try {
+      setSubmitting(true);
+      const res = await fetch(`/api/clerk/faculty/attendance/session?assignment_id=${assignment.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setActiveSession(null);
+        toast.success('Session ended.');
+      }
+    } catch (error) {
+      toast.error('Failed to end session');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const fetchAttendanceStatus = useCallback(async (forcedDate, forcedSession) => {
+    if (!assignment?.id) return;
+
+    const dateToUse = forcedDate || selectedDate;
+    const sessionToUse = forcedSession || selectedSession;
+
+    // Even if no date is selected, we want to fetch verified IDs if a session is active
+    if (!dateToUse && !activeSession) return;
+
+    const cacheKey = `${dateToUse}-${sessionToUse}`;
+    if (!activeSession && dateToUse && attendanceCache[cacheKey]) {
+      setAttendanceStatusMap(attendanceCache[cacheKey].statusMap || {});
+      setExistingSessionsForSelectedDate(attendanceCache[cacheKey].sessions || []);
       return;
     }
 
-    setStatusLoading(true);
+    if (dateToUse) setStatusLoading(true);
     try {
-      const url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}&date=${encodeURIComponent(
-        selectedDate,
-      )}&session=${encodeURIComponent(selectedSession)}`;
+      let url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}`;
+      if (dateToUse) url += `&date=${encodeURIComponent(dateToUse)}&session=${encodeURIComponent(sessionToUse)}`;
+      
       const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch attendance status');
 
-      const statusMap = (data.data || []).reduce((acc, r) => {
-        acc[r.student_id] = r.status;
-        return acc;
-      }, {});
+      const verifiedIds = new Set(data.verified_ids || []);
+      setVerifiedStudentIds(verifiedIds);
 
-      const sessions = data.sessions || [];
+      if (dateToUse) {
+        const statusMap = (data.data || []).reduce((acc, r) => {
+          acc[r.student_id] = r.status;
+          return acc;
+        }, {});
 
-      setAttendanceStatusMap(statusMap);
-      setExistingSessionsForSelectedDate(sessions);
+        // Auto-set PRESENT for verified students who aren't in the DB yet
+        verifiedIds.forEach(id => {
+          if (!statusMap[id]) statusMap[id] = 'PRESENT';
+        });
 
-      setAttendanceCache((prev) => ({
-        ...prev,
-        [cacheKey]: { statusMap, sessions },
-      }));
+        const sessions = data.sessions || [];
+        setAttendanceStatusMap(statusMap);
+        setExistingSessionsForSelectedDate(sessions);
+
+        if (!activeSession) {
+          setAttendanceCache((prev) => ({
+            ...prev,
+            [cacheKey]: { statusMap, sessions },
+          }));
+        }
+      }
     } catch (error) {
-      toast.error(error.message);
+      if (dateToUse) toast.error(error.message);
     } finally {
       setStatusLoading(false);
     }
-  }, [assignment, selectedDate, selectedSession, attendanceCache]);
+  }, [assignment, selectedDate, selectedSession, attendanceCache, activeSession]);
 
   // load base students once per assignment
   useEffect(() => {
@@ -100,9 +221,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       message: 'Select a WORKING day from the academic calendar.',
     });
     setAttendanceCache({});
+    setActiveSession(null);
 
     fetchBaseStudents();
-  }, [assignment, fetchBaseStudents]);
+    fetchActiveSession();
+  }, [assignment, fetchBaseStudents, fetchActiveSession]);
 
   // on date or session change, only fetch attendance status
   useEffect(() => {
@@ -114,6 +237,15 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [selectedDate, selectedSession, fetchAttendanceStatus]);
 
+  // Manual refresh only - removed auto-polling interval and recursive loop
+  useEffect(() => {
+    // We only fetch once when the session is first detected or changed
+    // No recursive calls here anymore
+    if (activeSession) {
+      fetchAttendanceStatus();
+    }
+  }, [activeSession]); // Only depend on the session existence, not the fetch functions themselves
+
   const setAttendanceStatus = useCallback((studentId, status) => {
     setAttendanceStatusMap((prev) => ({ ...prev, [studentId]: status }));
   }, []);
@@ -122,12 +254,25 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     setAttendanceStatusMap((prev) => {
       const current = prev[studentId] ?? null;
       let next;
+      // Cycle: NOT SET -> PRESENT -> ABSENT -> NCC -> MEDICAL -> PRESENT
       if (current === null) next = 'PRESENT';
       else if (current === 'PRESENT') next = 'ABSENT';
+      else if (current === 'ABSENT') next = 'NCC';
+      else if (current === 'NCC') next = 'MEDICAL';
       else next = 'PRESENT';
       return { ...prev, [studentId]: next };
     });
   }, []);
+
+  const setAllAttendanceStatus = useCallback((status) => {
+    setAttendanceStatusMap((prev) => {
+      const next = { ...prev };
+      baseStudents.forEach((s) => {
+        next[s.id] = status;
+      });
+      return next;
+    });
+  }, [baseStudents]);
 
   const handleSaveAttendance = useCallback(async () => {
     if (!assignment?.id) return;
@@ -156,6 +301,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       if (!res.ok) throw new Error(data.error || 'Failed to save attendance');
 
       toast.success('Attendance saved successfully');
+
+      // --- AUTO-CLOSE SESSION AFTER SAVE ---
+      if (activeSession) {
+        await endSession();
+      }
 
       const cacheKey = `${selectedDate}-${selectedSession}`;
       setAttendanceCache((prev) => {
@@ -249,6 +399,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     attendanceStatusMap,
     setAttendanceStatus,
     toggleAttendanceStatus,
+    setAllAttendanceStatus,
     existingSessionsForSelectedDate,
     dayInfo,
     dateValidation,
@@ -259,6 +410,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     handleSaveAttendance,
     handleDeleteAttendance,
     handleCalendarSelect,
+    activeSession,
+    startSession,
+    endSession,
+    verifiedStudentIds,
+    fetchAttendanceStatus
   };
 
   return <FacultyAttendanceContext.Provider value={value}>{children}</FacultyAttendanceContext.Provider>;

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
@@ -39,6 +39,122 @@ const SubjectIdentityPanel = () => {
       <div className="font-mono text-gray-900">{assignment.academic_year}</div>
     </div>
   </div>
+  );
+};
+
+const SessionControlPanel = () => {
+  const { 
+    activeSession, 
+    startSession, 
+    endSession, 
+    submitting, 
+    verifiedStudentIds, 
+    students, 
+    setAttendanceStatus, 
+    fetchAttendanceStatus,
+    selectedDate,
+    dateValidation
+  } = useFacultyAttendance();
+
+  // Filter students who have verified but aren't yet saved as PRESENT
+  const verifiedList = students.filter(s => verifiedStudentIds.has(s.id));
+
+  const handleConfirmAll = () => {
+    students.forEach(s => {
+      if (verifiedStudentIds.has(s.id)) {
+        setAttendanceStatus(s.id, 'PRESENT');
+      } else if (s.status === null) {
+        // Set all N/A students to ABSENT
+        setAttendanceStatus(s.id, 'ABSENT');
+      }
+    });
+    toast.success(`Attendance synchronized: Verified students marked PRESENT, others marked ABSENT.`);
+  };
+
+  const handleManualRefresh = () => {
+    fetchAttendanceStatus();
+    toast.success('List updated', { duration: 1000, id: 'refresh-sync' });
+  };
+
+  return (
+    <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl mb-6 shadow-sm">
+      <div className="flex flex-col lg:flex-row justify-between gap-6">
+        <div className="flex-1">
+          <h3 className="text-indigo-900 font-bold flex items-center gap-2">
+            <span className="relative flex h-3 w-3">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${activeSession ? 'bg-green-400' : 'bg-gray-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-3 w-3 ${activeSession ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+            </span>
+            SECURE ATTENDANCE (PIN + GPS)
+          </h3>
+          <p className="text-xs text-indigo-700 mt-1">
+            {activeSession 
+              ? 'Session is live! Students must enter the 4-digit PIN on their dashboard to verify.' 
+              : 'Start a secure session to allow students to mark their own attendance via GPS verification.'}
+          </p>
+
+          {activeSession && (
+            <div className="mt-4 p-3 bg-white rounded-lg border border-indigo-100 shadow-inner">
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-indigo-400 uppercase">Live Verifications ({verifiedList.length})</span>
+                  <button 
+                    onClick={handleManualRefresh}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors group"
+                    title="Manual Refresh"
+                  >
+                    <svg className="w-3.5 h-3.5 text-indigo-500 group-active:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                  </button>
+                </div>
+                {verifiedList.length > 0 && (
+                  <button 
+                    onClick={handleConfirmAll}
+                    className="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded font-bold hover:bg-indigo-700 active:scale-95 transition-all"
+                  >
+                    Confirm All
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto pr-1">
+                {verifiedList.length > 0 ? verifiedList.map(s => (
+                  <div key={s.id} className="text-[10px] font-bold bg-green-50 text-green-700 px-2 py-1 rounded border border-green-100 animate-fadeIn">
+                    {s.roll_no}
+                  </div>
+                )) : (
+                  <p className="text-[10px] text-gray-400 italic">Waiting for students to enter PIN...</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {activeSession ? (
+          <div className="flex items-center gap-8 bg-white p-4 rounded-lg border border-indigo-100 shadow-sm shrink-0">
+            <div className="text-center px-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ATTENDANCE PIN</p>
+              <p className="text-5xl font-black text-indigo-600 tracking-tighter">{activeSession.session_pin}</p>
+            </div>
+            <button
+              onClick={endSession}
+              disabled={submitting}
+              className="ml-4 px-6 py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors uppercase"
+            >
+              End Session
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={startSession}
+            disabled={submitting || !selectedDate || !dateValidation.isValid}
+            className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale"
+            title={!selectedDate ? "Please select a date first" : !dateValidation.isValid ? "Please select a valid working day" : "Start Secure Session"}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3c4.183 0 7.66 2.567 9.106 6H22.25m-9.448 10a10.003 10.003 0 01-1.106-2.04m0 0l.054-.09A10.003 10.003 0 0122.5 12"></path></svg>
+            START SECURE SESSION
+          </button>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -177,7 +293,7 @@ const FollowPreviousButton = () => {
 };
 
 const AttendanceGrid = () => {
-  const { students, assignment, dateValidation, toggleAttendanceStatus, statusLoading } = useFacultyAttendance();
+  const { students, assignment, dateValidation, toggleAttendanceStatus, setAllAttendanceStatus, statusLoading, verifiedStudentIds } = useFacultyAttendance();
 
   return (
     <table className="min-w-full divide-y-2 divide-gray-200 border">
@@ -186,11 +302,34 @@ const AttendanceGrid = () => {
           <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Roll No</th>
           <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
           <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
-            <div className="inline-flex items-center justify-center gap-2">
-              <span>Status</span>
-              {statusLoading && (
-                <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-              )}
+            <div className="flex flex-col items-center gap-2">
+              <div className="inline-flex items-center justify-center gap-2">
+                <span>Status</span>
+                {statusLoading && (
+                  <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                )}
+              </div>
+              {/* Bulk Toggle Buttons */}
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
+                  disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
+                  className="px-2 py-1 bg-green-600 text-white text-[9px] font-black rounded hover:bg-green-700 disabled:opacity-50 transition-colors uppercase"
+                  title="Mark All Present"
+                >
+                  All P
+                </button>
+                <button
+                  type="button"
+                  onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
+                  disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
+                  className="px-2 py-1 bg-red-600 text-white text-[9px] font-black rounded hover:bg-red-700 disabled:opacity-50 transition-colors uppercase"
+                  title="Mark All Absent"
+                >
+                  All A
+                </button>
+              </div>
             </div>
           </th>
         </tr>
@@ -198,8 +337,22 @@ const AttendanceGrid = () => {
       <tbody className="bg-white divide-y divide-gray-200">
         {students.map((student) => (
           <tr key={student.id} className="hover:bg-gray-50">
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">{student.roll_no}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{student.name}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">
+              <div className="flex items-center gap-2">
+                {student.roll_no}
+                {verifiedStudentIds.has(student.id) && (
+                  <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
+                )}
+              </div>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+              <div className="flex items-center gap-2">
+                {student.name}
+                {verifiedStudentIds.has(student.id) && (
+                  <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
+                )}
+              </div>
+            </td>
             <td className="px-6 py-4 whitespace-nowrap text-center">
               {statusLoading ? (
                 <div className="flex justify-center">
@@ -214,7 +367,13 @@ const AttendanceGrid = () => {
                       ? 'bg-gray-100 text-gray-700'
                       : student.status === 'PRESENT'
                       ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
+                      : student.status === 'ABSENT'
+                      ? 'bg-red-100 text-red-800'
+                      : student.status === 'NCC'
+                      ? 'bg-blue-100 text-blue-800'
+                      : student.status === 'MEDICAL'
+                      ? 'bg-purple-100 text-purple-800'
+                      : 'bg-gray-100 text-gray-700'
                   } ${!assignment.is_active || !dateValidation.isValid ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
                 >
                   {student.status === null ? 'NOT SET' : student.status}
@@ -243,6 +402,9 @@ export default function AttendanceSheet({ onBack }) {
 
       {/* Subject Identity Panel */}
       <SubjectIdentityPanel assignment={assignment} />
+
+      {/* SECURE SESSION PANEL */}
+      {assignment.is_active && <SessionControlPanel />}
 
       {/* FACULTY ACADEMIC CALENDAR */}
       <FacultyAcademicCalendar

@@ -45,6 +45,8 @@ export default function ScholarshipDashboard() {
   const [saving, setSaving] = useState(false);
   const [appEditing, setAppEditing] = useState(false);
 
+  
+
 
   useEffect(() => {
     if (!isClerkLoading && clerk && clerk.role !== 'scholarship') {
@@ -100,14 +102,16 @@ export default function ScholarshipDashboard() {
       // No hardcoded academic year; server defaults to current academic year
       const res = await fetch(`/api/clerk/scholarship/summary/${encodeURIComponent(roll)}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Student not found');
-      setStudent(data.student);
-      setFeeSummary(data.fee_summary || null);
-      setScholarshipProceedings(Array.isArray(data.scholarship_proceedings) ? data.scholarship_proceedings : []);
-      setStudentPayments(Array.isArray(data.student_payments) ? data.student_payments : []);
+      if (!res.ok) throw new Error((data && data.error) || 'Student not found');
+      // Normalize API response: support both { data: ... } wrapper and direct payload
+      const payload = (data && data.data) ? data.data : data;
+      setStudent(payload.student || null);
+      setFeeSummary(payload.fee_summary || null);
+      setScholarshipProceedings(Array.isArray(payload.scholarship_proceedings) ? payload.scholarship_proceedings : []);
+      setStudentPayments(Array.isArray(payload.student_payments) ? payload.student_payments : []);
 
       // Build 4-year list from admission academic year period (e.g., 2023-2027)
-      const list = deriveYearsFromAdmission(String(data?.student?.admission_year || ''));
+      const list = deriveYearsFromAdmission(String(payload?.student?.admission_year || ''));
       setYearList(list);
       // Fetch summaries for each year in parallel; store by year
       const urls = list.map(y => `/api/clerk/scholarship/summary/${encodeURIComponent(roll)}?year=${encodeURIComponent(y)}`);
@@ -115,7 +119,8 @@ export default function ScholarshipDashboard() {
       const byYear = {};
       results.forEach((res, idx) => {
         const y = list[idx];
-        byYear[y] = (res.status === 'fulfilled' ? res.value : null) || null;
+        const raw = (res.status === 'fulfilled' ? res.value : null) || null;
+        byYear[y] = raw && raw.data ? raw.data : raw;
       });
       setSummariesByYear(byYear);
       // Default collapsed view for all cards
@@ -207,7 +212,8 @@ export default function ScholarshipDashboard() {
     try {
       const res = await fetch(`/api/clerk/scholarship/summary/${encodeURIComponent(rollNo)}?year=${encodeURIComponent(year)}`);
       const data = res.ok ? await res.json() : null;
-      setSummariesByYear(prev => ({ ...prev, [year]: data }));
+      const payload = data && data.data ? data.data : data;
+      setSummariesByYear(prev => ({ ...prev, [year]: payload }));
     } catch {}
   }
 
@@ -330,6 +336,7 @@ export default function ScholarshipDashboard() {
       <Navbar role={'clerk'} onLogout={handleLogout} />
       <main className="flex-1 p-4 md:p-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Scholarship Clerk Dashboard</h1>
+        
         {view === 'certificates' ? (
           <div>
             <button onClick={() => setView('dashboard')} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
@@ -392,6 +399,7 @@ export default function ScholarshipDashboard() {
             {/* After fetch: Student Info + Summary */}
             {student && (
               <section className="space-y-6">
+                
                 {/* Student Info Card */}
                 <StudentInfoCard student={student} onImageClick={(src) => { setImagePreviewSrc(src); setImagePreviewOpen(true); }} />
                 {/* Year-wise cards (4 cards, independent) */}

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
@@ -11,6 +12,7 @@ import InterestStatusList from '@/components/clerk/faculty/InterestStatusList';
 import ClassList from '@/components/clerk/faculty/ClassList';
 
 export default function FacultyDashboardOverview() {
+  const router = useRouter();
   const { clerkData: clerk, loading: isLoading } = useClerk();
   const [assignments, setAssignments] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -40,6 +42,16 @@ export default function FacultyDashboardOverview() {
     fetchAssignments();
   }, [fetchAssignments]);
 
+  const handleSelectAssignment = (assignment, type) => {
+    if (type === 'attendance') {
+      router.push(`/clerk/faculty/attendance?id=${assignment.id}`);
+    } else if (type === 'marks') {
+      router.push(`/clerk/faculty/marks?id=${assignment.id}`);
+    }
+  };
+
+  const activeCount = assignments.filter(a => a.is_active).length;
+  const inactiveCount = assignments.filter(a => !a.is_active).length;
   const totalAssigned = assignments.length;
 
   const Card = ({ onClick, icon, title, description }) => (
@@ -69,7 +81,7 @@ export default function FacultyDashboardOverview() {
             <Card 
               icon="📘"
               title="My Subjects"
-              description={loadingData ? 'Loading...' : (totalAssigned > 0 ? `You are assigned to ${totalAssigned} subjects.` : 'You are not assigned any subjects.')}
+              description={loadingData ? 'Loading...' : (totalAssigned > 0 ? `You are assigned to ${totalAssigned} subjects (${activeCount} active).` : 'You are not assigned any subjects.')}
               onClick={() => setActiveSection('subjects')}
             />
             <Card
@@ -93,7 +105,10 @@ export default function FacultyDashboardOverview() {
             <button onClick={() => setActiveSection(null)} className="text-[#0b3578] hover:underline font-medium">&larr; Back to Home</button>
             {activeSection === 'subjects' && (
               <>
-                <AssignedSubjectsList showActions={false} />
+                <AssignedSubjectsList 
+                  onSelectAssignment={handleSelectAssignment} 
+                  showActions={true} 
+                />
                 <SubjectInterestForm onInterestSubmitted={fetchAssignments} />
                 <InterestStatusList />
               </>
