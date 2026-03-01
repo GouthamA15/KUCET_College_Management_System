@@ -65,7 +65,12 @@ export async function GET(req, context) {
 
     const sigRows = await query('SELECT signature FROM student_signatures WHERE student_id = ?', [studentId]);
     if (sigRows.length > 0 && sigRows[0].signature) {
-        student.signature = `data:image/png;base64,${sigRows[0].signature.toString('base64')}`;
+        const sig = sigRows[0].signature;
+        if (typeof sig === 'string' && sig.startsWith('http')) {
+          student.signature = sig;
+        } else {
+          student.signature = `data:image/png;base64,${sig.toString('base64')}`;
+        }
     } else {
         student.signature = null;
     }
