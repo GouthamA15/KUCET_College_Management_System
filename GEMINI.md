@@ -544,7 +544,23 @@ await db.execute('SELECT * FROM students WHERE roll_no = ?', [rollNo]);
 
 ## 10. Recent Activity Log (Feb 2026)
 
-### **Session 18: Elective Allocation Warnings & Messaging (Latest - Feb 28, 2026)**
+### **Session 19: Secure Proxy-Free Attendance System (Latest - March 1, 2026)**
+- **Proxy-Free Attendance Implementation:**
+    - Developed a cryptographically secure attendance verification system using **Dynamic 4-digit PINs** and **GPS Geofencing**.
+    - **Faculty Controls:** Added "Start Secure Session" button which captures faculty coordinates and displays a real-time "Live Verification" list of students as they sign in.
+    - **Student Verification:** Implemented a verification card on the student dashboard that requires entering the faculty's PIN and being within a **100-meter radius** of the classroom.
+    - **Anti-Proxy Measures:** Integrated **Device Fingerprinting** to prevent multiple roll numbers from marking attendance from the same physical device.
+- **Attendance Status Expansion:**
+    - Added support for `NCC` and `MEDICAL` statuses in the database and UI.
+    - Updated academic calculations to count `NCC` and `MEDICAL` as **Present** for percentage metrics.
+    - Implemented distinct **Orange color coding** for these specialized statuses in all attendance history views.
+- **System Hardening & Stability:**
+    - Made Geolocation optional for sessions to allow testing on local HTTP networks while enforcing it for production HTTPS.
+    - Resolved critical bugs including `ReferenceError: fetchBaseStudents` and `Unknown column 'slot'` in attendance history APIs.
+    - Fixed database schema conflicts by refactoring `attendance_sessions` indexes to support multiple inactive sessions per subject.
+    - Added automated polling (5s interval) to the faculty dashboard to auto-expire sessions and refresh verification logs in real-time.
+
+### **Session 18: Elective Allocation Warnings & Messaging (Feb 28, 2026)**
 - **Elective Allocation Fix:**
     - Resolved a bug where elective groups with placeholder codes (e.g., `PE-II*`) skipped variant-level allocation checks.
     - Updated Syllabus API to prioritize variant-level allocation mapping, ensuring each elective subject correctly displays its status.
