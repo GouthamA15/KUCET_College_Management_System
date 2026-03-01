@@ -33,7 +33,7 @@ const MobileSubjectIdentityPanel = () => {
 };
 
 const MobileSessionControlPanel = () => {
-  const { activeSession, startSession, endSession, submitting } = useFacultyAttendance();
+  const { activeSession, startSession, endSession, submitting, selectedDate, dateValidation } = useFacultyAttendance();
 
   return (
     <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl mb-6 shadow-sm">
@@ -62,8 +62,8 @@ const MobileSessionControlPanel = () => {
       ) : (
         <button
           onClick={startSession}
-          disabled={submitting}
-          className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-sm active:bg-indigo-700"
+          disabled={submitting || !selectedDate || !dateValidation.isValid}
+          className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-sm active:bg-indigo-700 disabled:opacity-50 disabled:grayscale"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3c4.183 0 7.66 2.567 9.106 6H22.25m-9.448 10a10.003 10.003 0 01-1.106-2.04m0 0l.054-.09A10.003 10.003 0 0122.5 12"></path></svg>
           START SECURE SESSION
