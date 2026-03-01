@@ -237,18 +237,12 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [selectedDate, selectedSession, fetchAttendanceStatus]);
 
-  // Poll for verified students AND session validity when a session is active
+  // Manual refresh only - removed auto-polling interval
   useEffect(() => {
-    let interval;
     if (activeSession) {
-      interval = setInterval(() => {
-        fetchAttendanceStatus();
-        fetchActiveSession();
-      }, 5000); 
+      fetchAttendanceStatus();
+      fetchActiveSession();
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
   }, [activeSession, fetchAttendanceStatus, fetchActiveSession]);
 
   const setAttendanceStatus = useCallback((studentId, status) => {
