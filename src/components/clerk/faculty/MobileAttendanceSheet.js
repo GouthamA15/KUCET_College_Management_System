@@ -52,9 +52,11 @@ const MobileSessionControlPanel = () => {
     students.forEach(s => {
       if (verifiedStudentIds.has(s.id)) {
         setAttendanceStatus(s.id, 'PRESENT');
+      } else if (s.status === null) {
+        setAttendanceStatus(s.id, 'ABSENT');
       }
     });
-    toast.success(`Marked ${verifiedList.length} verified students as PRESENT.`);
+    toast.success(`Marked verified students as PRESENT and others as ABSENT.`);
   };
 
   return (

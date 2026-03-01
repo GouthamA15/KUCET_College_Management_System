@@ -63,9 +63,12 @@ const SessionControlPanel = () => {
     students.forEach(s => {
       if (verifiedStudentIds.has(s.id)) {
         setAttendanceStatus(s.id, 'PRESENT');
+      } else if (s.status === null) {
+        // Set all N/A students to ABSENT
+        setAttendanceStatus(s.id, 'ABSENT');
       }
     });
-    toast.success(`Marked ${verifiedList.length} verified students as PRESENT. Please mark others manually.`);
+    toast.success(`Attendance synchronized: Verified students marked PRESENT, others marked ABSENT.`);
   };
 
   const handleManualRefresh = () => {
