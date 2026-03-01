@@ -302,6 +302,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
       toast.success('Attendance saved successfully');
 
+      // --- AUTO-CLOSE SESSION AFTER SAVE ---
+      if (activeSession) {
+        await endSession();
+      }
+
       const cacheKey = `${selectedDate}-${selectedSession}`;
       setAttendanceCache((prev) => {
         const next = { ...prev };
