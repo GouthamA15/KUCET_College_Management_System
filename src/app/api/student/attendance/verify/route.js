@@ -25,7 +25,7 @@ export async function POST(request) {
 
     // 1. Fetch the active session
     let sessionQuery = `
-      SELECT id, session_pin, session_token, latitude, longitude, expires_at 
+      SELECT id, session_pin, session_token, latitude, longitude, accuracy as faculty_accuracy, expires_at 
       FROM attendance_sessions 
       WHERE assignment_id = ? AND is_active = 1 AND expires_at > NOW()
     `;
@@ -51,20 +51,20 @@ export async function POST(request) {
     }
 
     // Account for GPS inaccuracy: 
-    // Base radius (50m) + student's reported accuracy (capped at 50m)
-    // This handles indoor environments where GPS might have 20-30m of error
-    const baseRadius = 50; 
-    const accuracyBonus = Math.min(parseFloat(accuracy || 0), 50);
-    const allowedRadius = baseRadius + accuracyBonus;
+    // Base radius (100m) + student accuracy + faculty accuracy
+    // Capping bonuses at 50m each to prevent exploit by fake poor GPS
+    const baseRadius = 100; 
+    const studentBonus = Math.min(parseFloat(accuracy || 0), 50);
+    const facultyBonus = Math.min(parseFloat(session.faculty_accuracy || 0), 50);
+    const allowedRadius = Math.round(baseRadius + studentBonus + facultyBonus);
 
-    const distance = isWithinRange(
+    const distanceOk = isWithinRange(
       parseFloat(session.latitude), parseFloat(session.longitude),
       parseFloat(latitude), parseFloat(longitude),
       allowedRadius
     );
 
-    if (!distance) {
-      // For debugging, we'll keep the same error message but we could log the actual distance here
+    if (!distanceOk) {
       return apiError(`Location mismatch. You must be within ${allowedRadius}m of the classroom.`, 403);
     }
 
