@@ -15,20 +15,33 @@ cloudinary.config({
  * @returns {Promise<string>} - The secure URL of the uploaded image
  */
 export async function uploadToCloudinary(file, folder, publicId = null) {
-  if (!file) return null;
+  if (!file) {
+    console.log('[CLOUDINARY] No file provided to uploadToCloudinary');
+    return null;
+  }
 
   let fileToUpload = file;
   
+  console.log(`[CLOUDINARY] Starting upload to folder: kucet/${folder}. Type of file: ${typeof file}`);
+
   // Handle browser File objects (from formData)
   if (file instanceof File || (typeof file === 'object' && typeof file.arrayBuffer === 'function')) {
+    console.log(`[CLOUDINARY] Processing as File object. Name: ${file.name}, Size: ${file.size} bytes`);
+    if (file.size === 0) {
+      console.log('[CLOUDINARY] File size is 0, skipping upload.');
+      return null;
+    }
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     fileToUpload = `data:image/jpeg;base64,${buffer.toString('base64')}`;
   }
   // Handle Buffers
   else if (Buffer.isBuffer(file)) {
+    console.log(`[CLOUDINARY] Processing as Buffer. Length: ${file.length} bytes`);
     const base64 = file.toString('base64');
     fileToUpload = `data:image/jpeg;base64,${base64}`;
+  } else if (typeof file === 'string') {
+    console.log(`[CLOUDINARY] Processing as string. Starts with: ${file.substring(0, 20)}...`);
   }
 
   const options = {

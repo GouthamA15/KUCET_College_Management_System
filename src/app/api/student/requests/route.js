@@ -89,12 +89,29 @@ export async function POST(request) {
     }
 
     // Handle Image
-    if (paymentScreenshotFile) {
+    // formData.get returns a File object in Next.js
+    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
+
+    if (isFileValid) {
+      console.log(`[DEBUG] Valid screenshot detected for Request ID: ${requestId}. Name: ${paymentScreenshotFile.name}, Size: ${paymentScreenshotFile.size} bytes`);
       const screenshotUrl = await uploadToCloudinary(paymentScreenshotFile, "certificates/payments");
-      await query(
-        "INSERT INTO student_request_images (request_id, payment_screenshot) VALUES (?, ?) ON DUPLICATE KEY UPDATE payment_screenshot = VALUES(payment_screenshot)",
-        [requestId, screenshotUrl]
-      );
+      
+      if (screenshotUrl) {
+        // Update dedicated images table
+        await query(
+          "INSERT INTO student_request_images (request_id, payment_screenshot) VALUES (?, ?) ON DUPLICATE KEY UPDATE payment_screenshot = VALUES(payment_screenshot)",
+          [requestId, screenshotUrl]
+        );
+        
+        // Update legacy column in main requests table
+        await query(
+          "UPDATE student_requests SET payment_screenshot = ? WHERE request_id = ?",
+          [screenshotUrl, requestId]
+        );
+        console.log(`[DEBUG] Screenshot uploaded and DB updated: ${screenshotUrl}`);
+      }
+    } else {
+      console.log(`[DEBUG] No valid screenshot file received for Request ID: ${requestId}`);
     }
 
     return apiResponse({ success: true, requestId });
