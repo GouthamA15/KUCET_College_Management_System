@@ -25,7 +25,7 @@ export async function POST(request) {
 
     // 1. Fetch the active session
     let sessionQuery = `
-      SELECT id, session_pin, session_token, latitude, longitude, accuracy as faculty_accuracy, expires_at 
+      SELECT id, session_pin, session_token, latitude, longitude, expires_at 
       FROM attendance_sessions 
       WHERE assignment_id = ? AND is_active = 1 AND expires_at > NOW()
     `;
