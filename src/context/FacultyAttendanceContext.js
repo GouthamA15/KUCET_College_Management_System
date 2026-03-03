@@ -108,7 +108,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         body: JSON.stringify({
           assignment_id: assignment.id,
           latitude,
-          longitude
+          longitude,
+          attendance_date: selectedDate
         }),
       });
       

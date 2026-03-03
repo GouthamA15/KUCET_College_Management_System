@@ -18,26 +18,38 @@ const MarkAttendanceCard = ({ session, onVerified }) => {
         toast.error("GPS requires HTTPS on mobile. Please host on Render don't use a laptop on 'localhost'.", { duration: 6000 });
         return;
       }
+try {
+  // --- ACTION B: DEVICE FINGERPRINTING ---
+  let deviceId = localStorage.getItem('kucet_device_uuid');
+  if (!deviceId) {
+    deviceId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem('kucet_device_uuid', deviceId);
+  }
 
-      // 1. Get Location (Mandatory for security)
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { 
-          enableHighAccuracy: true, 
-          timeout: 10000 
-        });
-      });
+  // --- ACTION C: GPS INTEGRITY ---
+  const pos = await new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, { 
+      enableHighAccuracy: true, 
+      timeout: 10000 
+    });
+  });
 
-      // 2. Submit Verification
-      const res = await fetch('/api/student/attendance/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assignment_id: session.assignment_id,
-          pin: pin,
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude
-        }),
-      });
+  const { latitude, longitude, accuracy } = pos.coords;
+
+  // 2. Submit Verification
+  const res = await fetch('/api/student/attendance/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      assignment_id: session.assignment_id,
+      pin: pin,
+      latitude,
+      longitude,
+      accuracy,
+      device_id: deviceId
+    }),
+  });
+
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Verification failed');
@@ -246,7 +258,15 @@ export default function AcademicTab() {
             <MarkAttendanceCard 
               key={session.assignment_id} 
               session={session} 
-              onVerified={() => onVerificationSuccess(session.assignment_id, session.subject_name)} 
+              onVerified={() => {
+                // Parse the SQL date (YYYY-MM-DD) to Display format (DD-MM-YYYY)
+                let displayDate = session.attendance_date;
+                if (displayDate && displayDate.includes('-')) {
+                  const [y, m, d] = displayDate.split('-');
+                  displayDate = `${d}-${m}-${y}`;
+                }
+                onVerificationSuccess(session.assignment_id, session.subject_name, displayDate);
+              }} 
             />
           ))}
         </div>

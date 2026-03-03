@@ -27,14 +27,14 @@ export async function GET(request) {
     const db = getDb();
     // Fetch active sessions AND check if this specific student has already verified for them
     const [sessions] = await db.execute(
-      `SELECT asess.assignment_id, fsa.subject_name, fsa.subject_code
+      `SELECT asess.assignment_id, fsa.subject_name, fsa.subject_code, asess.attendance_date
        FROM attendance_sessions asess
        JOIN faculty_subject_assignments fsa ON asess.assignment_id = fsa.id
        LEFT JOIN attendance_session_logs asl ON asess.id = asl.session_id AND asl.student_id = ? AND asl.status = 'SUCCESS'
        WHERE asess.assignment_id IN (${assignmentIds.map(() => '?').join(',')}) 
        AND asess.is_active = 1 
        AND asess.expires_at > NOW()
-       AND asl.id IS NULL`, // Only return sessions where no 'SUCCESS' log exists for this student
+       AND asl.id IS NULL`, 
       [user.student_id, ...assignmentIds]
     );
 

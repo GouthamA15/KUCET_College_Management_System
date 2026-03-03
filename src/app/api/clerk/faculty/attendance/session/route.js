@@ -51,10 +51,10 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, latitude, longitude } = body;
+    const { assignment_id, latitude, longitude, attendance_date } = body;
 
-    if (!assignment_id) {
-      return apiError('Missing assignment_id', 400);
+    if (!assignment_id || !attendance_date) {
+      return apiError('Missing assignment_id or attendance_date', 400);
     }
 
     const db = getDb();
@@ -86,9 +86,9 @@ export async function POST(request) {
     // 4. Create new session
     const [result] = await db.execute(
       `INSERT INTO attendance_sessions 
-       (assignment_id, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [assignment_id, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
+       (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
     );
 
     return apiResponse({
