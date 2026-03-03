@@ -547,20 +547,27 @@ await db.execute('SELECT * FROM students WHERE roll_no = ?', [rollNo]);
 ### **Session 19: Secure Proxy-Free Attendance & Cloudinary Optimization (Latest - March 1, 2026)**
 - **Proxy-Free Attendance Implementation:**
     - Developed a cryptographically secure attendance verification system using **Dynamic 4-digit PINs** and **Strict 40m GPS Geofencing**.
-
-    - **Faculty Controls:** Added "Start Secure Session" button which captures faculty coordinates and displays a real-time "Live Verification" list.
-    - **Smart Sync:** "Confirm All" button marks verified students as **PRESENT** and all others as **ABSENT** (preserving manual NCC/Medical entries).
-    - **Auto-Closure:** Secure sessions now automatically end once attendance is saved or after the 10-minute timeout.
-    - **Student Verification:** Implemented a mandatory GPS verification card on the student dashboard requiring the faculty's PIN and a **100-meter proximity**.
-    - **Anti-Proxy Measures:** Integrated **Device Fingerprinting** to block multiple roll numbers from using the same physical device.
-- **Attendance Status & UI Expansion:**
+    - **Faculty Controls:** Added "Start Secure Session" button which captures faculty coordinates and displays a real-time "Live Verification" list with manual refresh to prevent UI jumps.
+    - **Smart Sync:** "Confirm All" button explicitly marks verified students as **PRESENT** and unverified students as **ABSENT**, while preserving manual NCC/Medical entries.
+    - **Auto-Closure & Accurate Dates:** Secure sessions now automatically end once attendance is saved. The system also records and displays the specific `attendance_date` chosen by the faculty in the student's confirmation.
+    - **Student Verification:** Implemented a mandatory GPS verification card requiring the faculty's PIN, a **40-meter proximity**, and GPS accuracy checks to block Mock Location spoofing apps.
+    - **Anti-Proxy Measures:** Integrated persistent browser-based **Device Fingerprinting** (localStorage UUID) to strictly block multiple roll numbers from using the same physical device per session.
+- **Attendance Status & Workflow Optimization:**
+    - Implemented an advanced **8-Stage Toggle Cycle** (`N/A -> PRESENT -> ABSENT -> PRESENT (Correction) -> ABSENT -> NCC -> MEDICAL -> PRESENT`) to prioritize bulk absent corrections in a single click.
     - Added support for `NCC` and `MEDICAL` statuses, integrated into academic calculations as **Present**.
     - Implemented **Orange color coding** for specialized statuses in student history and faculty grids.
-    - Optimized Mobile View with a **Sticky Action Bar** and compact identity headers for efficient on-the-go marking.
+    - Optimized Mobile View with a **Sticky Action Bar**, horizontal session selector, and compact identity headers for efficient on-the-go marking.
+- **Cloudinary Integration & Migration:**
+    - **Storage Optimization:** Migrated all binary image data (Photos, Signatures, Screenshots) from MySQL `MEDIUMBLOB` to **Cloudinary** cloud storage.
+    - **Database Refactor:** Updated schema to store secure URL strings.
+    - **Image Proxying:** Refactored image serving APIs (`/api/student/image/[rollno]` and `/api/student/requests/image/[request_id]`) to proxy Cloudinary images directly as Buffers to solve frontend `next/image` loading issues.
+    - **Automated Monitoring:** Implemented a system alert API that emails developers when Cloudinary storage exceeds a **20GB threshold**.
+- **Security & Rate Limiting:**
+    - **API Protection:** Integrated a database-backed **Rate Limiter** restricting public admission uploads (5/hr) and student profile updates (3/day).
+    - **Insecure Context Handling:** Added explicit warnings and PIN fallbacks for mobile browsers attempting GPS access over non-HTTPS connections.
 - **System Stability & Bug Fixes:**
-    - Resolved critical `ReferenceError` crashes (`fetchBaseStudents`, `selectedDate`, `pos`).
+    - Resolved critical `ReferenceError` crashes (`fetchBaseStudents`, `selectedDate`, `pos`, `onVerificationSuccess`).
     - Fixed SQL schema conflicts by refactoring `attendance_sessions` unique indexes to support history tracking.
-    - Removed recursive auto-refresh loops, replacing them with manual refresh buttons for a stable UI experience.
     - Standardized column names across APIs, resolving the `Unknown column 'slot'` errors in attendance history.
 
 ### **Session 18: Elective Allocation Warnings & Messaging (Feb 28, 2026)**
