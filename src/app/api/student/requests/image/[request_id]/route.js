@@ -50,9 +50,25 @@ export async function GET(req, context) {
 
     const imageBufferOrUrl = rows[0].payment_screenshot;
 
-    // If it's a Cloudinary URL (string), redirect to it
+    // If it's a Cloudinary URL (string), fetch and return it (Proxy)
     if (typeof imageBufferOrUrl === 'string' && imageBufferOrUrl.startsWith('http')) {
-      return NextResponse.redirect(imageBufferOrUrl);
+      try {
+        const imageRes = await fetch(imageBufferOrUrl);
+        if (!imageRes.ok) throw new Error('Cloudinary fetch failed');
+        
+        const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
+        const buffer = await imageRes.arrayBuffer();
+
+        return new NextResponse(Buffer.from(buffer), {
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=86400, must-revalidate',
+          },
+        });
+      } catch (proxyErr) {
+        console.error('Error proxying Cloudinary image:', proxyErr);
+        return new NextResponse('Error loading image from cloud', { status: 502 });
+      }
     }
 
     // Otherwise, treat as Buffer (old BLOB data)

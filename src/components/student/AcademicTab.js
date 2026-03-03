@@ -15,41 +15,41 @@ const MarkAttendanceCard = ({ session, onVerified }) => {
     setSubmitting(true);
     try {
       if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
-        toast.error("GPS requires HTTPS on mobile. Please host on Render don't use a laptop on 'localhost'.", { duration: 6000 });
+        toast.error("GPS requires HTTPS on mobile. Please host on Render or use a laptop on 'localhost'.", { duration: 6000 });
+        setSubmitting(false);
         return;
       }
-try {
-  // --- ACTION B: DEVICE FINGERPRINTING ---
-  let deviceId = localStorage.getItem('kucet_device_uuid');
-  if (!deviceId) {
-    deviceId = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    localStorage.setItem('kucet_device_uuid', deviceId);
-  }
 
-  // --- ACTION C: GPS INTEGRITY ---
-  const pos = await new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, { 
-      enableHighAccuracy: true, 
-      timeout: 10000 
-    });
-  });
+      // --- ACTION B: DEVICE FINGERPRINTING ---
+      let deviceId = localStorage.getItem('kucet_device_uuid');
+      if (!deviceId) {
+        deviceId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        localStorage.setItem('kucet_device_uuid', deviceId);
+      }
 
-  const { latitude, longitude, accuracy } = pos.coords;
+      // --- ACTION C: GPS INTEGRITY ---
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { 
+          enableHighAccuracy: true, 
+          timeout: 10000 
+        });
+      });
 
-  // 2. Submit Verification
-  const res = await fetch('/api/student/attendance/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      assignment_id: session.assignment_id,
-      pin: pin,
-      latitude,
-      longitude,
-      accuracy,
-      device_id: deviceId
-    }),
-  });
+      const { latitude, longitude, accuracy } = pos.coords;
 
+      // 2. Submit Verification
+      const res = await fetch('/api/student/attendance/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: session.assignment_id,
+          pin: pin,
+          latitude,
+          longitude,
+          accuracy,
+          device_id: deviceId
+        }),
+      });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Verification failed');
@@ -98,61 +98,6 @@ try {
     </div>
   );
 };
-const QRScannerModal = ({ onScan, onClose }) => {
-  useEffect(() => {
-    // Load html5-qrcode dynamically
-    const script = document.createElement('script');
-    script.src = "https://unpkg.com/html5-qrcode";
-    script.async = true;
-    document.body.appendChild(script);
-
-    script.onload = () => {
-      const html5QrCode = new window.Html5Qrcode("reader");
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-      html5QrCode.start(
-        { facingMode: "environment" },
-        config,
-        (decodedText) => {
-          html5QrCode.stop().then(() => {
-            onScan(decodedText);
-          });
-        }
-      ).catch(err => {
-        console.error("Scanner Error:", err);
-        const isInsecure = window.location.protocol !== 'https:' && window.location.hostname !== 'localhost';
-        toast.error(isInsecure ? "Camera requires HTTPS on mobile. Use PIN instead." : "Camera access denied.");
-      });
-
-      return () => {
-        if (html5QrCode.isScanning) {
-          html5QrCode.stop();
-        }
-      };
-    };
-
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md">
-      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
-        <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-          <h3 className="font-bold text-gray-800">Scan Class QR</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        <div className="p-6">
-          <div id="reader" className="overflow-hidden rounded-xl bg-black aspect-square"></div>
-          <p className="text-center text-xs text-gray-500 mt-4">Point your camera at the QR code on the faculty's screen.</p>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default function AcademicTab() {
   const [data, setData] = useState([]);
@@ -178,9 +123,9 @@ export default function AcademicTab() {
     }
   };
 
-  const onVerificationSuccess = (assignmentId, subjectName) => {
+  const onVerificationSuccess = (assignmentId, subjectName, attendanceDate) => {
     // Add confirmation message
-    const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const today = attendanceDate || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
     setVerifiedMessages(prev => {
       // Prevent duplicate messages if already present
       if (prev.find(m => m.id === assignmentId)) return prev;
