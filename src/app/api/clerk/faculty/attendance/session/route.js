@@ -84,12 +84,29 @@ export async function POST(request) {
     const expiresAtSql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
     // 4. Create new session
-    const [result] = await db.execute(
-      `INSERT INTO attendance_sessions 
-       (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
+    // Check if the attendance_date column exists in the table (backwards compatible)
+    const [colInfo] = await db.execute(
+      `SELECT COUNT(*) as cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions' AND COLUMN_NAME = 'attendance_date'`
     );
+    const hasAttendanceDate = (colInfo && colInfo[0] && colInfo[0].cnt > 0);
+
+    let result;
+    if (hasAttendanceDate) {
+      [result] = await db.execute(
+        `INSERT INTO attendance_sessions 
+         (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
+      );
+    } else {
+      // Fallback: older schema without attendance_date column
+      [result] = await db.execute(
+        `INSERT INTO attendance_sessions 
+         (assignment_id, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [assignment_id, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
+      );
+    }
 
     return apiResponse({
       message: 'Session created successfully',

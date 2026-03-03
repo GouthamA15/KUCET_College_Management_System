@@ -12,94 +12,6 @@ import Navbar from '@/app/components/Navbar/Navbar';
 import Footer from '@/components/Footer';
 import toast from 'react-hot-toast';
 
-const MarkAttendanceCard = ({ session, onVerified }) => {
-  const [pin, setPin] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleVerify = async () => {
-    if (pin.length !== 4) {
-      toast.error('Enter the 4-digit PIN shown on faculty screen');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
-        toast.error("GPS requires HTTPS on mobile. Please host on Render or use a laptop on 'localhost'.", { duration: 6000 });
-        setSubmitting(false);
-        return;
-      }
-
-      let deviceId = localStorage.getItem('kucet_device_uuid');
-      if (!deviceId) {
-        deviceId = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        localStorage.setItem('kucet_device_uuid', deviceId);
-      }
-
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
-      });
-
-      const { latitude, longitude, accuracy } = pos.coords;
-
-      const res = await fetch('/api/student/attendance/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assignment_id: session.assignment_id,
-          pin: pin,
-          latitude,
-          longitude,
-          accuracy,
-          device_id: deviceId
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Verification failed');
-
-      toast.success(json.message);
-      onVerified();
-    } catch (err) {
-      let msg = err.message;
-      if (err.code === 1) msg = 'Location access denied. Please enable GPS.';
-      if (err.code === 3) msg = 'Location request timed out. Please retry.';
-      toast.error(msg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="border border-gray-200 rounded-md bg-white p-3 flex flex-col md:flex-row items-center justify-between gap-3">
-      <div className="flex items-start gap-3">
-        <div>
-          <div className="text-sm font-semibold text-gray-800">{session.subject_name}</div>
-          <div className="text-xs text-gray-500">{session.subject_code} • {session.faculty_name}</div>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          maxLength="4"
-          placeholder="PIN"
-          value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-          className="w-16 border border-gray-300 rounded-md px-2 py-1 text-sm text-center focus:outline-none"
-        />
-        <button
-          onClick={handleVerify}
-          disabled={submitting || pin.length !== 4}
-          className="bg-[#0b3578] text-white px-3 py-1 rounded-md text-sm disabled:opacity-60"
-        >
-          {submitting ? 'Verifying...' : 'Mark Present'}
-        </button>
-      </div>
-    </div>
-  );
-};
-
 // Utility: derive subject metadata (kept isolated for future DB migration)
 function getSubjectMeta(subjectName) {
   // Placeholder logic: always return Core, 3 credits.
@@ -129,8 +41,6 @@ export default function AcademicsPage() {
 
 function AcademicsInner({ studentData, collegeInfo }) {
   const [data, setData] = useState([]);
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [verifiedMessages, setVerifiedMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [historySubject, setHistorySubject] = useState(null);
   const [historyData, setHistoryData] = useState([]);
@@ -139,34 +49,6 @@ function AcademicsInner({ studentData, collegeInfo }) {
 
   const { cache, saveCache, isReload } = useAcademicsCache() || {};
 
-  const fetchActiveSessions = async (subjects) => {
-    if (!subjects.length) return;
-    try {
-      const assignmentIds = subjects.map(s => s.assignment_id).join(',');
-      const res = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds}`);
-      const json = await res.json();
-      if (res.ok) {
-        setActiveSessions(json.data || []);
-        return json.data || [];
-      }
-    } catch (e) {
-      console.error('Failed to fetch active sessions');
-    }
-    return [];
-  };
-
-  const onVerificationSuccess = (assignmentId, subjectName, attendanceDate) => {
-    const today = attendanceDate || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    setVerifiedMessages(prev => {
-      if (prev.find(m => m.id === assignmentId)) return prev;
-      return [...prev, { id: assignmentId, text: `Your attendance for ${subjectName} has been successfully taken on ${today}.` }];
-    });
-
-    setActiveSessions(prev => prev.filter(s => s.assignment_id !== assignmentId));
-    // refresh academic info after verification and update cache
-    fetchAcademicInfo(true);
-  };
-
   const fetchAcademicInfo = async (forceRefresh = false) => {
     setLoading(true);
     try {
@@ -174,7 +56,6 @@ function AcademicsInner({ studentData, collegeInfo }) {
       const cached = cache?.payload;
       if (!forceRefresh && cached && !isReload) {
         setData(cached.data || []);
-        setActiveSessions(cached.activeSessions || []);
         setLoading(false);
         return;
       }
@@ -184,9 +65,8 @@ function AcademicsInner({ studentData, collegeInfo }) {
       if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
       const subjects = json.data || [];
       setData(subjects);
-      const act = await fetchActiveSessions(subjects);
-      // Save combined payload to session cache
-      try { saveCache({ data: subjects, activeSessions: act }); } catch {}
+      // Save payload to session cache (subjects only)
+      try { saveCache({ data: subjects }); } catch {}
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -261,11 +141,11 @@ function AcademicsInner({ studentData, collegeInfo }) {
               <table className="w-full min-w-0 table-auto">
                 <thead className="bg-gray-100 text-sm font-medium text-gray-700">
                   <tr>
-                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal break-words">Code</th>
-                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal break-words">Subject Name</th>
-                    <th className="text-left py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Type</th>
-                    <th className="text-right py-2.5 px-2 w-16 text-[11px] sm:text-sm whitespace-normal break-words">Credits</th>
-                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal break-words">Faculty</th>
+                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Code</th>
+                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Subject Name</th>
+                    <th className="text-left py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Type</th>
+                    <th className="text-right py-2.5 px-2 w-16 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Credits</th>
+                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Faculty</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,11 +154,11 @@ function AcademicsInner({ studentData, collegeInfo }) {
                     const code = sub.subject_code || '—';
                     return (
                       <tr key={sub.assignment_id} className="border-b">
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal break-words">{code}</td>
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal break-words">{sub.subject_name}</td>
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal break-words">{meta.type}</td>
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{meta.credits}</td>
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal break-words">{sub.faculty_name || '—'}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{code}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.subject_name}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{meta.type}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{meta.credits}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.faculty_name || '—'}</td>
                       </tr>
                     );
                   })}
@@ -348,11 +228,11 @@ function AcademicsInner({ studentData, collegeInfo }) {
                 <table className="w-full min-w-0 table-auto">
                 <thead className="bg-gray-100 text-sm font-medium text-gray-700">
                   <tr>
-                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal break-words">Subject</th>
-                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Mid I</th>
-                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Mid II</th>
-                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Assign</th>
-                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Total</th>
+                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Subject</th>
+                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Mid I</th>
+                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Mid II</th>
+                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Assign</th>
+                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -367,11 +247,11 @@ function AcademicsInner({ studentData, collegeInfo }) {
                     const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
                     return (
                       <tr key={`mark-${sub.assignment_id}`} className="border-b">
-                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal break-words">{short}</td>
-                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{m1 ?? '--'}</td>
-                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{m2 ?? '--'}</td>
-                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{assgn ?? '--'}</td>
-                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{internalTotal !== null ? internalTotal.toFixed(1) : '--'}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{m1 ?? '--'}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{m2 ?? '--'}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{assgn ?? '--'}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{internalTotal !== null ? internalTotal.toFixed(1) : '--'}</td>
                       </tr>
                     );
                   })}

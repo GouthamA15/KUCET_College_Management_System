@@ -1,6 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
+import AttendanceVerificationActivity from './AttendanceVerificationActivity';
 
 export default function ProfileActivityBar({ activity, student }) {
   const { latestRequest, dismissCount, incrementVisit, dismiss, reset } = activity || {};
@@ -8,63 +10,68 @@ export default function ProfileActivityBar({ activity, student }) {
   const processedRef = React.useRef(null);
   const isProd = typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : true;
 
+  const [attendanceSessions, setAttendanceSessions] = useState([]);
+
   const reqId = latestRequest?.request_id;
   const reqStatus = latestRequest?.status;
 
-  // Handle visibility reset and increment logic
+  // Handle visibility reset and increment logic for certificate requests
   useEffect(() => {
     if (!reqId) return;
 
-    // If this is a new request we haven't processed yet
     if (processedRef.current !== reqId) {
-      // Defer state update to avoid synchronous set warning
       const timer = setTimeout(() => setVisible(true), 0);
-      
-      const canIncrement = isProd ? (dismissCount < 4) : true;
+
+      const canIncrement = isProd ? dismissCount < 4 : true;
       if (canIncrement && typeof incrementVisit === 'function') {
         incrementVisit();
       }
-      
+
       processedRef.current = reqId;
       return () => clearTimeout(timer);
     }
   }, [reqId, reqStatus, dismissCount, incrementVisit, isProd]);
 
-  // Hide entirely if user dismissed enough times (only in production)
-  if (latestRequest && dismissCount >= 4 && isProd) return null;
+  // Fetch active attendance sessions for this student (via academic info + active-sessions API)
+  useEffect(() => {
+    let cancelled = false;
 
-  // If there's no certificate request, render the legacy warning bar (email/password warnings)
-  if (!latestRequest) {
-    if (!student) return null;
-    const show = (!student.email || !student.is_email_verified || !student.password_hash);
-    if (!show) return null;
-    return (
-      <div className="w-full flex justify-center px-6 pt-4">
-        <div className="w-full max-w-6xl">
-          <div className="border border-yellow-300 bg-yellow-50 text-yellow-800 rounded-md p-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="text-sm">
-                {(!student.email) && (
-                  <span>⚠️ Email not added. Please set your email and password to use portal features.</span>
-                )}
-                {(student.email && !student.is_email_verified) && (
-                  <span>⚠️ Email verification required. Please verify your email to use portal features.</span>
-                )}
-                {(!student.password_hash && student.email && student.is_email_verified) && (
-                  <span>⚠️ Password not set. Please set a password to continue.</span>
-                )}
-              </div>
-              <Link href="/student/settings/security" className="inline-flex items-center text-sm font-semibold text-blue-700 hover:underline">Go to Security & Privacy</Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    const fetchSessions = async () => {
+      if (!student) return;
+      try {
+        const res = await fetch('/api/student/academic-info');
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
+        const subjects = json.data || [];
+        const assignmentIds = subjects.map((s) => s.assignment_id).filter(Boolean);
+        if (!assignmentIds.length) return;
 
-  const status = (latestRequest.status || '').toUpperCase();
-  const type = latestRequest.certificate_type || latestRequest.type || 'certificate';
-  const id = latestRequest.request_id || latestRequest.requestId || latestRequest.id;
+        const res2 = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds.join(',')}`);
+        const json2 = await res2.json();
+        if (!res2.ok) throw new Error(json2.error || 'Failed to fetch active attendance sessions');
+
+        if (!cancelled) {
+          setAttendanceSessions(json2.data || []);
+        }
+      } catch (error) {
+        if (!cancelled && error?.message) {
+          toast.error(error.message);
+        }
+      }
+    };
+
+    fetchSessions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [student]);
+
+  const hasAttendanceSessions = attendanceSessions.length > 0;
+
+  const status = (latestRequest?.status || '').toUpperCase();
+  const type = latestRequest?.certificate_type || latestRequest?.type || 'certificate';
+  const id = latestRequest?.request_id || latestRequest?.requestId || latestRequest?.id;
 
   const handleDismiss = () => {
     setVisible(false);
@@ -94,60 +101,103 @@ export default function ProfileActivityBar({ activity, student }) {
     }
   };
 
-  if (!visible) return null;
+  const handleSessionVerified = (assignmentId) => {
+    setAttendanceSessions((prev) => prev.filter((s) => s.assignment_id !== assignmentId));
+  };
 
-  // Approved
-  if (status === 'APPROVED') {
-    return (
-      <div className="w-full flex justify-center px-6 pt-4">
-        <div className="w-full max-w-6xl">
-          <div className="border border-green-200 bg-green-50 text-green-800 rounded-md p-3">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-sm">Your {type} request is <span className="font-semibold">approved</span>.</div>
-              <div className="flex items-center gap-2">
-                <Link href={`/student/requests/certificates?request_id=${encodeURIComponent(id)}&scroll=history`} className="text-sm text-blue-700 hover:underline">View Details</Link>
-                <button onClick={handleDismiss} className="ml-2 text-sm text-gray-600">✕</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const showRequestBar =
+    !!latestRequest &&
+    visible &&
+    !(latestRequest && dismissCount >= 4 && isProd);
+
+  const showLegacyWarning = !latestRequest && !!student && (!student.email || !student.is_email_verified || !student.password_hash);
+
+  if (!hasAttendanceSessions && !showLegacyWarning && !showRequestBar) {
+    return null;
   }
 
-  // Rejected
-  if (status === 'REJECTED') {
-    return (
-      <div className="w-full flex justify-center px-6 pt-4">
-        <div className="w-full max-w-6xl">
-          <div className="border border-red-200 bg-red-50 text-red-800 rounded-md p-3">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-sm">Your {type} request was <span className="font-semibold">rejected</span>. You may view details or re-apply.</div>
-              <div className="flex items-center gap-2">
-                <Link href={`/student/requests/certificates?request_id=${encodeURIComponent(id)}&scroll=history`} className="text-sm text-red-600 hover:underline">View Details</Link>
-                <button onClick={handleDismiss} className="ml-2 text-sm text-gray-600">✕</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Pending / default
   return (
     <div className="w-full flex justify-center px-6 pt-4">
-      <div className="w-full max-w-6xl">
-        <div className="border border-blue-200 bg-blue-50 text-blue-800 rounded-md p-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-sm">Your {type} request is <span className="font-semibold">pending</span>. We&apos;ll notify you when it&apos;s processed.</div>
-            <div className="flex items-center gap-2">
-              <Link href={`/student/requests/certificates?request_id=${encodeURIComponent(id)}&scroll=history`} className="text-sm text-blue-700 hover:underline">View Details</Link>
-              <button onClick={handleDismiss} className="ml-2 text-sm text-gray-600">✕</button>
+      <div className="w-full max-w-6xl space-y-3">
+        {hasAttendanceSessions && (
+          <AttendanceVerificationActivity
+            sessions={attendanceSessions}
+            onSessionVerified={handleSessionVerified}
+          />
+        )}
+
+        {showLegacyWarning && (
+          <div className="border border-yellow-300 bg-yellow-50 text-yellow-800 rounded-md p-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="text-sm">
+                {!student.email && (
+                  <span>⚠️ Email not added. Please set your email and password to use portal features.</span>
+                )}
+                {student.email && !student.is_email_verified && (
+                  <span>⚠️ Email verification required. Please verify your email to use portal features.</span>
+                )}
+                {!student.password_hash && student.email && student.is_email_verified && (
+                  <span>⚠️ Password not set. Please set a password to continue.</span>
+                )}
+              </div>
+              <Link
+                href="/student/settings/security"
+                className="inline-flex items-center text-sm font-semibold text-blue-700 hover:underline"
+              >
+                Go to Security &amp; Privacy
+              </Link>
             </div>
           </div>
-        </div>
+        )}
+
+        {showRequestBar && (
+          <div
+            className={
+              status === 'APPROVED'
+                ? 'border border-green-200 bg-green-50 text-green-800 rounded-md p-3'
+                : status === 'REJECTED'
+                ? 'border border-red-200 bg-red-50 text-red-800 rounded-md p-3'
+                : 'border border-blue-200 bg-blue-50 text-blue-800 rounded-md p-3'
+            }
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm">
+                {status === 'APPROVED' && (
+                  <>
+                    Your {type} request is <span className="font-semibold">approved</span>.
+                  </>
+                )}
+                {status === 'REJECTED' && (
+                  <>
+                    Your {type} request was <span className="font-semibold">rejected</span>. You may view details or
+                    re-apply.
+                  </>
+                )}
+                {status !== 'APPROVED' && status !== 'REJECTED' && (
+                  <>
+                    Your {type} request is <span className="font-semibold">pending</span>. We&apos;ll notify you when
+                    it&apos;s processed.
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/student/requests/certificates?request_id=${encodeURIComponent(
+                    id || ''
+                  )}&scroll=history`}
+                  className="text-sm text-blue-700 hover:underline"
+                >
+                  View Details
+                </Link>
+                <button onClick={handleDismiss} className="ml-2 text-sm text-gray-600">
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
