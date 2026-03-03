@@ -544,7 +544,21 @@ await db.execute('SELECT * FROM students WHERE roll_no = ?', [rollNo]);
 
 ## 10. Recent Activity Log (Feb 2026)
 
-### **Session 19: Secure Proxy-Free Attendance & Cloudinary Optimization (Latest - March 1, 2026)**
+### **Session 20: Academics Module Refactor & Global Attendance Alerts (Latest - March 3, 2026)**
+- **Architectural Shift: Dedicated Academics Page:**
+    - Migrated student academic performance, subjects, and internal marks from the profile page to a standalone `/student/academics` module.
+    - Introduced `AcademicsContext` to provide a robust caching layer (sessionStorage/localStorage) for academic data, improving load times and reducing redundant API calls.
+- **Global Attendance Verification Alerts:**
+    - Moved the attendance verification UI to a dedicated `AttendanceVerificationActivity` component.
+    - Integrated these alerts into the global `ProfileActivityBar`, ensuring students see active attendance sessions across all profile-related pages.
+- **Enhanced Syllabus Integration:**
+    - Added `getSyllabusUrl.js` utility to dynamically resolve curriculum document paths based on student branch, year, and semester.
+    - Removed the legacy `SyllabusTab` in favor of a direct "View Full Curriculum" link within the new Academics dashboard.
+- **Core Intelligence Updates:**
+    - Enhanced `rollNumber.js` with `getCurrentSemester` logic to accurately resolve semester boundaries using college configuration.
+    - Standardized academic year resolution across the student dashboard.
+
+### **Session 19: Secure Proxy-Free Attendance & Cloudinary Optimization (March 1, 2026)**
 - **Proxy-Free Attendance Implementation:**
     - Developed a cryptographically secure attendance verification system using **Dynamic 4-digit PINs** and **Strict 40m GPS Geofencing**.
     - **Faculty Controls:** Added "Start Secure Session" button which captures faculty coordinates and displays a real-time "Live Verification" list with manual refresh to prevent UI jumps.

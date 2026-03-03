@@ -45,19 +45,27 @@ export async function POST(request) {
       return apiError('Mocked location detected. Please disable GPS spoofing apps.', 403);
     }
 
-    // 3. Strict Geofencing check (40 meters radius)
+    // 3. Strict Geofencing check
     if (session.latitude === null || session.longitude === null) {
       return apiError('Faculty location not recorded. Please ask faculty to restart the session with GPS enabled.', 403);
     }
 
-    const inRange = isWithinRange(
+    // Account for GPS inaccuracy: 
+    // Base radius (50m) + student's reported accuracy (capped at 50m)
+    // This handles indoor environments where GPS might have 20-30m of error
+    const baseRadius = 50; 
+    const accuracyBonus = Math.min(parseFloat(accuracy || 0), 50);
+    const allowedRadius = baseRadius + accuracyBonus;
+
+    const distance = isWithinRange(
       parseFloat(session.latitude), parseFloat(session.longitude),
       parseFloat(latitude), parseFloat(longitude),
-      40 // Strict rule: 40 meters
+      allowedRadius
     );
 
-    if (!inRange) {
-      return apiError('Location mismatch. You must be within 40m of the classroom to mark attendance.', 403);
+    if (!distance) {
+      // For debugging, we'll keep the same error message but we could log the actual distance here
+      return apiError(`Location mismatch. You must be within ${allowedRadius}m of the classroom.`, 403);
     }
 
     // ... (geofence check same) ...
