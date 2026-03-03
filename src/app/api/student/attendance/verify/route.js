@@ -45,18 +45,13 @@ export async function POST(request) {
       return apiError('Mocked location detected. Please disable GPS spoofing apps.', 403);
     }
 
-    // 3. Strict Geofencing check
+    // 3. Strict Geofencing check (50 meters radius)
     if (session.latitude === null || session.longitude === null) {
       return apiError('Faculty location not recorded. Please ask faculty to restart the session with GPS enabled.', 403);
     }
 
-    // Account for GPS inaccuracy: 
-    // Base radius (100m) + student accuracy + faculty accuracy
-    // Capping bonuses at 50m each to prevent exploit by fake poor GPS
-    const baseRadius = 100; 
-    const studentBonus = Math.min(parseFloat(accuracy || 0), 50);
-    const facultyBonus = Math.min(parseFloat(session.faculty_accuracy || 0), 50);
-    const allowedRadius = Math.round(baseRadius + studentBonus + facultyBonus);
+    // Strict 50m Rule
+    const allowedRadius = 50; 
 
     const distanceOk = isWithinRange(
       parseFloat(session.latitude), parseFloat(session.longitude),
@@ -65,13 +60,10 @@ export async function POST(request) {
     );
 
     if (!distanceOk) {
-      return apiError(`Location mismatch. You must be within ${allowedRadius}m of the classroom.`, 403);
+      return apiError(`Location mismatch. You must be within 50m of the classroom to mark attendance.`, 403);
     }
 
-    // ... (geofence check same) ...
-
     // --- ACTION B: PERSISTENT DEVICE FINGERPRINTING ---
-    // If device_id is missing from frontend, fallback to legacy hash but warn
     const finalDeviceId = device_id || crypto.createHash('sha256').update(request.headers.get('user-agent') + (request.headers.get('x-forwarded-for') || '127.0.0.1')).digest('hex');
 
     // Check if this specific device ID has already been used for this session
