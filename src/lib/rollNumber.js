@@ -129,6 +129,26 @@ function getCurrentStudyingYear(rollNo, collegeInfo = null, now = getNowSync()) 
   return academicYearIndex;
 }
 
+/**
+ * Determine the current semester (1-8) for a student using roll number and college info.
+ * Returns integer semester (1..8) or null when it cannot be determined.
+ */
+function getCurrentSemester(rollNo, collegeInfo = null, now = getNowSync()) {
+  const yearOfStudy = getCurrentStudyingYear(rollNo, collegeInfo, now);
+  if (!yearOfStudy) return null;
+
+  // Determine whether we are in the first or second semester of the study year
+  const startMonth = parseInt(collegeInfo?.first_sem_start_month) || 6;
+  const startDay = parseInt(collegeInfo?.first_sem_start_day) || 1;
+  const currentTotal = (now.getMonth() + 1) * 100 + now.getDate();
+  const boundaryTotal = startMonth * 100 + startDay;
+  const isInFirstSem = currentTotal >= boundaryTotal;
+
+  const sem = isInFirstSem ? (2 * yearOfStudy - 1) : (2 * yearOfStudy);
+  if (!Number.isInteger(sem) || sem < 1 || sem > 8) return null;
+  return sem;
+}
+
 function getAcademicYearForStudyYear(rollNo, yearOfStudy) {
   const entryYear = getEntryYearFromRoll(rollNo);
   if (!entryYear) {
@@ -245,6 +265,7 @@ export {
   getEffectiveAcademicYear,
   getEntranceExamQualified,
   getBatchFromRoll,
+  getCurrentSemester,
   branchCodes,
   EXAM_TOTAL_MARKS,
 };

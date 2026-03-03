@@ -21,8 +21,6 @@ import useProfileEdit from '@/components/student/hooks/useProfileEdit';
 import useEmailVerification from '@/components/student/hooks/useEmailVerification';
 import usePasswordSetup from '@/components/student/hooks/usePasswordSetup';
 import useProfileActivity from '@/components/student/hooks/useProfileActivity';
-import SyllabusTab from './SyllabusTab';
-import AcademicTab from '@/components/student/AcademicTab';
 import Loading from './loading';
 
 export default function StudentProfileNew() {
@@ -73,12 +71,10 @@ export default function StudentProfileNew() {
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 personalPanel={<PersonalInfoTab student={student} />}
-                academicPanel={<AcademicTab />}
                 scholarshipPanel={<>
                   <ScholarshipTableDesktop rows={rows} />
                   <ScholarshipCardsMobile rows={rows} />
                 </>}
-                syllabusPanel={<SyllabusTab branch={branch} semester={semester} />}
               />
             </div>
           </div>
