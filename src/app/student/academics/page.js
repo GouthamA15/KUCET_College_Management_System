@@ -257,15 +257,15 @@ function AcademicsInner({ studentData, collegeInfo }) {
               <p className="text-sm text-gray-600">Academic Year 2025–26</p>
             </div>
 
-            <div>
-              <table className="w-full table-auto">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-0 table-auto">
                 <thead className="bg-gray-100 text-sm font-medium text-gray-700">
                   <tr>
-                    <th className="text-left py-2.5 px-2 text-xs sm:text-sm">Code</th>
-                    <th className="text-left py-2.5 px-2 text-xs sm:text-sm">Subject Name</th>
-                    <th className="text-left py-2.5 px-2 w-20 text-xs sm:text-sm">Type</th>
-                    <th className="text-right py-2.5 px-2 w-16 text-xs sm:text-sm">Credits</th>
-                    <th className="text-left py-2.5 px-2 text-xs sm:text-sm">Faculty</th>
+                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal break-words">Code</th>
+                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal break-words">Subject Name</th>
+                    <th className="text-left py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Type</th>
+                    <th className="text-right py-2.5 px-2 w-16 text-[11px] sm:text-sm whitespace-normal break-words">Credits</th>
+                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal break-words">Faculty</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,11 +274,11 @@ function AcademicsInner({ studentData, collegeInfo }) {
                     const code = sub.subject_code || '—';
                     return (
                       <tr key={sub.assignment_id} className="border-b">
-                        <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-800">{code}</td>
-                        <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 break-words">{sub.subject_name}</td>
-                        <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700">{meta.type}</td>
-                        <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{meta.credits}</td>
-                        <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 break-words">{sub.faculty_name || '—'}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal break-words">{code}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal break-words">{sub.subject_name}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal break-words">{meta.type}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{meta.credits}</td>
+                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal break-words">{sub.faculty_name || '—'}</td>
                       </tr>
                     );
                   })}
@@ -344,15 +344,15 @@ function AcademicsInner({ studentData, collegeInfo }) {
               <p className="text-sm text-gray-600">Per-subject internals for current semester</p>
             </div>
 
-            <div>
-                <table className="w-full table-auto">
+            <div className="overflow-x-auto">
+                <table className="w-full min-w-0 table-auto">
                 <thead className="bg-gray-100 text-sm font-medium text-gray-700">
                   <tr>
-                    <th className="text-left py-2.5 px-2">Subject</th>
-                    <th className="text-right py-2.5 px-2 w-20">Mid I</th>
-                    <th className="text-right py-2.5 px-2 w-20">Mid II</th>
-                    <th className="text-right py-2.5 px-2 w-20">Assign</th>
-                    <th className="text-right py-2.5 px-2 w-20">Total</th>
+                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal break-words">Subject</th>
+                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Mid I</th>
+                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Mid II</th>
+                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Assign</th>
+                    <th className="text-right py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal break-words">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -367,11 +367,11 @@ function AcademicsInner({ studentData, collegeInfo }) {
                     const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
                     return (
                       <tr key={`mark-${sub.assignment_id}`} className="border-b">
-                          <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-800">{short}</td>
-                          <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{m1 ?? '--'}</td>
-                          <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{m2 ?? '--'}</td>
-                          <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{assgn ?? '--'}</td>
-                          <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{internalTotal !== null ? internalTotal.toFixed(1) : '--'}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal break-words">{short}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{m1 ?? '--'}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{m2 ?? '--'}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{assgn ?? '--'}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal break-words">{internalTotal !== null ? internalTotal.toFixed(1) : '--'}</td>
                       </tr>
                     );
                   })}
