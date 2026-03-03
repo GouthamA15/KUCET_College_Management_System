@@ -544,9 +544,10 @@ await db.execute('SELECT * FROM students WHERE roll_no = ?', [rollNo]);
 
 ## 10. Recent Activity Log (Feb 2026)
 
-### **Session 19: Secure Proxy-Free Attendance System (Latest - March 1, 2026)**
+### **Session 19: Secure Proxy-Free Attendance & Cloudinary Optimization (Latest - March 1, 2026)**
 - **Proxy-Free Attendance Implementation:**
-    - Developed a cryptographically secure attendance verification system using **Dynamic 4-digit PINs** and **Strict 100m GPS Geofencing**.
+    - Developed a cryptographically secure attendance verification system using **Dynamic 4-digit PINs** and **Strict 40m GPS Geofencing**.
+
     - **Faculty Controls:** Added "Start Secure Session" button which captures faculty coordinates and displays a real-time "Live Verification" list.
     - **Smart Sync:** "Confirm All" button marks verified students as **PRESENT** and all others as **ABSENT** (preserving manual NCC/Medical entries).
     - **Auto-Closure:** Secure sessions now automatically end once attendance is saved or after the 10-minute timeout.

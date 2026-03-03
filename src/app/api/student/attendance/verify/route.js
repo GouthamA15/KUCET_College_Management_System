@@ -55,11 +55,11 @@ export async function POST(request) {
     const inRange = isWithinRange(
       parseFloat(session.latitude), parseFloat(session.longitude),
       parseFloat(latitude), parseFloat(longitude),
-      100 // Final Security Rule: 100 meters
+      40 // Updated rule: 40 meters
     );
 
     if (!inRange) {
-      return apiError('Location mismatch. You must be within 100m of the classroom to mark attendance.', 403);
+      return apiError('Location mismatch. You must be within 40m of the classroom to mark attendance.', 403);
     }
 
     // 4. Device Fingerprinting (Prevent remote proxy via device sharing)
