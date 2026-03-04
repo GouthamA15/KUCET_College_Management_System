@@ -45,25 +45,25 @@ export async function POST(request) {
       return apiError('Mocked location detected. Please disable GPS spoofing apps.', 403);
     }
 
-    // 3. Strict Geofencing check (40 meters radius)
+    // 3. Strict Geofencing check (50 meters radius)
     if (session.latitude === null || session.longitude === null) {
       return apiError('Faculty location not recorded. Please ask faculty to restart the session with GPS enabled.', 403);
     }
 
-    const inRange = isWithinRange(
+    // Strict 50m Rule
+    const allowedRadius = 50; 
+
+    const distanceOk = isWithinRange(
       parseFloat(session.latitude), parseFloat(session.longitude),
       parseFloat(latitude), parseFloat(longitude),
-      40 // Strict rule: 40 meters
+      allowedRadius
     );
 
-    if (!inRange) {
-      return apiError('Location mismatch. You must be within 40m of the classroom to mark attendance.', 403);
+    if (!distanceOk) {
+      return apiError(`Location mismatch. You must be within 50m of the classroom to mark attendance.`, 403);
     }
 
-    // ... (geofence check same) ...
-
     // --- ACTION B: PERSISTENT DEVICE FINGERPRINTING ---
-    // If device_id is missing from frontend, fallback to legacy hash but warn
     const finalDeviceId = device_id || crypto.createHash('sha256').update(request.headers.get('user-agent') + (request.headers.get('x-forwarded-for') || '127.0.0.1')).digest('hex');
 
     // Check if this specific device ID has already been used for this session

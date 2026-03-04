@@ -51,7 +51,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, latitude, longitude, attendance_date } = body;
+    const { assignment_id, latitude, longitude, accuracy, attendance_date } = body;
 
     if (!assignment_id || !attendance_date) {
       return apiError('Missing assignment_id or attendance_date', 400);
@@ -84,14 +84,23 @@ export async function POST(request) {
     const expiresAtSql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
     // 4. Create new session
-    // Check if the attendance_date column exists in the table (backwards compatible)
+    // Check if columns exist for backwards compatibility
     const [colInfo] = await db.execute(
-      `SELECT COUNT(*) as cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions' AND COLUMN_NAME = 'attendance_date'`
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions'`
     );
-    const hasAttendanceDate = (colInfo && colInfo[0] && colInfo[0].cnt > 0);
+    const columns = colInfo.map(c => c.COLUMN_NAME);
+    const hasAttendanceDate = columns.includes('attendance_date');
+    const hasAccuracy = columns.includes('accuracy');
 
     let result;
-    if (hasAttendanceDate) {
+    if (hasAttendanceDate && hasAccuracy) {
+      [result] = await db.execute(
+        `INSERT INTO attendance_sessions 
+         (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, accuracy, expires_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, accuracy ?? null, expiresAtSql]
+      );
+    } else if (hasAttendanceDate) {
       [result] = await db.execute(
         `INSERT INTO attendance_sessions 
          (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
@@ -99,7 +108,6 @@ export async function POST(request) {
         [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
       );
     } else {
-      // Fallback: older schema without attendance_date column
       [result] = await db.execute(
         `INSERT INTO attendance_sessions 
          (assignment_id, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
