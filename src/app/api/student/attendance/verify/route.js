@@ -63,23 +63,41 @@ export async function POST(request) {
       return apiError(`Location mismatch. You must be within 50m of the classroom to mark attendance.`, 403);
     }
 
-    // --- ACTION B: PERSISTENT DEVICE FINGERPRINTING ---
-    const finalDeviceId = device_id || crypto.createHash('sha256').update(request.headers.get('user-agent') + (request.headers.get('x-forwarded-for') || '127.0.0.1')).digest('hex');
+    // --- ACTION B: PERSISTENT DEVICE FINGERPRINTING & PROXY DETECTION ---
+    const userAgent = request.headers.get('user-agent') || '';
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+                      request.headers.get('x-real-ip') || 
+                      '127.0.0.1';
+    
+    // Create a server-side fingerprint (IP + UserAgent) to catch Incognito/Browser switching
+    const uaHash = crypto.createHash('md5').update(userAgent).digest('hex');
+    const finalDeviceId = device_id || crypto.createHash('sha256').update(userAgent + ipAddress).digest('hex');
 
-    // Check if this specific device ID has already been used for this session
-    const [deviceLogs] = await db.execute(
+    // 1. Check if this specific client-side Device ID has already been used for this session
+    const [idLogs] = await db.execute(
       'SELECT student_id FROM attendance_session_logs WHERE session_id = ? AND device_hash = ? AND status = "SUCCESS"',
       [session.id, finalDeviceId]
     );
 
-    if (deviceLogs.length > 0 && deviceLogs[0].student_id !== user.student_id) {
-      return apiError('Proxy blocked: This device has already been used to mark attendance for another student.', 403);
+    if (idLogs.length > 0 && idLogs[0].student_id !== user.student_id) {
+      return apiError('Proxy blocked: This device (UUID) has already been used for another student in this session.', 403);
     }
 
-    // 5. Record the log with the unique device ID
+    // 2. Check if this specific IP + User-Agent combination has already been used
+    // This catches students using different browsers or Incognito on the SAME physical device
+    const [proxyLogs] = await db.execute(
+      'SELECT student_id FROM attendance_session_logs WHERE session_id = ? AND ip_address = ? AND ua_hash = ? AND status = "SUCCESS"',
+      [session.id, ipAddress, uaHash]
+    );
+
+    if (proxyLogs.length > 0 && proxyLogs[0].student_id !== user.student_id) {
+      return apiError('Proxy blocked: Another student has already verified from this device/network signature in this session.', 403);
+    }
+
+    // 5. Record the log with all fingerprinting markers
     await db.execute(
-      'INSERT INTO attendance_session_logs (session_id, student_id, device_hash, status) VALUES (?, ?, ?, "SUCCESS") ON DUPLICATE KEY UPDATE status = "SUCCESS"',
-      [session.id, user.student_id, finalDeviceId]
+      'INSERT INTO attendance_session_logs (session_id, student_id, device_hash, ip_address, ua_hash, status) VALUES (?, ?, ?, ?, ?, "SUCCESS") ON DUPLICATE KEY UPDATE status = "SUCCESS", device_hash = VALUES(device_hash), ip_address = VALUES(ip_address), ua_hash = VALUES(ua_hash)',
+      [session.id, user.student_id, finalDeviceId, ipAddress, uaHash]
     );
 
     return apiResponse({ 
