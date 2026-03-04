@@ -15,21 +15,22 @@ export async function GET(req) {
       [user.student_id]
     );
 
-    const requests = rows.map(row => {
-      const helper = (val) => {
-        if (!val) return null;
-        if (typeof val === 'string' && val.startsWith('http')) return val;
-        return `data:image/png;base64,${val.toString('base64')}`;
-      };
+    const imageHelper = (val) => {
+      if (!val) return null;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
+      return val;
+    };
 
+    const requests = rows.map(row => {
       return {
         id: row.id,
         status: row.status,
         rejection_reason: row.rejection_reason,
         created_at: row.created_at,
         updated_at: row.updated_at,
-        new_signature: helper(row.new_signature),
-        new_pfp: helper(row.new_pfp)
+        new_signature: imageHelper(row.new_signature),
+        new_pfp: imageHelper(row.new_pfp)
       };
     });
 

@@ -279,6 +279,9 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Anti-Proxy Hardening:** Implemented session-level **IP + User-Agent Locking** to block proxy attempts via Incognito or browser switching.
 - **Student Academics Dashboard:** Fully dynamic dashboard with elective variant resolution and unique React keys.
 - **Lab Evaluation Fixes:** Corrected marks mapping between faculty entry and student view; renamed "Theory" to "Writing" for labs.
+- **Image Loading Fixes:**
+    - Resolved a critical issue where admission draft images (photos/signatures) were failing to load due to incorrect base64 conversion of Cloudinary URLs.
+    - Standardized image handling across all clerk and student APIs using a robust `imageHelper` that supports Cloudinary URLs, data URIs, and legacy Buffer data.
 - **System Stability:** Fixed SQL `only_full_group_by` errors in aggregated performance queries.
 
 ### **Session 20: Academics Module Refactor & Global Attendance Alerts (March 3, 2026)**

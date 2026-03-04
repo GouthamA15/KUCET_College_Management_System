@@ -18,11 +18,18 @@ export async function GET(req, context) {
     if (rows.length === 0) return apiError('Draft not found', 404);
 
     const draft = rows[0];
-    
-    // Convert BLOBs to base64 for frontend display
-    if (draft.pfp) draft.pfp = `data:image/jpeg;base64,${draft.pfp.toString('base64')}`;
-    if (draft.signature) draft.signature = `data:image/jpeg;base64,${draft.signature.toString('base64')}`;
 
+    // Helper to handle both URLs and legacy Buffer data
+    const imageHelper = (val) => {
+      if (!val) return null;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
+      return val;
+    };
+
+    if (draft.pfp) draft.pfp = imageHelper(draft.pfp);
+    if (draft.signature) draft.signature = imageHelper(draft.signature);
+    
     return apiResponse({ data: draft });
   } catch (error) {
     console.error('Error fetching draft detail:', error);
