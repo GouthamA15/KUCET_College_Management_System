@@ -29,7 +29,8 @@ export default function DevelopersPage() {
     {
       name: 'Uzair',
       role: 'System Interface and API designer',
-      image: '/assets/default-avatar.svg',
+      image: '/assets/DevPics/Dev3.jpeg',
+      audio: '/assets/DevPics/Dev3.mpeg',
       delay: '0.4s',
     },
   ];
