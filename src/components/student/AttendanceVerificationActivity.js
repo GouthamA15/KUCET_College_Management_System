@@ -51,6 +51,7 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assignment_id: assignmentId,
+          session_id: session.session_id,
           pin,
           latitude,
           longitude,

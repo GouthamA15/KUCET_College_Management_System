@@ -15,21 +15,23 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, pin, token, latitude, longitude, accuracy, device_id } = body;
+    const { assignment_id, session_id, pin, token, latitude, longitude, accuracy, device_id } = body;
 
-    if (!assignment_id || (!pin && !token) || latitude === undefined || longitude === undefined) {
+    if ((!assignment_id && !session_id) || (!pin && !token) || latitude === undefined || longitude === undefined) {
       return apiError('Location and Verification Data (PIN/QR) are required.', 400);
     }
 
     const db = getDb();
 
     // 1. Fetch the active session
+    // We prioritize session_id if provided for ambiguity resolution in shared subjects
     let sessionQuery = `
-      SELECT id, session_pin, session_token, latitude, longitude, expires_at 
+      SELECT id, assignment_id, session_pin, session_token, latitude, longitude, expires_at 
       FROM attendance_sessions 
-      WHERE assignment_id = ? AND is_active = 1 AND expires_at > NOW()
+      WHERE ${session_id ? 'id = ?' : 'assignment_id = ?'} 
+      AND is_active = 1 AND expires_at > NOW()
     `;
-    const sessionParams = [assignment_id];
+    const sessionParams = [session_id || assignment_id];
 
     const [sessions] = await db.execute(sessionQuery, sessionParams);
 
@@ -38,6 +40,17 @@ export async function POST(request) {
     }
 
     const session = sessions[0];
+
+    // --- PIN / TOKEN VALIDATION ---
+    if (pin) {
+      if (String(pin) !== String(session.session_pin)) {
+        return apiError('Invalid PIN. Please enter the 4-digit code shown by the faculty.', 403);
+      }
+    } else if (token) {
+      if (token !== session.session_token) {
+        return apiError('Invalid verification token or QR code.', 403);
+      }
+    }
 
     // --- ACTION C: GPS ACCURACY CHECK (SPOOF DETECTION) ---
     // Accuracy of 0 or 1 is often a sign of a mocked location app

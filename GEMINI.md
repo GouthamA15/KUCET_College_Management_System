@@ -277,11 +277,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **Session 21: Database-Driven Syllabus & Academics Refactor (Latest - March 4, 2026)**
 - **Syllabus Database Migration:** Moved entire curriculum from JS files to normalized MySQL schema.
 - **Anti-Proxy Hardening:** Implemented session-level **IP + User-Agent Locking** to block proxy attempts via Incognito or browser switching.
+- **Shared Subjects Attendance Fix:** 
+    - Resolved a critical bug where students were unable to see attendance verification cards for subjects shared by multiple faculty (e.g., ML).
+    - Refactored the `active-sessions` API to match sessions by `subject_code` and academic context instead of restricted assignment IDs.
+- **Verification Security Update:** Implemented strict **PIN validation** in the student verification API to ensure attendance cannot be marked without the faculty-provided code.
 - **Student Academics Dashboard:** Fully dynamic dashboard with elective variant resolution and unique React keys.
 - **Lab Evaluation Fixes:** Corrected marks mapping between faculty entry and student view; renamed "Theory" to "Writing" for labs.
-- **Image Loading Fixes:**
-    - Resolved a critical issue where admission draft images (photos/signatures) were failing to load due to incorrect base64 conversion of Cloudinary URLs.
-    - Standardized image handling across all clerk and student APIs using a robust `imageHelper` that supports Cloudinary URLs, data URIs, and legacy Buffer data.
+- **Image Loading Fixes:** Resolved broken photos/signatures in drafts and profiles by standardizing Cloudinary handling.
 - **System Stability:** Fixed SQL `only_full_group_by` errors in aggregated performance queries.
 
 ### **Session 20: Academics Module Refactor & Global Attendance Alerts (March 3, 2026)**
