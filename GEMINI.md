@@ -261,7 +261,33 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Completion Certificate** - Program completion proof
 - **ID Card Reissue** - Lost/damaged ID replacement (placeholder)
 
-### **F. Admission Pipeline** (`/admission`, `/clerk/admission`)
+**Request Workflow:**
+1. Student initiates request via `/student/profile` + purpose/date inputs
+2. Request stored in `certificate_requests` table with pending status
+3. Clerk approves from admin dashboard
+4. API generates PDF via template component
+5. Certificate ID calculated and stored in database
+6. Student downloads from `/student/profile` or verification portal
+
+### **F. Faculty Attendance & Marks System** (`src/components/clerk/faculty/`)
+**Attendance Entry Modes:**
+1. **Excel Mode** - High-performance grid for bulk entry
+   - Session-wise columns (S1, S2, S3, etc.)
+   - Sequential validation: Can't mark S2 until S1 is complete
+   - Date filtering: Only shows WORKING days from academic calendar
+   - One-click "Follow Previous Session" - Copies S1 data to S2 (saves repetitive manual entry)
+   
+2. **Mobile View** (`MobileAttendanceSheet.js`)
+   - Card-based responsive layout
+   - Progressive session unlocking (S1 → S2 → S3)
+   - Touch-optimized input targets
+
+**Marks Entry Features:**
+- Subject-wise marks recording per student per session
+- Validation: Marks ≤ subject maximum
+- Intelligent Lab detection and label switching (Execution, Writing, Record)
+
+### **G. Admission Pipeline** (`/admission`, `/clerk/admission`)
 **Three-Stage Process:**
 1. **Public Registration:** 27-field form with Cloudinary-backed photo/signature uploads.
 2. **Clerk Verification:** Search, review, and correct applicant drafts.
@@ -294,47 +320,66 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Global Attendance Verification Alerts:**
     - Moved the attendance verification UI to a dedicated `AttendanceVerificationActivity` component.
     - Integrated these alerts into the global `ProfileActivityBar`, ensuring students see active attendance sessions across all profile-related pages.
-- **Enhanced Syllabus Integration:**
-    - Added `getSyllabusUrl.js` utility to dynamically resolve curriculum document paths based on student branch, year, and semester.
-    - Removed the legacy `SyllabusTab` in favor of a direct "View Full Curriculum" link within the new Academics dashboard.
-- **Core Intelligence Updates:**
-    - Enhanced `rollNumber.js` with `getCurrentSemester` logic to accurately resolve semester boundaries using college configuration.
-    - Standardized academic year resolution across the student dashboard.
 
 ### **Session 19: Secure Proxy-Free Attendance & Cloudinary Optimization (March 1, 2026)**
 - **Proxy-Free Attendance Implementation:**
     - Developed a cryptographically secure attendance verification system using **Dynamic 4-digit PINs** and **Strict 50m GPS Geofencing**.
-
-    - **Faculty Controls:** Added "Start Secure Session" button which captures faculty coordinates and displays a real-time "Live Verification" list with manual refresh to prevent UI jumps.
-    - **Smart Sync:** "Confirm All" button explicitly marks verified students as **PRESENT** and unverified students as **ABSENT**, while preserving manual NCC/Medical entries.
-    - **Auto-Closure & Accurate Dates:** Secure sessions now automatically end once attendance is saved. The system also records and displays the specific `attendance_date` chosen by the faculty in the student's confirmation.
-    - **Student Verification:** Implemented a mandatory GPS verification card requiring the faculty's PIN, a **50-meter proximity**, and **High-Accuracy GPS enforcement** (`enableHighAccuracy: true`).
-    - **Anti-Proxy Measures:** Integrated persistent browser-based **Device Fingerprinting** (localStorage UUID) to strictly block multiple roll numbers from using the same physical device per session.
-    - **Anti-Spoofing:** Added GPS accuracy checks to block Mock Location spoofing apps (rejects attempts with accuracy <= 1).
 - **Cloudinary Integration & Migration:**
     - **Storage Optimization:** Migrated all binary image data (Photos, Signatures, Screenshots) from MySQL `MEDIUMBLOB` to **Cloudinary** cloud storage.
-    - **Database Refactor:** Updated schema to store secure URL strings.
-    - **Image Proxying:** Refactored image serving APIs (`/api/student/image/[rollno]` and `/api/student/requests/image/[request_id]`) to proxy Cloudinary images directly as Buffers to solve frontend `next/image` loading issues.
-    - **Automated Monitoring:** Implemented a system alert API that emails developers when Cloudinary storage exceeds a **20GB threshold**.
 - **Security & Rate Limiting:**
     - **API Protection:** Integrated a database-backed **Rate Limiter** restricting public admission uploads (5/hr) and student profile updates (3/day).
-    - **Insecure Context Handling:** Added explicit warnings and PIN fallbacks for mobile browsers attempting GPS access over non-HTTPS connections.
-- **System Stability & Bug Fixes:**
-    - Resolved critical `ReferenceError` crashes (`fetchBaseStudents`, `selectedDate`, `pos`, `onVerificationSuccess`).
-    - Fixed SQL schema conflicts by refactoring `attendance_sessions` unique indexes to support history tracking.
-    - Removed recursive auto-refresh loops, replacing them with manual refresh buttons for a stable UI experience.
-    - Standardized column names across APIs, resolving the `Unknown column 'slot'` errors in attendance history.
 
-### **Session 18: Elective Allocation Warnings & Messaging (Feb 28, 2026)**
-- **Elective Allocation Fix:**
-    - Resolved a bug where elective groups with placeholder codes (e.g., `PE-II*`) skipped variant-level allocation checks.
-    - Updated Syllabus API to prioritize variant-level allocation mapping, ensuring each elective subject correctly displays its status.
-    - Enhanced `SubjectInterestForm` to preserve allocation flags during the `flatMap` expansion of elective groups.
-- **Improved Warning UX:**
-    - Refined the warning message to be more welcoming: *"Note: This subject is already allocated to another faculty but You can express interest."*
-    - Ensured consistent display of warnings across both Core and Elective subjects.
+---
+
+## 7. Key API Routes
+
+### **Student APIs** (`/api/student/`)
+- `GET /api/student/profile` - Fetch logged-in student data
+- `GET /api/student/academic-info` - Aggregate curriculum, marks, and attendance
+- `GET /api/student/attendance/history` - Detailed session-wise attendance logs
+- `POST /api/student/certificate-request` - Submit certificate request
+
+### **Clerk APIs** (`/api/clerk/`)
+- `GET /api/clerk/faculty/syllabus` - Fetch curriculum mapping and allocations
+- `POST /api/clerk/faculty/marks` - Bulk save/update student marks
+- `PATCH /api/clerk/faculty/attendance` - Record session-wise attendance
+
+---
+
+## 8. Role-Based Feature Matrix
+
+| Feature | Student | Admission Clerk | Scholarship Clerk | Faculty Clerk | Super Admin |
+|---------|---------|-----------------|-------------------|---------------|-------------|
+| **View Own Performance**| ✓ | ✗ | ✗ | ✗ | ✗ |
+| **Mark Attendance**    | ✗ | ✗ | ✗ | ✓ | ✓ |
+| **Entry Marks**        | ✗ | ✗ | ✗ | ✓ | ✓ |
+| **Manage Syllabus**    | ✗ | ✓ | ✓ | ✓ | ✓ |
+| **Approve Certificate**| ✗ | ✓ | ✓ | ✓ | ✓ |
+
+---
+
+## 9. Development Guidelines & Best Practices
+
+### **Code Standards**
+- **Language:** JavaScript (ES6+, Node.js 18+)
+- **Indentation:** 2 spaces
+- **File Naming:** PascalCase for Components, camelCase for Utilities
+
+### **Date & Time Rules**
+- **ALWAYS** use `getNowSync()` (client) or `getNow()` (server) from `src/lib/clock.js` to ensure "Time Machine" compatibility.
+
+---
+
+## 10. Core Utility Library (`src/lib/`)
+
+### **A. Academic Intelligence (`rollNumber.js`)**
+- `validateRollNo(rollNo)`: Extracted entry year, branch, and admission type.
+- `getCurrentSemester()`: Dynamically resolves semester boundaries based on date.
+
+### **B. Syllabus Engine (`syllabus-data.js`)**
+- Replaced by database queries, but logic remains in `src/app/api/clerk/faculty/syllabus/route.js` for hierarchical reconstruction.
 
 ---
 
 ## Summary
-The KUCET College Management System is a comprehensive, production-ready application designed to digitalize the complete student lifecycle. It emphasizes role-based access control, data integrity through normalized schemas, and smart automation via intelligent parsing and context-aware calculations. The system is built with modern Next.js practices, includes comprehensive error handling, and provides multiple user-friendly interfaces tailored to each role's needs.
+The KUCET College Management System is a comprehensive, production-ready application designed to digitalize the complete student lifecycle. It emphasizes role-based access control, data integrity through normalized schemas, and smart automation via intelligent parsing and context-aware calculations.
