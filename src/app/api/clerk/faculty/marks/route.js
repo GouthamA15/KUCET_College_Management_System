@@ -61,7 +61,8 @@ export async function GET(request) {
     let studentsQuery = `
       SELECT 
         s.id, s.roll_no, s.name,
-        sm.mid1_marks, sm.mid2_marks, sm.assignment_marks
+        sm.mid1_marks, sm.mid2_marks, sm.assignment_marks,
+        sm.lab_theory_marks, sm.lab_execution_marks, sm.lab_record_marks
       FROM students s
       LEFT JOIN student_marks sm ON s.id = sm.student_id AND sm.assignment_id = ?
       WHERE (s.roll_no LIKE ?
@@ -104,7 +105,7 @@ export async function POST(request) {
 
     const db = getDb();
     const [assignments] = await db.execute(
-      'SELECT id, subject_code, branch, course_semester, academic_year FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
+      'SELECT id, subject_code, branch, course_semester, academic_year, subject_name FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
       [assignment_id, user.id]
     );
 
@@ -113,7 +114,8 @@ export async function POST(request) {
     }
 
     const assignment = assignments[0];
-    const { subject_code, branch, course_semester, academic_year } = assignment;
+    const { subject_code, branch, course_semester, academic_year, subject_name } = assignment;
+    const isLab = subject_name?.toLowerCase().includes('lab');
 
     // --- SHARED DATA LOGIC: Target Canonical ID ---
     const [canonicalRows] = await db.execute(`
@@ -146,17 +148,37 @@ export async function POST(request) {
       const placeholders = [];
       
       marks_data.forEach(item => {
-        placeholders.push('(?, ?, ?, ?, ?)');
-        values.push(
-          item.student_id, 
-          targetAssignmentId, 
-          item.mid1_marks ?? null, 
-          item.mid2_marks ?? null, 
-          item.assignment_marks ?? null
-        );
+        if (isLab) {
+          placeholders.push('(?, ?, ?, ?, ?)');
+          values.push(
+            item.student_id,
+            targetAssignmentId,
+            item.lab_theory_marks ?? null,
+            item.lab_execution_marks ?? null,
+            item.lab_record_marks ?? null
+          );
+        } else {
+          placeholders.push('(?, ?, ?, ?, ?)');
+          values.push(
+            item.student_id,
+            targetAssignmentId,
+            item.mid1_marks ?? null,
+            item.mid2_marks ?? null,
+            item.assignment_marks ?? null
+          );
+        }
       });
 
-      const sql = `
+      const sql = isLab
+        ? `
+        INSERT INTO student_marks (student_id, assignment_id, lab_theory_marks, lab_execution_marks, lab_record_marks)
+        VALUES ${placeholders.join(', ')}
+        ON DUPLICATE KEY UPDATE 
+          lab_theory_marks = VALUES(lab_theory_marks),
+          lab_execution_marks = VALUES(lab_execution_marks),
+          lab_record_marks = VALUES(lab_record_marks)
+      `
+        : `
         INSERT INTO student_marks (student_id, assignment_id, mid1_marks, mid2_marks, assignment_marks)
         VALUES ${placeholders.join(', ')}
         ON DUPLICATE KEY UPDATE 

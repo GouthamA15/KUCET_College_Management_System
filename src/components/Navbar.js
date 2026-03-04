@@ -15,6 +15,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const menuConfig = {
       student: [
       { label: 'PROFILE', route: '/student/profile' },
+      { label: 'ACADEMICS', route: '/student/academics' },
       { label: 'TIME TABLE', route: '/student/timetable' },
       { label: 'REQUESTS', children: [
           { label: 'Certificates', route: '/student/requests/certificates' },
@@ -103,16 +104,28 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const performAction = async (action) => {
     if (action === 'logout') {
       // Prefer explicit onLogout handler for student role (preserve original behavior)
-      if (effectiveRole === 'student' && typeof onLogout === 'function') {
-        try {
-          await onLogout();
-        } catch (e) {
-          // fallback to auth logout if handler fails
-          await fetch('/api/auth/logout', { method: 'POST' });
-          window.location.replace('/');
+      if (effectiveRole === 'student') {
+        if (typeof onLogout === 'function') {
+          try {
+            await onLogout();
+            return;
+          } catch (e) {
+            // fall through to student logout endpoint
+          }
         }
+
+        // Call the student logout endpoint, clear client state and redirect
+        try {
+          await fetch('/api/student/logout', { method: 'POST' });
+        } catch (e) {
+          // ignore network errors; still clear client state
+        }
+        try { localStorage.removeItem('logged_in_student'); } catch {};
+        try { sessionStorage.clear(); } catch {};
+        window.location.replace('/');
         return;
       }
+
       // Clerk and Faculty logout endpoint
       if (effectiveRole === 'clerk' || effectiveRole === 'faculty') {
         await fetch('/api/clerk/logout', { method: 'POST' });
@@ -120,8 +133,10 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         return;
       }
 
-      // Default auth logout
-      await fetch('/api/auth/logout', { method: 'POST' });
+      // Default: call auth logout then redirect
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (e) {}
       window.location.replace('/');
     }
     if (action === 'change-password') {

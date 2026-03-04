@@ -79,6 +79,12 @@ export async function POST(req) {
   if (!user) return apiError('Unauthorized', 401);
 
   try {
+    const { checkRateLimit } = require('@/lib/rate-limit');
+    const rateCheck = await checkRateLimit(`profile_req:${user.student_id}`, 3, 86400); // 3 per day
+    if (!rateCheck.success) {
+      return apiError('You can only submit 3 update requests per day.', 429);
+    }
+
     const body = await req.json();
     const { signature, pfp } = body;
     if (!signature && !pfp) return apiError('Either signature or profile picture is required', 400);

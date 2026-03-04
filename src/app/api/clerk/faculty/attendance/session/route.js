@@ -51,10 +51,10 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, latitude, longitude } = body;
+    const { assignment_id, latitude, longitude, accuracy, attendance_date } = body;
 
-    if (!assignment_id) {
-      return apiError('Missing assignment_id', 400);
+    if (!assignment_id || !attendance_date) {
+      return apiError('Missing assignment_id or attendance_date', 400);
     }
 
     const db = getDb();
@@ -84,12 +84,37 @@ export async function POST(request) {
     const expiresAtSql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
     // 4. Create new session
-    const [result] = await db.execute(
-      `INSERT INTO attendance_sessions 
-       (assignment_id, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [assignment_id, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
+    // Check if columns exist for backwards compatibility
+    const [colInfo] = await db.execute(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions'`
     );
+    const columns = colInfo.map(c => c.COLUMN_NAME);
+    const hasAttendanceDate = columns.includes('attendance_date');
+    const hasAccuracy = columns.includes('accuracy');
+
+    let result;
+    if (hasAttendanceDate && hasAccuracy) {
+      [result] = await db.execute(
+        `INSERT INTO attendance_sessions 
+         (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, accuracy, expires_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, accuracy ?? null, expiresAtSql]
+      );
+    } else if (hasAttendanceDate) {
+      [result] = await db.execute(
+        `INSERT INTO attendance_sessions 
+         (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
+      );
+    } else {
+      [result] = await db.execute(
+        `INSERT INTO attendance_sessions 
+         (assignment_id, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [assignment_id, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
+      );
+    }
 
     return apiResponse({
       message: 'Session created successfully',

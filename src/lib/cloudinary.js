@@ -9,21 +9,39 @@ cloudinary.config({
 
 /**
  * Uploads an image to Cloudinary
- * @param {string|Buffer} file - Base64 string (data URL) or Buffer
+ * @param {string|Buffer|File} file - Base64 string, Buffer, or browser File object
  * @param {string} folder - Cloudinary folder name
  * @param {string} publicId - Optional public ID
  * @returns {Promise<string>} - The secure URL of the uploaded image
  */
 export async function uploadToCloudinary(file, folder, publicId = null) {
-  if (!file) return null;
+  if (!file) {
+    console.log('[CLOUDINARY] No file provided to uploadToCloudinary');
+    return null;
+  }
 
   let fileToUpload = file;
   
-  // If it's a data URL, Cloudinary handles it directly
-  // If it's a buffer, we need to convert it to base64
-  if (Buffer.isBuffer(file)) {
+  console.log(`[CLOUDINARY] Starting upload to folder: kucet/${folder}. Type of file: ${typeof file}`);
+
+  // Handle browser File objects (from formData)
+  if (file instanceof File || (typeof file === 'object' && typeof file.arrayBuffer === 'function')) {
+    console.log(`[CLOUDINARY] Processing as File object. Name: ${file.name}, Size: ${file.size} bytes`);
+    if (file.size === 0) {
+      console.log('[CLOUDINARY] File size is 0, skipping upload.');
+      return null;
+    }
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    fileToUpload = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+  }
+  // Handle Buffers
+  else if (Buffer.isBuffer(file)) {
+    console.log(`[CLOUDINARY] Processing as Buffer. Length: ${file.length} bytes`);
     const base64 = file.toString('base64');
     fileToUpload = `data:image/jpeg;base64,${base64}`;
+  } else if (typeof file === 'string') {
+    console.log(`[CLOUDINARY] Processing as string. Starts with: ${file.substring(0, 20)}...`);
   }
 
   const options = {

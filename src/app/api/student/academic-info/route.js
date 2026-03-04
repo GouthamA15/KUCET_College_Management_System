@@ -41,6 +41,12 @@ export async function GET(request) {
          WHERE sm.student_id = ? AND sm.assignment_id = MIN(fsa.id)) as mid2_marks,
         (SELECT sm.assignment_marks FROM student_marks sm 
          WHERE sm.student_id = ? AND sm.assignment_id = MIN(fsa.id)) as assignment_marks,
+        (SELECT sm.lab_theory_marks FROM student_marks sm 
+         WHERE sm.student_id = ? AND sm.assignment_id = MIN(fsa.id)) as lab_theory_marks,
+        (SELECT sm.lab_execution_marks FROM student_marks sm 
+         WHERE sm.student_id = ? AND sm.assignment_id = MIN(fsa.id)) as lab_execution_marks,
+        (SELECT sm.lab_record_marks FROM student_marks sm 
+         WHERE sm.student_id = ? AND sm.assignment_id = MIN(fsa.id)) as lab_record_marks,
 
         -- Attendance is aggregated across ALL faculty assignments for this specific subject
         (SELECT COUNT(*) FROM student_attendance sa 
@@ -61,7 +67,19 @@ export async function GET(request) {
       JOIN clerks c ON fsa.faculty_id = c.id
       WHERE fsa.branch = ? AND fsa.course_semester = ? AND fsa.academic_year = ?
       GROUP BY fsa.subject_code, fsa.subject_name, fsa.branch, fsa.course_semester, fsa.academic_year
-    `, [studentId, studentId, studentId, studentId, studentId, branch, semester, academicYear]);
+    `, [
+      studentId, // mid1_marks
+      studentId, // mid2_marks
+      studentId, // assignment_marks
+      studentId, // lab_theory_marks
+      studentId, // lab_execution_marks
+      studentId, // lab_record_marks
+      studentId, // total_classes
+      studentId, // attended_classes
+      branch,
+      semester,
+      academicYear,
+    ]);
 
     return apiResponse({ 
       data: subjects.map(s => ({

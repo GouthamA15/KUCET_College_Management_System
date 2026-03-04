@@ -34,7 +34,7 @@ export async function GET(request) {
        WHERE asess.assignment_id IN (${assignmentIds.map(() => '?').join(',')}) 
        AND asess.is_active = 1 
        AND asess.expires_at > NOW()
-       AND asl.id IS NULL`, // Only return sessions where no 'SUCCESS' log exists for this student
+       AND asl.id IS NULL`, 
       [user.student_id, ...assignmentIds]
     );
 

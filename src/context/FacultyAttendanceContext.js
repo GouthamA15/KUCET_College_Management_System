@@ -70,6 +70,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
     let latitude = null;
     let longitude = null;
+    let accuracy = null;
 
     try {
       setSubmitting(true);
@@ -86,6 +87,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           });
           latitude = pos.coords.latitude;
           longitude = pos.coords.longitude;
+          accuracy = pos.coords.accuracy;
           toast.dismiss('geo-loading');
         } catch (geoErr) {
           toast.dismiss('geo-loading');
@@ -108,7 +110,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         body: JSON.stringify({
           assignment_id: assignment.id,
           latitude,
-          longitude
+          longitude,
+          attendance_date: selectedDate
         }),
       });
       

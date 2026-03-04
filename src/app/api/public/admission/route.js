@@ -2,9 +2,17 @@ import { query } from '@/lib/db';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { uploadToCloudinary } from '@/lib/cloudinary';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req) {
   try {
+    const ip = req.headers.get('x-forwarded-for') || 'anonymous';
+    const rateCheck = await checkRateLimit(`admission:${ip}`, 5, 3600); // 5 per hour
+    
+    if (!rateCheck.success) {
+      return apiError('Too many attempts. Please try again in an hour.', 429);
+    }
+
     const draftData = await req.json();
 
     // Basic validation

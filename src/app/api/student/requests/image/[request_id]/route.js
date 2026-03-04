@@ -48,9 +48,31 @@ export async function GET(req, context) {
       return new NextResponse('Image not found', { status: 404 });
     }
 
-    const imageBuffer = rows[0].payment_screenshot;
+    const imageBufferOrUrl = rows[0].payment_screenshot;
 
-    return new NextResponse(imageBuffer, {
+    // If it's a Cloudinary URL (string), fetch and return it (Proxy)
+    if (typeof imageBufferOrUrl === 'string' && imageBufferOrUrl.startsWith('http')) {
+      try {
+        const imageRes = await fetch(imageBufferOrUrl);
+        if (!imageRes.ok) throw new Error('Cloudinary fetch failed');
+        
+        const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
+        const buffer = await imageRes.arrayBuffer();
+
+        return new NextResponse(Buffer.from(buffer), {
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=86400, must-revalidate',
+          },
+        });
+      } catch (proxyErr) {
+        console.error('Error proxying Cloudinary image:', proxyErr);
+        return new NextResponse('Error loading image from cloud', { status: 502 });
+      }
+    }
+
+    // Otherwise, treat as Buffer (old BLOB data)
+    return new NextResponse(imageBufferOrUrl, {
       headers: {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
