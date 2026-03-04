@@ -125,162 +125,185 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **1. Core Identity & Authentication**
 - `students` - Core student records
   - `roll_no` (PK), `email`, `password_hash`
+  - `created_at`, `updated_at` - Audit timestamps
 - `clerks` - Administrative staff
-  - `id` (PK), `email`, `password_hash`, `role`
+  - `id` (PK), `email`, `password_hash`
+  - `role` ENUM('admission', 'scholarship', 'faculty')
+  - `status` ENUM('active', 'inactive')
 - `principal` - Principal/Admin accounts
   - `id`, `email`, `password_hash`, `approval_signature` (BLOB)
-- `otp_codes` - One-time passwords for reset
-- `password_reset_tokens` - Token-based recovery
-- `rate_limits` - Database-backed rate limiting
+- `otp_codes` - One-time passwords for password reset flow
+- `password_reset_tokens` - Token-based password recovery
+- `rate_limits` - Database-backed rate limiting for APIs (IP and user-based)
 
 ### **2. Student Personal & Academic Records**
-- `student_personal_details` - Extended information (Name, DOB, gender, blood group, Aadhaar, etc.)
-- `student_academic_background` - Prior education and entrance exam performance
+- `student_personal_details` - Extended student information
+  - `roll_no` (FK to students), Name, DOB, gender, blood group, Aadhaar, address, identification marks, caste category.
+- `student_academic_background` - Entrance exam and prior education
+  - `roll_no` (FK), `entrance_exam`, `rank`, `marks`, `ssc_marks`, `inter_marks`, `seat_allotted`.
 - `student_admission_drafts` - Pre-enrollment applicant data
+  - Temporary storage before roll-number assignment.
 - `student_images` - Profile photographs (VARCHAR for Cloudinary URL)
 - `student_signatures` - Digital signatures (VARCHAR for Cloudinary URL)
 
 ### **3. Academic & Attendance**
-- `college_info` - Institution-wide academic configuration
-- `academic_calendar` - Semester timelines
-- `student_attendance` - Multi-session daily tracking (Composite key: roll_no, session, date)
-- `student_marks` - Internal examination marks
-- `faculty_interests` - Faculty subject preferences
-- `attendance_sessions` - Active secure attendance tracking
-- `attendance_session_logs` - Real-time student verification logs (device_hash, ip_address, ua_hash)
+- `college_info` - Institution-wide academic configuration.
+- `academic_calendar` - Semester timelines.
+- `student_attendance` - Multi-session daily tracking.
+- `student_marks` - Internal examination marks.
+- `faculty_interests` - Faculty subject preferences.
+- `attendance_sessions` - Active secure attendance tracking.
+- `attendance_session_logs` - Real-time student verification logs.
+  - Tracks `device_hash`, `ip_address`, and `ua_hash` to prevent phone sharing and proxy attempts.
 
 ### **4. Student Requests & Records**
-- `student_profile_requests` - photo/signature update approvals
-- `certificate_requests` - Certificate generation pipeline
+- `student_profile_requests` - photo/signature update approvals.
+- `certificate_requests` - Certificate generation pipeline.
 
 ### **5. Finance & Scholarship**
-- `student_fee_payments` - Tuition transaction history
-- `scholarship_sanctions` - Government scholarship records
+- `student_fee_payments` - Tuition transaction history.
+- `scholarship_sanctions` - Government scholarship records.
 
 ### **6. Syllabus & Curriculum**
-- `syllabus_subjects` - `subject_code` (PK), `subject_name`, `subject_type`
-- `syllabus_structure` - `branch`, `semester`, `subject_code`, `is_group`, `parent_group_code`
-- `syllabus_units` - `subject_code`, `unit_order`, `unit_name`, `topics` (JSON)
+- `syllabus_subjects`: `subject_code` (PK), `subject_name`, `subject_type` (ENUM).
+- `syllabus_structure`: `branch`, `semester`, `subject_code` (FK), `is_group`, `parent_group_code`.
+- `syllabus_units`: `subject_code` (FK), `unit_order`, `unit_name`, `topics` (JSON).
 
 ### **7. Support Tables**
-- `syllabus_mapping` - Branch-wise course catalog
-- `roles`, `audit_logs` (future)
+- `syllabus_mapping` - Branch-wise course catalog.
+- `roles`, `audit_logs` (future).
 
 ---
 
 ## 5. Specialized Modules & Features
 
-### **A. Proxy-Free Attendance System**
+### **A. Digital Certificate Engine** (`src/pdf/` & `src/app/api/.../certificate`)
+**Architecture:**
+- Server-side rendering using `@react-pdf/renderer` v4.3.2.
+- Security: Certificate ID generated as `HMAC-SHA256(roll_no + type)` for tamper detection.
+- Base64 asset encoding to prevent file access errors.
+
+**Supported Certificate Templates:**
+- Bonafide, Transfer, No Objection (NOC), Completion.
+
+**Request Workflow:**
+1. Student initiates request via `/student/profile`.
+2. Request stored in `certificate_requests` table.
+3. Clerk approves from admin dashboard.
+4. API generates PDF and calculates Certificate ID.
+5. Student downloads from profile or verification portal.
+
+**PDF Rendering Details:**
+- Modular Design: `BaseCertificate.js`, `QRBlock.js`, `SignatureBlock.js`.
+- Asset Handling: Base64 embedding for logo and signatures.
+
+### **B. Proxy-Free Attendance System**
 **Architecture:**
 - **Secure PIN + GPS:** Faculty starts a 10-minute session generating a cryptographically secure 4-digit PIN.
 - **Geofencing:** Verification strictly enforced within a **50-meter radius**.
-- **High-Accuracy Requirements:** Frontend enforces `enableHighAccuracy: true` for all location requests.
+- **High-Accuracy Requirements:** Frontend enforces `enableHighAccuracy: true`.
 - **Device Fingerprinting:** Persistent browser-based UUID (`localStorage`) blocks multiple roll numbers per session.
-- **Cross-Browser Proxy Prevention:** The server now enforces an **IP + User-Agent Lock**. Even if a student uses Incognito mode or a different browser (wiping the UUID), the server detects the identical network signature and browser footprint, blocking subsequent verification attempts for different roll numbers.
-- **Anti-Spoofing:** System rejects "Mock Location" apps by validating GPS accuracy (accuracy <= 1).
-- **Auto-Sync:** "Confirm All" button marks verified students as PRESENT and others as ABSENT.
-- **Auto-Finalization:** Sessions automatically end upon saving attendance to the database.
+- **Cross-Browser Proxy Prevention:** The server enforces an **IP + User-Agent Lock**. Even if a student uses Incognito mode or a different browser (wiping the UUID), the server detects the identical network signature and browser footprint, blocking subsequent verification attempts for different roll numbers.
+- **Anti-Spoofing:** System rejects "Mock Location" apps (accuracy <= 1).
+- **Auto-Sync & Finalization:** "Confirm All" marks verified students as PRESENT; sessions close upon saving.
 
-### **B. Digital Certificate Engine** (`src/pdf/`)
-- **Templates:** Bonafide, Transfer, No Objection (NOC), Completion.
-- **Security:** Certificate ID generated as `HMAC-SHA256(roll_no + type)`.
-- **Workflow:** Student request → Clerk Approval → Server-side PDF generation → Base64 asset embedding → Download.
+### **C. Faculty Attendance & Marks System**
+**Attendance Entry Modes:**
+1. **Excel Mode** - High-performance grid for bulk entry with "Follow Previous Session" feature.
+2. **Mobile View** - Card-based responsive layout with progressive session unlocking.
 
-### **C. Cloudinary Optimization & Migration**
-- **Binary Migration:** All Photos, Signatures, and Screenshots moved from MySQL BLOBs to Cloudinary.
-- **Image Proxying:** APIs proxy images to solve CORS/Redirect issues for `next/image`.
-- **Storage Alerts:** Email notifications when usage reaches 20GB.
+**Marks Entry Features:**
+- Subject-wise marks recording with validation against subject maximum.
+- **Lab Evaluation Fix:** Explicit mapping for Execution (`mid1_marks`), Writing (`mid2_marks`), and Record (`assignment_marks`) marks.
 
-### **D. Academics Module & Caching**
-- **Dedicated Page:** standalone `/student/academics` module.
-- **AcademicsContext:** `sessionStorage`/`localStorage` caching for performance.
-- **Lab Evaluation Fix:** Explicit mapping for Execution, Writing (Theory), and Record marks.
+### **D. Cloudinary Optimization & Migration**
+**Architecture:**
+- All binary media migrated from MySQL BLOBs to **Cloudinary**.
+- **Image Proxying:** API routes proxy images to solve `next/image` CORS issues.
+- **Storage Alerts:** Monitoring API sends email alerts when usage reaches 20GB.
 
-### **E. Faculty Attendance & Marks System**
-- **Excel Mode:** High-performance grid for bulk entry.
-- **Mobile View:** progressive session unlocking and touch-optimized cards.
-- **Marks Entry:** subject-wise marks recording with validation against subject maximum.
+### **E. Academics Module & Caching**
+**Architecture:**
+- Dedicated `/student/academics` module for performance tracking.
+- **AcademicsContext:** Implements `sessionStorage`/`localStorage` caching to improve page load speed.
+- **Global Alerts:** Active attendance sessions surfaced in the `ProfileActivityBar`.
 
-### **F. Admission Pipeline** (`/admission`)
-- **Stage 1:** Public 27-field registration form with media uploads.
-- **Stage 2:** Clerk verification and correction module.
-- **Stage 3:** Roll-number assignment and draft graduation to official record.
+### **F. Admission Pipeline** (`/admission`, `/clerk/admission`)
+**Three-Stage Process:**
+1. **Public Registration:** 27-field form with media uploads.
+2. **Clerk Verification:** Search, review, and correct applicant drafts.
+3. **Roll-Number Assignment:** Assigns institutional roll number and graduates draft to official record.
 
 ---
 
 ## 6. Development Guidelines
-
-### **Code Standards**
-- **Language:** JavaScript (ES6+, Node.js 18+)
-- **Indentation:** 2 spaces
-- **File Naming:** PascalCase for Components, camelCase for Utilities
-- **Date Handling:** Never use `new Date()`; always use `getNowSync()`/`getNow()` from `src/lib/clock.js`.
-
-### **Authentication & Sessions**
-- **HTTP-Only Cookies:** `admin_auth`, `clerk_auth`, `student_auth`.
-- **JWT:** HS256 algorithm, signature verification in middleware.
-
-### **Database Best Practices**
-- Use `ON DUPLICATE KEY UPDATE` for idempotency.
-- Use parameterized queries to prevent SQL injection.
-- CONNECTION POOLING: `connectionLimit: 10`.
+- **Date Handling:** Never use `new Date()`; always use `getNowSync()` from `src/lib/clock.js`.
+- **API Standards:** All data responses should be wrapped in a `{ data: [...] }` object.
+- **Binary Data:** Base64 encoding for transmission; Cloudinary for storage.
+- **SQL Best Practices:** Prefer `ON DUPLICATE KEY UPDATE` for idempotency.
+- **Code Standards:** 2-space indentation, PascalCase for Components, camelCase for Utilities.
 
 ---
 
 ## 7. Key API Routes
 
-### **Student APIs**
-- `GET /api/student/profile` - logged-in student data.
-- `GET /api/student/academic-info` - aggregated curriculum, marks, and attendance.
-- `GET /api/student/attendance/history` - session-wise attendance logs.
+### **Authentication APIs** (`/api/auth/`)
+- `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/forgot-password`.
 
-### **Clerk APIs**
-- `GET /api/clerk/faculty/syllabus` - database-driven curriculum mapping.
-- `POST /api/clerk/faculty/marks` - bulk save/update student marks.
-- `PATCH /api/clerk/faculty/attendance` - record session-wise attendance.
+### **Student APIs** (`/api/student/`)
+- `GET /api/student/profile`, `GET /api/student/academic-info`, `GET /api/student/attendance/history`, `POST /api/student/certificate-request`.
+
+### **Clerk APIs** (`/api/clerk/`)
+- **Admission**: `/api/clerk/admission/drafts`, `/api/clerk/admission/finalize`.
+- **Syllabus**: `GET /api/clerk/faculty/syllabus` (database-driven).
+- **Attendance & Marks**: `PATCH /api/clerk/attendance`, `POST /api/clerk/faculty/marks`.
 
 ---
 
-## 8. Recent Activity Log (Feb-Mar 2026)
+## 8. Role-Based Feature Matrix
+
+| Feature | Student | Admission Clerk | Scholarship Clerk | Faculty Clerk | Super Admin |
+|---------|---------|-----------------|-------------------|---------------|-------------|
+| **View Own Performance**| ✓ | ✗ | ✗ | ✗ | ✗ |
+| **Mark Attendance**    | ✗ | ✗ | ✗ | ✓ | ✓ |
+| **Entry Marks**        | ✗ | ✗ | ✗ | ✓ | ✓ |
+| **Manage Syllabus**    | ✗ | ✓ | ✓ | ✓ | ✓ |
+| **Approve Certificate**| ✗ | ✓ | ✓ | ✓ | ✓ |
+
+---
+
+## 9. Recent Activity Log (Feb-Mar 2026)
 
 ### **Session 21: Database-Driven Syllabus & Academics Refactor (Latest - March 4, 2026)**
-- **Syllabus Database Migration:** curriculum moved from hardcoded JS files to normalized MySQL schema.
+- **Syllabus Database Migration:** Moved entire curriculum from JS files to normalized MySQL schema.
 - **Anti-Proxy Hardening:** Implemented session-level **IP + User-Agent Locking** to block proxy attempts via Incognito or browser switching.
-- **Student Academics Dashboard:** updated to be fully dynamic with elective variant resolution and unique React keys (`subject_code`).
-- **Lab Marks Fix:** Resolved marks shuffle bug; renamed "Theory" to "Writing" for lab subjects.
+- **Student Academics Dashboard:** Fully dynamic dashboard with elective variant resolution and unique React keys.
+- **Lab Evaluation Fixes:** Corrected marks mapping between faculty entry and student view; renamed "Theory" to "Writing" for labs.
+- **System Stability:** Fixed SQL `only_full_group_by` errors in aggregated performance queries.
 
 ### **Session 20: Academics Module Refactor & Global Attendance Alerts (March 3, 2026)**
-- **Architectural Shift:** standalone Academics module with caching layer.
-- **Global Alerts:** Attendance verification integrated into `ProfileActivityBar`.
+- Migrated academics performance to a standalone module with robust caching.
+- Integrated global attendance verification alerts.
 
-### **Session 19: Secure Proxy-Free Attendance (March 1, 2026)**
-- Developed GPS-based verification system with dynamic 4-digit PINs and 50m geofencing.
-
----
-
-## 9. Environment Configuration (`.env.local`)
-- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`
-- `JWT_SECRET`, `JWT_EXPIRY`
-- `NEXT_PUBLIC_WORKING_ENV` (production/testing)
-- `BREVO_API_KEY`, `SENDER_EMAIL`
-- `NEXT_PUBLIC_SYLLABUS_BASE_URL`
+### **Session 19: Proxy-Free Attendance & Cloudinary Migration (March 1, 2026)**
+- Developed GPS-based verification system with dynamic PINs and 50m geofencing.
+- Migrated all binary media to Cloudinary cloud storage.
 
 ---
 
 ## 10. Core Utility Library (`src/lib/`)
 
 ### **A. Academic Intelligence (`rollNumber.js`)**
-- `validateRollNo(rollNo)`: Extracted entry year, branch, and admission type.
-- `getCurrentStudyingYear()`: Calculates 1st, 2nd, 3rd, or 4th year status.
-- `getCurrentSemester()`: Dynamically resolves semester boundaries based on date.
+- `validateRollNo(rollNo)`: Validates format and admission type.
+- `getCurrentStudyingYear()`, `getCurrentSemester()`: Time-aware calculations.
 
-### **B. API & Auth (`api-utils.js`)**
+### **B. API & Auth Utilities (`api-utils.js`)**
 - `apiResponse`, `apiError`, `getAuthUser`.
 
 ### **C. Time & Clock (`clock.js`)**
-- `getNow()`, `getNowSync()`: Authoritative time source respecting mock dates.
+- `getNow()`, `getNowSync()`: Authoritative time source respecting "Time Machine" dates.
 
 ---
 
 ## Summary
-The KUCET College Management System is a comprehensive, production-ready application designed to digitalize the complete student lifecycle. It emphasizes role-based access control, data integrity through normalized schemas, and anti-proxy security measures.
+The KUCET College Management System is a comprehensive, production-ready application designed to digitalize the complete student lifecycle. It emphasizes role-based access control, data integrity through normalized schemas, and advanced anti-proxy security measures.
