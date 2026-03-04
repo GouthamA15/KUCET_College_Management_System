@@ -28,11 +28,10 @@ export default function MarksEntrySheet({ assignment, onBack }) {
       const studentsWithMarks = payload.map(s => ({
         ...s,
         // For lab subjects, reuse UI fields but map to lab_* columns
-        mid1_marks: isLab ? (s.lab_theory_marks || '') : (s.mid1_marks || ''),
-        mid2_marks: isLab ? (s.lab_execution_marks || '') : (s.mid2_marks || ''),
+        mid1_marks: isLab ? (s.lab_execution_marks || '') : (s.mid1_marks || ''),
+        mid2_marks: isLab ? (s.lab_theory_marks || '') : (s.mid2_marks || ''),       
         assignment_marks: isLab ? (s.lab_record_marks || '') : (s.assignment_marks || ''),
-      }));
-      setStudents(studentsWithMarks);
+      }));      setStudents(studentsWithMarks);
       if (data.mid_max) setMidMax(data.mid_max);
       setSubjectType(detectedType);
     } catch (error) {
@@ -135,8 +134,8 @@ export default function MarksEntrySheet({ assignment, onBack }) {
             if (subjectType === 'lab') {
               return {
                 student_id: s.id,
-                lab_theory_marks: s.mid1_marks === '' ? null : s.mid1_marks,
-                lab_execution_marks: s.mid2_marks === '' ? null : s.mid2_marks,
+                lab_theory_marks: s.mid2_marks === '' ? null : s.mid2_marks,
+                lab_execution_marks: s.mid1_marks === '' ? null : s.mid1_marks,
                 lab_record_marks: s.assignment_marks === '' ? null : s.assignment_marks,
               };
             }

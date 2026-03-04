@@ -46,6 +46,8 @@ function AcademicsInner({ studentData, collegeInfo }) {
   const [historyData, setHistoryData] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [activeTab, setActiveTab] = useState('subjects');
+  const [currentSem, setCurrentSem] = useState(null);
+  const [currentYear, setCurrentYear] = useState(null);
 
   const { cache, saveCache, isReload } = useAcademicsCache() || {};
 
@@ -56,6 +58,8 @@ function AcademicsInner({ studentData, collegeInfo }) {
       const cached = cache?.payload;
       if (!forceRefresh && cached && !isReload) {
         setData(cached.data || []);
+        setCurrentSem(cached.semester);
+        setCurrentYear(cached.academicYear);
         setLoading(false);
         return;
       }
@@ -65,8 +69,10 @@ function AcademicsInner({ studentData, collegeInfo }) {
       if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
       const subjects = json.data || [];
       setData(subjects);
-      // Save payload to session cache (subjects only)
-      try { saveCache({ data: subjects }); } catch {}
+      setCurrentSem(json.semester);
+      setCurrentYear(json.academicYear);
+      // Save payload to session cache
+      try { saveCache({ data: subjects, semester: json.semester, academicYear: json.academicYear }); } catch {}
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -133,8 +139,12 @@ function AcademicsInner({ studentData, collegeInfo }) {
           {activeTab === 'subjects' && (
             <section className="border border-gray-300 rounded-md bg-white p-4">
             <div className="mb-3">
-              <h2 className="text-sm font-semibold text-gray-800">Subjects Offered – Semester VI</h2>
-              <p className="text-sm text-gray-600">Academic Year 2025–26</p>
+              <h2 className="text-sm font-semibold text-gray-800">
+                Subjects Offered {currentSem ? `– Semester ${currentSem}` : ''}
+              </h2>
+              <p className="text-sm text-gray-600">
+                Academic Year {currentYear || '—'}
+              </p>
             </div>
 
             <div className="overflow-x-auto">
@@ -153,7 +163,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
                     const meta = getSubjectMeta(sub.subject_name);
                     const code = sub.subject_code || '—';
                     return (
-                      <tr key={sub.assignment_id} className="border-b">
+                      <tr key={sub.subject_code} className="border-b">
                         <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{code}</td>
                         <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.subject_name}</td>
                         <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{meta.type}</td>
@@ -202,7 +212,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
                     const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
                     const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
                     return (
-                      <tr key={`att-${sub.assignment_id}`} className="border-b">
+                      <tr key={`att-${sub.subject_code}`} className="border-b">
                         <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-800">{short}</td>
                         <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{sub.total_classes ?? '--'}</td>
                         <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{sub.attended_classes ?? '--'}</td>
@@ -254,7 +264,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
                             }
                             const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
                             return (
-                              <tr key={`theory-${sub.assignment_id}`} className="border-b">
+                              <tr key={`theory-${sub.subject_code}`} className="border-b">
                                 <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
                                 <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{m1 !== null ? m1 : '--'}</td>
                                 <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{m2 !== null ? m2 : '--'}</td>
@@ -272,21 +282,21 @@ function AcademicsInner({ studentData, collegeInfo }) {
 
               {/* Lab subjects */}
               {(() => {
-                const labSubjects = data.filter((sub) => sub.subject_type === 'lab');
+                const labSubjects = data.filter((sub) => sub.subject_type === 'lab');   
                 if (!labSubjects.length) return null;
                 return (
-                  <div className="border border-gray-300 rounded-md bg-white p-4">
+                  <div className="border border-gray-300 rounded-md bg-white p-4">      
                     <div className="mb-3">
                       <h2 className="text-sm font-semibold text-gray-800">Lab Evaluation</h2>
-                      <p className="text-sm text-gray-600">Theory, execution, and record/observation marks for lab subjects.</p>
+                      <p className="text-sm text-gray-600">Execution, writing, and record/observation marks for lab subjects.</p>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-0 table-auto text-sm">
-                        <thead className="bg-gray-100 font-medium text-gray-700">
+                        <thead className="bg-gray-100 font-medium text-gray-700">       
                           <tr>
                             <th className="text-left py-2 px-2 text-xs sm:text-sm whitespace-normal wrap-break-word">Subject</th>
-                            <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Theory</th>
                             <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Execution</th>
+                            <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Writing</th>
                             <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Record/Obs</th>
                             <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Total</th>
                           </tr>
@@ -302,10 +312,10 @@ function AcademicsInner({ studentData, collegeInfo }) {
                             }
                             const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
                             return (
-                              <tr key={`lab-${sub.assignment_id}`} className="border-b">
+                              <tr key={`lab-${sub.subject_code}`} className="border-b">
                                 <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{th !== null ? th : '--'}</td>
                                 <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{ex !== null ? ex : '--'}</td>
+                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{th !== null ? th : '--'}</td>
                                 <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{rec !== null ? rec : '--'}</td>
                                 <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{total !== null ? total.toFixed(1) : '--'}</td>
                               </tr>
@@ -316,8 +326,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
                     </div>
                   </div>
                 );
-              })()}
-            </section>
+              })()}            </section>
           )}
         </div>
       </main>

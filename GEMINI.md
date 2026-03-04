@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 3, 2026
+**Last Updated:** March 4, 2026
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports three primary user roles: **Super Admin**, **Clerk/Faculty**, and **Student**. 
@@ -14,6 +14,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Digital Certificates:** Automated generation of Bonafide, Transfer, No Objection, and Completion certificates
 - **Fee Management:** Year-wise fee tracking with payment history and scholarship impact
 - **Academic Calendar:** Institutional calendar with holidays and working day management
+- **Database-Driven Syllabus:** Transitioned from hardcoded JS files to a normalized MySQL schema for curriculum management.
 
 ---
 
@@ -108,6 +109,15 @@ A robust, production-ready web application built with **Next.js** for managing t
   - `academic_calendar` - Semester metadata and working day tracking
   - `calendar_holidays` - Explicit holiday dates within semesters
 
+### G. Database-Driven Curriculum System
+**Architecture:**
+- **Normalized Schema**: Replaced the legacy `lib/syllabus` folder with three dedicated tables:
+    - `syllabus_subjects`: Master list of all unique subjects and their types.
+    - `syllabus_structure`: Maps subjects to branches and semesters, including support for elective groups (Professional/Open Electives).
+    - `syllabus_units`: Stores unit titles and detailed topic arrays as JSON.
+- **Dynamic Reconstruction**: Backend APIs reconstruct the nested elective/variant hierarchy on-the-fly, ensuring compatibility with existing frontend components.
+- **Leaf-Node API**: The student academic info API filters for leaf subjects (`is_group = 0`), ensuring students see their specific elective choices (e.g., "Artificial Intelligence") instead of generic group titles.
+
 ---
 
 ## 4. Database Schema
@@ -190,7 +200,15 @@ A robust, production-ready web application built with **Next.js** for managing t
   - Sanction amount, reimbursement status
   - Clerk and principal signatures
 
-### **6. Support Tables**
+### **6. Syllabus & Curriculum**
+- `syllabus_subjects`
+  - `subject_code` (PK), `subject_name`, `subject_type` (ENUM)
+- `syllabus_structure`
+  - `branch`, `semester`, `subject_code` (FK), `is_group`, `parent_group_code`
+- `syllabus_units`
+  - `subject_code` (FK), `unit_order`, `unit_name`, `topics` (JSON)
+
+### **7. Support Tables**
 - `syllabus_mapping` - Branch-wise course catalog
 - `roles` - System-wide permission definitions (future)
 - `audit_logs` - Change tracking for compliance (future)
@@ -222,7 +240,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **AcademicsContext:** Implements `sessionStorage` and `localStorage` caching to reduce redundant database queries and improve page load speed.
 - **Global Alerts:** Active attendance sessions are surfaced as persistent alerts in the `ProfileActivityBar`.
 
-### **D. Digital Certificate Engine** (`src/pdf/` & `src/app/api/.../certificate`)
+### **D. Lab Evaluation Marks Mapping**
+**Architecture:**
+- **Specialized Mapping**: Fixed a critical shuffle between Theory (Writing) and Execution columns.
+- **Consistency**: Faculty entry sheet mapping now explicitly matches student display:
+    - `mid1_marks` → **Execution** (`lab_execution_marks`)
+    - `mid2_marks` → **Writing** (`lab_theory_marks`)
+    - `assignment_marks` → **Record/Observation** (`lab_record_marks`)
+
+### **E. Digital Certificate Engine** (`src/pdf/` & `src/app/api/.../certificate`)
 **Architecture:**
 - Server-side rendering using `@react-pdf/renderer` v4.3.2
 - Security: Certificate ID generated as `HMAC-SHA256(roll_no + type)` for tamper detection
@@ -235,7 +261,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Completion Certificate** - Program completion proof
 - **ID Card Reissue** - Lost/damaged ID replacement (placeholder)
 
-### **E. Admission Pipeline** (`/admission`, `/clerk/admission`)
+### **F. Admission Pipeline** (`/admission`, `/clerk/admission`)
 **Three-Stage Process:**
 1. **Public Registration:** 27-field form with Cloudinary-backed photo/signature uploads.
 2. **Clerk Verification:** Search, review, and correct applicant drafts.
@@ -245,7 +271,23 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 20: Academics Module Refactor & Global Attendance Alerts (Latest - March 3, 2026)**
+### **Session 21: Database-Driven Syllabus & Academics Refactor (Latest - March 4, 2026)**
+- **Syllabus Database Migration:**
+    - Developed and executed a comprehensive migration strategy to move the entire college curriculum from hardcoded JS files into a normalized MySQL schema.
+    - Generated a 2000+ line SQL migration script covering all branches and semesters.
+    - Refactored Faculty and Student APIs to fetch curriculum data dynamically from the new `syllabus_*` tables.
+- **Student Academics Dashboard Refactor:**
+    - Updated the academics dashboard to be fully dynamic, displaying the correct semester and academic year based on real-time API data.
+    - Improved elective visibility: The dashboard now automatically resolves elective groups to show the specific subjects (variants) students are enrolled in.
+    - Resolved React rendering issues by standardizing `subject_code` as the primary key for all curriculum-related list components.
+- **Lab Evaluation Fixes:**
+    - Resolved a marks shuffle bug where "Execution" and "Writing" (formerly "Theory") marks were being interchanged between faculty entry and student view.
+    - Renamed "Theory" to "Writing" in all lab-related interfaces to align with institutional terminology.
+- **System Stability:**
+    - Fixed SQL `only_full_group_by` errors in aggregated academic performance queries.
+    - Implemented unique key constraints in frontend maps to prevent duplicate rendering warnings.
+
+### **Session 20: Academics Module Refactor & Global Attendance Alerts (March 3, 2026)**
 - **Architectural Shift: Dedicated Academics Page:**
     - Migrated student academic performance, subjects, and internal marks from the profile page to a standalone `/student/academics` module.
     - Introduced `AcademicsContext` to provide a robust caching layer (sessionStorage/localStorage) for academic data, improving load times and reducing redundant API calls.

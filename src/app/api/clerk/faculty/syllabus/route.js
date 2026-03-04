@@ -1,5 +1,4 @@
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { syllabusData } from '@/lib/syllabus-data';
 import { getDb } from '@/lib/db';
 
 export async function GET(request) {
@@ -14,16 +13,46 @@ export async function GET(request) {
     const semester = searchParams.get('semester');
     const academicYear = searchParams.get('academicYear');
 
-    if (branch && semester) {
-      const branchSyllabus = syllabusData[branch.toUpperCase()];
-      if (!branchSyllabus) return apiError('Branch not found', 404);
-      const semSyllabus = branchSyllabus[semester];
-      if (!semSyllabus) return apiError('Semester not found', 404);
+    const db = getDb();
 
-      // If academicYear is provided, check which subjects are already allocated
+    if (branch && semester) {
+      // 1. Fetch structure and subject metadata
+      const [structureRows] = await db.execute(`
+        SELECT 
+          ss.subject_code, ss.is_group, ss.parent_group_code,
+          sb.subject_name as title, sb.subject_type
+        FROM syllabus_structure ss
+        JOIN syllabus_subjects sb ON ss.subject_code = sb.subject_code
+        WHERE ss.branch = ? AND ss.semester = ?
+      `, [branch.toUpperCase(), semester]);
+
+      if (structureRows.length === 0) {
+        return apiResponse({ data: [] });
+      }
+
+      const subjectCodes = [...new Set(structureRows.map(r => r.subject_code))];
+
+      // 2. Fetch units for these subjects
+      const [unitRows] = await db.execute(`
+        SELECT subject_code, unit_order, unit_name as name, topics
+        FROM syllabus_units
+        WHERE subject_code IN (${subjectCodes.map(() => '?').join(',')})
+        ORDER BY subject_code, unit_order
+      `, subjectCodes);
+
+      // Group units by subject_code
+      const unitsBySubject = unitRows.reduce((acc, u) => {
+        if (!acc[u.subject_code]) acc[u.subject_code] = [];
+        acc[u.subject_code].push({ 
+          name: u.name, 
+          topics: typeof u.topics === 'string' ? JSON.parse(u.topics) : u.topics 
+        });
+        return acc;
+      }, {});
+
+      // 3. Fetch allocations if academicYear is provided
       let allocations = [];
       if (academicYear) {
-        const db = getDb();
         const [rows] = await db.execute(
           'SELECT subject_code, faculty_id FROM faculty_subject_assignments WHERE branch = ? AND course_semester = ? AND academic_year = ?',
           [branch, semester, academicYear]
@@ -31,42 +60,70 @@ export async function GET(request) {
         allocations = rows;
       }
 
-      const dataWithAllocations = semSyllabus.map(item => {
-        const check = (code) => {
-          if (!code) return { is_allocated: false, allocated_to_me: false };
-          const allocation = allocations.find(a => a.subject_code === code);
-          return {
-            is_allocated: !!allocation,
-            allocated_to_me: allocation ? (allocation.faculty_id === user.id) : false
-          };
+      const check = (code) => {
+        if (!code) return { is_allocated: false, allocated_to_me: false };
+        const allocation = allocations.find(a => a.subject_code === code);
+        return {
+          is_allocated: !!allocation,
+          allocated_to_me: allocation ? (allocation.faculty_id === user.id) : false
+        };
+      };
+
+      // 4. Reconstruct Nested Structure
+      const topLevel = structureRows.filter(r => !r.parent_group_code);
+      const variants = structureRows.filter(r => r.parent_group_code);
+
+      const semSyllabus = topLevel.map(item => {
+        let result = {
+          code: item.subject_code,
+          title: item.title,
+          isGroup: !!item.is_group,
+          subject_type: item.subject_type,
+          units: unitsBySubject[item.subject_code] || []
         };
 
-        let result = { ...item };
-
-        // If it's an elective group, check each variant individually
-        if (item.variants) {
-          const updatedVariants = item.variants.map(v => ({
-            ...v,
-            ...check(v.code)
-          }));
-          result.variants = updatedVariants;
+        if (item.is_group) {
+          const groupVariants = variants
+            .filter(v => v.parent_group_code === item.subject_code)
+            .map(v => ({
+              code: v.subject_code,
+              title: v.title,
+              subject_type: v.subject_type,
+              units: unitsBySubject[v.subject_code] || [],
+              ...check(v.subject_code)
+            }));
           
-          // Also set group-level flags if any variant is allocated
-          result.is_allocated = updatedVariants.some(v => v.is_allocated);
-          result.allocated_to_me = updatedVariants.some(v => v.allocated_to_me);
-        } else if (item.code) {
-          // If it's a standard subject (Core)
-          const status = check(item.code);
+          result.variants = groupVariants;
+          result.is_allocated = groupVariants.some(v => v.is_allocated);
+          result.allocated_to_me = groupVariants.some(v => v.allocated_to_me);
+        } else {
+          const status = check(item.subject_code);
           result = { ...result, ...status };
         }
 
         return result;
       });
 
-      return apiResponse({ data: dataWithAllocations });
+      return apiResponse({ data: semSyllabus });
     }
 
-    return apiResponse({ data: syllabusData });
+    // Default: Return basic branches/semesters info
+    const [allRows] = await db.execute(`
+      SELECT branch, semester, COUNT(*) as subject_count
+      FROM syllabus_structure
+      WHERE parent_group_code IS NULL
+      GROUP BY branch, semester
+      ORDER BY branch, semester
+    `);
+
+    // Grouping by branch
+    const syllabusOverview = allRows.reduce((acc, row) => {
+      if (!acc[row.branch]) acc[row.branch] = {};
+      acc[row.branch][row.semester] = { count: row.subject_count };
+      return acc;
+    }, {});
+
+    return apiResponse({ data: syllabusOverview });
   } catch (error) {
     console.error('Syllabus Fetch Error:', error);
     return apiError('Internal Server Error', 500);
