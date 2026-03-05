@@ -2,10 +2,10 @@
 /**
  * Utility to resolve asset URLs.
  * Points to Cloudinary by default to remove dependency on local 'public' folder.
- * Uses NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME from environment configuration (available to client components).
+ * Uses CLOUDINARY_CLOUD_NAME from environment configuration.
  */
 
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_BASE = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/kucet/public`;
 
 /**
