@@ -153,8 +153,8 @@ const FinalizeAdmissionPage = () => {
                                                     #{draft.exam_rank}
                                                 </span>
                                             </td>
-                                            <td className="p-4">
-                                                <div className="relative">
+                                            <td className="p-4 align-top">
+                                                <div className="flex flex-col gap-1">
                                                     <input 
                                                         type="text"
                                                         placeholder={draft.entrance_exam === 'ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
@@ -166,7 +166,7 @@ const FinalizeAdmissionPage = () => {
                                                         }`}
                                                     />
                                                     {hasValue && !validation.isValid && (
-                                                        <div className="absolute -bottom-5 left-0 text-[10px] text-red-600 font-black uppercase tracking-tighter animate-pulse">
+                                                        <div className="text-[11px] text-red-600 font-black uppercase tracking-tight animate-pulse px-1">
                                                             ⚠️ {validation.error}
                                                         </div>
                                                     )}
