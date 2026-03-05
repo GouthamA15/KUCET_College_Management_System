@@ -4,7 +4,14 @@ const path = require('path');
 const https = require('https');
 require('dotenv').config({ path: '.env.local' });
 
-// Configure Cloudinary
+/**
+ * SMART & FAST CLOUDINARY ASSET FETCH (v2 - Concurrency Optimized)
+ * ---------------------------------------------------------------
+ * Uses parallel downloads to maximize throughput.
+ */
+
+const CONCURRENCY_LIMIT = 15; // Number of parallel downloads
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -12,19 +19,35 @@ cloudinary.config({
   secure: true,
 });
 
-// Setting prefix to 'kucet/' to fetch EVERYTHING in the project
 const CLOUDINARY_ROOT = 'kucet/';
 const LOCAL_BACKUP_DIR = path.join(__dirname, 'cloudinary_backup');
 
 /**
- * Downloads a file from a URL to a local path
+ * Throttler helper to limit concurrency
  */
+async function throttledAll(limit, tasks) {
+  const results = [];
+  const executing = [];
+  for (const task of tasks) {
+    const p = Promise.resolve().then(() => task());
+    results.push(p);
+    if (limit <= tasks.length) {
+      const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= limit) {
+        await Promise.race(executing);
+      }
+    }
+  }
+  return Promise.all(results);
+}
+
 async function downloadFile(url, dest) {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(dest);
     https.get(url, (response) => {
       if (response.statusCode !== 200) {
-        reject(new Error(`Failed to download ${url}: ${response.statusCode}`));
+        reject(new Error(`Status ${response.statusCode}`));
         return;
       }
       response.pipe(file);
@@ -39,14 +62,10 @@ async function downloadFile(url, dest) {
   });
 }
 
-/**
- * Fetches and downloads all resources of a specific type recursively
- */
 async function fetchAndDownload(resourceType) {
-  console.log(`\n🔍 Searching for all [${resourceType}] resources under '${CLOUDINARY_ROOT}'...`);
+  console.log(`\n🔍 Scanning [${resourceType}]...`);
   let nextCursor = null;
-  let count = 0;
-  let skipped = 0;
+  let stats = { downloaded: 0, skipped: 0, folders: {} };
 
   do {
     try {
@@ -58,72 +77,75 @@ async function fetchAndDownload(resourceType) {
         next_cursor: nextCursor
       });
 
-      for (const resource of result.resources) {
-        const relativePath = resource.public_id;
+      const tasks = result.resources.map(resource => async () => {
+        const publicId = resource.public_id;
+        const format = resource.format || 'jpg';
+        const fileName = publicId.toLowerCase().endsWith(`.${format}`) ? publicId : `${publicId}.${format}`;
         
-        // Append format if it's not already in the public_id
-        let fileName = relativePath;
-        if (resource.format && !relativePath.toLowerCase().endsWith(`.${resource.format.toLowerCase()}`)) {
-          fileName = `${relativePath}.${resource.format}`;
-        }
-
         const fullLocalPath = path.join(LOCAL_BACKUP_DIR, fileName);
-        const localDir = path.dirname(fullLocalPath);
+        const folderName = path.dirname(fileName);
+        
+        // Synchronous stats tracking
+        stats.folders[folderName] = (stats.folders[folderName] || 0) + 1;
 
-        // Recreate the directory structure
-        if (!fs.existsSync(localDir)) {
-          fs.mkdirSync(localDir, { recursive: true });
-        }
-
-        // --- Skip logic ---
         if (fs.existsSync(fullLocalPath)) {
-          console.log(`⏩ Skipping (already exists): ${fileName}`);
-          skipped++;
-          continue;
+          stats.skipped++;
+          return;
         }
 
-        console.log(`📥 [${resourceType}] Downloading: ${fileName}`);
-        await downloadFile(resource.secure_url, fullLocalPath);
-        count++;
-      }
+        if (!fs.existsSync(path.dirname(fullLocalPath))) {
+          fs.mkdirSync(path.dirname(fullLocalPath), { recursive: true });
+        }
 
+        try {
+          await downloadFile(resource.secure_url, fullLocalPath);
+          console.log(`✅ OK: ${fileName}`);
+          stats.downloaded++;
+        } catch (e) {
+          console.error(`❌ FAIL: ${fileName} (${e.message})`);
+        }
+      });
+
+      await throttledAll(CONCURRENCY_LIMIT, tasks);
       nextCursor = result.next_cursor;
     } catch (error) {
-      console.error(`❌ Error fetching ${resourceType}:`, error.message);
+      console.error(`💥 API Error: ${error.message}`);
       break;
     }
   } while (nextCursor);
 
-  return { count, skipped };
+  return stats;
 }
 
-async function runBackup() {
-  console.log('🚀 INITIALIZING SMART CLOUDINARY BACKUP (Increment-only)...');
-  console.log(`📂 Destination: ${LOCAL_BACKUP_DIR}`);
+async function run() {
+  const startTime = Date.now();
+  console.log('🚀 STARTING CONCURRENCY-OPTIMIZED ASSET FETCH...');
+  if (!fs.existsSync(LOCAL_BACKUP_DIR)) fs.mkdirSync(LOCAL_BACKUP_DIR, { recursive: true });
+
+  const imgStats = await fetchAndDownload('image');
+  const vidStats = await fetchAndDownload('video');
+  const rawStats = await fetchAndDownload('raw');
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+
+  console.log('\n===========================================');
+  console.log('📊 DOWNLOAD SUMMARY BY FOLDER');
+  console.log('===========================================');
   
-  if (!fs.existsSync(LOCAL_BACKUP_DIR)) {
-    fs.mkdirSync(LOCAL_BACKUP_DIR, { recursive: true });
-  }
+  const allFolders = {...imgStats.folders, ...vidStats.folders, ...rawStats.folders};
+  Object.keys(allFolders).sort().forEach(folder => {
+    console.log(`📁 ${folder.padEnd(45)} : ${allFolders[folder]} files`);
+  });
 
-  try {
-    const results = {
-      image: await fetchAndDownload('image'),
-      video: await fetchAndDownload('video'),
-      raw: await fetchAndDownload('raw')
-    };
-
-    const totalDownloaded = results.image.count + results.video.count + results.raw.count;
-    const totalSkipped = results.image.skipped + results.video.skipped + results.raw.skipped;
-
-    console.log('\n✨ BACKUP PROCESS COMPLETE!');
-    console.log(`===========================`);
-    console.log(`📥 Total New Downloads: ${totalDownloaded}`);
-    console.log(`⏩ Total Files Skipped:  ${totalSkipped}`);
-    console.log(`📦 Total Local Assets:  ${totalDownloaded + totalSkipped}`);
-    console.log(`===========================`);
-  } catch (err) {
-    console.error('\n❌ Backup aborted:', err.message);
-  }
+  const total = imgStats.downloaded + vidStats.downloaded + rawStats.downloaded;
+  const skipped = imgStats.skipped + vidStats.skipped + rawStats.skipped;
+  
+  console.log('-------------------------------------------');
+  console.log(`✨ New Downloads : ${total}`);
+  console.log(`⏩ Already Local : ${skipped}`);
+  console.log(`📦 Grand Total   : ${total + skipped}`);
+  console.log(`⏱️ Duration      : ${duration}s`);
+  console.log('===========================================');
 }
 
-runBackup();
+run();

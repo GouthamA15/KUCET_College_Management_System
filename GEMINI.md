@@ -222,6 +222,9 @@ A robust, production-ready web application built with **Next.js** for managing t
 - All binary media migrated from MySQL BLOBs to **Cloudinary**.
 - **Image Proxying:** API routes proxy images to solve `next/image` CORS issues.
 - **Storage Alerts:** Monitoring API sends email alerts when usage reaches 20GB.
+- **Concurrency-Optimized Migration Tools:**
+    - `fetch_all_cloudinary_assets.js`: Full-library backup tool with 15 parallel download streams.
+    - `migrate_to_new_cloudinary.js`: Recursive account migration script with 10 parallel upload streams and incremental skip logic.
 
 ### **E. Academics Module & Caching**
 **Architecture:**
@@ -275,7 +278,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 9. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 23: Asset Caching & Developer Page Optimization (Latest - March 5, 2026)**
+### **Session 23: Asset Caching, Developer Page Optimization & Bulk Migration Tools (Latest - March 5, 2026)**
 - **AssetContext & Pre-caching System:**
     - Implemented `AssetContext` (`src/context/AssetContext.js`) to manage institutional assets globally.
     - **Background Pre-caching:** Developed a non-blocking pre-caching mechanism that utilizes the browser's native HTTP cache via background `fetch()` calls. This ensures assets are pre-loaded into memory/disk without interfering with initial page render.
@@ -286,6 +289,10 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Path Correction:** Fixed critical 404 errors in asset resolution by correcting the Cloudinary pathing in `getAssetUrl` to include the required `public/` folder segment.
 - **Cloudinary URL Logic:**
     - Updated `getAssetUrl` in `src/lib/assets.js` to dynamically route assets to `image/upload`, `video/upload` (for audio), or `raw/upload` based on file extension.
+- **Bulk Migration & Backup Tools:**
+    - **Concurrency Throttling:** Implemented a native concurrency throttler to handle parallel network operations without overwhelming the system.
+    - **`fetch_all_cloudinary_assets.js`**: A high-speed backup tool that performs **15 parallel downloads** to recreate the entire `kucet/` Cloudinary root locally with full folder structure.
+    - **`migrate_to_new_cloudinary.js`**: A production-grade migration tool supporting **10 parallel uploads** with incremental skipping logic (verifies existence on target cloud before uploading).
 - **Build & Integrity:**
     - Resolved a UTF-8 encoding corruption in `src/lib/email.js` that was preventing successful production builds.
     - Verified all changes with a clean `npm run build` and confirmed 100% asset delivery across all roles.
