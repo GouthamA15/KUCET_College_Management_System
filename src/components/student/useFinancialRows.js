@@ -41,16 +41,23 @@ export default function useFinancialRows(roll_no, scholarshipArray = [], feePaym
     }
   });
 
-  // Group fee payments by year
+  // Group fee payments by year and track the latest payment date
   const paymentsByYear = {};
   (feePaymentsArray || []).forEach((p) => {
     for (let y = 1; y <= maxYears; y++) {
       const acadLabel = computeAcademicYear(roll_no, y);
       if (!acadLabel) continue;
-      // student_fee_payments table uses academic_year string
       if (p.academic_year && String(p.academic_year) === String(acadLabel)) {
-        if (!paymentsByYear[y]) paymentsByYear[y] = 0;
-        paymentsByYear[y] += Number(p.amount || 0);
+        if (!paymentsByYear[y]) paymentsByYear[y] = { amount: 0, date: null };
+        paymentsByYear[y].amount += Number(p.amount || 0);
+        
+        // Track latest payment date for this year
+        const pDate = p.transaction_date ?? p.date;
+        if (pDate) {
+          if (!paymentsByYear[y].date || new Date(pDate) > new Date(paymentsByYear[y].date)) {
+            paymentsByYear[y].date = pDate;
+          }
+        }
         break;
       }
     }
@@ -75,17 +82,23 @@ export default function useFinancialRows(roll_no, scholarshipArray = [], feePaym
     const y = i + 1;
     const acad = computeAcademicYear(roll_no, y);
     const scholar = scholarshipByYear[y];
-    const studentPaid = paymentsByYear[y] || 0;
+    const studentPaidRec = paymentsByYear[y] || { amount: 0, date: null };
     const govtPaid = scholar?.amount_sanctioned || 0;
-    const pending = Math.max(0, yearlyTotalFee - (govtPaid + studentPaid));
+    const pending = Math.max(0, yearlyTotalFee - (govtPaid + studentPaidRec.amount));
+
+    // Determine latest relevant date
+    let displayDate = scholar?.date || studentPaidRec.date;
+    if (scholar?.date && studentPaidRec.date) {
+      displayDate = new Date(scholar.date) > new Date(studentPaidRec.date) ? scholar.date : studentPaidRec.date;
+    }
 
     return {
       labelYear: acad ?? `Year ${y}`,
       proceedings_no: scholar?.proceedings_no ?? '',
       amount_sanctioned: govtPaid > 0 ? govtPaid : '',
-      student_paid: studentPaid > 0 ? studentPaid : '',
+      student_paid: studentPaidRec.amount > 0 ? studentPaidRec.amount : '',
       pending_fee: pending,
-      date: scholar?.date ? formatDateSlash(scholar.date) : '',
+      date: displayDate ? formatDateSlash(displayDate) : '',
     };
   });
 
