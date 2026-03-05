@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 4, 2026
+**Last Updated:** March 5, 2026
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports three primary user roles: **Super Admin**, **Clerk/Faculty**, and **Student**. 
@@ -274,21 +274,42 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 9. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 21: Database-Driven Syllabus & Academics Refactor (Latest - March 4, 2026)**
-- **Syllabus Database Migration:** Moved entire curriculum from JS files to normalized MySQL schema.
-- **Anti-Proxy Hardening:** Implemented session-level **IP + User-Agent Locking** to block proxy attempts via Incognito or browser switching.
-- **Shared Subjects Attendance Fix:** 
-    - Resolved a critical bug where students were unable to see attendance verification cards for subjects shared by multiple faculty (e.g., ML).
-    - Refactored the `active-sessions` API to match sessions by `subject_code` and academic context instead of restricted assignment IDs.
+### **Session 22: Cloudinary Migration, Admission Workflow & UI Refinements (Latest - March 5, 2026)**
+- **Cloudinary Asset Migration:**
+    - Migrated entire `public/` folder assets (images, logos, QR codes) to Cloudinary.
+    - Implemented `getAssetUrl` utility (`src/lib/assets.js`) to dynamically resolve asset URLs from Cloudinary, removing dependency on local `public` folder.
+    - Configured `next.config.mjs` to allow `res.cloudinary.com` as an image source.
+    - Updated all frontend components and backend APIs to use `getAssetUrl` for asset retrieval.
+    - Removed `public/` directory from Git tracking via `.gitignore` and `git rm --cached`.
+- **Admission Request Rejection:**
+    - Implemented a comprehensive workflow to allow admission clerks to **reject student applications**.
+    - Clerks can provide a **rejection reason** via a dedicated text box in the `AdmissionModal`.
+    - Upon rejection, an **institutional email** is sent to the student with the specified reason.
+    - The rejected student's draft record is **deleted from the database**, and associated **Cloudinary images (PFP/Signature) are also removed** to ensure data hygiene.
+- **Admission Finalization Enhancements:**
+    - Implemented **Entrance Exam (EAMCET/ECET) filtering** in the `Finalize Student Admissions` module, allowing clerks to process students according to their admission type.
+    - Integrated **real-time roll number validation** with visual feedback, ensuring adherence to institutional regex, branch codes, and admission types (Regular/Lateral).
+    - Fixed UI clipping issue for validation error messages in the roll number input field.
 - **Student Financial Summary:**
     - Integrated a comprehensive financial overview into the student profile page.
     - Added logic to calculate and display Total Expected Fee, Govt Paid (Scholarship), Student Paid, and Pending Fee for each academic year.
     - Enhanced the UI by renaming "Scholarship Details" to "Fees & Scholarship" and adding detailed columns for student payments and pending balances.
     - This ensures students without fee reimbursement can accurately track their dues.
+    - Resolved bug with date column fetching in financial summary by enhancing date mapping logic to track the latest relevant transaction date.
+- **Email Logo Fix**: Updated email templates to use a public Cloudinary URL for the KUCET logo, resolving loading issues in email clients.
+
+### **Session 21: Database-Driven Syllabus & Academics Refactor (March 4, 2026)**
+- **Syllabus Database Migration:** Moved entire curriculum from JS files to normalized MySQL schema.
+- **Anti-Proxy Hardening:** Implemented session-level **IP + User-Agent Locking** to block proxy attempts via Incognito or browser switching.
+- **Shared Subjects Attendance Fix:** 
+    - Resolved a critical bug where students were unable to see attendance verification cards for subjects shared by multiple faculty (e.g., ML).
+    - Refactored the `active-sessions` API to match sessions by `subject_code` and academic context instead of restricted assignment IDs.
 - **Verification Security Update:** Implemented strict **PIN validation** in the student verification API to ensure attendance cannot be marked without the faculty-provided code.
 - **Student Academics Dashboard:** Fully dynamic dashboard with elective variant resolution and unique React keys.
 - **Lab Evaluation Fixes:** Corrected marks mapping between faculty entry and student view; renamed "Theory" to "Writing" for labs.
-- **Image Loading Fixes:** Resolved broken photos/signatures in drafts and profiles by standardizing Cloudinary handling.
+- **Image Loading Fixes:**
+    - Resolved a critical issue where admission draft images (photos/signatures) were failing to load due to incorrect base64 conversion of Cloudinary URLs.
+    - Standardized image handling across all clerk and student APIs using a robust `imageHelper` that supports Cloudinary URLs, data U***s, and legacy Buffer data.
 - **System Stability:** Fixed SQL `only_full_group_by` errors in aggregated performance queries.
 
 ### **Session 20: Academics Module Refactor & Global Attendance Alerts (March 3, 2026)**
@@ -312,6 +333,9 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **C. Time & Clock (`clock.js`)**
 - `getNow()`, `getNowSync()`: Authoritative time source respecting "Time Machine" dates.
+
+### **D. Asset Management (`assets.js`)**
+- `getAssetUrl(localPath)`: Resolves local asset paths to their Cloudinary equivalent. Dynamically fetches `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`.
 
 ---
 

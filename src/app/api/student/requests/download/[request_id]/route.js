@@ -168,7 +168,8 @@ export async function GET(request, { params }) {
                         console.warn(`[CERT_DOWNLOAD] Failed to fetch image from URL: ${imagePath}`);
                         return null;
                     }
-                    imageBuffer = await response.buffer();
+                    const arrayBuffer = await response.arrayBuffer();
+                    imageBuffer = Buffer.from(arrayBuffer);
                 } else {
                     // Fallback to local file for backwards compatibility
                     if (!fs.existsSync(imagePath)) {
