@@ -57,15 +57,12 @@ export async function PUT(req, context) {
           }
 
           if (body.status === 'REJECTED') {
-            const [draft] = await query('SELECT name, email FROM student_admission_drafts WHERE id = ?', [id]);
+            const [draft] = await query('SELECT name, email, pfp, signature FROM student_admission_drafts WHERE id = ?', [id]);
             if (!draft) return apiError('Draft not found', 404);
 
             const reason = body.rejection_reason || 'Information provided was incomplete or inconsistent with documents.';
             
-            // 1. Update status in DB
-            await query(`UPDATE student_admission_drafts SET status = ?, rejection_reason = ? WHERE id = ?`, ['REJECTED', reason, id]);
-
-            // 2. Send Email
+            // 1. Send Email BEFORE deleting (so we still have the email address)
             await sendInstitutionalEmail({
               to: draft.email,
               subject: 'Admission Application Update - KUCET',
@@ -77,7 +74,14 @@ export async function PUT(req, context) {
               ]
             });
 
-            return apiResponse({ success: true, message: 'Application rejected and email sent to student.' });
+            // 2. Delete Images from Cloudinary
+            if (draft.pfp) await deleteFromCloudinary(draft.pfp);
+            if (draft.signature) await deleteFromCloudinary(draft.signature);
+
+            // 3. Delete Draft from DB
+            await query(`DELETE FROM student_admission_drafts WHERE id = ?`, [id]);
+
+            return apiResponse({ success: true, message: 'Application rejected, student notified, and draft removed.' });
           }
 
           await query(`UPDATE student_admission_drafts SET status = ? WHERE id = ?`, [body.status, id]);
