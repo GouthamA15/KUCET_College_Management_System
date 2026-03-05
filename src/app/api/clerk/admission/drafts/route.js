@@ -10,6 +10,7 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const branch = searchParams.get('branch');
+    const entranceExam = searchParams.get('entrance_exam');
     const status = searchParams.get('status') || 'DRAFT';
 
     let sql = `
@@ -22,6 +23,11 @@ export async function GET(req) {
     if (branch) {
       sql += " AND branch = ?";
       params.push(branch);
+    }
+
+    if (entranceExam) {
+      sql += " AND entrance_exam = ?";
+      params.push(entranceExam);
     }
 
     sql += " ORDER BY name ASC";
