@@ -1,7 +1,7 @@
 import { query } from '@/lib/db';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 
 export async function GET(req, context) {
   const user = await getAuthUser('clerk');
@@ -58,13 +58,20 @@ export async function PUT(req, context) {
           return apiResponse({ success: true, message: `Status updated to ${body.status}` });
       }
 
+      // Fetch current draft to get old image URLs for deletion
+      const [currentDraft] = await query('SELECT pfp, signature FROM student_admission_drafts WHERE id = ?', [id]);
+
       // Handle Image Uploads if provided as base64
       if (body.pfp && body.pfp.startsWith('data:image')) {
         console.log('[API] Uploading new PFP for draft:', id);
+        // Delete old one if it exists
+        if (currentDraft?.pfp) await deleteFromCloudinary(currentDraft.pfp);
         body.pfp = await uploadToCloudinary(body.pfp, 'admission_drafts/pfp');
       }
       if (body.signature && body.signature.startsWith('data:image')) {
         console.log('[API] Uploading new Signature for draft:', id);
+        // Delete old one if it exists
+        if (currentDraft?.signature) await deleteFromCloudinary(currentDraft.signature);
         body.signature = await uploadToCloudinary(body.signature, 'admission_drafts/signatures');
       }
 

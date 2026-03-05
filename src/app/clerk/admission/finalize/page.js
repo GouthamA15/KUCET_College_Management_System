@@ -10,14 +10,15 @@ const FinalizeAdmissionPage = () => {
     const [drafts, setDrafts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedBranch, setSelectedBranch] = useState('CSE');
+    const [selectedExam, setSelectedExam] = useState('EAMCET');
     const [rollNumbers, setRollNumbers] = useState({});
     const [finalizingId, setFinalizingId] = useState(null);
 
     const fetchVerifiedDrafts = useCallback(async () => {
-        if (!selectedBranch) return;
+        if (!selectedBranch || !selectedExam) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/clerk/admission/drafts?branch=${selectedBranch}&status=PROCESSED`);
+            const res = await fetch(`/api/clerk/admission/drafts?branch=${selectedBranch}&entrance_exam=${selectedExam}&status=PROCESSED`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to fetch drafts.');
             setDrafts(data.data);
@@ -26,7 +27,7 @@ const FinalizeAdmissionPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedBranch]);
+    }, [selectedBranch, selectedExam]);
 
     useEffect(() => {
         fetchVerifiedDrafts();
@@ -72,11 +73,19 @@ const FinalizeAdmissionPage = () => {
                     <p className="text-sm text-gray-500 mt-1">Assign roll numbers to verified student application drafts.</p>
                 </div>
                 
-                <div className="w-full md:w-64 bg-white p-1 rounded-lg shadow-sm border border-gray-200 flex">
+                <div className="w-full md:w-auto flex flex-col md:flex-row gap-2 bg-white p-1 rounded-lg shadow-sm border border-gray-200">
+                    <select 
+                        value={selectedExam} 
+                        onChange={e => setSelectedExam(e.target.value)} 
+                        className="p-2 bg-transparent text-sm font-bold text-gray-700 focus:outline-none border-b md:border-b-0 md:border-r border-gray-100 min-w-32"
+                    >
+                        <option value="EAMCET">EAMCET</option>
+                        <option value="ECET">ECET</option>
+                    </select>
                     <select 
                         value={selectedBranch} 
                         onChange={e => setSelectedBranch(e.target.value)} 
-                        className="w-full p-2 bg-transparent text-sm font-bold text-gray-700 focus:outline-none"
+                        className="p-2 bg-transparent text-sm font-bold text-gray-700 focus:outline-none min-w-32"
                     >
                         {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name}</option>)}
                     </select>
@@ -87,12 +96,12 @@ const FinalizeAdmissionPage = () => {
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-16 text-gray-500">
                         <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full mb-3"></div>
-                        <p className="font-medium tracking-tight">Loading verified drafts for {selectedBranch}...</p>
+                        <p className="font-medium tracking-tight">Loading {selectedExam} drafts for {selectedBranch}...</p>
                     </div>
                 ) : drafts.length === 0 ? (
                     <div className="text-center py-16 text-gray-500">
                         <div className="text-4xl mb-4">📂</div>
-                        <p className="text-lg font-medium text-gray-900">No verified drafts for {selectedBranch}</p>
+                        <p className="text-lg font-medium text-gray-900">No {selectedExam} drafts for {selectedBranch}</p>
                         <p className="text-sm mt-1 max-w-xs mx-auto">Verify new applications in the "Admission Requests" module to see them here.</p>
                     </div>
                 ) : (

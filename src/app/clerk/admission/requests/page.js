@@ -579,7 +579,7 @@ function AdmissionModal({
                 <div className="flex-1 overflow-y-auto p-4">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full">
                         <div className="md:col-span-1">
-                            <MediaSection detail={detail} />
+                            <MediaSection detail={detail} isEditing={isEditing} onFieldChange={onFieldChange} />
                         </div>
                         <div className="md:col-span-3 space-y-4">
                             <PersonalDetailsSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
