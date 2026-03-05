@@ -5,6 +5,7 @@ import Header from "@/app/components/Header/Header";
 import Navbar from "@/app/components/Navbar/Navbar";
 import Footer from "@/components/Footer";
 import { COLLEGE_CONFIG } from "@/lib/college-config";
+import { validateRollNo, branchCodes } from "@/lib/rollNumber";
 
 const FinalizeAdmissionPage = () => {
     const [drafts, setDrafts] = useState([]);
@@ -13,6 +14,26 @@ const FinalizeAdmissionPage = () => {
     const [selectedExam, setSelectedExam] = useState('EAMCET');
     const [rollNumbers, setRollNumbers] = useState({});
     const [finalizingId, setFinalizingId] = useState(null);
+
+    // Derived validation for a specific roll number
+    const getRollValidation = (rollNo, draft) => {
+        if (!rollNo) return { isValid: false };
+        const result = validateRollNo(rollNo);
+        if (!result.isValid) return { isValid: false, error: 'Invalid Format' };
+        
+        // Check if branch matches
+        if (result.branch !== draft.branch) {
+            return { isValid: false, error: `Branch Mismatch (Got ${result.branch})` };
+        }
+
+        // Check if admission type matches exam
+        const expectedType = draft.entrance_exam === 'ECET' ? 'Lateral' : 'Regular';
+        if (result.admissionType !== expectedType) {
+            return { isValid: false, error: `${draft.entrance_exam} must be ${expectedType}` };
+        }
+
+        return { isValid: true };
+    };
 
     const fetchVerifiedDrafts = useCallback(async () => {
         if (!selectedBranch || !selectedExam) return;
@@ -118,36 +139,51 @@ const FinalizeAdmissionPage = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 text-sm">
-                                {drafts.map((draft, index) => (
-                                    <tr key={draft.id} className="hover:bg-indigo-50/30 transition-colors group">
-                                        <td className="p-4 text-gray-400 font-mono">{index + 1}</td>
-                                        <td className="p-4 font-bold text-gray-900 uppercase">{draft.name}</td>
-                                        <td className="p-4 text-gray-600 font-medium">{draft.father_name}</td>
-                                        <td className="p-4">
-                                            <span className="bg-white border border-gray-200 px-2 py-1 rounded text-xs font-bold shadow-sm">
-                                                #{draft.exam_rank}
-                                            </span>
-                                        </td>
-                                        <td className="p-4">
-                                            <input 
-                                                type="text"
-                                                placeholder="e.g. 23567T0901"
-                                                value={rollNumbers[draft.id] || ''}
-                                                onChange={e => handleRollNumberChange(draft.id, e.target.value)}
-                                                className="block w-full px-3 py-2 border-2 border-gray-200 rounded-md text-sm font-bold tracking-widest focus:border-indigo-500 focus:outline-none transition-colors"
-                                            />
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <button 
-                                                onClick={() => handleFinalize(draft.id)} 
-                                                disabled={!rollNumbers[draft.id] || finalizingId === draft.id} 
-                                                className="bg-indigo-600 text-white px-6 py-2 rounded-md font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-md hover:shadow-indigo-200 disabled:opacity-50 transition-all active:scale-95"
-                                            >
-                                                {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {drafts.map((draft, index) => {
+                                    const validation = getRollValidation(rollNumbers[draft.id], draft);
+                                    const hasValue = !!rollNumbers[draft.id];
+
+                                    return (
+                                        <tr key={draft.id} className="hover:bg-indigo-50/30 transition-colors group">
+                                            <td className="p-4 text-gray-400 font-mono">{index + 1}</td>
+                                            <td className="p-4 font-bold text-gray-900 uppercase">{draft.name}</td>
+                                            <td className="p-4 text-gray-600 font-medium">{draft.father_name}</td>
+                                            <td className="p-4">
+                                                <span className="bg-white border border-gray-200 px-2 py-1 rounded text-xs font-bold shadow-sm">
+                                                    #{draft.exam_rank}
+                                                </span>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="relative">
+                                                    <input 
+                                                        type="text"
+                                                        placeholder={draft.entrance_exam === 'ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
+                                                        value={rollNumbers[draft.id] || ''}
+                                                        onChange={e => handleRollNumberChange(draft.id, e.target.value)}
+                                                        className={`block w-full px-3 py-2 border-2 rounded-md text-sm font-bold tracking-widest focus:outline-none transition-colors ${
+                                                            !hasValue ? 'border-gray-200' :
+                                                            validation.isValid ? 'border-green-200 focus:border-green-500' : 'border-red-200 focus:border-red-500'
+                                                        }`}
+                                                    />
+                                                    {hasValue && !validation.isValid && (
+                                                        <div className="absolute -bottom-5 left-0 text-[10px] text-red-600 font-black uppercase tracking-tighter animate-pulse">
+                                                            ⚠️ {validation.error}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <button 
+                                                    onClick={() => handleFinalize(draft.id)} 
+                                                    disabled={!validation.isValid || finalizingId === draft.id} 
+                                                    className="bg-indigo-600 text-white px-6 py-2 rounded-md font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-md hover:shadow-indigo-200 disabled:opacity-50 transition-all active:scale-95"
+                                                >
+                                                    {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
