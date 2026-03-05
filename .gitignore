@@ -19,6 +19,7 @@
 /.next/
 /out/
 /public/
+/cloudinary_backup
 
 # production
 /build
