@@ -16,7 +16,7 @@ export default function DevelopersPage() {
       role: 'Frontend & UI/UX Developer',
       image: getAssetUrl('/assets/DevPics/Dev1.png'),
       delay: '0s',
-      audio: getAssetUrl('/assets/DevPics/Dev1.mp3'),
+      audio: getAssetUrl('/assets/DevPics/Dev1.mp4'),
       portfolio: ''
     },
     {

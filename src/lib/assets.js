@@ -6,7 +6,6 @@
  */
 
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
-const CLOUDINARY_BASE = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/kucet/public`;
 
 /**
  * Maps a local path (like '/assets/logo.png') to its Cloudinary equivalent or local fallback.
@@ -24,7 +23,18 @@ export function getAssetUrl(localPath) {
   // Remove leading slash for Cloudinary path construction
   const cleanPath = localPath.startsWith('/') ? localPath.substring(1) : localPath;
   
-  return `${CLOUDINARY_BASE}/${cleanPath}`;
+  // Determine resource type based on extension
+  const extension = cleanPath.split('.').pop().toLowerCase();
+  let resourceType = 'image';
+  
+  // Cloudinary uses 'video' resource type for both video and audio files
+  if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
+    resourceType = 'video';
+  } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
+    resourceType = 'raw';
+  }
+
+  return `https://res.cloudinary.com/${CLOUD_NAME}/${resourceType}/upload/kucet/public/${cleanPath}`;
 }
 
 export default getAssetUrl;
