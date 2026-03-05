@@ -298,6 +298,25 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Resolved bug with date column fetching in financial summary by enhancing date mapping logic to track the latest relevant transaction date.
 - **Email Logo Fix**: Updated email templates to use a public Cloudinary URL for the KUCET logo, resolving loading issues in email clients.
 
+### **Session 22: Cloudinary Dynamic Configuration & Fetch API Fix (March 5, 2026 - Latest)**
+- **Cloudinary Configuration Hardening:**
+    - **Removed Hardcoded Cloud Names:** Eliminated hardcoded references to specific Cloudinary cloud names (`djs0ry74r`, `dx3ruj7f4`).
+    - **Environment-Based Configuration:** Transitioned to fetching `CLOUDINARY_CLOUD_NAME` from environment variables (`CLOUDINARY_CLOUD_NAME` in `.env.local`).
+    - **All Asset URLs Now Dynamic:** `getAssetUrl()` utility now constructs Cloudinary URLs dynamically without hardcoded values.
+    - **Multi-Environment Support:** Enables seamless switching between testing and production Cloudinary accounts via environment configuration.
+- **Fetch API Compatibility Fix:**
+    - **Issue:** Native Node.js `fetch` API (v18+) doesn't support `.buffer()` method on Response objects.
+    - **Fix:** Updated certificate download API to use `response.arrayBuffer()` instead of deprecated `response.buffer()`.
+    - **Implementation:** Convert ArrayBuffer to Buffer using `Buffer.from(arrayBuffer)` for downstream image processing.
+    - **File Modified:** `src/app/api/student/requests/download/[request_id]/route.js`
+- **Email Template Update:**
+    - Updated email logo URL in `src/lib/email.js` to use `process.env.CLOUDINARY_CLOUD_NAME` instead of hardcoded cloud name.
+    - Ensures email templates resolve images from the correct environment-specific Cloudinary account.
+- **Developer Impact:**
+    - No code changes required when switching environments; simply update `.env.local` with the appropriate `CLOUDINARY_CLOUD_NAME`.
+    - Improves security by removing hardcoded credentials from codebase.
+    - Simplifies deployment across multiple environments (staging, production, etc.).
+
 ### **Session 21: Database-Driven Syllabus & Academics Refactor (March 4, 2026)**
 - **Syllabus Database Migration:** Moved entire curriculum from JS files to normalized MySQL schema.
 - **Anti-Proxy Hardening:** Implemented session-level **IP + User-Agent Locking** to block proxy attempts via Incognito or browser switching.
@@ -335,7 +354,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 - `getNow()`, `getNowSync()`: Authoritative time source respecting "Time Machine" dates.
 
 ### **D. Asset Management (`assets.js`)**
-- `getAssetUrl(localPath)`: Resolves local asset paths to their Cloudinary equivalent. Dynamically fetches `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`.
+- `getAssetUrl(localPath)`: Resolves local asset paths to their Cloudinary equivalent.
+- **Environment Configuration:** Fetches `CLOUDINARY_CLOUD_NAME` from environment variables for dynamic multi-environment support (testing vs production).
+- **Implementation:** Dynamically constructs Cloudinary URLs without hardcoded cloud names, enabling environment-specific configuration through `.env.local` and `.env.example` files.
+
+### **E. Environment Configuration**
+- **CLOUDINARY_CLOUD_NAME:** Server-side environment variable for Cloudinary integration across all APIs and utilities.
+- **Configuration Files:** `.env.local` for local development, `.env.example` as reference template.
+- **Multi-Environment Support:** Different Cloudinary accounts can be configured for testing and production environments.
 
 ---
 
