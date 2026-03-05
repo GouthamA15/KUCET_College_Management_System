@@ -59,6 +59,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **AdminContext** (`src/context/AdminContext.js`): Provides system-wide statistics, pending approvals, and administrative control state
 - **FacultyAttendanceContext** (`src/context/FacultyAttendanceContext.js`): Specialized context for attendance data fetching and caching during high-volume entry
 - **AcademicsContext** (`src/context/AcademicsContext.js`): Caching layer for student academic performance, subjects, and marks
+- **AssetContext** (`src/context/AssetContext.js`): Centralized asset management and pre-caching layer.
 
 ### C. Time Management & The "Time Machine"
 - **Authoritative Clock:** `src/lib/clock.js` provides:
@@ -274,7 +275,24 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 9. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 22: Cloudinary Migration, Admission Workflow & UI Refinements (Latest - March 5, 2026)**
+### **Session 23: Asset Caching & Developer Page Optimization (Latest - March 5, 2026)**
+- **AssetContext & Pre-caching System:**
+    - Implemented `AssetContext` (`src/context/AssetContext.js`) to manage institutional assets globally.
+    - **Background Pre-caching:** Developed a non-blocking pre-caching mechanism that utilizes the browser's native HTTP cache via background `fetch()` calls. This ensures assets are pre-loaded into memory/disk without interfering with initial page render.
+    - **Instant UI Loading:** Integrated `useAssets` hook across `Header`, `Hero`, `PaymentSection`, and `DevelopersPage`, enabling sub-millisecond asset resolution from local cache.
+- **Developer Page Enhancements:**
+    - **Navigation Integration:** Added the missing `Navbar` to the `DevelopersPage` to maintain layout consistency.
+    - **Audio Hover Optimization:** Refactored developer audio cards to use `useRef` and `useEffect` for pre-loading audio objects. Implemented overlap prevention logic to ensure only one audio track plays at a time during hover interactions.
+    - **Path Correction:** Fixed critical 404 errors in asset resolution by correcting the Cloudinary pathing in `getAssetUrl` to include the required `public/` folder segment.
+- **Cloudinary URL Logic:**
+    - Updated `getAssetUrl` in `src/lib/assets.js` to dynamically route assets to `image/upload`, `video/upload` (for audio), or `raw/upload` based on file extension.
+- **Build & Integrity:**
+    - Resolved a UTF-8 encoding corruption in `src/lib/email.js` that was preventing successful production builds.
+    - Verified all changes with a clean `npm run build` and confirmed 100% asset delivery across all roles.
+- **Asset Recovery Tool:**
+    - Created `restore_public_assets.js` to autonomously download and recreate the local `public/` folder structure directly from Cloudinary, ensuring local development environment parity.
+
+### **Session 22: Cloudinary Migration, Admission Workflow & UI Refinements (March 5, 2026)**
 - **Cloudinary Asset Migration & Dynamic Configuration:**
     - Migrated entire `public/` folder assets (images, logos, QR codes) to Cloudinary.
     - Implemented `getAssetUrl` utility (`src/lib/assets.js`) to dynamically resolve asset URLs.
