@@ -2,6 +2,7 @@ import { query } from '@/lib/db';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
+import { sendInstitutionalEmail } from '@/lib/email';
 
 export async function GET(req, context) {
   const user = await getAuthUser('clerk');
@@ -49,11 +50,36 @@ export async function PUT(req, context) {
       const { id } = params;
       const body = await req.json();
 
-      // If only status is provided (legacy or simple verification)
-      if (Object.keys(body).length === 1 && body.status) {
-          if (!['DRAFT', 'PROCESSED', 'FINALIZED'].includes(body.status)) {
+      // Simple status or rejection update
+      if (body.status && Object.keys(body).length <= 3) {
+          if (!['DRAFT', 'PROCESSED', 'FINALIZED', 'REJECTED'].includes(body.status)) {
               return apiError('Invalid status', 400);
           }
+
+          if (body.status === 'REJECTED') {
+            const [draft] = await query('SELECT name, email FROM student_admission_drafts WHERE id = ?', [id]);
+            if (!draft) return apiError('Draft not found', 404);
+
+            const reason = body.rejection_reason || 'Information provided was incomplete or inconsistent with documents.';
+            
+            // 1. Update status in DB
+            await query(`UPDATE student_admission_drafts SET status = ?, rejection_reason = ? WHERE id = ?`, ['REJECTED', reason, id]);
+
+            // 2. Send Email
+            await sendInstitutionalEmail({
+              to: draft.email,
+              subject: 'Admission Application Update - KUCET',
+              title: 'Application Rejection',
+              bodyHtml: `<p>Dear ${draft.name},</p><p>We regret to inform you that your admission application to KUCET has been rejected for the following reason:</p><div style="background:#fff5f5; border-left:4px solid #f56565; padding:12px; margin:16px 0;"><strong>Reason:</strong> ${reason}</div><p>You may submit a fresh application with the corrected information if applicable.</p>`,
+              infoRows: [
+                { label: 'Application ID', value: id },
+                { label: 'Status', value: 'REJECTED' }
+              ]
+            });
+
+            return apiResponse({ success: true, message: 'Application rejected and email sent to student.' });
+          }
+
           await query(`UPDATE student_admission_drafts SET status = ? WHERE id = ?`, [body.status, id]);
           return apiResponse({ success: true, message: `Status updated to ${body.status}` });
       }
