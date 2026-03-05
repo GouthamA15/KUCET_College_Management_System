@@ -5,10 +5,10 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
 import { getAssetUrl } from '@/lib/assets';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 
 export default function DevelopersPage() {
-  const audioRef = useRef(null);
+  const audiosRef = useRef({});
 
   const developers = [
     {
@@ -36,38 +36,59 @@ export default function DevelopersPage() {
     },
   ];
 
+  // Pre-load audio objects
+  useEffect(() => {
+    developers.forEach(dev => {
+      if (dev.audio && !audiosRef.current[dev.audio]) {
+        const audio = new Audio(dev.audio);
+        audio.volume = 0.5;
+        audio.preload = 'auto';
+        audiosRef.current[dev.audio] = audio;
+      }
+    });
+
+    const audios = audiosRef.current;
+    return () => {
+      Object.values(audios).forEach(audio => {
+        audio.pause();
+        audio.src = '';
+      });
+    };
+  }, []);
+
   const handleMouseEnter = (dev) => {
-    if (dev.audio) {
-      try {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
+    if (dev.audio && audiosRef.current[dev.audio]) {
+      const audio = audiosRef.current[dev.audio];
+      // Stop all other audios first to prevent overlap
+      Object.values(audiosRef.current).forEach(a => {
+        if (a !== audio) {
+          a.pause();
+          a.currentTime = 0;
         }
-        audioRef.current = new Audio(dev.audio);
-        audioRef.current.volume = 0.5; // Set volume to 50% to be safe
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.log("Audio play prevented:", error);
-          });
-        }
-      } catch (e) {
-        console.error("Audio error:", e);
+      });
+      
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.log("Audio play prevented:", error);
+        });
       }
     }
   };
 
   const handleMouseLeave = (dev) => {
-    if (dev.audio && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    if (dev.audio && audiosRef.current[dev.audio]) {
+      const audio = audiosRef.current[dev.audio];
+      audio.pause();
+      audio.currentTime = 0;
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <Header />
-      {/* Navbar with no specific active tab, just generic navigation */}
+      <Navbar role="guest" />
 
       <main className="flex-grow container mx-auto px-4 py-12">
         <div className="text-center mb-16">
