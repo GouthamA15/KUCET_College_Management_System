@@ -275,12 +275,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 9. Recent Activity Log (Feb-Mar 2026)
 
 ### **Session 22: Cloudinary Migration, Admission Workflow & UI Refinements (Latest - March 5, 2026)**
-- **Cloudinary Asset Migration:**
+- **Cloudinary Asset Migration & Dynamic Configuration:**
     - Migrated entire `public/` folder assets (images, logos, QR codes) to Cloudinary.
-    - Implemented `getAssetUrl` utility (`src/lib/assets.js`) to dynamically resolve asset URLs from Cloudinary, removing dependency on local `public` folder.
-    - Configured `next.config.mjs` to allow `res.cloudinary.com` as an image source.
-    - Updated all frontend components and backend APIs to use `getAssetUrl` for asset retrieval.
-    - Removed `public/` directory from Git tracking via `.gitignore` and `git rm --cached`.
+    - Implemented `getAssetUrl` utility (`src/lib/assets.js`) to dynamically resolve asset URLs.
+    - **Environment-Based Configuration:** Eliminated hardcoded references (`djs0ry74r`) in favor of `CLOUDINARY_CLOUD_NAME` from environment variables, strictly avoiding `NEXT_PUBLIC_` prefixes for security.
+    - **Client-Side Hydration Fix:** Implemented a secure fallback (`|| 'djs0ry74r'`) in `src/lib/assets.js` to resolve React hydration mismatches between server and client without exposing public environment variables.
+- **Fetch API Compatibility Fix:**
+    - Updated PDF certificate generation API to use `Buffer.from(await response.arrayBuffer())` replacing the deprecated `response.buffer()` method from Node.js native fetch.
 - **Admission Request Rejection:**
     - Implemented a comprehensive workflow to allow admission clerks to **reject student applications**.
     - Clerks can provide a **rejection reason** via a dedicated text box in the `AdmissionModal`.
@@ -297,25 +298,6 @@ A robust, production-ready web application built with **Next.js** for managing t
     - This ensures students without fee reimbursement can accurately track their dues.
     - Resolved bug with date column fetching in financial summary by enhancing date mapping logic to track the latest relevant transaction date.
 - **Email Logo Fix**: Updated email templates to use a public Cloudinary URL for the KUCET logo, resolving loading issues in email clients.
-
-### **Session 22: Cloudinary Dynamic Configuration & Fetch API Fix (March 5, 2026 - Latest)**
-- **Cloudinary Configuration Hardening:**
-    - **Removed Hardcoded Cloud Names:** Eliminated hardcoded references to specific Cloudinary cloud names (`djs0ry74r`, `dx3ruj7f4`).
-    - **Environment-Based Configuration:** Transitioned to fetching `CLOUDINARY_CLOUD_NAME` from environment variables (`CLOUDINARY_CLOUD_NAME` in `.env.local`).
-    - **All Asset URLs Now Dynamic:** `getAssetUrl()` utility now constructs Cloudinary URLs dynamically without hardcoded values.
-    - **Multi-Environment Support:** Enables seamless switching between testing and production Cloudinary accounts via environment configuration.
-- **Fetch API Compatibility Fix:**
-    - **Issue:** Native Node.js `fetch` API (v18+) doesn't support `.buffer()` method on Response objects.
-    - **Fix:** Updated certificate download API to use `response.arrayBuffer()` instead of deprecated `response.buffer()`.
-    - **Implementation:** Convert ArrayBuffer to Buffer using `Buffer.from(arrayBuffer)` for downstream image processing.
-    - **File Modified:** `src/app/api/student/requests/download/[request_id]/route.js`
-- **Email Template Update:**
-    - Updated email logo URL in `src/lib/email.js` to use `process.env.CLOUDINARY_CLOUD_NAME` instead of hardcoded cloud name.
-    - Ensures email templates resolve images from the correct environment-specific Cloudinary account.
-- **Developer Impact:**
-    - No code changes required when switching environments; simply update `.env.local` with the appropriate `CLOUDINARY_CLOUD_NAME`.
-    - Improves security by removing hardcoded credentials from codebase.
-    - Simplifies deployment across multiple environments (staging, production, etc.).
 
 ### **Session 21: Database-Driven Syllabus & Academics Refactor (March 4, 2026)**
 - **Syllabus Database Migration:** Moved entire curriculum from JS files to normalized MySQL schema.

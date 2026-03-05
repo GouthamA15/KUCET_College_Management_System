@@ -16,7 +16,7 @@ export default function DevelopersPage() {
       role: 'Frontend & UI/UX Developer',
       image: getAssetUrl('/assets/DevPics/Dev1.png'),
       delay: '0s',
-      audio: getAssetUrl('/assets/DevPics/Dev1.mpeg'),
+      audio: getAssetUrl('/assets/DevPics/Dev1.mp3'),
       portfolio: ''
     },
     {
@@ -24,14 +24,14 @@ export default function DevelopersPage() {
       role: 'Backend & Database Administrator',
       image: getAssetUrl('/assets/DevPics/Dev2.jpg'),
       delay: '0.2s',
-      audio: getAssetUrl('/assets/DevPics/Dev2.mpeg'),
+      audio: getAssetUrl('/assets/DevPics/Dev2.mp3'),
       portfolio: 'https://sannith-hack.github.io/Portfolio/'
     },
     {
       name: 'Uzair',
       role: 'System Interface and API designer',
       image: getAssetUrl('/assets/DevPics/Dev3.jpeg'),
-      audio: getAssetUrl('/assets/DevPics/Dev3.mpeg'),
+      audio: getAssetUrl('/assets/DevPics/Dev3.mp3'),
       delay: '0.4s',
     },
   ];
