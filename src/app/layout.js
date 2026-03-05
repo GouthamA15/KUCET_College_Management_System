@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 import AuthProvider from "./components/AuthProvider";
+import { AssetProvider } from "@/context/AssetContext";
 
 export const metadata = {
   title: "Login | KUCET",
@@ -11,10 +12,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased">
-        <AuthProvider>
-          <Toaster position="top-center" reverseOrder={false} />
-          {children}
-        </AuthProvider>
+        <AssetProvider>
+          <AuthProvider>
+            <Toaster position="top-center" reverseOrder={false} />
+            {children}
+          </AuthProvider>
+        </AssetProvider>
       </body>
     </html>
   );

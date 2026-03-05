@@ -4,37 +4,38 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
-import { getAssetUrl } from '@/lib/assets';
-import { useRef, useEffect } from 'react';
+import { useAssets } from '@/context/AssetContext';
+import { useRef, useEffect, useMemo } from 'react';
 
 export default function DevelopersPage() {
+  const { getAsset } = useAssets();
   const audiosRef = useRef({});
 
-  const developers = [
+  const developers = useMemo(() => [
     {
       name: 'Masna Goutham',
       role: 'Frontend & UI/UX Developer',
-      image: getAssetUrl('/assets/DevPics/Dev1.png'),
+      image: getAsset('/assets/DevPics/Dev1.png'),
       delay: '0s',
-      audio: getAssetUrl('/assets/DevPics/Dev1.mp4'),
+      audio: getAsset('/assets/DevPics/Dev1.mp4'),
       portfolio: ''
     },
     {
       name: 'P.Sannith',
       role: 'Backend & Database Administrator',
-      image: getAssetUrl('/assets/DevPics/Dev2.jpg'),
+      image: getAsset('/assets/DevPics/Dev2.jpg'),
       delay: '0.2s',
-      audio: getAssetUrl('/assets/DevPics/Dev2.mp3'),
+      audio: getAsset('/assets/DevPics/Dev2.mp3'),
       portfolio: 'https://sannith-hack.github.io/Portfolio/'
     },
     {
       name: 'Uzair',
       role: 'System Interface and API designer',
-      image: getAssetUrl('/assets/DevPics/Dev3.jpeg'),
-      audio: getAssetUrl('/assets/DevPics/Dev3.mp3'),
+      image: getAsset('/assets/DevPics/Dev3.jpeg'),
+      audio: getAsset('/assets/DevPics/Dev3.mp3'),
       delay: '0.4s',
     },
-  ];
+  ], [getAsset]);
 
   // Pre-load audio objects
   useEffect(() => {
@@ -54,7 +55,7 @@ export default function DevelopersPage() {
         audio.src = '';
       });
     };
-  }, []);
+  }, [developers]);
 
   const handleMouseEnter = (dev) => {
     if (dev.audio && audiosRef.current[dev.audio]) {
@@ -153,7 +154,7 @@ export default function DevelopersPage() {
           <h2 className="text-3xl font-bold text-[#0b3578] mb-8">Team &quot;Homeless Soon&quot;</h2>
           <div className="relative w-full rounded-2xl overflow-hidden shadow-xl border-4 border-white group">
              <Image
-                src={getAssetUrl('/assets/DevPics/Group.jpg')} 
+                src={getAsset('/assets/DevPics/Group.jpg')} 
                 alt="Team Group Photo"
                 width={3096}
                 height={2477}

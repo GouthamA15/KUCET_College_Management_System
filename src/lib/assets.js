@@ -34,6 +34,7 @@ export function getAssetUrl(localPath) {
     resourceType = 'raw';
   }
 
+  // Construct URL with 'public/' segment as originally configured
   return `https://res.cloudinary.com/${CLOUD_NAME}/${resourceType}/upload/kucet/public/${cleanPath}`;
 }
 
