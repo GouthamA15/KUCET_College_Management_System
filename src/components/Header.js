@@ -1,6 +1,7 @@
 'use client';
 import Image from 'next/image';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function Header() {
   const handlePhoneClick = () => {
@@ -17,7 +18,7 @@ export default function Header() {
         <div className="flex items-center gap-2">
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
-              src="/assets/Naac_A+.png" 
+              src={getAssetUrl('/assets/Naac_A+.png')} 
               alt="NAAC Logo" 
               width={56} height={56}
               className="h-11 w-auto object-contain"
@@ -27,7 +28,7 @@ export default function Header() {
           
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
-              src="/assets/ku-logo.png" 
+              src={getAssetUrl('/assets/ku-logo.png')} 
               alt="KU Logo" 
               width={56} height={56}
               className="h-11 w-auto object-contain"
@@ -37,7 +38,7 @@ export default function Header() {
           
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
-              src="/assets/kakatiya-kala-thoranam.png" 
+              src={getAssetUrl('/assets/kakatiya-kala-thoranam.png')} 
               alt="Kakatiya Kala Thoranam" 
               width={56} height={56}
               className="h-11 w-auto object-contain"
@@ -63,7 +64,7 @@ export default function Header() {
         <div className="flex items-start gap-2 h-full">
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
-              src="/assets/rudramadevi_statue.jpg" 
+              src={getAssetUrl('/assets/rudramadevi_statue.jpg')} 
               alt="Rudramadevi Statue" 
               width={56} height={56}
               className="h-11 w-auto object-contain"
@@ -73,7 +74,7 @@ export default function Header() {
           
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
-              src="/assets/ku-college-logo.png" 
+              src={getAssetUrl('/assets/ku-college-logo.png')} 
               alt="College Logo" 
               width={56} height={56}
               className="h-11 w-auto object-contain"
@@ -106,7 +107,7 @@ export default function Header() {
         <div className="flex items-center justify-center gap-2 mb-1.5">
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
-              src="/assets/Naac_A+.png" 
+              src={getAssetUrl('/assets/Naac_A+.png')} 
               alt="NAAC Logo" 
               width={40} height={40}
               className="h-8 w-auto object-contain"
@@ -115,7 +116,7 @@ export default function Header() {
           </div>
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
-              src="/assets/ku-logo.png" 
+              src={getAssetUrl('/assets/ku-logo.png')} 
               alt="KU Logo" 
               width={40} height={40}
               className="h-8 w-auto object-contain"
@@ -123,7 +124,7 @@ export default function Header() {
           </div>
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
-              src="/assets/ku-college-logo.png" 
+              src={getAssetUrl('/assets/ku-college-logo.png')} 
               alt="College Logo" 
               width={40} height={40}
               className="h-8 w-auto object-contain"

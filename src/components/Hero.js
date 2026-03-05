@@ -1,7 +1,7 @@
 
 'use client';
 import Image from 'next/image';
-
+import { getAssetUrl } from '@/lib/assets';
 import { useEffect, useState } from 'react';
 
 export default function Hero() {
@@ -17,7 +17,7 @@ export default function Hero() {
       {/* Hero Image */}
       <div className="relative w-full h-75 md:h-100 lg:h-125 overflow-hidden">
         <Image
-          src="/assets/college-campus.jpg"
+          src={getAssetUrl('/assets/college-campus.jpg')}
           alt="KU College of Engineering and Technology Campus"
           fill
           className={`object-cover transition-opacity duration-1000 ease-in-out ${

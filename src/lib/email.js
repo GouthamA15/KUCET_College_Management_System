@@ -15,8 +15,10 @@ export const getBaseUrl = () => {
   }
   return envUrl || '';
 };
+import { getAssetUrl } from './assets';
 
-// Build the unified institutional HTML template
+// Shared institutional email template generator
+...
 export const buildInstitutionalEmailHtml = ({
   title,
   bodyHtml,
@@ -24,9 +26,10 @@ export const buildInstitutionalEmailHtml = ({
   infoRows
 }) => {
   // Use a public Cloudinary URL for the logo so it works in emails (localhost URLs are blocked by email clients)
-  const logoUrl = 'https://res.cloudinary.com/dx3ruj7f4/image/upload/v1741103144/kucet/assets/ku-logo.png';
+  const logoUrl = getAssetUrl('/assets/ku-logo.png');
 
   // Build structured information rows if provided
+
   const infoRowsHtml = Array.isArray(infoRows) && infoRows.length > 0
     ? `
           <tr>

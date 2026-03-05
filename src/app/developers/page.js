@@ -4,6 +4,7 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
+import { getAssetUrl } from '@/lib/assets';
 import { useRef } from 'react';
 
 export default function DevelopersPage() {
@@ -131,7 +132,7 @@ export default function DevelopersPage() {
           <h2 className="text-3xl font-bold text-[#0b3578] mb-8">Team &quot;Homeless Soon&quot;</h2>
           <div className="relative w-full rounded-2xl overflow-hidden shadow-xl border-4 border-white group">
              <Image
-                src="/assets/DevPics/Group.jpg" 
+                src={getAssetUrl('/assets/DevPics/Group.jpg')} 
                 alt="Team Group Photo"
                 width={3096}
                 height={2477}
