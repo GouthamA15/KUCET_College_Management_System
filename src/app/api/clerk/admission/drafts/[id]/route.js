@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function GET(req, context) {
   const user = await getAuthUser('clerk');
@@ -57,12 +58,23 @@ export async function PUT(req, context) {
           return apiResponse({ success: true, message: `Status updated to ${body.status}` });
       }
 
+      // Handle Image Uploads if provided as base64
+      if (body.pfp && body.pfp.startsWith('data:image')) {
+        console.log('[API] Uploading new PFP for draft:', id);
+        body.pfp = await uploadToCloudinary(body.pfp, 'admission_drafts/pfp');
+      }
+      if (body.signature && body.signature.startsWith('data:image')) {
+        console.log('[API] Uploading new Signature for draft:', id);
+        body.signature = await uploadToCloudinary(body.signature, 'admission_drafts/signatures');
+      }
+
       // Full update logic
       const allowedFields = [
         'name', 'father_name', 'mother_name', 'dob', 'gender', 'email', 'student_mobile', 'guardian_mobile',
         'exam_rank', 'area_status', 'category', 'sub_caste', 'seat_allotted_category', 'ssc_marks', 'inter_diploma_marks',
         'nationality', 'religion', 'mother_tongue', 'blood_group', 'place_of_birth', 'father_occupation', 'annual_income', 
-        'aadhaar_no', 'fee_reimbursement', 'identification_mark_1', 'identification_mark_2', 'permanent_address', 'branch', 'entrance_exam'
+        'aadhaar_no', 'fee_reimbursement', 'identification_mark_1', 'identification_mark_2', 'permanent_address', 'branch', 'entrance_exam',
+        'pfp', 'signature'
       ];
 
       const updates = [];

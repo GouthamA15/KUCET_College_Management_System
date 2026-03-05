@@ -184,7 +184,7 @@ const AdmissionRequestsPage = () => {
                 {/* Verification & Edit Modal */}
             {detail && (
                 <AdmissionModal
-                    detail={detail}
+                    detail={{ ...detail, ...editForm }}
                     editForm={editForm}
                     isEditing={isEditing}
                     onFieldChange={handleFieldChange}
@@ -279,12 +279,40 @@ const EditableField = React.memo(function EditableField({
 
 // ---------- Modal and sections (government-style, flat UI) ----------
 
-function MediaSection({ detail }) {
+function MediaSection({ detail, isEditing, onFieldChange }) {
+    const handleFileChange = (e, name) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Size check (4MB)
+        if (file.size > 4 * 1024 * 1024) {
+            toast.error('File size exceeds 4MB limit.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            onFieldChange(name, reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
     return (
         <div className="space-y-4">
             <div className="border border-gray-300 bg-white p-3">
-                <div className="mb-2">
+                <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-semibold text-gray-700">Photograph</span>
+                    {isEditing && (
+                        <label className="cursor-pointer bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 hover:bg-indigo-100">
+                            Upload
+                            <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*"
+                                onChange={(e) => handleFileChange(e, 'pfp')} 
+                            />
+                        </label>
+                    )}
                 </div>
                 <div className="w-full bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center" style={{ aspectRatio: '3 / 4' }}>
                     {detail.pfp ? (
@@ -295,8 +323,19 @@ function MediaSection({ detail }) {
                 </div>
             </div>
             <div className="border border-gray-300 bg-white p-3">
-                <div className="mb-2">
+                <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-semibold text-gray-700">Signature</span>
+                    {isEditing && (
+                        <label className="cursor-pointer bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 hover:bg-indigo-100">
+                            Upload
+                            <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*"
+                                onChange={(e) => handleFileChange(e, 'signature')} 
+                            />
+                        </label>
+                    )}
                 </div>
                 <div className="w-full h-20 bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center">
                     {detail.signature ? (
