@@ -14,24 +14,24 @@ export default function DevelopersPage() {
     {
       name: 'Masna Goutham',
       role: 'Frontend & UI/UX Developer',
-      image: '/assets/DevPics/Dev1.png',
+      image: getAssetUrl('/assets/DevPics/Dev1.png'),
       delay: '0s',
-      audio: '/assets/DevPics/Dev1.mpeg',
+      audio: getAssetUrl('/assets/DevPics/Dev1.mpeg'),
       portfolio: ''
     },
     {
       name: 'P.Sannith',
       role: 'Backend & Database Administrator',
-      image: '/assets/DevPics/Dev2.jpg',
+      image: getAssetUrl('/assets/DevPics/Dev2.jpg'),
       delay: '0.2s',
-      audio: '/assets/DevPics/Dev2.mpeg',
+      audio: getAssetUrl('/assets/DevPics/Dev2.mpeg'),
       portfolio: 'https://sannith-hack.github.io/Portfolio/'
     },
     {
       name: 'Uzair',
       role: 'System Interface and API designer',
-      image: '/assets/DevPics/Dev3.jpeg',
-      audio: '/assets/DevPics/Dev3.mpeg',
+      image: getAssetUrl('/assets/DevPics/Dev3.jpeg'),
+      audio: getAssetUrl('/assets/DevPics/Dev3.mpeg'),
       delay: '0.4s',
     },
   ];

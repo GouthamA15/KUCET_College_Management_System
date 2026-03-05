@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import NextImage from 'next/image';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
   const [isMobile, setIsMobile] = useState(() => {
@@ -43,35 +44,27 @@ export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
       <div className="flex justify-center">
         <h3 className="text-base md:text-lg font-semibold mb-1 text-[#0b2447]">Payment Information</h3>
       </div>
-      "use client";
-      import { useEffect, useState } from 'react';
-      import NextImage from 'next/image';
-      import { getAssetUrl } from '@/lib/assets';
-
-      export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
-      ...
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <NextImage
-                    src={getAssetUrl('/assets/Payment QR/kucet-logo.png')}
-                    alt="PRINCIPAL KU"
-                    width={32}
-                    height={32}
-                    className="h-8 w-auto object-contain"
-                  />
-                  <p className="text-xs md:text-sm font-medium text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
-                </div>
-                <div className="flex justify-center">
-                  {fee === 100 && (
-                    <NextImage src={getAssetUrl('/assets/Payment QR/ku_payment_100.png')} alt="Pay ₹100" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
-                  )}
-                  {fee === 150 && (
-                    <NextImage src={getAssetUrl('/assets/Payment QR/ku_payment_150.png')} alt="Pay ₹150" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
-                  )}
-                  {fee === 200 && (
-                    <NextImage src={getAssetUrl('/assets/Payment QR/ku_payment_200.png')} alt="Pay ₹200" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
-                  )}
-                </div>
-      ...
+      <div className="flex items-center justify-center space-x-2 mb-2">
+        <NextImage
+          src={getAssetUrl('/assets/Payment QR/kucet-logo.png')}
+          alt="PRINCIPAL KU"
+          width={32}
+          height={32}
+          className="h-8 w-auto object-contain"
+        />
+        <p className="text-xs md:text-sm font-medium text-gray-600">PRINCIPAL KU COLLEGE OF ENGINEERING AND TECHNOLOGY</p>
+      </div>
+      <div className="flex justify-center">
+        {fee === 100 && (
+          <NextImage src={getAssetUrl('/assets/Payment QR/ku_payment_100.png')} alt="Pay ₹100" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
+        )}
+        {fee === 150 && (
+          <NextImage src={getAssetUrl('/assets/Payment QR/ku_payment_150.png')} alt="Pay ₹150" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
+        )}
+        {fee === 200 && (
+          <NextImage src={getAssetUrl('/assets/Payment QR/ku_payment_200.png')} alt="Pay ₹200" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
+        )}
+      </div>
 
       {showDeepLink && (
         <div className="flex flex-col items-center gap-2">

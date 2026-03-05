@@ -5,6 +5,7 @@ import { pdf } from '@react-pdf/renderer';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { getAssetUrl } from '@/lib/assets';
 import path from 'path';
 import fs from 'fs';
 import { getBatchFromRoll, getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
@@ -154,76 +155,90 @@ export async function GET(request, { params }) {
 
         
         
-        // Helper to load image as base64 to avoid react-pdf fetching issues
-        // Detect MIME from file signature (magic bytes) to avoid "SOI not found" when extension is wrong.
-        const getBase64Image = (filePath) => {
+        // Helper to load image as base64 from Cloudinary or local file
+        // Images are now served from Cloudinary, but we convert them to base64 for PDF embedding
+        const getBase64Image = async (imagePath) => {
             try {
-                if (!fs.existsSync(filePath)) {
-                    console.warn(`[CERT_DOWNLOAD] Image file not found: ${filePath}`);
-                    return null;
+                let imageBuffer;
+                
+                // If it's already a data URL or HTTP URL, fetch it
+                if (imagePath.startsWith('data:') || imagePath.startsWith('http')) {
+                    const response = await fetch(imagePath);
+                    if (!response.ok) {
+                        console.warn(`[CERT_DOWNLOAD] Failed to fetch image from URL: ${imagePath}`);
+                        return null;
+                    }
+                    imageBuffer = await response.buffer();
+                } else {
+                    // Fallback to local file for backwards compatibility
+                    if (!fs.existsSync(imagePath)) {
+                        console.warn(`[CERT_DOWNLOAD] Image file not found: ${imagePath}`);
+                        return null;
+                    }
+                    imageBuffer = fs.readFileSync(imagePath);
                 }
-                const fileBuffer = fs.readFileSync(filePath);
-                if (!fileBuffer || fileBuffer.length < 4) {
-                    console.warn(`[CERT_DOWNLOAD] Image file is too small or empty: ${filePath}`);
+                
+                if (!imageBuffer || imageBuffer.length < 4) {
+                    console.warn(`[CERT_DOWNLOAD] Image is too small or empty: ${imagePath}`);
                     return null;
                 }
 
                 let mimeType = null;
                 // JPEG SOI: 0xFF 0xD8
-                if (fileBuffer[0] === 0xFF && fileBuffer[1] === 0xD8) {
+                if (imageBuffer[0] === 0xFF && imageBuffer[1] === 0xD8) {
                     mimeType = 'image/jpeg';
                 // PNG signature: 0x89 0x50 0x4E 0x47
-                } else if (fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x4E && fileBuffer[3] === 0x47) {
+                } else if (imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x4E && imageBuffer[3] === 0x47) {
                     mimeType = 'image/png';
                 // GIF: 'GIF8'
-                } else if (fileBuffer.slice(0,4).toString('ascii') === 'GIF8') {
+                } else if (imageBuffer.slice(0,4).toString('ascii') === 'GIF8') {
                     mimeType = 'image/gif';
                 // WEBP: 'RIFF' .... 'WEBP'
-                } else if (fileBuffer.slice(0,4).toString('ascii') === 'RIFF' && fileBuffer.slice(8,12).toString('ascii') === 'WEBP') {
+                } else if (imageBuffer.slice(0,4).toString('ascii') === 'RIFF' && imageBuffer.slice(8,12).toString('ascii') === 'WEBP') {
                     mimeType = 'image/webp';
                 }
 
                 if (!mimeType) {
-                    // Fallback to extension-based guess when signature not recognized
-                    const ext = path.extname(filePath).toLowerCase().replace('.', '');
+                    // Try to guess from extension
+                    const ext = imagePath.split('.').pop().toLowerCase();
                     if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
                     else if (ext === 'png') mimeType = 'image/png';
                     else if (ext === 'gif') mimeType = 'image/gif';
                     else if (ext === 'webp') mimeType = 'image/webp';
                     else mimeType = 'application/octet-stream';
-                    console.warn(`[CERT_DOWNLOAD] Unknown image signature for ${filePath}, falling back to extension (${ext}) => ${mimeType}`);
+                    console.warn(`[CERT_DOWNLOAD] Unknown image signature for ${imagePath}, guessing ${mimeType}`);
                 }
 
-                return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+                return `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
             } catch (err) {
-                console.error(`[CERT_DOWNLOAD] Error reading image file: ${filePath}`, err);
+                console.error(`[CERT_DOWNLOAD] Error loading image: ${imagePath}`, err);
                 return null;
             }
         };
 
         const publicDir = path.join(process.cwd(), 'public');
-        const logoUrl = getBase64Image(path.join(publicDir, 'assets', 'ku-logo.png'));
-        const signatureUrl = getBase64Image(path.join(publicDir, 'assets', 'principal-sign.png'));
-        // Try multiple common variants for stamp image (jpg/png, different case/sep)
+        const logoUrl = await getBase64Image(getAssetUrl('/assets/ku-logo.png'));
+        const signatureUrl = await getBase64Image(getAssetUrl('/assets/principal-sign.png'));
+        // Try multiple common variants for stamp image
         const stampCandidates = [
-            path.join(publicDir, 'assets', 'principal-signStamp.jpg'),
-            path.join(publicDir, 'assets', 'principal-signStamp.png'),
-            path.join(publicDir, 'assets', 'principal-sign-stamp.jpg'),
-            path.join(publicDir, 'assets', 'principal-sign-stamp.png'),
-            path.join(publicDir, 'assets', 'principal-signstamp.jpg'),
-            path.join(publicDir, 'assets', 'principal-signstamp.png'),
+            getAssetUrl('/assets/principal-signStamp.jpg'),
+            getAssetUrl('/assets/principal-signStamp.png'),
+            getAssetUrl('/assets/principal-sign-stamp.jpg'),
+            getAssetUrl('/assets/principal-sign-stamp.png'),
+            getAssetUrl('/assets/principal-signstamp.jpg'),
+            getAssetUrl('/assets/principal-signstamp.png'),
         ];
         let stampSign = null;
-        for (const p of stampCandidates) {
-            stampSign = getBase64Image(p);
+        for (const url of stampCandidates) {
+            stampSign = await getBase64Image(url);
             if (stampSign) break;
         }
         // As last resort, use the signature image so the PDF still shows a mark
         if (!stampSign) {
-            console.warn('[CERT_DOWNLOAD] stampSign not found in assets; falling back to principal-sign.png');
+            console.warn('[CERT_DOWNLOAD] stampSign not found; falling back to signature');
             stampSign = signatureUrl;
         }
-        const stampUrl = getBase64Image(path.join(publicDir, 'assets', 'ku-college-seal.png'));
+        const stampUrl = await getBase64Image(getAssetUrl('/assets/ku-college-seal.png'));
 
         const formatDate = (d) => {
             if (!d) return '';
