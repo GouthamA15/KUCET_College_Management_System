@@ -280,6 +280,11 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Shared Subjects Attendance Fix:** 
     - Resolved a critical bug where students were unable to see attendance verification cards for subjects shared by multiple faculty (e.g., ML).
     - Refactored the `active-sessions` API to match sessions by `subject_code` and academic context instead of restricted assignment IDs.
+- **Student Financial Summary:**
+    - Integrated a comprehensive financial overview into the student profile page.
+    - Added logic to calculate and display Total Expected Fee, Govt Paid (Scholarship), Student Paid, and Pending Fee for each academic year.
+    - Enhanced the UI by renaming "Scholarship Details" to "Fees & Scholarship" and adding detailed columns for student payments and pending balances.
+    - This ensures students without fee reimbursement can accurately track their dues.
 - **Verification Security Update:** Implemented strict **PIN validation** in the student verification API to ensure attendance cannot be marked without the faculty-provided code.
 - **Student Academics Dashboard:** Fully dynamic dashboard with elective variant resolution and unique React keys.
 - **Lab Evaluation Fixes:** Corrected marks mapping between faculty entry and student view; renamed "Theory" to "Writing" for labs.
