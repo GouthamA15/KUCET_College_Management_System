@@ -360,6 +360,19 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Automation:**
     - Created `update-mobile-app.js`: A specialized script to autonomously update the App URL and Label across configuration and system files, followed by an automatic Capacitor sync.
 
+### **Session 25: Native Authentication & Mobile Optimization (March 6, 2026)**
+- **Native Google Sign-In & Build Optimization:**
+    - Integrated `@capgo/capacitor-social-login` (v7) for native Google account picker support, bypassing WebView security restrictions.
+    - Implemented a dedicated backend route `/api/auth/native-google` for secure ID token verification via `google-auth-library`.
+    - Resolved Render deployment conflicts by enforcing version parity between Capacitor core and plugins (downgrading social login to v7).
+- **Mobile Navigation & Deep Linking:**
+    - Implemented hardware back-button handling via `@capacitor/app` to match browser navigation behavior.
+    - Configured Android Deep Linking (Intent Filters) to ensure OAuth redirects return the user directly to the native app shell.
+- **UI & UX Refinements:**
+    - Standardized Viewport meta tags for consistent mobile scaling across all device types.
+    - Optimized `MobileAttendanceSheet` layout to prevent horizontal overflow and resolve title clashes with the sticky Navbar.
+    - Fixed Attendance Verification bug where "Verified" labels incorrectly persisted across different calendar dates.
+
 ---
 
 ## 10. Core Utility Library (`src/lib/`)
@@ -395,6 +408,8 @@ A robust, production-ready web application built with **Next.js** for managing t
     - `StatusBar`: Custom color-matching for the Android status bar.
     - `SplashScreen`: Branded institutional splash screen with spinner.
     - `Geolocation`: Native GPS access for the Attendance geofencing system.
+    - `SocialLogin`: Native Google Sign-In via account picker.
+    - `App`: Physical back-button handling and deep-link interception.
 
 ### **Management Tools**
 - **`update-mobile-app.js`**: Command-line utility for rapid rebranding and URL swapping.

@@ -553,6 +553,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                             provider: 'google',
                             options: {
                               scopes: ['email', 'profile'],
+                              clientId: "420881800284-cnmbp5lldqrq7bb67p00uhhgbaudrolq.apps.googleusercontent.com",
                             }
                           });
 
