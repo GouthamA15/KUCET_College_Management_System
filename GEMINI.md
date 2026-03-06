@@ -346,6 +346,20 @@ A robust, production-ready web application built with **Next.js** for managing t
 - Developed GPS-based verification system with dynamic PINs and 50m geofencing.
 - Migrated all binary media to Cloudinary cloud storage.
 
+### **Session 24: Mobile Application Integration (Capacitor) (March 6, 2026)**
+- **Capacitor Integration:**
+    - Initialized Capacitor and configured a native Android shell for the KUCET CMS.
+    - Implemented a "Live URL" strategy pointing directly to the Render test environment.
+    - Integrated essential plugins: `@capacitor/status-bar`, `@capacitor/splash-screen`, and `@capacitor/geolocation`.
+- **Native Hardware Hardening:**
+    - Configured `AndroidManifest.xml` with high-accuracy GPS permissions (`ACCESS_FINE_LOCATION`) for reliable attendance geofencing.
+    - Added Camera and Storage permissions for seamless document/photo uploads.
+- **Visual Branding:**
+    - Configured a professional, 3-second branded Splash Screen using institutional colors (#0b3578).
+    - Established a workflow for native App Icon management via Android Studio's Image Asset tool.
+- **Automation:**
+    - Created `update-mobile-app.js`: A specialized script to autonomously update the App URL and Label across configuration and system files, followed by an automatic Capacitor sync.
+
 ---
 
 ## 10. Core Utility Library (`src/lib/`)
@@ -369,6 +383,23 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **CLOUDINARY_CLOUD_NAME:** Server-side environment variable for Cloudinary integration across all APIs and utilities.
 - **Configuration Files:** `.env.local` for local development, `.env.example` as reference template.
 - **Multi-Environment Support:** Different Cloudinary accounts can be configured for testing and production environments.
+
+---
+
+## 11. Mobile Application (Capacitor)
+
+### **Architecture**
+- **Type:** Native Android Wrapper (Capacitor 7).
+- **Strategy:** Loads the hosted Render URL in a fullscreen, standalone activity.
+- **Plugins:**
+    - `StatusBar`: Custom color-matching for the Android status bar.
+    - `SplashScreen`: Branded institutional splash screen with spinner.
+    - `Geolocation`: Native GPS access for the Attendance geofencing system.
+
+### **Management Tools**
+- **`update-mobile-app.js`**: Command-line utility for rapid rebranding and URL swapping.
+    - Usage: `node update-mobile-app.js <URL> ["App Name"]`
+- **Native Builds**: Managed via Android Studio; utilizes physical device debugging for performance and accuracy.
 
 ---
 
