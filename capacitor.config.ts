@@ -2,10 +2,10 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.kucet.cms',
-  appName: 'KUCET',
+  appName: 'KUCET CMS',
   webDir: 'public',
   server: {
-    url: 'https://kucet-college-management-system.onrender.com',
+    url: 'https://kucet-college-management-system-test.onrender.com',
     cleartext: true
   },
   plugins: {
