@@ -28,12 +28,24 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [adminRememberMe, setAdminRememberMe] = useState(false);
 
   // Internal forgot-password UI state
-  // mode: 'login' | 'forgot-password'
-  const [mode, setMode] = useState('login');
-  // activeRole: 'student' | 'employee' (derived from activePanel)
-  const activeRole = activePanel === 'student' ? 'student' : 'employee';
-
-  // Student forgot-password states
+  useEffect(() => {
+    // Initialize Google Auth only on native platforms
+    const initNativeAuth = async () => {
+      if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform()) {
+        try {
+          await SocialLogin.initialize({
+            google: {
+              webClientId: "420881800284-cnmbp5lldqrq7bb67p00uhhgbaudrolq.apps.googleusercontent.com",
+            }
+          });
+          console.log('Native Social Login Initialized');
+        } catch (err) {
+          console.error('Failed to initialize native social login:', err);
+        }
+      }
+    };
+    initNativeAuth();
+  }, []);
   const [fpRollno, setFpRollno] = useState('');
   const [fpIsLoading, setFpIsLoading] = useState(false);
   const [fpIsCheckingStatus, setFpIsCheckingStatus] = useState(false);
