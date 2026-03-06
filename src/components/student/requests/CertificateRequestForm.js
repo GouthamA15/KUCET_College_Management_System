@@ -1,8 +1,7 @@
 "use client";
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import PaymentSection from './PaymentSection';
-import Image from 'next/image';
 
 export default function CertificateRequestForm({
   certificateOptions,
@@ -16,6 +15,7 @@ export default function CertificateRequestForm({
 }) {
   const [transactionId, setTransactionId] = useState('');
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
+  const [paymentPreviewUrl, setPaymentPreviewUrl] = useState(null);
   const [purposeOption, setPurposeOption] = useState('Select');
   const [customPurpose, setCustomPurpose] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -73,6 +73,10 @@ export default function CertificateRequestForm({
 
   const handleRemoveImage = () => {
     setPaymentScreenshot(null);
+    if (paymentPreviewUrl) {
+      try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
+      setPaymentPreviewUrl(null);
+    }
     if (fileInputRef.current) fileInputRef.current.value = null;
     toast('Image removed.');
   };
@@ -83,13 +87,27 @@ export default function CertificateRequestForm({
       if (file.size > 4 * 1024 * 1024) {
         toast.error('File size must be less than 4MB.');
         setPaymentScreenshot(null);
-        e.target.value = null;
+        if (e.target) e.target.value = null;
         return;
       }
+      // revoke previous preview if present
+      if (paymentPreviewUrl) {
+        try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
+      }
+      const preview = URL.createObjectURL(file);
       setPaymentScreenshot(file);
+      setPaymentPreviewUrl(preview);
       toast.success('Image ready for upload.');
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (paymentPreviewUrl) {
+        try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
+      }
+    };
+  }, [paymentPreviewUrl]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -183,8 +201,7 @@ export default function CertificateRequestForm({
             {/* Payment Card */}
             <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
                 {/* Removed step pills - structured single form */}
-              {/* Render payment/QR section only for certificate types that require UPI (Bonafide) */}
-              {isUPIRequired && <PaymentSection fee={fee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />}
+              <PaymentSection fee={fee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />
               <div className="mt-4">
                 {fee > 0 ? (
                   <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-indigo-600">₹{fee}</span></p>
@@ -199,25 +216,31 @@ export default function CertificateRequestForm({
                     type="text"
                     id="transaction-id"
                     value={transactionId}
-                    // Allow only digits for Transaction ID / UTR
-                    onChange={(e) => setTransactionId((e.target.value || '').replace(/\D/g, ''))}
+                    // Allow only digits for Transaction ID / UTR and limit to 12 chars
+                    onChange={(e) => {
+                      const val = (e.target.value || '').replace(/\D/g, '').slice(0, 12);
+                      setTransactionId(val);
+                    }}
                     onPaste={(e) => {
                       const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
                       const digits = paste.replace(/\D/g, '');
                       e.preventDefault();
-                      // insert only numeric characters
                       const el = e.target;
                       const start = el.selectionStart || 0;
                       const end = el.selectionEnd || 0;
-                      const newVal = (el.value || '').slice(0, start) + digits + (el.value || '').slice(end);
+                      const current = (el.value || '').replace(/\D/g, '');
+                      const before = current.slice(0, start);
+                      const after = current.slice(end);
+                      const newVal = (before + digits + after).slice(0, 12);
                       setTransactionId(newVal);
-                      // move caret after inserted text
                       requestAnimationFrame(() => {
-                        el.selectionStart = el.selectionEnd = start + digits.length;
+                        const caret = Math.min((before + digits).length, 12);
+                        el.selectionStart = el.selectionEnd = caret;
                       });
                     }}
                     inputMode="numeric"
                     pattern="\d*"
+                    maxLength={12}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
                 </div>
@@ -298,7 +321,7 @@ export default function CertificateRequestForm({
                         </div>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center relative">
-                          <Image src={URL.createObjectURL(paymentScreenshot)} alt="Payment Screenshot Preview" width={400} height={400} unoptimized className="max-h-[220px] w-auto object-contain" />
+                          <img src={paymentPreviewUrl} alt="Payment Screenshot Preview" className="max-h-[220px] w-auto object-contain" />
                           <button type="button" onClick={handleRemoveImage} className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full p-1 text-gray-600 hover:bg-gray-100">
                             ×
                           </button>
