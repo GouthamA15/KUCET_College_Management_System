@@ -545,8 +545,10 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                 <div>
                   <button
                     onClick={async () => {
-                      const isNativeApp = typeof window !== 'undefined' && window.Capacitor;
-
+                      const isNativeApp = typeof window !== 'undefined' && 
+                        window.Capacitor && 
+                        (window.Capacitor.getPlatform() === 'android' || window.Capacitor.getPlatform() === 'ios');
+                      
                       if (isNativeApp) {
                         try {
                           const result = await SocialLogin.login({
