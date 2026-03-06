@@ -17,6 +17,10 @@ const AdmissionRequestsPage = () => {
     const [fetchingDetail, setFetchingDetail] = useState(false);
     const [processing, setProcessing] = useState(false);
     
+    // Rejection state
+    const [rejectionMode, setRejectionMode] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+
     // Editing state
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditData] = useState({});
@@ -38,6 +42,8 @@ const AdmissionRequestsPage = () => {
     const fetchDetail = useCallback(async (id) => {
         setFetchingDetail(true);
         setIsEditing(false);
+        setRejectionMode(false);
+        setRejectionReason('');
         try {
             const res = await fetch(`/api/clerk/admission/drafts/${id}`);
             const data = await res.json();
@@ -51,6 +57,40 @@ const AdmissionRequestsPage = () => {
             setFetchingDetail(false);
         }
     }, []);
+
+    const handleReject = async () => {
+        if (!detail) return;
+        if (!rejectionReason.trim()) {
+            toast.error('Please provide a reason for rejection.');
+            return;
+        }
+
+        setProcessing(true);
+        const toastId = toast.loading('Rejecting application...');
+        try {
+            const res = await fetch(`/api/clerk/admission/drafts/${detail.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    status: 'REJECTED', 
+                    rejection_reason: rejectionReason 
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Rejection failed.');
+
+            toast.success('Application Rejected Successfully', { id: toastId });
+            setDetail(null);
+            setSelectedDraftId(null);
+            setRejectionMode(false);
+            setRejectionReason('');
+            fetchDrafts();
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+        } finally {
+            setProcessing(false);
+        }
+    };
 
     const handleVerify = async () => {
         if (!detail) return;
@@ -184,7 +224,7 @@ const AdmissionRequestsPage = () => {
                 {/* Verification & Edit Modal */}
             {detail && (
                 <AdmissionModal
-                    detail={detail}
+                    detail={{ ...detail, ...editForm }}
                     editForm={editForm}
                     isEditing={isEditing}
                     onFieldChange={handleFieldChange}
@@ -200,7 +240,12 @@ const AdmissionRequestsPage = () => {
                     onClose={() => setDetail(null)}
                     onSave={handleSaveEdit}
                     onVerify={handleVerify}
+                    onReject={handleReject}
                     processing={processing}
+                    rejectionMode={rejectionMode}
+                    setRejectionMode={setRejectionMode}
+                    rejectionReason={rejectionReason}
+                    setRejectionReason={setRejectionReason}
                 />
             )}
             </main>
@@ -279,12 +324,40 @@ const EditableField = React.memo(function EditableField({
 
 // ---------- Modal and sections (government-style, flat UI) ----------
 
-function MediaSection({ detail }) {
+function MediaSection({ detail, isEditing, onFieldChange }) {
+    const handleFileChange = (e, name) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Size check (4MB)
+        if (file.size > 4 * 1024 * 1024) {
+            toast.error('File size exceeds 4MB limit.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            onFieldChange(name, reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
     return (
         <div className="space-y-4">
             <div className="border border-gray-300 bg-white p-3">
-                <div className="mb-2">
+                <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-semibold text-gray-700">Photograph</span>
+                    {isEditing && (
+                        <label className="cursor-pointer bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 hover:bg-indigo-100">
+                            Upload
+                            <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*"
+                                onChange={(e) => handleFileChange(e, 'pfp')} 
+                            />
+                        </label>
+                    )}
                 </div>
                 <div className="w-full bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center" style={{ aspectRatio: '3 / 4' }}>
                     {detail.pfp ? (
@@ -295,8 +368,19 @@ function MediaSection({ detail }) {
                 </div>
             </div>
             <div className="border border-gray-300 bg-white p-3">
-                <div className="mb-2">
+                <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-semibold text-gray-700">Signature</span>
+                    {isEditing && (
+                        <label className="cursor-pointer bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 hover:bg-indigo-100">
+                            Upload
+                            <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*"
+                                onChange={(e) => handleFileChange(e, 'signature')} 
+                            />
+                        </label>
+                    )}
                 </div>
                 <div className="w-full h-20 bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center">
                     {detail.signature ? (
@@ -505,7 +589,12 @@ function AdmissionModal({
     onClose,
     onSave,
     onVerify,
+    onReject,
     processing,
+    rejectionMode,
+    setRejectionMode,
+    rejectionReason,
+    setRejectionReason,
 }) {
     return (
         <div className="fixed inset-0 z-[60] bg-gray-200 flex items-stretch justify-center">
@@ -519,13 +608,15 @@ function AdmissionModal({
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={onToggleEditing}
-                            className="px-3 py-1 border border-gray-500 bg-white text-xs font-medium text-gray-800 hover:bg-gray-100"
-                        >
-                            {isEditing ? 'Lock Fields' : 'Enable Editing'}
-                        </button>
+                        {!rejectionMode && (
+                            <button
+                                type="button"
+                                onClick={onToggleEditing}
+                                className="px-3 py-1 border border-gray-500 bg-white text-xs font-medium text-gray-800 hover:bg-gray-100"
+                            >
+                                {isEditing ? 'Lock Fields' : 'Enable Editing'}
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={onClose}
@@ -538,40 +629,86 @@ function AdmissionModal({
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full">
-                        <div className="md:col-span-1">
-                            <MediaSection detail={detail} />
+                    {rejectionMode ? (
+                        <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto space-y-6">
+                            <div className="text-center">
+                                <h3 className="text-lg font-bold text-red-600 mb-2">Reject Admission Application</h3>
+                                <p className="text-sm text-gray-600">Please provide a clear reason for rejection. This reason will be sent to the student's registered email address.</p>
+                            </div>
+                            <div className="w-full">
+                                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">Rejection Reason</label>
+                                <textarea
+                                    className="w-full border-2 border-red-100 p-3 text-sm focus:border-red-500 focus:outline-none bg-red-50/30 rounded-md"
+                                    rows={6}
+                                    placeholder="e.g. Photograph is not clear, or SSC marks do not match the uploaded document."
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex w-full gap-3">
+                                <button
+                                    onClick={() => { setRejectionMode(false); setRejectionReason(''); }}
+                                    className="flex-1 px-4 py-2 border border-gray-300 bg-white text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-md"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={onReject}
+                                    disabled={processing || !rejectionReason.trim()}
+                                    className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-50 rounded-md shadow-md shadow-red-100"
+                                >
+                                    {processing ? 'Rejecting...' : 'Confirm Rejection'}
+                                </button>
+                            </div>
                         </div>
-                        <div className="md:col-span-3 space-y-4">
-                            <PersonalDetailsSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
-                            <AcademicSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
-                            <ContactSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full">
+                            <div className="md:col-span-1">
+                                <MediaSection detail={detail} isEditing={isEditing} onFieldChange={onFieldChange} />
+                            </div>
+                            <div className="md:col-span-3 space-y-4">
+                                <PersonalDetailsSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
+                                <AcademicSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
+                                <ContactSection editForm={editForm} isEditing={isEditing} onFieldChange={onFieldChange} />
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Footer */}
-                <div className="px-4 py-3 border-t border-gray-300 bg-gray-100 flex justify-end gap-3">
-                    {isEditing ? (
+                {!rejectionMode && (
+                    <div className="px-4 py-3 border-t border-gray-300 bg-gray-100 flex justify-between gap-3">
                         <button
                             type="button"
-                            onClick={onSave}
-                            disabled={processing}
-                            className="px-4 py-1 border border-gray-600 bg-white text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-60"
+                            onClick={() => setRejectionMode(true)}
+                            className="px-4 py-1 border border-red-200 bg-red-50 text-red-700 text-sm font-medium hover:bg-red-100 rounded"
                         >
-                            {processing ? 'Saving…' : 'Save Changes'}
+                            Reject Application
                         </button>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={onVerify}
-                            disabled={processing}
-                            className="px-4 py-1 border border-gray-600 bg-white text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-60"
-                        >
-                            {processing ? 'Processing…' : 'Verify & Mark Processed'}
-                        </button>
-                    )}
-                </div>
+                        
+                        <div className="flex gap-3">
+                            {isEditing ? (
+                                <button
+                                    type="button"
+                                    onClick={onSave}
+                                    disabled={processing}
+                                    className="px-4 py-1 border border-gray-600 bg-white text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-60"
+                                >
+                                    {processing ? 'Saving…' : 'Save Changes'}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={onVerify}
+                                    disabled={processing}
+                                    className="px-4 py-1 border border-gray-600 bg-white text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-60"
+                                >
+                                    {processing ? 'Processing…' : 'Verify & Mark Processed'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

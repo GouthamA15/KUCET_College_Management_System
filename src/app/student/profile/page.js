@@ -13,10 +13,10 @@ import ProfileHeaderCard from '@/components/student/ProfileHeaderCard';
 import ProfileStatusBar from '@/components/student/ProfileStatusBar';
 import ProfileTabs from '@/components/student/ProfileTabs';
 import PersonalInfoTab from '@/components/student/PersonalInfoTab';
-import ScholarshipTableDesktop from '@/components/student/ScholarshipTableDesktop';
-import ScholarshipCardsMobile from '@/components/student/ScholarshipCardsMobile';
+import FinancialSummaryTable from '@/components/student/FinancialSummaryTable';
+import FinancialSummaryCardsMobile from '@/components/student/FinancialSummaryCardsMobile';
 import SetPasswordGate from '@/components/student/SetPasswordGate';
-import useScholarshipRows from '@/components/student/useScholarshipRows';
+import useFinancialRows from '@/components/student/useFinancialRows';
 import useProfileEdit from '@/components/student/hooks/useProfileEdit';
 import useEmailVerification from '@/components/student/hooks/useEmailVerification';
 import usePasswordSetup from '@/components/student/hooks/usePasswordSetup';
@@ -39,7 +39,12 @@ export default function StudentProfileNew() {
     refreshData,
   });
   const activity = useProfileActivity(studentData?.student?.roll_no);
-  const { rows } = useScholarshipRows(studentData?.student?.roll_no, studentData?.scholarship || []);
+  const { rows, yearlyTotalFee } = useFinancialRows(
+    studentData?.student?.roll_no, 
+    studentData?.scholarship || [],
+    studentData?.fees || [],
+    getBranchFromRoll(studentData?.student?.roll_no)
+  );
 
   if (!studentData && contextLoading) return <Loading />;
   if (!studentData) return null;
@@ -71,9 +76,9 @@ export default function StudentProfileNew() {
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 personalPanel={<PersonalInfoTab student={student} />}
-                scholarshipPanel={<>
-                  <ScholarshipTableDesktop rows={rows} />
-                  <ScholarshipCardsMobile rows={rows} />
+                financialPanel={<>
+                  <FinancialSummaryTable rows={rows} totalExpectedFee={yearlyTotalFee} />
+                  <FinancialSummaryCardsMobile rows={rows} totalExpectedFee={yearlyTotalFee} />
                 </>}
               />
             </div>

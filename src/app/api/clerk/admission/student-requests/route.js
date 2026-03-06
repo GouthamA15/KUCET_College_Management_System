@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { deleteFromCloudinary } from '@/lib/cloudinary';
 
 export async function GET(req) {
   const user = await getAuthUser('clerk');
@@ -27,22 +28,23 @@ export async function GET(req) {
       ORDER BY spr.created_at DESC
     `);
 
-    const data = rows.map(row => {
-      const helper = (val) => {
-        if (!val) return null;
-        if (typeof val === 'string' && val.startsWith('http')) return val;
-        return `data:image/png;base64,${val.toString('base64')}`;
-      };
+    const imageHelper = (val) => {
+      if (!val) return null;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
+      return val;
+    };
 
+    const data = rows.map(row => {
       return {
         id: row.id,
         student_id: row.student_id,
         roll_no: row.roll_no,
         name: row.name,
-        new_signature: helper(row.new_signature),
-        new_pfp: helper(row.new_pfp),
-        old_signature: helper(row.old_signature),
-        old_pfp: helper(row.old_pfp),
+        new_signature: imageHelper(row.new_signature),
+        new_pfp: imageHelper(row.new_pfp),
+        old_signature: imageHelper(row.old_signature),
+        old_pfp: imageHelper(row.old_pfp),
         created_at: row.created_at
       };
     });
@@ -77,6 +79,12 @@ export async function PUT(req) {
     if (action === 'approve') {
       // 1. Update Signature if provided
       if (new_signature) {
+        // Fetch and delete old Signature
+        const [oldSigRows] = await db.execute('SELECT signature FROM student_signatures WHERE student_id = ?', [student_id]);
+        if (oldSigRows.length > 0 && oldSigRows[0].signature) {
+          await deleteFromCloudinary(oldSigRows[0].signature);
+        }
+
         await db.execute(
           'INSERT INTO student_signatures (student_id, signature) VALUES (?, ?) ' +
           'ON DUPLICATE KEY UPDATE signature = VALUES(signature)',
@@ -86,6 +94,12 @@ export async function PUT(req) {
       
       // 2. Update PFP if provided
       if (new_pfp) {
+        // Fetch and delete old PFP
+        const [oldImgRows] = await db.execute('SELECT pfp FROM student_images WHERE student_id = ?', [student_id]);
+        if (oldImgRows.length > 0 && oldImgRows[0].pfp) {
+          await deleteFromCloudinary(oldImgRows[0].pfp);
+        }
+
         await db.execute(
           'INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ' +
           'ON DUPLICATE KEY UPDATE pfp = VALUES(pfp)',
@@ -98,6 +112,11 @@ export async function PUT(req) {
         [requestId]
       );
     } else {
+      // If rejecting, we should ALSO delete the NEWly uploaded images from Cloudinary 
+      // since the student will have to upload again and these will be orphaned.
+      if (new_pfp) await deleteFromCloudinary(new_pfp);
+      if (new_signature) await deleteFromCloudinary(new_signature);
+
       await db.execute(
         'UPDATE student_profile_requests SET status = "rejected", rejection_reason = ? WHERE id = ?',
         [rejectionReason || 'No reason provided', requestId]

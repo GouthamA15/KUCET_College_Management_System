@@ -62,4 +62,32 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
   }
 }
 
+/**
+ * Deletes an image from Cloudinary given its URL
+ * @param {string} url - The full Cloudinary secure URL
+ */
+export async function deleteFromCloudinary(url) {
+  if (!url || !url.includes('cloudinary.com')) return;
+
+  try {
+    // URL format: https://res.cloudinary.com/[cloud_name]/image/upload/v[version]/[folder]/[public_id].[ext]
+    // We need the part after 'upload/v[version]/' or 'upload/'
+    const parts = url.split('/upload/');
+    if (parts.length < 2) return;
+
+    // Remove the version if present (starts with 'v' followed by digits)
+    let path = parts[1].replace(/^v\d+\//, '');
+    
+    // Remove the file extension
+    const publicId = path.substring(0, path.lastIndexOf('.'));
+
+    console.log('[CLOUDINARY] Deleting asset:', publicId);
+    const result = await cloudinary.uploader.destroy(publicId);
+    return result;
+  } catch (error) {
+    console.error('Cloudinary Delete Error:', error);
+    // Don't throw, just log. Failure to delete old pic shouldn't block the update.
+  }
+}
+
 export default cloudinary;

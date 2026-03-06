@@ -8,6 +8,14 @@ export async function GET(req) {
 
   try {
     const db = getDb();
+
+    // Helper to handle both URLs and legacy Buffer data
+    const imageHelper = (val) => {
+      if (!val) return null;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
+      return val;
+    };
     
     // 1. Fetch current signature
     const [sigRows] = await db.execute(
@@ -32,35 +40,18 @@ export async function GET(req) {
     if (reqRows.length > 0) {
       const row = reqRows[0];
       
-      const newSig = row.new_signature;
-      const newSigData = (typeof newSig === 'string' && newSig.startsWith('http')) 
-        ? newSig 
-        : (newSig ? `data:image/png;base64,${newSig.toString('base64')}` : null);
-
-      const newPfp = row.new_pfp;
-      const newPfpData = (typeof newPfp === 'string' && newPfp.startsWith('http'))
-        ? newPfp
-        : (newPfp ? `data:image/png;base64,${newPfp.toString('base64')}` : null);
-
       latestRequest = {
         id: row.id,
         status: row.status,
         rejection_reason: row.rejection_reason,
         created_at: row.created_at,
-        new_signature: newSigData,
-        new_pfp: newPfpData
+        new_signature: imageHelper(row.new_signature),
+        new_pfp: imageHelper(row.new_pfp)
       };
     }
 
-    const sig = sigRows.length > 0 ? sigRows[0].signature : null;
-    const currentSignature = (typeof sig === 'string' && sig.startsWith('http'))
-      ? sig
-      : (sig ? `data:image/png;base64,${sig.toString('base64')}` : null);
-    
-    const pfp = pfpRows.length > 0 ? pfpRows[0].pfp : null;
-    const currentPfp = (typeof pfp === 'string' && pfp.startsWith('http'))
-      ? pfp
-      : (pfp ? `data:image/png;base64,${pfp.toString('base64')}` : null);
+    const currentSignature = sigRows.length > 0 ? imageHelper(sigRows[0].signature) : null;
+    const currentPfp = pfpRows.length > 0 ? imageHelper(pfpRows[0].pfp) : null;
 
     return apiResponse({
       signature: currentSignature,

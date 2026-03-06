@@ -59,18 +59,21 @@ export async function GET(req, context) {
     student.course = getBranchFromRoll(student.roll_no);
     student.admission_type = getAdmissionTypeFromRoll(student.roll_no);
 
+    // Helper to handle both URLs and legacy Buffer data
+    const imageHelper = (val) => {
+      if (!val) return null;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
+      return val;
+    };
+
     // Fetch pfp and signature separately
     const pfpResult = await query('SELECT 1 FROM student_images WHERE student_id = ?', [studentId]);
     student.pfp = pfpResult.length > 0 ? `/api/student/image/${student.roll_no}` : null;
 
     const sigRows = await query('SELECT signature FROM student_signatures WHERE student_id = ?', [studentId]);
     if (sigRows.length > 0 && sigRows[0].signature) {
-        const sig = sigRows[0].signature;
-        if (typeof sig === 'string' && sig.startsWith('http')) {
-          student.signature = sig;
-        } else {
-          student.signature = `data:image/png;base64,${sig.toString('base64')}`;
-        }
+        student.signature = imageHelper(sigRows[0].signature);
     } else {
         student.signature = null;
     }
