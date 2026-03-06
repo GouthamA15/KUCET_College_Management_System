@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 import { signIn } from "next-auth/react";
-
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const MAX_ROLL = 10;
@@ -32,6 +32,13 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [mode, setMode] = useState('login');
   // activeRole: 'student' | 'employee' (derived from activePanel)
   const activeRole = activePanel === 'student' ? 'student' : 'employee';
+
+  useEffect(() => {
+    // Initialize Google Auth only on native platforms
+    if (typeof window !== 'undefined' && window.Capacitor) {
+      GoogleAuth.initialize();
+    }
+  }, []);
 
   // Student forgot-password states
   const [fpRollno, setFpRollno] = useState('');
@@ -544,7 +551,36 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                 {mode === 'login' ? (
                 <div>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      const isNativeApp = typeof window !== 'undefined' && window.Capacitor;
+                      
+                      if (isNativeApp) {
+                        try {
+                          const user = await GoogleAuth.signIn();
+                          const idToken = user.authentication.idToken;
+                          
+                          const res = await fetch('/api/auth/native-google', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ idToken })
+                          });
+                          
+                          if (res.ok) {
+                            window.location.replace('/');
+                          } else {
+                            const errorData = await res.json();
+                            toast.error(errorData.message || 'Native Google login failed');
+                          }
+                        } catch (err) {
+                          console.error('Native Google Error:', err);
+                          if (err.message !== 'CHANCELED') {
+                            toast.error('Native Google Sign-in failed');
+                          }
+                        }
+                        return;
+                      }
+
+                      // Browser fallback
                       const base = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '');
                       const callbackUrl = base ? `${base}/api/auth/google-complete` : '/api/auth/google-complete';
                       return signIn('google', { callbackUrl });

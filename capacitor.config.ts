@@ -5,8 +5,11 @@ const config: CapacitorConfig = {
   appName: 'KUCET CMS',
   webDir: 'public',
   server: {
-    url: 'https://kucet-college-management-system-test.onrender.com',
-    cleartext: true
+    url: 'https://kucet-college-management-system-test.onrender.com/',
+    cleartext: true,
+    allowNavigation: [
+      '*.onrender.com'
+    ]
   },
   plugins: {
     SplashScreen: {
@@ -17,8 +20,14 @@ const config: CapacitorConfig = {
       showSpinner: true,
       androidSpinnerStyle: "large",
       spinnerColor: "#ffffff"
+    },
+    GoogleAuth: {
+      scopes: ["profile", "email"],
+      serverClientId: "1056557602357-19j4h3fgeovk04h01pkh8h1gcl1v6v4o.apps.googleusercontent.com",
+      forceCodeForRefreshToken: true
     }
   }
-};
+  };
+
 
 export default config;

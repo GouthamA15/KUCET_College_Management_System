@@ -22,8 +22,20 @@ export default function CapacitorHandler() {
           if (canGoBack) {
             window.history.back();
           } else {
-            // No history, exit app
             App.exitApp();
+          }
+        });
+
+        // --- NEW: Handle Google Login Deep Linking ---
+        await App.addListener('appUrlOpen', ({ url }) => {
+          // If the app is opened via a link (like the Google OAuth redirect)
+          // we force the internal WebView to load that URL.
+          if (url.includes('kucet-college-management-system-test.onrender.com')) {
+            const path = url.split('kucet-college-management-system-test.onrender.com')[1];
+            if (path) window.location.href = path;
+          } else if (url.startsWith('kucetcms://')) {
+             // Handle custom scheme redirect (e.g. kucetcms://login-success)
+             window.location.href = '/'; // Refresh to check for new session
           }
         });
       } catch (err) {
