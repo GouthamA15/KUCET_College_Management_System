@@ -3,8 +3,10 @@
 "use client";
 import { useEffect, useState } from 'react';
 import NextImage from 'next/image';
+import { useAssets } from '@/context/AssetContext';
 
 export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
+  const { getAsset } = useAssets();
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 767px)').matches;
@@ -52,7 +54,7 @@ export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
         <>
           <div className="flex items-center justify-center space-x-2 mb-2">
             <NextImage
-              src="/assets/Payment QR/kucet-logo.png"
+              src={getAsset('/assets/Payment QR/kucet-logo.png')}
               alt="PRINCIPAL KU"
               width={32}
               height={32}
@@ -62,13 +64,13 @@ export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
           </div>
           <div className="flex justify-center">
             {fee === 100 && (
-              <NextImage src="/assets/Payment QR/ku_payment_100.png" alt="Pay ₹100" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
+              <NextImage src={getAsset('/assets/Payment QR/ku_payment_100.png')} alt="Pay ₹100" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
             )}
             {fee === 150 && (
-              <NextImage src="/assets/Payment QR/ku_payment_150.png" alt="Pay ₹150" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
+              <NextImage src={getAsset('/assets/Payment QR/ku_payment_150.png')} alt="Pay ₹150" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
             )}
             {fee === 200 && (
-              <NextImage src="/assets/Payment QR/ku_payment_200.png" alt="Pay ₹200" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
+              <NextImage src={getAsset('/assets/Payment QR/ku_payment_200.png')} alt="Pay ₹200" width={140} height={140} className="w-36 h-36 border border-gray-200 rounded-sm bg-white" />
             )}
           </div>
         </>
