@@ -27,7 +27,11 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const [clerkRememberMe, setClerkRememberMe] = useState(false);
   const [adminRememberMe, setAdminRememberMe] = useState(false);
 
-  // Internal forgot-password UI state
+  // mode: 'login' | 'forgot-password'
+  const [mode, setMode] = useState('login');
+  // activeRole: 'student' | 'employee' (derived from activePanel)
+  const activeRole = activePanel === 'student' ? 'student' : 'employee';
+
   useEffect(() => {
     // Initialize Google Auth only on native platforms
     const initNativeAuth = async () => {
