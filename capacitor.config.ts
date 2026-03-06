@@ -21,13 +21,12 @@ const config: CapacitorConfig = {
       androidSpinnerStyle: "large",
       spinnerColor: "#ffffff"
     },
-    GoogleAuth: {
-      scopes: ["profile", "email"],
-      serverClientId: "1056557602357-19j4h3fgeovk04h01pkh8h1gcl1v6v4o.apps.googleusercontent.com",
-      forceCodeForRefreshToken: true
+    SocialLogin: {
+      google: {
+        webClientId: "1056557602357-19j4h3fgeovk04h01pkh8h1gcl1v6v4o.apps.googleusercontent.com"
+      }
     }
-  }
-  };
-
+    }
+    };
 
 export default config;
