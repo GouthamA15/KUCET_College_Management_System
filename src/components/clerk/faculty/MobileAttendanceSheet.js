@@ -15,7 +15,7 @@ const formatDisplayDate = (dateStr) => {
 const MobileSubjectIdentityPanel = () => {
   const { assignment } = useFacultyAttendance();
   return (
-    <div className="bg-white border-b shadow-sm p-3 mb-4 -mx-4 sticky top-0 z-20">
+    <div className="bg-white border-b shadow-sm p-3 mb-4 sticky top-[52px] z-20">
       <div className="flex justify-between items-start gap-2">
         <div className="flex-1">
           <h2 className="text-sm font-black text-gray-900 uppercase leading-tight line-clamp-1">{assignment.subject_name}</h2>

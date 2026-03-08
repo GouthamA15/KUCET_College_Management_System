@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KUCET CMS</string>
+    <string name="title_activity_main">KUCET CMS</string>
+    <string name="package_name">com.kucet.cms</string>
+    <string name="custom_url_scheme">com.kucet.cms</string>
+</resources>
