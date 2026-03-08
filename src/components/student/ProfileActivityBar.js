@@ -112,7 +112,9 @@ export default function ProfileActivityBar({ activity, student }) {
 
   const showLegacyWarning = !latestRequest && !!student && (!student.email || !student.is_email_verified || !student.password_hash);
 
-  if (!hasAttendanceSessions && !showLegacyWarning && !showRequestBar) {
+  const showScholarshipThumb = !!scholarshipThumbUpdate?.active;
+
+  if (!hasAttendanceSessions && !showLegacyWarning && !showRequestBar && !showScholarshipThumb) {
     return null;
   }
 
