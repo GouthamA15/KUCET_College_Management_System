@@ -7,6 +7,7 @@ const STORAGE_SEEN_STATUS_KEY = 'profileStatusBarSeenStatus';
 
 export default function useProfileActivity(rollno) {
   const [latestRequest, setLatestRequest] = useState(null);
+  const [scholarshipThumbUpdate, setScholarshipThumbUpdate] = useState({ active: false });
   const [dismissCount, setDismissCount] = useState(() => {
     try { return Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0'); } catch { return 0; }
   });
@@ -74,6 +75,31 @@ export default function useProfileActivity(rollno) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rollno]);
 
+  // Fetch student activity (scholarship thumb notifications)
+  useEffect(() => {
+    let mounted = true;
+    if (!rollno) return;
+
+    const fetchActivity = async () => {
+      try {
+        const res = await fetch('/api/student/activity');
+        if (!mounted) return;
+        if (!res.ok) {
+          setScholarshipThumbUpdate({ active: false });
+          return;
+        }
+        const data = await res.json();
+        if (!mounted) return;
+        setScholarshipThumbUpdate(data?.scholarshipThumbUpdate || { active: false });
+      } catch (e) {
+        if (mounted) setScholarshipThumbUpdate({ active: false });
+      }
+    };
+
+    fetchActivity();
+    return () => { mounted = false; };
+  }, [rollno]);
+
   const incrementVisit = () => {
     try {
       const next = Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0') + 1;
@@ -101,5 +127,5 @@ export default function useProfileActivity(rollno) {
     setSeenStatus(null);
   };
 
-  return { latestRequest, dismissCount, incrementVisit, dismiss, reset };
+  return { latestRequest, dismissCount, incrementVisit, dismiss, reset, scholarshipThumbUpdate };
 }

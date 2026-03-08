@@ -90,7 +90,7 @@ export function StudentProvider({ children }) {
       setError('Failed to refresh data');
     }
     return null;
-  }, [fetchProfile, fetchCollegeInfo]);
+  }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance]);
 
   useEffect(() => {
     const init = async () => {

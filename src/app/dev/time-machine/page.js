@@ -1,19 +1,22 @@
-'use client';
+"use client";
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 export default function TimeMachine() {
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
-  const [mockDate, setMockDate] = useState('');
+  const [mockDate, setMockDate] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    if (!isTesting) return '';
+    const match = document.cookie.match(/dev_mock_date=([^;]+)/);
+    return match ? new Date(decodeURIComponent(match[1])).toISOString().split('T')[0] : '';
+  });
   const [currentDisplay, setCurrentDisplay] = useState('');
-  const [isMounted, setIsMounted] = useState(false);
+  const [isMounted, setIsMounted] = useState(() => (typeof window !== 'undefined') && isTesting);
 
   useEffect(() => {
     if (!isTesting) return;
-    setIsMounted(true);
-    const match = document.cookie.match(/dev_mock_date=([^;]+)/);
-    if (match) setMockDate(new Date(decodeURIComponent(match[1])).toISOString().split('T')[0]);
-    
+    // mockDate is initialized from cookie; avoid setting state synchronously here
     const updateDisplay = () => {
       const cookieMatch = document.cookie.match(/dev_mock_date=([^;]+)/);
       const d = cookieMatch ? new Date(decodeURIComponent(cookieMatch[1])) : new Date();
@@ -31,7 +34,7 @@ export default function TimeMachine() {
         <div className="text-center">
           <h1 className="text-4xl font-bold text-red-500 mb-4">403 - Forbidden</h1>
           <p className="text-gray-400">Developer tools are disabled in this environment.</p>
-          <a href="/" className="mt-6 inline-block bg-blue-600 px-6 py-2 rounded-lg font-bold">Return Home</a>
+          <Link href="/" className="mt-6 inline-block bg-blue-600 px-6 py-2 rounded-lg font-bold">Return Home</Link>
         </div>
       </div>
     );
@@ -57,7 +60,7 @@ export default function TimeMachine() {
         <h1 className="text-3xl font-extrabold text-blue-400 mb-2 flex items-center gap-2">
           🕒 Time Machine <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded uppercase tracking-tighter">DEV ONLY</span>
         </h1>
-        <p className="text-gray-400 text-sm mb-6 italic">Control the application's perceived date to test semester transitions.</p>
+        <p className="text-gray-400 text-sm mb-6 italic">Control the application&apos;s perceived date to test semester transitions.</p>
 
         <div className="bg-black/40 p-4 rounded-xl mb-6 border border-gray-700">
           <label className="text-xs text-gray-500 uppercase font-bold block mb-1">Application Time</label>

@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, forwardRef } from 'react';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { formatDate, parseDate } from '@/lib/date';
 import DatePicker from 'react-datepicker';
@@ -342,12 +343,12 @@ export default function AddNewStudent() {
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700">Student Photo (PFP)</label>
               <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="p-2 border rounded w-full" />
-              {files.pfp && <img src={files.pfp} alt="Preview" className="h-20 w-20 object-cover border rounded mt-1" />}
+              {files.pfp && <Image src={files.pfp} alt="Preview" className="h-20 w-20 object-cover border rounded mt-1" width={80} height={80} unoptimized />}
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700">Student Signature</label>
               <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="p-2 border rounded w-full" />
-              {files.signature && <img src={files.signature} alt="Preview" className="h-12 w-32 object-contain border rounded mt-1" />}
+              {files.signature && <Image src={files.signature} alt="Preview" className="h-12 w-32 object-contain border rounded mt-1" width={128} height={48} unoptimized />}
             </div>
           </div>
         </div>

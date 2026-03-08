@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getEffectiveAcademicYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
@@ -157,7 +158,7 @@ const AdmissionPage = () => {
                             <label className={labelClasses + " mb-2"}>Photograph <span className="text-red-500">*</span></label>
                             <div className="flex flex-col items-center">
                                 <div className="w-32 h-40 border-2 border-dashed border-gray-400 bg-white flex items-center justify-center overflow-hidden mb-3">
-                                    {files.pfp ? <img src={files.pfp} className="w-full h-full object-cover" /> : <span className="text-[10px] text-gray-400 uppercase font-bold text-center p-2">Student Photo</span>}
+                                    {files.pfp ? <Image src={files.pfp} alt="Student Photo" className="w-full h-full object-cover" width={128} height={160} unoptimized /> : <span className="text-[10px] text-gray-400 uppercase font-bold text-center p-2">Student Photo</span>}
                                 </div>
                                 <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="text-xs file:bg-indigo-50 file:text-indigo-700 file:border-0 file:rounded-full file:px-4 file:py-1 hover:file:bg-indigo-100" />
                             </div>
@@ -166,7 +167,7 @@ const AdmissionPage = () => {
                             <label className={labelClasses + " mb-2"}>Signature Photo <span className="text-red-500">*</span></label>
                             <div className="flex flex-col items-center">
                                 <div className="w-56 h-20 border-2 border-dashed border-gray-400 bg-white flex items-center justify-center overflow-hidden mb-3">
-                                    {files.signature ? <img src={files.signature} className="w-full h-full object-contain" /> : <span className="text-[10px] text-gray-400 uppercase font-bold">Signature Preview</span>}
+                                    {files.signature ? <Image src={files.signature} alt="Signature Preview" className="w-full h-full object-contain" width={224} height={80} unoptimized /> : <span className="text-[10px] text-gray-400 uppercase font-bold">Signature Preview</span>}
                                 </div>
                                 <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="text-xs file:bg-indigo-50 file:text-indigo-700 file:border-0 file:rounded-full file:px-4 file:py-1 hover:file:bg-indigo-100" />
                             </div>

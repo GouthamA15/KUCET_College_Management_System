@@ -80,7 +80,7 @@ export default function ProfileUpdatesPage() {
             <div className="text-6xl mb-4">📝</div>
             <h3 className="text-xl font-bold text-gray-800">No requests found</h3>
             <p className="text-gray-500 mt-2 max-w-sm mx-auto">
-              You haven't submitted any requests for profile photo or signature updates yet.
+              You haven&apos;t submitted any requests for profile photo or signature updates yet.
             </p>
           </div>
         ) : (

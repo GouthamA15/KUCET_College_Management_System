@@ -138,7 +138,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   };
 
-  const endSession = async () => {
+  const endSession = useCallback(async () => {
     if (!assignment?.id) return;
     try {
       setSubmitting(true);
@@ -154,7 +154,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [assignment]);
 
   const fetchAttendanceStatus = useCallback(async (forcedDate, forcedSession) => {
     if (!assignment?.id) return;
@@ -348,7 +348,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } finally {
       setSubmitting(false);
     }
-  }, [assignment, baseStudents, attendanceStatusMap, dateValidation.isValid, fetchAttendanceStatus, selectedDate, selectedSession]);
+  }, [assignment, baseStudents, attendanceStatusMap, dateValidation.isValid, fetchAttendanceStatus, selectedDate, selectedSession, activeSession, endSession]);
 
   const handleDeleteAttendance = useCallback(async () => {
     if (!assignment?.id) return;
@@ -357,8 +357,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       return;
     }
 
-    // eslint-disable-next-line no-restricted-globals
-    if (!confirm(`Are you sure you want to delete attendance for Session ${selectedSession} on ${selectedDate}?`)) {
+    if (!window.confirm(`Are you sure you want to delete attendance for Session ${selectedSession} on ${selectedDate}?`)) {
       return;
     }
 

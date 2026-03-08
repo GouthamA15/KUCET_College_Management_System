@@ -72,7 +72,7 @@ export default function InterestStatusList() {
           </table>
         </div>
       ) : (
-        <div className="text-center py-4 text-gray-500">You haven't expressed interest in any subjects yet.</div>
+        <div className="text-center py-4 text-gray-500">You haven&apos;t expressed interest in any subjects yet.</div>
       )}
     </div>
   );

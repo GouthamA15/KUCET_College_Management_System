@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 
 export default function MarksEntrySheet({ assignment, onBack }) {
@@ -15,7 +15,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   const scrollContainerRef = useRef(null);
   const rollHeaderRef = useRef(null);
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/clerk/faculty/marks?assignment_id=${assignment.id}`);
@@ -39,7 +39,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [assignment.id]);
 
   // Check if any marks exist to lock the format
   const hasExistingMarks = students.some(s => 
@@ -50,7 +50,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
 
   useEffect(() => {
     fetchStudents();
-  }, [assignment.id]);
+  }, [fetchStudents]);
 
   // Track viewport type for responsive sticky behavior
   useEffect(() => {

@@ -11,11 +11,13 @@ export function AcademicsProvider({ children, roll }) {
       const key = `academics_cache_${roll}`;
       const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
       if (raw) {
-        setCache(JSON.parse(raw));
+        // Defer setState to avoid synchronous setState inside effect
+        const parsed = JSON.parse(raw);
+        setTimeout(() => setCache(parsed), 0);
       }
     } catch (e) {
       // ignore parse errors
-      setCache(null);
+      setTimeout(() => setCache(null), 0);
     }
   }, [roll]);
 

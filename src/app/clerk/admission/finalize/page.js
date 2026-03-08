@@ -85,7 +85,7 @@ const FinalizeAdmissionPage = () => {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             <Header />
-            <Navbar role={"clerk"} />
+            <Navbar role={"clerkAdmission"} />
 
             <main className="flex-1 p-4 sm:p-6 lg:p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -123,7 +123,7 @@ const FinalizeAdmissionPage = () => {
                     <div className="text-center py-16 text-gray-500">
                         <div className="text-4xl mb-4">📂</div>
                         <p className="text-lg font-medium text-gray-900">No {selectedExam} drafts for {selectedBranch}</p>
-                        <p className="text-sm mt-1 max-w-xs mx-auto">Verify new applications in the "Admission Requests" module to see them here.</p>
+                        <p className="text-sm mt-1 max-w-xs mx-auto">Verify new applications in the &quot;Admission Requests&quot; module to see them here.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -132,7 +132,7 @@ const FinalizeAdmissionPage = () => {
                                 <tr>
                                     <th className="p-4 w-12">#</th>
                                     <th className="p-4">Student Name</th>
-                                    <th className="p-4">Father's Name</th>
+                                    <th className="p-4">Father&apos;s Name</th>
                                     <th className="p-4">Exam Rank</th>
                                     <th className="p-4 w-64">Assign Roll Number</th>
                                     <th className="p-4 text-right">Action</th>
