@@ -23,6 +23,21 @@ export default function YearRecordCard({
         <div>
           <h3 className="font-semibold">Year {index + 1}</h3>
           <div className="text-sm text-gray-500">{year}</div>
+          <div className="mt-2 text-sm text-gray-700">
+            <div>Application: <span className="font-medium">{summary?.application_no || '-'}</span></div>
+            {summary && (
+              <div className="mt-1 text-sm text-gray-600">
+                <div>Proceeding: <span className="font-medium">{(Array.isArray(summary?.scholarship_proceedings) && summary.scholarship_proceedings.length>0) ? summary.scholarship_proceedings[summary.scholarship_proceedings.length-1].proceeding_no : '-'}</span></div>
+                <div>Sanctioned: <span className="font-medium">{(Array.isArray(summary?.scholarship_proceedings) && summary.scholarship_proceedings.length>0) ? summary.scholarship_proceedings[summary.scholarship_proceedings.length-1].amount : '-'}</span></div>
+                <div>Sanction Date: <span className="font-medium">{summary?.scholarship_proceedings && summary.scholarship_proceedings.length>0 ? (summary.scholarship_proceedings[summary.scholarship_proceedings.length-1].date || '-') : '-'}</span></div>
+                <div>Student Paid: <span className="font-medium">{feeSummaryMerged?.student_paid ?? '-'}</span></div>
+                <div>Thumb Update: <span className="font-medium">{summary?.thumb_update_available ? 'Yes' : 'No'}</span></div>
+                {summary?.thumb_update_available && (
+                  <div>Thumb Status: <span className="font-medium">{summary?.thumb_status || 'Pending'}</span></div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <RecordStatusBadge state={recordState} />

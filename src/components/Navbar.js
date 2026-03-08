@@ -33,7 +33,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     clerk: [
       { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
       { label: 'DEPARTMENTS', route: '/clerk/departments' },
-      { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
+        { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
       { label: 'TIME TABLE', route: '/clerk/timetable' },
       { label: 'FACULTIES', route: '/clerk/faculties' },
       { label: 'MENU', children: [
@@ -43,6 +43,33 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         ]
       },
     ],
+      // Explicit menu for Admission clerks (keeps Academic Calendar)
+      clerkAdmission: [
+        { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
+        { label: 'DEPARTMENTS', route: '/clerk/departments' },
+        { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
+        { label: 'TIME TABLE', route: '/clerk/timetable' },
+        { label: 'FACULTIES', route: '/clerk/faculties' },
+        { label: 'MENU', children: [
+            { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
+            { label: 'Security & Privacy', route: '/clerk/settings/security' },
+            { label: 'Logout', action: 'logout' }
+          ]
+        },
+      ],
+      // Scholarship clerks: omit Academic Calendar
+      clerkScholarship: [
+        { label: 'DASHBOARD', route: '/clerk/scholarship/dashboard' },
+        { label: 'DEPARTMENTS', route: '/clerk/departments' },
+        { label: 'TIME TABLE', route: '/clerk/timetable' },
+        { label: 'FACULTIES', route: '/clerk/faculties' },
+        { label: 'MENU', children: [
+            { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
+            { label: 'Security & Privacy', route: '/clerk/settings/security' },
+            { label: 'Logout', action: 'logout' }
+          ]
+        },
+      ],
     faculty: [
       { label: 'DASHBOARD', route: '/clerk/faculty/dashboard' },
       { label: 'ATTENDANCE', route: '/clerk/faculty/attendance' },
@@ -73,10 +100,12 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
 
   // Role selection: prefer explicit `role` prop. Fall back to studentProfileMode for backward compatibility.
   let effectiveRole = role || (studentProfileMode ? 'student' : 'guest');
-  
-  // Normalize clerk sub-roles to use the standard 'clerk' menu if they don't have their own
-  if (effectiveRole === 'admission' || effectiveRole === 'scholarship') {
-    effectiveRole = 'clerk';
+
+  // Map specific clerk sub-roles to their distinct menu variants
+  if (effectiveRole === 'admission') {
+    effectiveRole = 'clerkAdmission';
+  } else if (effectiveRole === 'scholarship') {
+    effectiveRole = 'clerkScholarship';
   }
 
   const menuItems = menuConfig[effectiveRole] || menuConfig['guest'] || [

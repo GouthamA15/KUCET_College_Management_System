@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import AttendanceVerificationActivity from './AttendanceVerificationActivity';
 
 export default function ProfileActivityBar({ activity, student }) {
-  const { latestRequest, dismissCount, incrementVisit, dismiss, reset } = activity || {};
+  const { latestRequest, dismissCount, incrementVisit, dismiss, reset, scholarshipThumbUpdate } = activity || {};
   const [visible, setVisible] = useState(true);
   const processedRef = React.useRef(null);
   const isProd = typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : true;
@@ -124,6 +124,27 @@ export default function ProfileActivityBar({ activity, student }) {
             sessions={attendanceSessions}
             onSessionVerified={handleSessionVerified}
           />
+        )}
+
+        {scholarshipThumbUpdate?.active && (
+          <div className="border border-purple-200 bg-purple-50 text-purple-800 rounded-md p-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm">
+                <div className="font-semibold">🔔 Scholarship Thumb Verification Required</div>
+                <div className="text-sm mt-1">
+                  Your scholarship application requires a thumb verification. Application No: <span className="font-medium">{scholarshipThumbUpdate.application_no || 'N/A'}</span>
+                  {scholarshipThumbUpdate.academic_year ? (
+                    <span> — Academic Year: <span className="font-medium">{scholarshipThumbUpdate.academic_year}</span></span>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* <Link href="/student/profile" className="text-sm text-purple-700 hover:underline">
+                  View Details
+                </Link> */}
+              </div>
+            </div>
+          </div>
         )}
 
         {showLegacyWarning && (

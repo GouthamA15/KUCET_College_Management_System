@@ -51,7 +51,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
 
   const { cache, saveCache, isReload } = useAcademicsCache() || {};
 
-  const fetchAcademicInfo = async (forceRefresh = false) => {
+  const fetchAcademicInfo = React.useCallback(async (forceRefresh = false) => {
     setLoading(true);
     try {
       // If we have cached payload and caller doesn't force refresh and this was not a full page reload, use cache
@@ -78,7 +78,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [cache, saveCache, isReload]);
 
   const fetchHistory = async (subject) => {
     setHistorySubject(subject);
@@ -95,7 +95,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
     }
   };
 
-  useEffect(() => { fetchAcademicInfo(false); }, []);
+  useEffect(() => { fetchAcademicInfo(false); }, [fetchAcademicInfo]);
 
   // removed unused helpers: getPercentageColor, overallAttendance
   // resolve syllabus URL via helper that uses rollNumber utilities
