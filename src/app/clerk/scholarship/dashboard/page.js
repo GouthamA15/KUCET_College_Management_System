@@ -349,24 +349,7 @@ export default function ScholarshipDashboard() {
 
       await Promise.all(ops);
       toast.success('Record saved');
-      // If thumb was newly enabled, send email notification
-      try {
-        const currentThumb = !!thumbUpdateAvailable;
-        const prevThumb = !!(summariesByYear[modalYear]?.thumb_update_available);
-        if (currentThumb && !prevThumb) {
-          // Send email to student via existing endpoint
-          const subject = 'Scholarship Thumb Verification Required';
-          const html = `<p>Your scholarship application requires biometric verification.</p><p>Please visit the nearest Mee-Seva center.</p><p>Application Number: ${schAppNo}</p><p>Academic Year: ${modalYear}</p><p>KU College of Engineering & Technology<br/>Warangal</p>`;
-          await fetch('/api/send-student-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rollNo: student.roll_no, subject, html })
-          });
-        }
-      } catch (e) {
-        // don't block save if email fails
-        console.error('Failed to send thumb notification email', e);
-      }
+      // Email notification is handled server-side in the sanctions API to avoid duplicates.
       setModalOpen(false);
       await refetchYearSummary(student.roll_no, modalYear);
     } catch (err) {
