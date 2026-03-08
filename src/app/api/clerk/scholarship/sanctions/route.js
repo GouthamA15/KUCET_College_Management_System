@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { sendInstitutionalEmail } from '@/lib/email';
 
 const toNull = (v) => (v === undefined || v === '' ? null : v);
 
@@ -31,31 +32,82 @@ export async function POST(req) {
     const [student] = await query('SELECT id FROM students WHERE roll_no = ?', [roll_no]);
     if (!student) return apiError('Student not found', 404);
     // Fetch existing rows for student + academic_year
-    const existing = await query('SELECT id, application_no, proceeding_no FROM scholarship_sanctions WHERE student_id = ? AND academic_year = ?', [student.id, academic_year]);
+    const existing = await query('SELECT id, application_no, proceeding_no, thumb_update_available, thumb_status FROM scholarship_sanctions WHERE student_id = ? AND academic_year = ?', [student.id, academic_year]);
 
     // Determine operation: UPDATE existing row or INSERT new
     const providedProceeding = proceeding_no && String(proceeding_no).trim() !== '' ? String(proceeding_no).trim() : null;
     const providedApp = application_no && String(application_no).trim() !== '' ? String(application_no).trim() : null;
+    const providedThumbFlag = body.thumb_update_available ? 1 : 0;
+    const providedThumbStatus = body.thumb_status ? String(body.thumb_status) : null;
+
+    // Determine previous thumb state for this student+year (any existing row)
+    const prevThumb = existing.some(r => !!r.thumb_update_available);
 
     // If proceeding_no provided, try to update row with same proceeding; otherwise update base row with null proceeding; else insert
     let targetRow = null;
     if (providedProceeding) {
       targetRow = existing.find(r => String(r.proceeding_no || '') === providedProceeding) || null;
       if (targetRow) {
-        // Update existing row matching proceeding_no
-        await query('UPDATE scholarship_sanctions SET sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?) WHERE id = ?', [sanctioned_amount, sanction_date, providedApp, targetRow.id]);
+        // Update existing row matching proceeding_no (include thumb fields when provided)
+        await query('UPDATE scholarship_sanctions SET sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?), thumb_update_available = ?, thumb_status = COALESCE(?, thumb_status) WHERE id = ?', [sanctioned_amount, sanction_date, providedApp, providedThumbFlag, providedThumbStatus, targetRow.id]);
+        // Send email if thumb was newly enabled
+        if (!prevThumb && providedThumbFlag) {
+          try {
+            const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
+            const s = stu && stu[0];
+            if (s && s.email && s.is_email_verified) {
+              const subject = 'Scholarship Thumb Verification Required';
+              const html = `<p>Dear ${s.name || 'Student'},</p><p>Your scholarship application requires biometric (thumb) verification. Please visit your nearest Mee-Seva center to complete the verification process.</p><p>Application Number: ${providedApp || ''}</p><p>Academic Year: ${academic_year}</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
+              await sendInstitutionalEmail({ to: s.email, subject, title: subject, bodyHtml: html, infoRows: [{ label: 'Application Number', value: providedApp || '' }, { label: 'Academic Year', value: academic_year }] });
+            }
+          } catch (e) {
+            console.error('Failed to send thumb notification email (proceeding update):', e);
+          }
+        }
+
         return apiResponse({ id: targetRow.id, student_id: student.id, academic_year, application_no: providedApp ?? targetRow.application_no, proceeding_no: providedProceeding, sanctioned_amount, sanction_date });
       }
       // No row with proceeding; see if base row without proceeding exists
       const baseRow = existing.find(r => !r.proceeding_no) || null;
       if (baseRow) {
-        await query('UPDATE scholarship_sanctions SET proceeding_no = ?, sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?) WHERE id = ?', [providedProceeding, sanctioned_amount, sanction_date, providedApp, baseRow.id]);
+        await query('UPDATE scholarship_sanctions SET proceeding_no = ?, sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?), thumb_update_available = ?, thumb_status = COALESCE(?, thumb_status) WHERE id = ?', [providedProceeding, sanctioned_amount, sanction_date, providedApp, providedThumbFlag, providedThumbStatus, baseRow.id]);
+        if (!prevThumb && providedThumbFlag) {
+          try {
+            const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
+            const s = stu && stu[0];
+            if (s && s.email && s.is_email_verified) {
+              const subject = 'Scholarship Thumb Verification Required';
+              const html = `<p>Dear ${s.name || 'Student'},</p><p>Your scholarship application requires biometric (thumb) verification. Please visit your nearest Mee-Seva center to complete the verification process.</p><p>Application Number: ${providedApp || ''}</p><p>Academic Year: ${academic_year}</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
+              await sendInstitutionalEmail({ to: s.email, subject, title: subject, bodyHtml: html, infoRows: [{ label: 'Application Number', value: providedApp || '' }, { label: 'Academic Year', value: academic_year }] });
+            }
+          } catch (e) {
+            console.error('Failed to send thumb notification email (baseRow update):', e);
+          }
+        }
         return apiResponse({ id: baseRow.id, student_id: student.id, academic_year, application_no: providedApp ?? baseRow.application_no, proceeding_no: providedProceeding, sanctioned_amount, sanction_date });
       }
       // Insert new row with provided proceeding
       const insertSql = 'INSERT INTO scholarship_sanctions (student_id, academic_year, application_no, proceeding_no, sanctioned_amount, sanction_date) VALUES (?, ?, ?, ?, ?, ?)';
       const ins = await query(insertSql, [student.id, academic_year, providedApp, providedProceeding, sanctioned_amount, sanction_date]);
       const insertedId = ins?.insertId || ins?.[0]?.insertId || null;
+      // If newly inserted and thumb flag provided, update thumb fields and possibly send email
+      if (providedThumbFlag) {
+        try {
+          await query('UPDATE scholarship_sanctions SET thumb_update_available = ?, thumb_status = ? WHERE id = ?', [providedThumbFlag, providedThumbStatus, insertedId]);
+          if (!prevThumb && providedThumbFlag) {
+            const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
+            const s = stu && stu[0];
+            if (s && s.email && s.is_email_verified) {
+              const subject = 'Scholarship Thumb Verification Required';
+              const html = `<p>Dear ${s.name || 'Student'},</p><p>Your scholarship application requires biometric (thumb) verification. Please visit your nearest Mee-Seva center to complete the verification process.</p><p>Application Number: ${providedApp || ''}</p><p>Academic Year: ${academic_year}</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
+              await sendInstitutionalEmail({ to: s.email, subject, title: subject, bodyHtml: html, infoRows: [{ label: 'Application Number', value: providedApp || '' }, { label: 'Academic Year', value: academic_year }] });
+            }
+          }
+        } catch (e) {
+          console.error('Failed to send thumb notification email (insert):', e);
+        }
+      }
+
       return apiResponse({ id: insertedId, student_id: student.id, academic_year, application_no: providedApp, proceeding_no: providedProceeding, sanctioned_amount, sanction_date }, 201);
     }
 
