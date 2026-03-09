@@ -74,9 +74,15 @@ export default function AddEditRecordModal({
                   <div className="relative">
                     <input
                       value={formState.schAppNo || ''}
-                      onChange={(e) => setField('schAppNo', e.target.value)}
+                      onChange={(e) => {
+                        const raw = String(e.target.value || '');
+                        // Allow only digits and clamp to 12 characters
+                        const numeric = raw.replace(/\D/g, '').slice(0, 12);
+                        setField('schAppNo', numeric);
+                      }}
                       disabled={!formState.appEditing && hasExistingApp}
                       className={`mt-1 w-full px-3 py-2 text-sm border rounded-md ${(!formState.appEditing && hasExistingApp) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      maxLength={12}
                     />
                     {hasExistingApp && (
                       <div className="mt-1 text-xs text-amber-700">Existing Application Number found. Editing should be done with caution.</div>
@@ -93,6 +99,17 @@ export default function AddEditRecordModal({
                       </div>
                     )}
                   </div>
+                </div>
+                <div className="mt-3">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={!!formState.hardcopySubmitted}
+                      onChange={(e) => setField('hardcopySubmitted', e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Hard Copies Submitted</span>
+                  </label>
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600">Proceeding Number</label>

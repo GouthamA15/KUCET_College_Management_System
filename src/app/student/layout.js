@@ -1,9 +1,14 @@
-import { StudentProvider } from '@/context/StudentContext';
+'use client';
 
-export default async function StudentLayout({ children }) {
+import { StudentProvider } from '@/context/StudentContext';
+import { ProfileActivityProvider } from '@/context/ProfileActivityContext';
+
+export default function StudentLayout({ children }) {
   return (
     <StudentProvider>
-      {children}
+      <ProfileActivityProvider>
+        {children}
+      </ProfileActivityProvider>
     </StudentProvider>
   );
 }

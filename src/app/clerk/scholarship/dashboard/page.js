@@ -10,7 +10,11 @@ import CertificateDashboard from '@/components/clerk/certificates/CertificateDas
 import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
 import YearRecordsList from '@/components/clerk/scholarship/YearRecordsList';
 import AddEditRecordModal from '@/components/clerk/scholarship/AddEditRecordModal';
-import Image from 'next/image';
+import ScholarshipMetricsCards from '@/components/clerk/scholarship/ScholarshipMetricsCards';
+import ScholarshipSearchCard from '@/components/clerk/scholarship/ScholarshipSearchCard';
+import ScholarshipWindowCard from '@/components/clerk/scholarship/ScholarshipWindowCard';
+import ScholarshipToolsSection from '@/components/clerk/scholarship/ScholarshipToolsSection';
+import { useScholarshipDashboard } from '@/context/ScholarshipDashboardContext';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
@@ -18,19 +22,16 @@ import { formatDate } from '@/lib/date';
 
 export default function ScholarshipDashboard() {
   const { clerkData: clerk, loading: isClerkLoading } = useClerk();
-  const [roll, setRoll] = useState('');
-  const [searchMode, setSearchMode] = useState('roll'); // 'roll' or 'application'
-  const [applicationNoInput, setApplicationNoInput] = useState('');
-  const [rollError, setRollError] = useState('');
+  const { state, setField, resetStudent } = useScholarshipDashboard();
+  const { roll, searchMode, applicationNoInput, rollError, student, feeSummary, yearList, summariesByYear, expandedByYear } = state;
+  const setRoll = (v) => setField('roll', v);
+  const setSearchMode = (v) => setField('searchMode', v);
+  const setApplicationNoInput = (v) => setField('applicationNoInput', v);
+  const setRollError = (v) => setField('rollError', v);
   const MAX_ROLL = 10;
   const [loading, setLoading] = useState(false); // For fetching student data
-  const [student, setStudent] = useState(null);
-  const [feeSummary, setFeeSummary] = useState(null);
   const [scholarshipProceedings, setScholarshipProceedings] = useState([]);
   const [studentPayments, setStudentPayments] = useState([]);
-  const [yearList, setYearList] = useState([]);
-  const [summariesByYear, setSummariesByYear] = useState({});
-  const [expandedByYear, setExpandedByYear] = useState({});
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [view, setView] = useState('dashboard');
@@ -48,6 +49,7 @@ export default function ScholarshipDashboard() {
   const [appEditing, setAppEditing] = useState(false);
   const [thumbUpdateAvailable, setThumbUpdateAvailable] = useState(false);
   const [thumbStatus, setThumbStatus] = useState('Pending');
+  const [hardcopySubmitted, setHardcopySubmitted] = useState(false);
 
   // Helper to set form state from modal-like callers
   const setFormState = (k, v) => {
@@ -62,6 +64,7 @@ export default function ScholarshipDashboard() {
       appEditing: setAppEditing,
       thumbUpdateAvailable: setThumbUpdateAvailable,
       thumbStatus: setThumbStatus,
+      hardcopySubmitted: setHardcopySubmitted,
     };
     const fn = setters[k] || (() => {});
     fn(v);
@@ -88,14 +91,10 @@ export default function ScholarshipDashboard() {
     window.location.replace('/');
   };
 
-  const resetStudent = () => {
-    setStudent(null);
-    setFeeSummary(null);
+  const localResetStudent = () => {
+    resetStudent();
     setScholarshipProceedings([]);
     setStudentPayments([]);
-    setYearList([]);
-    setSummariesByYear({});
-    setExpandedByYear({});
   };
 
   const fetchStudent = async (e) => {
@@ -121,7 +120,7 @@ export default function ScholarshipDashboard() {
       if (!applicationNoInput) return;
     }
     setLoading(true);
-    resetStudent();
+    localResetStudent();
     const id = toast.loading('Fetching student...');
     try {
       let res, data, payload;
@@ -130,14 +129,14 @@ export default function ScholarshipDashboard() {
         data = await res.json();
         if (!res.ok) throw new Error((data && data.error) || 'Student not found');
         payload = (data && data.data) ? data.data : data;
-        setStudent(payload.student || null);
-        setFeeSummary(payload.fee_summary || null);
+        setField('student', payload.student || null);
+        setField('feeSummary', payload.fee_summary || null);
         setScholarshipProceedings(Array.isArray(payload.scholarship_proceedings) ? payload.scholarship_proceedings : []);
         setStudentPayments(Array.isArray(payload.student_payments) ? payload.student_payments : []);
 
         // Build 4-year list from admission academic year period (e.g., 2023-2027)
         const list = deriveYearsFromAdmission(String(payload?.student?.admission_year || ''));
-        setYearList(list);
+        setField('yearList', list);
         // Fetch summaries for each year in parallel; store by year
         const urls = list.map(y => `/api/clerk/scholarship/summary/${encodeURIComponent(roll)}?year=${encodeURIComponent(y)}`);
         const results = await Promise.allSettled(urls.map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null)));
@@ -147,27 +146,27 @@ export default function ScholarshipDashboard() {
           const raw = (res.status === 'fulfilled' ? res.value : null) || null;
           byYear[y] = raw && raw.data ? raw.data : raw;
         });
-        setSummariesByYear(byYear);
+        setField('summariesByYear', byYear);
         // Default collapsed view for all cards
-        setExpandedByYear(list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+        setField('expandedByYear', list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
       } else {
         // Application number search — expects { student, year_records }
         res = await fetch(`/api/clerk/scholarship/application/${encodeURIComponent(applicationNoInput)}`);
         data = await res.json();
         if (!res.ok) throw new Error((data && data.error) || 'Student not found');
         payload = (data && data.data) ? data.data : data;
-        setStudent(payload.student || null);
+        setField('student', payload.student || null);
         // If backend provided per-year records, use them directly
         if (payload.year_records && typeof payload.year_records === 'object') {
           const years = Object.keys(payload.year_records || {});
-          setYearList(years);
-          setSummariesByYear(payload.year_records);
-          setExpandedByYear(years.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+          setField('yearList', years);
+          setField('summariesByYear', payload.year_records);
+          setField('expandedByYear', years.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
         } else {
           // Fallback to derive from student
           const list = deriveYearsFromAdmission(String(payload?.student?.admission_year || ''));
-          setYearList(list);
-          setExpandedByYear(list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+          setField('yearList', list);
+          setField('expandedByYear', list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
         }
       }
 
@@ -266,6 +265,14 @@ export default function ScholarshipDashboard() {
       setFormState('thumbUpdateAvailable', false);
       setFormState('thumbStatus', 'Pending');
     }
+    // Hardcopy submission flag
+    try {
+      const summaryData = summariesByYear[year] || {};
+      const hardcopy = summaryData?.hardcopy_submitted === 1 || summaryData?.hardcopy_submitted === true;
+      setFormState('hardcopySubmitted', hardcopy);
+    } catch {
+      setFormState('hardcopySubmitted', false);
+    }
   }
 
   async function refetchYearSummary(rollNo, year) {
@@ -273,7 +280,10 @@ export default function ScholarshipDashboard() {
       const res = await fetch(`/api/clerk/scholarship/summary/${encodeURIComponent(rollNo)}?year=${encodeURIComponent(year)}`);
       const data = res.ok ? await res.json() : null;
       const payload = data && data.data ? data.data : data;
-      setSummariesByYear(prev => ({ ...prev, [year]: payload }));
+      setField('summariesByYear', {
+        ...summariesByYear,
+        [year]: payload,
+      });
     } catch {}
   }
 
@@ -297,7 +307,7 @@ export default function ScholarshipDashboard() {
             throw new Error('Proceeding Number is required to enter sanctioned amount');
           }
           const amt = hasAmount ? Number(schAmount) : null;
-          // include thumb fields only when explicitly enabled
+          // include thumb and hardcopy fields
           const sanctionBody = {
             roll_no: student.roll_no,
             academic_year: modalYear,
@@ -310,6 +320,8 @@ export default function ScholarshipDashboard() {
             sanctionBody.thumb_update_available = true;
             sanctionBody.thumb_status = thumbStatus || 'Pending';
           }
+          // always send hardcopy_submitted so backend can trigger/removes reminders correctly
+          sanctionBody.hardcopy_submitted = hardcopySubmitted ? 1 : 0;
           // remember previous thumb state for email trigger
           const prevThumb = !!(summariesByYear[modalYear]?.thumb_update_available);
           ops.push(fetch('/api/clerk/scholarship/sanctions', {
@@ -404,143 +416,119 @@ export default function ScholarshipDashboard() {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
       <Navbar role={'clerkScholarship'} onLogout={handleLogout} />
-      <main className="flex-1 p-4 md:p-8">
-        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Scholarship Clerk Dashboard</h1>
-        
-        {view === 'certificates' ? (
-          <div>
-            <button onClick={() => setView('dashboard')} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
-            <CertificateDashboard clerkType="scholarship" />
-          </div>
-        ) : (
-          <>
-            {/* Search Student Card (single column) */}
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <h3 className="font-semibold text-lg">Search Student</h3>
-                <p className="text-sm text-gray-600">Search by Roll Number or Scholarship Application Number</p>
-                <form onSubmit={fetchStudent} className="mt-3 space-y-3">
-                  <div className="flex items-center gap-4">
-                    <label className="inline-flex items-center text-sm">
-                      <input type="radio" name="searchMode" value="roll" checked={searchMode === 'roll'} onChange={() => setSearchMode('roll')} className="mr-2" />
-                      Roll Number
-                    </label>
-                    <label className="inline-flex items-center text-sm">
-                      <input type="radio" name="searchMode" value="application" checked={searchMode === 'application'} onChange={() => setSearchMode('application')} className="mr-2" />
-                      Application Number
-                    </label>
-                  </div>
-                  <div>
-                    {searchMode === 'roll' ? (
-                      <input
-                        value={roll}
-                        onChange={(e) => {
-                          const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                          setRoll(v);
-                          if (v.length > 0 && v.length === MAX_ROLL) {
-                            try {
-                              const { isValid } = validateRollNo(v);
-                              if (!isValid) setRollError('Invalid Roll Number format.');
-                              else setRollError('');
-                            } catch (err) {
-                              setRollError('Invalid Roll Number format.');
-                            }
-                          } else if (v.length > 0 && v.length !== MAX_ROLL) {
-                            setRollError(`Roll Number must be ${MAX_ROLL} characters long.`);
-                          } else {
-                            setRollError('');
-                          }
-                        }}
-                        placeholder="Enter Roll Number"
-                        className="w-full px-3 py-2 border rounded"
-                        maxLength={MAX_ROLL}
-                      />
-                    ) : (
-                      <input
-                        value={applicationNoInput}
-                        onChange={(e) => setApplicationNoInput(String(e.target.value || '').trim())}
-                        placeholder="Enter Scholarship Application Number"
-                        className="w-full px-3 py-2 border rounded"
-                      />
-                    )}
-                    {rollError && searchMode === 'roll' && <div className="text-red-600 text-sm mt-1">{rollError}</div>}
-                  </div>
-                  <div className="flex">
-                    <button type="submit" disabled={loading || (searchMode === 'roll' ? String(roll).length !== MAX_ROLL : !applicationNoInput)} className="px-4 py-2 bg-blue-700 text-white rounded disabled:opacity-60">{loading ? 'Fetching...' : 'Fetch Student'}</button>
-                  </div>
-                </form>
-              </div>
-               <div onClick={() => setView('certificates')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
-                <h3 className="font-semibold">Certificate Requests</h3>
-                <p className="text-sm text-gray-600">View and process student certificate requests.</p>
-              </div>
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
+          <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4">Scholarship Clerk Dashboard</h1>
+
+          {view === 'certificates' ? (
+            <div>
+              <button
+                onClick={() => setView('dashboard')}
+                className="text-sm text-indigo-600 mb-3"
+              >
+                 Back to Dashboard
+              </button>
+              <CertificateDashboard clerkType="scholarship" />
             </div>
+          ) : (
+            <>
+              {/* Metrics section */}
+              <ScholarshipMetricsCards />
 
-            {/* After fetch: Student Info + Summary */}
-            {student && (
-              <section className="space-y-6">
-                
-                {/* Student Info Card */}
-                <StudentInfoCard student={student} onImageClick={(src) => { setImagePreviewSrc(src); setImagePreviewOpen(true); }} />
-                {/* Year-wise cards (4 cards, independent) */}
-                <YearRecordsList
-                  yearList={yearList}
-                  summariesByYear={summariesByYear}
-                  expandedByYear={expandedByYear}
-                  onToggleExpand={(yy) => setExpandedByYear(prev => ({ ...prev, [yy]: !prev[yy] }))}
-                  onOpenModal={(yy) => openAddModal(yy)}
-                  computeRecordState={computeRecordState}
-                  feeSummary={feeSummary}
-                  student={student}
-                  toDmy={toDmy}
-                />
+              {/* Primary search action */}
+              <ScholarshipSearchCard
+                searchMode={searchMode}
+                setSearchMode={setSearchMode}
+                roll={roll}
+                setRoll={setRoll}
+                applicationNoInput={applicationNoInput}
+                setApplicationNoInput={setApplicationNoInput}
+                rollError={rollError}
+                setRollError={setRollError}
+                MAX_ROLL={MAX_ROLL}
+                loading={loading}
+                onSubmit={fetchStudent}
+              />
 
-                <AddEditRecordModal
-                  open={modalOpen}
-                  year={modalYear}
-                  student={student}
-                  summary={summariesByYear[modalYear] || null}
-                  formState={{
-                    schAppNo,
-                    schProceedingNo,
-                    schAmount,
-                    schDate,
-                    payAmount,
-                    payRef,
-                    payDate,
-                    appEditing,
-                    thumbUpdateAvailable,
-                    thumbStatus,
-                  }}
-                  setFormState={(k, v) => {
-                    const setters = {
-                      schAppNo: setSchAppNo,
-                      schProceedingNo: setSchProceedingNo,
-                      schAmount: setSchAmount,
-                      schDate: setSchDate,
-                      payAmount: setPayAmount,
-                      payRef: setPayRef,
-                      payDate: setPayDate,
-                      appEditing: setAppEditing,
-                      thumbUpdateAvailable: setThumbUpdateAvailable,
-                      thumbStatus: setThumbStatus,
-                    };
-                    (setters[k] || (() => {}))(v);
-                  }}
-                  saving={saving}
-                  onSave={handleSaveRecord}
-                  onClose={() => setModalOpen(false)}
-                  onDeletePayment={deletePayment}
-                  onDeleteScholarship={deleteScholarship}
-                  toDmy={toDmy}
-                />
-              </section>
-            )}
-          </>
-        )}
+              {/* Student details & year-wise records */}
+              {student && (
+                <section className="space-y-6 mt-4">
+                  <StudentInfoCard
+                    student={student}
+                    onImageClick={(src) => {
+                      setImagePreviewSrc(src);
+                      setImagePreviewOpen(true);
+                    }}
+                  />
 
+                  <YearRecordsList
+                    yearList={yearList}
+                    summariesByYear={summariesByYear}
+                    expandedByYear={expandedByYear}
+                    onToggleExpand={(yy) =>
+                      setExpandedByYear((prev) => ({ ...prev, [yy]: !prev[yy] }))
+                    }
+                    onOpenModal={(yy) => openAddModal(yy)}
+                    computeRecordState={computeRecordState}
+                    feeSummary={feeSummary}
+                    student={student}
+                    toDmy={toDmy}
+                  />
 
-        {/* UI is a pure renderer; edit modals removed per contract */}
+                  <AddEditRecordModal
+                    open={modalOpen}
+                    year={modalYear}
+                    student={student}
+                    summary={summariesByYear[modalYear] || null}
+                    formState={{
+                      schAppNo,
+                      schProceedingNo,
+                      schAmount,
+                      schDate,
+                      payAmount,
+                      payRef,
+                      payDate,
+                      appEditing,
+                      thumbUpdateAvailable,
+                      thumbStatus,
+                      hardcopySubmitted,
+                    }}
+                    setFormState={(k, v) => {
+                      const setters = {
+                        schAppNo: setSchAppNo,
+                        schProceedingNo: setSchProceedingNo,
+                        schAmount: setSchAmount,
+                        schDate: setSchDate,
+                        payAmount: setPayAmount,
+                        payRef: setPayRef,
+                        payDate: setPayDate,
+                        appEditing: setAppEditing,
+                        thumbUpdateAvailable: setThumbUpdateAvailable,
+                        thumbStatus: setThumbStatus,
+                        hardcopySubmitted: setHardcopySubmitted,
+                      };
+                      (setters[k] || (() => {}))(v);
+                    }}
+                    saving={saving}
+                    onSave={handleSaveRecord}
+                    onClose={() => setModalOpen(false)}
+                    onDeletePayment={deletePayment}
+                    onDeleteScholarship={deleteScholarship}
+                    toDmy={toDmy}
+                  />
+                </section>
+              )}
+
+              {/* Scholarship submission window management */}
+              <ScholarshipWindowCard />
+
+              {/* Secondary tools */}
+              <ScholarshipToolsSection
+                onOpenCertificates={() => setView('certificates')}
+              />
+            </>
+          )}
+        </div>
       </main>
       <Footer />
       <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />
