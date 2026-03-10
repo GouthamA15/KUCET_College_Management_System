@@ -36,22 +36,28 @@ export async function POST(req) {
       return apiError('Unauthorized', 401);
     }
 
-    const { 
+    let { 
       semester, section, day_of_week, period_number, 
       subject_code, faculty_id, academic_year, room_no 
     } = await req.json();
 
-    // Timetable Conflict Validation (Faculty overlap)
-    const conflict = await query(
-      `SELECT * FROM branch_timetable 
-       WHERE faculty_id = ? AND day_of_week = ? 
-       AND period_number = ? AND academic_year = ? 
-       AND NOT (branch = ? AND semester = ? AND section = ?)`,
-      [faculty_id, day_of_week, period_number, academic_year, user.branch, semester, section]
-    );
+    // Sanitize faculty_id: Convert empty string to null for DB integer column
+    const sanitizedFacultyId = (faculty_id === '' || !faculty_id) ? null : parseInt(faculty_id);
 
-    if (conflict && conflict.length > 0) {
-      return apiError(`Faculty conflict: This faculty is already assigned to ${conflict[0].branch} Sem ${conflict[0].semester} Sec ${conflict[0].section} at this time.`, 400);
+    // Timetable Conflict Validation (Faculty overlap)
+    // ONLY check if a faculty member is actually assigned
+    if (sanitizedFacultyId) {
+      const conflict = await query(
+        `SELECT * FROM branch_timetable 
+         WHERE faculty_id = ? AND day_of_week = ? 
+         AND period_number = ? AND academic_year = ? 
+         AND NOT (branch = ? AND semester = ? AND section = ?)`,
+        [sanitizedFacultyId, day_of_week, period_number, academic_year, user.branch, semester, section]
+      );
+
+      if (conflict && conflict.length > 0) {
+        return apiError(`Faculty conflict: This faculty is already assigned to ${conflict[0].branch} Sem ${conflict[0].semester} Sec ${conflict[0].section} at this time.`, 400);
+      }
     }
 
     await query(
@@ -62,7 +68,7 @@ export async function POST(req) {
        subject_code = VALUES(subject_code), 
        faculty_id = VALUES(faculty_id), 
        room_no = VALUES(room_no)`,
-      [user.branch, semester, section, day_of_week, period_number, subject_code, faculty_id, academic_year, room_no]
+      [user.branch, semester, section, day_of_week, period_number, subject_code, sanitizedFacultyId, academic_year, room_no]
     );
 
     return apiResponse({ success: true, message: 'Slot updated successfully' });

@@ -1,16 +1,28 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useClerk } from '@/context/ClerkContext';
 import { toast } from 'react-hot-toast';
 import SyllabusManager from './SyllabusManager';
+
+const INSTITUTIONAL_ACTIVITIES = [
+  { code: 'SPORTS', name: 'Sports & Athletics' },
+  { code: 'MINI_PROJECT', name: 'Mini Projects' },
+  { code: 'EXTRA_CURRICULAR', name: 'Extra Curricular Activities' },
+  { code: 'SEMINAR', name: 'Seminars / Workshops' },
+  { code: 'LIB', name: 'Library Period' }
+];
 
 export default function HODConsole() {
   const { clerkData, hodBranchData, refreshHOD, isLoadingHOD } = useClerk();
   const [activeSubTab, setActiveSubTab] = useState('workload');
   const [editingSlot, setEditingSlot] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const formRef = useRef(null);
   
+  // Local state for the selected subject in the modal to drive faculty highlighting
+  const [modalSelectedSubject, setModalSelectedSubject] = useState('');
+
   // Semester State for Timetable
   const [selectedSem, setSelectedSem] = useState(6);
   const [semesterTimetable, setSemesterTimetable] = useState([]);
@@ -39,10 +51,15 @@ export default function HODConsole() {
     }
   }, [selectedSem, activeSubTab, fetchSemesterTimetable]);
 
+  // Handle modal open
+  const openSlotEditor = (day, period, slot) => {
+    setEditingSlot({ day, period, current: slot });
+    setModalSelectedSubject(slot?.subject_code || '');
+  };
+
   const branchSubjects = useMemo(() => {
     const subjects = hodBranchData?.allSubjects || [];
     const seen = new Set();
-    // Only show subjects for the selected semester in the dropdown
     return subjects
       .filter(s => s.semester === selectedSem)
       .filter(s => {
@@ -52,7 +69,28 @@ export default function HODConsole() {
       });
   }, [hodBranchData?.allSubjects, selectedSem]);
 
-  const branchFaculty = hodBranchData?.faculty || [];
+  const collegeFaculty = hodBranchData?.faculty || [];
+  const officialAssignments = hodBranchData?.officialAssignments || [];
+  
+  const departmentalFaculty = useMemo(() => {
+    return collegeFaculty.filter(f => f.home_branch === clerkData.branch);
+  }, [collegeFaculty, clerkData.branch]);
+
+  const handleCopyPrevious = () => {
+    if (!editingSlot || editingSlot.period === 1) return;
+    const prevSlot = semesterTimetable.find(
+      s => s.day_of_week === editingSlot.day && s.period_number === editingSlot.period - 1
+    );
+    if (!prevSlot) return toast.error('No data found in the previous period to copy.');
+    if (formRef.current) {
+      const form = formRef.current;
+      form.subject_code.value = prevSlot.subject_code || '';
+      form.faculty_id.value = prevSlot.faculty_id || '';
+      form.room_no.value = prevSlot.room_no || '';
+      setModalSelectedSubject(prevSlot.subject_code || '');
+      toast.success('Details copied from previous period');
+    }
+  };
 
   const handleSaveSlot = async (e) => {
     e.preventDefault();
@@ -67,11 +105,7 @@ export default function HODConsole() {
       section: 'A',
       academic_year: '2025-26'
     };
-
-    if (!payload.subject_code || !payload.faculty_id) {
-      return toast.error('Please select both subject and faculty');
-    }
-
+    if (!payload.subject_code) return toast.error('Please select a subject or activity');
     setIsSaving(true);
     try {
       const res = await fetch('/api/clerk/hod/timetable', {
@@ -84,7 +118,7 @@ export default function HODConsole() {
         toast.success(`Timetable updated for Semester ${selectedSem}`);
         setEditingSlot(null);
         fetchSemesterTimetable(selectedSem);
-        refreshHOD(); // Update faculty workload too
+        refreshHOD();
       } else {
         toast.error(data.error || 'Failed to update');
       }
@@ -144,14 +178,14 @@ export default function HODConsole() {
       </div>
 
       <div className="p-6 min-h-[450px]">
-        {isLoadingHOD && !hodBranchData ? (
+        {!hodBranchData ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-gray-500 font-medium">Loading departmental records...</p>
+            <p className="text-gray-500 font-medium">Syncing departmental data...</p>
           </div>
         ) : (
           <>
-            {activeSubTab === 'workload' && <WorkloadView data={branchFaculty} />}
+            {activeSubTab === 'workload' && <WorkloadView data={departmentalFaculty} branch={clerkData.branch} />}
             {activeSubTab === 'timetable' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
@@ -174,11 +208,18 @@ export default function HODConsole() {
 
                 <TimetableManager 
                   data={semesterTimetable} 
-                  onEditSlot={(day, period, current) => setEditingSlot({ day, period, current })}
+                  onEditSlot={openSlotEditor}
                 />
               </div>
             )}
-            {activeSubTab === 'allocation' && <SubjectAllocation subjects={branchSubjects} faculty={branchFaculty} />}
+            {activeSubTab === 'allocation' && (
+              <SubjectAllocation 
+                subjects={hodBranchData.allSubjects} 
+                faculty={collegeFaculty} 
+                assignments={officialAssignments}
+                refresh={refreshHOD}
+              />
+            )}
             {activeSubTab === 'syllabus' && <SyllabusManager branch={clerkData.branch} />}
             {activeSubTab === 'config' && <BranchConfig config={hodBranchData?.config} branch={clerkData.branch} refresh={refreshHOD} />}
           </>
@@ -188,32 +229,71 @@ export default function HODConsole() {
       {/* Slot Editor Modal */}
       {editingSlot && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
-            <div className="bg-[#0b3578] p-6 text-white flex justify-between items-center">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 min-h-[600px] flex flex-col">
+            <div className="bg-[#0b3578] p-6 text-white flex justify-between items-center flex-shrink-0">
               <div>
                 <h3 className="font-black text-lg">Update Schedule</h3>
                 <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest">Semester {selectedSem} &bull; {editingSlot.day} &bull; Period {editingSlot.period}</p>
               </div>
               <button onClick={() => setEditingSlot(null)} className="p-2 hover:bg-white/20 rounded-full transition-colors">&times;</button>
             </div>
-            <form onSubmit={handleSaveSlot} className="p-8 space-y-5">
+            <form ref={formRef} onSubmit={handleSaveSlot} className="p-8 space-y-5 flex-1 overflow-y-auto pb-32">
+              {editingSlot.period > 1 && (
+                <button 
+                  type="button" 
+                  onClick={handleCopyPrevious}
+                  className="w-full py-2 bg-amber-50 text-amber-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-100 hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                  Duplicate Period {editingSlot.period - 1} details
+                </button>
+              )}
+
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Target Subject</label>
-                <select name="subject_code" defaultValue={editingSlot.current?.subject_code || ''} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500">
-                  <option value="">Select Subject (Sem {selectedSem})</option>
-                  {branchSubjects.map(s => (
-                    <option key={s.subject_code} value={s.subject_code}>{s.subject_code} - {s.subject_name}</option>
-                  ))}
+                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Target Subject / Activity</label>
+                <select 
+                  name="subject_code" 
+                  defaultValue={editingSlot.current?.subject_code || ''} 
+                  onChange={(e) => setModalSelectedSubject(e.target.value)}
+                  className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500"
+                >
+                  <optgroup label={`Core Syllabus Subjects (Sem ${selectedSem})`}>
+                    {branchSubjects.map(s => (
+                      <option key={s.subject_code} value={s.subject_code}>{s.subject_code} - {s.subject_name}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Institutional Activities">
+                    {INSTITUTIONAL_ACTIVITIES.map(a => (
+                      <option key={a.code} value={a.code}>{a.name}</option>
+                    ))}
+                  </optgroup>
                 </select>
-                {branchSubjects.length === 0 && <p className="text-[9px] text-orange-500 mt-1 font-bold">Note: No subjects registered for Sem {selectedSem} in Syllabus Manager.</p>}
               </div>
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Handling Faculty</label>
                 <select name="faculty_id" defaultValue={editingSlot.current?.faculty_id || ''} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500">
-                  <option value="">Select Faculty</option>
-                  {branchFaculty.map(f => (
-                    <option key={f.id} value={f.id}>{f.name}</option>
-                  ))}
+                  <option value="">No Faculty Assigned</option>
+                  
+                  {modalSelectedSubject && (
+                    <optgroup label="Officially Assigned Teachers">
+                      {collegeFaculty
+                        .filter(f => officialAssignments.some(oa => oa.faculty_id === f.id && oa.subject_code === modalSelectedSubject))
+                        .map(f => (
+                          <option key={`assigned-${f.id}`} value={f.id} className="font-bold text-blue-700 bg-blue-50">
+                            ⭐ {f.name} (Assigned to this Subject)
+                          </option>
+                        ))
+                      }
+                    </optgroup>
+                  )}
+
+                  <optgroup label="All Working Faculty">
+                    {collegeFaculty.map(f => (
+                      <option key={f.id} value={f.id}>
+                        {f.name} {f.home_branch ? `(${f.home_branch})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
               <div>
@@ -231,7 +311,7 @@ export default function HODConsole() {
   );
 }
 
-function WorkloadView({ data }) {
+function WorkloadView({ data, branch }) {
   return (
     <div className="animate-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-between items-center mb-8">
@@ -239,7 +319,7 @@ function WorkloadView({ data }) {
           <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-700">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
-          Branch Faculty Workload
+          {branch} Faculty Workload
         </h3>
         <span className="text-xs bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-bold uppercase tracking-widest">Live Tracking</span>
       </div>
@@ -285,7 +365,8 @@ function WorkloadView({ data }) {
         {data.length === 0 && (
           <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
             <div className="text-4xl mb-4">👨‍🏫</div>
-            <p className="text-gray-400 font-bold uppercase tracking-widest text-sm">No faculty data sync yet</p>
+            <p className="text-gray-400 font-bold uppercase tracking-widest text-sm mb-2">No faculty assigned to this branch</p>
+            <p className="text-[10px] text-gray-400 max-w-xs mx-auto font-medium">Please ensure faculty members are assigned to "{branch}" in the Admin Panel &gt; Manage Clerks section.</p>
           </div>
         )}
       </div>
@@ -337,16 +418,19 @@ function TimetableManager({ data, onEditSlot }) {
                 </td>
                 {periods.map(p => {
                   const slot = getSlot(day, p);
+                  const isActivity = slot && INSTITUTIONAL_ACTIVITIES.some(a => a.code === slot.subject_code);
                   return (
                     <td 
                       key={`${day}-${p}`} 
                       onClick={() => onEditSlot(day, p, slot)}
-                      className={`border-b border-gray-50 p-4 text-center transition-all cursor-pointer relative hover:bg-white hover:z-10 hover:shadow-2xl hover:scale-105 group/cell ${slot ? 'bg-white' : 'bg-gray-50/20'}`}
+                      className={`border-b border-gray-50 p-4 text-center transition-all cursor-pointer relative hover:bg-white hover:z-10 hover:shadow-2xl hover:scale-105 group/cell ${slot ? (isActivity ? 'bg-amber-50/30' : 'bg-white') : 'bg-gray-50/20'}`}
                     >
                       {slot ? (
                         <div className="animate-in fade-in zoom-in-95 duration-300">
-                          <div className="font-black text-blue-800 text-[12px] mb-1 line-clamp-1 uppercase tracking-tight">{slot.subject_code}</div>
-                          <div className="text-[10px] text-gray-500 font-bold mb-2 line-clamp-1">{slot.faculty_name}</div>
+                          <div className={`font-black text-[11px] mb-1 line-clamp-2 uppercase tracking-tight leading-tight ${isActivity ? 'text-amber-700' : 'text-blue-800'}`}>
+                            {isActivity ? INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code)?.name : (slot.subject_name || slot.subject_code)}
+                          </div>
+                          <div className="text-[10px] text-gray-500 font-bold mb-2 line-clamp-1">{slot.faculty_name || (isActivity ? 'N/A' : 'Unassigned')}</div>
                           <div className="flex items-center justify-center gap-1.5">
                             <span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-black uppercase tracking-tighter border border-gray-200">
                               {slot.room_no || 'N/A'}
@@ -389,48 +473,153 @@ function TimetableManager({ data, onEditSlot }) {
   );
 }
 
-function SubjectAllocation({ subjects, faculty }) {
+function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
+  const [selectedSub, setSelectedSub] = useState('');
+  const [selectedFac, setSelectedFac] = useState('');
+  const [selectedSem, setSelectedSem] = useState(6);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Group assignments by semester for the list
+  const filteredAssignments = assignments.filter(a => a.course_semester === selectedSem);
+
+  const handleAuthorize = async () => {
+    if (!selectedSub || !selectedFac) return toast.error('Please select both subject and faculty');
+    
+    const subjectObj = subjects.find(s => s.subject_code === selectedSub);
+    
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/clerk/hod/subject-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          faculty_id: selectedFac,
+          subject_code: selectedSub,
+          subject_name: subjectObj?.subject_name,
+          semester: selectedSem
+        })
+      });
+      if (res.ok) {
+        toast.success('Authorization complete');
+        refresh();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed');
+      }
+    } catch (e) {
+      toast.error('Network error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRevoke = async (id) => {
+    if (!confirm('Revoke this faculty authorization?')) return;
+    try {
+      const res = await fetch(`/api/clerk/hod/subject-assignments?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Authorization revoked');
+        refresh();
+      }
+    } catch (e) { toast.error('Failed'); }
+  };
+
   return (
     <div className="animate-in slide-in-from-right-4 duration-500">
       <h3 className="text-xl font-black text-gray-800 mb-6">Subject Assignment Ledger</h3>
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8 flex items-start gap-4">
-        <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl flex-shrink-0 shadow-lg shadow-blue-200">ℹ️</div>
-        <div>
-          <h4 className="font-black text-blue-900 mb-1">Subject Assignment vs Timetable</h4>
-          <p className="text-sm text-blue-800/70 font-medium leading-relaxed">
-            Assigning a subject here creates the legal link for a faculty member to mark attendance and internal marks. The Timetable editor then places these assignments into specific hour slots.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Simplified Allocation Form */}
-        <div className="bg-white border-2 border-gray-50 rounded-3xl p-6 shadow-sm">
-          <h4 className="font-black text-gray-700 mb-4 uppercase tracking-widest text-xs">New Assignment</h4>
-          <div className="space-y-4">
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Authorization Form */}
+        <div className="bg-white border-2 border-blue-50 rounded-3xl p-8 shadow-sm h-fit sticky top-6">
+          <h4 className="font-black text-gray-700 mb-6 uppercase tracking-widest text-[10px] flex items-center gap-2">
+            <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
+            New Faculty Authorization
+          </h4>
+          <div className="space-y-5">
              <div>
-               <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Course Subject</label>
-               <select className="w-full bg-gray-50 border-none rounded-xl p-3 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500 transition-all">
-                 <option>Select Subject</option>
-                 {subjects.map(s => <option key={s.subject_code}>{s.subject_code} - {s.subject_name}</option>)}
+               <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block px-1">Active Semester</label>
+               <select 
+                 value={selectedSem}
+                 onChange={(e) => setSelectedSem(parseInt(e.target.value))}
+                 className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500 transition-all"
+               >
+                 {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
                </select>
              </div>
              <div>
-               <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Handling Faculty</label>
-               <select className="w-full bg-gray-50 border-none rounded-xl p-3 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500 transition-all">
-                 <option>Select Faculty</option>
-                 {faculty.map(f => <option key={f.id}>{f.name}</option>)}
+               <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block px-1">Target Subject</label>
+               <select 
+                 value={selectedSub}
+                 onChange={(e) => setSelectedSub(e.target.value)}
+                 className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500 transition-all"
+               >
+                 <option value="">Select Subject</option>
+                 {subjects.filter(s => s.semester === selectedSem).map(s => (
+                   <option key={s.subject_code} value={s.subject_code}>{s.subject_code} - {s.subject_name}</option>
+                 ))}
                </select>
              </div>
-             <button className="w-full py-4 bg-[#0b3578] text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-900 transition-all shadow-lg shadow-blue-100">
-               Authorize Assignment
+             <div>
+               <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block px-1">Authorized Faculty</label>
+               <select 
+                 value={selectedFac}
+                 onChange={(e) => setSelectedFac(e.target.value)}
+                 className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500 transition-all"
+               >
+                 <option value="">Select Faculty</option>
+                 {faculty.map(f => (
+                   <option key={f.id} value={f.id}>{f.name} {f.home_branch ? `(${f.home_branch})` : ''}</option>
+                 ))}
+               </select>
+             </div>
+             <button 
+               onClick={handleAuthorize}
+               disabled={isSaving}
+               className="w-full py-5 bg-[#0b3578] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-900 transition-all shadow-xl shadow-blue-100 disabled:opacity-50 mt-4"
+             >
+               {isSaving ? 'Authorizing...' : 'Authorize Access'}
              </button>
           </div>
         </div>
 
-        <div className="bg-gray-50 rounded-3xl p-6 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 opacity-50">
-           <div className="text-4xl mb-4">📂</div>
-           <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">No recent assignments found</p>
+        {/* Existing Assignments List */}
+        <div className="lg:col-span-2 space-y-6">
+           <div className="flex justify-between items-center px-2">
+              <h4 className="font-black text-gray-800 uppercase tracking-tight text-sm">Active Authorizations (Sem {selectedSem})</h4>
+              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{filteredAssignments.length} Records</span>
+           </div>
+
+           <div className="grid grid-cols-1 gap-4">
+              {filteredAssignments.map(a => (
+                <div key={a.id} className="bg-white border border-gray-100 rounded-3xl p-6 flex justify-between items-center group hover:border-blue-200 transition-all shadow-sm">
+                   <div className="flex items-center gap-5">
+                      <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:bg-blue-50 transition-colors">🎓</div>
+                      <div>
+                         <h5 className="font-black text-gray-800 tracking-tight leading-tight mb-1">{a.subject_name}</h5>
+                         <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-tighter">{a.subject_code}</span>
+                            <span className="text-[10px] font-bold text-gray-400">Assigned to: <span className="text-gray-600 uppercase">{a.faculty_name}</span></span>
+                         </div>
+                      </div>
+                   </div>
+                   <button 
+                     onClick={() => handleRevoke(a.id)}
+                     className="p-3 bg-red-50 text-red-400 hover:bg-red-600 hover:text-white rounded-2xl transition-all opacity-0 group-hover:opacity-100"
+                     title="Revoke Authorization"
+                   >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                   </button>
+                </div>
+              ))}
+
+              {filteredAssignments.length === 0 && (
+                <div className="bg-gray-50/50 border-2 border-dashed border-gray-100 rounded-3xl py-20 flex flex-col items-center justify-center text-center px-10">
+                   <div className="text-4xl mb-4">🔐</div>
+                   <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">No faculty authorized for Semester {selectedSem} yet.</p>
+                   <p className="text-[9px] text-gray-300 mt-2 max-w-xs">Authorized faculty will be able to mark attendance and internal marks for their respective subjects.</p>
+                </div>
+              )}
+           </div>
         </div>
       </div>
     </div>

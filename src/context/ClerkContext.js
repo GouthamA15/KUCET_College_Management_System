@@ -67,23 +67,26 @@ export function ClerkProvider({ children }) {
   const fetchHODData = useCallback(async () => {
     setIsLoadingHOD(true);
     try {
-      const [configRes, facultyRes, ttRes, subjectsRes] = await Promise.all([
+      const [configRes, facultyRes, ttRes, subjectsRes, assignmentsRes] = await Promise.all([
         fetch('/api/clerk/hod/branch-config'),
         fetch('/api/clerk/hod/faculty-load'),
         fetch('/api/clerk/hod/timetable'),
-        fetch('/api/clerk/hod/branch-subjects')
+        fetch('/api/clerk/hod/branch-subjects'),
+        fetch('/api/clerk/hod/subject-assignments')
       ]);
       const configJson = await configRes.json();
       const facultyJson = await facultyRes.json();
       const ttJson = await ttRes.json();
       const subjectsJson = await subjectsRes.json();
+      const assignmentsJson = await assignmentsRes.json();
       
-      if (configRes.ok && facultyRes.ok && ttRes.ok && subjectsRes.ok) {
+      if (configRes.ok && facultyRes.ok && ttRes.ok && subjectsRes.ok && assignmentsRes.ok) {
         setHodBranchData({
           config: configJson.data,
           faculty: facultyJson.data,
           timetable: ttJson.data,
-          allSubjects: subjectsJson.data
+          allSubjects: subjectsJson.data,
+          officialAssignments: assignmentsJson.data
         });
       }
     } catch (e) {
