@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { getNowSync } from '@/lib/clock';

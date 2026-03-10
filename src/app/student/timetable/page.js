@@ -3,9 +3,7 @@
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-// No client-side routing for auth; server handles redirects
-
-import ComingSoon from '@/components/ComingSoon';
+import ClassTimetable from '@/components/student/ClassTimetable';
 
 export default function TimetablePage() {
 
@@ -22,8 +20,8 @@ export default function TimetablePage() {
         }}
       />
       
-      <main className="flex-1 flex items-center justify-center p-6">
-        <ComingSoon title="Time Table" icon="📅" description="Your class schedule is not yet available. Please check back later." />
+      <main className="flex-1 max-w-7xl mx-auto w-full p-6">
+        <ClassTimetable />
       </main>
 
       <Footer />
