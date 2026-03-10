@@ -37,7 +37,14 @@ export async function POST(request) {
     const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 60 * 60;
 
     // Include clerk DB id in JWT payload so downstream handlers can audit actions
-    const token = await new SignJWT({ id: clerk.id, clerkId: clerk.id, email: clerk.email, role: clerk.role })
+    const token = await new SignJWT({ 
+      id: clerk.id, 
+      clerkId: clerk.id, 
+      email: clerk.email, 
+      role: clerk.role,
+      is_hod: !!clerk.is_hod,
+      branch: clerk.branch 
+    })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime(sessionDuration)

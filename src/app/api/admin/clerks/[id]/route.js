@@ -34,11 +34,11 @@ export async function PUT(req, context) {
   try {
     const params = await context.params;
     const { id } = params;
-    const { name, email, employee_id, role, is_active } = await req.json();
+    const { name, email, employee_id, role, is_hod, branch, is_active } = await req.json();
 
     const result = await query(
-      'UPDATE clerks SET name = ?, email = ?, employee_id = ?, role = ?, is_active = ? WHERE id = ?',
-      [name, email, employee_id, role, is_active, id]
+      'UPDATE clerks SET name = ?, email = ?, employee_id = ?, role = ?, is_hod = ?, branch = ?, is_active = ? WHERE id = ?',
+      [name, email, employee_id, role, is_hod, branch, is_active, id]
     );
 
     if (result.affectedRows === 0) {

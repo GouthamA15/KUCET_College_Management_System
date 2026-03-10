@@ -14,6 +14,8 @@ export function ClerkProvider({ children }) {
   const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
   const [pendingProfileRequests, setPendingProfileRequests] = useState([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [hodBranchData, setHodBranchData] = useState(null);
+  const [isLoadingHOD, setIsLoadingHOD] = useState(false);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -32,8 +34,8 @@ export function ClerkProvider({ children }) {
       const res = await fetch('/api/clerk/me');
       const data = await res.json();
       if (res.ok) {
-        setClerkData(data.data); // Correctly access the nested data
-        return data.data; // Return the nested data object
+        setClerkData(data.data);
+        return data.data;
       } else {
         setError(data.error || 'Failed to fetch clerk data');
       }
@@ -62,6 +64,35 @@ export function ClerkProvider({ children }) {
     }
   }, []);
 
+  const fetchHODData = useCallback(async () => {
+    setIsLoadingHOD(true);
+    try {
+      const [configRes, facultyRes, ttRes, subjectsRes] = await Promise.all([
+        fetch('/api/clerk/hod/branch-config'),
+        fetch('/api/clerk/hod/faculty-load'),
+        fetch('/api/clerk/hod/timetable'),
+        fetch('/api/clerk/hod/branch-subjects')
+      ]);
+      const configJson = await configRes.json();
+      const facultyJson = await facultyRes.json();
+      const ttJson = await ttRes.json();
+      const subjectsJson = await subjectsRes.json();
+      
+      if (configRes.ok && facultyRes.ok && ttRes.ok && subjectsRes.ok) {
+        setHodBranchData({
+          config: configJson.data,
+          faculty: facultyJson.data,
+          timetable: ttJson.data,
+          allSubjects: subjectsJson.data
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch HOD data', e);
+    } finally {
+      setIsLoadingHOD(false);
+    }
+  }, []);
+
   const fetchPendingProfileRequests = useCallback(async () => {
     setIsLoadingRequests(true);
     try {
@@ -84,6 +115,9 @@ export function ClerkProvider({ children }) {
       const promises = [fetchCollegeInfo()];
       if (clerk?.role === 'faculty') {
         promises.push(fetchFacultyData());
+        if (clerk?.is_hod) {
+          promises.push(fetchHODData());
+        }
       }
       if (clerk?.role === 'admission') {
         promises.push(fetchPendingProfileRequests());
@@ -92,7 +126,7 @@ export function ClerkProvider({ children }) {
       setLoading(false);
     };
     init();
-  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests]);
+  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests, fetchHODData]);
 
   return (
     <ClerkContext.Provider value={{ 
@@ -108,7 +142,10 @@ export function ClerkProvider({ children }) {
       refreshFaculty: fetchFacultyData,
       pendingProfileRequests,
       isLoadingRequests,
-      refreshProfileRequests: fetchPendingProfileRequests
+      refreshProfileRequests: fetchPendingProfileRequests,
+      hodBranchData,
+      isLoadingHOD,
+      refreshHOD: fetchHODData
     }}>
       {children}
     </ClerkContext.Provider>

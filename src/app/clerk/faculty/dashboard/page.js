@@ -10,6 +10,7 @@ import AssignedSubjectsList from '@/components/clerk/faculty/AssignedSubjectsLis
 import SubjectInterestForm from '@/components/clerk/faculty/SubjectInterestForm';
 import InterestStatusList from '@/components/clerk/faculty/InterestStatusList';
 import ClassList from '@/components/clerk/faculty/ClassList';
+import HODConsole from '@/components/clerk/faculty/HODConsole';
 
 export default function FacultyDashboardOverview() {
   const router = useRouter();
@@ -73,8 +74,15 @@ export default function FacultyDashboardOverview() {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
       <Navbar role="faculty" />
-      <main className="flex-1 max-w-[1200px] mx-auto w-full px-6 mt-6">
+      <main className="flex-1 max-w-[1200px] mx-auto w-full px-6 mt-6 pb-12">
         <h1 className="text-2xl font-semibold text-gray-900 mb-6">Faculty Dashboard</h1>
+        
+        {clerk?.is_hod && !activeSection && (
+          <div className="mb-10">
+            <HODConsole />
+          </div>
+        )}
+
         {/* If no active section, show the cards grid immediately (no header/hero) */}
         {!activeSection && (
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6">

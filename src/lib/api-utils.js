@@ -55,8 +55,8 @@ export async function getAuthUser(role = null) {
         if (!isStudent) return null;
       } else if (expectedRole === 'clerk') {
         if (!isClerk) return null;
-      } else if (actualRole !== expectedRole) {
-        return null;
+      } else {
+        if (actualRole !== expectedRole) return null;
       }
     }
 

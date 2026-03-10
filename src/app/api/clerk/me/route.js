@@ -9,7 +9,7 @@ export async function GET(req) {
   }
 
   try {
-    const rows = await query('SELECT id, name, email, role, employee_id FROM clerks WHERE id = ?', [user.clerkId]);
+    const rows = await query('SELECT id, name, email, role, employee_id, is_hod, branch FROM clerks WHERE id = ?', [user.clerkId]);
     if (rows.length === 0) {
       return apiError('Clerk not found', 404);
     }

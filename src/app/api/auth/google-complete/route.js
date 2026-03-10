@@ -25,6 +25,8 @@ async function buildClerkAuthToken(clerk) {
     clerkId: clerk.id,
     email: clerk.email,
     role: clerk.role,
+    is_hod: !!clerk.is_hod,
+    branch: clerk.branch,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -51,7 +53,7 @@ export async function GET(request) {
   }
 
   const rows = await query(
-    'SELECT id, email, role, is_active FROM clerks WHERE email = ?',
+    'SELECT id, email, role, is_active, is_hod, branch FROM clerks WHERE email = ?',
     [session.user.email]
   );
 

@@ -77,9 +77,17 @@ export async function GET(request) {
 
     const [students] = await db.execute(studentsQuery, params);
 
+    // Fetch HOD recommendation for this branch and semester
+    const [branchConfig] = await db.execute(
+      'SELECT mid_max FROM branch_config WHERE branch = ? AND academic_year = ? AND semester = ?',
+      [branch, academic_year, course_semester]
+    );
+    const recommendedMidMax = branchConfig[0]?.mid_max || null;
+
     return apiResponse({ 
       data: students, 
       mid_max: midMax, 
+      recommended_mid_max: recommendedMidMax,
       subject_type: isLab ? 'lab' : 'theory',
       canonical_id: canonicalId 
     });

@@ -48,7 +48,9 @@ export async function POST(request) {
       id: clerk.id, 
       clerkId: clerk.id, 
       email: clerk.email, 
-      role: clerk.role 
+      role: clerk.role,
+      is_hod: !!clerk.is_hod,
+      branch: clerk.branch
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
