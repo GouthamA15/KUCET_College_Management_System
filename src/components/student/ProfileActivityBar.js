@@ -131,6 +131,8 @@ export default function ProfileActivityBar({ activity, student }) {
     return String(dateStr);
   };
 
+  const isScholarshipEligible = student?.fee_reimbursement === 'YES';
+
   const showRequestBar =
     !!latestRequest &&
     visible &&
@@ -138,10 +140,10 @@ export default function ProfileActivityBar({ activity, student }) {
 
   const showLegacyWarning = !latestRequest && !!student && (!student.email || !student.is_email_verified || !student.password_hash);
 
-  const showScholarshipThumb = !!scholarshipThumbUpdate?.active;
-  const showScholarshipHardcopy = !!scholarshipHardcopyPending?.active;
-  const showScholarshipApplicationReceived = !!scholarshipApplicationReceived?.active;
-  const showScholarshipApplicationsOpen = !!scholarshipApplicationsOpen?.active;
+  const showScholarshipThumb = isScholarshipEligible && !!scholarshipThumbUpdate?.active;
+  const showScholarshipHardcopy = isScholarshipEligible && !!scholarshipHardcopyPending?.active;
+  const showScholarshipApplicationReceived = isScholarshipEligible && !!scholarshipApplicationReceived?.active;
+  const showScholarshipApplicationsOpen = isScholarshipEligible && !!scholarshipApplicationsOpen?.active;
 
   if (
     !hasAttendanceSessions &&
