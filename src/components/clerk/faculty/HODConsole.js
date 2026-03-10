@@ -32,7 +32,7 @@ export default function HODConsole() {
   const fetchSemesterTimetable = useCallback(async (sem) => {
     setIsLoadingTimetable(true);
     try {
-      const res = await fetch(`/api/clerk/hod/timetable?semester=${sem}&section=A`);
+      const res = await fetch(`/api/clerk/hod/timetable?semester=${sem}`);
       const data = await res.json();
       if (res.ok) {
         setSemesterTimetable(data.data || []);
@@ -104,7 +104,6 @@ export default function HODConsole() {
       faculty_id: formData.get('faculty_id'),
       room_no: formData.get('room_no'),
       semester: selectedSem,
-      section: 'A',
       academic_year: activeAY
     };
     if (!payload.subject_code) return toast.error('Please select a subject or activity');
@@ -428,7 +427,7 @@ function TimetableManager({ data, onEditSlot }) {
                       className={`border-b border-gray-50 p-4 text-center transition-all cursor-pointer relative hover:bg-white hover:z-10 hover:shadow-2xl hover:scale-105 group/cell ${slot ? (isActivity ? 'bg-amber-50/30' : 'bg-white') : 'bg-gray-50/20'}`}
                     >
                       {slot ? (
-                        <div className="animate-in fade-in zoom-in-95 duration-300">
+                        <div className="animate-in zoom-in-95 duration-300">
                           <div className={`font-black text-[11px] mb-1 line-clamp-2 uppercase tracking-tight leading-tight ${isActivity ? 'text-amber-700' : 'text-blue-800'}`}>
                             {isActivity ? INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code)?.name : (slot.subject_name || slot.subject_code)}
                           </div>
@@ -481,14 +480,11 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
   const [selectedSem, setSelectedSem] = useState(6);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Group assignments by semester for the list
   const filteredAssignments = assignments.filter(a => a.course_semester === selectedSem);
 
   const handleAuthorize = async () => {
     if (!selectedSub || !selectedFac) return toast.error('Please select both subject and faculty');
-    
     const subjectObj = subjects.find(s => s.subject_code === selectedSub);
-    
     setIsSaving(true);
     try {
       const res = await fetch('/api/clerk/hod/subject-assignments', {

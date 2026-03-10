@@ -12,6 +12,7 @@ import InterestStatusList from '@/components/clerk/faculty/InterestStatusList';
 import ClassList from '@/components/clerk/faculty/ClassList';
 import HODConsole from '@/components/clerk/faculty/HODConsole';
 import PersonalSchedule from '@/components/clerk/faculty/PersonalSchedule';
+import FacultyActivityBar from '@/components/clerk/faculty/FacultyActivityBar';
 import { useClerk } from '@/context/ClerkContext';
 import { FacultyAttendanceProvider } from '@/context/FacultyAttendanceContext';
 
@@ -76,6 +77,7 @@ export default function FacultyDashboardOverview() {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
       <Navbar role="faculty" />
+      <FacultyActivityBar />
       <main className="flex-1 max-w-[1200px] mx-auto w-full px-6 mt-6 pb-12">
         <h1 className="text-2xl font-black text-gray-900 mb-6 uppercase tracking-tight">Faculty Dashboard</h1>
         
