@@ -117,6 +117,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Timetable Matrix:** Semester-aware grid (S1-S8) with "Duplicate Previous" productivity tools.
 - **Workload Tracker:** Visual bar charts comparing faculty teaching intensity institution-wide.
 - **Syllabus Manager:** Recursive full-CRUD tool for subjects and units with safe JSON parsing.
+- **Branch Analytics:** Condonation risk detection (75% threshold) with student-specific risk metrics.
 
 ### **B. Proxy-Free Attendance System**
 - **Architecture:** GPS-based verification within 50m radius and secure 4-digit PINs.
@@ -138,6 +139,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Live Activity Tracking:** Developed "Pulse" bars for students and faculty detecting ongoing lectures.
 - **Load Testing:** Created k6 suite simulating 500 concurrent students marking attendance.
 - **Error Monitoring:** Integrated Sentry across all runtimes (Client, Server, Edge).
+- **Database Resilience:** Implemented `ECONNRESET` retry logic and keep-alive heartbeats in `src/lib/db.js`.
 - **Security Hardening:** Enforced `secure: true` and `sameSite: 'lax'` on all production cookies.
 
 ### **Session 30: Production Performance (March 10, 2026)**
@@ -145,6 +147,8 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **Session 29: HOD Role & Multi-Semester Management (March 10, 2026)**
 - **HOD Integration:** Developed departmental control layer with multi-semester timetable matrix.
+- **Attendance Alerts:** Launched "Condonation Risk" dashboard tracking 75% attendance threshold.
+- **Faculty Pulse:** Upgraded workload tracker with "Conducted vs Scheduled" efficiency metrics.
 - **Smart Scheduling:** Timetable editor highlights "Officially Assigned Teachers" for subjects.
 - **Data Resilience:** Fixed JSON parsing crashes in Syllabus Manager using `safeParse`.
 
