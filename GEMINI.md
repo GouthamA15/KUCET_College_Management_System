@@ -376,7 +376,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Faculty Load & Metrics:**
     - Created a real-time Faculty Workload Tracker visualizing weekly teaching hours and intensity.
     - Integrated "Department Recommendations" into the Marks Entry portal, highlighting the HOD's chosen marks pattern (20+10 vs 25+5).
-    ### **Session 29: HOD Role & Multi-Semester Management (Latest - March 10, 2026)**
+    ### **Session 30: Production Hardening & Optimization (Latest - March 10, 2026)**
+- **Database Performance:** Implemented composite indexes across core tables (`branch_timetable`, `student_attendance`, `scholarship_sanctions`) to ensure sub-100ms dashboard load times during high traffic.
+- **Security Hardening:** 
+    - Enforced `secure: true` across all authentication and role-tracking cookies to mandate HTTPS transmission.
+    - Implemented `sameSite: 'lax'` on all cookies to mitigate CSRF (Cross-Site Request Forgery) risks.
+    - Standardized JWT rotation guidance for production environments.
+- **Scalability:** Optimized HOD and Student APIs to utilize these indexes for localized filtering by branch, semester, and academic year.
+
+### **Session 29: HOD Role & Multi-Semester Management (March 10, 2026)**
 - **Head of Department (HOD) Integration:**
     - Developed a comprehensive departmental management layer for Faculty users.
     - Updated `clerks` table and Admin UI to support HOD promotion and branch assignment.

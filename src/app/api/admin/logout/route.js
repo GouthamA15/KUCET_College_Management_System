@@ -7,13 +7,15 @@ export async function POST() {
     // Clear admin cookies by setting them to expire immediately
     response.cookies.set('admin_auth', '', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
+      sameSite: 'lax',
       expires: new Date(0), // Expire immediately
       path: '/',
     });
     response.cookies.set('admin_logged_in', '', {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
+      sameSite: 'lax',
       expires: new Date(0), // Expire immediately
       path: '/',
     });

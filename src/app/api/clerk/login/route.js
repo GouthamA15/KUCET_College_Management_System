@@ -58,20 +58,23 @@ export async function POST(request) {
 
     response.cookies.set('clerk_auth', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
+      sameSite: 'lax',
       maxAge: cookieMaxAge,
       path: '/',
     });
     response.cookies.set('clerk_logged_in', 'true', {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
+      sameSite: 'lax',
       maxAge: cookieMaxAge,
       path: '/',
     });
     // Expose the clerk role in a non-httpOnly cookie so client-side code can route appropriately
     response.cookies.set('clerk_role', clerk.role || '', {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
+      sameSite: 'lax',
       maxAge: cookieMaxAge,
       path: '/',
     });

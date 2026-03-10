@@ -70,19 +70,22 @@ export async function POST(request) {
     // Set Clerk Auth Cookies
     response.cookies.set('clerk_auth', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
+      sameSite: 'lax',
       maxAge: cookieMaxAge,
       path: '/',
     });
     response.cookies.set('clerk_logged_in', 'true', {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
+      sameSite: 'lax',
       maxAge: cookieMaxAge,
       path: '/',
     });
     response.cookies.set('clerk_role', clerk.role || '', {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
+      sameSite: 'lax',
       maxAge: cookieMaxAge,
       path: '/',
     });

@@ -81,7 +81,8 @@ export async function POST(req) {
 
     response.cookies.set('student_auth', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
+        sameSite: 'lax',
         maxAge: cookieMaxAge,
         path: '/',
     });
