@@ -3,6 +3,14 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 
+const INSTITUTIONAL_ACTIVITIES = [
+  { code: 'SPORTS', name: 'Sports & Athletics' },
+  { code: 'MINI_PROJECT', name: 'Mini Projects' },
+  { code: 'EXTRA_CURRICULAR', name: 'Extra Curricular Activities' },
+  { code: 'SEMINAR', name: 'Seminars / Workshops' },
+  { code: 'LIB', name: 'Library Period' }
+];
+
 export default function ClassTimetable() {
   const [schedule, setSchedule] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -61,7 +69,7 @@ export default function ClassTimetable() {
           </div>
           <h2 className="text-2xl font-black tracking-tight">Departmental Class Timetable</h2>
           <p className="text-indigo-200/70 text-[10px] font-bold uppercase tracking-widest mt-1">
-            {meta?.branch} &bull; Semester {meta?.semester} &bull; Section {meta?.section}
+            {meta?.branch} &bull; Semester {meta?.semester}
           </p>
         </div>
         <div className="text-right">
@@ -99,13 +107,15 @@ export default function ClassTimetable() {
                 <td className="p-4 border border-gray-100 bg-gray-50 font-black text-gray-700 text-center text-xs group-hover:bg-indigo-50 transition-colors">{day}</td>
                 {periods.map(p => {
                   const slot = getSlot(day, p);
-                  const isInstitutional = slot && !slot.faculty_name && !slot.subject_code.includes('PC'); 
+                  const activity = slot ? INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code) : null;
+                  const isInstitutional = !!activity;
+                  
                   return (
-                    <td key={`${day}-${p}`} className={`p-4 border border-gray-50 text-center transition-all ${slot ? 'bg-white' : 'bg-gray-50/20'}`}>
+                    <td key={`${day}-${p}`} className={`p-4 border border-gray-50 text-center transition-all ${slot ? (isInstitutional ? 'bg-amber-50/20' : 'bg-white') : 'bg-gray-50/20'}`}>
                       {slot ? (
                         <div className="animate-in zoom-in-95 duration-300">
-                          <div className={`font-black text-[11px] leading-tight mb-1 line-clamp-2 uppercase ${isInstitutional ? 'text-amber-600' : 'text-indigo-900'}`}>
-                            {slot.subject_name || slot.subject_code}
+                          <div className={`font-black text-[11px] leading-tight mb-1 line-clamp-2 uppercase ${isInstitutional ? 'text-amber-700 font-black' : 'text-indigo-900'}`}>
+                            {activity ? activity.name : (slot.display_name || slot.subject_code)}
                           </div>
                           <div className="flex flex-col gap-1">
                              {slot.faculty_name && (

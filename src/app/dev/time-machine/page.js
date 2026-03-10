@@ -5,22 +5,45 @@ import toast from 'react-hot-toast';
 
 export default function TimeMachine() {
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
-  const [mockDate, setMockDate] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    if (!isTesting) return '';
-    const match = document.cookie.match(/dev_mock_date=([^;]+)/);
-    return match ? new Date(decodeURIComponent(match[1])).toISOString().split('T')[0] : '';
-  });
-  const [currentDisplay, setCurrentDisplay] = useState('');
-  const [isMounted, setIsMounted] = useState(() => (typeof window !== 'undefined') && isTesting);
+  
+  // Hydration fix: Initialize with empty/null and load from browser in useEffect
+  const [mockDate, setMockDate] = useState('');
+  const [currentDisplay, setCurrentDisplay] = useState('SYNCING...');
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     if (!isTesting) return;
-    // mockDate is initialized from cookie; avoid setting state synchronously here
+
+    // Load initial mock date from cookie
+    const match = document.cookie.match(/dev_mock_date=([^;]+)/);
+    if (match) {
+      try {
+        const d = new Date(decodeURIComponent(match[1]));
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        setMockDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+      } catch (e) {
+        console.error("Failed to parse mock date cookie", e);
+      }
+    }
+
     const updateDisplay = () => {
       const cookieMatch = document.cookie.match(/dev_mock_date=([^;]+)/);
       const d = cookieMatch ? new Date(decodeURIComponent(cookieMatch[1])) : new Date();
-      setCurrentDisplay(d.toLocaleString());
+      setCurrentDisplay(d.toLocaleString('en-IN', { 
+        weekday: 'short', 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true 
+      }));
     };
 
     updateDisplay();
@@ -30,70 +53,111 @@ export default function TimeMachine() {
 
   if (!isTesting) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-6 font-sans">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-red-500 mb-4">403 - Forbidden</h1>
-          <p className="text-gray-400">Developer tools are disabled in this environment.</p>
-          <Link href="/" className="mt-6 inline-block bg-blue-600 px-6 py-2 rounded-lg font-bold">Return Home</Link>
+          <h1 className="text-4xl font-black text-red-500 mb-4">403 - Forbidden</h1>
+          <p className="text-gray-400 font-medium">Developer tools are disabled in this environment.</p>
+          <Link href="/" className="mt-6 inline-block bg-blue-600 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs">Return Home</Link>
         </div>
       </div>
     );
   }
 
-  const setTime = (dateStr) => {
-    if (!dateStr) {
+  const setTime = (dateTimeStr) => {
+    if (!dateTimeStr) {
       document.cookie = "dev_mock_date=; path=/; max-age=0";
       toast.success("Time reset to system clock");
       setMockDate('');
     } else {
-      const date = new Date(dateStr);
+      const date = new Date(dateTimeStr);
+      if (isNaN(date.getTime())) {
+        toast.error("Invalid date selected");
+        return;
+      }
       document.cookie = `dev_mock_date=${encodeURIComponent(date.toISOString())}; path=/; max-age=86400`;
-      toast.success(`Time traveled to ${date.toLocaleDateString()}`);
-      setMockDate(dateStr);
+      toast.success(`Time traveled to ${date.toLocaleString()}`);
+      setMockDate(dateTimeStr);
     }
-    window.location.reload(); // Refresh to apply everywhere
+    setTimeout(() => window.location.reload(), 800);
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6">
-      <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700 max-w-md w-full">
-        <h1 className="text-3xl font-extrabold text-blue-400 mb-2 flex items-center gap-2">
-          🕒 Time Machine <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded uppercase tracking-tighter">DEV ONLY</span>
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 font-sans">
+      <div className="bg-[#1a1a1a] p-10 rounded-[2.5rem] shadow-2xl border border-white/5 max-w-md w-full relative overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-600/20 blur-[100px] rounded-full"></div>
+        
+        <h1 className="text-3xl font-black text-white mb-2 flex items-center gap-3 relative z-10">
+          🕒 Time Machine 
+          <span className="text-[10px] bg-red-600/20 text-red-500 border border-red-500/30 px-2 py-1 rounded-full uppercase tracking-tighter font-black">DEV ONLY</span>
         </h1>
-        <p className="text-gray-400 text-sm mb-6 italic">Control the application&apos;s perceived date to test semester transitions.</p>
+        <p className="text-gray-500 text-xs mb-8 font-medium leading-relaxed">Precision temporal control. Adjust hours and minutes to test live lecture detection and period transitions.</p>
 
-        <div className="bg-black/40 p-4 rounded-xl mb-6 border border-gray-700">
-          <label className="text-xs text-gray-500 uppercase font-bold block mb-1">Application Time</label>
-          <div className="text-2xl font-mono text-green-400 tracking-wider leading-none h-8">
-            {isMounted ? currentDisplay : 'Loading...'}
+        <div className="bg-white/5 p-6 rounded-3xl mb-8 border border-white/5 backdrop-blur-md">
+          <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-2">Application Perceived Time</label>
+          <div className="text-2xl font-black text-white tracking-tight leading-none tabular-nums">
+            {isMounted ? currentDisplay : 'SYNCING...'}
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6 relative z-10">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Target Date</label>
+            <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Target Date & Time</label>
             <input
-              type="date"
+              type="datetime-local"
               value={mockDate}
               onChange={(e) => setMockDate(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 ring-blue-500 outline-none font-bold transition-all"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setTime(mockDate)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition active:scale-95">Set Date</button>
-            <button onClick={() => setTime('')} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 rounded-lg transition active:scale-95">Reset</button>
+          <div className="grid grid-cols-2 gap-4">
+            <button 
+              onClick={() => setTime(mockDate)} 
+              className="bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-[10px] py-4 rounded-2xl transition-all active:scale-95 shadow-xl shadow-blue-900/20"
+            >
+              Set Moment
+            </button>
+            <button 
+              onClick={() => setTime('')} 
+              className="bg-white/5 hover:bg-white/10 text-gray-400 font-black uppercase tracking-widest text-[10px] py-4 rounded-2xl transition-all active:scale-95 border border-white/10"
+            >
+              Reset Clock
+            </button>
           </div>
 
-          <div className="pt-4 border-t border-gray-700">
-            <h3 className="text-sm font-bold text-gray-500 mb-2 uppercase tracking-tight">Quick Presets</h3>
-            <div className="grid grid-cols-1 gap-2">
-              <button onClick={() => setTime('2026-09-15')} className="bg-indigo-900/40 hover:bg-indigo-900/60 border border-indigo-500/30 text-indigo-300 text-sm py-2 rounded-md text-left px-4">📅 Travel to Sep 15 (Odd Semester Start)</button>
-              <button onClick={() => setTime('2026-03-15')} className="bg-amber-900/40 hover:bg-amber-900/60 border border-amber-500/30 text-amber-300 text-sm py-2 rounded-md text-left px-4">📅 Travel to Mar 15 (Even Semester Active)</button>
+          <div className="pt-6 border-t border-white/5">
+            <h3 className="text-[10px] font-black text-gray-600 mb-4 uppercase tracking-widest">Temporal Presets</h3>
+            <div className="grid grid-cols-1 gap-3">
+              <button onClick={() => setTime('2026-03-10T09:30')} className="group flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/5 p-4 rounded-2xl transition-all text-left">
+                <div>
+                   <div className="text-xs font-black text-white uppercase tracking-tight">Period 1 Start</div>
+                   <div className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">Mar 10, 09:30 AM</div>
+                </div>
+                <div className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</div>
+              </button>
+              
+              <button onClick={() => setTime('2026-03-10T11:15')} className="group flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/5 p-4 rounded-2xl transition-all text-left">
+                <div>
+                   <div className="text-xs font-black text-white uppercase tracking-tight">Mid-Morning Break</div>
+                   <div className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">Mar 10, 11:15 AM</div>
+                </div>
+                <div className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</div>
+              </button>
+
+              <button onClick={() => setTime('2026-03-10T13:30')} className="group flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/5 p-4 rounded-2xl transition-all text-left">
+                <div>
+                   <div className="text-xs font-black text-white uppercase tracking-tight">Lunch Break</div>
+                   <div className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">Mar 10, 01:30 PM</div>
+                </div>
+                <div className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</div>
+              </button>
             </div>
           </div>
         </div>
-        <p className="mt-8 text-[10px] text-gray-600 text-center">Delete <code className="bg-black/20 px-1 rounded">src/app/time-machine-dev</code> to remove this tool.</p>
+        
+        <div className="mt-10 text-center">
+           <Link href="/clerk/faculty/dashboard" className="text-[10px] font-black text-blue-500/60 hover:text-blue-500 uppercase tracking-widest transition-colors">&larr; Back to Faculty Console</Link>
+        </div>
       </div>
     </div>
   );

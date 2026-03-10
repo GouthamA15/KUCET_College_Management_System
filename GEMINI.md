@@ -50,6 +50,7 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Faculty Workload Tracker:** Real-time visualization of weekly teaching intensity.
     - **Marks Pattern Configuration:** Enforcing branch-wide internal marks schemas (20+10 vs 25+5).
     - **Syllabus Orchestration:** Full control over subject registration and detailed unit topics.
+    - **Smart Assignment:** Linking official faculty-subject authorizations directly into the scheduling matrix.
 
 ### B. Middleware & Route Protection (`src/proxy.js`)
 - **Technology:** Uses `jose` library for Edge-runtime compatible JWT verification (replacing standard `jsonwebtoken` which fails in edge middleware).
@@ -67,7 +68,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### C. Global State Management (`src/context/`)
 - **StudentContext** (`src/context/StudentContext.js`): Tracks student profile status, pending certificate requests, and academic performance data
-- **ClerkContext** (`src/context/ClerkContext.js`): Manages clerk profile, role assignment, and pending tasks (admissions to verify, scholarship records to process). Includes the new `hodBranchData` (config, faculty load, timetable, branch subjects).
+- **ClerkContext** (`src/context/ClerkContext.js`): Manages clerk profile, role assignment, and pending tasks (admissions to verify, scholarship records to process). Includes the new `hodBranchData` (config, faculty load, timetable, branch subjects, official assignments).
 - **AdminContext** (`src/context/AdminContext.js`): Provides system-wide statistics, pending approvals, and administrative control state
 - **FacultyAttendanceContext** (`src/context/FacultyAttendanceContext.js`): Specialized context for attendance data fetching and caching during high-volume entry
 - **AcademicsContext** (`src/context/AcademicsContext.js`): Caching layer for student academic performance, subjects, and marks
@@ -177,7 +178,8 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **4. Departmental Configuration (New)**
 - `branch_config`: `branch`, `academic_year`, `semester`, `mid_max` (20 or 25), `assignment_max`.
-- `branch_timetable`: `branch`, `semester`, `section`, `day_of_week`, `period_number`, `subject_code`, `faculty_id`, `room_no`.
+- `branch_timetable`: `branch`, `semester`, `day_of_week`, `period_number`, `subject_code`, `faculty_id`, `room_no`.
+- `faculty_subject_assignments`: `faculty_id`, `subject_code`, `subject_name`, `branch`, `course_semester`, `is_active`.
 
 ### **5. Student Requests & Records**
 - `student_profile_requests` - photo/signature update approvals.
@@ -202,9 +204,10 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **A. Head of Department (HOD) Console**
 **Implementation:** `src/components/clerk/faculty/HODConsole.js`
-- **Matrix Editor:** Interactive timetable grid supporting independent schedules for S1 through S8.
-- **Workload Tracker:** Visual bar charts comparing faculty teaching intensity based on weekly periods.
+- **Matrix Editor:** Interactive timetable grid supporting independent schedules for S1 through S8. Features a "Duplicate" tool for rapid entry.
+- **Workload Tracker:** Visual bar charts comparing faculty teaching intensity based on weekly periods. Aggregates data institution-wide.
 - **Syllabus Manager:** Recursive full-CRUD tool for subjects and unit topics with safe JSON parsing logic for malformed data resilience.
+- **Subject Authorization:** Functional tab to officially assign faculty to departmental subjects, populating the core assignments ledger.
 - **Departmental Config:** Global switch for branch-wide marks patterns (20+10 vs 25+5).
 
 ### **B. Digital Certificate Engine** (`src/pdf/` & `src/app/api/.../certificate`)
@@ -289,16 +292,20 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **HOD Management APIs** (`/api/clerk/hod/`)
 - `GET/PATCH /api/clerk/hod/branch-config`: Branch-wide marks pattern settings.
-- `GET /api/clerk/hod/faculty-load`: teaching hours aggregation.
+- `GET /api/clerk/hod/faculty-load`: teaching hours aggregation across all departments.
 - `GET/POST /api/clerk/hod/timetable`: Multi-semester schedule management.
 - `GET/POST /api/clerk/hod/syllabus`: full branch curriculum control.
+- `GET/POST /api/clerk/hod/subject-assignments`: Official faculty authorization ledger.
 
 ### **Student APIs** (`/api/student/`)
-- `GET /api/student/profile`, `GET /api/student/academic-info`, `GET /api/student/attendance/history`, `POST /api/student/certificate-request`.
+- `GET /api/student/profile`, `GET /api/student/academic-info`.
+- `GET /api/student/timetable`: Live departmental schedule for the student's context.
+- `GET /api/student/attendance/history`, `POST /api/student/certificate-request`.
 
 ### **Clerk APIs** (`/api/clerk/`)
 - **Admission**: `/api/clerk/admission/drafts`, `/api/clerk/admission/finalize`.
 - **Syllabus**: `GET /api/clerk/faculty/syllabus` (database-driven).
+- **Timetable**: `GET /api/clerk/faculty/my-timetable`: Aggregated schedule for the specific teacher.
 - **Attendance & Marks**: `PATCH /api/clerk/attendance`, `POST /api/clerk/faculty/marks`.
 
 ---
@@ -318,125 +325,52 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 9. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 23: Asset Caching, Developer Page Optimization & Bulk Migration Tools (Latest - March 5, 2026)**
-- **AssetContext & Pre-caching System:**
-    - Implemented `AssetContext` (`src/context/AssetContext.js`) to manage institutional assets globally.
-    - **Background Pre-caching:** Developed a non-blocking pre-caching mechanism that utilizes the browser's native HTTP cache via background `fetch()` calls. This ensures assets are pre-loaded into memory/disk without interfering with initial page render.
-    - **Instant UI Loading:** Integrated `useAssets` hook across `Header`, `Hero`, `PaymentSection`, and `DevelopersPage`, enabling sub-millisecond asset resolution from local cache.
-- **Developer Page Enhancements:**
-    - **Navigation Integration:** Added the missing `Navbar` to the `DevelopersPage` to maintain layout consistency.
-    - **Audio Hover Optimization:** Refactored developer audio cards to use `useRef` and `useEffect` for pre-loading audio objects. Implemented overlap prevention logic to ensure only one audio track plays at a time during hover interactions.
-    - **Path Correction:** Fixed critical 404 errors in asset resolution by correcting the Cloudinary pathing in `getAssetUrl` to include the required `public/` folder segment.
-- **Cloudinary URL Logic:**
-    - Updated `getAssetUrl` in `src/lib/assets.js` to dynamically route assets to `image/upload`, `video/upload` (for audio), or `raw/upload` based on file extension.
-- **Bulk Migration & Backup Tools:**
-    - **Concurrency Throttling:** Implemented a native concurrency throttler to handle parallel network operations without overwhelming the system.
-    - **`fetch_all_cloudinary_assets.js`**: A high-speed backup tool that performs **15 parallel downloads** to recreate the entire `kucet/` Cloudinary root locally with full folder structure.
-    - **`migrate_to_new_cloudinary.js`**: A production-grade migration tool supporting **10 parallel uploads** with incremental skipping logic (verifies existence on target cloud before uploading).
-- **Build & Integrity:**
-    - Resolved a UTF-8 encoding corruption in `src/lib/email.js` that was preventing successful production builds.
-    - Verified all changes with a clean `npm run build` and confirmed 100% asset delivery across all roles.
-- **Asset Recovery Tool:**
-    - Created `restore_public_assets.js` to autonomously download and recreate the local `public/` folder structure directly from Cloudinary, ensuring local development environment parity.
-
-### **Session 22: Cloudinary Migration, Admission Workflow & UI Refinements (March 5, 2026)**
-- **Cloudinary Asset Migration & Dynamic Configuration:**
-    - Migrated entire `public/` folder assets (images, logos, QR codes) to Cloudinary.
-    - Implemented `getAssetUrl` utility (`src/lib/assets.js`) to dynamically resolve asset URLs.
-    - **Environment-Based Configuration:** Eliminated hardcoded references (`djs0ry74r`) in favor of `CLOUDINARY_CLOUD_NAME` from environment variables, strictly avoiding `NEXT_PUBLIC_` prefixes for security.
-    - **Client-Side Hydration Fix:** Implemented a secure fallback (`|| 'djs0ry74r'`) in `src/lib/assets.js` to resolve React hydration mismatches between server and client without exposing public environment variables.
-- **Fetch API Compatibility Fix:**
-    - Updated PDF certificate generation API to use `Buffer.from(await response.arrayBuffer())` replacing the deprecated `response.buffer()` method from Node.js native fetch.
-- **Admission Request Rejection:**
-    - Implemented a comprehensive workflow to allow admission clerks to **reject student applications**.
-    - Clerks can provide a **rejection reason** via a dedicated text box in the `AdmissionModal`.
-    - Upon rejection, an **institutional email** is sent to the student with the specified reason.
-    - The rejected student's draft record is **deleted from the database**, and associated **Cloudinary images (PFP/Signature) are also removed** to ensure data hygiene.
-- **Admission Finalization Enhancements:**
-    - Implemented **Entrance Exam (EAMCET/ECET) filtering** in the `Finalize Student Admissions` module, allowing clerks to process students according to their admission type.
-    - Integrated **real-time roll number validation** with visual feedback, ensuring adherence to institutional regex, branch codes, and admission types (Regular/Lateral).
-    - Fixed UI clipping issue for validation error messages in the roll number input field.
-- **Student Financial Summary:**
-    - Integrated a comprehensive financial overview into the student profile page.
-    - Added logic to calculate and display Total Expected Fee, Govt Paid (Scholarship), Student Paid, and Pending Fee for each academic year.
-    - Enhanced the UI by renaming "Scholarship Details" to "Fees & Scholarship" and adding detailed columns for student payments and pending balances.
-    - This ensures students without fee reimbursement can accurately track their dues.
-    - Resolved bug with date column fetching in financial summary by enhancing date mapping logic to track the latest relevant transaction date.
-- **Email Logo Fix**: Updated email templates to use a public Cloudinary URL for the KUCET logo, resolving loading issues in email clients.
-- **Cloudinary Asset Migration & Dynamic Configuration:**
-    - Migrated entire `public/` folder assets (images, logos, QR codes) to Cloudinary.
-    - Implemented robust `safeParse` logic to handle malformed legacy data and prevent runtime crashes.
-- **Faculty Load & Metrics:**
-    - Created a real-time Faculty Workload Tracker visualizing weekly teaching hours and intensity.
-    - Integrated "Department Recommendations" into the Marks Entry portal, highlighting the HOD's chosen marks pattern (20+10 vs 25+5).
-    ### **Session 29: HOD Role & Multi-Semester Management (Latest - March 10, 2026)**
+### **Session 29: HOD Role & Personalized Scheduling System (Latest - March 10, 2026)**
 - **Head of Department (HOD) Integration:**
     - Developed a comprehensive departmental management layer for Faculty users.
     - Updated `clerks` table and Admin UI to support HOD promotion and branch assignment.
 - **Multi-Semester Timetable System:**
     - Implemented a 7-period institutional schedule (09:30 AM - 04:30 PM) with integrated breaks.
-    - Built a semester-aware timetable editor (S1-S8) with interactive slot management and room assignment.
-    - Integrated conflict detection to prevent overlapping faculty schedules.
+    - Built a semester-aware timetable editor (S1-S8) with interactive slot management and duplication tools.
+    - **Personalized Schedules:** Developed live views for both Faculty (teaching load) and Students (class portal).
 - **Branch-Wide Syllabus Manager:**
     - Developed a full-CRUD syllabus management tool for HODs.
-    - Enabled management of unique subjects, unit titles, and line-by-line topic registration.
-
+    - Enabled management of unique subjects, unit titles, and line-by-line topic registration with malformed data resilience.
+- **Faculty Load & Metrics:**
+    - Created a real-time Faculty Workload Tracker visualizing weekly teaching hours and intensity across the institution.
+    - Integrated "Department Recommendations" into the Marks Entry portal, highlighting the HOD's chosen marks pattern (20+10 vs 25+5).
 - **Authentication & Security:**
     - Updated JWT generation for standard, Google, and Native Google login flows to include HOD status and branch.
     - Fixed `getAuthUser` role validation logic to correctly handle 'clerk' as an umbrella role for all administrative staff.
 - **System Stability:**
-    - Resolved React "duplicate key" errors in timetable dropdowns using `useMemo` and unique subject filters.
-    - Standardized HOD API routes (`branch-config`, `faculty-load`, `timetable`, `syllabus`) with uniform error handling and authorization checks.
+    - Resolved React "duplicate key" errors in timetable dropdowns and fixed build-time JSX parsing issues.
+    - Standardized HOD API routes with uniform error handling and authorization checks.
+- **Time Machine Upgrade:**
+    - Upgraded temporal control to precise `datetime-local` input (Hours/Minutes).
+    - Resolved hydration mismatches by ensuring client-side initialization within `useEffect`.
 
+### **Session 28: Scholarship Dashboard Refactor & Student Activity System (March 10, 2026)**
+- **Scholarship Refactor:** Centralized state management and modularized metrics/windows.
+- **Student Activity:** Real-time notifications and financial status visibility via `ProfileActivityBar`.
 
-### **Session 21: Database-Driven Syllabus & Academics Refactor (March 4, 2026)**
-- **Syllabus Database Migration:** Moved entire curriculum from JS files to normalized MySQL schema.
-- **Anti-Proxy Hardening:** Implemented session-level **IP + User-Agent Locking** to block proxy attempts via Incognito or browser switching.
-- **Shared Subjects Attendance Fix:** 
-    - Resolved a critical bug where students were unable to see attendance verification cards for subjects shared by multiple faculty (e.g., ML).
-    - Refactored the `active-sessions` API to match sessions by `subject_code` and academic context instead of restricted assignment IDs.
-- **Verification Security Update:** Implemented strict **PIN validation** in the student verification API to ensure attendance cannot be marked without the faculty-provided code.
-- **Student Academics Dashboard:** Fully dynamic dashboard with elective variant resolution and unique React keys.
-- **Lab Evaluation Fixes:** Corrected marks mapping between faculty entry and student view; renamed "Theory" to "Writing" for labs.
-- **Image Loading Fixes:**
-    - Resolved a critical issue where admission draft images (photos/signatures) were failing to load due to incorrect base64 conversion of Cloudinary URLs.
-    - Standardized image handling across all clerk and student APIs using a robust `imageHelper` that supports Cloudinary URLs, data U***s, and legacy Buffer data.
-- **System Stability:** Fixed SQL `only_full_group_by` errors in aggregated performance queries.
+### **Session 27: Automated Student Data Collection & Bulk Import Workflow (March 7, 2026)**
+- **Automation:** Google Forms integration and production-grade bulk import script.
+- **Cloudinary:** Automated PFP/Signature synchronization during import.
 
-### **Session 20: Academics Module Refactor & Global Attendance Alerts (March 3, 2026)**
-- Migrated academics performance to a standalone module with robust caching.
-- Integrated global attendance verification alerts.
-
-### **Session 19: Proxy-Free Attendance & Cloudinary Migration (March 1, 2026)**
-- Developed GPS-based verification system with dynamic PINs and 50m geofencing.
-- Migrated all binary media to Cloudinary cloud storage.
-
-### **Session 24: Mobile Application Integration (Capacitor) (March 6, 2026)**
-- **Capacitor Integration:**
-    - Initialized Capacitor and configured a native Android shell for the KUCET CMS.
-    - Implemented a "Live URL" strategy pointing directly to the Render test environment.
-    - Integrated essential plugins: `@capacitor/status-bar`, `@capacitor/splash-screen`, and `@capacitor/geolocation`.
-- **Native Hardware Hardening:**
-    - Configured `AndroidManifest.xml` with high-accuracy GPS permissions (`ACCESS_FINE_LOCATION`) for reliable attendance geofencing.
-    - Added Camera and Storage permissions for seamless document/photo uploads.
-- **Visual Branding:**
-    - Configured a professional, 3-second branded Splash Screen using institutional colors (#0b3578).
-    - Established a workflow for native App Icon management via Android Studio's Image Asset tool.
-- **Automation:**
-    - Created `update-mobile-app.js`: A specialized script to autonomously update the App URL and Label across configuration and system files, followed by an automatic Capacitor sync.
+### **Session 26: Native Plugin Hardening & Build Fixes (March 6, 2026)**
+- **Android Optimization:** Manual plugin registration and dependency resolution strategy for Capacitor 7.
 
 ### **Session 25: Native Authentication & Mobile Optimization (March 6, 2026)**
-- **Native Google Sign-In & Build Optimization:**
-    - Integrated `@capgo/capacitor-social-login` (v7) for native Google account picker support, bypassing WebView security restrictions.
-    - Implemented a dedicated backend route `/api/auth/native-google` for secure ID token verification via `google-auth-library`.
-    - Resolved Render deployment conflicts by enforcing version parity between Capacitor core and plugins (downgrading social login to v7).
-- **Mobile Navigation & Deep Linking:**
-    - Implemented hardware back-button handling via `@capacitor/app` to match browser navigation behavior.
-    - Configured Android Deep Linking (Intent Filters) to ensure OAuth redirects return the user directly to the native app shell.
-- **UI & UX Refinements:**
-    - Standardized Viewport meta tags for consistent mobile scaling across all device types.
-    - Optimized `MobileAttendanceSheet` layout to prevent horizontal overflow and resolve title clashes with the sticky Navbar.
-    - Fixed Attendance Verification bug where "Verified" labels incorrectly persisted across different calendar dates.
+- **Native Google Sign-In:** Integrated `@capgo/capacitor-social-login` (v7) for native account picker support.
+- **Mobile Navigation:** Hardware back-button handling and deep linking configuration.
+
+### **Session 24: Mobile Application Integration (Capacitor) (March 6, 2026)**
+- **Capacitor Integration:** native Android shell configuration with high-accuracy GPS permissions.
+- **Branding:** splash screen and app icon workflow establishment.
+
+### **Session 23: Asset Caching & Migration Tools (March 5, 2026)**
+- **AssetContext:** Non-blocking background pre-caching mechanism for institutional assets.
+- **Bulk Migration:** High-speed download/upload tools for Cloudinary accounts.
 
 ---
 
@@ -454,13 +388,6 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **D. Asset Management (`assets.js`)**
 - `getAssetUrl(localPath)`: Resolves local asset paths to their Cloudinary equivalent.
-- **Environment Configuration:** Fetches `CLOUDINARY_CLOUD_NAME` from environment variables for dynamic multi-environment support (testing vs production).
-- **Implementation:** Dynamically constructs Cloudinary URLs without hardcoded cloud names, enabling environment-specific configuration through `.env.local` and `.env.example` files.
-
-### **E. Environment Configuration**
-- **CLOUDINARY_CLOUD_NAME:** Server-side environment variable for Cloudinary integration across all APIs and utilities.
-- **Configuration Files:** `.env.local` for local development, `.env.example` as reference template.
-- **Multi-Environment Support:** Different Cloudinary accounts can be configured for testing and production environments.
 
 ---
 
@@ -468,18 +395,8 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **Architecture**
 - **Type:** Native Android Wrapper (Capacitor 7).
-- **Strategy:** Loads the hosted Render URL in a fullscreen, standalone activity.
-- **Plugins:**
-    - `StatusBar`: Custom color-matching for the Android status bar.
-    - `SplashScreen`: Branded institutional splash screen with spinner.
-    - `Geolocation`: Native GPS access for the Attendance geofencing system.
-    - `SocialLogin`: Native Google Sign-In via account picker.
-    - `App`: Physical back-button handling and deep-link interception.
-
-### **Management Tools**
-- **`update-mobile-app.js`**: Command-line utility for rapid rebranding and URL swapping.
-    - Usage: `node update-mobile-app.js <URL> ["App Name"]`
-- **Native Builds**: Managed via Android Studio; utilizes physical device debugging for performance and accuracy.
+- **Strategy:** Loads the hosted Render URL in a fullscreen activity.
+- **Plugins:** `StatusBar`, `SplashScreen`, `Geolocation`, `SocialLogin`, `App`.
 
 ---
 

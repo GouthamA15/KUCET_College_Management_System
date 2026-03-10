@@ -8,21 +8,21 @@ export async function GET(req) {
       return apiError('Unauthorized', 401);
     }
 
-    // 1. Resolve system year
+    const clerkId = user.id || user.clerkId;
+    if (!clerkId) return apiError('Faculty ID missing.', 400);
+
     const semRows = await query('SELECT academic_year FROM semesters ORDER BY id DESC LIMIT 1');
     const systemYear = semRows[0]?.academic_year || '2025-26';
 
-    // 2. Fetch with lenient year matching
     const sql = `
       SELECT 
         bt.day_of_week,
         bt.period_number,
         bt.branch,
         bt.semester,
-        bt.section,
         bt.room_no,
-        s.subject_name,
-        s.subject_code
+        COALESCE(s.subject_name, bt.subject_code) as display_name,
+        bt.subject_code
       FROM branch_timetable bt
       LEFT JOIN syllabus_subjects s ON bt.subject_code = s.subject_code
       WHERE bt.faculty_id = ? 
@@ -30,7 +30,7 @@ export async function GET(req) {
       ORDER BY FIELD(bt.day_of_week, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'), bt.period_number
     `;
 
-    const mySchedule = await query(sql, [user.id, `%${systemYear.substring(0, 4)}%`]);
+    const mySchedule = await query(sql, [clerkId, `%${systemYear.substring(0, 4)}%`]);
 
     return apiResponse({ data: mySchedule });
   } catch (error) {
