@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useClerk } from '@/context/ClerkContext';
 import { toast } from 'react-hot-toast';
 import SyllabusManager from './SyllabusManager';
+import BranchAnalytics from './BranchAnalytics';
 
 const INSTITUTIONAL_ACTIVITIES = [
   { code: 'SPORTS', name: 'Sports & Athletics' },
@@ -163,6 +164,7 @@ export default function HODConsole() {
             { id: 'timetable', label: 'Edit Timetable', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
             { id: 'allocation', label: 'Subject Assignment', icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' },
             { id: 'syllabus', label: 'Branch Syllabus', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
+            { id: 'analytics', label: 'Branch Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
             { id: 'config', label: 'Branch Config', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
           ].map(tab => ( activeSubTab === tab.id ? (
             <button key={tab.id} className="flex items-center gap-2 px-4 py-2 bg-white text-blue-800 rounded-lg font-bold shadow-md transition-all whitespace-nowrap text-sm">
@@ -222,6 +224,7 @@ export default function HODConsole() {
               />
             )}
             {activeSubTab === 'syllabus' && <SyllabusManager branch={clerkData.branch} />}
+            {activeSubTab === 'analytics' && <BranchAnalytics branch={clerkData.branch} />}
             {activeSubTab === 'config' && <BranchConfig config={hodBranchData?.config} branch={clerkData.branch} refresh={refreshHOD} />}
           </>
         )}
@@ -315,48 +318,66 @@ export default function HODConsole() {
 function WorkloadView({ data, branch }) {
   return (
     <div className="animate-in slide-in-from-bottom-4 duration-500">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-8 px-2">
         <h3 className="text-xl font-black text-gray-800 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-700">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
-          {branch} Faculty Workload
+          {branch} Faculty Activity Pulse
         </h3>
-        <span className="text-xs bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-bold uppercase tracking-widest">Live Tracking</span>
+        <span className="text-[10px] bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full font-black uppercase tracking-widest border border-blue-100">Live Department Metrics</span>
       </div>
       
       <div className="grid grid-cols-1 gap-6">
         {data.map(f => (
-          <div key={f.id} className="bg-gray-50/50 border border-gray-100 rounded-2xl p-5 hover:border-blue-200 transition-all group">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white border-2 border-blue-100 rounded-full flex items-center justify-center font-black text-blue-700 text-xl shadow-sm">
+          <div key={f.id} className="bg-white border-2 border-gray-50 rounded-[2rem] p-8 hover:border-blue-200 transition-all group shadow-sm hover:shadow-xl">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+              
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center font-black text-white text-2xl shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
                   {f.name.charAt(0)}
                 </div>
                 <div>
-                  <h4 className="font-black text-gray-800 group-hover:text-blue-800 transition-colors">{f.name}</h4>
-                  <p className="text-xs text-gray-400 font-medium">{f.email}</p>
+                  <h4 className="font-black text-xl text-gray-800 group-hover:text-blue-800 transition-colors uppercase tracking-tight">{f.name}</h4>
+                  <p className="text-xs text-gray-400 font-bold tracking-widest uppercase">{f.email}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                     {f.subjects ? f.subjects.split(', ').map(s => (
+                       <span key={s} className="text-[9px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg uppercase tracking-tighter border border-gray-200/50">{s}</span>
+                     )) : <span className="text-[9px] font-bold text-gray-300 italic">No official assignments</span>}
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className={`text-2xl font-black ${f.weekly_periods > 15 ? 'text-orange-600' : 'text-blue-700'}`}>
-                  {f.weekly_periods}
-                </div>
-                <div className="text-[10px] text-gray-400 font-black uppercase tracking-tighter">Periods / Week</div>
+
+              <div className="flex gap-4 w-full lg:w-auto">
+                 <div className="bg-gray-50 rounded-2xl p-4 flex-1 lg:w-32 text-center border border-gray-100 group-hover:bg-blue-50 transition-colors">
+                    <div className="text-2xl font-black text-gray-800">{f.scheduled_weekly}</div>
+                    <div className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Scheduled / Wk</div>
+                 </div>
+                 <div className="bg-gray-50 rounded-2xl p-4 flex-1 lg:w-32 text-center border border-gray-100 group-hover:bg-indigo-50 transition-colors">
+                    <div className="text-2xl font-black text-indigo-600">{f.total_conducted}</div>
+                    <div className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Conducted Sem</div>
+                 </div>
+                 <div className="bg-[#0b3578] rounded-2xl p-4 flex-1 lg:w-32 text-center shadow-lg shadow-blue-100 group-hover:bg-blue-800 transition-colors">
+                    <div className="text-2xl font-black text-white">
+                       {f.scheduled_weekly > 0 ? Math.min(Math.round((f.total_conducted / (f.scheduled_weekly * 4)) * 100), 100) : 0}%
+                    </div>
+                    <div className="text-[8px] font-black text-blue-200 uppercase tracking-widest">Efficiency</div>
+                 </div>
               </div>
+
             </div>
             
-            <div className="relative">
-              <div className="w-full bg-white border border-gray-100 rounded-full h-4 overflow-hidden shadow-inner p-0.5">
+            <div className="mt-8 relative pt-4">
+              <div className="w-full bg-gray-50 rounded-full h-3 overflow-hidden shadow-inner p-0.5 border border-gray-100">
                 <div 
-                  className={`h-full rounded-full transition-all duration-1000 ease-out ${f.weekly_periods > 15 ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gradient-to-r from-blue-600 to-indigo-500'}`}
-                  style={{ width: `${Math.min((f.weekly_periods / 20) * 100, 100)}%` }}
+                  className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${f.scheduled_weekly > 15 ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gradient-to-r from-blue-600 to-indigo-500'}`}
+                  style={{ width: `${Math.min((f.scheduled_weekly / 20) * 100, 100)}%` }}
                 ></div>
               </div>
-              <div className="flex justify-between mt-2 px-1">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Load Status</span>
-                <span className={`text-[10px] font-black uppercase tracking-widest ${f.weekly_periods > 15 ? 'text-red-500' : 'text-blue-600'}`}>
-                  {f.weekly_periods > 15 ? 'High Intensity' : 'Optimal'}
+              <div className="flex justify-between mt-3 px-1">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Weekly Load Intensity</span>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${f.scheduled_weekly > 15 ? 'text-red-500' : 'text-blue-600'}`}>
+                  {f.scheduled_weekly > 15 ? 'Critical (Overload)' : f.scheduled_weekly > 10 ? 'Standard' : 'Light'}
                 </span>
               </div>
             </div>
@@ -364,10 +385,10 @@ function WorkloadView({ data, branch }) {
         ))}
         
         {data.length === 0 && (
-          <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-            <div className="text-4xl mb-4">👨‍🏫</div>
-            <p className="text-gray-400 font-bold uppercase tracking-widest text-sm mb-2">No faculty assigned to this branch</p>
-            <p className="text-[10px] text-gray-400 max-w-xs mx-auto font-medium">Please ensure faculty members are assigned to "{branch}" in the Admin Panel &gt; Manage Clerks section.</p>
+          <div className="text-center py-20 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-200">
+            <div className="text-5xl mb-4">👨‍🏫</div>
+            <p className="text-gray-400 font-bold uppercase tracking-widest text-sm mb-2">No faculty pulse detected</p>
+            <p className="text-[10px] text-gray-400 max-w-xs mx-auto font-medium leading-relaxed">Ensure faculty members are correctly associated with "{branch}" in the Administrative Control Panel.</p>
           </div>
         )}
       </div>

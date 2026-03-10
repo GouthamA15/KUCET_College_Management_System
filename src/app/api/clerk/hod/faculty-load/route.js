@@ -8,31 +8,54 @@ export async function GET(req) {
       return apiError('Unauthorized', 401);
     }
 
-    // 1. Get the current academic year
+    // 1. Resolve current academic year
     const semRows = await query('SELECT academic_year FROM semesters ORDER BY id DESC LIMIT 1');
-    const currentYear = semRows[0]?.academic_year || '2025-26';
+    const systemYear = semRows[0]?.academic_year || '2025-26';
+    const yearPattern = `%${systemYear.substring(0, 4)}%`;
 
-    // 2. Get ALL active faculty in the college
-    // We join with the timetable to calculate their TOTAL workload across all departments
+    // 2. Fetch Detailed Workload
+    // Metrics: Scheduled (Timetable), Conducted (Sessions Marked), and Assignments
     const sql = `
       SELECT 
         c.id, 
         c.name, 
         c.email,
         c.branch as home_branch,
-        COUNT(bt.id) as weekly_periods,
-        (COUNT(bt.id) * 50) / 60 as weekly_hours
+        -- Count scheduled periods per week from timetable
+        (
+          SELECT COUNT(*) 
+          FROM branch_timetable bt 
+          WHERE bt.faculty_id = c.id 
+          AND (bt.academic_year LIKE ? OR bt.academic_year = '2025-26')
+        ) as scheduled_weekly,
+        -- Count total actual sessions marked attendance for this semester
+        (
+          SELECT COUNT(DISTINCT ads.id)
+          FROM attendance_sessions ads
+          JOIN faculty_subject_assignments fsa ON ads.assignment_id = fsa.id
+          WHERE ads.faculty_id = c.id
+          AND (fsa.academic_year LIKE ? OR fsa.academic_year = '2025-26')
+        ) as total_conducted,
+        -- Get comma-separated list of assigned subject names
+        (
+          SELECT GROUP_CONCAT(DISTINCT fsa.subject_name SEPARATOR ', ')
+          FROM faculty_subject_assignments fsa
+          WHERE fsa.faculty_id = c.id AND fsa.is_active = 1
+          AND (fsa.academic_year LIKE ? OR fsa.academic_year = '2025-26')
+        ) as subjects
       FROM clerks c
-      LEFT JOIN branch_timetable bt ON c.id = bt.faculty_id 
-        AND bt.academic_year = ?
-      WHERE c.role = 'faculty' AND c.is_active = 1
-      GROUP BY c.id, c.name, c.email, c.branch
-      ORDER BY c.name ASC
+      WHERE c.role = 'faculty' 
+      AND c.branch = ?
+      AND c.is_active = 1
+      ORDER BY scheduled_weekly DESC, c.name ASC
     `;
 
-    const allFaculty = await query(sql, [currentYear]);
+    const facultyLoad = await query(sql, [yearPattern, yearPattern, yearPattern, user.branch]);
 
-    return apiResponse({ data: allFaculty });
+    return apiResponse({ 
+      data: facultyLoad,
+      meta: { systemYear }
+    });
   } catch (error) {
     console.error('Faculty Load API Error:', error);
     return apiError('Internal Server Error', 500);
