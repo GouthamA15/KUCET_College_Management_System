@@ -7,10 +7,10 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### Core Capabilities:
 - **Departmental Management:** Multi-semester timetable orchestration, faculty workload tracking, and branch-specific syllabus management.
-- **Real-Time Orchestration:** Instant schedule synchronization via Server-Sent Events (SSE).
+- **Real-Time Orchestration:** Instant schedule and activity synchronization via Server-Sent Events (SSE).
 - **Admissions Management:** Multi-stage admission pipeline with draft verification and roll-number assignment
 - **Student Records:** Comprehensive academic and personal information management
-- **Attendance Tracking:** Faculty-driven attendance with session-wise records and calendar integration
+- **Attendance Tracking:** Proxy-free GPS-based attendance with session-wise records and calendar integration
 - **Internal Marks:** Marks entry with validation, departmental pattern recommendations, and student visibility
 - **Scholarship Management:** Government scholarship tracking and distribution workflows
 - **Digital Certificates:** Automated generation of Bonafide, Transfer, No Objection, and Completion certificates
@@ -25,118 +25,149 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Backend:** Next.js API Routes (App Router), Node.js
 - **Database:** MySQL (Railway-hosted, accessed via `mysql2/promise`)
 - **Authentication:** JWT-based (HTTP-only cookies) using `jose` for edge-runtime compatibility. Includes native Google OAuth support.
-- **Real-Time:** **Server-Sent Events (SSE)** for lightweight server-to-client broadcasting.
-- **Monitoring:** **Sentry** SDK for full-stack error tracking and performance profiling.
+- **Real-Time:** Server-Sent Events (SSE) for lightweight server-to-client broadcasting.
+- **Monitoring:** Sentry SDK for full-stack error tracking and performance profiling.
 - **PDF Generation:** Custom template-based certificates using `@react-pdf/renderer` 4.3.2
 - **Cloud Storage:** Cloudinary integration for images, signatures, and screenshots
 - **Additional Libraries:**
   - `bcrypt` 6.0.0 - Password hashing
   - `react-hot-toast` 2.6.0 - Toast notifications
+  - `react-datepicker` 9.1.0 - Date input components
   - `qrcode` 1.5.4 - QR code generation for certificates
-  - `google-auth-library` 9.15.1 - Secure ID token verification
-  - `cloudinary` 2.5.1 - Cloud storage SDK
+  - `xlsx-js-style` 1.2.0 - Excel file handling
+  - `docxtemplater` 3.67.6 - Document templating
+  - `google-auth-library` 10.6.1 - Secure ID token verification
+  - `cloudinary` 2.9.0 - Cloud storage SDK
 
 ---
 
 ## 3. Core Architectural Concepts
 
-### A. Real-Time Sync (SSE) (New)
-**Architecture:**
-- **The Stream:** `/api/realtime/stream` maintains persistent connections with active clients.
-- **The Broadcast:** `src/lib/sse.js` manages a global set of controllers to push updates.
-- **Events:**
-    - `TIMETABLE_CHANGED`: Triggered when an HOD modifies a schedule slot.
-- **Listeners:** `RealtimeListener` component allows dashboards to react instantly to server pings without refreshing.
-
-### B. HOD & Branch Intelligence
-**Architecture:**
-- **Sub-Role Pattern:** HODs are elevated Faculty members identified by `is_hod = 1` and a designated `branch` in the `clerks` table.
-- **Departmental Authority:** HODs manage the entire academic lifecycle for their specific branch, including multi-semester timetables, faculty workload tracking, and marks pattern enforcement.
-
-### C. Middleware & Route Protection (`src/proxy.js`)
+### A. Middleware & Route Protection (`src/proxy.js`)
 - **Technology:** Uses `jose` library for Edge-runtime compatible JWT verification.
 - **Logic:** Intercepts requests to protected paths: `/admin`, `/clerk`, `/student`.
-- **Session Enrichment:** Tokens now include `is_hod` and `branch` data.
+- **JWT Verification:** Decodes the HTTP-only cookie, verifies signature using `HS256`, and redirects unauthorized users.
+- **Session Enrichment:** Tokens include `is_hod`, `branch`, and `academic_year` data to enable granular permissions.
 
-### D. Time Management & The "Time Machine"
-- **Authoritative Clock:** `src/lib/clock.js` provides `getNow()` respecting "Time Machine" mock dates.
-- **Institutional Schedule:** Strictly enforced 7-period daily matrix (09:30 AM - 04:30 PM) with breaks.
+### B. Global State Management (`src/context/`)
+- **StudentContext**: Tracks profile status, pending certificate requests, and performance data.
+- **ClerkContext**: Manages clerk profile and the `hodBranchData` (config, faculty load, timetable, branch subjects).
+- **AdminContext**: System-wide statistics and clerk role management (HOD promotion).
+- **FacultyAttendanceContext**: Specialized context for high-volume attendance entry caching.
+- **AcademicsContext**: Caching layer for student academic performance and subjects.
+- **AssetContext**: Centralized asset management and background pre-caching.
+
+### C. Time Management & The "Time Machine"
+- **Authoritative Clock:** `src/lib/clock.js` provides `getNow()` and `getNowSync()`.
+- **Precision Travel:** Supports `datetime-local` input for travel to exact hours/minutes.
+- **Consistency:** All business logic uses `getNow()` to respect mock time for testing semester transitions.
+
+### D. Academic Intelligence (`src/lib/rollNumber.js`)
+- **Regex-Based Parsing:** Decodes roll components (Entry year, Branch, Serial, Academic Type).
+- **Dynamic Calculations:** Resolves Studying Year and Semester (1-8) based on date boundaries.
+
+### E. College Configuration (`src/lib/college-config.js`)
+- **Centralized Settings:** Single source of truth for semester start dates, fee structures, and category allotments.
+
+### F. Real-Time Sync (SSE)
+- **Architecture:** `/api/realtime/stream` maintains persistent connections using Server-Sent Events.
+- **The Broadcast:** `src/lib/sse.js` manages global controllers to push `TIMETABLE_CHANGED` events.
+- **Listeners:** `RealtimeListener` component allows UI to react instantly to server pings without refreshing.
+
+### G. HOD & Branch Intelligence
+- **Sub-Role Pattern:** HODs are elevated Faculty members with authority over a specific branch.
+- **Departmental Authority:** HODs manage timetables, faculty load, and syllabus for their branch.
 
 ---
 
 ## 4. Database Schema
 
-### **1. Identity & Role Management**
-- `clerks`: `id`, `name`, `email`, `role`, `is_hod` (TINYINT), `branch` (VARCHAR)
-- `students`: Core student records with admission and fee status.
+### **1. Core Identity & Authentication**
+- `students`: Core records (`roll_no`, `email`, `password_hash`).
+- `clerks`: Administrative staff (`role`, `is_hod`, `branch`, `status`).
+- `principal`: Principal/Admin accounts with `approval_signature`.
+- `otp_codes` & `password_reset_tokens`: Security infrastructure.
 
-### **2. Departmental & Scheduling Management**
-- `branch_config`: Branch-wide marks patterns and locking status.
-- `branch_timetable`: Master schedule matrix (Day, Period, Subject, Faculty, Room).
-- `faculty_subject_assignments`: Official faculty-subject authorization ledger.
+### **2. Student Personal & Academic Records**
+- `student_personal_details`: DOB, Aadhaar, address, identification marks, blood group.
+- `student_academic_background`: Entrance exam, rank, SSC/Inter marks.
+- `student_admission_drafts`: Applicant data before roll-number assignment.
 
-### **3. Student Records & Performance**
-- `student_personal_details`, `student_academic_background`.
-- `student_attendance` (with GPS logs), `student_marks`.
+### **3. Academic & Attendance**
+- `college_info`: Institution-wide academic configuration.
+- `academic_calendar`: Semester timelines and working day patterns.
+- `student_attendance`: Multi-session tracking with `device_hash` and `ip_address` logs.
+- `student_marks`: Internal marks with max-marks validation.
+
+### **4. Departmental & Scheduling**
+- `branch_config`: Branch-wide settings (Marks Pattern 20+10 vs 25+5, lock status).
+- `branch_timetable`: Master schedule matrix (Day, Period 1-7, Subject, Faculty, Room).
+- `faculty_subject_assignments`: Authoritative faculty-subject authorizations.
+
+### **5. Syllabus & Curriculum**
+- `syllabus_subjects`: Master course catalog.
+- `syllabus_structure`: Branch-semester course mappings.
+- `syllabus_units`: Unit titles and detailed topic arrays (JSON).
 
 ---
 
 ## 5. Specialized Modules & Features
 
-### **A. Real-Time Activity Bars**
-- **Faculty Activity Bar:** Automatically detects current lecture room/subject based on server time and timetable.
-- **Student Activity Bar:** Syncs with the institutional clock to show the ongoing session for the student's specific branch/semester.
-- **Pulse Heartbeat:** Visual animation indicating a live, active session.
+### **A. Head of Department (HOD) Console**
+- **Timetable Matrix:** Semester-aware grid (S1-S8) with "Duplicate Previous" productivity tools.
+- **Workload Tracker:** Visual bar charts comparing faculty teaching intensity institution-wide.
+- **Syllabus Manager:** Recursive full-CRUD tool for subjects and units with safe JSON parsing.
 
-### **B. HOD Management Console**
-- **Matrix Editor:** Independent schedules for S1-S8 with duplication tools and conflict detection.
-- **Workload Tracker:** Visual bar charts of teaching intensity aggregated institution-wide.
-- **Syllabus Manager:** Recursive full-CRUD tool for subjects and unit topics.
+### **B. Proxy-Free Attendance System**
+- **Architecture:** GPS-based verification within 50m radius and secure 4-digit PINs.
+- **Fingerprinting:** IP + User-Agent Lock prevents phone sharing and Incognito proxy attempts.
 
-### **C. Proxy-Free Attendance System**
-- **Architecture:** GPS-based geofencing (50m), 4-digit secure PINs, and IP+User-Agent Lock.
+### **C. Real-Time Activity Bars**
+- **Pulse Logic:** Both Students and Faculty see a "Live Session" bar detecting current room/subject.
+- **Sync:** Updates from HOD timetable changes propagate instantly via SSE.
 
 ### **D. Digital Certificate Engine**
-- **Architecture:** Server-side PDF rendering with HMAC-SHA256 tamper detection and QR verification.
+- **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection.
 
 ---
 
-## 6. Key API Routes
-
-### **Real-Time & Monitoring**
-- `GET /api/realtime/stream`: Persistent SSE event stream.
-- `/monitoring`: Sentry tunnel route.
-
-### **Management APIs**
-- `/api/clerk/hod/*`: Timetable, Syllabus, Config, and Load APIs.
-- `/api/clerk/faculty/current-activity`, `/api/student/current-activity`.
-
----
-
-## 7. Recent Activity Log (Feb-Mar 2026)
+## 6. Recent Activity Log (Feb-Mar 2026)
 
 ### **Session 31: Real-Time Sync & Production Hardening (Latest - March 10, 2026)**
-- **Real-Time Integration (SSE):**
-    - Implemented a Server-Sent Events (SSE) stream for instant server-to-client updates.
-    - Added `RealtimeListener` to ensure dashboards reflect schedule changes without page refreshes.
-- **Live Activity Tracking:**
-    - Developed real-time Activity Bars for both Faculty and Students.
-    - Automated detection of ongoing lectures based on the institutional 7-period matrix.
-- **Production Load Testing:**
-    - Created `load-test-attendance.js` (k6 suite) to simulate "Morning Rush" scenarios with 500 concurrent users.
-- **Error Monitoring:**
-    - Integrated **Sentry** across all runtimes (Client, Server, Edge) for proactive bug tracking.
-- **System Stability:**
-    - Standardized `academic_year` resolution and fixed hydration mismatches in the Time Machine.
-    - Enforced `secure: true` and `sameSite: 'lax'` on all production cookies.
+- **Real-Time (SSE):** Implemented Server-Sent Events for instant schedule propagation.
+- **Live Activity Tracking:** Developed "Pulse" bars for students and faculty detecting ongoing lectures.
+- **Load Testing:** Created k6 suite simulating 500 concurrent students marking attendance.
+- **Error Monitoring:** Integrated Sentry across all runtimes (Client, Server, Edge).
+- **Security Hardening:** Enforced `secure: true` and `sameSite: 'lax'` on all production cookies.
 
 ### **Session 30: Production Performance (March 10, 2026)**
-- **Optimization:** Implemented composite database indexes across `branch_timetable` and `student_attendance`.
+- **Optimization:** Implemented composite database indexes across `branch_timetable` and `student_attendance` for sub-100ms load times.
 
 ### **Session 29: HOD Role & Multi-Semester Management (March 10, 2026)**
-- **HOD Integration:** Established departmental authority sub-roles and full academic orchestration tools.
+- **HOD Integration:** Developed departmental control layer with multi-semester timetable matrix.
+- **Smart Scheduling:** Timetable editor highlights "Officially Assigned Teachers" for subjects.
+- **Data Resilience:** Fixed JSON parsing crashes in Syllabus Manager using `safeParse`.
+
+### **Session 28: Scholarship Refactor & Student Activity (March 10, 2026)**
+- **Scholarship:** Modularized metrics and application windows.
+- **Activity System:** Context-based notifications for thumb updates and dues.
+
+### **Session 27: Automated Data Collection (March 7, 2026)**
+- **Automation:** Google Forms integration and production-grade bulk import script.
+
+### **Session 26: Native Plugin Hardening (March 6, 2026)**
+- **Android:** Manual plugin registration and dependency resolution strategy for Capacitor 7.
+
+### **Session 25: Native Auth & Mobile Optimization (March 6, 2026)**
+- **Native Google:** Integrated `@capgo/capacitor-social-login` for account picker support.
+
+### **Session 24: Capacitor Integration (March 6, 2026)**
+- **Mobile Shell:** Configured high-accuracy GPS permissions and institutional branding.
+
+### **Session 23: Asset Caching & Migration (March 5, 2026)**
+- **Pre-caching:** Background asset loading system via `AssetContext`.
 
 ---
 
 ## Summary
-The KUCET CMS is now a high-performance, real-time institutional framework. It combines professional error monitoring, precision scheduling, and elite real-time synchronization to provide a seamless experience for over 1,000+ simultaneous users.
+The KUCET CMS is a comprehensive institutional control system. It integrates high-security attendance, real-time departmental orchestration for HODs, and professional monitoring while maintaining strict data integrity and platform-agnostic performance.
