@@ -11,6 +11,10 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const semester = searchParams.get('semester') || 1;
     const section = searchParams.get('section') || 'A';
+
+    // Fetch system-wide academic year
+    const semRows = await query('SELECT academic_year FROM semesters ORDER BY id DESC LIMIT 1');
+    const systemYear = semRows[0]?.academic_year || '2025-26';
     
     const timetable = await query(
       `SELECT bt.*, c.name as faculty_name, s.subject_name 
@@ -18,8 +22,9 @@ export async function GET(req) {
        LEFT JOIN clerks c ON bt.faculty_id = c.id
        LEFT JOIN syllabus_subjects s ON bt.subject_code = s.subject_code
        WHERE bt.branch = ? AND bt.semester = ? AND bt.section = ?
+       AND (bt.academic_year LIKE ? OR bt.academic_year = '2025-26')
        ORDER BY day_of_week, period_number`,
-      [user.branch, semester, section]
+      [user.branch, semester, section, `%${systemYear.substring(0, 4)}%`]
     );
 
     return apiResponse({ data: timetable });
@@ -45,7 +50,6 @@ export async function POST(req) {
     const sanitizedFacultyId = (faculty_id === '' || !faculty_id) ? null : parseInt(faculty_id);
 
     // Timetable Conflict Validation (Faculty overlap)
-    // ONLY check if a faculty member is actually assigned
     if (sanitizedFacultyId) {
       const conflict = await query(
         `SELECT * FROM branch_timetable 

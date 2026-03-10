@@ -95,6 +95,8 @@ export default function HODConsole() {
   const handleSaveSlot = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const activeAY = clerkData?.academic_year || '2025-26';
+
     const payload = {
       day_of_week: editingSlot.day,
       period_number: editingSlot.period,
@@ -103,7 +105,7 @@ export default function HODConsole() {
       room_no: formData.get('room_no'),
       semester: selectedSem,
       section: 'A',
-      academic_year: '2025-26'
+      academic_year: activeAY
     };
     if (!payload.subject_code) return toast.error('Please select a subject or activity');
     setIsSaving(true);

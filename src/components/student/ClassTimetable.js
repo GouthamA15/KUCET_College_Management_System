@@ -7,6 +7,7 @@ export default function ClassTimetable() {
   const [schedule, setSchedule] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchTimetable = async () => {
     try {
@@ -15,9 +16,11 @@ export default function ClassTimetable() {
       if (res.ok) {
         setSchedule(data.data || []);
         setMeta(data.meta);
+      } else {
+        setError(data.error || 'Failed to load timetable');
       }
     } catch (e) {
-      toast.error('Failed to load your class timetable');
+      setError('Network error - could not sync timetable');
     } finally {
       setLoading(false);
     }
@@ -31,7 +34,23 @@ export default function ClassTimetable() {
   const periods = [1, 2, 3, 4, 5, 6, 7];
   const getSlot = (day, p) => schedule.find(s => s.day_of_week === day && s.period_number === p);
 
-  if (loading) return <div className="text-center py-10 animate-pulse font-bold text-gray-400">SYNCING CLASS TIMETABLE...</div>;
+  if (loading) return (
+    <div className="bg-white rounded-3xl p-20 shadow-xl border border-gray-100 flex flex-col items-center justify-center gap-4">
+       <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+       <p className="text-gray-400 font-black uppercase tracking-widest text-xs animate-pulse">Syncing Class Timetable...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="bg-white rounded-3xl p-20 shadow-xl border border-red-100 flex flex-col items-center justify-center text-center gap-4">
+       <div className="text-5xl">⚠️</div>
+       <div>
+          <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Resolution Failed</h3>
+          <p className="text-sm text-gray-500 max-w-sm mx-auto mt-2 font-medium">{error}</p>
+       </div>
+       <button onClick={fetchTimetable} className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Try Again</button>
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -46,10 +65,9 @@ export default function ClassTimetable() {
           </p>
         </div>
         <div className="text-right">
-           <div className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Status</div>
-           <div className="flex items-center gap-2 text-xs font-black bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-              Session Active
+           <div className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Matrix</div>
+           <div className="flex items-center gap-2 text-xs font-black bg-indigo-500/20 text-indigo-100 px-3 py-1 rounded-full border border-indigo-500/20 uppercase">
+              Current Cycle
            </div>
         </div>
       </div>
@@ -81,7 +99,7 @@ export default function ClassTimetable() {
                 <td className="p-4 border border-gray-100 bg-gray-50 font-black text-gray-700 text-center text-xs group-hover:bg-indigo-50 transition-colors">{day}</td>
                 {periods.map(p => {
                   const slot = getSlot(day, p);
-                  const isInstitutional = slot && !slot.faculty_name && !slot.subject_code.includes('PC'); // Simplified check
+                  const isInstitutional = slot && !slot.faculty_name && !slot.subject_code.includes('PC'); 
                   return (
                     <td key={`${day}-${p}`} className={`p-4 border border-gray-50 text-center transition-all ${slot ? 'bg-white' : 'bg-gray-50/20'}`}>
                       {slot ? (

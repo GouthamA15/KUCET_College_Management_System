@@ -1,26 +1,30 @@
 import { query } from '@/lib/db';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getCurrentStudyingYear, getCurrentSemester } from '@/lib/rollNumber';
+import { getCurrentSemester, getBranchFromRoll } from '@/lib/rollNumber';
 
 export async function GET(req) {
   try {
     const user = await getAuthUser('student');
     if (!user) return apiError('Unauthorized', 401);
 
-    // 1. Resolve student's current academic context
-    const currentYear = getCurrentStudyingYear(user.rollNo);
-    const semester = getCurrentSemester(user.rollNo);
-    
-    // 2. Resolve section (default to A if not in DB, though ideally student table has it)
-    // For now we fetch for Section A as per your institutional baseline
+    // 1. Fetch college info
+    const collegeInfoRows = await query('SELECT * FROM college_info LIMIT 1');
+    const collegeInfo = collegeInfoRows[0] || null;
+
+    // 2. Resolve student context
+    const semester = getCurrentSemester(user.rollNo, collegeInfo);
+    const branch = getBranchFromRoll(user.rollNo);
     const section = 'A';
 
-    // 3. Fetch the branch name for this student
-    const studentRows = await query('SELECT branch FROM student_admission_drafts WHERE email = ?', [user.email]);
-    // Fallback: If not in drafts, parse from roll no (handled by lib/rollNumber usually)
-    let branch = studentRows[0]?.branch || 'CSE'; 
+    if (!semester || !branch) {
+      return apiError('Could not resolve student semester or branch from roll number.', 400);
+    }
 
-    // 4. Fetch the timetable
+    // 3. Resolve system year
+    const semRows = await query('SELECT academic_year FROM semesters ORDER BY id DESC LIMIT 1');
+    const systemYear = semRows[0]?.academic_year || '2025-26';
+
+    // 4. Fetch the timetable with lenient year matching
     const sql = `
       SELECT 
         bt.day_of_week,
@@ -33,14 +37,21 @@ export async function GET(req) {
       LEFT JOIN syllabus_subjects s ON bt.subject_code = s.subject_code
       LEFT JOIN clerks c ON bt.faculty_id = c.id
       WHERE bt.branch = ? AND bt.semester = ? AND bt.section = ?
+      AND (bt.academic_year LIKE ? OR bt.academic_year = '2025-26')
       ORDER BY FIELD(bt.day_of_week, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'), bt.period_number
     `;
 
-    const timetable = await query(sql, [branch, semester, section]);
+    const timetable = await query(sql, [branch, semester, section, `%${systemYear.substring(0, 4)}%`]);
 
     return apiResponse({ 
       data: timetable,
-      meta: { branch, semester, section }
+      meta: { 
+        branch, 
+        semester, 
+        section, 
+        systemYear,
+        rollNo: user.rollNo
+      }
     });
   } catch (error) {
     console.error('Student Timetable API Error:', error);

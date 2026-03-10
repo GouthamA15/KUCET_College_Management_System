@@ -8,12 +8,11 @@ export async function GET(req) {
       return apiError('Unauthorized', 401);
     }
 
-    // 1. Get current academic year
+    // 1. Resolve system year
     const semRows = await query('SELECT academic_year FROM semesters ORDER BY id DESC LIMIT 1');
-    const currentYear = semRows[0]?.academic_year || '2025-26';
+    const systemYear = semRows[0]?.academic_year || '2025-26';
 
-    // 2. Fetch all slots where THIS faculty member is assigned
-    // Across ALL branches and semesters
+    // 2. Fetch with lenient year matching
     const sql = `
       SELECT 
         bt.day_of_week,
@@ -26,11 +25,12 @@ export async function GET(req) {
         s.subject_code
       FROM branch_timetable bt
       LEFT JOIN syllabus_subjects s ON bt.subject_code = s.subject_code
-      WHERE bt.faculty_id = ? AND bt.academic_year = ?
+      WHERE bt.faculty_id = ? 
+      AND (bt.academic_year LIKE ? OR bt.academic_year = '2025-26')
       ORDER BY FIELD(bt.day_of_week, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'), bt.period_number
     `;
 
-    const mySchedule = await query(sql, [user.id, currentYear]);
+    const mySchedule = await query(sql, [user.id, `%${systemYear.substring(0, 4)}%`]);
 
     return apiResponse({ data: mySchedule });
   } catch (error) {

@@ -6,14 +6,19 @@ import { toast } from 'react-hot-toast';
 export default function PersonalSchedule() {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchMySchedule = async () => {
     try {
       const res = await fetch('/api/clerk/faculty/my-timetable');
       const data = await res.json();
-      if (res.ok) setSchedule(data.data || []);
+      if (res.ok) {
+        setSchedule(data.data || []);
+      } else {
+        setError(data.error || 'Failed to fetch schedule');
+      }
     } catch (e) {
-      toast.error('Failed to load your schedule');
+      setError('Network error - could not sync your schedule');
     } finally {
       setLoading(false);
     }
@@ -27,14 +32,30 @@ export default function PersonalSchedule() {
   const periods = [1, 2, 3, 4, 5, 6, 7];
   const getSlot = (day, p) => schedule.find(s => s.day_of_week === day && s.period_number === p);
 
-  if (loading) return <div className="text-center py-10 animate-pulse font-bold text-gray-400">LOADING YOUR TEACHING SCHEDULE...</div>;
+  if (loading) return (
+    <div className="bg-white rounded-3xl p-20 shadow-xl border border-gray-100 flex flex-col items-center justify-center gap-4">
+       <div className="w-12 h-12 border-4 border-[#0b3578] border-t-transparent rounded-full animate-spin"></div>
+       <p className="text-gray-400 font-black uppercase tracking-widest text-xs animate-pulse">Syncing Your Teaching Schedule...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="bg-white rounded-3xl p-20 shadow-xl border border-red-100 flex flex-col items-center justify-center text-center gap-4">
+       <div className="text-5xl">⚠️</div>
+       <div>
+          <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Sync Failed</h3>
+          <p className="text-sm text-gray-500 max-w-sm mx-auto mt-2 font-medium">{error}</p>
+       </div>
+       <button onClick={fetchMySchedule} className="mt-4 px-6 py-2 bg-[#0b3578] text-white rounded-xl font-bold hover:bg-blue-900 transition-all shadow-lg shadow-blue-100">Try Again</button>
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="bg-[#0b3578] p-6 text-white flex justify-between items-center">
         <div>
           <h2 className="text-xl font-black tracking-tight">My Weekly Teaching Schedule</h2>
-          <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mt-1">Academic Year 2025-26</p>
+          <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mt-1">Academic Year 2025-26 (System Sync)</p>
         </div>
         <div className="bg-white/10 px-4 py-2 rounded-2xl border border-white/10 text-xs font-black uppercase">
           {schedule.length} Periods / Week
