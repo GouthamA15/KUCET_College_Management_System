@@ -28,7 +28,7 @@ export async function POST(req) {
     );
 
     if (rows.length === 0) {
-      return apiError('Student not found', 404);
+      return apiError('Invalid credentials', 401);
     }
 
     const student = rows[0];
@@ -41,7 +41,7 @@ export async function POST(req) {
       if (match) {
         isAuthenticated = true;
       } else {
-        return apiError('Invalid Password', 401);
+        return apiError('Invalid credentials', 401);
       }
     }
     else {
@@ -61,7 +61,7 @@ export async function POST(req) {
     if (dbDateString === inputDateString) {
         isAuthenticated = true;
       } else {
-        return apiError('Invalid Date of Birth', 401);
+        return apiError('Invalid credentials', 401);
       }
     }
 
