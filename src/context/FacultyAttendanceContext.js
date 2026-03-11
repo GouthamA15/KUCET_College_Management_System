@@ -1,11 +1,13 @@
 'use client';
-
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import RealtimeListener from '@/components/RealtimeListener';
 
 const FacultyAttendanceContext = createContext(null);
 
 export function FacultyAttendanceProvider({ assignment, children }) {
+  // ... (rest of state)
+
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSession, setSelectedSession] = useState(1);
   const [baseStudents, setBaseStudents] = useState([]);
@@ -416,6 +418,13 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     [baseStudents, attendanceStatusMap],
   );
 
+  const handleRealtimeUpdate = useCallback((data) => {
+    if (data.type === 'STUDENT_VERIFIED' && data.payload.assignment_id === assignment.id) {
+      console.log('[AttendanceSync] Student verified, refreshing...');
+      fetchAttendanceStatus();
+    }
+  }, [assignment.id, fetchAttendanceStatus]);
+
   const value = {
     assignment,
     selectedDate,
@@ -444,7 +453,12 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     fetchAttendanceStatus
   };
 
-  return <FacultyAttendanceContext.Provider value={value}>{children}</FacultyAttendanceContext.Provider>;
+  return (
+    <FacultyAttendanceContext.Provider value={value}>
+      <RealtimeListener onUpdate={handleRealtimeUpdate} />
+      {children}
+    </FacultyAttendanceContext.Provider>
+  );
 }
 
 export function useFacultyAttendance() {

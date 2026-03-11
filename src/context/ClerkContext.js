@@ -1,10 +1,12 @@
 'use client';
-
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import RealtimeListener from '@/components/RealtimeListener';
 
 const ClerkContext = createContext();
 
 export function ClerkProvider({ children }) {
+  // ... rest of state
+
   const [clerkData, setClerkData] = useState(null);
   const [collegeInfo, setCollegeInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -131,6 +133,15 @@ export function ClerkProvider({ children }) {
     init();
   }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests, fetchHODData]);
 
+  const handleRealtimeUpdate = useCallback((data) => {
+    if (clerkData?.is_hod && data.payload.branch === clerkData.branch) {
+      if (['TIMETABLE_CHANGED', 'ATTENDANCE_SAVED', 'SESSION_STARTED', 'SESSION_ENDED'].includes(data.type)) {
+        console.log(`[HODSync] ${data.type} detected, refreshing...`);
+        fetchHODData();
+      }
+    }
+  }, [clerkData, fetchHODData]);
+
   return (
     <ClerkContext.Provider value={{ 
       clerkData, 
@@ -150,6 +161,7 @@ export function ClerkProvider({ children }) {
       isLoadingHOD,
       refreshHOD: fetchHODData
     }}>
+      <RealtimeListener onUpdate={handleRealtimeUpdate} />
       {children}
     </ClerkContext.Provider>
   );

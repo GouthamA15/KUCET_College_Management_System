@@ -7,7 +7,6 @@ export default function RealtimeListener({ onUpdate }) {
   useEffect(() => {
     let eventSource = null;
     let retryCount = 0;
-    const maxRetries = 5;
 
     const setupSSE = () => {
       if (eventSource) eventSource.close();
@@ -33,10 +32,11 @@ export default function RealtimeListener({ onUpdate }) {
       eventSource.onerror = (err) => {
         console.warn('[Realtime] Connection lost, retrying...');
         eventSource.close();
-        if (retryCount < maxRetries) {
-          retryCount++;
-          setTimeout(setupSSE, 3000 * retryCount);
-        }
+        
+        // Exponential backoff with a cap of 30 seconds
+        const delay = Math.min(30000, Math.pow(2, retryCount) * 1000);
+        retryCount++;
+        setTimeout(setupSSE, delay);
       };
     };
 

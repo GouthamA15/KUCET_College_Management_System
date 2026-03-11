@@ -5,7 +5,7 @@ export async function GET(req) {
     start(controller) {
       addSSEClient(controller);
       
-      // Keep-alive ping every 30 seconds
+      // Keep-alive ping every 15 seconds for aggressive proxies (Render)
       const interval = setInterval(() => {
         try {
           controller.enqueue(new TextEncoder().encode(': ping\n\n'));
@@ -13,7 +13,7 @@ export async function GET(req) {
           clearInterval(interval);
           removeSSEClient(controller);
         }
-      }, 30000);
+      }, 15000);
 
       req.signal.addEventListener('abort', () => {
         clearInterval(interval);
@@ -30,6 +30,7 @@ export async function GET(req) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no', // Critical for Render/Nginx
     },
   });
 }

@@ -113,6 +113,18 @@ export async function POST(request) {
       [session.id, user.student_id, finalDeviceId, ipAddress, uaHash]
     );
 
+    // --- REAL-TIME: Notify Faculty ---
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('STUDENT_VERIFIED', { 
+        assignment_id: session.assignment_id, 
+        student_id: user.student_id,
+        roll_no: user.roll_no
+      });
+    } catch (sseErr) {
+      console.warn('[SSE] Broadcast failed:', sseErr);
+    }
+
     return apiResponse({ 
       success: true, 
       message: 'Attendance verified successfully. The faculty will finalize the records.' 

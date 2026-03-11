@@ -90,11 +90,25 @@ export async function POST(req) {
 
     if (action === 'SAVE_UNIT') {
       const { subject_code, unit_order, unit_name, topics } = unit;
+      
+      // Validation: Ensure topics is an array and cleanup
+      let finalTopics = [];
+      if (Array.isArray(topics)) {
+        finalTopics = topics.map(t => String(t).trim()).filter(Boolean);
+      } else if (typeof topics === 'string') {
+        try {
+          const parsed = JSON.parse(topics);
+          finalTopics = Array.isArray(parsed) ? parsed : [topics];
+        } catch (e) {
+          finalTopics = [topics];
+        }
+      }
+
       await query(
         `INSERT INTO syllabus_units (subject_code, unit_order, unit_name, topics) 
          VALUES (?, ?, ?, ?) 
          ON DUPLICATE KEY UPDATE unit_name = VALUES(unit_name), topics = VALUES(topics)`,
-        [subject_code, unit_order, unit_name, JSON.stringify(topics)]
+        [subject_code, unit_order, unit_name, JSON.stringify(finalTopics)]
       );
       return apiResponse({ success: true, message: 'Unit saved' });
     }
