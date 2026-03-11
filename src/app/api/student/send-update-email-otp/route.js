@@ -26,8 +26,6 @@ export async function POST(req) {
       // Aggressive cleaning: Remove all whitespace and non-standard characters
       const email = rawEmail.trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9@.\-_]/g, '');
 
-      console.log(`[DEBUG] OTP Request: rollno=${rollno}, rawEmail="${rawEmail}", cleanedEmail="${email}"`);
-
       if (!rollno || !email) {
         return apiError('Missing roll number or email', 400);
       }
