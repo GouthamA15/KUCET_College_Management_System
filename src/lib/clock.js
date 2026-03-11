@@ -3,10 +3,11 @@
  * In development, it checks for a 'dev_mock_date' cookie to allow time travel.
  */
 export async function getNow() {
-  // Safe mode: Disable mock logic unless explicitly in testing environment
+  // Safe mode: Disable mock logic if explicitly in production OR if testing env not set
+  const isProduction = process.env.NODE_ENV === 'production';
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
   
-  if (!isTesting) {
+  if (isProduction || !isTesting) {
     return new Date();
   }
 
@@ -40,8 +41,10 @@ export async function getNow() {
  * DO NOT use this on the server if you expect mock time to work via cookies.
  */
 export function getNowSync() {
+  const isProduction = process.env.NODE_ENV === 'production';
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
-  if (!isTesting) {
+  
+  if (isProduction || !isTesting) {
     return new Date();
   }
 

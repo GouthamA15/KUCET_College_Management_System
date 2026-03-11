@@ -3,7 +3,8 @@ import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function DELETE(req, ctx) {
   const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
+  // Security Hardening: Ensure only scholarship clerks can delete records
+  if (!user || user.role !== 'scholarship') return apiError('Unauthorized', 403);
 
   try {
     const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};

@@ -10,10 +10,11 @@ export async function POST(req) {
 
   try {
     const body = await req.json();
-    const { rollno } = body; 
+    // SECURITY: Ignore the rollno provided in the body; use the authenticated user's roll_no
+    const rollno = user.roll_no; 
 
     if (!rollno) {
-      return apiError('Missing rollno', 400);
+      return apiError('Missing roll_no in session', 400);
     }
 
     const db = getDb();
