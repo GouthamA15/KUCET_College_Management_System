@@ -27,13 +27,13 @@ export function getDb() {
       port: process.env.DB_PORT || 3306,
       dateStrings: true, // Prevent timezone conversion issues
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 25,
       queueLimit: 0,
       // PRODUCTION HARDENING:
       enableKeepAlive: true,
       keepAliveInitialDelay: 10000,
       idleTimeout: 60000, // Close idle connections after 60 seconds
-      maxIdle: 10, // Max idle connections, the same as the connection limit
+      maxIdle: 25, // Max idle connections, the same as the connection limit
     });
   }
   return pool;
