@@ -11,8 +11,10 @@ export async function checkRateLimit(key, limit, windowSeconds) {
   try {
     const now = new Date();
     
-    // 1. Clean up expired limits occasionally (handled by DB cleanup job normally, but let's do it here for now)
-    // await query('DELETE FROM rate_limits WHERE expire_at < NOW()');
+    // 1. Clean up expired limits occasionally (10% chance per request to avoid overhead)
+    if (Math.random() < 0.1) {
+      query('DELETE FROM rate_limits WHERE expire_at < NOW()').catch(e => console.error('Rate Limit Cleanup Error:', e));
+    }
 
     // 2. Fetch current points
     const [row] = await query(
