@@ -134,7 +134,12 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 34: Institutional Synchronization & Security Hardening (Latest - March 11, 2026)**
+### **Session 35: Final Production Optimizations (Latest - March 11, 2026)**
+- **Security Headers:** Implemented standard production security headers in `next.config.mjs`, including HSTS, No-Sniff, Frame-Options (DENY), and XSS-Protection to harden the application against common web attacks.
+- **Database Scalability:** Increased the MySQL connection pool limit from 10 to **25** to support higher concurrent traffic from students and faculty during peak hours.
+- **Permission Hardening:** Verified and enforced minimal-data-leakage principles in authenticated `me` routes, ensuring only necessary session data is exposed to the client.
+
+### **Session 34: Institutional Synchronization & Security Hardening (March 11, 2026)**
 - **Timezone Enforcement:** Hardened the clock utility to strictly enforce **IST (UTC+5:30)** across the server and client. This resolves a critical 5.5-hour mismatch on UTC servers (Render/Railway), ensuring "Live Session" bars and attendance windows are perfectly synchronized with college hours.
 - **Login Enumeration Protection:** Switched Student Login to use generic "Invalid credentials" error messages. This prevents attackers from identifying valid roll numbers or discovering whether a student has set a custom password.
 - **GPS Reliability:** Softened the geofencing accuracy check to allow high-precision devices (accuracy < 1m) while maintaining strict blocks for 0-accuracy readings (often associated with mock location failures). Added server-side logging for low-accuracy attempts to assist in administrative troubleshooting.
