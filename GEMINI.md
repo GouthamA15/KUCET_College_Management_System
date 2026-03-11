@@ -138,7 +138,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Tab Multiplexing:** Implemented **Web Locks API** and `BroadcastChannel` in `RealtimeListener` to bypass the browser's 6-connection limit; only one tab (the Leader) connects to the server and broadcasts updates locally.
 - **Brute-Force Protection:** Added **Rate Limiting** to Student, Clerk, and Admin login routes (5 attempts/15 mins) and OTP services (3/hr).
 - **IDOR Security Fixes:** Hardened scholarship deletion (strict role check) and student profile updates (forced session-based identity) to prevent unauthorized record modification.
-- **Storage Protection:** Enforced a **1MB file size limit** and image-only MIME type validation in the Cloudinary upload utility to prevent storage abuse.
+- **Storage Protection:** Enforced a **1MB file size limit** and image-only MIME type validation in the Cloudinary upload utility. Added client-side UI validation for Profile Photos, Signatures, and Payment Screenshots to ensure immediate user feedback and prevent server errors.
 - **CSRF Hardening:** Switched all sensitive HttpOnly session cookies to `SameSite: Strict` across all authentication mechanisms.
 - **Clock Lockdown:** Implemented mandatory `NODE_ENV` checks in the clock utility to physically prevent "Time Machine" features from being active in production.
 
