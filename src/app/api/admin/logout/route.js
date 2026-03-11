@@ -8,7 +8,7 @@ export async function POST() {
     response.cookies.set('admin_auth', '', {
       httpOnly: true,
       secure: true,
-      sameSite: 'lax',
+      sameSite: 'strict',
       expires: new Date(0), // Expire immediately
       path: '/',
     });

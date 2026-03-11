@@ -72,7 +72,7 @@ export async function GET(request) {
   response.cookies.set('clerk_auth', token, {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: 60 * 60,
     path: '/',
   });

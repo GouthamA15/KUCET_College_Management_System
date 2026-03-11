@@ -82,7 +82,7 @@ export async function POST(req) {
     response.cookies.set('student_auth', token, {
         httpOnly: true,
         secure: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         maxAge: cookieMaxAge,
         path: '/',
     });
