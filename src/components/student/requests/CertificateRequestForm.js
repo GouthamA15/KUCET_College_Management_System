@@ -85,8 +85,8 @@ export default function CertificateRequestForm({
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 4 * 1024 * 1024) {
-        toast.error('File size must be less than 4MB.');
+      if (file.size > 1 * 1024 * 1024) {
+        toast.error('File size must be less than 1MB.');
         setPaymentScreenshot(null);
         if (e.target) e.target.value = null;
         return;
@@ -310,7 +310,7 @@ export default function CertificateRequestForm({
                     {isUPIRequired ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
                   </h3>
                   <p className="text-sm text-gray-600 mb-3">
-                    {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <4MB).'}
+                    {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <1MB).'}
                   </p>
 
                   <div className="mb-3">

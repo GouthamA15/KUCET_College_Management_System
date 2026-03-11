@@ -16,8 +16,8 @@ export default function useProfileImage(initialSrc = null) {
         toast.error('Only JPG, JPEG, and PNG files are allowed.');
         return;
       }
-      if (file.size > 4 * 1024 * 1024) {
-        toast.error('File size must be less than 4MB.');
+      if (file.size > 1 * 1024 * 1024) {
+        toast.error('File size must be less than 1MB.');
         return;
       }
 
