@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
 import PaymentSection from './PaymentSection';
 
 export default function CertificateRequestForm({
@@ -84,8 +85,8 @@ export default function CertificateRequestForm({
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 4 * 1024 * 1024) {
-        toast.error('File size must be less than 4MB.');
+      if (file.size > 1 * 1024 * 1024) {
+        toast.error('File size must be less than 1MB.');
         setPaymentScreenshot(null);
         if (e.target) e.target.value = null;
         return;
@@ -309,7 +310,7 @@ export default function CertificateRequestForm({
                     {isUPIRequired ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
                   </h3>
                   <p className="text-sm text-gray-600 mb-3">
-                    {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <4MB).'}
+                    {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <1MB).'}
                   </p>
 
                   <div className="mb-3">
@@ -321,7 +322,7 @@ export default function CertificateRequestForm({
                         </div>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center relative">
-                          <img src={paymentPreviewUrl} alt="Payment Screenshot Preview" className="max-h-[220px] w-auto object-contain" />
+                          <Image src={paymentPreviewUrl} alt="Payment Screenshot Preview" width={520} height={220} className="max-h-[220px] w-auto object-contain" unoptimized />
                           <button type="button" onClick={handleRemoveImage} className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full p-1 text-gray-600 hover:bg-gray-100">
                             ×
                           </button>

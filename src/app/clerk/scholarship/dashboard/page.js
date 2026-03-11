@@ -10,7 +10,11 @@ import CertificateDashboard from '@/components/clerk/certificates/CertificateDas
 import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
 import YearRecordsList from '@/components/clerk/scholarship/YearRecordsList';
 import AddEditRecordModal from '@/components/clerk/scholarship/AddEditRecordModal';
-import Image from 'next/image';
+import ScholarshipMetricsCards from '@/components/clerk/scholarship/ScholarshipMetricsCards';
+import ScholarshipSearchCard from '@/components/clerk/scholarship/ScholarshipSearchCard';
+import ScholarshipWindowCard from '@/components/clerk/scholarship/ScholarshipWindowCard';
+import ScholarshipToolsSection from '@/components/clerk/scholarship/ScholarshipToolsSection';
+import { useScholarshipDashboard } from '@/context/ScholarshipDashboardContext';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
@@ -18,17 +22,16 @@ import { formatDate } from '@/lib/date';
 
 export default function ScholarshipDashboard() {
   const { clerkData: clerk, loading: isClerkLoading } = useClerk();
-  const [roll, setRoll] = useState('');
-  const [rollError, setRollError] = useState('');
+  const { state, setField, resetStudent } = useScholarshipDashboard();
+  const { roll, searchMode, applicationNoInput, rollError, student, feeSummary, yearList, summariesByYear, expandedByYear } = state;
+  const setRoll = (v) => setField('roll', v);
+  const setSearchMode = (v) => setField('searchMode', v);
+  const setApplicationNoInput = (v) => setField('applicationNoInput', v);
+  const setRollError = (v) => setField('rollError', v);
   const MAX_ROLL = 10;
   const [loading, setLoading] = useState(false); // For fetching student data
-  const [student, setStudent] = useState(null);
-  const [feeSummary, setFeeSummary] = useState(null);
   const [scholarshipProceedings, setScholarshipProceedings] = useState([]);
   const [studentPayments, setStudentPayments] = useState([]);
-  const [yearList, setYearList] = useState([]);
-  const [summariesByYear, setSummariesByYear] = useState({});
-  const [expandedByYear, setExpandedByYear] = useState({});
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [view, setView] = useState('dashboard');
@@ -44,6 +47,28 @@ export default function ScholarshipDashboard() {
   const [payDate, setPayDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [appEditing, setAppEditing] = useState(false);
+  const [thumbUpdateAvailable, setThumbUpdateAvailable] = useState(false);
+  const [thumbStatus, setThumbStatus] = useState('Pending');
+  const [hardcopySubmitted, setHardcopySubmitted] = useState(false);
+
+  // Helper to set form state from modal-like callers
+  const setFormState = (k, v) => {
+    const setters = {
+      schAppNo: setSchAppNo,
+      schProceedingNo: setSchProceedingNo,
+      schAmount: setSchAmount,
+      schDate: setSchDate,
+      payAmount: setPayAmount,
+      payRef: setPayRef,
+      payDate: setPayDate,
+      appEditing: setAppEditing,
+      thumbUpdateAvailable: setThumbUpdateAvailable,
+      thumbStatus: setThumbStatus,
+      hardcopySubmitted: setHardcopySubmitted,
+    };
+    const fn = setters[k] || (() => {});
+    fn(v);
+  };
 
   
 
@@ -66,65 +91,84 @@ export default function ScholarshipDashboard() {
     window.location.replace('/');
   };
 
-  const resetStudent = () => {
-    setStudent(null);
-    setFeeSummary(null);
+  const localResetStudent = () => {
+    resetStudent();
     setScholarshipProceedings([]);
     setStudentPayments([]);
-    setYearList([]);
-    setSummariesByYear({});
-    setExpandedByYear({});
   };
 
   const fetchStudent = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    if (!roll) return;
-    // Enforce same client-side constraints as LoginPanel / Admission clerk
-    if (String(roll).length !== MAX_ROLL) {
-      toast.error(`Roll Number must be ${MAX_ROLL} characters long`);
-      return;
-    }
-    try {
-      const { isValid } = validateRollNo(String(roll));
-      if (!isValid) {
+    if (searchMode === 'roll') {
+      if (!roll) return;
+      // Enforce same client-side constraints as LoginPanel / Admission clerk
+      if (String(roll).length !== MAX_ROLL) {
+        toast.error(`Roll Number must be ${MAX_ROLL} characters long`);
+        return;
+      }
+      try {
+        const { isValid } = validateRollNo(String(roll));
+        if (!isValid) {
+          toast.error('Invalid Roll Number format');
+          return;
+        }
+      } catch (err) {
         toast.error('Invalid Roll Number format');
         return;
       }
-    } catch (err) {
-      toast.error('Invalid Roll Number format');
-      return;
+    } else {
+      if (!applicationNoInput) return;
     }
     setLoading(true);
-    resetStudent();
+    localResetStudent();
     const id = toast.loading('Fetching student...');
     try {
-      // Expect backend to return exactly the frozen contract shape
-      // No hardcoded academic year; server defaults to current academic year
-      const res = await fetch(`/api/clerk/scholarship/summary/${encodeURIComponent(roll)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error((data && data.error) || 'Student not found');
-      // Normalize API response: support both { data: ... } wrapper and direct payload
-      const payload = (data && data.data) ? data.data : data;
-      setStudent(payload.student || null);
-      setFeeSummary(payload.fee_summary || null);
-      setScholarshipProceedings(Array.isArray(payload.scholarship_proceedings) ? payload.scholarship_proceedings : []);
-      setStudentPayments(Array.isArray(payload.student_payments) ? payload.student_payments : []);
+      let res, data, payload;
+      if (searchMode === 'roll') {
+        res = await fetch(`/api/clerk/scholarship/summary/${encodeURIComponent(roll)}`);
+        data = await res.json();
+        if (!res.ok) throw new Error((data && data.error) || 'Student not found');
+        payload = (data && data.data) ? data.data : data;
+        setField('student', payload.student || null);
+        setField('feeSummary', payload.fee_summary || null);
+        setScholarshipProceedings(Array.isArray(payload.scholarship_proceedings) ? payload.scholarship_proceedings : []);
+        setStudentPayments(Array.isArray(payload.student_payments) ? payload.student_payments : []);
 
-      // Build 4-year list from admission academic year period (e.g., 2023-2027)
-      const list = deriveYearsFromAdmission(String(payload?.student?.admission_year || ''));
-      setYearList(list);
-      // Fetch summaries for each year in parallel; store by year
-      const urls = list.map(y => `/api/clerk/scholarship/summary/${encodeURIComponent(roll)}?year=${encodeURIComponent(y)}`);
-      const results = await Promise.allSettled(urls.map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null)));
-      const byYear = {};
-      results.forEach((res, idx) => {
-        const y = list[idx];
-        const raw = (res.status === 'fulfilled' ? res.value : null) || null;
-        byYear[y] = raw && raw.data ? raw.data : raw;
-      });
-      setSummariesByYear(byYear);
-      // Default collapsed view for all cards
-      setExpandedByYear(list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+        // Build 4-year list from admission academic year period (e.g., 2023-2027)
+        const list = deriveYearsFromAdmission(String(payload?.student?.admission_year || ''));
+        setField('yearList', list);
+        // Fetch summaries for each year in parallel; store by year
+        const urls = list.map(y => `/api/clerk/scholarship/summary/${encodeURIComponent(roll)}?year=${encodeURIComponent(y)}`);
+        const results = await Promise.allSettled(urls.map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null)));
+        const byYear = {};
+        results.forEach((res, idx) => {
+          const y = list[idx];
+          const raw = (res.status === 'fulfilled' ? res.value : null) || null;
+          byYear[y] = raw && raw.data ? raw.data : raw;
+        });
+        setField('summariesByYear', byYear);
+        // Default collapsed view for all cards
+        setField('expandedByYear', list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+      } else {
+        // Application number search — expects { student, year_records }
+        res = await fetch(`/api/clerk/scholarship/application/${encodeURIComponent(applicationNoInput)}`);
+        data = await res.json();
+        if (!res.ok) throw new Error((data && data.error) || 'Student not found');
+        payload = (data && data.data) ? data.data : data;
+        setField('student', payload.student || null);
+        // If backend provided per-year records, use them directly
+        if (payload.year_records && typeof payload.year_records === 'object') {
+          const years = Object.keys(payload.year_records || {});
+          setField('yearList', years);
+          setField('summariesByYear', payload.year_records);
+          setField('expandedByYear', years.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+        } else {
+          // Fallback to derive from student
+          const list = deriveYearsFromAdmission(String(payload?.student?.admission_year || ''));
+          setField('yearList', list);
+          setField('expandedByYear', list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+        }
+      }
 
       toast.success('Student loaded', { id });
     } catch (err) {
@@ -206,6 +250,29 @@ export default function ScholarshipDashboard() {
     setPayAmount('');
     setPayRef('');
     setPayDate('');
+    // Thumb fields - hydrate from stored summary and normalize values
+    try {
+      const summaryData = summariesByYear[year] || {};
+      const thumbAvailable = summaryData?.thumb_update_available === 1 || summaryData?.thumb_update_available === true;
+      const thumbStatusRaw = summaryData?.thumb_status ?? 'PENDING';
+      const ts = String(thumbStatusRaw).toLowerCase();
+      const completeValues = ['complete', '1', 'true', 'success', 'done'];
+      const thumbStatusNorm = completeValues.includes(ts) ? 'Complete' : 'Pending';
+      // initialize via setFormState so modal setter API is used
+      setFormState('thumbUpdateAvailable', thumbAvailable);
+      setFormState('thumbStatus', thumbStatusNorm);
+    } catch {
+      setFormState('thumbUpdateAvailable', false);
+      setFormState('thumbStatus', 'Pending');
+    }
+    // Hardcopy submission flag
+    try {
+      const summaryData = summariesByYear[year] || {};
+      const hardcopy = summaryData?.hardcopy_submitted === 1 || summaryData?.hardcopy_submitted === true;
+      setFormState('hardcopySubmitted', hardcopy);
+    } catch {
+      setFormState('hardcopySubmitted', false);
+    }
   }
 
   async function refetchYearSummary(rollNo, year) {
@@ -213,7 +280,10 @@ export default function ScholarshipDashboard() {
       const res = await fetch(`/api/clerk/scholarship/summary/${encodeURIComponent(rollNo)}?year=${encodeURIComponent(year)}`);
       const data = res.ok ? await res.json() : null;
       const payload = data && data.data ? data.data : data;
-      setSummariesByYear(prev => ({ ...prev, [year]: payload }));
+      setField('summariesByYear', {
+        ...summariesByYear,
+        [year]: payload,
+      });
     } catch {}
   }
 
@@ -237,18 +307,29 @@ export default function ScholarshipDashboard() {
             throw new Error('Proceeding Number is required to enter sanctioned amount');
           }
           const amt = hasAmount ? Number(schAmount) : null;
+          // include thumb and hardcopy fields
+          const sanctionBody = {
+            roll_no: student.roll_no,
+            academic_year: modalYear,
+            application_no: schAppNo || null,
+            proceeding_no: schProceedingNo || null,
+            sanctioned_amount: amt,
+            sanction_date: schDate || null,
+          };
+          if (thumbUpdateAvailable) {
+            sanctionBody.thumb_update_available = true;
+            sanctionBody.thumb_status = thumbStatus || 'Pending';
+          }
+          // always send hardcopy_submitted so backend can trigger/removes reminders correctly
+          sanctionBody.hardcopy_submitted = hardcopySubmitted ? 1 : 0;
+          // remember previous thumb state for email trigger
+          const prevThumb = !!(summariesByYear[modalYear]?.thumb_update_available);
           ops.push(fetch('/api/clerk/scholarship/sanctions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              roll_no: student.roll_no,
-              academic_year: modalYear,
-              application_no: schAppNo || null,
-              proceeding_no: schProceedingNo || null,
-              sanctioned_amount: amt,
-              sanction_date: schDate || null,
-            })
+            body: JSON.stringify(sanctionBody)
           }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.error || 'Failed to save sanction')))));
+          // after all ops complete we'll check prevThumb vs current
         }
       }
 
@@ -280,6 +361,7 @@ export default function ScholarshipDashboard() {
 
       await Promise.all(ops);
       toast.success('Record saved');
+      // Email notification is handled server-side in the sanctions API to avoid duplicates.
       setModalOpen(false);
       await refetchYearSummary(student.roll_no, modalYear);
     } catch (err) {
@@ -333,130 +415,120 @@ export default function ScholarshipDashboard() {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
-      <Navbar role={'clerk'} onLogout={handleLogout} />
-      <main className="flex-1 p-4 md:p-8">
-        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Scholarship Clerk Dashboard</h1>
-        
-        {view === 'certificates' ? (
-          <div>
-            <button onClick={() => setView('dashboard')} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
-            <CertificateDashboard clerkType="scholarship" />
-          </div>
-        ) : (
-          <>
-            {/* Dashboard Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white p-4 rounded-lg shadow border-2 border-indigo-50 flex flex-col">
-                <h3 className="font-semibold">Fetch Student</h3>
-                <p className="text-sm text-gray-600">Primary action: fetch a student by roll number</p>
-                <form onSubmit={fetchStudent} className="mt-3 flex gap-2 items-center">
-                  <div className="flex-grow min-w-0">
-                    <input
-                      value={roll}
-                      onChange={(e) => {
-                        const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                        setRoll(v);
-                        if (v.length > 0 && v.length === MAX_ROLL) {
-                          try {
-                            const { isValid } = validateRollNo(v);
-                            if (!isValid) setRollError('Invalid Roll Number format.');
-                            else setRollError('');
-                          } catch (err) {
-                            setRollError('Invalid Roll Number format.');
-                          }
-                        } else if (v.length > 0 && v.length !== MAX_ROLL) {
-                          setRollError(`Roll Number must be ${MAX_ROLL} characters long.`);
-                        } else {
-                          setRollError('');
-                        }
-                      }}
-                      placeholder="Roll Number"
-                      className="w-full px-3 py-2 border rounded"
-                      maxLength={MAX_ROLL}
-                    />
-                    {rollError && <div className="text-red-600 text-sm mt-1">{rollError}</div>}
-                  </div>
-                  <button type="submit" disabled={loading || String(roll).length !== MAX_ROLL} className="px-4 py-2 bg-indigo-700 text-white rounded disabled:opacity-60 whitespace-nowrap flex-shrink-0 min-w-[90px] text-center">{loading ? 'Fetching...' : 'Fetch'}</button>
-                </form>
-              </div>
+      <Navbar role={'clerkScholarship'} onLogout={handleLogout} />
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
+          <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4">Scholarship Clerk Dashboard</h1>
 
-              <div onClick={() => setView('certificates')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
-                <h3 className="font-semibold">Certificate Requests</h3>
-                <p className="text-sm text-gray-600">View and process student certificate requests.</p>
-              </div>
-
-              <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow">
-                <h3 className="font-semibold">Reports</h3>
-                <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
-              </div>
-
-              <div className="opacity-60 pointer-events-none bg-white p-4 rounded-lg shadow">
-                <h3 className="font-semibold">Notifications</h3>
-                <p className="text-sm text-gray-500">Disabled — Coming Soon</p>
-              </div>
+          {view === 'certificates' ? (
+            <div>
+              <button
+                onClick={() => setView('dashboard')}
+                className="text-sm text-indigo-600 mb-3"
+              >
+                 Back to Dashboard
+              </button>
+              <CertificateDashboard clerkType="scholarship" />
             </div>
+          ) : (
+            <>
+              {/* Metrics section */}
+              <ScholarshipMetricsCards />
 
-            {/* After fetch: Student Info + Summary */}
-            {student && (
-              <section className="space-y-6">
-                
-                {/* Student Info Card */}
-                <StudentInfoCard student={student} onImageClick={(src) => { setImagePreviewSrc(src); setImagePreviewOpen(true); }} />
-                {/* Year-wise cards (4 cards, independent) */}
-                <YearRecordsList
-                  yearList={yearList}
-                  summariesByYear={summariesByYear}
-                  expandedByYear={expandedByYear}
-                  onToggleExpand={(yy) => setExpandedByYear(prev => ({ ...prev, [yy]: !prev[yy] }))}
-                  onOpenModal={(yy) => openAddModal(yy)}
-                  computeRecordState={computeRecordState}
-                  feeSummary={feeSummary}
-                  student={student}
-                  toDmy={toDmy}
-                />
+              {/* Primary search action */}
+              <ScholarshipSearchCard
+                searchMode={searchMode}
+                setSearchMode={setSearchMode}
+                roll={roll}
+                setRoll={setRoll}
+                applicationNoInput={applicationNoInput}
+                setApplicationNoInput={setApplicationNoInput}
+                rollError={rollError}
+                setRollError={setRollError}
+                MAX_ROLL={MAX_ROLL}
+                loading={loading}
+                onSubmit={fetchStudent}
+              />
 
-                <AddEditRecordModal
-                  open={modalOpen}
-                  year={modalYear}
-                  student={student}
-                  summary={summariesByYear[modalYear] || null}
-                  formState={{
-                    schAppNo,
-                    schProceedingNo,
-                    schAmount,
-                    schDate,
-                    payAmount,
-                    payRef,
-                    payDate,
-                    appEditing,
-                  }}
-                  setFormState={(k, v) => {
-                    const setters = {
-                      schAppNo: setSchAppNo,
-                      schProceedingNo: setSchProceedingNo,
-                      schAmount: setSchAmount,
-                      schDate: setSchDate,
-                      payAmount: setPayAmount,
-                      payRef: setPayRef,
-                      payDate: setPayDate,
-                      appEditing: setAppEditing,
-                    };
-                    (setters[k] || (() => {}))(v);
-                  }}
-                  saving={saving}
-                  onSave={handleSaveRecord}
-                  onClose={() => setModalOpen(false)}
-                  onDeletePayment={deletePayment}
-                  onDeleteScholarship={deleteScholarship}
-                  toDmy={toDmy}
-                />
-              </section>
-            )}
-          </>
-        )}
+              {/* Student details & year-wise records */}
+              {student && (
+                <section className="space-y-6 mt-4">
+                  <StudentInfoCard
+                    student={student}
+                    onImageClick={(src) => {
+                      setImagePreviewSrc(src);
+                      setImagePreviewOpen(true);
+                    }}
+                  />
 
+                  <YearRecordsList
+                    yearList={yearList}
+                    summariesByYear={summariesByYear}
+                    expandedByYear={expandedByYear}
+                    onToggleExpand={(yy) =>
+                      setExpandedByYear((prev) => ({ ...prev, [yy]: !prev[yy] }))
+                    }
+                    onOpenModal={(yy) => openAddModal(yy)}
+                    computeRecordState={computeRecordState}
+                    feeSummary={feeSummary}
+                    student={student}
+                    toDmy={toDmy}
+                  />
 
-        {/* UI is a pure renderer; edit modals removed per contract */}
+                  <AddEditRecordModal
+                    open={modalOpen}
+                    year={modalYear}
+                    student={student}
+                    summary={summariesByYear[modalYear] || null}
+                    formState={{
+                      schAppNo,
+                      schProceedingNo,
+                      schAmount,
+                      schDate,
+                      payAmount,
+                      payRef,
+                      payDate,
+                      appEditing,
+                      thumbUpdateAvailable,
+                      thumbStatus,
+                      hardcopySubmitted,
+                    }}
+                    setFormState={(k, v) => {
+                      const setters = {
+                        schAppNo: setSchAppNo,
+                        schProceedingNo: setSchProceedingNo,
+                        schAmount: setSchAmount,
+                        schDate: setSchDate,
+                        payAmount: setPayAmount,
+                        payRef: setPayRef,
+                        payDate: setPayDate,
+                        appEditing: setAppEditing,
+                        thumbUpdateAvailable: setThumbUpdateAvailable,
+                        thumbStatus: setThumbStatus,
+                        hardcopySubmitted: setHardcopySubmitted,
+                      };
+                      (setters[k] || (() => {}))(v);
+                    }}
+                    saving={saving}
+                    onSave={handleSaveRecord}
+                    onClose={() => setModalOpen(false)}
+                    onDeletePayment={deletePayment}
+                    onDeleteScholarship={deleteScholarship}
+                    toDmy={toDmy}
+                  />
+                </section>
+              )}
+
+              {/* Scholarship submission window management */}
+              <ScholarshipWindowCard />
+
+              {/* Secondary tools */}
+              <ScholarshipToolsSection
+                onOpenCertificates={() => setView('certificates')}
+              />
+            </>
+          )}
+        </div>
       </main>
       <Footer />
       <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />

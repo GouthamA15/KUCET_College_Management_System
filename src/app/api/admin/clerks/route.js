@@ -9,7 +9,7 @@ export async function GET() {
   }
 
   try {
-    const clerks = await query('SELECT id, name, email, employee_id, role, is_active, created_at, updated_at FROM clerks');
+    const clerks = await query('SELECT id, name, email, employee_id, role, is_hod, branch, is_active, created_at, updated_at FROM clerks');
     return apiResponse({ data: clerks });
   } catch (error) {
     console.error('Error fetching clerks:', error);

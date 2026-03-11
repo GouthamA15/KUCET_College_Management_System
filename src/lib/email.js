@@ -24,8 +24,8 @@ export const buildInstitutionalEmailHtml = ({
   infoRows
 }) => {
   // Use a public Cloudinary URL for the logo so it works in emails (localhost URLs are blocked by email clients)
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
-  const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/v1741103144/kucet/assets/ku-logo.png`;
+  const cloudName = 'djs0ry74r';
+  const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/v1772715418/kucet/public/assets/ku-logo.png`;
 
   // Build structured information rows if provided
   const infoRowsHtml = Array.isArray(infoRows) && infoRows.length > 0

@@ -23,103 +23,67 @@ export async function GET(request) {
       return apiError('Unable to determine student academic context', 400);
     }
 
-    // --- AGGREGATED SYLLABUS-BASED DATA QUERY ---
-    // We now start from the syllabus_structure table to ensure ALL leaf subjects (Core + Variants)
-    // in the curriculum are listed. Group headers (is_group=1) are skipped in favor of their variants.
+    // --- OPTIMIZED AGGREGATED DATA QUERY ---
+    // This query uses LEFT JOINs and Conditional Aggregation to fetch everything in 1 pass.
+    // It filters for canonical assignments (oldest assignment per subject-branch-sem-year)
+    // and calculates both Marks and Attendance simultaneously.
     const [subjects] = await db.execute(`
+      WITH CanonicalAssignments AS (
+        SELECT 
+          subject_code, branch, course_semester, academic_year,
+          MIN(id) as id
+        FROM faculty_subject_assignments
+        WHERE branch = ? AND course_semester = ? AND academic_year = ?
+        GROUP BY subject_code, branch, course_semester, academic_year
+      )
       SELECT 
         ss.subject_code,
         sb.subject_name,
         sb.subject_type,
+        ca.id as assignment_id,
+        MAX(fsa_all.mid_max) as mid_max,
         GROUP_CONCAT(DISTINCT c.name SEPARATOR ' & ') as faculty_name,
-        MAX(fsa.mid_max) as mid_max,
         
-        -- We use MIN(fsa.id) as a canonical reference for marks lookup if any assignment exists
-        (SELECT MIN(fsa2.id) FROM faculty_subject_assignments fsa2 
-         WHERE fsa2.subject_code = ss.subject_code AND fsa2.branch = ss.branch 
-         AND fsa2.course_semester = ss.semester AND fsa2.academic_year = ?) as canonical_assignment_id,
+        -- Marks (from canonical assignment only)
+        sm.mid1_marks,
+        sm.mid2_marks,
+        sm.assignment_marks,
+        sm.lab_theory_marks,
+        sm.lab_execution_marks,
+        sm.lab_record_marks,
 
-        -- Marks are linked to the canonical assignment ID
-        (SELECT sm.mid1_marks FROM student_marks sm 
-         WHERE sm.student_id = ? AND sm.assignment_id = (
-           SELECT MIN(fsa2.id) FROM faculty_subject_assignments fsa2 
-           WHERE fsa2.subject_code = ss.subject_code AND fsa2.branch = ss.branch 
-           AND fsa2.course_semester = ss.semester AND fsa2.academic_year = ?
-         )) as mid1_marks,
-        (SELECT sm.mid2_marks FROM student_marks sm 
-         WHERE sm.student_id = ? AND sm.assignment_id = (
-           SELECT MIN(fsa2.id) FROM faculty_subject_assignments fsa2 
-           WHERE fsa2.subject_code = ss.subject_code AND fsa2.branch = ss.branch 
-           AND fsa2.course_semester = ss.semester AND fsa2.academic_year = ?
-         )) as mid2_marks,
-        (SELECT sm.assignment_marks FROM student_marks sm 
-         WHERE sm.student_id = ? AND sm.assignment_id = (
-           SELECT MIN(fsa2.id) FROM faculty_subject_assignments fsa2 
-           WHERE fsa2.subject_code = ss.subject_code AND fsa2.branch = ss.branch 
-           AND fsa2.course_semester = ss.semester AND fsa2.academic_year = ?
-         )) as assignment_marks,
-        (SELECT sm.lab_theory_marks FROM student_marks sm 
-         WHERE sm.student_id = ? AND sm.assignment_id = (
-           SELECT MIN(fsa2.id) FROM faculty_subject_assignments fsa2 
-           WHERE fsa2.subject_code = ss.subject_code AND fsa2.branch = ss.branch 
-           AND fsa2.course_semester = ss.semester AND fsa2.academic_year = ?
-         )) as lab_theory_marks,
-        (SELECT sm.lab_execution_marks FROM student_marks sm 
-         WHERE sm.student_id = ? AND sm.assignment_id = (
-           SELECT MIN(fsa2.id) FROM faculty_subject_assignments fsa2 
-           WHERE fsa2.subject_code = ss.subject_code AND fsa2.branch = ss.branch 
-           AND fsa2.course_semester = ss.semester AND fsa2.academic_year = ?
-         )) as lab_execution_marks,
-        (SELECT sm.lab_record_marks FROM student_marks sm 
-         WHERE sm.student_id = ? AND sm.assignment_id = (
-           SELECT MIN(fsa2.id) FROM faculty_subject_assignments fsa2 
-           WHERE fsa2.subject_code = ss.subject_code AND fsa2.branch = ss.branch 
-           AND fsa2.course_semester = ss.semester AND fsa2.academic_year = ?
-         )) as lab_record_marks,
-
-        -- Attendance is aggregated across ALL faculty assignments for this specific subject
-        (SELECT COUNT(*) FROM student_attendance sa 
-         WHERE sa.student_id = ? AND sa.assignment_id IN (
-           SELECT id FROM faculty_subject_assignments fsa2 
-           WHERE fsa2.subject_code = ss.subject_code AND fsa2.branch = ss.branch 
-           AND fsa2.course_semester = ss.semester AND fsa2.academic_year = ?
-         )) as total_classes,
-         
-        (SELECT COUNT(*) FROM student_attendance sa 
-         WHERE sa.student_id = ? AND sa.status IN ('PRESENT', 'NCC', 'MEDICAL') AND sa.assignment_id IN (
-           SELECT id FROM faculty_subject_assignments fsa2 
-           WHERE fsa2.subject_code = ss.subject_code AND fsa2.branch = ss.branch 
-           AND fsa2.course_semester = ss.semester AND fsa2.academic_year = ?
-         )) as attended_classes
+        -- Attendance (aggregated across ALL faculty teaching this subject)
+        COUNT(DISTINCT sa.id) as total_classes,
+        COUNT(DISTINCT CASE WHEN sa.status IN ('PRESENT', 'NCC', 'MEDICAL') THEN sa.id END) as attended_classes
 
       FROM syllabus_structure ss
       JOIN syllabus_subjects sb ON ss.subject_code = sb.subject_code
-      LEFT JOIN faculty_subject_assignments fsa ON fsa.subject_code = ss.subject_code 
-           AND fsa.branch = ss.branch AND fsa.course_semester = ss.semester 
-           AND fsa.academic_year = ?
-      LEFT JOIN clerks c ON fsa.faculty_id = c.id
+      LEFT JOIN CanonicalAssignments ca ON ca.subject_code = ss.subject_code
+      LEFT JOIN student_marks sm ON sm.student_id = ? AND sm.assignment_id = ca.id
+      
+      -- Join all faculty assignments for this subject to get faculty names and all attendance
+      LEFT JOIN faculty_subject_assignments fsa_all ON fsa_all.subject_code = ss.subject_code 
+           AND fsa_all.branch = ss.branch AND fsa_all.course_semester = ss.semester 
+           AND fsa_all.academic_year = ?
+      LEFT JOIN clerks c ON fsa_all.faculty_id = c.id
+      
+      -- Join attendance for the student across all assignments for this subject
+      LEFT JOIN student_attendance sa ON sa.student_id = ? AND sa.assignment_id = fsa_all.id
+
       WHERE ss.branch = ? AND ss.semester = ? AND ss.is_group = 0
-      GROUP BY ss.subject_code, sb.subject_name, sb.subject_type, ss.branch, ss.semester
+      GROUP BY ss.subject_code, sb.subject_name, sb.subject_type, ca.id, sm.id
     `, [
-      academicYear, // canonical lookup
-      studentId, academicYear, // mid1
-      studentId, academicYear, // mid2
-      studentId, academicYear, // assignment
-      studentId, academicYear, // lab_theory
-      studentId, academicYear, // lab_execution
-      studentId, academicYear, // lab_record
-      studentId, academicYear, // total_classes
-      studentId, academicYear, // attended_classes
-      academicYear, // fsa join
-      branch,
-      semester,
+      branch, semester, academicYear, // CTE
+      studentId,                      // Marks
+      academicYear,                   // fsa_all join
+      studentId,                      // Attendance sa join
+      branch, semester                // Main WHERE
     ]);
 
     return apiResponse({ 
       data: subjects.map(s => ({
         ...s,
-        assignment_id: s.canonical_assignment_id,
-        mid_max: s.mid_max || 20 // Default to 20 if no faculty assignment exists
+        mid_max: s.mid_max || 20 
       })),
       semester,
       academicYear

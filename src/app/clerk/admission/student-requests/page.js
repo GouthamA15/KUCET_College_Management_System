@@ -73,7 +73,7 @@ export default function StudentRequestsPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
-      <Navbar role="clerk" />
+      <Navbar role="clerkAdmission" />
       <main className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">

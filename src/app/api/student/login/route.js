@@ -1,10 +1,18 @@
 import { query } from '@/lib/db';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { SignJWT } from 'jose';
-import bcrypt from'bcrypt'
+import bcrypt from 'bcrypt';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
+    const rateCheck = await checkRateLimit(`login_student:${ip}`, 5, 900); // 5 attempts per 15 min
+    
+    if (!rateCheck.success) {
+      return apiError('Too many login attempts. Please try again in 15 minutes.', 429);
+    }
+
     const body = await req.json();
     const { rollno, dob, rememberMe } = body; //dob used as password input field
     if (!rollno || !dob) {
@@ -20,7 +28,7 @@ export async function POST(req) {
     );
 
     if (rows.length === 0) {
-      return apiError('Student not found', 404);
+      return apiError('Invalid credentials', 401);
     }
 
     const student = rows[0];
@@ -33,7 +41,7 @@ export async function POST(req) {
       if (match) {
         isAuthenticated = true;
       } else {
-        return apiError('Invalid Password', 401);
+        return apiError('Invalid credentials', 401);
       }
     }
     else {
@@ -53,7 +61,7 @@ export async function POST(req) {
     if (dbDateString === inputDateString) {
         isAuthenticated = true;
       } else {
-        return apiError('Invalid Date of Birth', 401);
+        return apiError('Invalid credentials', 401);
       }
     }
 
@@ -81,7 +89,8 @@ export async function POST(req) {
 
     response.cookies.set('student_auth', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
+        sameSite: 'strict',
         maxAge: cookieMaxAge,
         path: '/',
     });

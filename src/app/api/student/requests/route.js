@@ -88,11 +88,16 @@ export async function POST(request) {
       requestId = result.insertId;
     }
 
-    // Handle Image
     // formData.get returns a File object in Next.js
     const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
 
     if (isFileValid) {
+      // SECURITY: Enforce 1MB limit on backend as well
+      const MAX_SIZE = 1 * 1024 * 1024;
+      if (paymentScreenshotFile.size > MAX_SIZE) {
+        return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);
+      }
+
       console.log(`[DEBUG] Valid screenshot detected for Request ID: ${requestId}. Name: ${paymentScreenshotFile.name}, Size: ${paymentScreenshotFile.size} bytes`);
       const screenshotUrl = await uploadToCloudinary(paymentScreenshotFile, "certificates/payments");
       

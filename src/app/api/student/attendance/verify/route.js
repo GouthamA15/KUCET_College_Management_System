@@ -52,10 +52,16 @@ export async function POST(request) {
       }
     }
 
-    // --- ACTION C: GPS ACCURACY CHECK (SPOOF DETECTION) ---
-    // Accuracy of 0 or 1 is often a sign of a mocked location app
-    if (accuracy !== undefined && (accuracy <= 1 || accuracy === 0)) {
-      return apiError('Mocked location detected. Please disable GPS spoofing apps.', 403);
+    // --- ACTION C: GPS ACCURACY CHECK ---
+    // Accuracy of exactly 0 is suspicious. We log it and block. 
+    // Very small values like 0.5-1.0 are now allowed for high-end devices.
+    if (accuracy !== undefined && accuracy === 0) {
+      console.warn(`[Geo] Suspicious accuracy (0) from student ${user.roll_no}. Possible mock.`);
+      return apiError('Location accuracy error. Please ensure GPS is enabled and not mocked.', 403);
+    }
+
+    if (accuracy !== undefined && accuracy > 100) {
+      return apiError('Low location accuracy (>100m). Please move to a clearer area or disable WiFi for better GPS.', 403);
     }
 
     // 3. Strict Geofencing check (50 meters radius)
@@ -112,6 +118,18 @@ export async function POST(request) {
       'INSERT INTO attendance_session_logs (session_id, student_id, device_hash, ip_address, ua_hash, status) VALUES (?, ?, ?, ?, ?, "SUCCESS") ON DUPLICATE KEY UPDATE status = "SUCCESS", device_hash = VALUES(device_hash), ip_address = VALUES(ip_address), ua_hash = VALUES(ua_hash)',
       [session.id, user.student_id, finalDeviceId, ipAddress, uaHash]
     );
+
+    // --- REAL-TIME: Notify Faculty ---
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('STUDENT_VERIFIED', { 
+        assignment_id: session.assignment_id, 
+        student_id: user.student_id,
+        roll_no: user.roll_no
+      });
+    } catch (sseErr) {
+      console.warn('[SSE] Broadcast failed:', sseErr);
+    }
 
     return apiResponse({ 
       success: true, 

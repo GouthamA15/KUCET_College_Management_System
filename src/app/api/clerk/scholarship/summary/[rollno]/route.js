@@ -69,7 +69,7 @@ export async function GET(req, ctx) {
 
     // STEP D: Fetch scholarship sanctions for the academic year
     const sanctionsRows = await query(
-      'SELECT id, application_no, proceeding_no, sanctioned_amount, sanction_date FROM scholarship_sanctions WHERE student_id = ? AND academic_year = ? ORDER BY sanction_date ASC',
+      'SELECT id, application_no, proceeding_no, sanctioned_amount, sanction_date, thumb_update_available, thumb_status, hardcopy_submitted FROM scholarship_sanctions WHERE student_id = ? AND academic_year = ? ORDER BY sanction_date ASC',
       [student.id, year]
     );
     const scholarship_proceedings = (sanctionsRows || []).map(r => ({
@@ -79,6 +79,23 @@ export async function GET(req, ctx) {
       date: r.sanction_date,
     }));
     const application_no = (sanctionsRows || []).map(r => r.application_no).find(v => v && String(v).trim() !== '') || null;
+    // Derive thumb fields from the most relevant sanction row (prefer base row without proceeding, else latest)
+    let thumb_update_available = 0;
+    let thumb_status = null;
+    let hardcopy_submitted = 0;
+    try {
+      if (Array.isArray(sanctionsRows) && sanctionsRows.length > 0) {
+        // prefer a row without proceeding_no (base row), otherwise the last row
+        const baseRow = sanctionsRows.find(r => !r.proceeding_no) || sanctionsRows[sanctionsRows.length - 1];
+        if (baseRow) {
+          thumb_update_available = baseRow.thumb_update_available ? 1 : 0;
+          thumb_status = baseRow.thumb_status || null;
+          hardcopy_submitted = baseRow.hardcopy_submitted ? 1 : 0;
+        }
+      }
+    } catch (e) {
+      // ignore and leave defaults
+    }
     const govt_paid = scholarship_proceedings.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
     // STEP E: Fetch student payments for the academic year
@@ -123,6 +140,9 @@ export async function GET(req, ctx) {
       },
       scholarship_proceedings,
       application_no,
+      thumb_update_available,
+      thumb_status,
+      hardcopy_submitted,
       student_payments,
     };
 

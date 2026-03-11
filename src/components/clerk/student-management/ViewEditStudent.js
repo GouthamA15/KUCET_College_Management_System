@@ -250,9 +250,11 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   <div className="text-xs font-bold text-gray-500 mb-2 uppercase">Signature</div>
                   <div className="w-32 h-12 bg-white rounded border border-gray-200 overflow-hidden mb-1 flex items-center justify-center">
                     {fetchedStudent.signature ? (
-                      <img 
-                        src={fetchedStudent.signature} 
-                        alt="Signature" 
+                      <Image
+                        src={fetchedStudent.signature}
+                        alt="Signature"
+                        width={128}
+                        height={48}
                         className="max-h-full max-w-full object-contain"
                         onClick={() => { setImagePreviewSrc(fetchedStudent.signature); setImagePreviewOpen(true); }}
                       />

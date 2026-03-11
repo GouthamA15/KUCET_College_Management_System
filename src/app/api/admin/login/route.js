@@ -2,9 +2,17 @@ import { SignJWT } from 'jose';
 import bcrypt from 'bcrypt';
 import { query } from '@/lib/db';
 import { apiResponse, apiError } from '@/lib/api-utils';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(request) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
+    const rateCheck = await checkRateLimit(`login_admin:${ip}`, 5, 900); // 5 attempts per 15 min
+    
+    if (!rateCheck.success) {
+      return apiError('Too many login attempts. Please try again later.', 429);
+    }
+
     const { email, password, rememberMe } = await request.json();
 
     if (!email || !password) {
@@ -45,7 +53,8 @@ export async function POST(request) {
 
     response.cookies.set('admin_auth', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
+      sameSite: 'strict',
       maxAge: cookieMaxAge,
       path: '/',
     });

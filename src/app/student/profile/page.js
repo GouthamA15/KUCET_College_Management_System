@@ -38,7 +38,7 @@ export default function StudentProfileNew() {
     openSetPasswordModal: password.setShowSetPasswordModal,
     refreshData,
   });
-  const activity = useProfileActivity(studentData?.student?.roll_no);
+  const activity = useProfileActivity();
   const { rows, yearlyTotalFee } = useFinancialRows(
     studentData?.student?.roll_no, 
     studentData?.scholarship || [],

@@ -109,19 +109,7 @@ export default function AcademicTab() {
   const [historyData, setHistoryData] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const fetchActiveSessions = async (subjects) => {
-    if (!subjects.length) return;
-    try {
-      const assignmentIds = subjects.map(s => s.assignment_id).join(',');
-      const res = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds}`);
-      const json = await res.json();
-      if (res.ok) {
-        setActiveSessions(json.data || []);
-      }
-    } catch (e) {
-      console.error('Failed to fetch active sessions');
-    }
-  };
+  // fetchActiveSessions logic is inlined into fetchAcademicInfo to keep dependencies stable
 
   const onVerificationSuccess = (assignmentId, subjectName, attendanceDate) => {
     // Add confirmation message
@@ -141,20 +129,32 @@ export default function AcademicTab() {
     fetchAcademicInfo();
   };
 
-  const fetchAcademicInfo = async () => {
+  const fetchAcademicInfo = useCallback(async () => {
     try {
       const res = await fetch('/api/student/academic-info');
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
       const subjects = json.data || [];
       setData(subjects);
-      fetchActiveSessions(subjects);
+      // fetch active sessions for these subjects
+      if (subjects.length) {
+        try {
+          const assignmentIds = subjects.map(s => s.assignment_id).join(',');
+          const ar = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds}`);
+          const jr = await ar.json();
+          if (ar.ok) setActiveSessions(jr.data || []);
+        } catch (e) {
+          console.error('Failed to fetch active sessions');
+        }
+      } else {
+        setActiveSessions([]);
+      }
     } catch (error) {
       toast.error(error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const fetchHistory = async (subject) => {
     setHistorySubject(subject);
@@ -173,7 +173,7 @@ export default function AcademicTab() {
 
   useEffect(() => {
     fetchAcademicInfo();
-  }, []);
+  }, [fetchAcademicInfo]);
 
   const getPercentageColor = (pct) => {
     if (pct <= 50) return 'text-red-600 bg-red-50 border-red-200';

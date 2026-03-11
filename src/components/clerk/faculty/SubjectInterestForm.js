@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { getNowSync } from '@/lib/clock';
@@ -79,7 +79,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
     return isOddSemester === isOddPeriod;
   };
 
-  const fetchSyllabus = async () => {
+  const fetchSyllabus = useCallback(async () => {
     if (!selectedBranch || !selectedSemester) return;
     setLoadingSyllabus(true);
     try {
@@ -92,11 +92,11 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
     } finally {
       setLoadingSyllabus(false);
     }
-  };
+  }, [selectedBranch, selectedSemester, academicYear]);
 
   useEffect(() => {
     fetchSyllabus();
-  }, [selectedBranch, selectedSemester, academicYear]);
+  }, [fetchSyllabus]);
 
   const handleSubmitInterest = async (subject) => {
     setSubmitting(true);

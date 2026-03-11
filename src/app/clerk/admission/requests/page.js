@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
 import Header from '@/app/components/Header/Header';
 import Navbar from '@/app/components/Navbar/Navbar';
@@ -166,7 +167,7 @@ const AdmissionRequestsPage = () => {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             <Header />
-            <Navbar role={'clerk'} />
+            <Navbar role={'clerkAdmission'} />
 
             <main className="flex-1 p-4 sm:p-6 lg:p-8">
                 <div className="flex justify-between items-center mb-6">
@@ -190,7 +191,7 @@ const AdmissionRequestsPage = () => {
                             <thead className="bg-gray-100 text-gray-700 text-xs font-semibold border-b border-gray-300">
                                 <tr>
                                     <th className="px-4 py-2 border-r border-gray-300 font-semibold">Student Name</th>
-                                    <th className="px-4 py-2 border-r border-gray-300 font-semibold">Father's Name</th>
+                                    <th className="px-4 py-2 border-r border-gray-300 font-semibold">Father&apos;s Name</th>
                                     <th className="px-4 py-2 border-r border-gray-300 font-semibold">Exam / Rank</th>
                                     <th className="px-4 py-2 font-semibold text-right">Actions</th>
                                 </tr>
@@ -361,7 +362,9 @@ function MediaSection({ detail, isEditing, onFieldChange }) {
                 </div>
                 <div className="w-full bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center" style={{ aspectRatio: '3 / 4' }}>
                     {detail.pfp ? (
-                        <img src={detail.pfp} className="w-full h-full object-cover" />
+                        <div className="w-full h-full relative">
+                            <Image src={detail.pfp} alt="Student Photo" fill className="object-cover" unoptimized />
+                        </div>
                     ) : (
                         <span className="text-xs text-gray-500">No photo</span>
                     )}
@@ -384,7 +387,9 @@ function MediaSection({ detail, isEditing, onFieldChange }) {
                 </div>
                 <div className="w-full h-20 bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center">
                     {detail.signature ? (
-                        <img src={detail.signature} className="w-full h-full object-contain" />
+                        <div className="w-full h-full relative">
+                            <Image src={detail.signature} alt="Signature" fill className="object-contain" unoptimized />
+                        </div>
                     ) : (
                         <span className="text-xs text-gray-500">No signature</span>
                     )}
@@ -403,7 +408,7 @@ function PersonalDetailsSection({ editForm, isEditing, onFieldChange }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <EditableField label="Full Name" name="name" value={editForm.name} isEditing={isEditing} onChange={onFieldChange} />
                 <EditableField label="Gender" name="gender" value={editForm.gender} isEditing={isEditing} onChange={onFieldChange} />
-                <EditableField label="Father's Name" name="father_name" value={editForm.father_name} isEditing={isEditing} onChange={onFieldChange} />
+                <EditableField label="Father&apos;s Name" name="father_name" value={editForm.father_name} isEditing={isEditing} onChange={onFieldChange} />
                 <EditableField label="Mother's Name" name="mother_name" value={editForm.mother_name} isEditing={isEditing} onChange={onFieldChange} />
                 <EditableField label="Date of Birth" name="dob" type="date" value={editForm.dob} isEditing={isEditing} onChange={onFieldChange} />
                 <EditableField label="Nationality" name="nationality" value={editForm.nationality} isEditing={isEditing} onChange={onFieldChange} />
@@ -633,7 +638,7 @@ function AdmissionModal({
                         <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto space-y-6">
                             <div className="text-center">
                                 <h3 className="text-lg font-bold text-red-600 mb-2">Reject Admission Application</h3>
-                                <p className="text-sm text-gray-600">Please provide a clear reason for rejection. This reason will be sent to the student's registered email address.</p>
+                                <p className="text-sm text-gray-600">Please provide a clear reason for rejection. This reason will be sent to the student&apos;s registered email address.</p>
                             </div>
                             <div className="w-full">
                                 <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">Rejection Reason</label>

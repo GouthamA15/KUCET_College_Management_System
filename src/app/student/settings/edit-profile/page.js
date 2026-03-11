@@ -148,8 +148,8 @@ export default function EditProfilePage() {
         setMessage({ type: 'error', text: 'Only JPG, JPEG, and PNG files are allowed.' });
         return;
       }
-      if (file.size > 4 * 1024 * 1024) {
-        setMessage({ type: 'error', text: 'File size must be less than 4MB.' });
+      if (file.size > 1 * 1024 * 1024) {
+        setMessage({ type: 'error', text: 'File size must be less than 1MB.' });
         return;
       }
       const reader = new FileReader();
@@ -171,8 +171,8 @@ export default function EditProfilePage() {
         setMessage({ type: 'error', text: 'Only JPG, JPEG, and PNG files are allowed for signature.' });
         return;
       }
-      if (file.size > 2 * 1024 * 1024) {
-        setMessage({ type: 'error', text: 'Signature file size must be less than 2MB.' });
+      if (file.size > 1 * 1024 * 1024) {
+        setMessage({ type: 'error', text: 'Signature file size must be less than 1MB.' });
         return;
       }
       const reader = new FileReader();

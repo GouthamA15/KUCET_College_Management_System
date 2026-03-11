@@ -5,7 +5,17 @@ import toast from 'react-hot-toast';
 import AttendanceVerificationActivity from './AttendanceVerificationActivity';
 
 export default function ProfileActivityBar({ activity, student }) {
-  const { latestRequest, dismissCount, incrementVisit, dismiss, reset } = activity || {};
+  const {
+    latestRequest,
+    dismissCount,
+    incrementVisit,
+    dismiss,
+    reset,
+    scholarshipThumbUpdate,
+    scholarshipHardcopyPending,
+    scholarshipApplicationReceived,
+    scholarshipApplicationsOpen,
+  } = activity || {};
   const [visible, setVisible] = useState(true);
   const processedRef = React.useRef(null);
   const isProd = typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : true;
@@ -105,6 +115,24 @@ export default function ProfileActivityBar({ activity, student }) {
     setAttendanceSessions((prev) => prev.filter((s) => s.assignment_id !== assignmentId));
   };
 
+  const formatDateDDMMYYYY = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr);
+    if (!Number.isNaN(d.getTime())) {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    }
+    const parts = String(dateStr).split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return String(dateStr);
+  };
+
+  const isScholarshipEligible = student?.fee_reimbursement === 'YES';
+
   const showRequestBar =
     !!latestRequest &&
     visible &&
@@ -112,18 +140,118 @@ export default function ProfileActivityBar({ activity, student }) {
 
   const showLegacyWarning = !latestRequest && !!student && (!student.email || !student.is_email_verified || !student.password_hash);
 
-  if (!hasAttendanceSessions && !showLegacyWarning && !showRequestBar) {
+  const showScholarshipThumb = isScholarshipEligible && !!scholarshipThumbUpdate?.active;
+  const showScholarshipHardcopy = isScholarshipEligible && !!scholarshipHardcopyPending?.active;
+  const showScholarshipApplicationReceived = isScholarshipEligible && !!scholarshipApplicationReceived?.active;
+  const showScholarshipApplicationsOpen = isScholarshipEligible && !!scholarshipApplicationsOpen?.active;
+
+  if (
+    !hasAttendanceSessions &&
+    !showLegacyWarning &&
+    !showRequestBar &&
+    !showScholarshipThumb &&
+    !showScholarshipHardcopy &&
+    !showScholarshipApplicationReceived &&
+    !showScholarshipApplicationsOpen
+  ) {
     return null;
   }
 
   return (
     <div className="w-full flex justify-center px-6 pt-4">
       <div className="w-full max-w-6xl space-y-3">
-        {hasAttendanceSessions && (
-          <AttendanceVerificationActivity
-            sessions={attendanceSessions}
-            onSessionVerified={handleSessionVerified}
-          />
+        {/* 1️⃣ Submit Hard Copies */}
+        {showScholarshipHardcopy && (
+          <div className="border border-indigo-200 bg-indigo-50 text-indigo-800 rounded-md p-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm">
+                <div className="font-semibold">📄 Submit Scholarship Hard Copies</div>
+                <div className="text-sm mt-1">
+                  You have applied for scholarship.
+                  <div className="mt-1">
+                    Application No: <span className="font-medium">{scholarshipHardcopyPending.application_no || 'N/A'}</span>
+                    {scholarshipHardcopyPending.academic_year ? (
+                      <span> — Academic Year: <span className="font-medium">{scholarshipHardcopyPending.academic_year}</span></span>
+                    ) : null}
+                  </div>
+                  <div className="mt-1 text-xs text-indigo-700">
+                    Please submit your required documents in the scholarship office.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 2️⃣ Thumb Verification Required */}
+        {scholarshipThumbUpdate?.active && (
+          <div className="border border-purple-200 bg-purple-50 text-purple-800 rounded-md p-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm">
+                <div className="font-semibold">🔔 Scholarship Thumb Verification Required</div>
+                <div className="text-sm mt-1">
+                  Your scholarship requires biometric verification. Application No: <span className="font-medium">{scholarshipThumbUpdate.application_no || 'N/A'}</span>
+                  {scholarshipThumbUpdate.academic_year ? (
+                    <span> — Academic Year: <span className="font-medium">{scholarshipThumbUpdate.academic_year}</span></span>
+                  ) : null}
+                  <div className="mt-1 text-xs text-purple-700">
+                    Please visit the nearest Mee-Seva center to complete thumb verification.
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* <Link href="/student/profile" className="text-sm text-purple-700 hover:underline">
+                  View Details
+                </Link> */}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3️⃣ Scholarship Application Received */}
+        {showScholarshipApplicationReceived && (
+          <div className="border border-green-200 bg-green-50 text-green-800 rounded-md p-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="text-sm">
+                <div className="font-semibold">✅ Scholarship Application Received</div>
+                <div className="text-sm mt-1">
+                  Your scholarship application documents have been submitted successfully.
+                  <div className="mt-1 text-xs text-green-900">
+                    Please wait for government verification updates.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 4️⃣ Scholarship Applications Open */}
+        {showScholarshipApplicationsOpen && (
+          <div className="border border-blue-200 bg-blue-50 text-blue-800 rounded-md p-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm">
+                <div className="font-semibold">📅 Scholarship Applications Open</div>
+                <div className="text-sm mt-1">
+                  <div className="mt-1">
+                    Apply online and submit your documents in the scholarship office.
+                  </div>
+                  <div className="mt-2 text-xs text-blue-900">
+                    Submission Window: <span className="font-medium">{formatDateDDMMYYYY(scholarshipApplicationsOpen.startDate)}</span> — <span className="font-medium">{formatDateDDMMYYYY(scholarshipApplicationsOpen.endDate)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <Link
+                  href="https://telanganaepass.cgg.gov.in/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-blue-700 hover:underline"
+                >
+                  Apply Now
+                </Link>
+              </div>
+            </div>
+          </div>
         )}
 
         {showLegacyWarning && (
@@ -150,6 +278,7 @@ export default function ProfileActivityBar({ activity, student }) {
           </div>
         )}
 
+        {/* 5️⃣ Certificate Notifications */}
         {showRequestBar && (
           <div
             className={
@@ -195,6 +324,14 @@ export default function ProfileActivityBar({ activity, student }) {
               </div>
             </div>
           </div>
+        )}
+
+        {/* 6️⃣ Attendance Warnings */}
+        {hasAttendanceSessions && (
+          <AttendanceVerificationActivity
+            sessions={attendanceSessions}
+            onSessionVerified={handleSessionVerified}
+          />
         )}
       </div>
     </div>

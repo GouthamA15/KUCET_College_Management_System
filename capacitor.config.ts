@@ -2,11 +2,14 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.kucet.cms',
-  appName: 'KUCET',
+  appName: 'KUCET CMS',
   webDir: 'public',
   server: {
-    url: 'https://kucet-college-management-system.onrender.com',
-    cleartext: true
+    url: 'https://kucet-college-management-system-test.onrender.com/',
+    cleartext: true,
+    allowNavigation: [
+      '*.onrender.com'
+    ]
   },
   plugins: {
     SplashScreen: {
@@ -17,8 +20,13 @@ const config: CapacitorConfig = {
       showSpinner: true,
       androidSpinnerStyle: "large",
       spinnerColor: "#ffffff"
+    },
+    SocialLogin: {
+      google: {
+        webClientId: "420881800284-cnmbp5lldqrq7bb67p00uhhgbaudrolq.apps.googleusercontent.com"
+      }
     }
-  }
-};
+    }
+    };
 
 export default config;
