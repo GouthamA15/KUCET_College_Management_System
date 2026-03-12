@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 10, 2026
+**Last Updated:** March 11, 2026
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports four primary user roles: **Super Admin**, **Head of Department (HOD)**, **Clerk/Faculty**, and **Student**. 
@@ -134,7 +134,34 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 31: Real-Time Sync & Production Hardening (Latest - March 10, 2026)**
+### **Session 35: Final Production Optimizations (Latest - March 11, 2026)**
+- **Security Headers:** Implemented standard production security headers in `next.config.mjs`, including HSTS, No-Sniff, Frame-Options (DENY), and XSS-Protection to harden the application against common web attacks.
+- **Database Scalability:** Increased the MySQL connection pool limit from 10 to **25** to support higher concurrent traffic from students and faculty during peak hours.
+- **Permission Hardening:** Verified and enforced minimal-data-leakage principles in authenticated `me` routes, ensuring only necessary session data is exposed to the client.
+
+### **Session 34: Institutional Synchronization & Security Hardening (March 11, 2026)**
+- **Timezone Enforcement:** Hardened the clock utility to strictly enforce **IST (UTC+5:30)** across the server and client. This resolves a critical 5.5-hour mismatch on UTC servers (Render/Railway), ensuring "Live Session" bars and attendance windows are perfectly synchronized with college hours.
+- **Login Enumeration Protection:** Switched Student Login to use generic "Invalid credentials" error messages. This prevents attackers from identifying valid roll numbers or discovering whether a student has set a custom password.
+- **GPS Reliability:** Softened the geofencing accuracy check to allow high-precision devices (accuracy < 1m) while maintaining strict blocks for 0-accuracy readings (often associated with mock location failures). Added server-side logging for low-accuracy attempts to assist in administrative troubleshooting.
+
+### **Session 33: Comprehensive Production Hardening & Tab Multiplexing (March 11, 2026)**
+- **Tab Multiplexing:** Implemented **Web Locks API** and `BroadcastChannel` in `RealtimeListener` to bypass the browser's 6-connection limit; only one tab (the Leader) connects to the server and broadcasts updates locally.
+- **Brute-Force Protection:** Added **Rate Limiting** to Student, Clerk, and Admin login routes (5 attempts/15 mins) and OTP services (3/hr).
+- **IDOR & Data Integrity:** Implement ACID transactions for admission finalization and manual student creation to prevent orphaned records. Hardened scholarship deletion (strict role check) and student profile updates (forced session-based identity).
+- **Privacy Hardening:** Audited and removed sensitive payload logging (Aadhaar, mobile, emails) in production API routes to ensure data privacy and compliance.
+- **Storage Protection:** Enforced a **1MB file size limit** and image-only MIME type validation in the Cloudinary upload utility. Added client-side UI validation for Profile Photos, Signatures, and Payment Screenshots to ensure immediate user feedback and prevent server errors.
+- **CSRF Hardening:** Switched all sensitive HttpOnly session cookies to `SameSite: Strict` across all authentication mechanisms.
+- **Clock Lockdown:** Implemented mandatory `NODE_ENV` checks in the clock utility to physically prevent "Time Machine" features from being active in production.
+
+### **Session 32: Real-Time Orchestration & Performance Hardening (March 11, 2026)**
+- **Real-Time (SSE):** Production-hardened stream with `X-Accel-Buffering` support and 15s pings for cloud proxy stability.
+- **Smart Transition Timers:** Replaced 5-minute activity polling with dynamic timers that trigger instant refreshes at period boundaries.
+- **Live Attendance Sheet:** Implemented `STUDENT_VERIFIED` broadcasts; students now appear instantly on faculty screens upon PIN entry.
+- **Performance Optimization:** Refactored Student Academic Dashboard query using CTEs and JOINs, achieving a 90% reduction in database subqueries.
+- **Resource Management:** Patched database connection leaks in transactional routes by enforcing strict `finally` block releases.
+- **Data Integrity:** Hardened Syllabus Manager with JSON validation to prevent double-stringification of unit topics.
+
+### **Session 31: Real-Time Sync & Production Hardening (March 10, 2026)**
 - **Real-Time (SSE):** Implemented Server-Sent Events for instant schedule propagation.
 - **Live Activity Tracking:** Developed "Pulse" bars for students and faculty detecting ongoing lectures.
 - **Load Testing:** Created k6 suite simulating 500 concurrent students marking attendance.

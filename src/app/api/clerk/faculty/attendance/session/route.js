@@ -116,6 +116,19 @@ export async function POST(request) {
       );
     }
 
+    // --- REAL-TIME: Notify Students/HOD ---
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('SESSION_STARTED', { 
+        assignment_id, 
+        faculty_id: user.id, 
+        branch: user.branch,
+        session_id: result.insertId
+      });
+    } catch (sseErr) {
+      console.warn('[SSE] Broadcast failed:', sseErr);
+    }
+
     return apiResponse({
       message: 'Session created successfully',
       session: {
@@ -154,6 +167,18 @@ export async function DELETE(request) {
       'UPDATE attendance_sessions SET is_active = 0 WHERE assignment_id = ? AND faculty_id = ? AND is_active = 1',
       [assignment_id, user.id]
     );
+
+    // --- REAL-TIME: Notify Students/HOD ---
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('SESSION_ENDED', { 
+        assignment_id, 
+        faculty_id: user.id, 
+        branch: user.branch 
+      });
+    } catch (sseErr) {
+      console.warn('[SSE] Broadcast failed:', sseErr);
+    }
 
     return apiResponse({ message: 'Session ended successfully' });
   } catch (error) {

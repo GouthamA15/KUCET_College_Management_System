@@ -5,7 +5,7 @@ export async function POST() {
   response.cookies.set('clerk_auth', '', {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'strict',
     expires: new Date(0),
     path: '/',
   });

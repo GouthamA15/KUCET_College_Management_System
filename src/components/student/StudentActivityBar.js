@@ -25,15 +25,47 @@ export default function StudentActivityBar() {
 
   useEffect(() => {
     fetchActivity();
-    const interval = setInterval(fetchActivity, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    
+    // Smart timer for next period transition
+    const calculateNextTransition = () => {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const currentTime = hours * 100 + minutes;
+
+      const transitions = [930, 1020, 1110, 1120, 1210, 1300, 1400, 1450, 1540, 1630];
+      const nextTransition = transitions.find(t => t > currentTime);
+
+      if (nextTransition) {
+        const nextHours = Math.floor(nextTransition / 100);
+        const nextMinutes = nextTransition % 100;
+        const nextDate = new Date();
+        nextDate.setHours(nextHours, nextMinutes, 0, 0);
+        
+        const delay = nextDate.getTime() - now.getTime();
+        return setTimeout(() => {
+          fetchActivity();
+          // Recursively set next timer
+          calculateNextTransition();
+        }, delay + 1000); // Add 1s buffer
+      }
+      return null;
+    };
+
+    const timer = calculateNextTransition();
+    const interval = setInterval(fetchActivity, 5 * 60 * 1000); // 5-min backup
+    
+    return () => {
+      if (timer) clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [fetchActivity]);
 
-  const handleRealtimeUpdate = (data) => {
+  const handleRealtimeUpdate = useCallback((data) => {
     if (data.type === 'TIMETABLE_CHANGED') {
       fetchActivity();
     }
-  };
+  }, [fetchActivity]);
 
   if (loading || !activeActivity) return <RealtimeListener onUpdate={handleRealtimeUpdate} />;
 

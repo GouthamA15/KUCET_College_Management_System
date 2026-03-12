@@ -81,6 +81,18 @@ export async function POST(request) {
       }
 
       await connection.commit();
+
+      // REAL-TIME: Notify HOD/Faculty
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        broadcastUpdate('ATTENDANCE_SAVED', { 
+          faculty_id: user.id, 
+          branch: user.branch 
+        });
+      } catch (sseErr) {
+        console.warn('[SSE] Broadcast failed:', sseErr);
+      }
+
       return apiResponse({ message: 'Attendance updated successfully' });
     } catch (error) {
       await connection.rollback();

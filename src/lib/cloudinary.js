@@ -27,10 +27,23 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
   // Handle browser File objects (from formData)
   if (file instanceof File || (typeof file === 'object' && typeof file.arrayBuffer === 'function')) {
     console.log(`[CLOUDINARY] Processing as File object. Name: ${file.name}, Size: ${file.size} bytes`);
+    
+    // SECURITY: Enforce 1MB limit
+    const MAX_SIZE = 1 * 1024 * 1024; 
+    if (file.size > MAX_SIZE) {
+      throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
+    }
+
     if (file.size === 0) {
       console.log('[CLOUDINARY] File size is 0, skipping upload.');
       return null;
     }
+
+    // SECURITY: Ensure it's an image
+    if (file.type && !file.type.startsWith('image/')) {
+      throw new Error('Only image files are allowed.');
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     fileToUpload = `data:image/jpeg;base64,${buffer.toString('base64')}`;

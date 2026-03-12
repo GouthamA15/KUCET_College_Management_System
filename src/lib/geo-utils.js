@@ -32,5 +32,9 @@ export function getHaversineDistance(lat1, lon1, lat2, lon2) {
  */
 export function isWithinRange(facLat, facLon, studLat, studLon, radius = 50) {
   const distance = getHaversineDistance(facLat, facLon, studLat, studLon);
-  return distance <= radius;
+  const ok = distance <= radius;
+  if (!ok) {
+    console.log(`[Geo] Out of range: ${distance.toFixed(2)}m (Max: ${radius}m). Faculty: ${facLat},${facLon}. Student: ${studLat},${studLon}`);
+  }
+  return ok;
 }

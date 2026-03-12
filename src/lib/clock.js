@@ -1,28 +1,34 @@
 /**
  * Authoritative source for "Current Time" in the application.
  * In development, it checks for a 'dev_mock_date' cookie to allow time travel.
+ * PRODUCTION HARDENING: Always returns IST (UTC+5:30) regardless of server location.
  */
 export async function getNow() {
-  // Safe mode: Disable mock logic unless explicitly in testing environment
+  const isProduction = process.env.NODE_ENV === 'production';
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
   
-  if (!isTesting) {
-    return new Date();
+  // Use a helper to get the system time in IST
+  const getISTNow = () => {
+    const date = new Date();
+    // India is UTC + 5:30
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+    return new Date(utc + istOffset);
+  };
+
+  if (isProduction || !isTesting) {
+    return getISTNow();
   }
 
   let mockDateValue = null;
 
   if (typeof window === 'undefined') {
-    // Server-side: use dynamic import to avoid breaking client-side builds
     try {
       const { cookies } = await import('next/headers');
       const cookieStore = await cookies();
       mockDateValue = cookieStore.get('dev_mock_date')?.value;
-    } catch (e) {
-      // cookies() might not be available in all server contexts (e.g. some edge cases)
-    }
+    } catch (e) {}
   } else {
-    // Client-side
     const match = document.cookie.match(/dev_mock_date=([^;]+)/);
     if (match) mockDateValue = decodeURIComponent(match[1]);
   }
@@ -32,17 +38,25 @@ export async function getNow() {
     if (!isNaN(d.getTime())) return d;
   }
 
-  return new Date();
+  return getISTNow();
 }
 
 /**
  * Synchronous version for client-side usage.
- * DO NOT use this on the server if you expect mock time to work via cookies.
  */
 export function getNowSync() {
+  const isProduction = process.env.NODE_ENV === 'production';
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
-  if (!isTesting) {
-    return new Date();
+  
+  const getISTNow = () => {
+    const date = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+    return new Date(utc + istOffset);
+  };
+
+  if (isProduction || !isTesting) {
+    return getISTNow();
   }
 
   if (typeof window !== 'undefined') {
@@ -52,5 +66,5 @@ export function getNowSync() {
       if (!isNaN(d.getTime())) return d;
     }
   }
-  return new Date();
+  return getISTNow();
 }
