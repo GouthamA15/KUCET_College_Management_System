@@ -23,10 +23,24 @@ import { formatDate } from '@/lib/date';
 export default function ScholarshipDashboard() {
   const { clerkData: clerk, loading: isClerkLoading } = useClerk();
   const { state, setField, resetStudent, setState } = useScholarshipDashboard();
-  const { roll, searchMode, applicationNoInput, rollError, student, feeSummary, yearList, summariesByYear, expandedByYear } = state;
+  const {
+    roll,
+    searchMode,
+    applicationNoInput,
+    nameInput,
+    nameResults,
+    rollError,
+    student,
+    feeSummary,
+    yearList,
+    summariesByYear,
+    expandedByYear,
+  } = state;
   const setRoll = (v) => setField('roll', v);
   const setSearchMode = (v) => setField('searchMode', v);
   const setApplicationNoInput = (v) => setField('applicationNoInput', v);
+  const setNameInput = (v) => setField('nameInput', v);
+  const setNameResults = (v) => setField('nameResults', v);
   const setRollError = (v) => setField('rollError', v);
   const setExpandedByYear = (updater) => {
     setState((prev) => ({
@@ -84,6 +98,8 @@ export default function ScholarshipDashboard() {
     // Clear search inputs
     setRoll('');
     setApplicationNoInput('');
+    setNameInput('');
+    setNameResults([]);
     setRollError('');
     setSearchMode('roll');
 
@@ -144,8 +160,52 @@ export default function ScholarshipDashboard() {
     setStudentPayments([]);
   };
 
+  const handleSelectStudentFromName = async (rollNo) => {
+    if (!rollNo) return;
+    setRoll(String(rollNo));
+    setSearchMode('roll');
+    setNameResults([]);
+    // Reuse existing roll search flow
+    try {
+      await fetchStudent();
+    } catch {
+      // fetchStudent already reports errors via toast
+    }
+  };
+
   const fetchStudent = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+
+    // Name search: only fetch list of candidates; selection will refetch by roll
+    if (searchMode === 'name') {
+      const term = String(nameInput || '').trim();
+      if (term.length < 2) {
+        toast.error('Enter at least 2 characters for name search');
+        return;
+      }
+      setLoading(true);
+      setNameResults([]);
+      const id = toast.loading('Searching students by name...');
+      try {
+        const url = `/api/clerk/scholarship/search-by-name?name=${encodeURIComponent(term)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || 'Failed to search students');
+        const list = Array.isArray(data?.students) ? data.students : [];
+        if (list.length === 0) {
+          toast.error('No students found for given name', { id });
+        } else {
+          toast.success(`Found ${list.length} student(s)`, { id });
+        }
+        setNameResults(list);
+      } catch (err) {
+        toast.error(err.message || 'Failed to search students', { id });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (searchMode === 'roll') {
       if (!roll) return;
       // Enforce same client-side constraints as LoginPanel / Admission clerk
@@ -495,11 +555,15 @@ export default function ScholarshipDashboard() {
                 setRoll={setRoll}
                 applicationNoInput={applicationNoInput}
                 setApplicationNoInput={setApplicationNoInput}
+                nameInput={nameInput}
+                setNameInput={setNameInput}
                 rollError={rollError}
                 setRollError={setRollError}
                 MAX_ROLL={MAX_ROLL}
                 loading={loading}
                 onSubmit={fetchStudent}
+                nameResults={nameResults}
+                onSelectStudentFromName={handleSelectStudentFromName}
               />
 
               {student && (

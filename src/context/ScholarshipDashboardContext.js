@@ -10,6 +10,8 @@ const initialState = {
   roll: '',
   searchMode: 'roll',
   applicationNoInput: '',
+  nameInput: '',
+  nameResults: [],
   rollError: '',
   student: null,
   feeSummary: null,

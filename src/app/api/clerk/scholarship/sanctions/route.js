@@ -61,6 +61,8 @@ export async function POST(req) {
     const providedApp = application_no && String(application_no).trim() !== '' ? String(application_no).trim() : null;
     const providedThumbFlag = body.thumb_update_available ? 1 : 0;
     const providedThumbStatus = body.thumb_status ? String(body.thumb_status) : null;
+    const thumbIsPending = typeof providedThumbStatus === 'string'
+      && providedThumbStatus.trim().toUpperCase() === 'PENDING';
     const providedHardcopyFlag = body.hardcopy_submitted ? 1 : 0;
 
     // Determine previous thumb state and application state for this student+year (any existing row)
@@ -75,7 +77,7 @@ export async function POST(req) {
         // Update existing row matching proceeding_no (include thumb and hardcopy fields when provided)
         await query('UPDATE scholarship_sanctions SET sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?), thumb_update_available = ?, thumb_status = COALESCE(?, thumb_status), hardcopy_submitted = ? WHERE id = ?', [sanctioned_amount, sanction_date, providedApp, providedThumbFlag, providedThumbStatus, providedHardcopyFlag, targetRow.id]);
         // Send email if thumb was newly enabled
-        if (!prevThumb && providedThumbFlag && windowAllowsEmail) {
+        if (!prevThumb && providedThumbFlag && thumbIsPending && windowAllowsEmail) {
           try {
             const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
             const s = stu && stu[0];
@@ -117,7 +119,7 @@ export async function POST(req) {
       const baseRow = existing.find(r => !r.proceeding_no) || null;
       if (baseRow) {
         await query('UPDATE scholarship_sanctions SET proceeding_no = ?, sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?), thumb_update_available = ?, thumb_status = COALESCE(?, thumb_status), hardcopy_submitted = ? WHERE id = ?', [providedProceeding, sanctioned_amount, sanction_date, providedApp, providedThumbFlag, providedThumbStatus, providedHardcopyFlag, baseRow.id]);
-        if (!prevThumb && providedThumbFlag && windowAllowsEmail) {
+        if (!prevThumb && providedThumbFlag && thumbIsPending && windowAllowsEmail) {
           try {
             const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
             const s = stu && stu[0];
@@ -163,7 +165,7 @@ export async function POST(req) {
       if (providedThumbFlag) {
         try {
           await query('UPDATE scholarship_sanctions SET thumb_update_available = ?, thumb_status = ? WHERE id = ?', [providedThumbFlag, providedThumbStatus, insertedId]);
-          if (!prevThumb && providedThumbFlag && windowAllowsEmail) {
+          if (!prevThumb && providedThumbFlag && thumbIsPending && windowAllowsEmail) {
             const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
             const s = stu && stu[0];
             if (s && s.email && s.is_email_verified) {
