@@ -22,12 +22,21 @@ import { formatDate } from '@/lib/date';
 
 export default function ScholarshipDashboard() {
   const { clerkData: clerk, loading: isClerkLoading } = useClerk();
-  const { state, setField, resetStudent } = useScholarshipDashboard();
+  const { state, setField, resetStudent, setState } = useScholarshipDashboard();
   const { roll, searchMode, applicationNoInput, rollError, student, feeSummary, yearList, summariesByYear, expandedByYear } = state;
   const setRoll = (v) => setField('roll', v);
   const setSearchMode = (v) => setField('searchMode', v);
   const setApplicationNoInput = (v) => setField('applicationNoInput', v);
   const setRollError = (v) => setField('rollError', v);
+  const setExpandedByYear = (updater) => {
+    setState((prev) => ({
+      ...prev,
+      expandedByYear:
+        typeof updater === 'function'
+          ? updater(prev.expandedByYear || {})
+          : updater,
+    }));
+  };
   const MAX_ROLL = 10;
   const [loading, setLoading] = useState(false); // For fetching student data
   const [scholarshipProceedings, setScholarshipProceedings] = useState([]);
@@ -35,6 +44,7 @@ export default function ScholarshipDashboard() {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [view, setView] = useState('dashboard');
+  const [metricsRefreshToken, setMetricsRefreshToken] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalYear, setModalYear] = useState('');
   // Modal form state
@@ -68,6 +78,43 @@ export default function ScholarshipDashboard() {
     };
     const fn = setters[k] || (() => {});
     fn(v);
+  };
+
+  const handleClearDashboard = () => {
+    // Clear search inputs
+    setRoll('');
+    setApplicationNoInput('');
+    setRollError('');
+    setSearchMode('roll');
+
+    // Clear loaded student/session data
+    localResetStudent();
+
+    // Reset modal-related local state
+    setModalOpen(false);
+    setModalYear('');
+    setSchAppNo('');
+    setSchProceedingNo('');
+    setSchAmount('');
+    setSchDate('');
+    setPayAmount('');
+    setPayRef('');
+    setPayDate('');
+    setSaving(false);
+    setAppEditing(false);
+    setThumbUpdateAvailable(false);
+    setThumbStatus('Pending');
+    setHardcopySubmitted(false);
+
+    // Scroll back to the top of the dashboard for clarity
+    if (typeof window !== 'undefined') {
+      const el = document.getElementById('scholarship-dashboard-top');
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
   };
 
   
@@ -418,7 +465,12 @@ export default function ScholarshipDashboard() {
       <Navbar role={'clerkScholarship'} onLogout={handleLogout} />
       <main className="flex-1">
         <div className="max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
-          <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4">Scholarship Clerk Dashboard</h1>
+          <h1
+            id="scholarship-dashboard-top"
+            className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4"
+          >
+            Scholarship Clerk Dashboard
+          </h1>
 
           {view === 'certificates' ? (
             <div>
@@ -433,7 +485,7 @@ export default function ScholarshipDashboard() {
           ) : (
             <>
               {/* Metrics section */}
-              <ScholarshipMetricsCards />
+              <ScholarshipMetricsCards refreshToken={metricsRefreshToken} />
 
               {/* Primary search action */}
               <ScholarshipSearchCard
@@ -449,6 +501,18 @@ export default function ScholarshipDashboard() {
                 loading={loading}
                 onSubmit={fetchStudent}
               />
+
+              {student && (
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleClearDashboard}
+                    className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
 
               {/* Student details & year-wise records */}
               {student && (
@@ -520,7 +584,19 @@ export default function ScholarshipDashboard() {
               )}
 
               {/* Scholarship submission window management */}
-              <ScholarshipWindowCard />
+              <ScholarshipWindowCard
+                onWindowUpdated={() => {
+                  setMetricsRefreshToken((t) => t + 1);
+                  if (typeof window !== 'undefined') {
+                    const el = document.getElementById('scholarship-dashboard-top');
+                    if (el && typeof el.scrollIntoView === 'function') {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }
+                }}
+              />
 
               {/* Secondary tools */}
               <ScholarshipToolsSection
