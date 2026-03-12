@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/lib/date';
 
-export default function ScholarshipWindowCard() {
+export default function ScholarshipWindowCard({ onWindowUpdated }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState('CLOSED');
@@ -62,6 +62,7 @@ export default function ScholarshipWindowCard() {
       setStartDate(win.startDate);
       setEndDate(win.endDate);
       setStatus(win.status || 'CLOSED');
+      if (typeof onWindowUpdated === 'function') onWindowUpdated();
       toast.success('Scholarship submission window saved');
     } catch (err) {
       console.error(err);
@@ -95,6 +96,7 @@ export default function ScholarshipWindowCard() {
       setStartDate(win.startDate);
       setEndDate(win.endDate);
       setStatus(win.status || 'CLOSED');
+      if (typeof onWindowUpdated === 'function') onWindowUpdated();
       toast.success('Scholarship window deadline extended');
     } catch (err) {
       console.error(err);
