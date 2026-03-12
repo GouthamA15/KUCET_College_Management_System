@@ -155,8 +155,13 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         return;
       }
 
-      // Clerk and Faculty logout endpoint
-      if (effectiveRole === 'clerk' || effectiveRole === 'faculty') {
+      // Clerk (including admission/scholarship variants) and Faculty logout endpoint
+      if (
+        effectiveRole === 'clerk' ||
+        effectiveRole === 'clerkAdmission' ||
+        effectiveRole === 'clerkScholarship' ||
+        effectiveRole === 'faculty'
+      ) {
         await fetch('/api/clerk/logout', { method: 'POST' });
         window.location.replace('/');
         return;
