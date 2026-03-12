@@ -2,6 +2,7 @@ import { query } from '@/lib/db';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { sendInstitutionalEmail } from '@/lib/email';
+import { getNow } from '@/lib/clock';
 
 const toNull = (v) => (v === undefined || v === '' ? null : v);
 
@@ -32,6 +33,26 @@ export async function POST(req) {
 
     const [student] = await query('SELECT id, name, email, is_email_verified, roll_no FROM students WHERE roll_no = ?', [roll_no]);
     if (!student) return apiError('Student not found', 404);
+    // Determine if scholarship window is currently OPEN; if not, suppress student emails
+    let windowAllowsEmail = false;
+    try {
+      const winRows = await query(
+        'SELECT start_date, end_date FROM scholarship_windows ORDER BY id DESC LIMIT 1',
+        []
+      );
+      const win = winRows && winRows[0] ? winRows[0] : null;
+      if (win && win.start_date && win.end_date) {
+        const now = await getNow();
+        const today = new Date(now.toISOString().slice(0, 10));
+        const start = new Date(win.start_date);
+        const end = new Date(win.end_date);
+        if (today >= start && today <= end) {
+          windowAllowsEmail = true;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to evaluate scholarship window for sanction emails:', e);
+    }
     // Fetch existing rows for student + academic_year
     const existing = await query('SELECT id, application_no, proceeding_no, thumb_update_available, thumb_status, hardcopy_submitted FROM scholarship_sanctions WHERE student_id = ? AND academic_year = ?', [student.id, academic_year]);
 
@@ -54,7 +75,7 @@ export async function POST(req) {
         // Update existing row matching proceeding_no (include thumb and hardcopy fields when provided)
         await query('UPDATE scholarship_sanctions SET sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?), thumb_update_available = ?, thumb_status = COALESCE(?, thumb_status), hardcopy_submitted = ? WHERE id = ?', [sanctioned_amount, sanction_date, providedApp, providedThumbFlag, providedThumbStatus, providedHardcopyFlag, targetRow.id]);
         // Send email if thumb was newly enabled
-        if (!prevThumb && providedThumbFlag) {
+        if (!prevThumb && providedThumbFlag && windowAllowsEmail) {
           try {
             const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
             const s = stu && stu[0];
@@ -69,7 +90,7 @@ export async function POST(req) {
         }
 
         const newApp = providedApp ?? targetRow.application_no;
-        if (!prevHasApplication && newApp && providedHardcopyFlag === 0) {
+        if (!prevHasApplication && newApp && providedHardcopyFlag === 0 && windowAllowsEmail) {
           try {
             if (student.email && student.is_email_verified) {
               const subject = 'Scholarship Hard Copy Submission Required';
@@ -96,7 +117,7 @@ export async function POST(req) {
       const baseRow = existing.find(r => !r.proceeding_no) || null;
       if (baseRow) {
         await query('UPDATE scholarship_sanctions SET proceeding_no = ?, sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?), thumb_update_available = ?, thumb_status = COALESCE(?, thumb_status), hardcopy_submitted = ? WHERE id = ?', [providedProceeding, sanctioned_amount, sanction_date, providedApp, providedThumbFlag, providedThumbStatus, providedHardcopyFlag, baseRow.id]);
-        if (!prevThumb && providedThumbFlag) {
+        if (!prevThumb && providedThumbFlag && windowAllowsEmail) {
           try {
             const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
             const s = stu && stu[0];
@@ -111,7 +132,7 @@ export async function POST(req) {
         }
 
         const newApp = providedApp ?? baseRow.application_no;
-        if (!prevHasApplication && newApp && providedHardcopyFlag === 0) {
+        if (!prevHasApplication && newApp && providedHardcopyFlag === 0 && windowAllowsEmail) {
           try {
             if (student.email && student.is_email_verified) {
               const subject = 'Scholarship Hard Copy Submission Required';
@@ -142,7 +163,7 @@ export async function POST(req) {
       if (providedThumbFlag) {
         try {
           await query('UPDATE scholarship_sanctions SET thumb_update_available = ?, thumb_status = ? WHERE id = ?', [providedThumbFlag, providedThumbStatus, insertedId]);
-          if (!prevThumb && providedThumbFlag) {
+          if (!prevThumb && providedThumbFlag && windowAllowsEmail) {
             const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
             const s = stu && stu[0];
             if (s && s.email && s.is_email_verified) {
@@ -156,7 +177,7 @@ export async function POST(req) {
         }
       }
 
-      if (!prevHasApplication && providedApp && providedHardcopyFlag === 0) {
+      if (!prevHasApplication && providedApp && providedHardcopyFlag === 0 && windowAllowsEmail) {
         try {
           if (student.email && student.is_email_verified) {
             const subject = 'Scholarship Hard Copy Submission Required';
@@ -189,7 +210,7 @@ export async function POST(req) {
       }
       const appOut = providedApp || baseRow.application_no || null;
 
-      if (!prevHasApplication && appOut && providedHardcopyFlag === 0) {
+      if (!prevHasApplication && appOut && providedHardcopyFlag === 0 && windowAllowsEmail) {
         try {
           if (student.email && student.is_email_verified) {
             const subject = 'Scholarship Hard Copy Submission Required';
@@ -216,7 +237,7 @@ export async function POST(req) {
     const insertSql = 'INSERT INTO scholarship_sanctions (student_id, academic_year, application_no, proceeding_no, sanctioned_amount, sanction_date, hardcopy_submitted) VALUES (?, ?, ?, NULL, NULL, NULL, ?)';
     const ins = await query(insertSql, [student.id, academic_year, providedApp, providedHardcopyFlag]);
     const insertedId = ins?.insertId || ins?.[0]?.insertId || null;
-    if (!prevHasApplication && providedApp && providedHardcopyFlag === 0) {
+    if (!prevHasApplication && providedApp && providedHardcopyFlag === 0 && windowAllowsEmail) {
       try {
         if (student.email && student.is_email_verified) {
           const subject = 'Scholarship Hard Copy Submission Required';

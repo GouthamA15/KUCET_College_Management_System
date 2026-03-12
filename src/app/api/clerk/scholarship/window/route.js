@@ -116,7 +116,8 @@ export async function POST(req) {
     }
 
     // STEP 5–8: Email notifications based on event type
-    if (eventType === 'WINDOW_CREATED' || eventType === 'WINDOW_EXTENDED') {
+    // Do not send if the computed window status is CLOSED (e.g., deadline has passed or not yet open)
+    if ((eventType === 'WINDOW_CREATED' || eventType === 'WINDOW_EXTENDED') && status === 'OPEN') {
       try {
         const formatDateDDMMYYYY = (dateStr) => {
           if (!dateStr) return 'N/A';
