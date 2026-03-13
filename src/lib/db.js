@@ -19,7 +19,7 @@ let pool;
 
 export function getDb() {
   if (!pool) {
-    pool = mysql.createPool({
+    const poolConfig = {
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
@@ -34,7 +34,18 @@ export function getDb() {
       keepAliveInitialDelay: 10000,
       idleTimeout: 60000, // Close idle connections after 60 seconds
       maxIdle: 25, // Max idle connections, the same as the connection limit
-    });
+    };
+
+    // TiDB Cloud and many production databases require SSL
+    if (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) {
+      poolConfig.ssl = {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true,
+      };
+      console.log('[DB] SSL/TLS Encryption enabled for database connection.');
+    }
+
+    pool = mysql.createPool(poolConfig);
   }
   return pool;
 }
