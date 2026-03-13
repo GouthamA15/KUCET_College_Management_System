@@ -227,7 +227,7 @@ export default function EditProfilePage() {
           </div>
 
           <div className="p-8 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-12">
-            {/* Left Sidebar: Photo, Sig, and Proof */}
+            {/* Left Sidebar: Photo and Sig */}
             <div className="space-y-10">
               <div className="flex flex-col items-center">
                 <div className="relative group">
@@ -267,22 +267,6 @@ export default function EditProfilePage() {
                    {signatureDataUrl && <div className="absolute top-1 right-1 bg-indigo-600 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black">NEW</div>}
                 </div>
                 <input ref={signatureInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'sig')} />
-              </div>
-
-              <div className="p-5 bg-amber-50 rounded-2xl border border-amber-100 shadow-sm space-y-4">
-                <label className="text-[11px] font-black text-amber-700 uppercase tracking-widest block">Verification Proof</label>
-                <p className="text-[10px] text-amber-800 font-medium leading-relaxed italic">Upload Aadhaar card or relevant documents to verify your update requests.</p>
-                <div className={`w-full aspect-video rounded-xl border-2 ${proofDataUrl ? 'border-amber-500 border-solid bg-white' : 'border-dashed border-amber-200 bg-amber-100/30'} flex items-center justify-center relative group transition-all overflow-hidden`}>
-                   {proofDataUrl ? (
-                     <Image src={proofDataUrl} alt="Proof" width={250} height={150} unoptimized className="object-contain w-full h-full" />
-                   ) : <span className="text-[10px] font-bold text-amber-400 uppercase">Drop Proof Image</span>}
-                   <button onClick={() => proofInputRef.current.click()} className="absolute inset-0 bg-amber-900/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-black uppercase tracking-wider">Select Proof</button>
-                   {proofDataUrl && <div className="absolute top-1 right-1 bg-amber-600 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black">NEW</div>}
-                </div>
-                <input ref={proofInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'proof')} />
-                {changedData && !proofDataUrl && (
-                    <div className="text-[9px] font-black text-red-600 animate-bounce uppercase">⚠️ Proof is mandatory for data updates</div>
-                )}
               </div>
 
               {latestRequest && latestRequest.status === 'rejected' && (
@@ -425,6 +409,44 @@ export default function EditProfilePage() {
                             rows={2}
                             className={`w-full border rounded-xl px-4 py-3 text-sm font-bold transition-all outline-none focus:ring-2 focus:ring-indigo-500 ${formData.academic.previous_college_details !== originalData?.academic.previous_college_details ? 'border-amber-400 bg-amber-50/20' : 'border-gray-200'}`}
                         />
+                    </div>
+                </div>
+              </section>
+
+              {/* Verification Proof Section at Bottom */}
+              <section className="bg-amber-50 p-6 rounded-2xl border border-amber-100 space-y-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-1.5 h-6 bg-amber-500 rounded-full"></div>
+                    <h2 className="text-xl font-black text-amber-800 uppercase tracking-tight">Verification Proof</h2>
+                </div>
+                <p className="text-xs text-amber-800 font-medium leading-relaxed italic uppercase tracking-wider opacity-70">
+                    Please upload an Aadhaar card or relevant official document to verify the update requests submitted above.
+                </p>
+                <div className="flex flex-col md:flex-row items-start gap-8">
+                    <div className={`w-full md:w-80 aspect-video rounded-xl border-2 ${proofDataUrl ? 'border-amber-500 border-solid bg-white' : 'border-dashed border-amber-200 bg-amber-100/30'} flex items-center justify-center relative group transition-all overflow-hidden shadow-sm`}>
+                    {proofDataUrl ? (
+                        <Image src={proofDataUrl} alt="Proof" width={320} height={180} unoptimized className="object-contain w-full h-full p-1" />
+                    ) : (
+                        <div className="flex flex-col items-center gap-2">
+                            <span className="text-4xl grayscale">📄</span>
+                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">No Proof Selected</span>
+                        </div>
+                    )}
+                    <button onClick={() => proofInputRef.current.click()} className="absolute inset-0 bg-amber-900/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-black uppercase tracking-widest">Select Proof Image</button>
+                    {proofDataUrl && <div className="absolute top-2 right-2 bg-amber-600 text-white text-[8px] px-2 py-1 rounded-full font-black uppercase shadow-lg">NEW</div>}
+                    </div>
+                    <input ref={proofInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'proof')} />
+                    
+                    <div className="flex-1 space-y-3">
+                        {changedData && !proofDataUrl && (
+                            <div className="p-4 bg-red-100 border border-red-200 rounded-xl flex items-center gap-3">
+                                <span className="text-xl">⚠️</span>
+                                <span className="text-[10px] font-black text-red-700 uppercase tracking-widest leading-tight">Identity proof is mandatory to request changes to text records.</span>
+                            </div>
+                        )}
+                        <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                            Max size: 1MB. Allowed formats: JPG, PNG. Ensure the image is clear and legible.
+                        </p>
                     </div>
                 </div>
               </section>

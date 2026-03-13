@@ -138,6 +138,8 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Student Profile Control:** Transformed the student Edit Profile page into a comprehensive record management interface. Students can now view all details (Personal, Academic, Student) and request updates for any field.
 - **Request-Based System:** Implemented a mandatory "Verification Proof" (image upload) for any data updates. All changes (text data, profile photo, or signature) now flow through a centralized `student_profile_requests` table for clerk approval.
 - **Clerk Verification Interface:** Upgraded the Admission Clerk's request dashboard to display "OLD vs NEW" data comparisons and verification proofs, enabling one-click approval or rejection with reason.
+- **UI Layout Refinement:** Relocated the Verification Proof section to the bottom of the student edit profile form for better UX flow, keeping the sidebar focused on primary identity assets (photo/signature).
+- **Broken Image Fallback:** Implemented `FallbackImage` component in profile update history to gracefully handle deleted images from Cloudinary (e.g., from rejected requests), replacing broken links with neat "Image Deleted" placeholders.
 - **Admission Form:** Hardened the admission process by making `Seat Allotted Category`, `Religion`, and `Mother Tongue` mandatory fields. Verified `Father's Occupation` remains optional. Added backend validation to enforce these rules.
 - **Blood Group Utility:** Expanded global `COLLEGE_CONFIG` to include "Not available" as a valid blood group option.
 - **Scholarship Dashboard:** Improved UX and implemented a new search feature allowing clerks to find student scholarship records by name. Enhanced year record cards and metrics display for better clarity.
