@@ -16,8 +16,8 @@ export async function POST(req) {
     const draftData = await req.json();
 
     // Basic validation
-    if (!draftData.name || !draftData.admission_year || !draftData.entrance_exam || !draftData.branch) {
-      return apiError('Missing required fields: name, admission_year, entrance_exam, or branch.', 400);
+    if (!draftData.name || !draftData.admission_year || !draftData.entrance_exam || !draftData.branch || !draftData.seat_allotted_category || !draftData.religion || !draftData.mother_tongue) {
+      return apiError('Missing required fields.', 400);
     }
     
     // 1. Comprehensive Uniqueness Checks

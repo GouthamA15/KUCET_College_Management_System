@@ -22,8 +22,7 @@ export default function Hero() {
           alt="KU College of Engineering and Technology Campus"
           fill
           className={`object-cover transition-opacity duration-1000 ease-in-out ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-          onLoadingComplete={() => setImageLoaded(true)}
-          priority
+          onLoad={() => setImageLoaded(true)}          priority
         />
         <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent"></div>
         

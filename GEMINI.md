@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 11, 2026
+**Last Updated:** March 13, 2026
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports four primary user roles: **Super Admin**, **Head of Department (HOD)**, **Clerk/Faculty**, and **Student**. 
@@ -134,7 +134,19 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 35: Final Production Optimizations (Latest - March 11, 2026)**
+### **Session 36: Profile Update Requests, Admission Form Hardening & UI Refinement (Latest - March 13, 2026)**
+- **Student Profile Control:** Transformed the student Edit Profile page into a comprehensive record management interface. Students can now view all details (Personal, Academic, Student) and request updates for any field.
+- **Request-Based System:** Implemented a mandatory "Verification Proof" (image upload) for any data updates. All changes (text data, profile photo, or signature) now flow through a centralized `student_profile_requests` table for clerk approval.
+- **Clerk Verification Interface:** Upgraded the Admission Clerk's request dashboard to display "OLD vs NEW" data comparisons and verification proofs, enabling one-click approval or rejection with reason.
+- **Admission Form:** Hardened the admission process by making `Seat Allotted Category`, `Religion`, and `Mother Tongue` mandatory fields. Verified `Father's Occupation` remains optional. Added backend validation to enforce these rules.
+- **Blood Group Utility:** Expanded global `COLLEGE_CONFIG` to include "Not available" as a valid blood group option.
+- **Scholarship Dashboard:** Improved UX and implemented a new search feature allowing clerks to find student scholarship records by name. Enhanced year record cards and metrics display for better clarity.
+- **UI Performance:** Resolved a Next.js deprecation warning in the `Hero` component by migrating from `onLoadingComplete` to the `onLoad` property for optimized image handling.
+- **Navbar & Navigation:** Resolved logic conflicts between scholarship and admission clerk navbar options. Fixed minor logout issues and navbar rendering bugs.
+- **API Enhancements:** Standardized scholarship API responses and implemented a new search-by-name endpoint (`/api/clerk/scholarship/search-by-name`) to support advanced filtering.
+- **Stability:** Fixed auto-merge failures and resolved minor UI issues in clerk settings (profile/security) and department management pages.
+
+### **Session 35: Final Production Optimizations (March 11, 2026)**
 - **Security Headers:** Implemented standard production security headers in `next.config.mjs`, including HSTS, No-Sniff, Frame-Options (DENY), and XSS-Protection to harden the application against common web attacks.
 - **Database Scalability:** Increased the MySQL connection pool limit from 10 to **25** to support higher concurrent traffic from students and faculty during peak hours.
 - **Permission Hardening:** Verified and enforced minimal-data-leakage principles in authenticated `me` routes, ensuring only necessary session data is exposed to the client.

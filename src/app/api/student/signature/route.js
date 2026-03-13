@@ -31,7 +31,7 @@ export async function GET(req) {
 
     // 3. Fetch latest request (pending or rejected)
     const [reqRows] = await db.execute(
-      'SELECT id, status, rejection_reason, new_signature, new_pfp, created_at FROM student_profile_requests ' +
+      'SELECT id, status, rejection_reason, new_signature, new_pfp, new_data, proof_url, created_at FROM student_profile_requests ' +
       'WHERE student_id = ? ORDER BY created_at DESC LIMIT 1',
       [user.student_id]
     );
@@ -46,17 +46,29 @@ export async function GET(req) {
         rejection_reason: row.rejection_reason,
         created_at: row.created_at,
         new_signature: imageHelper(row.new_signature),
-        new_pfp: imageHelper(row.new_pfp)
+        new_pfp: imageHelper(row.new_pfp),
+        new_data: row.new_data, // JSON is handled automatically by mysql2
+        proof_url: imageHelper(row.proof_url)
       };
     }
 
     const currentSignature = sigRows.length > 0 ? imageHelper(sigRows[0].signature) : null;
     const currentPfp = pfpRows.length > 0 ? imageHelper(pfpRows[0].pfp) : null;
 
+    // 4. Fetch full student details for comparison
+    const [personalRows] = await db.execute('SELECT * FROM student_personal_details WHERE student_id = ?', [user.student_id]);
+    const [academicRows] = await db.execute('SELECT * FROM student_academic_background WHERE student_id = ?', [user.student_id]);
+    const [studentRows] = await db.execute('SELECT roll_no, name, mobile, email FROM students WHERE id = ?', [user.student_id]);
+
     return apiResponse({
       signature: currentSignature,
       pfp: currentPfp,
-      latestRequest: latestRequest
+      latestRequest: latestRequest,
+      details: {
+        student: studentRows[0] || {},
+        personal: personalRows[0] || {},
+        academic: academicRows[0] || {}
+      }
     });
   } catch (err) {
     console.error('Profile fetch error:', err);
@@ -71,20 +83,29 @@ export async function POST(req) {
 
   try {
     const { checkRateLimit } = require('@/lib/rate-limit');
-    const rateCheck = await checkRateLimit(`profile_req:${user.student_id}`, 3, 86400); // 3 per day
+    const rateCheck = await checkRateLimit(`profile_req:${user.student_id}`, 5, 86400); // 5 per day
     if (!rateCheck.success) {
-      return apiError('You can only submit 3 update requests per day.', 429);
+      return apiError('You can only submit 5 update requests per day.', 429);
     }
 
     const body = await req.json();
-    const { signature, pfp } = body;
-    if (!signature && !pfp) return apiError('Either signature or profile picture is required', 400);
+    const { signature, pfp, data, proof } = body;
+    
+    // If updating text data, proof is mandatory
+    if (data && !proof) {
+      return apiError('Verification proof (image) is required for updating profile details.', 400);
+    }
+
+    if (!signature && !pfp && !data) {
+      return apiError('No changes provided to request an update.', 400);
+    }
 
     const db = getDb();
     
-    // Upload to Cloudinary if provided
+    // Upload images to Cloudinary if provided
     const signatureUrl = signature ? await uploadToCloudinary(signature, 'requests/signatures') : null;
     const pfpUrl = pfp ? await uploadToCloudinary(pfp, 'requests/pfp') : null;
+    const proofUrl = proof ? await uploadToCloudinary(proof, 'requests/proofs') : null;
 
     // Check if there's already a pending request
     const [pending] = await db.execute(
@@ -104,6 +125,14 @@ export async function POST(req) {
         updateSql += ', new_pfp = ?';
         params.push(pfpUrl);
       }
+      if (data) {
+        updateSql += ', new_data = ?';
+        params.push(JSON.stringify(data));
+      }
+      if (proofUrl) {
+        updateSql += ', proof_url = ?';
+        params.push(proofUrl);
+      }
       updateSql += ' WHERE id = ?';
       params.push(pending[0].id);
       
@@ -111,12 +140,12 @@ export async function POST(req) {
     } else {
       // Create a new request (status defaults to 'pending')
       await db.execute(
-        'INSERT INTO student_profile_requests (student_id, new_signature, new_pfp) VALUES (?, ?, ?)',
-        [user.student_id, signatureUrl, pfpUrl]
+        'INSERT INTO student_profile_requests (student_id, new_signature, new_pfp, new_data, proof_url) VALUES (?, ?, ?, ?, ?)',
+        [user.student_id, signatureUrl, pfpUrl, data ? JSON.stringify(data) : null, proofUrl]
       );
     }
 
-    return apiResponse({ success: true, message: 'Request submitted for approval' });
+    return apiResponse({ success: true, message: 'Profile update request submitted for clerk approval.' });
   } catch (err) {
     console.error('Profile request error:', err);
     return apiError('Server error', 500, err.message);
