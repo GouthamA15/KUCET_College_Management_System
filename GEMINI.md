@@ -135,6 +135,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
 ### **Session 36: Profile Update Requests, Admission Form Hardening & UI Refinement (Latest - March 13, 2026)**
+- **Database Security:** Implemented SSL/TLS support in `src/lib/db.js` to enable secure connections for production databases like TiDB Cloud. The system now automatically detects cloud hosts and enforces encrypted transport.
 - **Student Profile Control:** Transformed the student Edit Profile page into a comprehensive record management interface. Students can now view all details (Personal, Academic, Student) and request updates for any field.
 - **Request-Based System:** Implemented a mandatory "Verification Proof" (image upload) for any data updates. All changes (text data, profile photo, or signature) now flow through a centralized `student_profile_requests` table for clerk approval.
 - **Clerk Verification Interface:** Upgraded the Admission Clerk's request dashboard to display "OLD vs NEW" data comparisons and verification proofs, enabling one-click approval or rejection with reason.
