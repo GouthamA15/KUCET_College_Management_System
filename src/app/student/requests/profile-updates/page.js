@@ -8,6 +8,31 @@ import Footer from '@/components/Footer';
 import Image from 'next/image';
 import Link from 'next/link';
 
+const FallbackImage = ({ src, alt, width, height, className, type = 'photo' }) => {
+  const [error, setError] = useState(false);
+
+  if (error || !src) {
+    return (
+      <div className={`flex flex-col items-center justify-center bg-gray-100 text-gray-400 rounded-xl border border-dashed border-gray-200 ${className}`}>
+        <span className="text-2xl mb-1">{type === 'photo' ? '👤' : '🖋️'}</span>
+        <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Image {src ? 'Deleted' : 'None'}</span>
+      </div>
+    );
+  }
+
+  return (
+    <Image 
+      src={src} 
+      alt={alt} 
+      width={width} 
+      height={height} 
+      className={className}
+      unoptimized
+      onError={() => setError(true)}
+    />
+  );
+};
+
 export default function ProfileUpdatesPage() {
   const { studentData, loading: contextLoading } = useStudent();
   const [requests, setRequests] = useState([]);
@@ -108,14 +133,14 @@ export default function ProfileUpdatesPage() {
                   {req.new_signature && (
                     <div className="space-y-3">
                       <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Proposed Signature</h4>
-                      <div className="w-full h-32 bg-gray-50 rounded-xl border border-dashed border-gray-300 flex items-center justify-center p-4">
-                        <Image 
+                      <div className="w-full h-32 bg-gray-50 rounded-xl border border-dashed border-gray-300 flex items-center justify-center">
+                        <FallbackImage 
                           src={req.new_signature} 
                           alt="Proposed Signature" 
                           width={200} 
                           height={100} 
                           className="object-contain max-h-full"
-                          unoptimized
+                          type="sig"
                         />
                       </div>
                     </div>
@@ -126,13 +151,13 @@ export default function ProfileUpdatesPage() {
                     <div className="space-y-3">
                       <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Proposed Photo</h4>
                       <div className="w-32 h-32 bg-gray-50 rounded-xl border border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                        <Image 
+                        <FallbackImage 
                           src={req.new_pfp} 
                           alt="Proposed Photo" 
                           width={128} 
                           height={128} 
                           className="object-cover w-full h-full"
-                          unoptimized
+                          type="photo"
                         />
                       </div>
                     </div>
