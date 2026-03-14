@@ -48,7 +48,7 @@ export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
         <h3 className="text-base md:text-lg font-semibold mb-1 text-[#0b2447]">Payment Information</h3>
       </div>
       <div className="flex justify-center">
-        <p className="text-gray-700 text-sm md:text-base mb-2">Scan & Pay or use UPI below</p>
+        <p className="text-gray-700 text-sm md:text-base mb-2">Only UPI payments are accepted currently</p>
       </div>
       {!showDeepLink && (
         <>
@@ -89,7 +89,7 @@ export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
       )}
 
       <div className="mt-2 flex justify-center">
-        <p className="text-xs text-gray-600">Only UPI payments are accepted currently.</p>
+        <p className="text-xs text-gray-600">SCAN & PAY.</p>
       </div>
     </div>
   );

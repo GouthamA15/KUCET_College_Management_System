@@ -242,7 +242,7 @@ export default function ProfileActivityBar({ activity, student }) {
               </div>
               <div className="flex items-center">
                 <Link
-                  href="https://telanganaepass.cgg.gov.in/"
+                  href="https://telanganaepass.cgg.gov.in//epassonlinelinks.do"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm font-semibold text-blue-700 hover:underline"

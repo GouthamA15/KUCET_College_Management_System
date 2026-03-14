@@ -37,18 +37,10 @@ export default function CertificatePageLayout({ title = "Certificate Requests", 
             <aside className="order-1 lg:order-2">
               <div className="space-y-4">
                 <div className={rightCard}>
-                  <h3 className="text-xs uppercase tracking-wider font-semibold text-gray-700 mb-2">Processing Information</h3>
-                  <p className="text-sm text-gray-600 leading-6 mb-1">Processing Time: 2–3 Working Days</p>
-                  <p className="text-sm text-gray-600 leading-6 mb-1">Requests are processed during office hours only.</p>
+                  <h3 className="text-xs uppercase tracking-wider font-semibold text-gray-700 mb-2">Information</h3>
+                  <p className="text-sm text-gray-600 leading-6 mb-1">Processing Time: 2–3 Working Days during Office Hours (10:00 AM - 4:00PM) only.</p>
                   <p className="text-sm text-gray-600 leading-6">Approved certificates can be downloaded from Request History.</p>
-                </div>
-
-
-                <div className={rightCard}>
-                  <h3 className="text-xs uppercase tracking-wider font-semibold text-gray-700 mb-2">For Assistance</h3>
-                  <p className="text-sm text-gray-600 leading-6 mb-1">Examination Section Office</p>
-                  <p className="text-sm text-gray-600 leading-6 mb-1">Office Hours: 10:00 AM – 4:00 PM</p>
-                  <p className="text-sm text-gray-600 leading-6">Keep Request ID while visiting.</p>
+                  <p className="text-sm text-gray-600 leading-6 mb-1">For Assistance, Please  Visit the Office Room and Provide the Request ID if Required.</p>
                 </div>
               </div>
             </aside>
