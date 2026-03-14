@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useStudent } from '@/context/StudentContext';
+import { useClerk } from '@/context/ClerkContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -11,9 +13,29 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const [mobileExpanded, setMobileExpanded] = useState({});
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
+  // Get student and clerk data from context
+  let studentName = null;
+  let clerkName = null;
+  // Only call hooks inside component
+  try {
+    // Only useStudent if student
+    if (role === 'student' || studentProfileMode) {
+      const { studentData } = useStudent();
+      studentName = studentData?.student?.name || studentData?.name || null;
+    }
+    // Only useClerk if clerk
+    if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') {
+      const { clerkData } = useClerk();
+      clerkName = clerkData?.name || null;
+    }
+  } catch (e) {
+    // Context not available, ignore
+  }
+
   // Single source-of-truth menu configuration per role
   const menuConfig = {
       student: [
+      { label: 'HOME', route: '/student' },
       { label: 'PROFILE', route: '/student/profile' },
       { label: 'ACADEMICS', route: '/student/academics' },
       { label: 'TIME TABLE', route: '/student/timetable' },
@@ -210,8 +232,17 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
       <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-13">
-            <div className="flex-shrink-0">
-              <span className="text-white text-lg font-bold tracking-wide">LOGIN PORTAL</span>
+            <div className="flex-shrink-0 flex items-center gap-4">
+              {/* Proper greeting for student or clerk, or LOGIN PORTAL for guest */}
+              {studentName && (role === 'student' || studentProfileMode) && (
+                <span className="text-white text-base font-semibold">Hi, {studentName}!</span>
+              )}
+              {clerkName && (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') && (
+                <span className="text-white text-base font-semibold">Hi, {clerkName}!</span>
+              )}
+              {!studentName && !clerkName && (role === undefined || role === 'guest') && (
+                <span className="text-white text-lg font-bold tracking-wide">LOGIN PORTAL</span>
+              )}
             </div>
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-4">
