@@ -213,7 +213,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **Session 23: Asset Caching & Migration (March 5, 2026)**
 - **Pre-caching:** Background asset loading system via `AssetContext`.
 
-### **Session 23: Daddy's Home
+### **Session 23: Daddy's Home Modders😜
 surprise ngas!!
 
 ---

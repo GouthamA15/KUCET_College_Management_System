@@ -87,8 +87,9 @@ export async function proxy(request) {
     if (!studentPayload) {
       return NextResponse.redirect(new URL('/', request.url), 303);
     }
+    // Keep /student as student home page, no automatic profile redirect.
     if (pathname === '/student') {
-      return NextResponse.redirect(new URL('/student/profile', request.url), 303);
+      return NextResponse.next();
     }
   }
 
