@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import RealtimeListener from '@/components/RealtimeListener';
 
-const ClerkContext = createContext();
+export const ClerkContext = createContext();
 
 export function ClerkProvider({ children }) {
   // ... rest of state

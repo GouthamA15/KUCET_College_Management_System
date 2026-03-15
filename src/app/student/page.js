@@ -18,7 +18,7 @@ const formatCurrency = (amount) => {
 };
 
 export default function StudentHomePage() {
-  const { studentData, loading: contextLoading, refreshData } = useStudent();
+  const { studentData, latestCertificateRequest, loading: contextLoading, refreshData } = useStudent();
 
   const student = studentData?.student || null;
 
@@ -36,7 +36,7 @@ export default function StudentHomePage() {
   const totalPaid = feeRecords.reduce((s, item) => s + Number(item.amount || 0), 0);
   const pendingFee = rows.reduce((s, row) => s + Number(row.pending_fee || 0), 0);
 
-  const latestRequest = studentData?.latestProfileRequest || studentData?.certificateRequests?.[0] || null;
+  const latestRequest = studentData?.latestProfileRequest || latestCertificateRequest || studentData?.certificateRequests?.[0] || null;
 
   if (contextLoading && !student) {
     return (
@@ -58,6 +58,8 @@ export default function StudentHomePage() {
     );
   }
 
+  const isVerified = student.is_email_verified && !!student.password_hash;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
@@ -74,8 +76,16 @@ export default function StudentHomePage() {
 
       <main className="flex-1 w-full max-w-7xl mx-auto p-6 space-y-6">
         <section className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-100 via-white to-cyan-100 p-6 shadow-sm">
-          <h1 className="text-3xl font-bold text-blue-900">Welcome back, {student.name || student.full_name || student.roll_no}!</h1>
-          <p className="mt-2 text-blue-800">You’re on track for an amazing academic year. Here’s a quick snapshot based on your profile.</p>
+          <h1 className="text-3xl font-bold text-blue-900">
+            {isVerified 
+              ? `Welcome back, ${student.name || student.full_name || student.roll_no}!` 
+              : `Hello, ${student.name || student.full_name || student.roll_no}`}
+          </h1>
+          <p className="mt-2 text-blue-800">
+            {isVerified 
+              ? "You’re on track for an amazing academic year. Here’s a quick snapshot based on your profile."
+              : "Please complete your account verification to access all features of the student portal."}
+          </p>
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <article className="rounded-xl border border-blue-200 bg-blue-50 p-4">
               <p className="text-xs uppercase font-semibold text-blue-600">Branch</p>
@@ -96,31 +106,33 @@ export default function StudentHomePage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h2 className="text-xl font-bold text-slate-900">Financial Health</h2>
-            <p className="text-sm text-slate-500">Based on fee records and scholarships.</p>
-          </div>
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs uppercase text-slate-500">Total Fee Target</p>
-              <p className="text-2xl font-semibold text-slate-800">{formatCurrency(yearlyTotalFee)}</p>
+        {!!isVerified && (
+          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h2 className="text-xl font-bold text-slate-900">Financial Health</h2>
+              <p className="text-sm text-slate-500">Based on fee records and scholarships.</p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs uppercase text-slate-500">Scholarship Received</p>
-              <p className="text-2xl font-semibold text-emerald-700">{formatCurrency(totalScholarship)}</p>
+            <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs uppercase text-slate-500">Total Fee Target</p>
+                <p className="text-2xl font-semibold text-slate-800">{formatCurrency(yearlyTotalFee)}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs uppercase text-slate-500">Scholarship Received</p>
+                <p className="text-2xl font-semibold text-emerald-700">{formatCurrency(totalScholarship)}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs uppercase text-slate-500">Pending Fee</p>
+                <p className={`text-2xl font-semibold ${pendingFee > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>{formatCurrency(pendingFee)}</p>
+              </div>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs uppercase text-slate-500">Pending Fee</p>
-              <p className={`text-2xl font-semibold ${pendingFee > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>{formatCurrency(pendingFee)}</p>
-            </div>
-          </div>
 
-          <div className="mt-4 rounded-lg border border-gray-100 bg-indigo-50 p-4 text-indigo-900">
-            <p className="text-sm">Good job! You have paid {formatCurrency(totalPaid)} so far.</p>
-            <p className="text-xs text-indigo-700 mt-1">A little update every week helps you stay ahead of your dues.</p>
-          </div>
-        </section>
+            <div className="mt-4 rounded-lg border border-gray-100 bg-indigo-50 p-4 text-indigo-900">
+              <p className="text-sm">Good job! You have paid {formatCurrency(totalPaid)} so far.</p>
+              <p className="text-xs text-indigo-700 mt-1">A little update every week helps you stay ahead of your dues.</p>
+            </div>
+          </section>
+        )}
 
         <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-slate-900">Latest Activity</h2>
@@ -129,9 +141,18 @@ export default function StudentHomePage() {
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm font-semibold text-slate-700">Profile status:</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">{student.is_email_verified ? 'Email verified' : 'Email not verified'}</p>
-              {!student.is_email_verified && (
-                <p className="mt-1 text-xs text-rose-600">Please verify your email in <Link href="/student/settings/security" className="text-sky-600 underline">Security & Privacy</Link>.</p>
+              <div className="mt-1 space-y-1">
+                <p className="text-lg font-semibold text-slate-900">
+                  {student.is_email_verified ? '✓ Email verified' : '✗ Email not verified'}
+                </p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {!!student.password_hash ? '✓ Password set' : '✗ Password not set'}
+                </p>
+              </div>
+              {!isVerified && (
+                <p className="mt-2 text-xs text-rose-600 font-medium">
+                  Please complete verification in <Link href="/student/settings/security" className="text-sky-600 underline hover:text-sky-700">Security & Privacy</Link>.
+                </p>
               )}
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -142,9 +163,15 @@ export default function StudentHomePage() {
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/student/profile" className="rounded-lg border border-indigo-300 bg-indigo-100 px-4 py-2 text-indigo-700 hover:bg-indigo-200">View Full Profile</Link>
-            <Link href="/student/academics" className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-emerald-700 hover:bg-emerald-200">Academic Progress</Link>
-            <Link href="/student/requests/certificates" className="rounded-lg border border-blue-300 bg-blue-100 px-4 py-2 text-blue-700 hover:bg-blue-200">Requests & Certificates</Link>
+            {isVerified ? (
+              <>
+                <Link href="/student/profile" className="rounded-lg border border-indigo-300 bg-indigo-100 px-4 py-2 text-indigo-700 hover:bg-indigo-200 transition-colors">View Full Profile</Link>
+                <Link href="/student/academics" className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-emerald-700 hover:bg-emerald-200 transition-colors">Academic Progress</Link>
+                <Link href="/student/requests/certificates" className="rounded-lg border border-blue-300 bg-blue-100 px-4 py-2 text-blue-700 hover:bg-blue-200 transition-colors">Requests & Certificates</Link>
+              </>
+            ) : (
+              <Link href="/student/settings/security" className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-rose-700 hover:bg-rose-100 transition-colors">Complete Verification Now</Link>
+            )}
           </div>
         </section>
       </main>

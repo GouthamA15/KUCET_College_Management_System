@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getNowSync } from '@/lib/clock';
 
-const StudentContext = createContext();
+export const StudentContext = createContext();
 
 export function StudentProvider({ children }) {
   const [studentData, setStudentData] = useState(null);
@@ -16,6 +16,7 @@ export function StudentProvider({ children }) {
   const [academicPerformance, setAcademicPerformance] = useState(null);
   const [isLoadingAcademic, setIsLoadingAcademic] = useState(false);
   const [latestProfileRequest, setLatestProfileRequest] = useState(null);
+  const [latestCertificateRequest, setLatestCertificateRequest] = useState(null);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -48,9 +49,10 @@ export function StudentProvider({ children }) {
 
   const fetchProfile = useCallback(async (rollno) => {
     try {
-      const [profileRes, sigRes] = await Promise.all([
+      const [profileRes, sigRes, reqRes] = await Promise.all([
         fetch(`/api/student/${rollno}`),
-        fetch('/api/student/signature')
+        fetch('/api/student/signature'),
+        fetch(`/api/student/latest-request?rollno=${rollno}`)
       ]);
       
       const data = await profileRes.json();
@@ -63,6 +65,11 @@ export function StudentProvider({ children }) {
         if (sigRes.ok) {
           const sigData = await sigRes.json();
           setLatestProfileRequest(sigData.latestRequest);
+        }
+
+        if (reqRes.ok) {
+          const reqData = await reqRes.json();
+          setLatestCertificateRequest(reqData.latestRequest);
         }
         
         return data;
@@ -125,6 +132,7 @@ export function StudentProvider({ children }) {
       isLoadingAcademic,
       refreshAcademic: fetchAcademicPerformance,
       latestProfileRequest,
+      latestCertificateRequest,
       refreshProfile: async () => {
         const me = await fetch('/api/student/me');
         if (me.ok) {

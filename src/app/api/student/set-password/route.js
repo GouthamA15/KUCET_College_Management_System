@@ -62,7 +62,14 @@ export async function POST(req) {
       [hashedPassword, rollno]
     );
 
-    return apiResponse({ success: true, message: 'Password set successfully' });
+    const [updatedRows] = await query('SELECT * FROM students WHERE roll_no = ?', [rollno]);
+    const updatedStudent = updatedRows;
+
+    const response = apiResponse({ success: true, message: 'Password set successfully' });
+    const { issueStudentAuthCookie } = await import('@/lib/auth-utils');
+    await issueStudentAuthCookie(response, updatedStudent);
+
+    return response;
   } catch (err) {
     console.error('Password set error:', err);
     return apiError('Server error', 500);

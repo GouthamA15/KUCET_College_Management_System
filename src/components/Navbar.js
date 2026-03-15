@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useStudent } from '@/context/StudentContext';
-import { useClerk } from '@/context/ClerkContext';
+import { useState, useContext } from 'react';
+import { useStudent, StudentContext } from '@/context/StudentContext';
+import { useClerk, ClerkContext } from '@/context/ClerkContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -13,23 +13,23 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const [mobileExpanded, setMobileExpanded] = useState({});
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
-  // Get student and clerk data from context
+  // Use useContext directly to avoid throwing when Provider is missing (e.g. guest home)
+  // Hooks must be called unconditionally at the top level
+  const studentContext = useContext(StudentContext);
+  const clerkContext = useContext(ClerkContext);
+
+  const studentData = studentContext?.studentData;
+  const clerkData = clerkContext?.clerkData;
+
+  // Get student and clerk names for greeting
   let studentName = null;
   let clerkName = null;
-  // Only call hooks inside component
-  try {
-    // Only useStudent if student
-    if (role === 'student' || studentProfileMode) {
-      const { studentData } = useStudent();
-      studentName = studentData?.student?.name || studentData?.name || null;
-    }
-    // Only useClerk if clerk
-    if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') {
-      const { clerkData } = useClerk();
-      clerkName = clerkData?.name || null;
-    }
-  } catch (e) {
-    // Context not available, ignore
+
+  if (role === 'student' || studentProfileMode) {
+    studentName = studentData?.student?.name || studentData?.name || null;
+  }
+  if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') {
+    clerkName = clerkData?.name || null;
   }
 
   // Single source-of-truth menu configuration per role
@@ -130,12 +130,33 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     effectiveRole = 'clerkScholarship';
   }
 
-  const menuItems = menuConfig[effectiveRole] || menuConfig['guest'] || [
+  // Determine if student is fully verified to control menu visibility
+  let isStudentVerified = true;
+  if (effectiveRole === 'student') {
+    const s = studentData?.student;
+    if (s) {
+      isStudentVerified = !!(s.is_email_verified && s.password_hash);
+    }
+  }
+
+  const menuItemsRaw = menuConfig[effectiveRole] || menuConfig['guest'] || [
     { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'EMPLOYEE LOGIN', action: 'open-panel-clerk' },
     { label: 'SUPER ADMIN', action: 'open-panel-admin' }
   ];
+
+  // Filter student menu if unverified
+  const menuItems = (effectiveRole === 'student' && !isStudentVerified)
+    ? [
+        { label: 'HOME', route: '/student' },
+        { label: 'MENU', children: [
+            { label: 'Security & Privacy', route: '/student/settings/security' },
+            { label: 'Logout', action: 'logout' }
+          ]
+        }
+      ]
+    : menuItemsRaw;
 
   const handleNavClick = (panel) => {
     if (pathname !== '/') {
@@ -303,8 +324,9 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                 // Render a real link only when a valid route exists and is not a placeholder
                 if (item.route && item.route !== '#') {
                   // Treat clerk dashboards generically: any /clerk/*/dashboard should highlight the DASHBOARD item
+                  const isStudentHome = item.label === 'HOME' && item.route === '/student';
                   const routeActive = pathname && (
-                    pathname.startsWith(item.route) ||
+                    (isStudentHome ? pathname === item.route : pathname.startsWith(item.route)) ||
                     (item.label === 'DASHBOARD' && item.route.includes('/clerk/') && pathname.startsWith('/clerk/') && pathname.endsWith('/dashboard'))
                   );
                   return (

@@ -1,4 +1,4 @@
-import { getDb } from '@/lib/db';
+import { getDb, query } from '@/lib/db';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 
@@ -47,8 +47,16 @@ export async function POST(req) {
       
       // Clean up the used OTP
       await db.execute('DELETE FROM otp_codes WHERE id = ?', [otpData.id]);
-      
-      return apiResponse({ message: 'Email address verified and updated successfully!' });
+
+      // Fetch updated student data to re-issue cookie
+      const [updatedRows] = await db.execute('SELECT * FROM students WHERE roll_no = ?', [rollno]);
+      const updatedStudent = updatedRows[0];
+
+      const response = apiResponse({ message: 'Email address verified and updated successfully!' });
+      const { issueStudentAuthCookie } = await import('@/lib/auth-utils');
+      await issueStudentAuthCookie(response, updatedStudent);
+
+      return response;
 
     } catch (error) {
       console.error('Verify OTP Error:', error);

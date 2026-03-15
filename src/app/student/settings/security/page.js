@@ -110,7 +110,7 @@ export default function SecurityPrivacyPage() {
         setOtpSent(true);
         setOtpInput('');
       } else {
-        setEmailMessage(data?.message || 'Failed to send OTP');
+        setEmailMessage(data?.message || data?.error || 'Please try again after 15 minutes.');
         setOtpSent(false);
       }
     } catch {

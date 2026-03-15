@@ -7,10 +7,10 @@ import { checkRateLimit } from '@/lib/rate-limit';
 export async function POST(req) {
   try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`otp_send:${ip}`, 3, 3600); // 3 per hour
+    const rateCheck = await checkRateLimit(`otp_send:${ip}`, 5, 900); // 5 attempts per 15 min
     
     if (!rateCheck.success) {
-      return apiError('Too many OTP requests. Please try again in an hour.', 429);
+      return apiError('Please try again after 15 minutes.', 429);
     }
 
     const user = await getAuthUser('student');
@@ -102,6 +102,7 @@ export async function POST(req) {
           bodyHtml: bodyHtml,
           // bodyText will be derived from HTML by the helper
         });
+        console.log(`[OTP_SEND] Email attempt to ${email} result:`, emailResponse);
       } catch (mailError) {
         console.error('[MAIL EXCEPTION] Failed during sendEmail:', mailError);
         return apiError('Email service exception occurred.', 500);
@@ -111,7 +112,7 @@ export async function POST(req) {
         return apiResponse({ message: 'OTP sent to your new email address.' });
       } else {
         console.error('[MAIL FAILURE] sendEmail returned false:', emailResponse.message);
-        return apiError(emailResponse.message || 'Failed to send OTP email.', 500);
+        return apiError('Please try again after 15 minutes.', 500);
       }
     } catch (error) {
       console.error('[GENERAL ERROR] send-update-email-otp:', error);

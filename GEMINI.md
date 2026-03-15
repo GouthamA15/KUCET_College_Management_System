@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 13, 2026
+**Last Updated:** March 15, 2026
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports four primary user roles: **Super Admin**, **Head of Department (HOD)**, **Clerk/Faculty**, and **Student**. 
@@ -134,7 +134,20 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 36: Profile Update Requests, Admission Form Hardening & UI Refinement (Latest - March 13, 2026)**
+### **Session 37: Student Security Hardening, Verification Workflows & UI Refinement (Latest - March 15, 2026)**
+- **Redirection Logic:** Refactored `src/proxy.js` to intelligently route students: verified students go directly to `/student/profile`, while unverified students are guided to the `/student` dashboard for account setup.
+- **Security Middleware:** Implemented strict middleware enforcement to block unverified students (no email verification or password set) from accessing sensitive academic and request pages, limiting them to Home and Security settings.
+- **API Architectural Fix:** Permanently resolved the "Unexpected token <" JSON parsing error by ensuring the proxy returns proper `401 Unauthorized` JSON responses for API routes instead of HTML redirects during session expiration.
+- **Session Synchronization:** Created a centralized `issueStudentAuthCookie` helper to ensure the authentication cookie is immediately updated with latest verification flags after email verification or password setting, preventing stale session restrictions.
+- **Real-Time Request Tracking:** Upgraded the Student Dashboard to automatically fetch the latest certificate request status on initial load, ensuring pending requests (like Bona fide) are visible immediately without navigating sub-pages.
+- **UI/UX Polishing:**
+    - Fixed a "Rules of Hooks" violation in the `Navbar` by refactoring context usage to top-level `useContext` calls.
+    - Corrected Navbar highlighting to prevent the "HOME" link from remaining active on sub-pages.
+    - Resolved a JSX rendering bug that caused a stray "0" to appear on the Student Home page.
+    - Standardized OTP error messages to "Please try again after 15 minutes" across frontend and backend.
+- **Email Reliability:** Increased OTP rate limits to 5 requests per 15 minutes to balance security with user convenience during testing.
+
+### **Session 36: Profile Update Requests, Admission Form Hardening & UI Refinement (March 13, 2026)**
 - **Database Security:** Implemented SSL/TLS support in `src/lib/db.js` to enable secure connections for production databases like TiDB Cloud. The system now automatically detects cloud hosts and enforces encrypted transport.
 - **Request Unit (RU) Optimization:** Refactored the live "Activity Bar" polling logic for both students and faculty. Replaced recursive `setTimeout` logic with stable intervals and transition-window detection, preventing potential "Infinite Loop" bugs and significantly reducing unnecessary database queries to preserve TiDB Cloud free-tier quotas.
 - **Student Profile Control:** Transformed the student Edit Profile page into a comprehensive record management interface. Students can now view all details (Personal, Academic, Student) and request updates for any field.
@@ -213,9 +226,6 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **Session 23: Asset Caching & Migration (March 5, 2026)**
 - **Pre-caching:** Background asset loading system via `AssetContext`.
-
-### **Session 23: Daddy's Home Modders😜
-surprise ngas!!
 
 ---
 

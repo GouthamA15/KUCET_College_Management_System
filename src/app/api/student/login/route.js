@@ -20,7 +20,7 @@ export async function POST(req) {
     }
     
     const rows = await query(
-      `SELECT s.id, s.roll_no, s.name, sp.father_name, sp.category, s.mobile, s.date_of_birth, s.password_hash
+      `SELECT s.id, s.roll_no, s.name, s.is_email_verified, sp.father_name, sp.category, s.mobile, s.date_of_birth, s.password_hash
        FROM students s
        LEFT JOIN student_personal_details sp ON s.id = sp.student_id
        WHERE s.roll_no = ?`,
@@ -71,29 +71,16 @@ export async function POST(req) {
     
     const { date_of_birth: _dob, password_hash = _ph, ...profile } = student;
 
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    const sessionDuration = rememberMe ? '30d' : '1h';
-    const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 60 * 60;
-
-    const token = await new SignJWT({ student_id: student.id, roll_no: student.roll_no, name: student.name })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(sessionDuration)
-      .sign(secret);
-
     const response = apiResponse({ student: profile, success: true });
 
     // Clear other auth cookies
     response.cookies.delete('admin_auth');
     response.cookies.delete('clerk_auth');
 
-    response.cookies.set('student_auth', token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
-        maxAge: cookieMaxAge,
-        path: '/',
-    });
+    // Use common helper to issue the cookie with all verified flags
+    const { issueStudentAuthCookie } = await import('@/lib/auth-utils');
+    await issueStudentAuthCookie(response, student, rememberMe);
+
     return response;
 
   } catch (err) {

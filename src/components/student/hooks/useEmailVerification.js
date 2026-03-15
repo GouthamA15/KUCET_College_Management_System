@@ -35,7 +35,7 @@ export default function useEmailVerification({ rollno, newEmail, setEmail, origi
         toast.success(data.message);
         setIsOtpSent(true);
       } else {
-        toast.error(data.message || 'Failed to send OTP.');
+        toast.error(data.message || data.error || 'Please try again after 15 minutes.');
       }
     } catch (error) {
       toast.error('Network error. Please try again.');

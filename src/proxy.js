@@ -14,6 +14,21 @@ async function verify(token, secret) {
   }
 }
 
+async function handleUnauthorized(request) {
+  const { pathname } = request.nextUrl;
+  
+  // If it's an API request, return 401 JSON instead of redirecting to HTML login
+  if (pathname.startsWith('/api/')) {
+    return new NextResponse(
+      JSON.stringify({ error: 'Unauthorized', message: 'Session expired or invalid' }),
+      { status: 401, headers: { 'content-type': 'application/json' } }
+    );
+  }
+  
+  // For page requests, redirect to home/login
+  return NextResponse.redirect(new URL('/', request.url), 303);
+}
+
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
   const { cookies } = request;
@@ -38,7 +53,9 @@ export async function proxy(request) {
 
     const studentPayload = studentAuth ? await verify(studentAuth.value, jwtSecret) : null;
     if (studentPayload) {
-      return NextResponse.redirect(new URL('/student', request.url), 303);
+      const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
+      const target = isVerified ? '/student/profile' : '/student';
+      return NextResponse.redirect(new URL(target, request.url), 303);
     }
 
     // Unauthenticated users proceed to Home.
@@ -49,7 +66,7 @@ export async function proxy(request) {
   if (pathname.startsWith('/admin')) {
     const adminPayload = adminAuth ? await verify(adminAuth.value, jwtSecret) : null;
     if (!adminPayload) {
-      return NextResponse.redirect(new URL('/', request.url), 303);
+      return handleUnauthorized(request);
     }
     if (pathname === '/admin') {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
@@ -60,7 +77,7 @@ export async function proxy(request) {
   else if (pathname.startsWith('/clerk')) {
     const clerkPayload = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : null;
     if (!clerkPayload) {
-      return NextResponse.redirect(new URL('/', request.url), 303);
+      return handleUnauthorized(request);
     }
     if (pathname === '/clerk') {
       const dashboard = getDashboardPathByRole(clerkPayload.role);
@@ -68,16 +85,16 @@ export async function proxy(request) {
     }
     // Enforce role-based access for clerk subpaths via server-only redirects
     if (pathname.startsWith('/clerk/scholarship') && clerkPayload.role !== 'scholarship') {
-      const dashboard = getDashboardPathByRole(clerkPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+        const dashboard = getDashboardPathByRole(clerkPayload.role);
+        return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
     if (pathname.startsWith('/clerk/admission') && clerkPayload.role !== 'admission') {
-      const dashboard = getDashboardPathByRole(clerkPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+        const dashboard = getDashboardPathByRole(clerkPayload.role);
+        return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
     if (pathname.startsWith('/clerk/faculty') && clerkPayload.role !== 'faculty') {
-      const dashboard = getDashboardPathByRole(clerkPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+        const dashboard = getDashboardPathByRole(clerkPayload.role);
+        return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
   }
 
@@ -85,8 +102,17 @@ export async function proxy(request) {
   else if (pathname.startsWith('/student')) {
     const studentPayload = studentAuth ? await verify(studentAuth.value, jwtSecret) : null;
     if (!studentPayload) {
-      return NextResponse.redirect(new URL('/', request.url), 303);
+      return handleUnauthorized(request);
     }
+
+    // Restriction for unverified students: Only allow HOME and SECURITY page
+    const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
+    const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security';
+
+    if (!isVerified && !allowedForUnverified) {
+      return NextResponse.redirect(new URL('/student', request.url), 303);
+    }
+
     // Keep /student as student home page, no automatic profile redirect.
     if (pathname === '/student') {
       return NextResponse.next();

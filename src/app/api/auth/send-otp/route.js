@@ -77,7 +77,7 @@ This OTP is valid for the next 5 minutes. Do not share this code with anyone.`;
       console.error('Failed to send OTP email:', emailResult.message);
       // Optionally delete OTP from DB if email sending failed, to prevent stale OTPs
       await query('DELETE FROM otp_codes WHERE roll_no = ?', [rollNo]);
-      return apiError(emailResult.message || 'Failed to send OTP email.', 500);
+      return apiError('Please try again after 15 minutes.', 500);
     }
   } catch (error) {
     console.error('Error in send-otp API:', error);
