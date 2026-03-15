@@ -26,6 +26,7 @@ export const buildInstitutionalEmailHtml = ({
   // Use a public Cloudinary URL for the logo so it works in emails (localhost URLs are blocked by email clients)
   const cloudName = 'djs0ry74r';
   const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/v1772715418/kucet/public/assets/ku-logo.png`;
+  const campusImageUrl = `https://res.cloudinary.com/djs0ry74r/image/upload/v1772715356/kucet/public/assets/college-campus.jpg`;
 
   // Build structured information rows if provided
   const infoRowsHtml = Array.isArray(infoRows) && infoRows.length > 0
@@ -94,6 +95,15 @@ export const buildInstitutionalEmailHtml = ({
                   </tr>
                   <tr>
                     <td style="padding-top:16px; border-bottom:1px solid ${BORDER_COLOR};"></td>
+                  </tr>
+                </table>
+
+                <!-- Campus Image -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-top: 24px;">
+                  <tr>
+                    <td align="center">
+                      <img src="${campusImageUrl}" alt="KUCET Campus" style="width:100%; max-width:536px; height:auto; display:block; border-radius:4px;" />
+                    </td>
                   </tr>
                 </table>
 
