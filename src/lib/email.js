@@ -98,15 +98,6 @@ export const buildInstitutionalEmailHtml = ({
                   </tr>
                 </table>
 
-                <!-- Campus Image -->
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-top: 24px;">
-                  <tr>
-                    <td align="center">
-                      <img src="${campusImageUrl}" alt="KUCET Campus" style="width:100%; max-width:536px; height:auto; display:block; border-radius:4px;" />
-                    </td>
-                  </tr>
-                </table>
-
                 <!-- Title -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-top: 24px;">
                   <tr>
@@ -125,6 +116,15 @@ export const buildInstitutionalEmailHtml = ({
                   </tr>
                   ${infoRowsHtml}
                   ${actionHtml}
+                </table>
+
+                <!-- Campus Image at Bottom -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-top: 32px;">
+                  <tr>
+                    <td align="center">
+                      <img src="${campusImageUrl}" alt="KUCET Campus" style="width:100%; max-width:536px; height:auto; display:block; border-radius:4px;" />
+                    </td>
+                  </tr>
                 </table>
 
                 <!-- Security notice & footer -->
