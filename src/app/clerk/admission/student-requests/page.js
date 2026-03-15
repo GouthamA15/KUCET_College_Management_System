@@ -182,16 +182,20 @@ export default function StudentRequestsPage() {
                               <div className="border border-slate-200 overflow-hidden">
                                   <table className="w-full text-left text-[11px] border-collapse">
                                       <thead>
-                                          <tr className="bg-slate-50 border-b border-slate-200">
-                                              <th className="px-6 py-3 font-black text-slate-500 uppercase tracking-wider w-1/3">Field Designation</th>
-                                              <th className="px-6 py-3 font-black text-blue-800 uppercase tracking-wider">Submitted Value</th>
+                                          <tr className="bg-slate-50 border-b border-slate-200 text-center">
+                                              <th className="px-6 py-3 font-black text-slate-500 uppercase tracking-wider text-left">Field Designation</th>
+                                              <th className="px-6 py-3 font-black text-slate-500 uppercase tracking-wider border-l border-slate-200">College Record</th>
+                                              <th className="px-6 py-3 font-black text-blue-800 uppercase tracking-wider border-l border-slate-200">Student Request</th>
                                           </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100">
                                           {Object.entries(typeof req.new_data === 'string' ? JSON.parse(req.new_data) : req.new_data).map(([field, value]) => (
                                               <tr key={field} className="hover:bg-slate-50 transition-colors">
                                                   <td className="px-6 py-3 font-bold text-slate-500 uppercase">{formatLabel(field)}</td>
-                                                  <td className="px-6 py-3">
+                                                  <td className="px-6 py-3 text-center border-l border-slate-100">
+                                                      <span className="font-medium text-slate-400 uppercase">{req.current_values?.[field] || <span className="italic opacity-50">Null</span>}</span>
+                                                  </td>
+                                                  <td className="px-6 py-3 text-center border-l border-slate-100">
                                                       <span className="font-bold text-blue-900 bg-blue-50 px-3 py-1 border border-blue-100 uppercase">{value || <span className="text-slate-300 italic opacity-50">Null</span>}</span>
                                                   </td>
                                               </tr>
