@@ -54,7 +54,7 @@ export default function StudentHomePage() {
               </g>
             </svg>
           </div>
-          <p className="text-slate-600 font-medium mt-4">Synchronizing with central database...</p>
+          <p className="text-slate-600 font-medium mt-4">Loading student dashboard...</p>
         </div>
       </div>
     );
