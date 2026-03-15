@@ -41,7 +41,7 @@ export default function StudentHomePage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="text-center">
           <img 
-            src="https://res.cloudinary.com/dttvsum7h/image/upload/v1772715418/kucet/public/assets/ku-logo.png" 
+            src="https://res.cloudinary.com/djs0ry74r/image/upload/v1772715421/kucet/public/assets/ku-logo.png" 
             alt="KUCET logo" 
             style={{ width: '160px', height: 'auto', margin: '0 auto' }}
           />
