@@ -1,5 +1,4 @@
-﻿// arai moddus, this page is only for uzair's reference for refactoring the student home page to be more of a dashboard with quick insights and links, rather than just redirecting to profile and is NOT finalized. The actual profile page will be more detailed and focused on profile info, while this home/dashboard page will give a snapshot of key info and quick access to important sections.
-//so do not do not delete ts or do any sort of moddala panulu
+// src/app/student/page.js
 'use client';
 
 import React from 'react';
@@ -18,10 +17,9 @@ const formatCurrency = (amount) => {
 };
 
 export default function StudentHomePage() {
-  const { studentData, latestCertificateRequest, loading: contextLoading, refreshData } = useStudent();
+  const { studentData, latestCertificateRequest, loading: contextLoading } = useStudent();
 
   const student = studentData?.student || null;
-
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
   const batch = student ? getBatchFromRoll(student.roll_no) : null;
   const { yearOfStudy, semester, semesterLabel } = student ? calculateYearAndSemester(student.roll_no, studentData?.collegeInfo) : { yearOfStudy: null, semester: null, semesterLabel: '' };
@@ -29,7 +27,6 @@ export default function StudentHomePage() {
 
   const scholarshipList = studentData?.scholarship || [];
   const feeRecords = studentData?.fees || [];
-
   const { rows = [], yearlyTotalFee = 0 } = useFinancialRows(student?.roll_no, scholarshipList, feeRecords, branch);
 
   const totalScholarship = scholarshipList.reduce((s, item) => s + Number(item.amount_disbursed ?? item.amount_sanctioned ?? 0), 0);
@@ -37,35 +34,34 @@ export default function StudentHomePage() {
   const pendingFee = rows.reduce((s, row) => s + Number(row.pending_fee || 0), 0);
 
   const latestRequest = studentData?.latestProfileRequest || latestCertificateRequest || studentData?.certificateRequests?.[0] || null;
+  const isVerified = !!(student?.is_email_verified && !!student?.password_hash);
 
   if (contextLoading && !student) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="rounded-xl border border-gray-200 bg-white px-5 py-6 shadow-sm text-gray-700">Loading your student dashboard...</div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="text-slate-600 font-medium animate-pulse text-lg">Synchronizing with central database...</div>
       </div>
     );
   }
 
   if (!student) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm w-full max-w-md text-center">
-          <h2 className="text-2xl font-semibold text-slate-800">Student Dashboard</h2>
-          <p className="mt-3 text-slate-600">No student profile found. Please login again to access your student home.</p>
-          <Link href="/" className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">Go to Login</Link>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <div className="rounded-lg border border-slate-300 bg-white p-8 shadow-sm w-full max-w-md text-center">
+          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-4">UNAUTHORIZED ACCESS</h2>
+          <p className="mt-4 text-slate-600">No student profile session found. Your credentials could not be verified.</p>
+          <Link href="/" className="mt-6 inline-block w-full rounded bg-[#0b3578] px-4 py-2.5 text-white font-semibold hover:bg-blue-900 transition-colors uppercase tracking-wider text-sm">Return to Login</Link>
         </div>
       </div>
     );
   }
 
-  const isVerified = !!(student.is_email_verified && !!student.password_hash);
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900">
       <Header />
       <Navbar
         role={'student'}
-        activeTab={'profile'}
+        activeTab={'home'}
         onLogout={async () => {
           await fetch('/api/student/logout', { method: 'POST' });
           localStorage.removeItem('logged_in_student');
@@ -74,110 +70,152 @@ export default function StudentHomePage() {
         }}
       />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto p-6 space-y-6">
-        <section className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-100 via-white to-cyan-100 p-6 shadow-sm">
-          <h1 className="text-3xl font-bold text-blue-900">
-            {isVerified 
-              ? `Welcome back, ${student.name || student.full_name || student.roll_no}!` 
-              : `Hello, ${student.name || student.full_name || student.roll_no}`}
-          </h1>
-          <p className="mt-2 text-blue-800">
-            {isVerified 
-              ? "You’re on track for an amazing academic year. Here’s a quick snapshot based on your profile."
-              : "Please complete your account verification to access all features of the student portal."}
-          </p>
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <article className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <p className="text-xs uppercase font-semibold text-blue-600">Branch</p>
-              <span className="text-xl font-semibold text-blue-900">{branch || 'N/A'}</span>
-            </article>
-            <article className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <p className="text-xs uppercase font-semibold text-blue-600">Batch</p>
-              <span className="text-xl font-semibold text-blue-900">{batch || 'Unknown'}</span>
-            </article>
-            <article className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <p className="text-xs uppercase font-semibold text-blue-600">Year / Semester</p>
-              <span className="text-xl font-semibold text-blue-900">{yearOfStudy || '-' } / {semester || '-'}{semesterLabel ? ` (${semesterLabel})` : ''}</span>
-            </article>
-            <article className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <p className="text-xs uppercase font-semibold text-blue-600">Academic Year</p>
-              <span className="text-xl font-semibold text-blue-900">{academicYear || 'Not available'}</span>
-            </article>
+      <main className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8">
+        {/* Unified Institutional Dashboard Card */}
+        <div className="bg-white border border-slate-300 shadow-md rounded-sm overflow-hidden">
+          
+          {/* Header Section */}
+          <div className="bg-[#0b3578] px-6 py-4 border-b border-blue-900">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-white uppercase tracking-tight">Student Dashboard</h1>
+                <p className="text-blue-100 text-sm mt-1">Official Academic & Administrative Information System</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${isVerified ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white animate-pulse'}`}>
+                  {isVerified ? '● Verified Account' : '● Verification Pending'}
+                </span>
+              </div>
+            </div>
           </div>
-        </section>
 
-        {!!isVerified && (
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <h2 className="text-xl font-bold text-slate-900">Financial Health</h2>
-              <p className="text-sm text-slate-500">Based on fee records and scholarships.</p>
-            </div>
-            <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs uppercase text-slate-500">Total Fee Target</p>
-                <p className="text-2xl font-semibold text-slate-800">{formatCurrency(yearlyTotalFee)}</p>
+          <div className="p-6 md:p-8 space-y-8">
+            
+            {/* 1. Academic Identification Section */}
+            <section>
+              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4">Student Identification</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase">Full Name</span>
+                  <span className="text-lg font-bold text-slate-800">{student.name || student.full_name}</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase">Permanent Roll No</span>
+                  <span className="text-lg font-bold text-slate-800">{student.roll_no}</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase">Department / Branch</span>
+                  <span className="text-lg font-bold text-slate-800">{branch || 'N/A'}</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase">Current Academic Period</span>
+                  <span className="text-lg font-bold text-slate-800">{yearOfStudy || '-' }Y / Sem {semester || '-'}{semesterLabel ? ` (${semesterLabel})` : ''}</span>
+                </div>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs uppercase text-slate-500">Scholarship Received</p>
-                <p className="text-2xl font-semibold text-emerald-700">{formatCurrency(totalScholarship)}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs uppercase text-slate-500">Pending Fee</p>
-                <p className={`text-2xl font-semibold ${pendingFee > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>{formatCurrency(pendingFee)}</p>
-              </div>
+            </section>
+
+            {/* 2. Financial & Academic Status Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* Financial Records */}
+              <section className="border border-slate-200 rounded-sm">
+                <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                  <h3 className="text-xs font-bold text-slate-600 uppercase">Financial Summary ({academicYear || 'Current'})</h3>
+                </div>
+                {isVerified ? (
+                  <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="border-l-4 border-slate-400 pl-3">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold">Total Fee Target</span>
+                        <p className="text-xl font-bold">{formatCurrency(yearlyTotalFee)}</p>
+                      </div>
+                      <div className="border-l-4 border-emerald-500 pl-3">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold">Scholarships</span>
+                        <p className="text-xl font-bold text-emerald-700">{formatCurrency(totalScholarship)}</p>
+                      </div>
+                      <div className="border-l-4 border-indigo-500 pl-3">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold">Amount Paid</span>
+                        <p className="text-xl font-bold text-indigo-700">{formatCurrency(totalPaid)}</p>
+                      </div>
+                      <div className={`border-l-4 ${pendingFee > 0 ? 'border-rose-500' : 'border-emerald-500'} pl-3`}>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold">Outstanding Dues</span>
+                        <p className={`text-xl font-bold ${pendingFee > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>{formatCurrency(pendingFee)}</p>
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-100 p-3 text-[11px] text-blue-800 rounded-sm italic">
+                      Disclaimer: Financial records are subject to manual verification by the administrative office.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center">
+                    <p className="text-slate-400 text-xs italic uppercase tracking-wider">Verification required to view financial data</p>
+                  </div>
+                )}
+              </section>
+
+              {/* Administrative Activity */}
+              <section className="border border-slate-200 rounded-sm">
+                <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                  <h3 className="text-xs font-bold text-slate-600 uppercase">Administrative Activity</h3>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block mb-2">Account Verification Status</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className={student.is_email_verified ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                          {student.is_email_verified ? '✓ EMAIL VERIFIED' : '✗ EMAIL NOT VERIFIED'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className={student.password_hash ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                          {student.password_hash ? '✓ PASSWORD CONFIGURED' : '✗ PASSWORD NOT CONFIGURED'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isVerified && latestRequest && (
+                    <div className="pt-4 border-t border-slate-100">
+                      <span className="text-[10px] text-slate-500 uppercase font-bold block">Recent Request status</span>
+                      <p className="text-sm font-bold mt-1 text-slate-800">
+                        {latestRequest.certificate_type || latestRequest.type || 'Request'} — 
+                        <span className="text-[#0b3578] ml-1 uppercase">{latestRequest.status || 'PROCESSED'}</span>
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1 italic">
+                        Last system update: {latestRequest.updated_at ? new Date(latestRequest.updated_at).toLocaleDateString() : 'recently'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
             </div>
 
-            <div className="mt-4 rounded-lg border border-gray-100 bg-indigo-50 p-4 text-indigo-900">
-              <p className="text-sm">Good job! You have paid {formatCurrency(totalPaid)} so far.</p>
-              <p className="text-xs text-indigo-700 mt-1">A little update every week helps you stay ahead of your dues.</p>
-            </div>
-          </section>
-        )}
-
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-900">Latest Activity</h2>
-          <p className="text-sm text-slate-500 mt-1">Things to check and actions you can take.</p>
-
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`rounded-lg border border-slate-200 bg-slate-50 p-4 ${!isVerified ? 'md:col-span-2' : ''}`}>
-              <p className="text-sm font-semibold text-slate-700">Profile status:</p>
-              <div className="mt-1 space-y-1">
-                <p className="text-lg font-semibold text-slate-900">
-                  {student.is_email_verified ? '✓ Email verified' : '✗ Email not verified'}
-                </p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {!!student.password_hash ? '✓ Password set' : '✗ Password not set'}
-                </p>
-              </div>
-              {!isVerified && (
-                <p className="mt-2 text-xs text-rose-600 font-medium">
-                  Please complete verification in <Link href="/student/settings/security" className="text-sky-600 underline hover:text-sky-700">Security & Privacy</Link>.
-                </p>
-              )}
-            </div>
-            {isVerified && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-700">Latest request</p>
-                <p className="mt-1 text-lg text-slate-900">{!!latestRequest ? `${latestRequest.certificate_type || latestRequest.type || 'Request'} — ${latestRequest.status || 'Status Unknown'}` : 'No active requests'}</p>
-                {!!latestRequest && (
-                  <p className="mt-1 text-xs text-slate-500">Updated {latestRequest.updated_at ? new Date(latestRequest.updated_at).toLocaleDateString() : 'recently'}.</p>
+            {/* 3. Action Portal Section */}
+            <section className="pt-4 border-t border-slate-200">
+              <div className="flex flex-wrap gap-4">
+                {isVerified ? (
+                  <>
+                    <Link href="/student/profile" className="flex-1 min-w-[180px] bg-white border border-slate-300 text-slate-700 py-3 px-4 rounded-sm text-xs font-bold uppercase tracking-widest text-center hover:bg-slate-50 transition-all">
+                      Access Profile Records
+                    </Link>
+                    <Link href="/student/academics" className="flex-1 min-w-[180px] bg-white border border-slate-300 text-slate-700 py-3 px-4 rounded-sm text-xs font-bold uppercase tracking-widest text-center hover:bg-slate-50 transition-all">
+                      Academic Performance
+                    </Link>
+                    <Link href="/student/requests/certificates" className="flex-1 min-w-[180px] bg-white border border-slate-300 text-slate-700 py-3 px-4 rounded-sm text-xs font-bold uppercase tracking-widest text-center hover:bg-slate-50 transition-all">
+                      Certificate Portal
+                    </Link>
+                  </>
+                ) : (
+                  <Link href="/student/settings/security" className="w-full bg-[#0b3578] text-white py-4 px-6 rounded-sm text-sm font-bold uppercase tracking-widest text-center hover:bg-blue-900 transition-all shadow-sm">
+                    Complete Mandatory Account Verification
+                  </Link>
                 )}
               </div>
-            )}
-          </div>
+            </section>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            {isVerified ? (
-              <>
-                <Link href="/student/profile" className="rounded-lg border border-indigo-300 bg-indigo-100 px-4 py-2 text-indigo-700 hover:bg-indigo-200 transition-colors">View Full Profile</Link>
-                <Link href="/student/academics" className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-emerald-700 hover:bg-emerald-200 transition-colors">Academic Progress</Link>
-                <Link href="/student/requests/certificates" className="rounded-lg border border-blue-300 bg-blue-100 px-4 py-2 text-blue-700 hover:bg-blue-200 transition-colors">Requests & Certificates</Link>
-              </>
-            ) : (
-              <Link href="/student/settings/security" className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-rose-700 hover:bg-rose-100 transition-colors">Complete Verification Now</Link>
-            )}
           </div>
-        </section>
+        </div>
       </main>
 
       <Footer />
