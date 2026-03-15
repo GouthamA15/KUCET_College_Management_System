@@ -38,7 +38,7 @@ export async function proxy(request) {
 
     const studentPayload = studentAuth ? await verify(studentAuth.value, jwtSecret) : null;
     if (studentPayload) {
-      return NextResponse.redirect(new URL('/student/profile', request.url), 303);
+      return NextResponse.redirect(new URL('/student', request.url), 303);
     }
 
     // Unauthenticated users proceed to Home.
