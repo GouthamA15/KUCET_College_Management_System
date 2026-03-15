@@ -109,7 +109,9 @@ export default function StudentHomePage() {
                 </div>
                 <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm">
                   <span className="block text-[10px] font-black text-slate-400 uppercase">Current Academic Period</span>
-                  <span className="text-lg font-bold text-slate-800">{yearOfStudy || '-' }Y / Sem {semester || '-'}{semesterLabel ? ` (${semesterLabel})` : ''}</span>
+                  <span className="text-lg font-bold text-slate-800">
+                    {yearOfStudy ? `Year ${yearOfStudy}` : 'N/A'} / {semester ? `Semester ${semester}` : 'N/A'}
+                  </span>
                 </div>
               </div>
             </section>
