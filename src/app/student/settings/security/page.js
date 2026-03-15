@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useStudent } from '@/context/StudentContext';
-import Header from '@/app/components/Header/Header';
-import Navbar from '@/app/components/Navbar/Navbar';
-import Footer from '@/components/Footer';
 
 export default function SecurityPrivacyPage() {
   const { studentData, loading, refreshData } = useStudent();
@@ -179,7 +176,7 @@ export default function SecurityPrivacyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="w-full max-w-4xl mx-auto bg-white shadow-xl rounded-lg p-6 md:p-8">
       {toastMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
           <div className="px-4 py-2 rounded-md shadow-md bg-green-600 text-white text-sm">
@@ -187,12 +184,8 @@ export default function SecurityPrivacyPage() {
           </div>
         </div>
       )}
-      <Header />
-      <Navbar role={'student'} activeTab={'menu'} onLogout={async () => { await fetch('/api/student/logout', { method: 'POST' }); location.href = '/'; }} />
 
-      <main className="flex-1 flex items-start justify-center px-6 py-8">
-        <div className="w-full max-w-4xl bg-white shadow-xl rounded-lg p-6 md:p-8">
-          <h1 className="text-2xl font-bold mb-6">Security & Privacy</h1>
+      <h1 className="text-2xl font-bold mb-6">Security & Privacy</h1>
 
           {!studentData && loading ? (
             <div className="text-sm text-gray-600">Loading...</div>
@@ -515,9 +508,5 @@ export default function SecurityPrivacyPage() {
             </div>
           )}
         </div>
-      </main>
-
-      <Footer />
-    </div>
   );
 }

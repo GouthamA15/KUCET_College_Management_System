@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 
+import Link from 'next/link';
+
 export default function ProfileHeaderCard({ student }) {
   const [imageLoading, setImageLoading] = useState(true);
 
@@ -31,7 +33,14 @@ export default function ProfileHeaderCard({ student }) {
         )}
       </div>
       <div className="mt-6 text-center md:text-left">
-        <div className="text-3xl font-bold leading-tight">{student.name}</div>
+        <div className="flex items-center justify-center md:justify-start gap-3">
+          <div className="text-3xl font-bold leading-tight">{student.name}</div>
+          <Link href="/student/settings/edit-profile" title="Modify Records" className="p-1.5 text-slate-400 hover:text-[#0b3578] hover:bg-slate-100 rounded-full transition-all">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </Link>
+        </div>
         <div className="mt-1 text-lg font-semibold tracking-wide text-gray-800">{student.roll_no}</div>
       </div>
     </div>

@@ -5,7 +5,6 @@ import { useStudent } from '@/context/StudentContext';
 import { useRouter } from 'next/navigation';
 import ScrollHandler from './ScrollHandler';
 import toast from 'react-hot-toast';
-import Footer from '../../../../components/Footer';
 import CertificatePageLayout from '../../../../components/student/requests/CertificatePageLayout';
 import CertificateRequestForm from '../../../../components/student/requests/CertificateRequestForm';
 import RequestHistoryDesktop from '../../../../components/student/requests/RequestHistoryDesktop';
@@ -231,7 +230,6 @@ export default function CertificateRequestsPage() {
       />
 
       <RejectDetailsModal isOpen={showRejectModal} request={rejectReq} onClose={closeRejectModal} onReapply={handleReapply} />
-      <Footer />
     </>
   );
 }
