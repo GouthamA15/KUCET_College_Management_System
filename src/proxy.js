@@ -105,9 +105,11 @@ export async function proxy(request) {
       return handleUnauthorized(request);
     }
 
-    // Restriction for unverified students: Only allow HOME and SECURITY page
+    // Restriction for unverified students: Only allow HOME, SECURITY, and PROFILE page
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
-    const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security';
+    const allowedForUnverified = pathname === '/student' || 
+                               pathname === '/student/settings/security' || 
+                               pathname === '/student/profile';
 
     if (!isVerified && !allowedForUnverified) {
       return NextResponse.redirect(new URL('/student', request.url), 303);
