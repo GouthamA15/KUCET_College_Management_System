@@ -58,7 +58,7 @@ export default function StudentHomePage() {
     );
   }
 
-  const isVerified = student.is_email_verified && !!student.password_hash;
+  const isVerified = !!(student.is_email_verified && !!student.password_hash);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -139,7 +139,7 @@ export default function StudentHomePage() {
           <p className="text-sm text-slate-500 mt-1">Things to check and actions you can take.</p>
 
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className={`rounded-lg border border-slate-200 bg-slate-50 p-4 ${!isVerified ? 'md:col-span-2' : ''}`}>
               <p className="text-sm font-semibold text-slate-700">Profile status:</p>
               <div className="mt-1 space-y-1">
                 <p className="text-lg font-semibold text-slate-900">
@@ -155,11 +155,15 @@ export default function StudentHomePage() {
                 </p>
               )}
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-700">Latest request</p>
-              <p className="mt-1 text-lg text-slate-900">{latestRequest ? `${latestRequest.certificate_type || latestRequest.type || 'Request'} — ${latestRequest.status || 'Status Unknown'}` : 'No active requests'}</p>
-              {latestRequest ? <p className="mt-1 text-xs text-slate-500">Updated {latestRequest.updated_at ? new Date(latestRequest.updated_at).toLocaleDateString() : 'recently'}.</p> : null}
-            </div>
+            {isVerified && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-700">Latest request</p>
+                <p className="mt-1 text-lg text-slate-900">{!!latestRequest ? `${latestRequest.certificate_type || latestRequest.type || 'Request'} — ${latestRequest.status || 'Status Unknown'}` : 'No active requests'}</p>
+                {!!latestRequest && (
+                  <p className="mt-1 text-xs text-slate-500">Updated {latestRequest.updated_at ? new Date(latestRequest.updated_at).toLocaleDateString() : 'recently'}.</p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">

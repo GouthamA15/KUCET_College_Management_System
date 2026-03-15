@@ -31,27 +31,25 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') {
     clerkName = clerkData?.name || null;
   }
-
-  // Single source-of-truth menu configuration per role
-  const menuConfig = {
-      student: [
-      { label: 'HOME', route: '/student' },
-      { label: 'PROFILE', route: '/student/profile' },
-      { label: 'ACADEMICS', route: '/student/academics' },
-      { label: 'TIME TABLE', route: '/student/timetable' },
-      { label: 'REQUESTS', children: [
-          { label: 'Certificates', route: '/student/requests/certificates' },
-          { label: 'Profile Updates', route: '/student/requests/profile-updates' },
-          { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
-        ]
-      },
-      { label: 'MENU', children: [
-          { label: 'Edit Profile', route: '/student/settings/edit-profile' },
-          { label: 'Security & Privacy', route: '/student/settings/security' },
-          { label: 'Logout', action: 'logout' }
-        ]
-      }
-    ],
+// Single source-of-truth menu configuration per role
+const menuConfig = {
+    student: [
+    { label: 'HOME', route: '/student' },
+    { label: 'ACADEMICS', route: '/student/academics' },
+    { label: 'TIME TABLE', route: '/student/timetable' },
+    { label: 'REQUESTS', children: [
+        { label: 'Certificates', route: '/student/requests/certificates' },
+        { label: 'Profile Updates', route: '/student/requests/profile-updates' },
+        { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
+      ]
+    },
+    { label: 'MENU', children: [
+        { label: 'Edit Profile', route: '/student/settings/edit-profile' },
+        { label: 'Security & Privacy', route: '/student/settings/security' },
+        { label: 'Logout', action: 'logout' }
+      ]
+    }
+  ],
     clerk: [
       { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
       { label: 'DEPARTMENTS', route: '/clerk/departments' },
