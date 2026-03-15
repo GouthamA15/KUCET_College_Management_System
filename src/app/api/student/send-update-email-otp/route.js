@@ -45,20 +45,6 @@ export async function POST(req) {
       const otp = crypto.randomInt(100000, 999999).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
-      // Build an absolute URL to public assets so images render in email clients
-      const forwardedProto = req.headers.get('x-forwarded-proto') || req.headers.get('x-forwarded-protocol');
-      const referer = req.headers.get('referer');
-      let proto = forwardedProto || 'https';
-      try {
-        if (!forwardedProto && referer) proto = new URL(referer).protocol.replace(':', '');
-      } catch (e) {
-        // ignore and fall back to default
-      }
-      const host = req.headers.get('host') || process.env.NEXT_PUBLIC_BASE_URL || 'localhost:3000';
-      const baseUrl = host.startsWith('http') ? host : `${proto}://${host}`;
-
-      const campusUrl = `${baseUrl}/assets/college-campus.jpg`;
-
       // Invalidate any existing OTPs for this roll number
       try {
         await db.execute('DELETE FROM otp_codes WHERE roll_no = ?', [rollno]);
@@ -70,13 +56,14 @@ export async function POST(req) {
         );
       } catch (dbError) {
         console.error('[DATABASE ERROR] OTP management failed:', dbError);
-        return apiError('Database error occurred during OTP generation.', 500);
+        return apiError('Please try again after 15 minutes.', 500);
       }
 
       // Send the OTP email using the shared institutional template
       const subject = 'Verify Your New Email Address';
+      const studentName = user.name || 'Student';
       const bodyHtml = `
-        <p style="margin:0 0 12px 0;font-size:15px;color:#111827;">Hello,</p>
+        <p style="margin:0 0 12px 0;font-size:15px;color:#111827;">Hello <strong>${studentName}</strong>,</p>
         <p style="margin:0 0 18px 0;font-size:14px;color:#374151;">Use the secure One-Time Password (OTP) below to verify your new email address for your student portal account.</p>
 
         <div style="text-align:center;margin:18px 0;">
@@ -86,11 +73,7 @@ export async function POST(req) {
         </div>
 
         <p style="margin:0 0 8px 0;font-size:13px;color:#6b7280;">This OTP will expire in <strong>10 minutes</strong>. For your security, do not share this code with anyone.</p>
-        <p style="margin:8px 0 0 0;font-size:12px;color:#9ca3af;">If you did not request this change, please contact the admissions office immediately.</p>
-
-        <div style="padding-top:18px;">
-          <img src="${campusUrl}" alt="Campus" style="width:100%;height:auto;border-radius:6px;display:block;margin-top:12px;" />
-        </div>
+        <p style="margin:8px 0 0 0;font-size:12px;color:#9ca3af;">If you did not request this change, please ignore this email.</p>
       `;
 
       let emailResponse;
@@ -100,12 +83,11 @@ export async function POST(req) {
           subject,
           title: 'OTP for Email Change Verification',
           bodyHtml: bodyHtml,
-          // bodyText will be derived from HTML by the helper
         });
         console.log(`[OTP_SEND] Email attempt to ${email} result:`, emailResponse);
       } catch (mailError) {
         console.error('[MAIL EXCEPTION] Failed during sendEmail:', mailError);
-        return apiError('Email service exception occurred.', 500);
+        return apiError('Please try again after 15 minutes.', 500);
       }
 
       if (emailResponse.success) {
