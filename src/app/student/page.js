@@ -39,7 +39,23 @@ export default function StudentHomePage() {
   if (contextLoading && !student) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="text-slate-600 font-medium animate-pulse text-lg">Synchronizing with central database...</div>
+        <div className="text-center">
+          <img 
+            src="https://res.cloudinary.com/dttvsum7h/image/upload/v1772715418/kucet/public/assets/ku-logo.png" 
+            alt="KUCET logo" 
+            style={{ width: '160px', height: 'auto', margin: '0 auto' }}
+          />
+          <div className="mt-6 flex items-center justify-center">
+            <svg width="40" height="40" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="25" cy="25" r="20" stroke="#cbd5e1" strokeWidth="5" />
+              <g>
+                <path d="M45 25a20 20 0 0 1-20 20" stroke="#0b3578" strokeWidth="5" strokeLinecap="round" />
+                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite" />
+              </g>
+            </svg>
+          </div>
+          <p className="text-slate-600 font-medium mt-4">Synchronizing with central database...</p>
+        </div>
       </div>
     );
   }
