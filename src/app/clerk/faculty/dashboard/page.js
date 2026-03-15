@@ -1,9 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '@/app/components/Header/Header';
-import Navbar from '@/app/components/Navbar/Navbar';
-import Footer from '@/app/components/Footer/Footer';
 import AssignedSubjectsList from '@/components/clerk/faculty/AssignedSubjectsList';
 import AttendanceSheet from '@/components/clerk/faculty/AttendanceSheet';
 import MarksEntrySheet from '@/components/clerk/faculty/MarksEntrySheet';
@@ -46,7 +43,7 @@ export default function FacultyDashboardOverview() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center font-bold text-gray-400">LOADING FACULTY CONSOLE...</div>;
+    return <div className="min-h-[60vh] flex items-center justify-center font-bold text-gray-400">LOADING FACULTY CONSOLE...</div>;
   }
 
   const cards = [
@@ -74,11 +71,9 @@ export default function FacultyDashboardOverview() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <Header />
-      <Navbar role="faculty" />
+    <>
       <FacultyActivityBar />
-      <main className="flex-1 max-w-[1200px] mx-auto w-full px-6 mt-6 pb-12">
+      <div className="max-w-[1200px] mx-auto w-full mt-6 pb-12 px-4">
         <h1 className="text-2xl font-black text-gray-900 mb-6 uppercase tracking-tight">Faculty Dashboard</h1>
         
         {clerk?.is_hod && !activeSection && (
@@ -159,8 +154,7 @@ export default function FacultyDashboardOverview() {
             )}
           </div>
         )}
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </>
   );
 }

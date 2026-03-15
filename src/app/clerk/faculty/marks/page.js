@@ -2,9 +2,6 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import Header from '@/app/components/Header/Header';
-import Navbar from '@/app/components/Navbar/Navbar';
-import Footer from '@/app/components/Footer/Footer';
 import { useClerk } from '@/context/ClerkContext';
 import MarksEntrySheet from '@/components/clerk/faculty/MarksEntrySheet';
 
@@ -166,15 +163,10 @@ function MarksContent() {
 
 export default function FacultyInternalAssessmentPage() {
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <Header />
-      <Navbar role="faculty" />
-      <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
-        <Suspense fallback={<div className="text-center py-10">Loading Internal Assessment Portal...</div>}>
-          <MarksContent />
-        </Suspense>
-      </main>
-      <Footer />
+    <div className="max-w-7xl mx-auto w-full">
+      <Suspense fallback={<div className="text-center py-10">Loading Internal Assessment Portal...</div>}>
+        <MarksContent />
+      </Suspense>
     </div>
   );
 }

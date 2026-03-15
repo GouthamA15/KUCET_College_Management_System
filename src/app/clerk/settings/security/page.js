@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useClerk } from '@/context/ClerkContext';
-import Header from '@/app/components/Header/Header';
-import Navbar from '@/app/components/Navbar/Navbar';
-import Footer from '@/components/Footer';
 import toast from 'react-hot-toast';
 
 export default function ClerkSecurityPage() {
@@ -73,148 +70,137 @@ export default function ClerkSecurityPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
-      <Header />
-      <Navbar
-        role={clerk?.role === 'faculty' ? 'faculty' : clerk?.role || 'clerk'}
-        activeTab={'menu'}
-        onLogout={async () => { await fetch('/api/clerk/logout', { method: 'POST' }); location.href = '/'; }}
-      />
+    <div className="flex items-start justify-center px-4 py-8">
+      <div className="w-full max-w-4xl bg-white shadow-xl rounded-lg p-6 md:p-8">
+        <h1 className="text-2xl font-bold mb-6">Security & Privacy</h1>
 
-      <main className="flex-1 flex items-start justify-center px-6 py-8">
-        <div className="w-full max-w-4xl bg-white shadow-xl rounded-lg p-6 md:p-8">
-          <h1 className="text-2xl font-bold mb-6">Security & Privacy</h1>
-
-          {!clerkData && loading ? (
-            <div className="text-sm text-gray-600">Loading...</div>
-          ) : !clerkData ? (
-            <div className="text-sm text-gray-600">Clerk data not found.</div>
-          ) : (
-            <div className="space-y-8">
-              {/* Account Info Summary */}
-              <section className="border rounded-md p-4 bg-gray-50">
-                <h2 className="text-sm font-semibold text-gray-700 mb-3">Account Status</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase font-bold">Role</div>
-                    <div className="font-medium text-indigo-700 capitalize">{clerk.role} Clerk</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase font-bold">Email</div>
-                    <div className="font-medium">{clerk.email}</div>
-                  </div>
+        {!clerkData && loading ? (
+          <div className="text-sm text-gray-600">Loading...</div>
+        ) : !clerkData ? (
+          <div className="text-sm text-gray-600">Clerk data not found.</div>
+        ) : (
+          <div className="space-y-8">
+            {/* Account Info Summary */}
+            <section className="border rounded-md p-4 bg-gray-50">
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">Account Status</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs text-gray-500 uppercase font-bold">Role</div>
+                  <div className="font-medium text-indigo-700 capitalize">{clerk.role} Clerk</div>
                 </div>
-              </section>
-
-              {/* Change Password Section */}
-              <section className="border rounded-md p-4">
-                <div className="flex items-center justify-between border-b pb-3 mb-4">
-                  <h2 className="text-lg font-semibold text-gray-800">Change Password</h2>
+                <div>
+                  <div className="text-xs text-gray-500 uppercase font-bold">Email</div>
+                  <div className="font-medium">{clerk.email}</div>
                 </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">Current Password</label>
-                    <div className="relative">
-                      <input 
-                        type={showCurrentPw ? 'text' : 'password'} 
-                        className="w-full border rounded-md px-3 py-2 text-sm pr-14 focus:ring-2 focus:ring-indigo-500 outline-none" 
-                        value={currentPassword} 
-                        onChange={(e) => setCurrentPassword(e.target.value)} 
-                        placeholder="Enter current password" 
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => setShowCurrentPw((v) => !v)} 
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-indigo-600"
-                      >
-                        {showCurrentPw ? 'Hide' : 'Show'}
-                      </button>
-                    </div>
-                  </div>
+              </div>
+            </section>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 block mb-1">New Password</label>
-                      <div className="relative">
-                        <input 
-                          type={showNewPw ? 'text' : 'password'} 
-                          className="w-full border rounded-md px-3 py-2 text-sm pr-14 focus:ring-2 focus:ring-indigo-500 outline-none" 
-                          value={newPassword} 
-                          onChange={(e) => setNewPassword(e.target.value)} 
-                          placeholder="Enter new password" 
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => setShowNewPw((v) => !v)} 
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-indigo-600"
-                        >
-                          {showNewPw ? 'Hide' : 'Show'}
-                        </button>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2 text-xs">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-bold ${
-                          pwStrength.label === 'Strong' ? 'bg-green-100 text-green-700' : 
-                          pwStrength.label === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {pwStrength.label}
-                        </span>
-                        <span className="text-gray-500">Min 8 chars, mixed case, numbers & symbols</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 block mb-1">Confirm New Password</label>
-                      <div className="relative">
-                        <input 
-                          type={showConfirmPw ? 'text' : 'password'} 
-                          className="w-full border rounded-md px-3 py-2 text-sm pr-14 focus:ring-2 focus:ring-indigo-500 outline-none" 
-                          value={confirmPassword} 
-                          onChange={(e) => setConfirmPassword(e.target.value)} 
-                          placeholder="Re-enter new password" 
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => setShowConfirmPw((v) => !v)} 
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-indigo-600"
-                        >
-                          {showConfirmPw ? 'Hide' : 'Show'}
-                        </button>
-                      </div>
-                      {confirmPassword && (
-                        <div className="mt-1 text-xs">
-                          {confirmPassword !== newPassword ? (
-                            <span className="text-red-600 font-medium">Passwords do not match</span>
-                          ) : (
-                            <span className="text-green-600 font-medium">Passwords match</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
+            {/* Change Password Section */}
+            <section className="border rounded-md p-4">
+              <div className="flex items-center justify-between border-b pb-3 mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">Change Password</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">Current Password</label>
+                  <div className="relative">
+                    <input 
+                      type={showCurrentPw ? 'text' : 'password'} 
+                      className="w-full border rounded-md px-3 py-2 text-sm pr-14 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                      value={currentPassword} 
+                      onChange={(e) => setCurrentPassword(e.target.value)} 
+                      placeholder="Enter current password" 
+                    />
                     <button 
-                      onClick={savePassword} 
-                      disabled={!canSaveNewPw || pwSaving} 
-                      className={`px-6 py-2 rounded-md text-white font-semibold transition-all ${
-                        !canSaveNewPw || pwSaving 
-                        ? 'bg-gray-300 cursor-not-allowed' 
-                        : 'bg-indigo-600 hover:bg-indigo-700 shadow-md active:scale-95'
-                      }`}
+                      type="button" 
+                      onClick={() => setShowCurrentPw((v) => !v)} 
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-indigo-600"
                     >
-                      {pwSaving ? 'Updating...' : 'Update Password'}
+                      {showCurrentPw ? 'Hide' : 'Show'}
                     </button>
                   </div>
                 </div>
-              </section>
-            </div>
-          )}
-        </div>
-      </main>
 
-      <Footer />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">New Password</label>
+                    <div className="relative">
+                      <input 
+                        type={showNewPw ? 'text' : 'password'} 
+                        className="w-full border rounded-md px-3 py-2 text-sm pr-14 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                        value={newPassword} 
+                        onChange={(e) => setNewPassword(e.target.value)} 
+                        placeholder="Enter new password" 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowNewPw((v) => !v)} 
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-indigo-600"
+                      >
+                        {showNewPw ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-xs">
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-bold ${
+                        pwStrength.label === 'Strong' ? 'bg-green-100 text-green-700' : 
+                        pwStrength.label === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {pwStrength.label}
+                      </span>
+                      <span className="text-gray-500">Min 8 chars, mixed case, numbers & symbols</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">Confirm New Password</label>
+                    <div className="relative">
+                      <input 
+                        type={showConfirmPw ? 'text' : 'password'} 
+                        className="w-full border rounded-md px-3 py-2 text-sm pr-14 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                        value={confirmPassword} 
+                        onChange={(e) => setConfirmPassword(e.target.value)} 
+                        placeholder="Re-enter new password" 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowConfirmPw((v) => !v)} 
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-indigo-600"
+                      >
+                        {showConfirmPw ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                    {confirmPassword && (
+                      <div className="mt-1 text-xs">
+                        {confirmPassword !== newPassword ? (
+                          <span className="text-red-600 font-medium">Passwords do not match</span>
+                        ) : (
+                          <span className="text-green-600 font-medium">Passwords match</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={savePassword} 
+                    disabled={!canSaveNewPw || pwSaving} 
+                    className={`px-6 py-2 rounded-md text-white font-semibold transition-all ${
+                      !canSaveNewPw || pwSaving 
+                      ? 'bg-gray-300 cursor-not-allowed' 
+                      : 'bg-indigo-600 hover:bg-indigo-700 shadow-md active:scale-95'
+                    }`}
+                  >
+                    {pwSaving ? 'Updating...' : 'Update Password'}
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

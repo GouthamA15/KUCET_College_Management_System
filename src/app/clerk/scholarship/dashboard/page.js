@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useClerk } from '@/context/ClerkContext';
-import Header from '@/components/Header';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
 import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
@@ -513,164 +510,157 @@ export default function ScholarshipDashboard() {
 
   if (isClerkLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <p className="text-gray-600">Loading scholarship dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <Header />
-      <Navbar role={'clerkScholarship'} onLogout={handleLogout} />
-      <main className="flex-1">
-        <div className="max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
-          <h1
-            id="scholarship-dashboard-top"
-            className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4"
+    <div className="max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
+      <h1
+        id="scholarship-dashboard-top"
+        className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4"
+      >
+        Scholarship Clerk Dashboard
+      </h1>
+
+      {view === 'certificates' ? (
+        <div>
+          <button
+            onClick={() => setView('dashboard')}
+            className="text-sm text-indigo-600 mb-3"
           >
-            Scholarship Clerk Dashboard
-          </h1>
+            ← Back to Dashboard
+          </button>
+          <CertificateDashboard clerkType="scholarship" />
+        </div>
+      ) : (
+        <>
+          {/* Metrics section */}
+          <ScholarshipMetricsCards refreshToken={metricsRefreshToken} />
 
-          {view === 'certificates' ? (
-            <div>
+          {/* Primary search action */}
+          <ScholarshipSearchCard
+            searchMode={searchMode}
+            setSearchMode={setSearchMode}
+            roll={roll}
+            setRoll={setRoll}
+            applicationNoInput={applicationNoInput}
+            setApplicationNoInput={setApplicationNoInput}
+            nameInput={nameInput}
+            setNameInput={setNameInput}
+            rollError={rollError}
+            setRollError={setRollError}
+            MAX_ROLL={MAX_ROLL}
+            loading={loading}
+            onSubmit={fetchStudent}
+            nameResults={nameResults}
+            onSelectStudentFromName={handleSelectStudentFromName}
+          />
+
+          {student && (
+            <div className="mt-3 flex justify-end">
               <button
-                onClick={() => setView('dashboard')}
-                className="text-sm text-indigo-600 mb-3"
+                type="button"
+                onClick={handleClearDashboard}
+                className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                 Back to Dashboard
+                Clear
               </button>
-              <CertificateDashboard clerkType="scholarship" />
             </div>
-          ) : (
-            <>
-              {/* Metrics section */}
-              <ScholarshipMetricsCards refreshToken={metricsRefreshToken} />
+          )}
 
-              {/* Primary search action */}
-              <ScholarshipSearchCard
-                searchMode={searchMode}
-                setSearchMode={setSearchMode}
-                roll={roll}
-                setRoll={setRoll}
-                applicationNoInput={applicationNoInput}
-                setApplicationNoInput={setApplicationNoInput}
-                nameInput={nameInput}
-                setNameInput={setNameInput}
-                rollError={rollError}
-                setRollError={setRollError}
-                MAX_ROLL={MAX_ROLL}
-                loading={loading}
-                onSubmit={fetchStudent}
-                nameResults={nameResults}
-                onSelectStudentFromName={handleSelectStudentFromName}
-              />
-
-              {student && (
-                <div className="mt-3 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleClearDashboard}
-                    className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    Clear
-                  </button>
-                </div>
-              )}
-
-              {/* Student details & year-wise records */}
-              {student && (
-                <section className="space-y-6 mt-4">
-                  <StudentInfoCard
-                    student={student}
-                    onImageClick={(src) => {
-                      setImagePreviewSrc(src);
-                      setImagePreviewOpen(true);
-                    }}
-                  />
-
-                  <YearRecordsList
-                    yearList={yearList}
-                    summariesByYear={summariesByYear}
-                    expandedByYear={expandedByYear}
-                    onToggleExpand={(yy) =>
-                      setExpandedByYear((prev) => ({ ...prev, [yy]: !prev[yy] }))
-                    }
-                    onOpenModal={(yy) => openAddModal(yy)}
-                    computeRecordState={computeRecordState}
-                    feeSummary={feeSummary}
-                    student={student}
-                    toDmy={toDmy}
-                  />
-
-                  <AddEditRecordModal
-                    open={modalOpen}
-                    year={modalYear}
-                    student={student}
-                    summary={summariesByYear[modalYear] || null}
-                    formState={{
-                      schAppNo,
-                      schProceedingNo,
-                      schAmount,
-                      schDate,
-                      payAmount,
-                      payRef,
-                      payDate,
-                      appEditing,
-                      thumbUpdateAvailable,
-                      thumbStatus,
-                      hardcopySubmitted,
-                    }}
-                    setFormState={(k, v) => {
-                      const setters = {
-                        schAppNo: setSchAppNo,
-                        schProceedingNo: setSchProceedingNo,
-                        schAmount: setSchAmount,
-                        schDate: setSchDate,
-                        payAmount: setPayAmount,
-                        payRef: setPayRef,
-                        payDate: setPayDate,
-                        appEditing: setAppEditing,
-                        thumbUpdateAvailable: setThumbUpdateAvailable,
-                        thumbStatus: setThumbStatus,
-                        hardcopySubmitted: setHardcopySubmitted,
-                      };
-                      (setters[k] || (() => {}))(v);
-                    }}
-                    saving={saving}
-                    onSave={handleSaveRecord}
-                    onClose={() => setModalOpen(false)}
-                    onDeletePayment={deletePayment}
-                    onDeleteScholarship={deleteScholarship}
-                    toDmy={toDmy}
-                  />
-                </section>
-              )}
-
-              {/* Scholarship submission window management */}
-              <ScholarshipWindowCard
-                onWindowUpdated={() => {
-                  setMetricsRefreshToken((t) => t + 1);
-                  if (typeof window !== 'undefined') {
-                    const el = document.getElementById('scholarship-dashboard-top');
-                    if (el && typeof el.scrollIntoView === 'function') {
-                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    } else {
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                  }
+          {/* Student details & year-wise records */}
+          {student && (
+            <section className="space-y-6 mt-4">
+              <StudentInfoCard
+                student={student}
+                onImageClick={(src) => {
+                  setImagePreviewSrc(src);
+                  setImagePreviewOpen(true);
                 }}
               />
 
-              {/* Secondary tools */}
-              <ScholarshipToolsSection
-                onOpenCertificates={() => setView('certificates')}
+              <YearRecordsList
+                yearList={yearList}
+                summariesByYear={summariesByYear}
+                expandedByYear={expandedByYear}
+                onToggleExpand={(yy) =>
+                  setExpandedByYear((prev) => ({ ...prev, [yy]: !prev[yy] }))
+                }
+                onOpenModal={(yy) => openAddModal(yy)}
+                computeRecordState={computeRecordState}
+                feeSummary={feeSummary}
+                student={student}
+                toDmy={toDmy}
               />
-            </>
+
+              <AddEditRecordModal
+                open={modalOpen}
+                year={modalYear}
+                student={student}
+                summary={summariesByYear[modalYear] || null}
+                formState={{
+                  schAppNo,
+                  schProceedingNo,
+                  schAmount,
+                  schDate,
+                  payAmount,
+                  payRef,
+                  payDate,
+                  appEditing,
+                  thumbUpdateAvailable,
+                  thumbStatus,
+                  hardcopySubmitted,
+                }}
+                setFormState={(k, v) => {
+                  const setters = {
+                    schAppNo: setSchAppNo,
+                    schProceedingNo: setSchProceedingNo,
+                    schAmount: setSchAmount,
+                    schDate: setSchDate,
+                    payAmount: setPayAmount,
+                    payRef: setPayRef,
+                    payDate: setPayDate,
+                    appEditing: setAppEditing,
+                    thumbUpdateAvailable: setThumbUpdateAvailable,
+                    thumbStatus: setThumbStatus,
+                    hardcopySubmitted: setHardcopySubmitted,
+                  };
+                  (setters[k] || (() => {}))(v);
+                }}
+                saving={saving}
+                onSave={handleSaveRecord}
+                onClose={() => setModalOpen(false)}
+                onDeletePayment={deletePayment}
+                onDeleteScholarship={deleteScholarship}
+                toDmy={toDmy}
+              />
+            </section>
           )}
-        </div>
-      </main>
-      <Footer />
+
+          {/* Scholarship submission window management */}
+          <ScholarshipWindowCard
+            onWindowUpdated={() => {
+              setMetricsRefreshToken((t) => t + 1);
+              if (typeof window !== 'undefined') {
+                const el = document.getElementById('scholarship-dashboard-top');
+                if (el && typeof el.scrollIntoView === 'function') {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }
+            }}
+          />
+
+          {/* Secondary tools */}
+          <ScholarshipToolsSection
+            onOpenCertificates={() => setView('certificates')}
+          />
+        </>
+      )}
       <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />
     </div>
   );
