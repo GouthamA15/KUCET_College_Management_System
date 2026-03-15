@@ -149,6 +149,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const menuItems = (effectiveRole === 'student' && !isStudentVerified)
     ? [
         { label: 'HOME', route: '/student' },
+        { label: 'PROFILE', route: '/student/profile' },
         { label: 'MENU', children: [
             { label: 'Security & Privacy', route: '/student/settings/security' },
             { label: 'Logout', action: 'logout' }
