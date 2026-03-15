@@ -134,15 +134,21 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 37: Student Security Hardening, Verification Workflows & UI Refinement (Latest - March 15, 2026)**
+### **Session 37: Student Security Hardening, Verification Workflows & Formal UI Redesign (Latest - March 15, 2026)**
 - **Redirection Logic:** Refactored `src/proxy.js` to intelligently route students: verified students go directly to `/student/profile`, while unverified students are guided to the `/student` dashboard for account setup.
-- **Security Middleware:** Implemented strict middleware enforcement to block unverified students (no email verification or password set) from accessing sensitive academic and request pages, limiting them to Home and Security settings.
+- **Security Middleware:** Implemented strict middleware enforcement to block unverified students (no email verification or password set) from accessing sensitive academic and request pages, limiting them to Home, Security, and Profile view.
 - **API Architectural Fix:** Permanently resolved the "Unexpected token <" JSON parsing error by ensuring the proxy returns proper `401 Unauthorized` JSON responses for API routes instead of HTML redirects during session expiration.
-- **Session Synchronization:** Created a centralized `issueStudentAuthCookie` helper to ensure the authentication cookie is immediately updated with latest verification flags after email verification or password setting, preventing stale session restrictions.
-- **Real-Time Request Tracking:** Upgraded the Student Dashboard to automatically fetch the latest certificate request status on initial load, ensuring pending requests (like Bona fide) are visible immediately without navigating sub-pages.
+- **Institutional UI Overhaul:**
+    - **Unified Dashboard:** Redesigned the Student Home page into a formal, single-card institutional layout with high-density data grids and professional `#0b3578` branding.
+    - **Formal Matrix:** Replaced the modern timetable cards with a structured, high-density departmental class matrix featuring sharp borders and administrative labeling.
+    - **Record Control Portal:** Transformed Profile Edit and Update History pages into authoritative modification portals with timestamped audit logs.
+    - **Clerk Verification Hub:** Upgraded the Student Requests page for clerks with a professional audit layout and **side-by-side comparison** of current College Records vs. Student Requests.
+- **Branding & Assets:** 
+    - Restored the institutional loading screen with the official college logo and a formal "Loading student dashboard" message.
+    - Integrated the official campus image into the high-level transactional email template.
 - **UI/UX Polishing:**
     - Fixed a "Rules of Hooks" violation in the `Navbar` by refactoring context usage to top-level `useContext` calls.
-    - Corrected Navbar highlighting to prevent the "HOME" link from remaining active on sub-pages.
+    - Simplified academic period displays to a clean "Year X / Semester Y" format.
     - Resolved a JSX rendering bug that caused a stray "0" to appear on the Student Home page.
     - Standardized OTP error messages to "Please try again after 15 minutes" across frontend and backend.
 - **Email Reliability:** Increased OTP rate limits to 5 requests per 15 minutes to balance security with user convenience during testing.
