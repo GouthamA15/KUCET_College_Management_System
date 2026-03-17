@@ -145,6 +145,8 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Institutional Branding:**
     - **The "KUCET CMS" Mark:** Replaced user greetings in the desktop navbar with a bold, high-contrast institutional brand mark for a more professional dashboard feel.
 - **Bug Fixes & UX Polishing:**
+    - **Scholarship Flag Persistence:** Fixed a critical data integrity bug where "Hardcopies submitted" and "Thumb update" flags failed to persist in application-only records.
+    - **Year-Level Data Sync:** Implemented mandatory backend synchronization to ensure "year-level" status flags remain consistent across multiple scholarship proceedings for the same academic year.
     - **Ref Conflict Resolution:** Fixed a critical bug in the student mobile top bar where duplicate React Refs caused the notification dropdown to immediately close on touch.
     - **Auto-Navigation:** Implemented role-aware redirection from notifications; clicking a certificate request now automatically switches the dashboard to the "Certificates" module.
     - **Data Precision:** Fixed attendance percentage logic on the Student Home page to calculate real-time metrics from raw session counts.
