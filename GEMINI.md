@@ -144,6 +144,7 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Responsive Data Matrices:** Optimized the Weekly Teaching Matrix and Timetable Editor with `overflow-x-auto` wrappers and touch-friendly grid spacing, ensuring full usability on mobile devices.
     - **Touch-Optimized Controls:** Transformed administrative action buttons (Attendance Registry, Marks Management) into full-width mobile blocks for easier thumb interaction.
 - **Bug Fixes & Technical Integrity:**
+    - **Production Build Fix:** Resolved "missing suspense boundary" errors by wrapping all pages using `useSearchParams` in `<Suspense>` components, ensuring compatibility with Next.js static pre-rendering.
     - **Build Error Resolution:** Resolved a critical "Identifier already declared" SyntaxError in `HODConsole.js` caused by duplicate function declarations during the refactor.
     - **Component Cleanup:** Removed redundant legacy code and optimized sub-component rendering for the departmental control unit.
 

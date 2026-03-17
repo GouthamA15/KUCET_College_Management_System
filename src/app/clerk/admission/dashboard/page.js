@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useClerk } from '@/context/ClerkContext';
 import ClerkStudentManagement from '@/components/ClerkStudentManagement';
@@ -7,7 +7,7 @@ import StudentHistoryCard from '@/components/clerk/student-management/StudentHis
 import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
 import toast from 'react-hot-toast';
 
-export default function ClerkDashboard() {
+function ClerkDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { clerkData: clerk, loading: isLoading } = useClerk();
@@ -127,5 +127,13 @@ export default function ClerkDashboard() {
       )}
       
     </div>
+  );
+}
+
+export default function ClerkDashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] p-6 text-slate-500 font-bold uppercase tracking-widest text-xs">Loading Admission Dashboard...</div>}>
+      <ClerkDashboardContent />
+    </Suspense>
   );
 }

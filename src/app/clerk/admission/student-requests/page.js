@@ -1,13 +1,13 @@
 // src/app/clerk/admission/student-requests/page.js
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useClerk } from '@/context/ClerkContext';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 
-export default function StudentRequestsPage() {
+function StudentRequestsContent() {
   const searchParams = useSearchParams();
   const queueRef = useRef(null);
   const { clerkData: clerk, loading: isLoading } = useClerk();
@@ -326,5 +326,13 @@ export default function StudentRequestsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function StudentRequestsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] p-6 text-slate-500 font-bold uppercase tracking-widest text-xs">Loading Records Office...</div>}>
+      <StudentRequestsContent />
+    </Suspense>
   );
 }

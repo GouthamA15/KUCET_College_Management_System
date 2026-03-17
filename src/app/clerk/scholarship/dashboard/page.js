@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useClerk } from '@/context/ClerkContext';
 import { useSearchParams } from 'next/navigation';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
@@ -18,7 +18,7 @@ import { validateRollNo } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
 
 
-export default function ScholarshipDashboard() {
+function ScholarshipDashboardContent() {
   const searchParams = useSearchParams();
   const { clerkData: clerk, loading: isClerkLoading } = useClerk();
   const { state, setField, resetStudent, setState } = useScholarshipDashboard();
@@ -686,5 +686,13 @@ export default function ScholarshipDashboard() {
       )}
       <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />
     </div>
+  );
+}
+
+export default function ScholarshipDashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] p-6 text-slate-500 font-bold uppercase tracking-widest text-xs">Loading Scholarship Dashboard...</div>}>
+      <ScholarshipDashboardContent />
+    </Suspense>
   );
 }
