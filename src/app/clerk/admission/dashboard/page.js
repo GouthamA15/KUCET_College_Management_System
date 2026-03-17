@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useClerk } from '@/context/ClerkContext';
 import ClerkStudentManagement from '@/components/ClerkStudentManagement';
 import StudentHistoryCard from '@/components/clerk/student-management/StudentHistoryCard';
@@ -9,8 +9,28 @@ import toast from 'react-hot-toast';
 
 export default function ClerkDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { clerkData: clerk, loading: isLoading } = useClerk();
   const [openModule, setOpenModule] = useState(null);
+
+  useEffect(() => {
+    const v = searchParams.get('view');
+    const scroll = searchParams.get('scroll');
+    
+    if (v === 'requests' || v === 'certificates') {
+      setOpenModule('certificates');
+      
+      if (scroll === '1') {
+        const timer = setTimeout(() => {
+          const el = document.getElementById('certificate-section');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isLoading && clerk && clerk.role !== 'admission') {

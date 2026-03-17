@@ -6,33 +6,43 @@ import ClerkSidebar from '@/components/clerk/ClerkSidebar';
 import ClerkTopBar from '@/components/clerk/ClerkTopBar';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
+import Navbar from '@/components/Navbar';
+import { useClerk } from '@/context/ClerkContext';
+
+function ClerkNavbar() {
+  const { clerkData } = useClerk();
+  return <Navbar role={clerkData?.role || 'clerk'} />;
+}
 
 export default function ClerkLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <ClerkProvider>
-      <div className="min-h-screen bg-[#f8fafc] flex font-sans">
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans">
         
-        {/* Sidebar - Desktop: Rail | Mobile: Drawer */}
-        <ClerkSidebar 
-          isMobileOpen={isMobileMenuOpen} 
-          setIsMobileOpen={setIsMobileMenuOpen} 
-        />
+        {/* Sidebar - Mobile Only (Drawer) */}
+        <div className="lg:hidden">
+          <ClerkSidebar 
+            isMobileOpen={isMobileMenuOpen} 
+            setIsMobileOpen={setIsMobileMenuOpen} 
+          />
+        </div>
+
+        {/* Institutional Header & Navigation - Desktop Only */}
+        <div className="hidden lg:block w-full">
+          <Header />
+          <ClerkNavbar />
+        </div>
+
+        {/* Mobile Top Bar (Search & Profile) - Fixed on Mobile */}
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-[#f8fafc]/80 backdrop-blur-xl border-b border-slate-100/50 shadow-sm w-full">
+          <ClerkTopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
+        </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 lg:ml-16 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">
+        <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">
           
-          {/* Institutional Header - Desktop Only */}
-          <div className="hidden lg:block w-full border-b border-slate-100 bg-white">
-            <Header />
-          </div>
-
-          {/* Top Bar (Search & Profile) - Fixed on Mobile, Sticky on Desktop */}
-          <div className="lg:sticky lg:top-0 fixed top-0 left-0 right-0 lg:left-auto lg:right-auto z-30 bg-[#f8fafc]/80 backdrop-blur-xl border-b border-slate-100/50 shadow-sm lg:shadow-none w-full">
-            <ClerkTopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
-          </div>
-
           {/* Mobile Spacer */}
           <div className="lg:hidden h-16"></div>
 

@@ -1,12 +1,15 @@
 // src/app/clerk/admission/student-requests/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useClerk } from '@/context/ClerkContext';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 
 export default function StudentRequestsPage() {
+  const searchParams = useSearchParams();
+  const queueRef = useRef(null);
   const { clerkData: clerk, loading: isLoading } = useClerk();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +25,16 @@ export default function StudentRequestsPage() {
       fetchRequests();
     }
   }, [clerk, isLoading]);
+
+  // Handle auto-scroll
+  useEffect(() => {
+    if (!loading && requests.length > 0 && searchParams.get('scroll') === '1') {
+      const timer = setTimeout(() => {
+        queueRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, requests, searchParams]);
 
   const fetchRequests = async () => {
     try {

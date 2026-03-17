@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
 import Link from 'next/link';
+import ClerkNotificationDropdown from './ClerkNotificationDropdown';
 
 export default function ClerkTopBar({ onMenuClick }) {
   const { clerkData } = useClerk();
@@ -49,10 +50,25 @@ export default function ClerkTopBar({ onMenuClick }) {
         </div>
       </div>
 
+      {/* Middle: Notification Hub for Mobile */}
+      <div className="lg:hidden absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+        {(clerkData?.role === 'admission' || clerkData?.role === 'scholarship') && (
+           <div className="scale-110 sm:scale-125">
+             <ClerkNotificationDropdown />
+           </div>
+        )}
+      </div>
+
       {/* Right Side: Profile & Role */}
-      <div className="flex items-center gap-3 lg:gap-5">
+      <div className="flex items-center gap-3 lg:gap-5 flex-1 justify-end">
+        {/* Desktop Notification Hub */}
+        <div className="hidden lg:block border-r border-slate-200 pr-4">
+          {(clerkData?.role === 'admission' || clerkData?.role === 'scholarship') && (
+            <ClerkNotificationDropdown />
+          )}
+        </div>
         
-        <div className="flex items-center gap-3 pl-3 lg:pl-4 border-l border-slate-200 relative" ref={profileDropdownRef}>
+        <div className="flex items-center gap-3 pl-1 lg:pl-4 relative" ref={profileDropdownRef}>
           <div className="text-right max-w-[100px] sm:max-w-none">
             <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-none truncate">{clerkData?.name || 'Loading...'}</p>
             <p className="text-[8px] sm:text-[10px] text-slate-400 mt-1 uppercase tracking-tighter truncate">

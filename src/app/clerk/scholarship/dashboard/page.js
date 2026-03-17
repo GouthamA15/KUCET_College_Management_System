@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useClerk } from '@/context/ClerkContext';
+import { useSearchParams } from 'next/navigation';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
 import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
@@ -18,6 +19,7 @@ import { formatDate } from '@/lib/date';
 
 
 export default function ScholarshipDashboard() {
+  const searchParams = useSearchParams();
   const { clerkData: clerk, loading: isClerkLoading } = useClerk();
   const { state, setField, resetStudent, setState } = useScholarshipDashboard();
   const {
@@ -55,6 +57,27 @@ export default function ScholarshipDashboard() {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [view, setView] = useState('dashboard');
+
+  // URL Parameter Handling: switch view and auto-scroll
+  useEffect(() => {
+    const v = searchParams.get('view');
+    const scroll = searchParams.get('scroll');
+    
+    if (v === 'requests' || v === 'certificates') {
+      setView('certificates');
+      
+      if (scroll === '1') {
+        const timer = setTimeout(() => {
+          const el = document.getElementById('certificate-section');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [searchParams]);
+
   const [metricsRefreshToken, setMetricsRefreshToken] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalYear, setModalYear] = useState('');

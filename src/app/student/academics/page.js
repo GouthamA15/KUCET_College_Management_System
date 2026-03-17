@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useStudent } from '@/context/StudentContext';
 import { getSyllabusUrl } from '@/lib/getSyllabusUrl';
 import { getBranchFromRoll, getCurrentStudyingYear, getCurrentSemester } from '@/lib/rollNumber';
-import AcademicsProvider, { useAcademicsCache } from '@/context/AcademicsContext';
+import { AcademicsProvider, useAcademicsCache } from '@/context/AcademicsContext';
 import toast from 'react-hot-toast';
 
 // Utility: derive subject metadata (kept isolated for future DB migration)

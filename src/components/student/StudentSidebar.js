@@ -104,7 +104,7 @@ export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
     >
       {/* Header - Trigger for Rail / Branding for Mobile */}
       <div 
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => setIsMobileOpen(!isMobileOpen)}
         className="h-20 flex items-center justify-between px-4 border-b border-white/5 cursor-pointer"
       >
         <div className={`flex items-center gap-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 lg:hidden'}`}>

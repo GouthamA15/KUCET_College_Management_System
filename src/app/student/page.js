@@ -133,7 +133,11 @@ export default function StudentHomePage() {
                         <div className="flex items-center gap-8">
                             <div className="text-right hidden sm:block">
                               <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Attendance</p>
-                              <p className="text-sm font-semibold text-slate-600">{sub.attendance_percentage}%</p>
+                              <p className="text-sm font-semibold text-slate-600">
+                                {sub.total_classes > 0 
+                                  ? ((sub.attended_classes / sub.total_classes) * 100).toFixed(1) 
+                                  : '100'}%
+                              </p>
                             </div>
                             <svg className="w-4 h-4 text-slate-200 group-hover:text-[#0b3578] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
