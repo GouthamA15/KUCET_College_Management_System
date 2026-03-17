@@ -134,79 +134,79 @@ export default function HODConsole() {
   if (!clerkData?.is_hod) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden mt-8">
-      <div className="bg-gradient-to-r from-[#0b3578] to-blue-800 p-6">
-        <div className="flex justify-between items-center">
+    <div className="bg-white border border-slate-200 shadow-sm mt-8">
+      <div className="bg-[#0b3578] border-b border-white/10 px-6 py-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <span>HOD Management Console</span>
-              <span className="bg-blue-400/20 text-blue-100 text-xs px-2 py-1 rounded uppercase tracking-widest">
-                Branch: {clerkData.branch}
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-3">
+              <span>Departmental Management Matrix</span>
+              <span className="bg-white/10 text-blue-100 text-[9px] px-2 py-0.5 border border-white/20 uppercase tracking-[0.2em]">
+                {clerkData.branch} Engineering
               </span>
             </h2>
-            <p className="text-blue-100/80 text-sm mt-1 tracking-tight">Departmental control center for {clerkData.branch} Engineering</p>
+            <p className="text-blue-200/60 text-[9px] font-medium uppercase tracking-widest mt-1">Official HOD Control Panel &bull; Registry V4.0</p>
           </div>
           <button 
             onClick={refreshHOD}
             disabled={isLoadingHOD}
-            className={`p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all ${isLoadingHOD ? 'animate-spin opacity-50' : ''}`}
-            title="Refresh Branch Data"
+            className={`p-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white transition-all ${isLoadingHOD ? 'animate-spin opacity-50' : ''}`}
+            title="Synchronize Departmental Data"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
         </div>
 
-        <div className="flex gap-4 mt-6 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex gap-2 mt-6 overflow-x-auto pb-1 no-scrollbar border-t border-white/5 pt-4">
           {[
             { id: 'workload', label: 'Faculty Load', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-            { id: 'timetable', label: 'Edit Timetable', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-            { id: 'allocation', label: 'Subject Assignment', icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' },
+            { id: 'timetable', label: 'Edit Timetable', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z' },
+            { id: 'allocation', label: 'Assignment Registry', icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' },
             { id: 'syllabus', label: 'Branch Syllabus', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-            { id: 'analytics', label: 'Branch Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-            { id: 'config', label: 'Branch Config', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
+            { id: 'analytics', label: 'Data Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+            { id: 'config', label: 'Department Config', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
           ].map(tab => ( activeSubTab === tab.id ? (
-            <button key={tab.id} className="flex items-center gap-2 px-4 py-2 bg-white text-blue-800 rounded-lg font-bold shadow-md transition-all whitespace-nowrap text-sm">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
+            <button key={tab.id} className="flex items-center gap-2 px-4 py-2 bg-white text-[#0b3578] font-bold border-t-2 border-amber-400 whitespace-nowrap text-[10px] uppercase tracking-widest transition-all">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
               {tab.label}
             </button>
           ) : (
-            <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all whitespace-nowrap text-sm font-medium">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
+            <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} className="flex items-center gap-2 px-4 py-2 text-blue-100 hover:text-white hover:bg-white/5 whitespace-nowrap text-[10px] uppercase tracking-widest font-medium transition-all">
+              <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
               {tab.label}
             </button>
           )))}
         </div>
       </div>
 
-      <div className="p-6 min-h-[450px]">
+      <div className="p-4 md:p-8 min-h-[450px]">
         {!hodBranchData ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-gray-500 font-medium">Syncing departmental data...</p>
+            <div className="w-8 h-8 border-2 border-[#0b3578] border-t-transparent animate-spin"></div>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Syncing Records...</p>
           </div>
         ) : (
-          <>
+          <div className="overflow-x-auto">
             {activeSubTab === 'workload' && <WorkloadView data={departmentalFaculty} branch={clerkData.branch} />}
             {activeSubTab === 'timetable' && (
               <div className="space-y-6">
-                <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 p-4 border border-slate-200 gap-4">
                   <div className="flex items-center gap-4">
-                    <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Select Semester:</span>
-                    <div className="flex gap-1.5">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">Select Semester:</span>
+                    <div className="flex flex-wrap gap-1">
                       {[1,2,3,4,5,6,7,8].map(s => (
                         <button 
                           key={s} 
                           onClick={() => setSelectedSem(s)}
-                          className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${selectedSem === s ? 'bg-[#0b3578] text-white shadow-lg scale-110' : 'bg-white text-gray-400 hover:text-blue-600 border border-gray-100'}`}
+                          className={`w-8 h-8 font-bold text-[10px] transition-all border ${selectedSem === s ? 'bg-[#0b3578] text-white border-[#0b3578]' : 'bg-white text-slate-400 hover:border-[#0b3578] border-slate-200'}`}
                         >
                           S{s}
                         </button>
                       ))}
                     </div>
                   </div>
-                  {isLoadingTimetable && <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>}
+                  {isLoadingTimetable && <div className="w-4 h-4 border-2 border-[#0b3578] border-t-transparent animate-spin"></div>}
                 </div>
 
                 <TimetableManager 
@@ -226,47 +226,47 @@ export default function HODConsole() {
             {activeSubTab === 'syllabus' && <SyllabusManager branch={clerkData.branch} />}
             {activeSubTab === 'analytics' && <BranchAnalytics branch={clerkData.branch} />}
             {activeSubTab === 'config' && <BranchConfig config={hodBranchData?.config} branch={clerkData.branch} refresh={refreshHOD} />}
-          </>
+          </div>
         )}
       </div>
 
       {/* Slot Editor Modal */}
       {editingSlot && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 min-h-[600px] flex flex-col">
-            <div className="bg-[#0b3578] p-6 text-white flex justify-between items-center flex-shrink-0">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-300 shadow-2xl w-full max-w-md animate-in zoom-in-95 min-h-[550px] flex flex-col">
+            <div className="bg-[#0b3578] p-5 text-white flex justify-between items-center border-b border-white/10">
               <div>
-                <h3 className="font-black text-lg">Update Schedule</h3>
-                <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest">Semester {selectedSem} &bull; {editingSlot.day} &bull; Period {editingSlot.period}</p>
+                <h3 className="font-bold text-sm uppercase tracking-wider">Update Academic Schedule</h3>
+                <p className="text-blue-200 text-[9px] font-medium uppercase tracking-widest mt-0.5">Sem {selectedSem} &bull; {editingSlot.day} &bull; Period {editingSlot.period}</p>
               </div>
-              <button onClick={() => setEditingSlot(null)} className="p-2 hover:bg-white/20 rounded-full transition-colors">&times;</button>
+              <button onClick={() => setEditingSlot(null)} className="p-1 hover:bg-white/10 transition-colors text-white/60 hover:text-white">&times;</button>
             </div>
-            <form ref={formRef} onSubmit={handleSaveSlot} className="p-8 space-y-5 flex-1 overflow-y-auto pb-32">
+            <form ref={formRef} onSubmit={handleSaveSlot} className="p-6 space-y-5 flex-1 overflow-y-auto pb-24">
               {editingSlot.period > 1 && (
                 <button 
                   type="button" 
                   onClick={handleCopyPrevious}
-                  className="w-full py-2 bg-amber-50 text-amber-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-100 hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-2 bg-blue-50 text-[#0b3578] text-[9px] font-bold uppercase tracking-widest border border-blue-100 hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
-                  Duplicate Period {editingSlot.period - 1} details
+                  Replicate Period {editingSlot.period - 1} Parameters
                 </button>
               )}
 
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Target Subject / Activity</label>
+                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Subject / Activity Registry</label>
                 <select 
                   name="subject_code" 
                   defaultValue={editingSlot.current?.subject_code || ''} 
                   onChange={(e) => setModalSelectedSubject(e.target.value)}
-                  className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500"
+                  className="w-full bg-slate-50 border border-slate-200 p-3 text-xs font-bold text-slate-700 outline-none focus:border-[#0b3578] transition-colors"
                 >
-                  <optgroup label={`Core Syllabus Subjects (Sem ${selectedSem})`}>
+                  <optgroup label={`Core Syllabus (Sem ${selectedSem})`}>
                     {branchSubjects.map(s => (
                       <option key={s.subject_code} value={s.subject_code}>{s.subject_code} - {s.subject_name}</option>
                     ))}
                   </optgroup>
-                  <optgroup label="Institutional Activities">
+                  <optgroup label="Institutional Directives">
                     {INSTITUTIONAL_ACTIVITIES.map(a => (
                       <option key={a.code} value={a.code}>{a.name}</option>
                     ))}
@@ -274,24 +274,24 @@ export default function HODConsole() {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Handling Faculty</label>
-                <select name="faculty_id" defaultValue={editingSlot.current?.faculty_id || ''} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500">
+                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Assigned Faculty Member</label>
+                <select name="faculty_id" defaultValue={editingSlot.current?.faculty_id || ''} className="w-full bg-slate-50 border border-slate-200 p-3 text-xs font-bold text-slate-700 outline-none focus:border-[#0b3578] transition-colors">
                   <option value="">No Faculty Assigned</option>
                   
                   {modalSelectedSubject && (
-                    <optgroup label="Officially Assigned Teachers">
+                    <optgroup label="Officially Authorized Personnel">
                       {collegeFaculty
                         .filter(f => officialAssignments.some(oa => oa.faculty_id === f.id && oa.subject_code === modalSelectedSubject))
                         .map(f => (
                           <option key={`assigned-${f.id}`} value={f.id} className="font-bold text-blue-700 bg-blue-50">
-                            ⭐ {f.name} (Assigned to this Subject)
+                            ⭐ {f.name} (Primary Subject Handler)
                           </option>
                         ))
                       }
                     </optgroup>
                   )}
 
-                  <optgroup label="All Working Faculty">
+                  <optgroup label="Departmental Registry">
                     {collegeFaculty.map(f => (
                       <option key={f.id} value={f.id}>
                         {f.name} {f.home_branch ? `(${f.home_branch})` : ''}
@@ -301,11 +301,11 @@ export default function HODConsole() {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Assigned Room</label>
-                <input name="room_no" type="text" placeholder="e.g. LH-113" defaultValue={editingSlot.current?.room_no || ''} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500" />
+                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Classroom Allocation</label>
+                <input name="room_no" type="text" placeholder="e.g. LH-113" defaultValue={editingSlot.current?.room_no || ''} className="w-full bg-slate-50 border border-slate-200 p-3 text-xs font-bold text-slate-700 outline-none focus:border-[#0b3578] transition-colors" />
               </div>
-              <button type="submit" disabled={isSaving} className="w-full py-5 bg-[#0b3578] text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-blue-100 hover:bg-blue-900 transition-all disabled:opacity-50">
-                {isSaving ? 'Synchronizing...' : `Deploy to Semester ${selectedSem}`}
+              <button type="submit" disabled={isSaving} className="w-full py-4 bg-[#0b3578] text-white font-bold uppercase tracking-widest text-[10px] hover:bg-blue-900 transition-all disabled:opacity-50 border border-[#0b3578]">
+                {isSaving ? 'Synchronizing System...' : `Deploy to Semester ${selectedSem}`}
               </button>
             </form>
           </div>
@@ -317,67 +317,67 @@ export default function HODConsole() {
 
 function WorkloadView({ data, branch }) {
   return (
-    <div className="animate-in slide-in-from-bottom-4 duration-500">
-      <div className="flex justify-between items-center mb-8 px-2">
-        <h3 className="text-xl font-black text-gray-800 flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-700">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+    <div className="animate-in slide-in-from-bottom-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-3 uppercase tracking-tight">
+          <div className="w-8 h-8 bg-[#0b3578] flex items-center justify-center text-white">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
-          {branch} Faculty Activity Pulse
+          {branch} Faculty Operational Load
         </h3>
-        <span className="text-[10px] bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full font-black uppercase tracking-widest border border-blue-100">Live Department Metrics</span>
+        <span className="text-[9px] bg-slate-50 text-slate-500 px-3 py-1 font-bold uppercase tracking-widest border border-slate-200">Real-Time Metrics Registry</span>
       </div>
       
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-4">
         {data.map(f => (
-          <div key={f.id} className="bg-white border-2 border-gray-50 rounded-[2rem] p-8 hover:border-blue-200 transition-all group shadow-sm hover:shadow-xl">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+          <div key={f.id} className="bg-white border border-slate-200 p-6 hover:border-[#0b3578] transition-all group">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
               
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center font-black text-white text-2xl shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+              <div className="flex items-center gap-5">
+                <div className="w-12 h-12 bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-[#0b3578] text-xl group-hover:bg-[#0b3578] group-hover:text-white transition-all">
                   {f.name.charAt(0)}
                 </div>
                 <div>
-                  <h4 className="font-black text-xl text-gray-800 group-hover:text-blue-800 transition-colors uppercase tracking-tight">{f.name}</h4>
-                  <p className="text-xs text-gray-400 font-bold tracking-widest uppercase">{f.email}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <h4 className="font-bold text-sm text-slate-800 group-hover:text-[#0b3578] transition-colors uppercase tracking-wider">{f.name}</h4>
+                  <p className="text-[10px] text-slate-400 font-medium tracking-widest uppercase mt-0.5">{f.email}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                      {f.subjects ? f.subjects.split(', ').map(s => (
-                       <span key={s} className="text-[9px] font-black bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg uppercase tracking-tighter border border-gray-200/50">{s}</span>
-                     )) : <span className="text-[9px] font-bold text-gray-300 italic">No official assignments</span>}
+                       <span key={s} className="text-[8px] font-bold bg-slate-50 text-slate-500 px-2 py-0.5 border border-slate-200 uppercase tracking-tighter">{s}</span>
+                     )) : <span className="text-[8px] font-medium text-slate-300 italic">No Official Authorization</span>}
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-4 w-full lg:w-auto">
-                 <div className="bg-gray-50 rounded-2xl p-4 flex-1 lg:w-32 text-center border border-gray-100 group-hover:bg-blue-50 transition-colors">
-                    <div className="text-2xl font-black text-gray-800">{f.scheduled_weekly}</div>
-                    <div className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Scheduled / Wk</div>
+              <div className="grid grid-cols-3 gap-3 w-full lg:w-auto">
+                 <div className="bg-slate-50 border border-slate-100 p-3 text-center">
+                    <div className="text-lg font-bold text-slate-800">{f.scheduled_weekly}</div>
+                    <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Weekly / Sch</div>
                  </div>
-                 <div className="bg-gray-50 rounded-2xl p-4 flex-1 lg:w-32 text-center border border-gray-100 group-hover:bg-indigo-50 transition-colors">
-                    <div className="text-2xl font-black text-indigo-600">{f.total_conducted}</div>
-                    <div className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Conducted Sem</div>
+                 <div className="bg-slate-50 border border-slate-100 p-3 text-center">
+                    <div className="text-lg font-bold text-slate-800">{f.total_conducted}</div>
+                    <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Sem / Reg</div>
                  </div>
-                 <div className="bg-[#0b3578] rounded-2xl p-4 flex-1 lg:w-32 text-center shadow-lg shadow-blue-100 group-hover:bg-blue-800 transition-colors">
-                    <div className="text-2xl font-black text-white">
+                 <div className="bg-[#0b3578]/5 border border-[#0b3578]/10 p-3 text-center">
+                    <div className="text-lg font-bold text-[#0b3578]">
                        {f.scheduled_weekly > 0 ? Math.min(Math.round((f.total_conducted / (f.scheduled_weekly * 4)) * 100), 100) : 0}%
                     </div>
-                    <div className="text-[8px] font-black text-blue-200 uppercase tracking-widest">Efficiency</div>
+                    <div className="text-[7px] font-bold text-[#0b3578]/60 uppercase tracking-widest">Performance</div>
                  </div>
               </div>
 
             </div>
             
-            <div className="mt-8 relative pt-4">
-              <div className="w-full bg-gray-50 rounded-full h-3 overflow-hidden shadow-inner p-0.5 border border-gray-100">
+            <div className="mt-6 relative pt-2">
+              <div className="w-full bg-slate-50 h-2 overflow-hidden border border-slate-100">
                 <div 
-                  className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${f.scheduled_weekly > 15 ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gradient-to-r from-blue-600 to-indigo-500'}`}
+                  className={`h-full transition-all duration-1000 ease-out ${f.scheduled_weekly > 15 ? 'bg-red-500' : 'bg-[#0b3578]'}`}
                   style={{ width: `${Math.min((f.scheduled_weekly / 20) * 100, 100)}%` }}
                 ></div>
               </div>
-              <div className="flex justify-between mt-3 px-1">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Weekly Load Intensity</span>
-                <span className={`text-[10px] font-black uppercase tracking-widest ${f.scheduled_weekly > 15 ? 'text-red-500' : 'text-blue-600'}`}>
-                  {f.scheduled_weekly > 15 ? 'Critical (Overload)' : f.scheduled_weekly > 10 ? 'Standard' : 'Light'}
+              <div className="flex justify-between mt-2 px-0.5">
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest opacity-70">Instructional Intensity Index</span>
+                <span className={`text-[8px] font-bold uppercase tracking-widest ${f.scheduled_weekly > 15 ? 'text-red-600' : 'text-[#0b3578]'}`}>
+                  {f.scheduled_weekly > 15 ? 'Overload Warning' : f.scheduled_weekly > 10 ? 'Standard Load' : 'Base Load'}
                 </span>
               </div>
             </div>
@@ -385,10 +385,10 @@ function WorkloadView({ data, branch }) {
         ))}
         
         {data.length === 0 && (
-          <div className="text-center py-20 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-200">
-            <div className="text-5xl mb-4">👨‍🏫</div>
-            <p className="text-gray-400 font-bold uppercase tracking-widest text-sm mb-2">No faculty pulse detected</p>
-            <p className="text-[10px] text-gray-400 max-w-xs mx-auto font-medium leading-relaxed">Ensure faculty members are correctly associated with "{branch}" in the Administrative Control Panel.</p>
+          <div className="text-center py-20 bg-slate-50 border border-slate-200">
+            <div className="text-3xl mb-4 opacity-30">👨‍🏫</div>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No Registered Faculty Personnel Found</p>
+            <p className="text-[9px] text-slate-400 max-w-xs mx-auto mt-2 font-medium leading-relaxed">Ensure all department members are correctly registered in the University Personnel Registry.</p>
           </div>
         )}
       </div>
@@ -404,22 +404,22 @@ function TimetableManager({ data, onEditSlot }) {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="mb-6 flex justify-between items-center px-2">
-        <h3 className="text-xl font-black text-gray-800 tracking-tight">Active Matrix</h3>
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-100">
-          Operational Registry
+      <div className="mb-4 flex justify-between items-center px-1">
+        <h3 className="text-sm font-bold text-slate-800 tracking-wider uppercase">Active Master Matrix</h3>
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 text-[8px] font-bold uppercase tracking-widest">
+          System Registry Active
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5">
-        <table className="w-full border-collapse text-xs">
+      <div className="overflow-x-auto border border-slate-200">
+        <table className="w-full border-collapse text-xs min-w-[1000px]">
           <thead>
             <tr>
-              <th className="border-b border-r border-gray-100 bg-gray-50/80 p-5 text-gray-400 font-black uppercase tracking-widest min-w-[80px]">Day</th>
+              <th className="border-b border-r border-slate-200 bg-slate-50 p-4 text-slate-400 font-bold uppercase tracking-widest w-24">Day</th>
               {periods.map(p => (
-                <th key={p} className="border-b border-gray-100 bg-gray-50/80 p-5 min-w-[150px]">
-                  <div className="font-black text-gray-800 uppercase tracking-widest mb-1">Period {p}</div>
-                  <div className="text-[9px] font-black text-blue-600/60 bg-blue-100/30 rounded-lg py-1 inline-block px-3 border border-blue-100/50">
+                <th key={p} className="border-b border-slate-200 bg-slate-50 p-4">
+                  <div className="font-bold text-slate-700 uppercase tracking-widest mb-1 text-[10px]">Period {p}</div>
+                  <div className="text-[8px] font-bold text-[#0b3578]/60 uppercase tracking-tighter">
                     {p === 1 && '09:30 - 10:20'}
                     {p === 2 && '10:20 - 11:10'}
                     {p === 3 && '11:20 - 12:10'}
@@ -434,8 +434,8 @@ function TimetableManager({ data, onEditSlot }) {
           </thead>
           <tbody>
             {days.map(day => (
-              <tr key={day} className="group">
-                <td className="border-r border-b border-gray-100 bg-gray-50/30 font-black text-center p-5 text-gray-700 text-sm group-hover:bg-blue-50 transition-colors">
+              <tr key={day} className="hover:bg-slate-50 transition-colors">
+                <td className="border-r border-b border-slate-200 bg-slate-50/50 font-bold text-center p-4 text-slate-600 text-[10px] uppercase">
                   {day}
                 </td>
                 {periods.map(p => {
@@ -445,24 +445,24 @@ function TimetableManager({ data, onEditSlot }) {
                     <td 
                       key={`${day}-${p}`} 
                       onClick={() => onEditSlot(day, p, slot)}
-                      className={`border-b border-gray-50 p-4 text-center transition-all cursor-pointer relative hover:bg-white hover:z-10 hover:shadow-2xl hover:scale-105 group/cell ${slot ? (isActivity ? 'bg-amber-50/30' : 'bg-white') : 'bg-gray-50/20'}`}
+                      className={`border-b border-slate-100 p-3 text-center transition-all cursor-pointer relative hover:bg-white hover:z-10 hover:shadow-xl group/cell ${slot ? (isActivity ? 'bg-amber-50/10' : 'bg-white') : 'bg-slate-50/5'}`}
                     >
                       {slot ? (
-                        <div className="animate-in zoom-in-95 duration-300">
-                          <div className={`font-black text-[11px] mb-1 line-clamp-2 uppercase tracking-tight leading-tight ${isActivity ? 'text-amber-700' : 'text-blue-800'}`}>
+                        <div className="animate-in fade-in zoom-in-95 duration-300">
+                          <div className={`font-bold text-[10px] mb-1 line-clamp-2 uppercase tracking-tight leading-tight ${isActivity ? 'text-amber-700' : 'text-[#0b3578]'}`}>
                             {isActivity ? INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code)?.name : (slot.subject_name || slot.subject_code)}
                           </div>
-                          <div className="text-[10px] text-gray-500 font-bold mb-2 line-clamp-1">{slot.faculty_name || (isActivity ? 'N/A' : 'Unassigned')}</div>
+                          <div className="text-[9px] text-slate-400 font-bold mb-2 line-clamp-1 opacity-80">{slot.faculty_name || (isActivity ? 'N/A' : 'NOT ASSIGNED')}</div>
                           <div className="flex items-center justify-center gap-1.5">
-                            <span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-black uppercase tracking-tighter border border-gray-200">
-                              {slot.room_no || 'N/A'}
+                            <span className="text-[8px] bg-slate-50 text-slate-500 px-2 py-0.5 border border-slate-200 font-bold uppercase tracking-widest">
+                              {slot.room_no || 'TBD'}
                             </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center gap-1.5 opacity-10 group-hover/cell:opacity-100 transition-all">
-                          <div className="text-gray-400 font-black uppercase tracking-widest text-[8px]">Available Slot</div>
-                          <div className="w-8 h-8 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-300 group-hover/cell:border-blue-400 group-hover/cell:text-blue-500 group-hover/cell:bg-blue-50">+</div>
+                        <div className="flex flex-col items-center justify-center gap-1.5 opacity-10 group-hover/cell:opacity-100 transition-all py-2">
+                          <div className="text-[#0b3578] font-bold uppercase tracking-widest text-[7px]">Available</div>
+                          <div className="w-6 h-6 border border-dashed border-[#0b3578] flex items-center justify-center text-[#0b3578] group-hover/cell:bg-[#0b3578] group-hover/cell:text-white">+</div>
                         </div>
                       )}
                     </td>
@@ -474,20 +474,20 @@ function TimetableManager({ data, onEditSlot }) {
         </table>
       </div>
       
-      <div className="mt-10 flex flex-wrap gap-10 items-center justify-center bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-white shadow-lg shadow-orange-100 border border-orange-50 rounded-2xl flex items-center justify-center text-orange-500 font-bold text-xl">☕</div>
+      <div className="mt-8 flex flex-wrap gap-8 items-center justify-center bg-slate-50 p-5 border border-slate-200">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-white border border-slate-200 flex items-center justify-center text-orange-500 font-bold text-sm">☕</div>
           <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Short Break</div>
-            <div className="text-[12px] font-black text-gray-800">11:10 AM - 11:20 AM</div>
+            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Instructional Break</div>
+            <div className="text-[10px] font-bold text-slate-700 uppercase">11:10 AM - 11:20 AM</div>
           </div>
         </div>
-        <div className="w-px h-10 bg-gray-200 hidden sm:block opacity-50"></div>
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-white shadow-lg shadow-green-100 border border-green-50 rounded-2xl flex items-center justify-center text-green-500 font-bold text-xl">🍱</div>
+        <div className="w-px h-8 bg-slate-200 hidden sm:block"></div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-white border border-slate-200 flex items-center justify-center text-emerald-500 font-bold text-sm">🍱</div>
           <div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Lunch Break</div>
-            <div className="text-[12px] font-black text-gray-800">01:00 PM - 02:00 PM</div>
+            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Luncheon Break</div>
+            <div className="text-[10px] font-bold text-slate-700 uppercase">01:00 PM - 02:00 PM</div>
           </div>
         </div>
       </div>
@@ -544,33 +544,33 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
   };
 
   return (
-    <div className="animate-in slide-in-from-right-4 duration-500">
-      <h3 className="text-xl font-black text-gray-800 mb-6">Subject Assignment Ledger</h3>
+    <div className="animate-in fade-in slide-in-from-right-2 duration-500">
+      <h3 className="text-sm font-bold text-slate-800 mb-6 uppercase tracking-wider">Faculty Authorization Registry</h3>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Authorization Form */}
-        <div className="bg-white border-2 border-blue-50 rounded-3xl p-8 shadow-sm h-fit sticky top-6">
-          <h4 className="font-black text-gray-700 mb-6 uppercase tracking-widest text-[10px] flex items-center gap-2">
-            <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
-            New Faculty Authorization
+        <div className="bg-slate-50 border border-slate-200 p-6 h-fit sticky top-6">
+          <h4 className="font-bold text-slate-700 mb-6 uppercase tracking-widest text-[9px] flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-[#0b3578] rounded-full"></span>
+            New Personnel Authorization
           </h4>
           <div className="space-y-5">
              <div>
-               <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block px-1">Active Semester</label>
+               <label className="text-[8px] font-bold text-slate-400 uppercase mb-1 block px-0.5 tracking-widest">Academic Semester</label>
                <select 
                  value={selectedSem}
                  onChange={(e) => setSelectedSem(parseInt(e.target.value))}
-                 className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500 transition-all"
+                 className="w-full bg-white border border-slate-200 p-3 text-xs font-bold text-slate-700 outline-none focus:border-[#0b3578] transition-all"
                >
                  {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
                </select>
              </div>
              <div>
-               <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block px-1">Target Subject</label>
+               <label className="text-[8px] font-bold text-slate-400 uppercase mb-1 block px-0.5 tracking-widest">Target Subject Registry</label>
                <select 
                  value={selectedSub}
                  onChange={(e) => setSelectedSub(e.target.value)}
-                 className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500 transition-all"
+                 className="w-full bg-white border border-slate-200 p-3 text-xs font-bold text-slate-700 outline-none focus:border-[#0b3578] transition-all"
                >
                  <option value="">Select Subject</option>
                  {subjects.filter(s => s.semester === selectedSem).map(s => (
@@ -579,13 +579,13 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
                </select>
              </div>
              <div>
-               <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block px-1">Authorized Faculty</label>
+               <label className="text-[8px] font-bold text-slate-400 uppercase mb-1 block px-0.5 tracking-widest">Registered Personnel</label>
                <select 
                  value={selectedFac}
                  onChange={(e) => setSelectedFac(e.target.value)}
-                 className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 ring-blue-500 transition-all"
+                 className="w-full bg-white border border-slate-200 p-3 text-xs font-bold text-slate-700 outline-none focus:border-[#0b3578] transition-all"
                >
-                 <option value="">Select Faculty</option>
+                 <option value="">Select Faculty Member</option>
                  {faculty.map(f => (
                    <option key={f.id} value={f.id}>{f.name} {f.home_branch ? `(${f.home_branch})` : ''}</option>
                  ))}
@@ -594,48 +594,48 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
              <button 
                onClick={handleAuthorize}
                disabled={isSaving}
-               className="w-full py-5 bg-[#0b3578] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-900 transition-all shadow-xl shadow-blue-100 disabled:opacity-50 mt-4"
+               className="w-full py-4 bg-[#0b3578] text-white font-bold uppercase tracking-widest text-[9px] hover:bg-blue-900 transition-all border border-[#0b3578] disabled:opacity-50 mt-4 shadow-sm"
              >
-               {isSaving ? 'Authorizing...' : 'Authorize Access'}
+               {isSaving ? 'Synchronizing Authorization...' : 'Authorize Personnel Access'}
              </button>
           </div>
         </div>
 
         {/* Existing Assignments List */}
         <div className="lg:col-span-2 space-y-6">
-           <div className="flex justify-between items-center px-2">
-              <h4 className="font-black text-gray-800 uppercase tracking-tight text-sm">Active Authorizations (Sem {selectedSem})</h4>
-              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{filteredAssignments.length} Records</span>
+           <div className="flex justify-between items-center px-1">
+              <h4 className="font-bold text-slate-800 uppercase tracking-tight text-xs">Active Registry (Semester {selectedSem})</h4>
+              <span className="text-[8px] font-bold text-[#0b3578] bg-blue-50 px-3 py-1 border border-blue-100 uppercase tracking-widest">{filteredAssignments.length} Official Records</span>
            </div>
 
-           <div className="grid grid-cols-1 gap-4">
+           <div className="grid grid-cols-1 gap-3">
               {filteredAssignments.map(a => (
-                <div key={a.id} className="bg-white border border-gray-100 rounded-3xl p-6 flex justify-between items-center group hover:border-blue-200 transition-all shadow-sm">
+                <div key={a.id} className="bg-white border border-slate-200 p-5 flex justify-between items-center group hover:border-[#0b3578] transition-all shadow-sm">
                    <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:bg-blue-50 transition-colors">🎓</div>
+                      <div className="w-10 h-10 bg-slate-50 border border-slate-100 flex items-center justify-center text-sm group-hover:bg-blue-50 transition-colors">🎓</div>
                       <div>
-                         <h5 className="font-black text-gray-800 tracking-tight leading-tight mb-1">{a.subject_name}</h5>
-                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-tighter">{a.subject_code}</span>
-                            <span className="text-[10px] font-bold text-gray-400">Assigned to: <span className="text-gray-600 uppercase">{a.faculty_name}</span></span>
+                         <h5 className="font-bold text-slate-800 tracking-wider text-[11px] leading-tight mb-1 uppercase">{a.subject_name}</h5>
+                         <div className="flex items-center gap-3">
+                            <span className="text-[8px] font-bold text-[#0b3578] border border-[#0b3578]/20 bg-blue-50 px-2 py-0.5 uppercase tracking-widest">{a.subject_code}</span>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Handler: <span className="text-slate-600 underline underline-offset-2 decoration-slate-300">{a.faculty_name}</span></span>
                          </div>
                       </div>
                    </div>
                    <button 
                      onClick={() => handleRevoke(a.id)}
-                     className="p-3 bg-red-50 text-red-400 hover:bg-red-600 hover:text-white rounded-2xl transition-all opacity-0 group-hover:opacity-100"
-                     title="Revoke Authorization"
+                     className="p-2.5 text-slate-300 hover:bg-red-500 hover:text-white border border-transparent hover:border-red-600 transition-all opacity-0 group-hover:opacity-100"
+                     title="Revoke Registry Authorization"
                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                    </button>
                 </div>
               ))}
 
               {filteredAssignments.length === 0 && (
-                <div className="bg-gray-50/50 border-2 border-dashed border-gray-100 rounded-3xl py-20 flex flex-col items-center justify-center text-center px-10">
-                   <div className="text-4xl mb-4">🔐</div>
-                   <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">No faculty authorized for Semester {selectedSem} yet.</p>
-                   <p className="text-[9px] text-gray-300 mt-2 max-w-xs">Authorized faculty will be able to mark attendance and internal marks for their respective subjects.</p>
+                <div className="bg-slate-50 border border-dashed border-slate-300 py-20 flex flex-col items-center justify-center text-center px-10">
+                   <div className="text-3xl mb-4 opacity-20">🔐</div>
+                   <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">No Faculty Authorized for Semester {selectedSem} Registry</p>
+                   <p className="text-[8px] text-slate-400 mt-2 max-w-xs uppercase tracking-tighter opacity-60">Authorized personnel will be granted system access to manage student academic records for this semester.</p>
                 </div>
               )}
            </div>
@@ -674,54 +674,54 @@ function BranchConfig({ config, branch, refresh }) {
   };
 
   return (
-    <div className="animate-in zoom-in-95 duration-500">
-      <h3 className="text-xl font-black text-gray-800 mb-8">Departmental Configuration</h3>
+    <div className="animate-in fade-in duration-500">
+      <h3 className="text-sm font-bold text-slate-800 mb-8 uppercase tracking-wider px-1">Institutional Departmental Directives</h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-white border-2 border-blue-50 rounded-3xl p-8 shadow-sm">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-2xl">📊</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-1">
+        <div className="bg-white border border-slate-200 p-6 shadow-sm">
+          <div className="flex items-center gap-4 mb-8 pb-4 border-b border-slate-100">
+            <div className="w-10 h-10 bg-slate-50 border border-slate-200 flex items-center justify-center text-xl">📊</div>
             <div>
-              <h4 className="font-black text-gray-800">Internal Marks Pattern</h4>
-              <p className="text-xs text-gray-400 font-medium">Standard pattern for branch theory subjects</p>
+              <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Internal Assessment Schema</h4>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Mandatory pattern for departmental theory subjects</p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {[
-              { mid: 20, ass: 10, label: 'Standard Pattern (20+10)' },
-              { mid: 25, ass: 5, label: 'Advanced Pattern (25+5)' }
+              { mid: 20, ass: 10, label: 'University Standard (20+10)' },
+              { mid: 25, ass: 5, label: 'Institutional Advanced (25+5)' }
             ].map(p => (
               <button 
                 key={p.mid}
                 onClick={() => updatePattern(p.mid, p.ass)}
                 disabled={isUpdating}
-                className={`w-full p-5 rounded-2xl flex justify-between items-center transition-all border-2 ${config?.mid_max === p.mid ? 'border-blue-600 bg-blue-50/50' : 'border-gray-50 hover:border-blue-200'}`}
+                className={`w-full p-4 flex justify-between items-center transition-all border ${config?.mid_max === p.mid ? 'border-[#0b3578] bg-blue-50/20' : 'border-slate-100 hover:border-slate-300'}`}
               >
                 <div className="text-left">
-                  <div className="font-black text-gray-800">{p.label}</div>
-                  <div className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">MID: {p.mid} | ASSIGNMENT: {p.ass}</div>
+                  <div className="font-bold text-slate-800 text-[11px] uppercase tracking-wide">{p.label}</div>
+                  <div className="text-[8px] font-bold text-[#0b3578] uppercase tracking-widest mt-1">MID: {p.mid} | ASSIGNMENT: {p.ass}</div>
                 </div>
-                {config?.mid_max === p.mid && <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-[10px]">✓</div>}
+                {config?.mid_max === p.mid && <div className="w-5 h-5 bg-[#0b3578] flex items-center justify-center text-white text-[8px] font-bold">ACTIVE</div>}
               </button>
             ))}
           </div>
         </div>
 
         <div className="space-y-6">
-           <div className="bg-gradient-to-br from-indigo-900 to-blue-800 rounded-3xl p-8 text-white shadow-xl">
-              <h4 className="font-black text-lg mb-2 uppercase tracking-widest text-blue-200">Department Status</h4>
-              <div className="text-4xl font-black mb-1">{branch}</div>
-              <div className="text-xs font-bold text-blue-200/60 uppercase tracking-tighter mb-6 underline underline-offset-4 decoration-blue-400">University Affiliated Branch</div>
+           <div className="bg-[#0b3578] p-8 text-white border border-[#0b3578]">
+              <h4 className="font-bold text-[10px] mb-2 uppercase tracking-[0.3em] text-blue-300 opacity-80">University Affiliate Branch</h4>
+              <div className="text-3xl font-bold mb-1 tracking-tight">{branch}</div>
+              <div className="text-[9px] font-bold text-blue-200/60 uppercase tracking-widest mb-8 border-b border-white/10 pb-4">Engineering Department Control Unit</div>
               
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/10 backdrop-blur-md">
-                  <div className="text-[10px] font-black text-blue-200 uppercase mb-1">Academic Year</div>
-                  <div className="font-black">2025-2026</div>
+                <div className="bg-white/5 p-4 border border-white/10">
+                  <div className="text-[8px] font-bold text-blue-300 uppercase mb-1 tracking-widest opacity-70">Academic Period</div>
+                  <div className="font-bold text-xs">2025-2026</div>
                 </div>
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/10 backdrop-blur-md">
-                  <div className="text-[10px] font-black text-blue-200 uppercase mb-1">Active Sem</div>
-                  <div className="font-black">VI (Even)</div>
+                <div className="bg-white/5 p-4 border border-white/10">
+                  <div className="text-[8px] font-bold text-blue-300 uppercase mb-1 tracking-widest opacity-70">Active Session</div>
+                  <div className="font-bold text-xs uppercase">VI (Even Semester)</div>
                 </div>
               </div>
            </div>
