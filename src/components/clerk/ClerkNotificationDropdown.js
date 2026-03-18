@@ -62,7 +62,7 @@ export default function ClerkNotificationDropdown() {
         className={`p-2 transition-colors rounded-xl relative group ${
           notifOpen 
             ? 'text-[#0b3578] bg-blue-50' 
-            : 'text-slate-400 hover:text-[#0b3578] hover:bg-slate-50'
+            : 'text-blue-100/60 hover:text-[#0b3578] hover:bg-white/5'
         }`}
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,7 +74,7 @@ export default function ClerkNotificationDropdown() {
       </button>
 
       {notifOpen && (
-        <div className="absolute left-1/2 -translate-x-1/2 lg:left-auto lg:right-0 lg:translate-x-0 mt-3 w-[calc(100vw-2rem)] sm:w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[70] animate-fadeIn">
+        <div className="absolute left-0 lg:left-full lg:ml-4 mt-3 lg:-mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[70] animate-fadeIn">
           <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pending Tasks</span>
             <span className="text-[9px] font-bold text-[#0b3578] bg-blue-50 px-2 py-0.5 rounded-full">{notifications.length} Requests</span>
