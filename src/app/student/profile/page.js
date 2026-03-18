@@ -9,14 +9,19 @@ import ProfileStatusBar from '@/components/student/ProfileStatusBar';
 import ProfileTabs from '@/components/student/ProfileTabs';
 import PersonalInfoTab from '@/components/student/PersonalInfoTab';
 import SetPasswordGate from '@/components/student/SetPasswordGate';
+import ProfileActivityBar from '@/components/student/ProfileActivityBar';
+import ProfileWarningBar from '@/components/student/ProfileWarningBar';
 import useProfileEdit from '@/components/student/hooks/useProfileEdit';
 import useEmailVerification from '@/components/student/hooks/useEmailVerification';
 import usePasswordSetup from '@/components/student/hooks/usePasswordSetup';
+import useProfileActivity from '@/components/student/hooks/useProfileActivity';
 import Loading from './loading';
 
 export default function StudentProfileNew() {
   const { studentData, collegeInfo, loading: contextLoading, refreshData } = useStudent();
   const [activeTab, setActiveTab] = useState('personal');
+
+  const activity = useProfileActivity();
   
   // Feature hooks (call unconditionally to preserve hook order)
   const password = usePasswordSetup(studentData?.student?.roll_no);
@@ -45,6 +50,9 @@ export default function StudentProfileNew() {
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
       <SetPasswordGate show={password.showSetPasswordModal} rollno={student.roll_no} email={profileEdit.email} onPasswordSet={() => { password.setShowSetPasswordModal(false); refreshData(); }} />
+
+      <ProfileActivityBar activity={activity} student={student} />
+      <ProfileWarningBar student={student} />
 
       <div className="flex items-start justify-center">
         <div className="w-full bg-white shadow-xl rounded-lg p-6 overflow-hidden border border-slate-100">
