@@ -11,7 +11,7 @@ export default async function Home({ searchParams }) {
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen bg-white relative">
       {isTesting && (
         <a
           href="/dev/time-machine"
@@ -26,7 +26,7 @@ export default async function Home({ searchParams }) {
       <ClientShell serverError={error} />
 
       {/* Main server-rendered content. Accommodate sidebar on desktop. */}
-      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 lg:ml-16">
+      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 ml-16">
         <Header />
         <div className="grow">
           <Hero />

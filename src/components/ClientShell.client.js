@@ -13,37 +13,14 @@ export default function ClientShell({ serverError }) {
     if (!el) return;
 
     if (activePanel) {
-      el.classList.add('opacity-50', 'pointer-events-none');
+      el.classList.add('opacity-40', 'pointer-events-none', 'blur-[2px]');
     } else {
-      el.classList.remove('opacity-50', 'pointer-events-none');
-    }
-  }, [activePanel]);
-
-  useEffect(() => {
-    if (!activePanel) return;
-    // scroll to login panel area (account for sticky offset)
-    const el = document.getElementById('login-panels');
-    if (el) {
-      const offset = 20; 
-      const y = el.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top: y, behavior: 'smooth' });
+      el.classList.remove('opacity-40', 'pointer-events-none', 'blur-[2px]');
     }
   }, [activePanel]);
 
   return (
     <>
-      {/* Mobile Menu Trigger for Public Pages */}
-      <div className="lg:hidden fixed top-4 left-4 z-[70]">
-        <button 
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="p-2 bg-[#0b3578] text-white rounded-lg shadow-lg hover:bg-[#0a2d66] transition-all"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
-
       <PublicSidebar 
         activePanel={activePanel} 
         setActivePanel={setActivePanel} 

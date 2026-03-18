@@ -134,7 +134,20 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 42: Navigation Personalization, UI Cleanup & Attendance Logic Refinement (Latest - March 18, 2026)**
+### **Session 43: Overlay Login Architecture & Persistent Navigation Rail (Latest - March 18, 2026)**
+- **Overlay Login Architecture:**
+    - **Fixed Overlay Migration:** Transformed the `LoginPanel` from an in-flow layout element into a standard fixed overlay (`fixed inset-0`) with a high `z-index`, resolving critical layout conflicts and content squeezing on the Developers and Home pages.
+    - **Visual Polish:** Implemented a semi-transparent backdrop blur (`backdrop-blur-sm`) and professional "Slide-Up" and "Fade-In" animations to focus the user experience during authentication.
+    - **Overlay Confinement Fix:** Resolved a browser-level Flexbox confinement issue by enforcing explicit `top-0 left-0` positioning and decoupling the login logic from the main page flow.
+- **Persistent Navigation Rail:**
+    - **Rail Standardization:** Replaced the mobile-only "hamburger" drawer with a permanently visible 64px navigation rail on all screen sizes, ensuring consistent access to core portals (Admission, Student, Employee) without additional clicks.
+    - **Menu Button Removal:** Eliminated the "3 horizontal lines" hamburger trigger from the public header to reduce UI clutter and align with modern "app-shell" design patterns.
+    - **Adaptive Expansion:** Retained hover-expansion for desktop and click-expansion for mobile within the persistent rail, maximizing content area while keeping navigation instantly reachable.
+- **Shell & Content Synchronization:**
+    - **Content Clearing:** Updated `main-content` layout logic to maintain a permanent 64px left margin across all viewports, preventing sidebar overlap and ensuring responsive integrity.
+    - **Integration Cleanup:** Removed redundant scrolling and positioning hacks from `ClientShell` that were previously used to manage in-flow login forms.
+
+### **Session 42: Navigation Personalization, UI Cleanup & Attendance Logic Refinement (March 18, 2026)**
 - **Navigation Personalization:**
     *   **Student Sidebar Header:** Engineered a personalized sidebar header for students featuring their **Profile Picture**, **Full Name**, and **Roll Number**, providing an immediate sense of identity within the portal.
     *   **Clerk Sidebar Header:** Implemented a matching header for Clerks/Faculty displaying their **Avatar**, **Full Name**, and **Employee ID** (or HOD/Role designation).
