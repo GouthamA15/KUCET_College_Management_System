@@ -139,8 +139,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Secure Attendance:** Restored the mandatory secure attendance PIN system to prevent unauthorized session entries.
     - **Proxy Detection:** Implemented real-time proxy detection alerts to identify and flag suspicious student device behavior during attendance windows.
 - **Departmental Logic & HOD Tools:**
-    - **Conflict Validation:** Engineered a more robust faculty timetable conflict validation engine to prevent double-booking of faculty or rooms.
+    - **Conflict Validation:** Engineered a more robust faculty timetable conflict validation engine to prevent double-booking of faculty or rooms across different branches and sections.
     - **HOD Timetable Deletion:** Implemented a "Delete Lecture" feature in the HOD timetable editor, allowing for surgical removal of scheduled slots with real-time SSE propagation.
+    - **Dropdown Deduplication:** Fixed a UI bug in the HOD slot editor where authorized faculty members appeared twice in the selection registry.
     - **Database Integrity:** Resolved a critical database error in the HOD timetable editor that caused transaction rollbacks during complex schedule updates.
 - **UI, UX & Architecture:**
     - **Institutional Branding:** Restored the authoritative `Header` component to the Home and Developer pages, ensuring institutional visibility while maintaining sidebar compatibility.

@@ -317,11 +317,14 @@ export default function HODConsole() {
                   )}
 
                   <optgroup label="Departmental Registry">
-                    {collegeFaculty.map(f => (
-                      <option key={f.id} value={f.id}>
-                        {f.name} {f.home_branch ? `(${f.home_branch})` : ''}
-                      </option>
-                    ))}
+                    {collegeFaculty
+                      .filter(f => !modalSelectedSubject || !officialAssignments.some(oa => oa.faculty_id === f.id && oa.subject_code === modalSelectedSubject))
+                      .map(f => (
+                        <option key={f.id} value={f.id}>
+                          {f.name} {f.home_branch ? `(${f.home_branch})` : ''}
+                        </option>
+                      ))
+                    }
                   </optgroup>
                 </select>
               </div>
