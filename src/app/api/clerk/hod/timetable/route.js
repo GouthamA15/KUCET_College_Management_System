@@ -52,16 +52,23 @@ export async function POST(req) {
 
     // Timetable Conflict Validation (Faculty overlap)
     if (sanitizedFacultyId) {
+      // Use fuzzy year matching to catch conflicts across variations (e.g. "2025-26" vs "2025-26 (Even)")
+      const yearPrefix = academic_year.substring(0, 7); // e.g., "2025-26"
+      
       const conflict = await query(
-        `SELECT * FROM branch_timetable 
-         WHERE faculty_id = ? AND day_of_week = ? 
-         AND period_number = ? AND academic_year = ? 
-         AND NOT (branch = ? AND semester = ? AND section = ?)`,
-        [sanitizedFacultyId, day_of_week, period_number, academic_year, user.branch, semester, section]
+        `SELECT bt.*, s.subject_name 
+         FROM branch_timetable bt
+         LEFT JOIN syllabus_subjects s ON bt.subject_code = s.subject_code
+         WHERE bt.faculty_id = ? AND bt.day_of_week = ? 
+         AND bt.period_number = ? 
+         AND (bt.academic_year LIKE ? OR bt.academic_year = ?)
+         AND NOT (bt.branch = ? AND bt.semester = ? AND bt.section = ?)`,
+        [sanitizedFacultyId, day_of_week, period_number, `%${yearPrefix}%`, academic_year, user.branch, semester, section]
       );
 
       if (conflict && conflict.length > 0) {
-        return apiError(`Faculty conflict: This faculty is already assigned to ${conflict[0].branch} Sem ${conflict[0].semester} Sec ${conflict[0].section} at this time.`, 400);
+        const c = conflict[0];
+        return apiError(`Faculty Conflict: This instructor is already assigned to ${c.subject_name || c.subject_code} in ${c.branch} Sem ${c.semester} (Sec ${c.section}) during this period.`, 400);
       }
     }
 
