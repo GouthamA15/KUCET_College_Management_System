@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useClerk } from '@/context/ClerkContext';
+import ClerkNotificationDropdown from './ClerkNotificationDropdown';
 
 const icons = {
   dashboard: (
@@ -124,6 +125,13 @@ export default function ClerkSidebar({ isMobileOpen, setIsMobileOpen }) {
               {role?.toUpperCase()} {isHOD ? '• HOD' : ''}
            </span>
         </div>
+
+        {/* Notification Hub in Sidebar (Admission & Scholarship Only) */}
+        {(role === 'admission' || role === 'scholarship') && (
+           <div className={`transition-all duration-300 ${isExpanded ? 'ml-auto' : 'hidden'}`}>
+             <ClerkNotificationDropdown />
+           </div>
+        )}
         
         {/* Close Button - Mobile Only */}
         {isMobileOpen && (

@@ -144,6 +144,7 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Dropdown Deduplication:** Fixed a UI bug in the HOD slot editor where authorized faculty members appeared twice in the selection registry.
     - **Database Integrity:** Resolved a critical database error in the HOD timetable editor that caused transaction rollbacks during complex schedule updates.
 - **UI, UX & Architecture:**
+    - **Sidebar Notifications:** Integrated the notification hub directly into the `StudentSidebar` and `ClerkSidebar` (Admission/Scholarship), ensuring unread alerts are visible even when the navigation rail is collapsed.
     - **Institutional Branding:** Restored the authoritative `Header` component to the Home and Developer pages, ensuring institutional visibility while maintaining sidebar compatibility.
     - **Navigation Shell Fix:** Resolved a `TypeError: setActivePanel is not a function` in the `PublicSidebar` by standardizing on the `ClientShell` component for public routes (Home, Developers), centralizing login panel and sidebar state.
     - **Activity Persistence:** Restored the live "Activity Status" bars across all student profile sub-pages, ensuring real-time session visibility.

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import NotificationDropdown from '@/components/NotificationDropdown';
 
 const menuItems = [
   {
@@ -104,14 +105,20 @@ export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
     >
       {/* Header - Trigger for Rail / Branding for Mobile */}
       <div 
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="h-20 flex items-center justify-between px-4 border-b border-white/5 cursor-pointer"
+        className="h-20 flex items-center justify-between px-4 border-b border-white/5"
       >
-        <div className={`flex items-center gap-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 lg:hidden'}`}>
-           
-           <span className="text-white justify-center font-bold tracking-tight">MENU</span>
+        <div 
+          onClick={() => setIsMobileOpen(!isMobileOpen)}
+          className={`flex items-center gap-3 transition-opacity duration-300 cursor-pointer ${isExpanded ? 'opacity-100' : 'opacity-0 lg:hidden'}`}
+        >
+           <span className="text-white justify-center font-bold tracking-tight uppercase text-xs">Menu</span>
         </div>
         
+        {/* Notification Bell in Sidebar */}
+        <div className={`transition-all duration-300 ${isExpanded ? 'mr-2' : 'flex justify-center w-full'}`}>
+          <NotificationDropdown />
+        </div>
+
         {/* Close Button - Mobile Only */}
         <button 
           onClick={() => setIsMobileOpen(false)}
@@ -123,7 +130,10 @@ export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
         </button>
 
         {/* Rail Toggle Icon - Desktop Only */}
-        <div className={`hidden lg:flex items-center justify-center transition-all duration-300 ${isExpanded ? 'w-auto' : 'w-full'}`}>
+        <div 
+          onClick={() => setIsMobileOpen(!isMobileOpen)}
+          className={`hidden lg:flex items-center justify-center transition-all duration-300 cursor-pointer ${isExpanded ? 'w-auto' : 'hidden'}`}
+        >
            <svg className={`w-6 h-6 text-white transition-transform duration-500 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
            </svg>
