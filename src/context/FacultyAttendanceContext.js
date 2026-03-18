@@ -432,7 +432,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           <div className="flex flex-col gap-1 border-l-4 border-red-600 pl-2">
             <span className="font-black text-xs uppercase tracking-widest text-red-800">Security Breach Detected</span>
             <div className="text-[11px] font-bold text-gray-700 leading-tight">
-              Student <span className="text-red-600">{attempting_roll_no}</span> attempted proxy for <span className="text-blue-700">{original_roll_no}</span>.
+              Student <span className="text-red-600">{original_roll_no}</span> attempted proxy for <span className="text-blue-700">{attempting_roll_no}</span>.
             </div>
             <div className="text-[9px] font-bold text-gray-500 uppercase mt-1">
               Action: {original_roll_no} marked as ABSENT.

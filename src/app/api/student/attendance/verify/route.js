@@ -129,7 +129,7 @@ export async function POST(request) {
         });
       } catch (sseErr) {}
 
-      return apiError(`Proxy blocked: This device has already been used by student ${originalStudent.roll_no}. Both records have been flagged.`, 403);
+      return apiError(`Proxy blocked: Student ${originalStudent.roll_no} attempted to proxy for you using their device/session. Both records have been flagged.`, 403);
     }
 
     // 2. Check if this specific IP + User-Agent combination has already been used
@@ -162,7 +162,7 @@ export async function POST(request) {
         });
       } catch (sseErr) {}
 
-      return apiError(`Proxy blocked: This network signature has already been used by student ${originalStudent.roll_no}.`, 403);
+      return apiError(`Proxy blocked: This network signature has already been used by student ${originalStudent.roll_no} to verify their attendance.`, 403);
     }
 
     // 5. Record the log with all fingerprinting markers
