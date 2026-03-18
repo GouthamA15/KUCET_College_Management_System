@@ -131,6 +131,31 @@ export default function HODConsole() {
     }
   };
 
+  const handleDeleteSlot = async () => {
+    if (!editingSlot?.current) return;
+    if (!confirm('Are you sure you want to delete this lecture from the timetable?')) return;
+    
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/clerk/hod/timetable?semester=${selectedSem}&day_of_week=${editingSlot.day}&period_number=${editingSlot.period}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        toast.success('Lecture removed from timetable');
+        setEditingSlot(null);
+        fetchSemesterTimetable(selectedSem);
+        refreshHOD();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Deletion failed');
+      }
+    } catch (e) {
+      toast.error('Network error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!clerkData?.is_hod) return null;
 
   return (
@@ -304,9 +329,22 @@ export default function HODConsole() {
                 <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Classroom Allocation</label>
                 <input name="room_no" type="text" placeholder="e.g. LH-113" defaultValue={editingSlot.current?.room_no || ''} className="w-full bg-slate-50 border border-slate-200 p-3 text-xs font-bold text-slate-700 outline-none focus:border-[#0b3578] transition-colors" />
               </div>
-              <button type="submit" disabled={isSaving} className="w-full py-4 bg-[#0b3578] text-white font-bold uppercase tracking-widest text-[10px] hover:bg-blue-900 transition-all disabled:opacity-50 border border-[#0b3578]">
-                {isSaving ? 'Synchronizing System...' : `Deploy to Semester ${selectedSem}`}
-              </button>
+
+              <div className="flex gap-2">
+                {editingSlot.current && (
+                  <button 
+                    type="button" 
+                    onClick={handleDeleteSlot}
+                    disabled={isSaving}
+                    className="flex-1 py-4 bg-white text-red-600 font-bold uppercase tracking-widest text-[10px] hover:bg-red-50 transition-all disabled:opacity-50 border border-red-200"
+                  >
+                    Delete Lecture
+                  </button>
+                )}
+                <button type="submit" disabled={isSaving} className={`${editingSlot.current ? 'flex-[2]' : 'w-full'} py-4 bg-[#0b3578] text-white font-bold uppercase tracking-widest text-[10px] hover:bg-blue-900 transition-all disabled:opacity-50 border border-[#0b3578]`}>
+                  {isSaving ? 'Synchronizing System...' : `Deploy to Semester ${selectedSem}`}
+                </button>
+              </div>
             </form>
           </div>
         </div>

@@ -9,31 +9,18 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import { useClerk } from '@/context/ClerkContext';
 
-function ClerkNavbar() {
-  const { clerkData } = useClerk();
-  return <Navbar role={clerkData?.role || 'clerk'} />;
-}
-
 export default function ClerkLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <ClerkProvider>
-      <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans">
+      <div className="min-h-screen bg-[#f8fafc] flex font-sans">
         
-        {/* Sidebar - Mobile Only (Drawer) */}
-        <div className="lg:hidden">
-          <ClerkSidebar 
-            isMobileOpen={isMobileMenuOpen} 
-            setIsMobileOpen={setIsMobileMenuOpen} 
-          />
-        </div>
-
-        {/* Institutional Header & Navigation - Desktop Only */}
-        <div className="hidden lg:block w-full">
-          <Header />
-          <ClerkNavbar />
-        </div>
+        {/* Sidebar - Always present, handles its own desktop/mobile visibility */}
+        <ClerkSidebar 
+          isMobileOpen={isMobileMenuOpen} 
+          setIsMobileOpen={setIsMobileMenuOpen} 
+        />
 
         {/* Mobile Top Bar (Search & Profile) - Fixed on Mobile */}
         <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-[#f8fafc]/80 backdrop-blur-xl border-b border-slate-100/50 shadow-sm w-full">
@@ -41,7 +28,7 @@ export default function ClerkLayout({ children }) {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">
+        <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:ml-16">
           
           {/* Mobile Spacer */}
           <div className="lg:hidden h-16"></div>

@@ -1,29 +1,26 @@
 'use client';
-import Header from '@/app/components/Header/Header';
+
 import Footer from '@/components/Footer';
-import Navbar from '@/app/components/Navbar/Navbar';
+import PublicSidebar from '@/components/PublicSidebar';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
 
 function VerifyContent() {
   const searchParams = useSearchParams();
   const certId = searchParams.get('id');
   const rollNo = searchParams.get('roll');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Derived state: calculate invalidity immediately
   const missingParams = !certId || !rollNo;
 
   const [status, setStatus] = useState('loading');
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    // If parameters are missing, we don't need to do anything as the UI will reflect 'missingParams'
     if (missingParams) {
       return;
     }
 
-    // Call the API only if params exist
     fetch('/api/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -41,105 +38,118 @@ function VerifyContent() {
     .catch(() => setStatus('error'));
   }, [certId, rollNo, missingParams]);
 
-  // Consolidate 'error', 'failed', and 'invalid' (missing params) states for UI rendering
   const showInvalidUI = missingParams || status === 'failed' || status === 'error';
   const showLoadingUI = !missingParams && status === 'loading';
   const showSuccessUI = !missingParams && status === 'success' && data;
 
   return (
-   <div className="min-h-screen bg-gray-50 flex flex-col overflow-hidden">
-         <Header />
-         <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50 ">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-0">
-          <div className="flex justify-between items-center h-13">
-            <div className="flex-shrink-0">
-              <span className="text-white text-lg font-bold tracking-wide">VERIFICATION PORTAL</span>
-            </div>
-            </div>
-            </div>
-            </nav>
-    <div className="min-h-screen bg-slate-50 flex items-start sm:items-center justify-center p-5">
+   <div className="min-h-screen bg-gray-50 flex font-sans">
       
-    
-      <div className="bg-white shadow-2xl rounded-2xl max-w-md w-full overflow-hidden border border-slate-200">
-        
-        {/* Header Section */}
-        <div className="bg-blue-900 p-6 text-center">
-          <p className="text-white text-xl font-semibold tracking-tight">Document Verification</p>
-        </div>
-
-        <div className="p-8">
-          {showLoadingUI && (
-            <div className="flex flex-col items-center py-10">
-              <div className="w-12 h-12 border-4 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-slate-600 font-medium">Verifying Document...</p>
-            </div>
-          )}
-
-          {showSuccessUI && (
-            <div className="animate-in fade-in duration-700">
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-center gap-3">
-                <span className="text-green-600 text-2xl">✓</span>
-                <span className="text-green-800 font-bold uppercase">Verified Record</span>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex flex-col border-b border-slate-200 pb-2">
-                  <span className="text-xs text-slate-500 uppercase font-semibold">Student Name</span>
-                  <span className="text-slate-900 font-medium text-lg">{data.name}</span>
-                </div>
-                <div className="flex flex-col border-b border-slate-200 pb-2">
-                  <span className="text-xs text-slate-500 uppercase font-semibold">Hall Ticket Number</span>
-                  <span className="text-slate-900 font-medium text-lg">{data.roll_no}</span>
-                </div>
-                <div className="flex flex-col border-b border-slate-200 pb-2">
-                  <span className="text-xs text-slate-500 uppercase font-semibold">Certificate Type</span>
-                  <span className="text-slate-900 font-medium text-lg">{data.cert_type}</span>
-                </div>
-                <div className="flex flex-col border-b border-slate-200 pb-2">
-                  <span className="text-xs text-slate-500 uppercase font-semibold">Certificate ID</span>
-                  <span className="text-slate-900 font-medium text-lg">{data.cert_id}</span>
-                </div>
-                <div className="flex flex-col border-b border-slate-200 pb-2">
-                  <span className="text-xs text-slate-500 uppercase font-semibold">Issue Date</span>
-                  <span className="text-slate-900 font-medium text-lg">{data.issue_date}</span>
-                </div>
-              </div>
-
-              <p className="mt-8 text-5px] text-slate-600 text-center leading-relaxed">
-                This verification result is retrieved directly from our database.
-              </p>
-            </div>
-          )}
-
-          {showInvalidUI && (
-            <div className="text-center py-6 animate-in zoom-in duration-300">
-              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold">!</div>
-              <h2 className="text-xl font-bold text-slate-800">Invalid Certificate</h2>
-              <p className="text-slate-500 mt-2 text-sm">
-                The certificate details provided do not match our records. 
-                Please ensure you have scanned a genuine QR code.
-              </p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"
-              >
-                Try Again
-              </button>
-            </div>
-          )}
-        </div>
+      {/* Mobile Menu Trigger */}
+      <div className="lg:hidden fixed top-4 left-4 z-[70]">
+        <button 
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 bg-[#0b3578] text-white rounded-lg shadow-lg hover:bg-[#0a2d66] transition-all"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
       </div>
-    </div>
-    <Footer/>
+
+      <PublicSidebar 
+        isMobileOpen={isMobileMenuOpen}
+        setIsMobileOpen={setIsMobileMenuOpen}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:ml-16">
+        <div className="min-h-screen bg-slate-50 flex items-start sm:items-center justify-center p-5">
+          <div className="bg-white shadow-2xl rounded-2xl max-w-md w-full overflow-hidden border border-slate-200">
+            {/* Header Section */}
+            <div className="bg-[#0b3578] p-6 text-center">
+              <p className="text-white text-xl font-semibold tracking-tight uppercase">Document Verification</p>
+            </div>
+
+            <div className="p-8">
+              {showLoadingUI && (
+                <div className="flex flex-col items-center py-10">
+                  <div className="w-12 h-12 border-4 border-[#0b3578] border-t-transparent rounded-full animate-spin"></div>
+                  <p className="mt-4 text-slate-600 font-medium uppercase text-xs tracking-widest">Verifying Document...</p>
+                </div>
+              )}
+
+              {showSuccessUI && (
+                <div className="animate-in fade-in duration-700">
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-center gap-3">
+                    <span className="text-green-600 text-2xl">✓</span>
+                    <span className="text-green-800 font-bold uppercase text-sm tracking-widest">Verified Record</span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex flex-col border-b border-slate-100 pb-2">
+                      <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Student Name</span>
+                      <span className="text-slate-900 font-bold text-lg">{data.name}</span>
+                    </div>
+                    <div className="flex flex-col border-b border-slate-100 pb-2">
+                      <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Hall Ticket Number</span>
+                      <span className="text-slate-900 font-bold text-lg">{data.roll_no}</span>
+                    </div>
+                    <div className="flex flex-col border-b border-slate-100 pb-2">
+                      <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Certificate Type</span>
+                      <span className="text-slate-900 font-bold text-lg">{data.cert_type}</span>
+                    </div>
+                    <div className="flex flex-col border-b border-slate-100 pb-2">
+                      <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Certificate ID</span>
+                      <span className="text-slate-900 font-bold text-lg">{data.cert_id}</span>
+                    </div>
+                    <div className="flex flex-col border-b border-slate-100 pb-2">
+                      <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Issue Date</span>
+                      <span className="text-slate-900 font-bold text-lg">{data.issue_date}</span>
+                    </div>
+                  </div>
+
+                  <p className="mt-8 text-[10px] text-slate-400 text-center leading-relaxed uppercase tracking-tighter">
+                    This verification result is retrieved directly from our institutional database.
+                  </p>
+                </div>
+              )}
+
+              {showInvalidUI && (
+                <div className="text-center py-6 animate-in zoom-in duration-300">
+                  <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold">!</div>
+                  <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">Invalid Certificate</h2>
+                  <p className="text-slate-500 mt-2 text-xs leading-relaxed">
+                    The certificate details provided do not match our records. 
+                    Please ensure you have scanned a genuine QR code.
+                  </p>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="mt-6 px-6 py-2 bg-[#0b3578] text-white rounded text-xs font-bold uppercase tracking-widest hover:bg-[#0a2d66] transition-all"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <Footer/>
+      </div>
+
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 lg:hidden transition-all duration-300"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
-// Wrapper with Suspense
 export default function VerifyPage() {
   return (
-    
     <Suspense fallback={null}>
       <VerifyContent />
     </Suspense>

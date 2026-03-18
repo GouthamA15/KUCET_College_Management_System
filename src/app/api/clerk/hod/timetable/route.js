@@ -92,3 +92,36 @@ export async function POST(req) {
     return apiError('Internal Server Error', 500);
   }
 }
+
+export async function DELETE(req) {
+  try {
+    const user = await getAuthUser('clerk');
+    if (!user || user.role !== 'faculty' || !user.is_hod) {
+      return apiError('Unauthorized', 401);
+    }
+
+    const { searchParams } = new URL(req.url);
+    const semester = searchParams.get('semester');
+    const section = searchParams.get('section') || 'A';
+    const day_of_week = searchParams.get('day_of_week');
+    const period_number = searchParams.get('period_number');
+
+    if (!semester || !day_of_week || !period_number) {
+      return apiError('Missing required parameters', 400);
+    }
+
+    await query(
+      `DELETE FROM branch_timetable 
+       WHERE branch = ? AND semester = ? AND section = ? AND day_of_week = ? AND period_number = ?`,
+      [user.branch, semester, section, day_of_week, period_number]
+    );
+
+    // REAL-TIME: Broadcast change
+    broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester });
+
+    return apiResponse({ success: true, message: 'Lecture deleted successfully' });
+  } catch (error) {
+    console.error('Timetable Delete Error:', error);
+    return apiError('Internal Server Error', 500);
+  }
+}

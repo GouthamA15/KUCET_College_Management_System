@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 17, 2026
+**Last Updated:** March 18, 2026
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports four primary user roles: **Super Admin**, **Head of Department (HOD)**, **Clerk/Faculty**, and **Student**. 
@@ -134,7 +134,22 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 40: Institutional Governance UI Refactor & Faculty Mobile Optimization (Latest - March 17, 2026)**
+### **Session 41: Security Hardening, Departmental Refinement & Navigation Shell (Latest - March 18, 2026)**
+- **Security & Anti-Proxy:**
+    - **Secure Attendance:** Restored the mandatory secure attendance PIN system to prevent unauthorized session entries.
+    - **Proxy Detection:** Implemented real-time proxy detection alerts to identify and flag suspicious student device behavior during attendance windows.
+- **Departmental Logic & HOD Tools:**
+    - **Conflict Validation:** Engineered a more robust faculty timetable conflict validation engine to prevent double-booking of faculty or rooms.
+    - **HOD Timetable Deletion:** Implemented a "Delete Lecture" feature in the HOD timetable editor, allowing for surgical removal of scheduled slots with real-time SSE propagation.
+    - **Database Integrity:** Resolved a critical database error in the HOD timetable editor that caused transaction rollbacks during complex schedule updates.
+- **UI, UX & Architecture:**
+    - **Institutional Branding:** Restored the authoritative `Header` component to the Home and Developer pages, ensuring institutional visibility while maintaining sidebar compatibility.
+    - **Navigation Shell Fix:** Resolved a `TypeError: setActivePanel is not a function` in the `PublicSidebar` by standardizing on the `ClientShell` component for public routes (Home, Developers), centralizing login panel and sidebar state.
+    - **Activity Persistence:** Restored the live "Activity Status" bars across all student profile sub-pages, ensuring real-time session visibility.
+    - **Notification Accuracy:** Fixed a UI bug in the proxy notification display where roll numbers were incorrectly swapped.
+- **Documentation Alignment:** Synchronized `GEMINI.md` with the latest repository state and verified institutional compliance.
+
+### **Session 40: Institutional Governance UI Refactor & Faculty Mobile Optimization (March 17, 2026)**
 - **Government Standard UI Overhaul:**
     - **Solid Architecture:** Systematically eliminated modern "startup-style" rounded corners (`rounded-2xl`, `rounded-3xl`) across all faculty-facing pages, replacing them with sharp, professional borders consistent with official government portals.
     - **Administrative Typography:** Refined typography by removing excessive bold weights (`font-black`) and heavy headers. Standardized on `font-bold` and `font-semibold` with high-contrast tracking for a more authoritative, lightweight feel.

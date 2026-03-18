@@ -1,6 +1,6 @@
 import Hero from '@/components/Hero';
 import AboutSection from '@/components/AboutSection';
-import Header from '@/app/components/Header/Header';
+import Header from '@/components/Header';
 import Footer from '@/app/components/Footer/Footer';
 import ClientShell from '@/components/ClientShell.client';
 
@@ -22,13 +22,12 @@ export default async function Home({ searchParams }) {
           <span className="bg-white/20 px-1.5 rounded text-[8px] group-hover:bg-white/40">Travel 🕒</span>
         </a>
       )}
-      <Header />
-
-      {/* Client-side shell: navbar, login panels and toasts */}
+      {/* Client-side shell: public sidebar, login panels and toasts */}
       <ClientShell serverError={error} />
 
-      {/* Main server-rendered content. ClientShell will toggle classes on this element during interaction. */}
-      <div id="main-content" className="transition-all duration-500 ease-out opacity-100">
+      {/* Main server-rendered content. Accommodate sidebar on desktop. */}
+      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 lg:ml-16">
+        <Header />
         <div className="grow">
           <Hero />
           <AboutSection />

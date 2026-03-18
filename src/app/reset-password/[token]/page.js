@@ -3,8 +3,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PublicSidebar from "@/components/PublicSidebar";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -19,6 +19,7 @@ export default function ResetPassword() {
   const [passwordStrengthLabel, setPasswordStrengthLabel] = useState('');
   const [tokenStatus, setTokenStatus] = useState('loading'); // 'loading' | 'VALID' | 'EXPIRED' | 'USED' | 'INVALID'
   const [tokenMessage, setTokenMessage] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const params = useParams();
   const router = useRouter();
@@ -38,7 +39,6 @@ export default function ResetPassword() {
         const res = await fetch(`/api/auth/reset-password/${encodeURIComponent(token)}`);
         const data = await res.json().catch(() => ({}));
 
-        // Expect backend to return explicit status: VALID | EXPIRED | USED | INVALID
         let status = data.status;
         if (!status) {
           if (res.status === 200) status = 'VALID';
@@ -64,6 +64,7 @@ export default function ResetPassword() {
       cancelled = true;
     };
   }, [token]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -75,8 +76,6 @@ export default function ResetPassword() {
       setIsLoading(false);
       return;
     }
-
-    // Server-side will enforce password policy; allow form submission once both fields are filled and match.
 
     try {
       const response = await fetch(`/api/auth/reset-password/${token}`, {
@@ -90,7 +89,6 @@ export default function ResetPassword() {
       if (response.ok) {
         toast.success(data.message || "Password reset successful");
         setMessage(data.message || "Password reset successful");
-        // show redirecting state on the button
         setRedirecting(true);
         setIsLoading(false);
         setTimeout(() => router.push("/"), 2000);
@@ -108,136 +106,153 @@ export default function ResetPassword() {
   };
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <Header />
+    <div className="min-h-screen bg-gray-50 flex font-sans">
+      
+      {/* Mobile Menu Trigger */}
+      <div className="lg:hidden fixed top-4 left-4 z-[70]">
+        <button 
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 bg-[#0b3578] text-white rounded-lg shadow-lg hover:bg-[#0a2d66] transition-all"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
 
-      <main className="flex-1 bg-gray-100 pt-6 pb-2 flex items-center justify-center overflow-hidden">
-        <div className="max-w-2xl mx-auto px-4 w-full">
-          <div className="bg-white border border-gray-200 rounded-sm p-6">
-            <h1 className="text-2xl font-semibold text-[#0b3578] mb-2">Reset Password</h1>
-            <p className="text-sm text-gray-600 mb-6">
-              Please choose a new password for your account. This operation is sensitive — ensure your new
-              password is secure.
-            </p>
+      <PublicSidebar 
+        isMobileOpen={isMobileMenuOpen}
+        setIsMobileOpen={setIsMobileMenuOpen}
+      />
 
-            {tokenStatus === 'loading' && (
-              <div className="py-12 text-center text-gray-600">Validating reset link...</div>
-            )}
-
-            {tokenStatus === 'VALID' && (
-              <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-800 mb-1">
-                  New Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={passwordVisible ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setPassword(v);
-                      // quick strength heuristic
-                      const score = v.length >= 12 ? 3 : v.length >= 10 ? 2 : v.length >= 8 ? 1 : 0;
-                      const hasLower = /[a-z]/.test(v);
-                      const hasUpper = /[A-Z]/.test(v);
-                      const hasNum = /\d/.test(v);
-                      const hasSpec = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(v);
-                      const passed = v.length >= 8 && hasLower && hasUpper && hasNum && hasSpec;
-                      setPasswordValid(passed);
-                      if (!v) setPasswordStrengthLabel('');
-                      else if (!passed) setPasswordStrengthLabel('Weak');
-                      else if (score >= 3) setPasswordStrengthLabel('Strong');
-                      else if (score === 2) setPasswordStrengthLabel('Good');
-                      else setPasswordStrengthLabel('Fair');
-                    }}
-                    className="w-full border border-gray-300 rounded-sm px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0b3578]"
-                    required
-                    aria-describedby="pwd-requirements"
-                  />
-                  <button
-                    type="button"
-                    aria-label={passwordVisible ? 'Hide password' : 'Show password'}
-                    onClick={() => setPasswordVisible((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  >
-                    {passwordVisible ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-
-                <p id="pwd-requirements" className="text-xs text-gray-600 mt-2">
-                  Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.
-                </p>
-                {passwordStrengthLabel && (
-                  <p className={`mt-1 text-sm ${passwordValid ? 'text-green-700' : 'text-yellow-700'}`}>Strength: {passwordStrengthLabel}</p>
-                )}
+      <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:ml-16">
+        <main className="flex-1 bg-gray-100 flex items-center justify-center p-4">
+          <div className="max-w-md w-full">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-8">
+              <div className="text-center mb-8">
+                <h1 className="text-2xl font-bold text-[#0b3578] uppercase tracking-tight">Reset Password</h1>
+                <p className="text-xs text-slate-400 mt-2 uppercase tracking-widest font-bold">Credential Recovery</p>
               </div>
 
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-800 mb-1">
-                  Confirm New Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="confirmPassword"
-                    type={confirmVisible ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full border border-gray-300 rounded-sm px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0b3578]"
-                    required
-                  />
-                  <button
-                    type="button"
-                    aria-label={confirmVisible ? 'Hide password' : 'Show password'}
-                    onClick={() => setConfirmVisible((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  >
-                    {confirmVisible ? 'Hide' : 'Show'}
-                  </button>
+              {tokenStatus === 'loading' && (
+                <div className="py-12 text-center">
+                  <div className="w-8 h-8 border-4 border-[#0b3578] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Validating reset link...</p>
                 </div>
-                {confirmPassword && password !== confirmPassword && (
-                  <p className="text-red-600 text-sm mt-1">Passwords do not match</p>
-                )}
-              </div>
+              )}
 
-                <div>
-                  <button
-                    type="submit"
-                    className="w-full bg-[#0b3578] text-white font-semibold py-2 px-4 rounded-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0b3578] disabled:opacity-60"
-                    disabled={isLoading || redirecting || !password || !confirmPassword || password !== confirmPassword}
-                  >
-                    {redirecting ? 'Redirecting to Home...' : (isLoading ? 'Resetting...' : 'Reset Password')}
-                  </button>
-                </div>
+              {tokenStatus === 'VALID' && (
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label htmlFor="password" uncomfortable className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="password"
+                        type={passwordVisible ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setPassword(v);
+                          const score = v.length >= 12 ? 3 : v.length >= 10 ? 2 : v.length >= 8 ? 1 : 0;
+                          const hasLower = /[a-z]/.test(v);
+                          const hasUpper = /[A-Z]/.test(v);
+                          const hasNum = /\d/.test(v);
+                          const hasSpec = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(v);
+                          const passed = v.length >= 8 && hasLower && hasUpper && hasNum && hasSpec;
+                          setPasswordValid(passed);
+                          if (!v) setPasswordStrengthLabel('');
+                          else if (!passed) setPasswordStrengthLabel('Weak');
+                          else if (score >= 3) setPasswordStrengthLabel('Strong');
+                          else if (score === 2) setPasswordStrengthLabel('Good');
+                          else setPasswordStrengthLabel('Fair');
+                        }}
+                        className="w-full border border-gray-200 rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#0b3578]"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPasswordVisible((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 hover:text-[#0b3578] uppercase"
+                      >
+                        {passwordVisible ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                    {passwordStrengthLabel && (
+                      <p className={`text-[9px] font-black uppercase tracking-widest ${passwordValid ? 'text-green-600' : 'text-yellow-600'}`}>Strength: {passwordStrengthLabel}</p>
+                    )}
+                  </div>
 
+                  <div className="space-y-1.5">
+                    <label htmlFor="confirmPassword" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="confirmPassword"
+                        type={confirmVisible ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full border border-gray-200 rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#0b3578]"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setConfirmVisible((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 hover:text-[#0b3578] uppercase"
+                      >
+                        {confirmVisible ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                    {confirmPassword && password !== confirmPassword && (
+                      <p className="text-red-600 text-[9px] font-black uppercase tracking-widest mt-1">Passwords do not match</p>
+                    )}
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      className="w-full bg-[#0b3578] text-white font-bold py-2 rounded text-xs uppercase tracking-widest hover:bg-[#0a2d66] transition-all disabled:opacity-50"
+                      disabled={isLoading || redirecting || !password || !confirmPassword || password !== confirmPassword}
+                    >
+                      {redirecting ? 'Redirecting...' : (isLoading ? 'Processing...' : 'Reset Password')}
+                    </button>
+                  </div>
+
+                  <div className="text-center">
+                    <Link href="/" className="text-[10px] font-black text-[#0b3578] hover:underline uppercase tracking-widest">
+                      Back to Login
+                    </Link>
+                  </div>
+                </form>
+              )}
+
+              {tokenStatus !== 'loading' && tokenStatus !== 'VALID' && (
                 <div className="text-center">
-                  <Link href="/" className="text-sm text-[#0b3578] hover:underline">
-                    Back to Login
-                  </Link>
+                  <h2 className="text-lg font-bold text-red-600 uppercase tracking-tight">
+                    {tokenStatus === 'EXPIRED' ? 'Link Expired' : tokenStatus === 'USED' ? 'Link Used' : 'Invalid Link'}
+                  </h2>
+                  <p className="mt-2 text-xs text-slate-500">{tokenMessage || 'Please request a new reset link.'}</p>
+                  <div className="mt-6">
+                    <Link href="/" className="inline-block bg-[#0b3578] text-white px-6 py-2 rounded text-xs font-bold uppercase tracking-widest hover:bg-[#0a2d66] transition-all">Go to Home</Link>
+                  </div>
                 </div>
-              </form>
-            )}
-
-            {tokenStatus !== 'loading' && tokenStatus !== 'VALID' && (
-              <div className="p-6 text-center">
-                <h2 className="text-xl font-semibold text-red-700">
-                  {tokenStatus === 'EXPIRED' ? 'Reset link has expired' : tokenStatus === 'USED' ? 'Reset link already used' : 'Invalid reset link'}
-                </h2>
-                <p className="mt-2 text-sm text-gray-700">{tokenMessage || 'Please request a new reset link.'}</p>
-                <div className="mt-4">
-                  <Link href="/" className="inline-block bg-[#0b3578] text-white px-4 py-2 rounded-sm hover:opacity-95">Go back to Home</Link>
-                </div>
-              </div>
-            )}
-
-            {message && <p className="text-green-700 text-sm mt-4">{message}</p>}
-            {error && <p className="text-red-700 text-sm mt-4">{error}</p>}
+              )}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
 
-      <Footer />
+        <Footer />
+      </div>
+
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 lg:hidden transition-all duration-300"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
     </div>
   );
 }
