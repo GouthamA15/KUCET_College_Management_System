@@ -134,24 +134,20 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 41: Security Hardening, Departmental Refinement & Navigation Shell (Latest - March 18, 2026)**
-- **Security & Anti-Proxy:**
-    - **Secure Attendance:** Restored the mandatory secure attendance PIN system to prevent unauthorized session entries.
-    - **Proxy Detection:** Implemented real-time proxy detection alerts to identify and flag suspicious student device behavior during attendance windows.
-- **Departmental Logic & HOD Tools:**
-    - **Conflict Validation:** Engineered a more robust faculty timetable conflict validation engine to prevent double-booking of faculty or rooms across different branches and sections.
-    - **HOD Timetable Deletion:** Implemented a "Delete Lecture" feature in the HOD timetable editor, allowing for surgical removal of scheduled slots with real-time SSE propagation.
-    - **Dropdown Deduplication:** Fixed a UI bug in the HOD slot editor where authorized faculty members appeared twice in the selection registry.
-    - **Database Integrity:** Resolved a critical database error in the HOD timetable editor that caused transaction rollbacks during complex schedule updates.
-- **UI, UX & Architecture:**
-    - **Sidebar Notification Fix:** Resolved a critical UI bug where the notification dropdown was cut off by the screen edge; engineered a smart positioning logic (`left-full`) that ensures the panel opens clearly to the right of the navigation rail on desktop.
-    - **Notification UI Standardization:** Harmonized the visual style of the Student and Clerk notification hubs, implementing high-density data grids and professional institutional branding.
-    - **Sidebar Notifications:** Integrated the notification hub directly into the `StudentSidebar` and `ClerkSidebar` (Admission/Scholarship), ensuring unread alerts are visible even when the navigation rail is collapsed.
-    - **Institutional Branding:** Restored the authoritative `Header` component to the Home and Developer pages, ensuring institutional visibility while maintaining sidebar compatibility.
-    - **Navigation Shell Fix:** Resolved a `TypeError: setActivePanel is not a function` in the `PublicSidebar` by standardizing on the `ClientShell` component for public routes (Home, Developers), centralizing login panel and sidebar state.
-    - **Activity Persistence:** Restored the live "Activity Status" bars across all student profile sub-pages, ensuring real-time session visibility.
-    - **Notification Accuracy:** Fixed a UI bug in the proxy notification display where roll numbers were incorrectly swapped.
+### **Session 42: Navigation Personalization, UI Cleanup & Attendance Logic Refinement (Latest - March 18, 2026)**
+- **Navigation Personalization:**
+    *   **Student Sidebar Header:** Engineered a personalized sidebar header for students featuring their **Profile Picture**, **Full Name**, and **Roll Number**, providing an immediate sense of identity within the portal.
+    *   **Clerk Sidebar Header:** Implemented a matching header for Clerks/Faculty displaying their **Avatar**, **Full Name**, and **Employee ID** (or HOD/Role designation).
+    *   **Notification Integration:** Synchronized the placement of the notification hub within the sidebar header across all roles, ensuring unread alerts are visible even when the navigation rail is expanded.
+- **UI Cleanup & Decluttering:**
+    *   **Search Bar Removal:** Permanently removed the unused "Search records..." and "Search academic records..." input fields from both Clerk and Student top bars to eliminate visual noise and streamline the header.
+    *   **Layout Standardization:** Unified the sidebar header height (`h-24`) and typography across the Student and Clerk dashboards for a consistent institutional brand experience.
+- **Attendance & Logic Refinement:**
+    *   **Verification Deduplication:** Resolved a UI conflict where two attendance PIN entry boxes appeared on the student profile page. Refactored `StudentActivityBar` to hide its verification extension when on the `/student/profile` route, allowing the `ProfileActivityBar` to serve as the primary interface.
+    *   **Public Sidebar Fix:** Resolved a navigation bug on the landing page where multiple sidebar options could be highlighted at once; implemented strict prioritization logic that ensures only the active login panel or the current route is visually selected.
 - **Documentation Alignment:** Synchronized `GEMINI.md` with the latest repository state and verified institutional compliance.
+
+### **Session 41: Security Hardening, Departmental Refinement & Navigation Shell (March 18, 2026)**
 
 ### **Session 40: Institutional Governance UI Refactor & Faculty Mobile Optimization (March 17, 2026)**
 - **Government Standard UI Overhaul:**

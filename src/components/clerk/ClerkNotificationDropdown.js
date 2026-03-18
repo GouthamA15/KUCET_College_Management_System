@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useClerk } from '@/context/ClerkContext';
 
-export default function ClerkNotificationDropdown() {
+export default function ClerkNotificationDropdown({ onOpenChange }) {
   const { 
     pendingProfileRequests, 
     pendingCertificateRequests,
@@ -13,6 +13,10 @@ export default function ClerkNotificationDropdown() {
   } = useClerk();
   const [notifOpen, setNotifOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    onOpenChange?.(notifOpen);
+  }, [notifOpen, onOpenChange]);
 
   useEffect(() => {
     function handleClickOutside(event) {

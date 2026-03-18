@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import RealtimeListener from '@/components/RealtimeListener';
 import { useStudent } from '@/context/StudentContext';
 import AttendanceVerificationActivity from './AttendanceVerificationActivity';
 
 export default function StudentActivityBar() {
+  const pathname = usePathname();
   const { academicPerformance, loading: studentLoading } = useStudent();
   const [activeActivity, setActiveActivity] = useState(null);
   const [attendanceSessions, setAttendanceSessions] = useState([]);
@@ -98,7 +100,8 @@ export default function StudentActivityBar() {
   };
 
   const hasAttendance = attendanceSessions.length > 0;
-  const showBar = activeActivity || hasAttendance;
+  const isProfilePage = pathname === '/student/profile';
+  const showBar = activeActivity || (hasAttendance && !isProfilePage);
 
   if (loading && !showBar) return <RealtimeListener onUpdate={handleRealtimeUpdate} />;
   if (!showBar) return <RealtimeListener onUpdate={handleRealtimeUpdate} />;
@@ -147,8 +150,8 @@ export default function StudentActivityBar() {
         </div>
       )}
 
-      {/* 2. Secure Attendance Extension */}
-      {hasAttendance && (
+      {/* 2. Secure Attendance Extension (Hidden on Profile Page to avoid duplication) */}
+      {hasAttendance && !isProfilePage && (
         <div className="bg-white border-b border-gray-200 p-4">
           <div className="max-w-7xl mx-auto">
              <AttendanceVerificationActivity 

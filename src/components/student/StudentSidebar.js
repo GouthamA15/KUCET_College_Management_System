@@ -2,7 +2,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { useStudent } from '@/context/StudentContext';
 import NotificationDropdown from '@/components/NotificationDropdown';
 
 const menuItems = [
@@ -79,8 +81,11 @@ const menuItems = [
 
 export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
   const pathname = usePathname();
+  const { studentData } = useStudent();
+  const student = studentData?.student;
   const [isHovered, setIsHovered] = useState(false);
   const [requestsOpen, setRequestsOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   const handleLogout = async () => {
     await fetch('/api/student/logout', { method: 'POST' });
@@ -98,46 +103,57 @@ export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
         setIsHovered(false);
         setRequestsOpen(false);
       }}
-      className={`fixed left-0 top-0 bottom-0 bg-[#0b3578] flex flex-col z-[60] transition-all duration-300 ease-in-out shadow-2xl overflow-hidden 
+      className={`fixed left-0 top-0 bottom-0 bg-[#0b3578] flex flex-col z-[60] transition-all duration-300 ease-in-out shadow-2xl 
         ${isMobileOpen ? 'w-64 translate-x-0' : '-translate-x-full lg:translate-x-0'} 
         ${isExpanded ? 'lg:w-60' : 'lg:w-16'}
+        ${isNotifOpen ? '' : 'overflow-hidden'}
       `}
     >
-      {/* Header - Trigger for Rail / Branding for Mobile */}
-      <div 
-        className="h-20 flex items-center justify-between px-4 border-b border-white/5"
-      >
-        <div 
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className={`flex items-center gap-3 transition-opacity duration-300 cursor-pointer ${isExpanded ? 'opacity-100' : 'opacity-0 lg:hidden'}`}
-        >
-           <span className="text-white justify-center font-bold tracking-tight uppercase text-xs">Menu</span>
+      {/* Personalized Header Section */}
+      <div className="h-24 flex items-center px-3 gap-3 border-b border-white/5 relative group">
+        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        
+        {/* Student Avatar / PFP */}
+        <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 flex-shrink-0 relative border border-white/10 flex items-center justify-center">
+           {student?.pfp ? (
+             <Image 
+               src={student.pfp} 
+               alt="Profile" 
+               fill 
+               className="object-cover"
+               unoptimized
+             />
+           ) : (
+             <span className="text-white font-bold text-xs">{student?.name?.charAt(0) || 'S'}</span>
+           )}
+        </div>
+
+        {/* Student Name & Roll No */}
+        <div className={`flex flex-col min-w-0 transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
+           <span className="text-white font-bold text-sm truncate leading-tight uppercase tracking-tight">
+              {student?.name || 'Student'}
+           </span>
+           <span className="text-blue-200/40 text-[9px] font-black uppercase tracking-widest mt-0.5">
+              {student?.roll_no || '---'}
+           </span>
+        </div>
+
+        {/* Notification Bell in Sidebar */}
+        <div className={`transition-all duration-300 ${isExpanded ? 'ml-auto' : 'hidden'}`}>
+          <NotificationDropdown onOpenChange={setIsNotifOpen} />
         </div>
         
-        {/* Notification Bell in Sidebar */}
-        <div className={`transition-all duration-300 ${isExpanded ? 'mr-2' : 'flex justify-center w-full'}`}>
-          <NotificationDropdown />
-        </div>
-
         {/* Close Button - Mobile Only */}
-        <button 
-          onClick={() => setIsMobileOpen(false)}
-          className="lg:hidden text-blue-100/60 hover:text-white"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        {/* Rail Toggle Icon - Desktop Only */}
-        <div 
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className={`hidden lg:flex items-center justify-center transition-all duration-300 cursor-pointer ${isExpanded ? 'w-auto' : 'hidden'}`}
-        >
-           <svg className={`w-6 h-6 text-white transition-transform duration-500 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-           </svg>
-        </div>
+        {isMobileOpen && (
+          <button 
+            onClick={() => setIsMobileOpen(false)}
+            className="lg:hidden ml-auto text-blue-100/60 hover:text-white"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Navigation */}

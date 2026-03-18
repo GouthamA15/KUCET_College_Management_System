@@ -60,6 +60,7 @@ export default function ClerkSidebar({ isMobileOpen, setIsMobileOpen }) {
   const { clerkData } = useClerk();
   const [isHovered, setIsHovered] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   const handleLogout = async () => {
     await fetch('/api/clerk/logout', { method: 'POST' });
@@ -102,13 +103,14 @@ export default function ClerkSidebar({ isMobileOpen, setIsMobileOpen }) {
         setIsHovered(false);
         setSettingsOpen(false);
       }}
-      className={`fixed left-0 top-0 bottom-0 bg-[#0b3578] flex flex-col z-[60] transition-all duration-300 ease-in-out shadow-2xl overflow-hidden 
+      className={`fixed left-0 top-0 bottom-0 bg-[#0b3578] flex flex-col z-[60] transition-all duration-300 ease-in-out shadow-2xl 
         ${isMobileOpen ? 'w-64 translate-x-0' : '-translate-x-full lg:translate-x-0'} 
         ${isExpanded ? 'lg:w-60' : 'lg:w-16'}
+        ${isNotifOpen ? '' : 'overflow-hidden'}
       `}
     >
       {/* Personalized Header Section */}
-      <div className="h-24 flex items-center px-3 gap-3 border-b border-white/5 relative overflow-hidden group">
+      <div className="h-24 flex items-center px-3 gap-3 border-b border-white/5 relative group">
         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
         
         {/* Employee Avatar / Initials */}
@@ -116,20 +118,20 @@ export default function ClerkSidebar({ isMobileOpen, setIsMobileOpen }) {
            <span className="text-white font-bold text-xs">{clerkData?.name?.charAt(0) || 'E'}</span>
         </div>
 
-        {/* Employee Full Name */}
+        {/* Employee Full Name & ID */}
         <div className={`flex flex-col min-w-0 transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
            <span className="text-white font-bold text-sm truncate leading-tight uppercase tracking-tight">
               {clerkData?.name || 'Employee'}
            </span>
            <span className="text-blue-200/40 text-[9px] font-black uppercase tracking-widest mt-0.5">
-              {role?.toUpperCase()} {isHOD ? '• HOD' : ''}
+              {clerkData?.employee_id || role?.toUpperCase()} {isHOD ? '• HOD' : ''}
            </span>
         </div>
 
         {/* Notification Hub in Sidebar (Admission & Scholarship Only) */}
         {(role === 'admission' || role === 'scholarship') && (
            <div className={`transition-all duration-300 ${isExpanded ? 'ml-auto' : 'hidden'}`}>
-             <ClerkNotificationDropdown />
+             <ClerkNotificationDropdown onOpenChange={setIsNotifOpen} />
            </div>
         )}
         

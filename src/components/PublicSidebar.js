@@ -105,7 +105,10 @@ export default function PublicSidebar({ activePanel, setActivePanel, isMobileOpe
       {/* Navigation */}
       <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto custom-scrollbar">
         {menuItems.map((item) => {
-          const isActive = pathname === item.route || (item.action && activePanel === item.action);
+          // Logic: If a login panel is active, prioritize it. Otherwise, match the current route.
+          const isActive = activePanel 
+            ? item.action === activePanel 
+            : item.route === pathname;
           
           if (item.action) {
             return (
