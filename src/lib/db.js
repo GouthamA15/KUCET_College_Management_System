@@ -56,9 +56,13 @@ export function getDb() {
 export async function query(sql, params, retries = 2) {
   const db = getDb();
   
+  // PERMANENT FIX: Ensure no 'undefined' values are passed as bind parameters.
+  // mysql2 throws an error if a parameter is undefined; we convert them to null.
+  const sanitizedParams = params ? params.map(p => p === undefined ? null : p) : params;
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const [rows] = await db.execute(sql, params);
+      const [rows] = await db.execute(sql, sanitizedParams);
       return rows;
     } catch (error) {
       const isConnectionError = error.code === 'ECONNRESET' || error.code === 'PROTOCOL_CONNECTION_LOST';

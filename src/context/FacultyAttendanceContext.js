@@ -113,7 +113,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           assignment_id: assignment.id,
           latitude,
           longitude,
-          attendance_date: selectedDate
+          attendance_date: selectedDate,
+          session_number: selectedSession
         }),
       });
       
@@ -422,6 +423,52 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     if (data.type === 'STUDENT_VERIFIED' && data.payload.assignment_id === assignment.id) {
       console.log('[AttendanceSync] Student verified, refreshing...');
       fetchAttendanceStatus();
+    } else if (data.type === 'PROXY_ATTEMPTED' && data.payload.assignment_id === assignment.id) {
+      const { attempting_roll_no, original_roll_no, original_student_id } = data.payload;
+      
+      // 1. Show Formal Government-Style Toaster
+      toast.error(
+        (t) => (
+          <div className="flex flex-col gap-1 border-l-4 border-red-600 pl-2">
+            <span className="font-black text-xs uppercase tracking-widest text-red-800">Security Breach Detected</span>
+            <div className="text-[11px] font-bold text-gray-700 leading-tight">
+              Student <span className="text-red-600">{attempting_roll_no}</span> attempted proxy for <span className="text-blue-700">{original_roll_no}</span>.
+            </div>
+            <div className="text-[9px] font-bold text-gray-500 uppercase mt-1">
+              Action: {original_roll_no} marked as ABSENT.
+            </div>
+          </div>
+        ),
+        { 
+          duration: 10000, 
+          id: `proxy-${original_roll_no}`,
+          style: {
+            borderRadius: '0px',
+            border: '1px solid #fee2e2',
+            background: '#fff',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+            padding: '12px'
+          }
+        }
+      );
+
+      // 2. Update Local State: Remove from verified and set to ABSENT
+      setVerifiedStudentIds(prev => {
+        const next = new Set(prev);
+        next.delete(original_student_id);
+        return next;
+      });
+
+      setAttendanceStatusMap(prev => ({
+        ...prev,
+        [original_student_id]: 'ABSENT'
+      }));
+
+      // 3. Update Absent Count Map to align with the stage cycle
+      setAbsentCountMap(prev => ({
+        ...prev,
+        [original_student_id]: 2 // Stage 2 is the first 'ABSENT' stage
+      }));
     }
   }, [assignment.id, fetchAttendanceStatus]);
 

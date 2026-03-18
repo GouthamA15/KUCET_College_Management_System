@@ -25,8 +25,14 @@ export async function POST(request) {
 
     // 1. Fetch the active session
     // We prioritize session_id if provided for ambiguity resolution in shared subjects
+    const [colInfo] = await db.execute(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions'`
+    );
+    const columns = colInfo.map(c => c.COLUMN_NAME);
+    const hasSessionNumber = columns.includes('session_number');
+
     let sessionQuery = `
-      SELECT id, assignment_id, session_pin, session_token, latitude, longitude, expires_at 
+      SELECT id, assignment_id, attendance_date, ${hasSessionNumber ? 'session_number,' : ''} session_pin, session_token, latitude, longitude, expires_at 
       FROM attendance_sessions 
       WHERE ${session_id ? 'id = ?' : 'assignment_id = ?'} 
       AND is_active = 1 AND expires_at > NOW()
@@ -40,6 +46,7 @@ export async function POST(request) {
     }
 
     const session = sessions[0];
+    const sessionNum = hasSessionNumber ? (session.session_number || 1) : 1;
 
     // --- PIN / TOKEN VALIDATION ---
     if (pin) {
@@ -94,23 +101,68 @@ export async function POST(request) {
 
     // 1. Check if this specific client-side Device ID has already been used for this session
     const [idLogs] = await db.execute(
-      'SELECT student_id FROM attendance_session_logs WHERE session_id = ? AND device_hash = ? AND status = "SUCCESS"',
+      `SELECT asl.student_id, s.roll_no 
+       FROM attendance_session_logs asl
+       JOIN students s ON asl.student_id = s.id
+       WHERE asl.session_id = ? AND asl.device_hash = ? AND asl.status = "SUCCESS"`,
       [session.id, finalDeviceId]
     );
 
     if (idLogs.length > 0 && idLogs[0].student_id !== user.student_id) {
-      return apiError('Proxy blocked: This device (UUID) has already been used for another student in this session.', 403);
+      const originalStudent = idLogs[0];
+      
+      // PROXY DETECTED: Mark original student as ABSENT
+      await db.execute(
+        'INSERT INTO student_attendance (assignment_id, student_id, date, session, status) VALUES (?, ?, ?, ?, "ABSENT") ON DUPLICATE KEY UPDATE status = "ABSENT"',
+        [session.assignment_id, originalStudent.student_id, session.attendance_date, sessionNum]
+      );
+
+      // Notify Faculty
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        broadcastUpdate('PROXY_ATTEMPTED', { 
+          assignment_id: session.assignment_id,
+          session_number: sessionNum,
+          attempting_roll_no: user.roll_no,
+          original_roll_no: originalStudent.roll_no,
+          original_student_id: originalStudent.student_id
+        });
+      } catch (sseErr) {}
+
+      return apiError(`Proxy blocked: This device has already been used by student ${originalStudent.roll_no}. Both records have been flagged.`, 403);
     }
 
     // 2. Check if this specific IP + User-Agent combination has already been used
-    // This catches students using different browsers or Incognito on the SAME physical device
     const [proxyLogs] = await db.execute(
-      'SELECT student_id FROM attendance_session_logs WHERE session_id = ? AND ip_address = ? AND ua_hash = ? AND status = "SUCCESS"',
+      `SELECT asl.student_id, s.roll_no 
+       FROM attendance_session_logs asl
+       JOIN students s ON asl.student_id = s.id
+       WHERE asl.session_id = ? AND asl.ip_address = ? AND asl.ua_hash = ? AND asl.status = "SUCCESS"`,
       [session.id, ipAddress, uaHash]
     );
 
     if (proxyLogs.length > 0 && proxyLogs[0].student_id !== user.student_id) {
-      return apiError('Proxy blocked: Another student has already verified from this device/network signature in this session.', 403);
+      const originalStudent = proxyLogs[0];
+
+      // PROXY DETECTED: Mark original student as ABSENT
+      await db.execute(
+        'INSERT INTO student_attendance (assignment_id, student_id, date, session, status) VALUES (?, ?, ?, ?, "ABSENT") ON DUPLICATE KEY UPDATE status = "ABSENT"',
+        [session.assignment_id, originalStudent.student_id, session.attendance_date, sessionNum]
+      );
+
+      // Notify Faculty
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        broadcastUpdate('PROXY_ATTEMPTED', { 
+          assignment_id: session.assignment_id,
+          session_number: sessionNum,
+          attempting_roll_no: user.roll_no,
+          original_roll_no: originalStudent.roll_no,
+          original_student_id: originalStudent.student_id
+        });
+      } catch (sseErr) {}
+
+      return apiError(`Proxy blocked: This network signature has already been used by student ${originalStudent.roll_no}.`, 403);
     }
 
     // 5. Record the log with all fingerprinting markers

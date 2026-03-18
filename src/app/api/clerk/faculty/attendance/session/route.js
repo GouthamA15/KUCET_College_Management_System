@@ -21,8 +21,16 @@ export async function GET(request) {
     }
 
     const db = getDb();
+    
+    // Check if session_number column exists
+    const [colInfo] = await db.execute(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions'`
+    );
+    const columns = colInfo.map(c => c.COLUMN_NAME);
+    const hasSessionNumber = columns.includes('session_number');
+
     const [sessions] = await db.execute(
-      `SELECT id, session_pin, session_token, expires_at 
+      `SELECT id, session_pin, session_token, expires_at ${hasSessionNumber ? ', session_number' : ''}
        FROM attendance_sessions 
        WHERE assignment_id = ? AND is_active = 1 AND expires_at > NOW()`,
       [assignment_id]
@@ -51,7 +59,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, latitude, longitude, accuracy, attendance_date } = body;
+    const { assignment_id, latitude, longitude, accuracy, attendance_date, session_number } = body;
 
     if (!assignment_id || !attendance_date) {
       return apiError('Missing assignment_id or attendance_date', 400);
@@ -91,30 +99,27 @@ export async function POST(request) {
     const columns = colInfo.map(c => c.COLUMN_NAME);
     const hasAttendanceDate = columns.includes('attendance_date');
     const hasAccuracy = columns.includes('accuracy');
+    const hasSessionNumber = columns.includes('session_number');
 
     let result;
-    if (hasAttendanceDate && hasAccuracy) {
-      [result] = await db.execute(
-        `INSERT INTO attendance_sessions 
-         (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, accuracy, expires_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, accuracy ?? null, expiresAtSql]
-      );
-    } else if (hasAttendanceDate) {
-      [result] = await db.execute(
-        `INSERT INTO attendance_sessions 
-         (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
-      );
-    } else {
-      [result] = await db.execute(
-        `INSERT INTO attendance_sessions 
-         (assignment_id, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [assignment_id, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
-      );
+    const insertCols = ['assignment_id', 'faculty_id', 'session_pin', 'session_token', 'latitude', 'longitude', 'expires_at'];
+    const insertVals = [assignment_id, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql];
+    
+    if (hasAttendanceDate) {
+      insertCols.push('attendance_date');
+      insertVals.push(attendance_date);
     }
+    if (hasAccuracy) {
+      insertCols.push('accuracy');
+      insertVals.push(accuracy ?? null);
+    }
+    if (hasSessionNumber) {
+      insertCols.push('session_number');
+      insertVals.push(session_number || 1);
+    }
+
+    const sql = `INSERT INTO attendance_sessions (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`;
+    [result] = await db.execute(sql, insertVals);
 
     // --- REAL-TIME: Notify Students/HOD ---
     try {
@@ -123,7 +128,8 @@ export async function POST(request) {
         assignment_id, 
         faculty_id: user.id, 
         branch: user.branch,
-        session_id: result.insertId
+        session_id: result.insertId,
+        session_number: session_number || 1
       });
     } catch (sseErr) {
       console.warn('[SSE] Broadcast failed:', sseErr);
@@ -135,7 +141,8 @@ export async function POST(request) {
         id: result.insertId,
         session_pin: sessionPin,
         session_token: sessionToken,
-        expires_at: expiresAtSql
+        expires_at: expiresAtSql,
+        session_number: session_number || 1
       }
     });
   } catch (error) {

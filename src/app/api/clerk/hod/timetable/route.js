@@ -43,8 +43,8 @@ export async function POST(req) {
     }
 
     let { 
-      semester, section, day_of_week, period_number, 
-      subject_code, faculty_id, academic_year, room_no 
+      semester, section = 'A', day_of_week, period_number, 
+      subject_code, faculty_id, academic_year = '2025-26', room_no = null 
     } = await req.json();
 
     // Sanitize faculty_id: Convert empty string to null for DB integer column
@@ -73,7 +73,7 @@ export async function POST(req) {
        subject_code = VALUES(subject_code), 
        faculty_id = VALUES(faculty_id), 
        room_no = VALUES(room_no)`,
-      [user.branch, semester, section || 'A', day_of_week, period_number, subject_code, sanitizedFacultyId, academic_year, room_no]
+      [user.branch, semester, section, day_of_week, period_number, subject_code, sanitizedFacultyId, academic_year, room_no]
     );
 
     // REAL-TIME: Broadcast change
