@@ -1,33 +1,37 @@
-// SSE Client Manager
-// Tracks active response controllers to broadcast real-time updates
+// SSE Client Manager (Memory-Based)
+// 100% Free & Permanent: Tracks active response controllers in server RAM.
+// Best for single-instance deployments (Render Free Tier).
 
 if (!global._sse_controllers) {
   global._sse_controllers = new Set();
 }
 
+/**
+ * Adds a new client connection to the local pool.
+ */
 export function addSSEClient(controller) {
   global._sse_controllers.add(controller);
-  console.log(`[SSE] Client connected. Total clients: ${global._sse_controllers.size}`);
+  console.log(`[SSE] Client connected. Total active connections: ${global._sse_controllers.size}`);
 }
 
-export function removeSSEClient(controller) {
-  if (global._sse_controllers.has(controller)) {
-    global._sse_controllers.delete(controller);
-    console.log(`[SSE] Client disconnected. Total clients: ${global._sse_controllers.size}`);
-  }
-}
+const encoder = new TextEncoder();
 
+/**
+ * Broadcasts a message to all connected clients.
+ * This runs entirely in server memory.
+ */
 export function broadcastUpdate(type, payload = {}) {
-  const message = `data: ${JSON.stringify({ type, payload, timestamp: Date.now() })}\n\n`;
-  const encoder = new TextEncoder();
+  const message = JSON.stringify({ type, payload, timestamp: Date.now() });
+  const data = `data: ${message}\n\n`;
+  const encoded = encoder.encode(data);
   
-  console.log(`[SSE] Broadcasting ${type} to ${global._sse_controllers.size} clients`);
-  
+  console.log(`[SSE] Broadcasting ${type} to ${global._sse_controllers.size} clients.`);
+
   global._sse_controllers.forEach(controller => {
     try {
-      controller.enqueue(encoder.encode(message));
+      controller.enqueue(encoded);
     } catch (e) {
-      // Client likely disconnected
+      // Clean up dead connections
       global._sse_controllers.delete(controller);
     }
   });

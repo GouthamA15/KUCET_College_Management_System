@@ -134,6 +134,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 52: Memory-Based SSE for Permanent Free-Tier Reliability (March 19, 2026)**
+- **Real-Time Architectural Decision:**
+    - **Memory-Based Optimization:** Decided to utilize high-performance, memory-based Server-Sent Events (SSE) as the primary real-time communication mechanism. This ensures 100% free and permanent reliability for single-instance production deployments (like Render Free Tier).
+    - **Zero-Dependency Hardening:** Refactored `src/lib/sse.js` to eliminate external dependencies (like Redis), reducing the attack surface and operational complexity while maintaining sub-millisecond broadcast latency.
+- **Project Hygiene:**
+    - **Dependency Cleanup:** Uninstalled `ioredis` and removed Redis-specific environment variables to maintain a lean, production-ready codebase.
+
 ### **Session 51: Notification System Hardening & Diagnostic Tool Restoration (March 19, 2026)**
 - **Real-Time Stability & Performance:**
     - **Infinite Loop Resolution:** Fixed a critical bug in `RealtimeListener` where connection status updates triggered recursive effect re-runs. Migrated status and debug state to `useRef` for effect logic while maintaining `useState` for reactive UI.
