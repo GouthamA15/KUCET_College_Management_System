@@ -142,6 +142,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   }
 
   const menuItemsRaw = menuConfig[effectiveRole] || menuConfig['guest'] || [
+    { label: 'HOME', route: '/' },
     { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'EMPLOYEE LOGIN', action: 'open-panel-clerk' },
@@ -162,7 +163,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     : menuItemsRaw;
 
   const handleNavClick = (panel) => {
-    if (pathname !== '/') {
+    if (pathname !== '/' && pathname !== '/admission') {
       router.push('/');
       return;
     }
@@ -319,12 +320,11 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                   }
                   // Render a real link only when a valid route exists and is not a placeholder
                   if (item.route && item.route !== '#') {
-                    // Treat clerk dashboards generically: any /clerk/*/dashboard should highlight the DASHBOARD item
-                    const isStudentHome = item.label === 'HOME' && item.route === '/student';
-                    const routeActive = pathname && (
-                      (isStudentHome ? pathname === item.route : pathname.startsWith(item.route)) ||
-                      (item.label === 'DASHBOARD' && item.route.includes('/clerk/') && pathname.startsWith('/clerk/') && pathname.endsWith('/dashboard'))
-                    );
+                    // Exact match for root route to prevent multiple highlighting
+                    const routeActive = item.route === '/' 
+                      ? pathname === '/' 
+                      : (pathname && pathname.startsWith(item.route));
+
                     return (
                       <Link key={idx} href={item.route} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                         {item.label}
@@ -391,7 +391,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
             {(menuItems || []).map((item, idx) => {
               const hasChildren = Array.isArray(item.children) && item.children.length > 0;
               const expanded = !!mobileExpanded[idx];
-              const mobileRouteActive = pathname && item.route && item.route !== '#' && pathname.startsWith(item.route);
+              const mobileRouteActive = pathname && item.route && item.route !== '#' && (item.route === '/' ? pathname === '/' : pathname.startsWith(item.route));
               return (
                 <div key={idx} className="mb-0">
                   <div className={`flex items-center justify-between w-full ${hasChildren ? 'cursor-pointer' : ''}`}>

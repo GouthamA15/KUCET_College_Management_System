@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 18, 2026
+**Last Updated:** March 19, 2026
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports four primary user roles: **Super Admin**, **Head of Department (HOD)**, **Clerk/Faculty**, and **Student**. 
@@ -134,7 +134,22 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
-### **Session 43: Overlay Login Architecture & Persistent Navigation Rail (Latest - March 18, 2026)**
+### **Session 44: Navigation Rollback & UI Refinement (Latest - March 19, 2026)**
+- **Navigation Architecture Rollback:**
+    - **Horizontal Restoration:** Replaced the recently implemented `PublicSidebar` (vertical rail) with the authoritative horizontal `Header` and `Navbar` across all guest-facing pages.
+    - **Shell Synchronization:** Updated `ClientShell.client.js` to manage the horizontal navigation and fixed-overlay login panels, ensuring a seamless transition between public and authentication states.
+- **Navbar Optimization & Bug Fixes:**
+    - **Multiple Selection Fix:** Refined `routeActive` logic to enforce exact path matching for the root route, preventing multiple menu items from appearing active simultaneously.
+    - **Menu Refinement:** Removed the "DEVELOPERS" tab from the main guest navbar to streamline navigation.
+    - **Exact Matching:** Implemented strict route matching for guest links to ensure the "HOME" highlight correctly reflects the user's location.
+- **UI/UX Hardening:**
+    - **Login Panel Interactivity:** Resolved a critical layout conflict where login panels were non-interactive; moved `ClientShell` outside the blurred `main-content` area to restore pointer events.
+    - **Standardized Vertical Stack:** Reorganized the page structure to a consistent **Header -> Navbar (Sticky)** order across Home, Developers, Verification, and Reset Password pages.
+    - **Layout Cleanup:** Removed redundant sidebar margins (`ml-16`) and deleted the orphaned `PublicSidebar.js` component to maintain codebase hygiene.
+- **Institutional Branding:**
+    - **Header Continuity:** Restored the modern blue-to-white gradient header with professional institutional logos and high-density academic metadata.
+
+### **Session 43: Overlay Login Architecture & Persistent Navigation Rail (March 18, 2026)**
 - **Overlay Login Architecture:**
     - **Fixed Overlay Migration:** Transformed the `LoginPanel` from an in-flow layout element into a standard fixed overlay (`fixed inset-0`) with a high `z-index`, resolving critical layout conflicts and content squeezing on the Developers and Home pages.
     - **Visual Polish:** Implemented a semi-transparent backdrop blur (`backdrop-blur-sm`) and professional "Slide-Up" and "Fade-In" animations to focus the user experience during authentication.

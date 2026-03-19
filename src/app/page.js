@@ -22,19 +22,21 @@ export default async function Home({ searchParams }) {
           <span className="bg-white/20 px-1.5 rounded text-[8px] group-hover:bg-white/40">Travel 🕒</span>
         </a>
       )}
-      {/* Client-side shell: public sidebar, login panels and toasts */}
+
+      {/* Header at the very top */}
+      <Header />
+
+      {/* Client-side shell: navbar (sticky), login panels and toasts */}
       <ClientShell serverError={error} />
 
-      {/* Main server-rendered content. Accommodate sidebar on desktop. */}
-      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 ml-16">
-        <Header />
+      {/* Main server-rendered content. */}
+      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 flex flex-col min-h-screen">
         <div className="grow">
           <Hero />
           <AboutSection />
         </div>
+        <Footer />
       </div>
-
-      <Footer />
     </div>
   );
 }

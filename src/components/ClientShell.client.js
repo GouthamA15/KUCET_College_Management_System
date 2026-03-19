@@ -1,12 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
-import PublicSidebar from '@/components/PublicSidebar';
+import Navbar from '@/components/Navbar';
 import LoginPanel from '@/components/LoginPanel';
 import SearchParamToast from '@/components/SearchParamToast.client';
 
 export default function ClientShell({ serverError }) {
   const [activePanel, setActivePanel] = useState(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const el = document.getElementById('main-content');
@@ -21,23 +20,13 @@ export default function ClientShell({ serverError }) {
 
   return (
     <>
-      <PublicSidebar 
+      <Navbar 
         activePanel={activePanel} 
         setActivePanel={setActivePanel} 
-        isMobileOpen={isMobileMenuOpen}
-        setIsMobileOpen={setIsMobileMenuOpen}
       />
       
       <LoginPanel activePanel={activePanel} onClose={() => setActivePanel(null)} />
       <SearchParamToast serverError={serverError} />
-
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 lg:hidden transition-all duration-300"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
     </>
   );
 }

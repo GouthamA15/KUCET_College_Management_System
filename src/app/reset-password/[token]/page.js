@@ -4,7 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import Footer from "@/components/Footer";
-import PublicSidebar from "@/components/PublicSidebar";
+import Header from "@/components/Header";
+import ClientShell from "@/components/ClientShell.client";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -19,7 +20,6 @@ export default function ResetPassword() {
   const [passwordStrengthLabel, setPasswordStrengthLabel] = useState('');
   const [tokenStatus, setTokenStatus] = useState('loading'); // 'loading' | 'VALID' | 'EXPIRED' | 'USED' | 'INVALID'
   const [tokenMessage, setTokenMessage] = useState('');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const params = useParams();
   const router = useRouter();
@@ -106,26 +106,11 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans">
-      
-      {/* Mobile Menu Trigger */}
-      <div className="lg:hidden fixed top-4 left-4 z-[70]">
-        <button 
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="p-2 bg-[#0b3578] text-white rounded-lg shadow-lg hover:bg-[#0a2d66] transition-all"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
+      <Header />
+      <ClientShell />
 
-      <PublicSidebar 
-        isMobileOpen={isMobileMenuOpen}
-        setIsMobileOpen={setIsMobileMenuOpen}
-      />
-
-      <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:ml-16">
+      <div id="main-content" className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">
         <main className="flex-1 bg-gray-100 flex items-center justify-center p-4">
           <div className="max-w-md w-full">
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-8">
@@ -245,14 +230,6 @@ export default function ResetPassword() {
 
         <Footer />
       </div>
-
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 lg:hidden transition-all duration-300"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
     </div>
   );
 }

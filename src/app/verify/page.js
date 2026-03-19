@@ -1,7 +1,8 @@
 'use client';
 
 import Footer from '@/components/Footer';
-import PublicSidebar from '@/components/PublicSidebar';
+import Header from '@/components/Header';
+import ClientShell from '@/components/ClientShell.client';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 
@@ -9,7 +10,6 @@ function VerifyContent() {
   const searchParams = useSearchParams();
   const certId = searchParams.get('id');
   const rollNo = searchParams.get('roll');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const missingParams = !certId || !rollNo;
 
@@ -43,28 +43,13 @@ function VerifyContent() {
   const showSuccessUI = !missingParams && status === 'success' && data;
 
   return (
-   <div className="min-h-screen bg-gray-50 flex font-sans">
-      
-      {/* Mobile Menu Trigger */}
-      <div className="lg:hidden fixed top-4 left-4 z-[70]">
-        <button 
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="p-2 bg-[#0b3578] text-white rounded-lg shadow-lg hover:bg-[#0a2d66] transition-all"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
-
-      <PublicSidebar 
-        isMobileOpen={isMobileMenuOpen}
-        setIsMobileOpen={setIsMobileMenuOpen}
-      />
+   <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
+      <Header />
+      <ClientShell />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:ml-16">
-        <div className="min-h-screen bg-slate-50 flex items-start sm:items-center justify-center p-5">
+      <div id="main-content" className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">
+        <div className="flex-1 bg-slate-50 flex items-start sm:items-center justify-center p-5">
           <div className="bg-white shadow-2xl rounded-2xl max-w-md w-full overflow-hidden border border-slate-200">
             {/* Header Section */}
             <div className="bg-[#0b3578] p-6 text-center">
@@ -136,14 +121,6 @@ function VerifyContent() {
         </div>
         <Footer/>
       </div>
-
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 lg:hidden transition-all duration-300"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
     </div>
   );
 }

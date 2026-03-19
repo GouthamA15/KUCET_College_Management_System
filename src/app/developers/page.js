@@ -88,10 +88,13 @@ export default function DevelopersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans relative">
-      <ClientShell />
+      {/* Header at the top */}
+      <Header />
 
-      <div id="main-content" className="flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 ml-16">
-        <Header />
+      {/* Client-side shell: navbar, login panels and toasts */}
+      <ClientShell />
+      
+      <div id="main-content" className="flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">
         <main className="flex-grow container mx-auto px-4 py-12">
           <div className="text-center mb-16">
             <h1 className="text-4xl font-extrabold text-[#0b3578] mb-4 animate-fade-in-down">
