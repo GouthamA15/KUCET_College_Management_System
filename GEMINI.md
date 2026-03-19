@@ -134,6 +134,17 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 50: Universal Notification Coverage & SSE Robustness (March 19, 2026)**
+- **Architecture Refactoring:**
+    - **Global Listener Migration:** Moved the `RealtimeListener` from individual dashboards to the `RootLayout`, ensuring the application listens for real-time events (Attendance, Timetable, Requests) immediately upon opening, even on the landing page.
+    - **Rules of Hooks Compliance:** Resolved a React error (`useEffect` dependency size mismatch) by stabilizing the dependency array in the global listener component.
+- **SSE Stream Hardening:**
+    - **Proxy Buffer Flushing:** Implemented an immediate `CONNECTED` handshake event from the server to force-flush SSE headers through aggressive proxies like Render/Nginx.
+    - **Cache Busting:** Added timestamp parameters to SSE connection URLs to prevent browser and CDN caching of the event stream.
+- **Observability & Diagnostics:**
+    - **Visual SSE Status:** Integrated a live connection status badge (`offline`, `connecting`, `connected`) into the landing page for immediate diagnostic feedback.
+    - **Identity Fallback:** Implemented an autonomous identity fetch within the listener to resolve student branch data independently of the React context, enabling background listening before the profile loads.
+
 ### **Session 49: Diagnostic Tools & Android 13+ Permission Fix (March 19, 2026)**
 - **Diagnostic Tooling:**
     - **Native Test Button:** Integrated a "Test App Notifications" button into the landing page `Hero` component, visible only when running on native platforms (Android/iOS). This allows for instant verification of the notification pipeline without waiting for SSE events.
