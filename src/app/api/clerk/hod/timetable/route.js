@@ -1,6 +1,12 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  branchTimetable, 
+  semesters, 
+  clerks, 
+  syllabusSubjects 
+} from '@/db/schema';
+import { eq, and, desc, asc, sql, like, or, ne } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { broadcastUpdate } from '@/lib/sse';
 
 export async function GET(req) {
   try {
@@ -10,23 +16,42 @@ export async function GET(req) {
     }
 
     const { searchParams } = new URL(req.url);
-    const semester = searchParams.get('semester') || 1;
+    const semester = searchParams.get('semester') ? parseInt(searchParams.get('semester')) : 1;
     const section = searchParams.get('section') || 'A';
 
-    // Fetch system-wide academic year
-    const semRows = await query('SELECT academic_year FROM semesters ORDER BY id DESC LIMIT 1');
+    const semRows = await db.select({ academic_year: semesters.academic_year })
+      .from(semesters)
+      .orderBy(desc(semesters.id))
+      .limit(1);
     const systemYear = semRows[0]?.academic_year || '2025-26';
     
-    const timetable = await query(
-      `SELECT bt.*, c.name as faculty_name, s.subject_name 
-       FROM branch_timetable bt
-       LEFT JOIN clerks c ON bt.faculty_id = c.id
-       LEFT JOIN syllabus_subjects s ON bt.subject_code = s.subject_code
-       WHERE bt.branch = ? AND bt.semester = ? AND bt.section = ?
-       AND (bt.academic_year LIKE ? OR bt.academic_year = '2025-26')
-       ORDER BY day_of_week, period_number`,
-      [user.branch, semester, section, `%${systemYear.substring(0, 4)}%`]
-    );
+    const timetable = await db.select({
+      id: branchTimetable.id,
+      branch: branchTimetable.branch,
+      semester: branchTimetable.semester,
+      section: branchTimetable.section,
+      day_of_week: branchTimetable.day_of_week,
+      period_number: branchTimetable.period_number,
+      subject_code: branchTimetable.subject_code,
+      faculty_id: branchTimetable.faculty_id,
+      academic_year: branchTimetable.academic_year,
+      room_no: branchTimetable.room_no,
+      faculty_name: clerks.name,
+      subject_name: syllabusSubjects.subject_name
+    })
+    .from(branchTimetable)
+    .leftJoin(clerks, eq(branchTimetable.faculty_id, clerks.id))
+    .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
+    .where(and(
+      eq(branchTimetable.branch, user.branch),
+      eq(branchTimetable.semester, semester),
+      eq(branchTimetable.section, section),
+      or(
+        like(branchTimetable.academic_year, `%${systemYear.substring(0, 4)}%`),
+        eq(branchTimetable.academic_year, '2025-26')
+      )
+    ))
+    .orderBy(asc(branchTimetable.day_of_week), asc(branchTimetable.period_number));
 
     return apiResponse({ data: timetable });
   } catch (error) {
@@ -47,44 +72,62 @@ export async function POST(req) {
       subject_code, faculty_id, academic_year = '2025-26', room_no = null 
     } = await req.json();
 
-    // Sanitize faculty_id: Convert empty string to null for DB integer column
     const sanitizedFacultyId = (faculty_id === '' || !faculty_id) ? null : parseInt(faculty_id);
 
-    // Timetable Conflict Validation (Faculty overlap)
     if (sanitizedFacultyId) {
-      // Use fuzzy year matching to catch conflicts across variations (e.g. "2025-26" vs "2025-26 (Even)")
-      const yearPrefix = academic_year.substring(0, 7); // e.g., "2025-26"
+      const yearPrefix = academic_year.substring(0, 7);
       
-      const conflict = await query(
-        `SELECT bt.*, s.subject_name 
-         FROM branch_timetable bt
-         LEFT JOIN syllabus_subjects s ON bt.subject_code = s.subject_code
-         WHERE bt.faculty_id = ? AND bt.day_of_week = ? 
-         AND bt.period_number = ? 
-         AND (bt.academic_year LIKE ? OR bt.academic_year = ?)
-         AND NOT (bt.branch = ? AND bt.semester = ? AND bt.section = ?)`,
-        [sanitizedFacultyId, day_of_week, period_number, `%${yearPrefix}%`, academic_year, user.branch, semester, section]
-      );
+      const conflictRows = await db.select({
+        branch: branchTimetable.branch,
+        semester: branchTimetable.semester,
+        section: branchTimetable.section,
+        subject_code: branchTimetable.subject_code,
+        subject_name: syllabusSubjects.subject_name
+      })
+      .from(branchTimetable)
+      .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
+      .where(and(
+        eq(branchTimetable.faculty_id, sanitizedFacultyId),
+        eq(branchTimetable.day_of_week, day_of_week),
+        eq(branchTimetable.period_number, period_number),
+        or(
+          like(branchTimetable.academic_year, `%${yearPrefix}%`),
+          eq(branchTimetable.academic_year, academic_year)
+        ),
+        sql`NOT (${eq(branchTimetable.branch, user.branch)} AND ${eq(branchTimetable.semester, semester)} AND ${eq(branchTimetable.section, section)})`
+      ))
+      .limit(1);
 
-      if (conflict && conflict.length > 0) {
-        const c = conflict[0];
+      if (conflictRows.length > 0) {
+        const c = conflictRows[0];
         return apiError(`Faculty Conflict: This instructor is already assigned to ${c.subject_name || c.subject_code} in ${c.branch} Sem ${c.semester} (Sec ${c.section}) during this period.`, 400);
       }
     }
 
-    await query(
-      `INSERT INTO branch_timetable 
-       (branch, semester, section, day_of_week, period_number, subject_code, faculty_id, academic_year, room_no)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-       subject_code = VALUES(subject_code), 
-       faculty_id = VALUES(faculty_id), 
-       room_no = VALUES(room_no)`,
-      [user.branch, semester, section, day_of_week, period_number, subject_code, sanitizedFacultyId, academic_year, room_no]
-    );
+    await db.insert(branchTimetable).values({
+      branch: user.branch,
+      semester: parseInt(semester),
+      section: section,
+      day_of_week: day_of_week,
+      period_number: parseInt(period_number),
+      subject_code: subject_code,
+      faculty_id: sanitizedFacultyId,
+      academic_year: academic_year,
+      room_no: room_no
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        subject_code: sql`VALUES(subject_code)`,
+        faculty_id: sql`VALUES(faculty_id)`,
+        room_no: sql`VALUES(room_no)`
+      }
+    });
 
-    // REAL-TIME: Broadcast change
-    broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester });
+    // REAL-TIME
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester });
+    } catch (e) {}
 
     return apiResponse({ success: true, message: 'Slot updated successfully' });
   } catch (error) {
@@ -100,7 +143,7 @@ export async function DELETE(req) {
       return apiError('Unauthorized', 401);
     }
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const semester = searchParams.get('semester');
     const section = searchParams.get('section') || 'A';
     const day_of_week = searchParams.get('day_of_week');
@@ -110,14 +153,20 @@ export async function DELETE(req) {
       return apiError('Missing required parameters', 400);
     }
 
-    await query(
-      `DELETE FROM branch_timetable 
-       WHERE branch = ? AND semester = ? AND section = ? AND day_of_week = ? AND period_number = ?`,
-      [user.branch, semester, section, day_of_week, period_number]
-    );
+    await db.delete(branchTimetable)
+      .where(and(
+        eq(branchTimetable.branch, user.branch),
+        eq(branchTimetable.semester, parseInt(semester)),
+        eq(branchTimetable.section, section),
+        eq(branchTimetable.day_of_week, day_of_week),
+        eq(branchTimetable.period_number, parseInt(period_number))
+      ));
 
-    // REAL-TIME: Broadcast change
-    broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester });
+    // REAL-TIME
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester });
+    } catch (e) {}
 
     return apiResponse({ success: true, message: 'Lecture deleted successfully' });
   } catch (error) {

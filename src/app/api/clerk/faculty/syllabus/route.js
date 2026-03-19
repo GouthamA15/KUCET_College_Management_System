@@ -1,5 +1,12 @@
+import { db } from '@/db';
+import { 
+  syllabusStructure, 
+  syllabusSubjects, 
+  syllabusUnits, 
+  facultySubjectAssignments 
+} from '@/db/schema';
+import { eq, and, asc, sql, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
 
 export async function GET(request) {
   try {
@@ -10,21 +17,24 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const branch = searchParams.get('branch');
-    const semester = searchParams.get('semester');
+    const semester = searchParams.get('semester') ? parseInt(searchParams.get('semester')) : null;
     const academicYear = searchParams.get('academicYear');
-
-    const db = getDb();
 
     if (branch && semester) {
       // 1. Fetch structure and subject metadata
-      const [structureRows] = await db.execute(`
-        SELECT 
-          ss.subject_code, ss.is_group, ss.parent_group_code,
-          sb.subject_name as title, sb.subject_type
-        FROM syllabus_structure ss
-        JOIN syllabus_subjects sb ON ss.subject_code = sb.subject_code
-        WHERE ss.branch = ? AND ss.semester = ?
-      `, [branch.toUpperCase(), semester]);
+      const structureRows = await db.select({
+        subject_code: syllabusStructure.subject_code,
+        is_group: syllabusStructure.is_group,
+        parent_group_code: syllabusStructure.parent_group_code,
+        title: syllabusSubjects.subject_name,
+        subject_type: syllabusSubjects.subject_type
+      })
+      .from(syllabusStructure)
+      .innerJoin(syllabusSubjects, eq(syllabusStructure.subject_code, syllabusSubjects.subject_code))
+      .where(and(
+        eq(syllabusStructure.branch, branch.toUpperCase()),
+        eq(syllabusStructure.semester, semester)
+      ));
 
       if (structureRows.length === 0) {
         return apiResponse({ data: [] });
@@ -32,32 +42,34 @@ export async function GET(request) {
 
       const subjectCodes = [...new Set(structureRows.map(r => r.subject_code))];
 
-      // 2. Fetch units for these subjects
-      const [unitRows] = await db.execute(`
-        SELECT subject_code, unit_order, unit_name as name, topics
-        FROM syllabus_units
-        WHERE subject_code IN (${subjectCodes.map(() => '?').join(',')})
-        ORDER BY subject_code, unit_order
-      `, subjectCodes);
+      // 2. Fetch units
+      const unitRows = await db.query.syllabusUnits.findMany({
+        where: inArray(syllabusUnits.subject_code, subjectCodes),
+        orderBy: [asc(syllabusUnits.subject_code), asc(syllabusUnits.unit_order)]
+      });
 
-      // Group units by subject_code
       const unitsBySubject = unitRows.reduce((acc, u) => {
         if (!acc[u.subject_code]) acc[u.subject_code] = [];
         acc[u.subject_code].push({ 
-          name: u.name, 
+          name: u.unit_name, 
           topics: typeof u.topics === 'string' ? JSON.parse(u.topics) : u.topics 
         });
         return acc;
       }, {});
 
-      // 3. Fetch allocations if academicYear is provided
+      // 3. Fetch allocations
       let allocations = [];
       if (academicYear) {
-        const [rows] = await db.execute(
-          'SELECT subject_code, faculty_id FROM faculty_subject_assignments WHERE branch = ? AND course_semester = ? AND academic_year = ?',
-          [branch, semester, academicYear]
-        );
-        allocations = rows;
+        allocations = await db.select({
+          subject_code: facultySubjectAssignments.subject_code,
+          faculty_id: facultySubjectAssignments.faculty_id
+        })
+        .from(facultySubjectAssignments)
+        .where(and(
+          eq(facultySubjectAssignments.branch, branch),
+          eq(facultySubjectAssignments.course_semester, semester),
+          eq(facultySubjectAssignments.academic_year, academicYear)
+        ));
       }
 
       const check = (code) => {
@@ -108,18 +120,19 @@ export async function GET(request) {
     }
 
     // Default: Return basic branches/semesters info
-    const [allRows] = await db.execute(`
-      SELECT branch, semester, COUNT(*) as subject_count
-      FROM syllabus_structure
-      WHERE parent_group_code IS NULL
-      GROUP BY branch, semester
-      ORDER BY branch, semester
-    `);
+    const allRows = await db.select({
+      branch: syllabusStructure.branch,
+      semester: syllabusStructure.semester,
+      subject_count: sql`COUNT(*)`
+    })
+    .from(syllabusStructure)
+    .where(sql`${syllabusStructure.parent_group_code} IS NULL`)
+    .groupBy(syllabusStructure.branch, syllabusStructure.semester)
+    .orderBy(asc(syllabusStructure.branch), asc(syllabusStructure.semester));
 
-    // Grouping by branch
     const syllabusOverview = allRows.reduce((acc, row) => {
       if (!acc[row.branch]) acc[row.branch] = {};
-      acc[row.branch][row.semester] = { count: row.subject_count };
+      acc[row.branch][row.semester] = { count: Number(row.subject_count) };
       return acc;
     }, {});
 

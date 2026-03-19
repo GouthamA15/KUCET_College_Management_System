@@ -1,4 +1,9 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  facultySubjectAssignments, 
+  clerks 
+} from '@/db/schema';
+import { eq, and, asc, desc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -8,21 +13,22 @@ export async function GET(req) {
       return apiError('Unauthorized', 401);
     }
 
-    const sql = `
-      SELECT 
-        fsa.id,
-        fsa.faculty_id,
-        fsa.subject_code,
-        fsa.subject_name,
-        fsa.course_semester,
-        c.name as faculty_name
-      FROM faculty_subject_assignments fsa
-      JOIN clerks c ON fsa.faculty_id = c.id
-      WHERE fsa.branch = ? AND fsa.is_active = 1
-      ORDER BY fsa.course_semester DESC, fsa.subject_name ASC
-    `;
+    const assignments = await db.select({
+      id: facultySubjectAssignments.id,
+      faculty_id: facultySubjectAssignments.faculty_id,
+      subject_code: facultySubjectAssignments.subject_code,
+      subject_name: facultySubjectAssignments.subject_name,
+      course_semester: facultySubjectAssignments.course_semester,
+      faculty_name: clerks.name
+    })
+    .from(facultySubjectAssignments)
+    .innerJoin(clerks, eq(facultySubjectAssignments.faculty_id, clerks.id))
+    .where(and(
+      eq(facultySubjectAssignments.branch, user.branch),
+      eq(facultySubjectAssignments.is_active, true)
+    ))
+    .orderBy(desc(facultySubjectAssignments.course_semester), asc(facultySubjectAssignments.subject_name));
 
-    const assignments = await query(sql, [user.branch]);
     return apiResponse({ data: assignments });
   } catch (error) {
     console.error('Subject Assignments GET Error:', error);
@@ -43,23 +49,22 @@ export async function POST(req) {
       return apiError('Missing required fields', 400);
     }
 
-    // Insert into official assignments table
-    // We use a simplified version of the institutional table structure
-    await query(
-      `INSERT INTO faculty_subject_assignments 
-       (faculty_id, subject_code, subject_name, branch, course_semester, academic_term, academic_year, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-       ON DUPLICATE KEY UPDATE faculty_id = VALUES(faculty_id), is_active = 1`,
-      [
-        faculty_id, 
-        subject_code, 
-        subject_name, 
-        user.branch, 
-        semester, 
-        (semester % 2 === 0 ? 2 : 1), // Resolve term from semester
-        academic_year || '2025-26'
-      ]
-    );
+    await db.insert(facultySubjectAssignments).values({
+      faculty_id: parseInt(faculty_id),
+      subject_code: subject_code,
+      subject_name: subject_name,
+      branch: user.branch,
+      course_semester: parseInt(semester),
+      academic_term: (parseInt(semester) % 2 === 0 ? 2 : 1),
+      academic_year: academic_year || '2025-26',
+      is_active: true
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        faculty_id: sql`VALUES(faculty_id)`,
+        is_active: true
+      }
+    });
 
     return apiResponse({ success: true, message: 'Faculty assigned successfully' });
   } catch (error) {
@@ -76,9 +81,16 @@ export async function DELETE(req) {
       }
   
       const { searchParams } = new URL(req.url);
-      const id = searchParams.get('id');
+      const id = searchParams.get('id') ? parseInt(searchParams.get('id')) : null;
   
-      await query('UPDATE faculty_subject_assignments SET is_active = 0 WHERE id = ? AND branch = ?', [id, user.branch]);
+      if (!id) return apiError('Missing assignment ID', 400);
+
+      await db.update(facultySubjectAssignments)
+        .set({ is_active: false })
+        .where(and(
+          eq(facultySubjectAssignments.id, id),
+          eq(facultySubjectAssignments.branch, user.branch)
+        ));
   
       return apiResponse({ success: true, message: 'Assignment revoked' });
     } catch (error) {

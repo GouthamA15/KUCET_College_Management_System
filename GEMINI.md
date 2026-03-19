@@ -140,6 +140,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 58: Faculty Assignments & HOD Tools ORM Migration (March 19, 2026)**
+- **API Refactoring (Faculty/HOD):**
+    - **Faculty Core Batch:** Refactored `/faculty/assignments`, `/faculty/marks`, and `/faculty/syllabus` to Drizzle ORM, ensuring type-safe fetching of student marks and curriculum metadata.
+    - **HOD Departmental Tools:** Migrated HOD-specific routes including `/hod/timetable`, `/hod/faculty-load`, `/hod/subject-assignments`, and `/hod/branch-config`.
+    - **Performance Optimization:** Replaced complex nested raw SQL subqueries in the Faculty Load dashboard with optimized Drizzle `sql` aggregations.
+    - **Security:** Verified `is_hod` and role-based permissions within the new ORM logic to maintain strict departmental authority.
+- **Validation:** Confirmed that all HOD administrative functions, including slot-conflict detection and bulk faculty load metrics, are fully operational.
+
 ### **Session 57: Clerk & Faculty API Batch Refactoring (March 19, 2026)**
 - **API Modernization (Clerk/Faculty):**
     - **Faculty Attendance Batch:** Refactored all high-traffic attendance routes (`/attendance`, `/session`, `/status`, `/history`) to Drizzle ORM. Maintained complex shared-data logic using canonical assignment ID resolution.
