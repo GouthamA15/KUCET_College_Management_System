@@ -134,6 +134,19 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 45: Mobile UX Safe Areas & Native Download Architecture (March 19, 2026)**
+- **Safe Area Integration:**
+    - **Viewport Optimization:** Implemented `viewport-fit=cover` in the global metadata to enable full-screen rendering on notched mobile devices.
+    - **System-Aware Layouts:** Engineered a comprehensive safe-area strategy using `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)` across all sticky headers, fixed top-bars, sidebars, and footers.
+    - **Dynamic Spacers:** Implemented CSS-calculated spacers (`h-[calc(4rem+env(safe-area-inset-top))]`) to prevent content from being obscured by status bars or physical notches.
+- **Native Download Engine:**
+    - **Plugin Integration:** Installed and configured `@capacitor/filesystem` (v7) and `@capacitor-community/file-opener` (v7) to bypass WebView download limitations.
+    - **Abstraction Layer:** Developed a specialized `src/lib/capacitor-utils.js` utility that transforms Blobs into Base64 streams for local filesystem persistence in the Documents directory.
+    - **Immediate Access:** Implemented a "Save & Open" workflow that automatically triggers the native Android file opener upon successful certificate generation.
+- **UI Consistency:**
+    - **Sticky Header Refinement:** Synchronized the guest `Navbar` and `Header` with the new safe-area variables to maintain institutional branding even on small screens.
+    - **Sidebar Hardening:** Applied safe-area paddings to both `StudentSidebar` and `ClerkSidebar` to ensure identity elements remain visible and interactive.
+
 ### **Session 44: Navigation Rollback & UI Refinement (Latest - March 19, 2026)**
 - **Navigation Architecture Rollback:**
     - **Horizontal Restoration:** Replaced the recently implemented `PublicSidebar` (vertical rail) with the authoritative horizontal `Header` and `Navbar` across all guest-facing pages.

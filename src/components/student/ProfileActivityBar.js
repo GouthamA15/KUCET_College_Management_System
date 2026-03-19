@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import AttendanceVerificationActivity from './AttendanceVerificationActivity';
+import { isCapacitor, downloadToDevice } from '@/lib/capacitor-utils';
 
 export default function ProfileActivityBar({ activity, student }) {
   const {
@@ -98,16 +99,24 @@ export default function ProfileActivityBar({ activity, student }) {
       const res = await fetch(`/api/student/requests/download/${id}`, { method: 'GET', credentials: 'same-origin' });
       if (!res.ok) return;
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${type}-${id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      
+      const filename = `${type}-${id}.pdf`;
+
+      if (isCapacitor()) {
+        await downloadToDevice(blob, filename, 'application/pdf');
+        toast.success('Certificate downloaded successfully!');
+      } else {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
     } catch (e) {
-      // ignore
+      console.error('Download error:', e);
     }
   };
 

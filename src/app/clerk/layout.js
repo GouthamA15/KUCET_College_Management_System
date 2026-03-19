@@ -23,7 +23,7 @@ export default function ClerkLayout({ children }) {
         />
 
         {/* Mobile Top Bar (Search & Profile) - Fixed on Mobile */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-[#f8fafc]/80 backdrop-blur-xl border-b border-slate-100/50 shadow-sm w-full">
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-[#f8fafc]/80 backdrop-blur-xl border-b border-slate-100/50 shadow-sm w-full pt-[env(safe-area-inset-top)]">
           <ClerkTopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
         </div>
 
@@ -31,7 +31,7 @@ export default function ClerkLayout({ children }) {
         <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:ml-16">
           
           {/* Mobile Spacer */}
-          <div className="lg:hidden h-16"></div>
+          <div className="lg:hidden h-[calc(4rem+env(safe-area-inset-top))]"></div>
 
           {/* Page Content */}
           <main className="flex-1 p-4 lg:p-8 pt-2">

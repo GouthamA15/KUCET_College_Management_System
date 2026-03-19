@@ -5,7 +5,7 @@ import { getNowSync } from '@/lib/clock';
 
 export default function Footer() {
   return (
-    <footer className="bg-gradient-to-r from-blue-900 to-blue-800 text-white py-2">
+    <footer className="bg-gradient-to-r from-blue-900 to-blue-800 text-white py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
       <div className="max-w-6xl mx-auto px-4 sm:px-3 lg:px-5">
         
 

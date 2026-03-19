@@ -103,7 +103,7 @@ export default function ClerkSidebar({ isMobileOpen, setIsMobileOpen }) {
         setIsHovered(false);
         setSettingsOpen(false);
       }}
-      className={`fixed left-0 top-0 bottom-0 bg-[#0b3578] flex flex-col z-[60] transition-all duration-300 ease-in-out shadow-2xl 
+      className={`fixed left-0 top-0 bottom-0 bg-[#0b3578] flex flex-col z-[60] transition-all duration-300 ease-in-out shadow-2xl pt-[env(safe-area-inset-top)]
         ${isMobileOpen ? 'w-64 translate-x-0' : '-translate-x-full lg:translate-x-0'} 
         ${isExpanded ? 'lg:w-60' : 'lg:w-16'}
         ${isNotifOpen ? '' : 'overflow-hidden'}

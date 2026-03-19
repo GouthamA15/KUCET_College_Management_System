@@ -12,7 +12,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-gradient-to-r from-blue-50 to-white py-5 px-4 md:px-6 shadow-md w-full">
+    <header className="bg-gradient-to-r from-blue-50 to-white py-5 px-4 md:px-6 shadow-md w-full pt-[calc(1.25rem+env(safe-area-inset-top))] md:pt-5">
       {/* Desktop View */}
       <div className="hidden md:flex items-center justify-between h-full">
         
