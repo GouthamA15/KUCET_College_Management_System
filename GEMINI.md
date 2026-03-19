@@ -23,13 +23,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 2. Technical Stack
 - **Frontend:** Next.js 16.1.6, React 19.2.4, Tailwind CSS 4
 - **Backend:** Next.js API Routes (App Router), Node.js
-- **Database:** MySQL (Railway-hosted, accessed via `mysql2/promise`)
+- **Database:** MySQL (Railway-hosted, accessed via `mysql2/promise`), integrated with **Drizzle ORM** for type-safe querying and versioned migrations.
 - **Authentication:** JWT-based (HTTP-only cookies) using `jose` for edge-runtime compatibility. Includes native Google OAuth support.
 - **Real-Time:** Server-Sent Events (SSE) for lightweight server-to-client broadcasting.
 - **Monitoring:** Sentry SDK for full-stack error tracking and performance profiling.
 - **PDF Generation:** Custom template-based certificates using `@react-pdf/renderer` 4.3.2
 - **Cloud Storage:** Cloudinary integration for images, signatures, and screenshots
 - **Additional Libraries:**
+  - `drizzle-orm` 0.45.1 - Type-safe ORM
   - `bcrypt` 6.0.0 - Password hashing
   - `react-hot-toast` 2.6.0 - Toast notifications
   - `react-datepicker` 9.1.0 - Date input components
@@ -43,7 +44,12 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 3. Core Architectural Concepts
 
-### A. Middleware & Route Protection (`src/proxy.js`)
+### A. Database Integrity & Drizzle ORM
+- **Source of Truth:** `src/db/schema.js` provides a centralized, code-first definition of the database structure.
+- **Migrations:** Uses `drizzle-kit` for versioned migrations and schema synchronization (`db:push`, `db:generate`).
+- **Type Safety:** Transitioning core API routes to Drizzle's query builder to eliminate raw SQL risks and improve maintainability.
+
+### B. Middleware & Route Protection (`src/proxy.js`)
 - **Technology:** Uses `jose` library for Edge-runtime compatible JWT verification.
 - **Logic:** Intercepts requests to protected paths: `/admin`, `/clerk`, `/student`.
 - **JWT Verification:** Decodes the HTTP-only cookie, verifies signature using `HS256`, and redirects unauthorized users.
@@ -133,6 +139,54 @@ A robust, production-ready web application built with **Next.js** for managing t
 ---
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
+
+### **Session 55: Drizzle ORM Integration, Schema Synchronization & Data Restoration (March 19, 2026)**
+- **Database Modernization:**
+    - **ORM Initialization:** Created `src/db/index.js` to initialize the `db` instance using the existing `mysql2` pool.
+    - **Schema Single Source of Truth:** Synchronized `src/db/schema.js` with the production TiDB database structure, explicitly defining all 33 tables, primary keys, and unique constraints.
+    - **Versioned Migrations:** Established a baseline migration in the `drizzle/` directory, providing a versioned history of the database structure.
+- **Production Resolution:**
+    - **ER_MULTIPLE_PRI_KEY Resolution:** Fixed a critical deployment error where Drizzle attempted to re-add existing primary keys. Updated `schema.js` to explicitly define primary keys in the table callback, aligning with TiDB's introspection behavior.
+    - **Total Data Restoration:** Developed and executed a custom data restoration workflow to import all records from `tset.sql` into the live TiDB environment, bypassing local MySQL client limitations.
+- **API Refactoring (Type Safety):**
+    - **Core Route Conversion:** Refactored high-complexity student API routes (`[rollno]` and `signature`) to use Drizzle's type-safe query builder, eliminating raw SQL strings and reducing runtime risk.
+- **Project Hygiene:**
+    - **Diagnostic Cleanup:** Removed legacy diagnostic scripts (`add_indexes_v2.js`, `check_duplicates.js`, etc.) to maintain a clean production codebase.
+
+### **Session 54: NextAuth Configuration & CLIENT_FETCH_ERROR Resolution (March 19, 2026)**
+- **Console Error Resolution:**
+    - **Root Cause:** NextAuth was failing with `[next-auth][error][CLIENT_FETCH_ERROR]` when attempting to fetch session data from the `/api/auth/callback/session` endpoint.
+    - **Configuration Mismatch:** The auth route in `src/app/api/auth/[...nextauth]/route.js` was using `process.env.JWT_SECRET` as the NextAuth secret, but NextAuth internally looks for `NEXTAUTH_SECRET` or `AUTH_SECRET`. When the secret is undefined, JWT operations fail silently.
+- **Fixes Implemented:**
+    - **Secret Configuration:** Updated the auth route to properly fallback: `process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || process.env.JWT_SECRET`
+    - **Error Handling:** Added comprehensive try-catch blocks to all NextAuth callbacks (`signIn`, `jwt`, `session`) to prevent uncaught errors from crashing the auth flow and silently log issues to console.
+    - **Session Callback Safety:** Added null checks for `token.id` and `token.role` in the session callback to prevent undefined property assignment errors.
+    - **Session Provider Optimization:** Disabled automatic session refetching in `src/app/components/AuthProvider.js` by setting:
+        - `session={null}` - Prevents initial session fetch on mount
+        - `refetchInterval={0}` - Disables periodic refetching
+        - `refetchOnWindowFocus={false}` - Prevents refetch on window focus
+    - **Result:** NextAuth now gracefully handles missing environment variables and callback errors without throwing CLIENT_FETCH_ERROR exceptions.
+
+### **Session 53: Drizzle Schema Synchronization & Primary Key Resolution (March 19, 2026)**
+- **Database Migration Debugging:**
+    - **Multiple Primary Key Error:** Resolved a critical `ER_MULTIPLE_PRI_KEY` (code 1068) error during `npm run db:push` where Drizzle was attempting to add primary keys to tables that already possessed them in the database.
+    - **Root Cause Analysis:** Identified that the schema definition in `src/db/schema.js` was missing `.primaryKey()` declarations on 24+ autoincrement `id` fields, causing a mismatch between the ORM's understanding of the schema and the actual database structure.
+- **Schema Corrections:**
+    - **Systematic Fixes:** Added `.primaryKey()` to all autoincrement `id` fields across all 33 tables, including:
+        - Core tables: `students`, `clerks`, `principal`
+        - Academic tables: `student_personal_details`, `student_academic_background`, `student_admission_drafts`
+        - Attendance & Marks: `student_attendance`, `student_marks`
+        - Admin tables: `academic_calendar`, `branch_config`, `branch_timetable`, `faculty_subject_assignments`
+        - Specialty tables: `otp_codes`, `passwordResetTokens` (reordered to `.autoincrement().primaryKey()`), `scholarship_sanctions`, `scholarship_windows`, `semesters`, `facultySubjectInterests`, `studentProfileRequests`, `studentImportLogs`
+        - Indexes & Utilities: `attendanceSessions`, `attendanceSessionLogs`, `studentFeePayments`
+        - Curriculum: `syllabusStructure`, `syllabusUnits`, `certificateVerifications`
+- **Migration State Recovery:**
+    - **Baseline Reset:** Deleted conflicting migration entries (0001 and 0002) that were attempting to add primary keys.
+    - **Clean Slate Rebuild:** Generated a fresh baseline migration reflecting the current database state without attempting to recreate existing tables.
+    - **Journal Synchronization:** Updated `drizzle/meta/_journal.json` to align with the corrected migration files and snapshots.
+- **Validation & Resolution:**
+    - **Verification:** Confirmed via `debug_db.js` that the database already possessed all primary keys with `Key='PRI'` status.
+    - **Successful Sync:** `npm run db:push` now progresses past the primary key stage and correctly identifies only the unique constraint additions as pending migrations.
 
 ### **Session 52: Memory-Based SSE for Permanent Free-Tier Reliability (March 19, 2026)**
 - **Real-Time Architectural Decision:**

@@ -14,6 +14,14 @@ export function addSSEClient(controller) {
   console.log(`[SSE] Client connected. Total active connections: ${global._sse_controllers.size}`);
 }
 
+/**
+ * Removes a client connection from the pool.
+ */
+export function removeSSEClient(controller) {
+  global._sse_controllers.delete(controller);
+  console.log(`[SSE] Client disconnected. Total active connections: ${global._sse_controllers.size}`);
+}
+
 const encoder = new TextEncoder();
 
 /**

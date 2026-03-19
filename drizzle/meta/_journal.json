@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1773943720581,
+      "tag": "0000_dizzy_malcolm_colcord",
+      "breakpoints": true
+    }
+  ]
+}

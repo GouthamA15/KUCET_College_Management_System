@@ -28,7 +28,7 @@ function SessionMonitor({ children }) {
 
 export default function AuthProvider({ children }) {
   return (
-    <SessionProvider>
+    <SessionProvider session={null} refetchInterval={0} refetchOnWindowFocus={false}>
       <SessionMonitor>{children}</SessionMonitor>
     </SessionProvider>
   );
