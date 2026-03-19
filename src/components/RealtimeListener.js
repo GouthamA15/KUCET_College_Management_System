@@ -35,39 +35,44 @@ export default function RealtimeListener({ onUpdate }) {
 
   // Fallback identity fetch if context isn't available (e.g., on landing page)
   useEffect(() => {
-    if (!studentCtx.studentData && !clerkCtx.clerkData) {
-      const fetchIdentity = async () => {
-        try {
-          const res = await fetch('/api/student/me');
-          if (res.ok) {
-            const { roll_no } = await res.json();
-            const profileRes = await fetch(`/api/student/${roll_no}`);
-            if (profileRes.ok) {
-              const data = await profileRes.json();
-              setInternalStudent(data.student);
-              console.log('[Realtime] Internal identity fetched for background listening');
-            }
+    const fetchIdentity = async () => {
+      try {
+        const res = await fetch('/api/student/me');
+        if (res.ok) {
+          const { roll_no } = await res.json();
+          const profileRes = await fetch(`/api/student/${roll_no}`);
+          if (profileRes.ok) {
+            const data = await profileRes.json();
+            setInternalStudent(data.student);
+            console.log('[Realtime] Internal identity fetched:', data.student.branch);
+            // Use a small alert once to confirm identity is loaded on phone
+            // alert('Identity Loaded: ' + data.student.roll_no + ' (' + data.student.branch + ')');
           }
-        } catch (e) {
-          // Silent failure for identity fetch
         }
-      };
+      } catch (e) {
+        console.error('[Realtime] Identity fetch failed');
+      }
+    };
+    
+    if (!studentCtx.studentData && !clerkCtx.clerkData) {
       fetchIdentity();
     }
   }, [studentCtx.studentData, clerkCtx.clerkData]);
 
   const handleNotification = useCallback((data) => {
     const { type, payload } = data;
-    if (type === 'CONNECTED') return; // Ignore internal meta-event
+    if (type === 'CONNECTED') return; 
     
-    // Priority: Context Data -> Internal Fallback State
     const student = studentDataRef.current?.student || studentDataRef.current || internalStudent;
     const clerk = clerkDataRef.current;
 
-    console.log('[Realtime-Notify] Processing event:', type, 'as', student ? 'Student' : (clerk ? 'Clerk' : 'Guest'));
+    console.log('[Realtime-Notify] Event:', type, 'Branch:', payload?.branch);
 
     if (student) {
       if (type === 'SESSION_STARTED') {
+        // DIAGNOSTIC ALERT: Always show this to see if event reaches here
+        alert(`EVENT: Session Started\nSubject: ${payload.subject_code}\nBranch: ${payload.branch}\nYour Branch: ${student.branch}`);
+
         if (payload.branch === student.branch) {
           showLocalNotification(
             'Attendance Session Started 📍',
@@ -104,14 +109,6 @@ export default function RealtimeListener({ onUpdate }) {
             { type: 'clerk_request', clerkType: payload.clerkType }
           );
         }
-      } else if (type === 'PROFILE_UPDATE_REQUESTED') {
-        if (clerk.role === 'admission') {
-          showLocalNotification(
-            'New Profile Update Request 👤',
-            'A student has requested a profile information update.',
-            { type: 'profile_update' }
-          );
-        }
       }
     }
   }, [internalStudent]);
@@ -127,7 +124,6 @@ export default function RealtimeListener({ onUpdate }) {
 
     const channel = new BroadcastChannel(CHANNEL_NAME);
 
-    // Communicate status to landing page debug buttons
     const broadcastStatus = (status) => {
         setConnectionStatus(status);
         if (typeof window !== 'undefined') window.__sse_status = status;
@@ -138,7 +134,6 @@ export default function RealtimeListener({ onUpdate }) {
 
     channel.onmessage = (event) => {
       if (event.data?.type === 'STATUS_QUERY') {
-          // Send back the CURRENT status from our state
           channel.postMessage({ type: 'STATUS_SYNC', status: window.__sse_status || 'connecting' });
           return;
       }
@@ -147,6 +142,10 @@ export default function RealtimeListener({ onUpdate }) {
               setConnectionStatus(event.data.status);
               if (typeof window !== 'undefined') window.__sse_status = event.data.status;
           }
+          return;
+      }
+      if (event.data?.type === 'FORCE_NOTIFY') {
+          handleNotification(event.data.payload);
           return;
       }
       if (!isLeader) {
@@ -165,7 +164,6 @@ export default function RealtimeListener({ onUpdate }) {
       eventSource.onopen = () => {
         retryCount = 0;
         broadcastStatus('connected');
-        console.log('[Realtime] SSE Stream Open');
       };
 
       eventSource.onmessage = (event) => {
@@ -191,10 +189,8 @@ export default function RealtimeListener({ onUpdate }) {
       };
 
       eventSource.onerror = (err) => {
-        console.warn('[Realtime] SSE Error');
         broadcastStatus('error');
         eventSource.close();
-        
         const delay = Math.min(30000, Math.pow(2, retryCount) * 1000);
         retryCount++;
         setTimeout(() => {
@@ -216,7 +212,6 @@ export default function RealtimeListener({ onUpdate }) {
         });
       }).catch(e => {
         isLeader = false;
-        // Query leader for status
         channel.postMessage({ type: 'STATUS_QUERY' });
       });
     } else {
@@ -230,7 +225,7 @@ export default function RealtimeListener({ onUpdate }) {
       if (lockResolver) lockResolver();
       channel.close();
     };
-  }, [handleNotification]); // Removed connectionStatus to keep size constant and avoid infinite loop
+  }, [handleNotification]); 
 
   return null;
 }

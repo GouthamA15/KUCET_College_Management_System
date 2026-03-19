@@ -58,7 +58,6 @@ export default function Hero() {
         >
           Instant Test
         </button>
-        
         <button 
           onClick={async () => {
             alert('Scheduling test notification for 5 seconds from now...');
@@ -71,9 +70,35 @@ export default function Hero() {
           }}
           className="bg-slate-800 hover:bg-slate-900 text-white border border-white/30 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
         >
-          10s Delay Test
+          <span className="bg-orange-400 w-2 h-2 rounded-full"></span>
+          5s Delay Test
         </button>
-      </div>
+
+        <button 
+          onClick={async () => {
+            const branch = prompt('Enter Branch to simulate (CSE/CSD/ECE):', 'CSE');
+            if (!branch) return;
+
+            const bc = new BroadcastChannel('kucet_sse_sync');
+            bc.postMessage({
+                type: 'FORCE_NOTIFY',
+                payload: {
+                    type: 'SESSION_STARTED',
+                    payload: {
+                        branch: branch.toUpperCase(),
+                        subject_code: 'TEST-101',
+                        sessionId: 999
+                    }
+                }
+            });
+            alert('Simulated SESSION_STARTED broadcast sent locally.');
+          }}
+          className="bg-purple-600 hover:bg-purple-700 text-white border border-white/30 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
+        >
+          <span className="bg-white w-2 h-2 rounded-full animate-bounce"></span>
+          Simulate Start
+        </button>
+        </div>
 
       {/* Hero Image */}
       <div className="relative w-full h-75 md:h-100 lg:h-125 overflow-hidden">
