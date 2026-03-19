@@ -140,6 +140,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 57: Clerk & Faculty API Batch Refactoring (March 19, 2026)**
+- **API Modernization (Clerk/Faculty):**
+    - **Faculty Attendance Batch:** Refactored all high-traffic attendance routes (`/attendance`, `/session`, `/status`, `/history`) to Drizzle ORM. Maintained complex shared-data logic using canonical assignment ID resolution.
+    - **Scholarship Management Batch:** Migrated the complete scholarship lifecycle including Metrics, Application Windows, Sanctions, Payments, and Summaries to type-safe Drizzle queries.
+    - **Implementation Details:** Utilized `db.transaction()` for atomic attendance updates and `onDuplicateKeyUpdate` for high-performance bulk record synchronization.
+- **UI Enhancements:**
+    - **Sidebar Navigation:** Integrated direct access links for "Modify Records" in the Student sidebar and "Admission Requests/Finalization" in the Clerk sidebar, improving administrative discoverability.
+- **Validation:** Verified that all refactored routes maintain functional parity with original raw SQL versions, including real-time SSE triggers.
+
 ### **Session 56: API Hardening & SQL Ambiguity Resolution (March 19, 2026)**
 - **API Stability:**
     - **ER_NON_UNIQ_ERROR Fix:** Resolved a critical ambiguity error in the `academic-info` route where multiple tables shared the `id` column. Implemented explicit aliasing (`canonical_id`) within Drizzle CTEs to ensure valid SQL generation.

@@ -1,6 +1,12 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  students as studentsTable, 
+  studentImages, 
+  scholarshipSanctions, 
+  studentFeePayments 
+} from '@/db/schema';
+import { eq, and, asc, sql } from 'drizzle-orm';
 import { getBranchFromRoll, getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
-import { SFC_COURSES } from '../../../../../../lib/financial-utils';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 
@@ -9,28 +15,41 @@ export async function GET(req, ctx) {
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
+    const params = await ctx.params;
     const { application_no } = params;
     if (!application_no) return apiError('Missing application_no parameter', 400);
 
     // Find sanction rows that match the application number
-    const sanctionRows = await query('SELECT DISTINCT student_id, academic_year FROM scholarship_sanctions WHERE application_no = ?', [application_no]);
-    if (!sanctionRows || sanctionRows.length === 0) {
+    const sanctionRows = await db.select({ 
+      student_id: scholarshipSanctions.student_id, 
+      academic_year: scholarshipSanctions.academic_year 
+    })
+    .from(scholarshipSanctions)
+    .where(eq(scholarshipSanctions.application_no, application_no));
+
+    if (sanctionRows.length === 0) {
       return apiError('Application not found', 404);
     }
 
     // Pick the first student (application_no should map to one student)
     const studentId = sanctionRows[0].student_id;
 
-    const [student] = await query(
-      `SELECT s.id, s.roll_no, s.name, s.fee_reimbursement, s.email, s.mobile,
-       CASE WHEN si.pfp IS NOT NULL THEN 1 ELSE 0 END as has_pfp
-       FROM students s
-       LEFT JOIN student_images si ON s.id = si.student_id
-       WHERE s.id = ?`,
-      [studentId]
-    );
-    if (!student) return apiError('Student not found', 404);
+    const studentRows = await db.select({
+      id: studentsTable.id,
+      roll_no: studentsTable.roll_no,
+      name: studentsTable.name,
+      fee_reimbursement: studentsTable.fee_reimbursement,
+      email: studentsTable.email,
+      mobile: studentsTable.mobile,
+      has_pfp: sql`CASE WHEN ${studentImages.pfp} IS NOT NULL THEN 1 ELSE 0 END`
+    })
+    .from(studentsTable)
+    .leftJoin(studentImages, eq(studentsTable.id, studentImages.student_id))
+    .where(eq(studentsTable.id, studentId))
+    .limit(1);
+
+    if (studentRows.length === 0) return apiError('Student not found', 404);
+    const student = studentRows[0];
 
     const now = await getNow();
     const course = getBranchFromRoll(student.roll_no);
@@ -38,25 +57,49 @@ export async function GET(req, ctx) {
     const current_year = getResolvedCurrentAcademicYear(student.roll_no, null, now);
 
     // For each academic_year belonging to this application, build a summary
-    const years = Array.from(new Set(sanctionRows.map(r => r.academic_year))).filter(Boolean);
+    const uniqueYears = Array.from(new Set(sanctionRows.map(r => r.academic_year))).filter(Boolean);
     const year_records = {};
 
-    for (const year of years) {
+    for (const year of uniqueYears) {
       // sanctions for this student/year
-      const sanctions = await query('SELECT id, application_no, proceeding_no, sanctioned_amount, sanction_date FROM scholarship_sanctions WHERE student_id = ? AND academic_year = ? ORDER BY sanction_date ASC', [studentId, year]);
-      const scholarship_proceedings = (sanctions || []).map(r => ({ id: r.id, proceeding_no: r.proceeding_no, amount: Number(r.sanctioned_amount) || 0, date: r.sanction_date }));
-      const application_for_year = (sanctions || []).map(r => r.application_no).find(v => v && String(v).trim() !== '') || null;
+      const sanctions = await db.query.scholarshipSanctions.findMany({
+        where: and(
+          eq(scholarshipSanctions.student_id, studentId),
+          eq(scholarshipSanctions.academic_year, year)
+        ),
+        orderBy: [asc(scholarshipSanctions.sanction_date)]
+      });
+
+      const scholarship_proceedings = sanctions.map(r => ({ 
+        id: r.id, 
+        proceeding_no: r.proceeding_no, 
+        amount: Number(r.sanctioned_amount) || 0, 
+        date: r.sanction_date 
+      }));
+      const application_for_year = sanctions.map(r => r.application_no).find(v => v && String(v).trim() !== '') || null;
 
       // payments for this student/year
-      const payments = await query('SELECT id, transaction_ref_no, amount, transaction_date FROM student_fee_payments WHERE student_id = ? AND academic_year = ? ORDER BY transaction_date ASC', [studentId, year]);
-      const student_payments = (payments || []).map(r => ({ id: r.id, transaction_ref: r.transaction_ref_no, amount: Number(r.amount) || 0, date: r.transaction_date }));
+      const payments = await db.query.studentFeePayments.findMany({
+        where: and(
+          eq(studentFeePayments.student_id, studentId),
+          eq(studentFeePayments.academic_year, year)
+        ),
+        orderBy: [asc(studentFeePayments.transaction_date)]
+      });
 
-      // derive fee summary consistent with summary endpoint
+      const student_payments = payments.map(r => ({ 
+        id: r.id, 
+        transaction_ref: r.transaction_ref_no, 
+        amount: Number(r.amount) || 0, 
+        date: r.transaction_date 
+      }));
+
+      // derive fee summary
       const SFC_COURSES = new Set(['CSD', 'IT', 'CIVIL']);
       const fee_category = SFC_COURSES.has(String(course).toUpperCase()) ? 'SFC' : 'NON-SFC';
       const total_fee = fee_category === 'SFC' ? 70000 : 35000;
-      const govt_paid = scholarship_proceedings.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-      const student_paid = student_payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const govt_paid = scholarship_proceedings.reduce((sum, p) => sum + p.amount, 0);
+      const student_paid = student_payments.reduce((sum, p) => sum + p.amount, 0);
       const pending_fee = Math.max(0, Number(total_fee) - (Number(govt_paid) + Number(student_paid)));
       const status = pending_fee === 0 ? 'COMPLETED' : 'PENDING';
 
@@ -81,7 +124,7 @@ export async function GET(req, ctx) {
         roll_no: student.roll_no,
         name: student.name,
         fee_reimbursement: student.fee_reimbursement,
-        fee_category: SFC_COURSES.has(String(course).toUpperCase()) ? 'SFC' : 'NON-SFC',
+        fee_category: new Set(['CSD', 'IT', 'CIVIL']).has(String(course).toUpperCase()) ? 'SFC' : 'NON-SFC',
         course,
         email: student.email ?? null,
         mobile: student.mobile ?? null,

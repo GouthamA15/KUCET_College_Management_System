@@ -1,5 +1,11 @@
+import { db } from '@/db';
+import { 
+  facultySubjectAssignments, 
+  studentAttendance, 
+  collegeInfo as collegeInfoTable 
+} from '@/db/schema';
+import { eq, and, asc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
 import { isSemesterActive } from '@/lib/academic-utils';
 
 export async function POST(request) {
@@ -26,12 +32,20 @@ export async function POST(request) {
       }
     }
 
-    const db = getDb();
     // Verify assignment belongs to faculty
-    const [assignments] = await db.execute(
-      'SELECT id, subject_code, branch, course_semester, academic_year FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
-      [assignment_id, user.id]
-    );
+    const assignments = await db.select({
+      id: facultySubjectAssignments.id,
+      subject_code: facultySubjectAssignments.subject_code,
+      branch: facultySubjectAssignments.branch,
+      course_semester: facultySubjectAssignments.course_semester,
+      academic_year: facultySubjectAssignments.academic_year
+    })
+    .from(facultySubjectAssignments)
+    .where(and(
+      eq(facultySubjectAssignments.id, assignment_id),
+      eq(facultySubjectAssignments.faculty_id, user.id)
+    ))
+    .limit(1);
 
     if (assignments.length === 0) {
       return apiError('Assignment not found or unauthorized', 404);
@@ -41,65 +55,58 @@ export async function POST(request) {
     const { subject_code, branch, course_semester, academic_year } = assignment;
 
     // --- SHARED DATA LOGIC: Canonical ID ---
-    // All faculty teaching the same subject share the same attendance table records
-    const [canonicalRows] = await db.execute(`
-      SELECT id FROM faculty_subject_assignments 
-      WHERE subject_code = ? AND branch = ? AND course_semester = ? AND academic_year = ?
-      ORDER BY created_at ASC LIMIT 1
-    `, [subject_code, branch, course_semester, academic_year]);
+    const canonicalRows = await db.select({ id: facultySubjectAssignments.id })
+      .from(facultySubjectAssignments)
+      .where(and(
+        eq(facultySubjectAssignments.subject_code, subject_code),
+        eq(facultySubjectAssignments.branch, branch),
+        eq(facultySubjectAssignments.course_semester, course_semester),
+        eq(facultySubjectAssignments.academic_year, academic_year)
+      ))
+      .orderBy(asc(facultySubjectAssignments.created_at))
+      .limit(1);
     
     const targetAssignmentId = canonicalRows[0]?.id || assignment_id;
 
     // Check if assignment is active
-    const [collegeInfoRows] = await db.execute('SELECT * FROM college_info WHERE id = 1');
-    const collegeInfo = collegeInfoRows[0] || null;
+    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
+    const collegeInfo = collegeRows[0] || null;
 
     if (!await isSemesterActive(course_semester, academic_year, collegeInfo)) {
       return apiError('Semester has ended. Attendance locked.', 403);
     }
 
-    // Begin Transaction
-    const connection = await db.getConnection();
-    await connection.beginTransaction();
-
-    try {
+    // Transaction
+    await db.transaction(async (tx) => {
       if (attendance_data.length > 0) {
-        // Build a single bulk insert query for high performance
-        const values = [];
-        const placeholders = attendance_data.map(item => {
-          values.push(item.student_id, targetAssignmentId, date, session, item.status);
-          return '(?, ?, ?, ?, ?)';
-        }).join(', ');
+        const values = attendance_data.map(item => ({
+          student_id: item.student_id,
+          assignment_id: targetAssignmentId,
+          date: date,
+          session: session,
+          status: item.status
+        }));
 
-        const sql = `
-          INSERT INTO student_attendance (student_id, assignment_id, date, session, status)
-          VALUES ${placeholders}
-          ON DUPLICATE KEY UPDATE status = VALUES(status)
-        `;
-        
-        await connection.execute(sql, values);
+        await tx.insert(studentAttendance)
+          .values(values)
+          .onDuplicateKeyUpdate({
+            set: { status: sql`VALUES(status)` }
+          });
       }
+    });
 
-      await connection.commit();
-
-      // REAL-TIME: Notify HOD/Faculty
-      try {
-        const { broadcastUpdate } = await import('@/lib/sse');
-        broadcastUpdate('ATTENDANCE_SAVED', { 
-          faculty_id: user.id, 
-          branch: assignment.branch 
-        });
-      } catch (sseErr) {
-        console.warn('[SSE] Broadcast failed:', sseErr);
-      }
-
-      return apiResponse({ message: 'Attendance updated successfully' });
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
+    // REAL-TIME: Notify HOD/Faculty
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('ATTENDANCE_SAVED', { 
+        faculty_id: user.id, 
+        branch: assignment.branch 
+      });
+    } catch (sseErr) {
+      console.warn('[SSE] Broadcast failed:', sseErr);
     }
+
+    return apiResponse({ message: 'Attendance updated successfully' });
   } catch (error) {
     console.error('Attendance Update Error:', error);
     return apiError('Internal Server Error', 500);
@@ -114,20 +121,27 @@ export async function DELETE(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const assignment_id = searchParams.get('assignment_id');
+    const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
     const date = searchParams.get('date');
-    const session = searchParams.get('session');
+    const session = searchParams.get('session') ? parseInt(searchParams.get('session')) : null;
 
     if (!assignment_id || !date || !session) {
       return apiError('Missing required parameters', 400);
     }
 
-    const db = getDb();
     // Verify assignment and activity
-    const [assignments] = await db.execute(
-      'SELECT id, subject_code, branch, course_semester, academic_year FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
-      [assignment_id, user.id]
-    );
+    const assignments = await db.select({
+      subject_code: facultySubjectAssignments.subject_code,
+      branch: facultySubjectAssignments.branch,
+      course_semester: facultySubjectAssignments.course_semester,
+      academic_year: facultySubjectAssignments.academic_year
+    })
+    .from(facultySubjectAssignments)
+    .where(and(
+      eq(facultySubjectAssignments.id, assignment_id),
+      eq(facultySubjectAssignments.faculty_id, user.id)
+    ))
+    .limit(1);
 
     if (assignments.length === 0) {
       return apiError('Assignment not found or unauthorized', 404);
@@ -137,25 +151,32 @@ export async function DELETE(request) {
     const { subject_code, branch, course_semester, academic_year } = assignment;
 
     // --- SHARED DATA LOGIC: Canonical ID ---
-    const [canonicalRows] = await db.execute(`
-      SELECT id FROM faculty_subject_assignments 
-      WHERE subject_code = ? AND branch = ? AND course_semester = ? AND academic_year = ?
-      ORDER BY created_at ASC LIMIT 1
-    `, [subject_code, branch, course_semester, academic_year]);
+    const canonicalRows = await db.select({ id: facultySubjectAssignments.id })
+      .from(facultySubjectAssignments)
+      .where(and(
+        eq(facultySubjectAssignments.subject_code, subject_code),
+        eq(facultySubjectAssignments.branch, branch),
+        eq(facultySubjectAssignments.course_semester, course_semester),
+        eq(facultySubjectAssignments.academic_year, academic_year)
+      ))
+      .orderBy(asc(facultySubjectAssignments.created_at))
+      .limit(1);
     
     const targetAssignmentId = canonicalRows[0]?.id || assignment_id;
 
-    const [collegeInfoRows] = await db.execute('SELECT * FROM college_info WHERE id = 1');
-    const collegeInfo = collegeInfoRows[0] || null;
+    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
+    const collegeInfo = collegeRows[0] || null;
 
     if (!await isSemesterActive(course_semester, academic_year, collegeInfo)) {
       return apiError('Semester has ended. Attendance locked.', 403);
     }
 
-    await db.execute(
-      'DELETE FROM student_attendance WHERE assignment_id = ? AND date = ? AND session = ?',
-      [targetAssignmentId, date, session]
-    );
+    await db.delete(studentAttendance)
+      .where(and(
+        eq(studentAttendance.assignment_id, targetAssignmentId),
+        eq(studentAttendance.date, date),
+        eq(studentAttendance.session, session)
+      ));
 
     return apiResponse({ message: 'Attendance for the selected date has been deleted' });
   } catch (error) {

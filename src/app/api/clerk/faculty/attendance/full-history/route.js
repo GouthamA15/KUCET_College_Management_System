@@ -1,5 +1,7 @@
+import { db } from '@/db';
+import { studentAttendance } from '@/db/schema';
+import { eq, and, asc, desc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
 
 export async function GET(request) {
   try {
@@ -9,35 +11,50 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const assignment_id = searchParams.get('assignment_id');
-    const student_id = searchParams.get('student_id');
+    const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
+    const student_id = searchParams.get('student_id') ? parseInt(searchParams.get('student_id')) : null;
 
     if (!assignment_id) {
       return apiError('Assignment ID is required', 400);
     }
 
-    const db = getDb();
-
-    // If student_id is provided, fetch history for ONE student (existing functionality)
+    // If student_id is provided, fetch history for ONE student
     if (student_id) {
-      const [history] = await db.execute(
-        "SELECT DATE_FORMAT(date, '%Y-%m-%d') as date, status, session FROM student_attendance WHERE student_id = ? AND assignment_id = ? ORDER BY date DESC, session DESC",
-        [student_id, assignment_id]
-      );
+      const history = await db.select({
+        date: sql`DATE_FORMAT(${studentAttendance.date}, '%Y-%m-%d')`,
+        status: studentAttendance.status,
+        session: studentAttendance.session
+      })
+      .from(studentAttendance)
+      .where(and(
+        eq(studentAttendance.student_id, student_id),
+        eq(studentAttendance.assignment_id, assignment_id)
+      ))
+      .orderBy(desc(studentAttendance.date), desc(studentAttendance.session));
+
       return apiResponse({ data: history });
     }
 
     // If no student_id, fetch FULL GRID DATA for all students in this assignment
-    const [attendance] = await db.execute(
-      "SELECT student_id, DATE_FORMAT(date, '%Y-%m-%d') as date, session, status FROM student_attendance WHERE assignment_id = ? ORDER BY date ASC, session ASC",
-      [assignment_id]
-    );
+    const attendance = await db.select({
+      student_id: studentAttendance.student_id,
+      date: sql`DATE_FORMAT(${studentAttendance.date}, '%Y-%m-%d')`,
+      session: studentAttendance.session,
+      status: studentAttendance.status
+    })
+    .from(studentAttendance)
+    .where(eq(studentAttendance.assignment_id, assignment_id))
+    .orderBy(asc(studentAttendance.date), asc(studentAttendance.session));
 
     // Get unique dates/sessions for columns
-    const [uniqueDates] = await db.execute(
-      "SELECT DISTINCT DATE_FORMAT(date, '%Y-%m-%d') as date, session FROM student_attendance WHERE assignment_id = ? ORDER BY date ASC, session ASC",
-      [assignment_id]
-    );
+    const uniqueDates = await db.select({
+      date: sql`DATE_FORMAT(${studentAttendance.date}, '%Y-%m-%d')`,
+      session: studentAttendance.session
+    })
+    .from(studentAttendance)
+    .where(eq(studentAttendance.assignment_id, assignment_id))
+    .groupBy(studentAttendance.date, studentAttendance.session)
+    .orderBy(asc(studentAttendance.date), asc(studentAttendance.session));
 
     return apiResponse({ 
       attendance, 

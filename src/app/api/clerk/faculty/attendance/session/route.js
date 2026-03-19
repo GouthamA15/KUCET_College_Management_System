@@ -1,5 +1,10 @@
+import { db } from '@/db';
+import { 
+  attendanceSessions, 
+  facultySubjectAssignments 
+} from '@/db/schema';
+import { eq, and, gt, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
 import crypto from 'crypto';
 
 /**
@@ -14,27 +19,26 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const assignment_id = searchParams.get('assignment_id');
+    const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
 
     if (!assignment_id) {
       return apiError('Missing assignment_id', 400);
     }
 
-    const db = getDb();
-    
-    // Check if session_number column exists
-    const [colInfo] = await db.execute(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions'`
-    );
-    const columns = colInfo.map(c => c.COLUMN_NAME);
-    const hasSessionNumber = columns.includes('session_number');
-
-    const [sessions] = await db.execute(
-      `SELECT id, session_pin, session_token, expires_at ${hasSessionNumber ? ', session_number' : ''}
-       FROM attendance_sessions 
-       WHERE assignment_id = ? AND is_active = 1 AND expires_at > NOW()`,
-      [assignment_id]
-    );
+    const sessions = await db.select({
+      id: attendanceSessions.id,
+      session_pin: attendanceSessions.session_pin,
+      session_token: attendanceSessions.session_token,
+      expires_at: attendanceSessions.expires_at,
+      session_number: attendanceSessions.session_number
+    })
+    .from(attendanceSessions)
+    .where(and(
+      eq(attendanceSessions.assignment_id, assignment_id),
+      eq(attendanceSessions.is_active, true),
+      gt(attendanceSessions.expires_at, sql`NOW()`)
+    ))
+    .limit(1);
 
     if (sessions.length === 0) {
       return apiResponse({ active: false });
@@ -65,23 +69,27 @@ export async function POST(request) {
       return apiError('Missing assignment_id or attendance_date', 400);
     }
 
-    const db = getDb();
-
     // 1. Verify assignment belongs to faculty
-    const [assignments] = await db.execute(
-      'SELECT id, branch, subject_code FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
-      [assignment_id, user.id]
-    );
+    const assignments = await db.select({
+      id: facultySubjectAssignments.id,
+      branch: facultySubjectAssignments.branch,
+      subject_code: facultySubjectAssignments.subject_code
+    })
+    .from(facultySubjectAssignments)
+    .where(and(
+      eq(facultySubjectAssignments.id, assignment_id),
+      eq(facultySubjectAssignments.faculty_id, user.id)
+    ))
+    .limit(1);
 
     if (assignments.length === 0) {
       return apiError('Assignment not found or unauthorized', 404);
     }
 
     // 2. Deactivate any existing sessions for this assignment
-    await db.execute(
-      'UPDATE attendance_sessions SET is_active = 0 WHERE assignment_id = ?',
-      [assignment_id]
-    );
+    await db.update(attendanceSessions)
+      .set({ is_active: false })
+      .where(eq(attendanceSessions.assignment_id, assignment_id));
 
     // 3. Generate PIN and Token
     const sessionPin = crypto.randomInt(1000, 9999).toString();
@@ -89,37 +97,21 @@ export async function POST(request) {
     
     // Session valid for 10 minutes by default
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
-    const expiresAtSql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
     // 4. Create new session
-    // Check if columns exist for backwards compatibility
-    const [colInfo] = await db.execute(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions'`
-    );
-    const columns = colInfo.map(c => c.COLUMN_NAME);
-    const hasAttendanceDate = columns.includes('attendance_date');
-    const hasAccuracy = columns.includes('accuracy');
-    const hasSessionNumber = columns.includes('session_number');
-
-    let result;
-    const insertCols = ['assignment_id', 'faculty_id', 'session_pin', 'session_token', 'latitude', 'longitude', 'expires_at'];
-    const insertVals = [assignment_id, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql];
-    
-    if (hasAttendanceDate) {
-      insertCols.push('attendance_date');
-      insertVals.push(attendance_date);
-    }
-    if (hasAccuracy) {
-      insertCols.push('accuracy');
-      insertVals.push(accuracy ?? null);
-    }
-    if (hasSessionNumber) {
-      insertCols.push('session_number');
-      insertVals.push(session_number || 1);
-    }
-
-    const sql = `INSERT INTO attendance_sessions (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`;
-    [result] = await db.execute(sql, insertVals);
+    const [result] = await db.insert(attendanceSessions).values({
+      assignment_id: assignment_id,
+      faculty_id: user.id,
+      session_pin: sessionPin,
+      session_token: sessionToken,
+      latitude: latitude ? String(latitude) : null,
+      longitude: longitude ? String(longitude) : null,
+      accuracy: accuracy ? parseFloat(accuracy) : null,
+      attendance_date: attendance_date,
+      session_number: session_number || 1,
+      expires_at: expiresAt,
+      is_active: true
+    });
 
     // --- REAL-TIME: Notify Students/HOD ---
     try {
@@ -142,7 +134,7 @@ export async function POST(request) {
         id: result.insertId,
         session_pin: sessionPin,
         session_token: sessionToken,
-        expires_at: expiresAtSql,
+        expires_at: expiresAt,
         session_number: session_number || 1
       }
     });
@@ -164,26 +156,32 @@ export async function DELETE(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const assignment_id = searchParams.get('assignment_id');
+    const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
 
     if (!assignment_id) {
       return apiError('Missing assignment_id', 400);
     }
 
-    const db = getDb();
-    await db.execute(
-      'UPDATE attendance_sessions SET is_active = 0 WHERE assignment_id = ? AND faculty_id = ? AND is_active = 1',
-      [assignment_id, user.id]
-    );
+    await db.update(attendanceSessions)
+      .set({ is_active: false })
+      .where(and(
+        eq(attendanceSessions.assignment_id, assignment_id),
+        eq(attendanceSessions.faculty_id, user.id),
+        eq(attendanceSessions.is_active, true)
+      ));
 
     // --- REAL-TIME: Notify Students/HOD ---
     try {
-      const [asgn] = await db.execute('SELECT branch FROM faculty_subject_assignments WHERE id = ?', [assignment_id]);
+      const asgnRows = await db.select({ branch: facultySubjectAssignments.branch })
+        .from(facultySubjectAssignments)
+        .where(eq(facultySubjectAssignments.id, assignment_id))
+        .limit(1);
+        
       const { broadcastUpdate } = await import('@/lib/sse');
       broadcastUpdate('SESSION_ENDED', { 
         assignment_id, 
         faculty_id: user.id, 
-        branch: asgn[0]?.branch || user.branch 
+        branch: asgnRows[0]?.branch || user.branch 
       });
     } catch (sseErr) {
       console.warn('[SSE] Broadcast failed:', sseErr);

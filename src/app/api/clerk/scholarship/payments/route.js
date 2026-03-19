@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { studentFeePayments, students as studentsTable } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
@@ -20,15 +22,24 @@ export async function POST(req) {
     if (!(amount > 0)) return apiError('Invalid amount', 400);
     if (!transaction_date) return apiError('Invalid transaction_date', 400);
 
-    const [student] = await query('SELECT id FROM students WHERE roll_no = ?', [roll_no]);
-    if (!student) return apiError('Student not found', 404);
+    const studentRows = await db.select({ id: studentsTable.id })
+      .from(studentsTable)
+      .where(eq(studentsTable.roll_no, roll_no))
+      .limit(1);
+    
+    if (studentRows.length === 0) return apiError('Student not found', 404);
+    const student = studentRows[0];
 
-    const insertSql = 'INSERT INTO student_fee_payments (student_id, academic_year, transaction_ref_no, amount, transaction_date) VALUES (?, ?, ?, ?, ?)';
-    const result = await query(insertSql, [student.id, academic_year, transaction_ref, amount, transaction_date]);
-    const insertedId = result?.insertId || result?.[0]?.insertId || null;
+    const [result] = await db.insert(studentFeePayments).values({
+      student_id: student.id,
+      academic_year: academic_year,
+      transaction_ref_no: transaction_ref,
+      amount: String(amount),
+      transaction_date: transaction_date
+    });
 
     return apiResponse({
-      id: insertedId,
+      id: result.insertId,
       student_id: student.id,
       academic_year,
       transaction_ref,

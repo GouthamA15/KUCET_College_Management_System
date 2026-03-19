@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { scholarshipSanctions, students as studentsTable, scholarshipWindows } from '@/db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { sendInstitutionalEmail } from '@/lib/email';
@@ -25,22 +27,24 @@ export async function POST(req) {
     if (!academic_year || !academic_year.match(/^\d{4}-\d{2}$/)) return apiError('Invalid academic_year', 400);
     if (!application_no) return apiError('Missing application_no', 400);
     if (String(application_no).length > 12) return apiError('application_no must be at most 12 digits', 400);
-    // Proceeding number is OPTIONAL at creation; if amount is provided, require a proceeding number
     if (sanctioned_amount !== null && !(sanctioned_amount > 0)) return apiError('Invalid sanctioned_amount', 400);
     if (sanctioned_amount !== null && !proceeding_no) return apiError('Missing proceeding_no for provided amount', 400);
-    // Sanction date is required only when amount is provided
     if (sanctioned_amount !== null && !sanction_date) return apiError('Invalid sanction_date', 400);
 
-    const [student] = await query('SELECT id, name, email, is_email_verified, roll_no FROM students WHERE roll_no = ?', [roll_no]);
-    if (!student) return apiError('Student not found', 404);
-    // Determine if scholarship window is currently OPEN; if not, suppress student emails
+    const studentRows = await db.select({ id: studentsTable.id, name: studentsTable.name, email: studentsTable.email, is_email_verified: studentsTable.is_email_verified })
+      .from(studentsTable)
+      .where(eq(studentsTable.roll_no, roll_no))
+      .limit(1);
+    
+    if (studentRows.length === 0) return apiError('Student not found', 404);
+    const student = studentRows[0];
+
+    // Determine if scholarship window is currently OPEN
     let windowAllowsEmail = false;
     try {
-      const winRows = await query(
-        'SELECT start_date, end_date FROM scholarship_windows ORDER BY id DESC LIMIT 1',
-        []
-      );
-      const win = winRows && winRows[0] ? winRows[0] : null;
+      const win = await db.query.scholarshipWindows.findFirst({
+        orderBy: [desc(scholarshipWindows.id)]
+      });
       if (win && win.start_date && win.end_date) {
         const now = await getNow();
         const today = new Date(now.toISOString().slice(0, 10));
@@ -53,10 +57,15 @@ export async function POST(req) {
     } catch (e) {
       console.error('Failed to evaluate scholarship window for sanction emails:', e);
     }
-    // Fetch existing rows for student + academic_year
-    const existing = await query('SELECT id, application_no, proceeding_no, thumb_update_available, thumb_status, hardcopy_submitted FROM scholarship_sanctions WHERE student_id = ? AND academic_year = ?', [student.id, academic_year]);
 
-    // Determine operation: UPDATE existing row or INSERT new
+    // Fetch existing rows for student + academic_year
+    const existing = await db.query.scholarshipSanctions.findMany({
+      where: and(
+        eq(scholarshipSanctions.student_id, student.id),
+        eq(scholarshipSanctions.academic_year, academic_year)
+      )
+    });
+
     const providedProceeding = proceeding_no && String(proceeding_no).trim() !== '' ? String(proceeding_no).trim() : null;
     const providedApp = application_no && String(application_no).trim() !== '' ? String(application_no).trim() : null;
     const providedThumbFlag = body.thumb_update_available ? 1 : 0;
@@ -65,60 +74,83 @@ export async function POST(req) {
       && providedThumbStatus.trim().toUpperCase() === 'PENDING';
     const providedHardcopyFlag = body.hardcopy_submitted ? 1 : 0;
 
-    // Determine previous thumb state and application state for this student+year (any existing row)
     const prevThumb = existing.some(r => !!r.thumb_update_available);
     const prevHasApplication = existing.some(r => r.application_no && String(r.application_no).trim() !== '');
 
-    // If proceeding_no provided, try to update row with same proceeding; otherwise update base row with null proceeding; else insert
     let targetRowId = null;
     let isNewInsert = false;
 
     if (providedProceeding) {
       const existingRow = existing.find(r => String(r.proceeding_no || '') === providedProceeding) || null;
       if (existingRow) {
-        // Update existing row matching proceeding_no
-        await query('UPDATE scholarship_sanctions SET sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?) WHERE id = ?', [sanctioned_amount, sanction_date, providedApp, existingRow.id]);
+        await db.update(scholarshipSanctions)
+          .set({ 
+            sanctioned_amount: sanctioned_amount ? String(sanctioned_amount) : null, 
+            sanction_date: sanction_date, 
+            application_no: sql`COALESCE(${scholarshipSanctions.application_no}, ${providedApp})` 
+          })
+          .where(eq(scholarshipSanctions.id, existingRow.id));
         targetRowId = existingRow.id;
       } else {
-        // No row with proceeding; see if base row without proceeding exists
         const baseRow = existing.find(r => !r.proceeding_no) || null;
         if (baseRow) {
-          await query('UPDATE scholarship_sanctions SET proceeding_no = ?, sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?) WHERE id = ?', [providedProceeding, sanctioned_amount, sanction_date, providedApp, baseRow.id]);
+          await db.update(scholarshipSanctions)
+            .set({ 
+              proceeding_no: providedProceeding, 
+              sanctioned_amount: sanctioned_amount ? String(sanctioned_amount) : null, 
+              sanction_date: sanction_date, 
+              application_no: sql`COALESCE(${scholarshipSanctions.application_no}, ${providedApp})` 
+            })
+            .where(eq(scholarshipSanctions.id, baseRow.id));
           targetRowId = baseRow.id;
         } else {
-          // Insert new row with provided proceeding
-          const insertSql = 'INSERT INTO scholarship_sanctions (student_id, academic_year, application_no, proceeding_no, sanctioned_amount, sanction_date) VALUES (?, ?, ?, ?, ?, ?)';
-          const ins = await query(insertSql, [student.id, academic_year, providedApp, providedProceeding, sanctioned_amount, sanction_date]);
-          targetRowId = ins?.insertId || ins?.[0]?.insertId || null;
+          const [ins] = await db.insert(scholarshipSanctions).values({
+            student_id: student.id,
+            academic_year: academic_year,
+            application_no: providedApp,
+            proceeding_no: providedProceeding,
+            sanctioned_amount: sanctioned_amount ? String(sanctioned_amount) : null,
+            sanction_date: sanction_date
+          });
+          targetRowId = ins.insertId;
           isNewInsert = true;
         }
       }
     } else {
-      // No proceeding provided: ensure a base row exists (application-only case)
       const baseRow = existing.find(r => !r.proceeding_no) || null;
       if (baseRow) {
         if (providedApp && !baseRow.application_no) {
-          await query('UPDATE scholarship_sanctions SET application_no = ? WHERE id = ?', [providedApp, baseRow.id]);
+          await db.update(scholarshipSanctions)
+            .set({ application_no: providedApp })
+            .where(eq(scholarshipSanctions.id, baseRow.id));
         }
         targetRowId = baseRow.id;
       } else {
-        // Insert base row
-        const insertSql = 'INSERT INTO scholarship_sanctions (student_id, academic_year, application_no, proceeding_no, sanctioned_amount, sanction_date) VALUES (?, ?, ?, NULL, NULL, NULL)';
-        const ins = await query(insertSql, [student.id, academic_year, providedApp]);
-        targetRowId = ins?.insertId || ins?.[0]?.insertId || null;
+        const [ins] = await db.insert(scholarshipSanctions).values({
+          student_id: student.id,
+          academic_year: academic_year,
+          application_no: providedApp,
+          proceeding_no: null,
+          sanctioned_amount: null,
+          sanction_date: null
+        });
+        targetRowId = ins.insertId;
         isNewInsert = true;
       }
     }
 
-    // MANDATORY SYNC STEP: 
-    // Since hardcopy_submitted and thumb flags are "year-level" but stored per-proceeding, 
-    // we must sync them across ALL rows for this student + academic_year.
-    await query(
-      'UPDATE scholarship_sanctions SET hardcopy_submitted = ?, thumb_update_available = ?, thumb_status = ? WHERE student_id = ? AND academic_year = ?',
-      [providedHardcopyFlag, providedThumbFlag, providedThumbStatus, student.id, academic_year]
-    );
+    // MANDATORY SYNC STEP
+    await db.update(scholarshipSanctions)
+      .set({ 
+        hardcopy_submitted: providedHardcopyFlag, 
+        thumb_update_available: providedThumbFlag === 1, 
+        thumb_status: providedThumbStatus 
+      })
+      .where(and(
+        eq(scholarshipSanctions.student_id, student.id),
+        eq(scholarshipSanctions.academic_year, academic_year)
+      ));
 
-    // After sync, re-fetch or derive values for email triggers
     const currentApp = providedApp || (existing.find(r => r.application_no)?.application_no) || null;
 
     // Email trigger: Thumb Verification

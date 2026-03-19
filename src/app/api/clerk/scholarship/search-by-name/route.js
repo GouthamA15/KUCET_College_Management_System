@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { students as studentsTable } from '@/db/schema';
+import { eq, and, like, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -14,19 +16,19 @@ export async function GET(req) {
       return apiError('Name must be at least 2 characters', 400);
     }
 
-    const sql = `
-      SELECT
-        id,
-        roll_no AS roll_number,
-        name,
-        admission_no
-      FROM students
-      WHERE name LIKE CONCAT('%', ?, '%')
-        AND student_status = 'ACTIVE'
-      LIMIT 10
-    `;
+    const rows = await db.select({
+      id: studentsTable.id,
+      roll_number: studentsTable.roll_no,
+      name: studentsTable.name,
+      admission_no: studentsTable.admission_no
+    })
+    .from(studentsTable)
+    .where(and(
+      like(studentsTable.name, `%${name}%`),
+      eq(studentsTable.student_status, 'ACTIVE')
+    ))
+    .limit(10);
 
-    const rows = await query(sql, [name]);
     return apiResponse({ students: rows || [] });
   } catch (error) {
     console.error('Error searching scholarship students by name:', error);
