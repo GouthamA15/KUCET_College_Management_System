@@ -9,7 +9,7 @@ import {
   clerks, 
   studentAttendance 
 } from '@/db/schema';
-import { eq, and, min, sql, count, countDistinct } from 'drizzle-orm';
+import { eq, and, min, sql, countDistinct } from 'drizzle-orm';
 import { calculateYearAndSemesterAsync, getCollegeAcademicYear } from '@/lib/academic-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 
@@ -35,10 +35,11 @@ export async function GET(request) {
     // --- OPTIMIZED AGGREGATED DATA QUERY USING DRIZZLE ---
     
     // 1. Define the CTE for Canonical Assignments
+    // We alias the MIN(id) to 'canonical_id' to avoid ambiguity with other 'id' columns
     const canonicalAssignments = db.$with('CanonicalAssignments').as(
       db.select({
         subject_code: facultySubjectAssignments.subject_code,
-        id: min(facultySubjectAssignments.id).as('id')
+        canonical_id: min(facultySubjectAssignments.id).as('canonical_id')
       })
       .from(facultySubjectAssignments)
       .where(and(
@@ -55,7 +56,7 @@ export async function GET(request) {
         subject_code: syllabusStructure.subject_code,
         subject_name: syllabusSubjects.subject_name,
         subject_type: syllabusSubjects.subject_type,
-        assignment_id: canonicalAssignments.id,
+        assignment_id: canonicalAssignments.canonical_id,
         mid_max: sql`MAX(${facultySubjectAssignments.mid_max})`,
         faculty_name: sql`GROUP_CONCAT(DISTINCT ${clerks.name} SEPARATOR ' & ')`,
         
@@ -76,7 +77,7 @@ export async function GET(request) {
       .leftJoin(canonicalAssignments, eq(canonicalAssignments.subject_code, syllabusStructure.subject_code))
       .leftJoin(studentMarks, and(
         eq(studentMarks.student_id, studentId),
-        eq(studentMarks.assignment_id, canonicalAssignments.id)
+        eq(studentMarks.assignment_id, canonicalAssignments.canonical_id)
       ))
       .leftJoin(facultySubjectAssignments, and(
         eq(facultySubjectAssignments.subject_code, syllabusStructure.subject_code),
@@ -98,7 +99,7 @@ export async function GET(request) {
         syllabusStructure.subject_code, 
         syllabusSubjects.subject_name, 
         syllabusSubjects.subject_type, 
-        canonicalAssignments.id,
+        canonicalAssignments.canonical_id,
         studentMarks.id
       );
 

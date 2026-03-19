@@ -140,6 +140,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 56: API Hardening & SQL Ambiguity Resolution (March 19, 2026)**
+- **API Stability:**
+    - **ER_NON_UNIQ_ERROR Fix:** Resolved a critical ambiguity error in the `academic-info` route where multiple tables shared the `id` column. Implemented explicit aliasing (`canonical_id`) within Drizzle CTEs to ensure valid SQL generation.
+    - **Validation:** Verified that complex joined queries now correctly prefix columns, restoring functionality to the Student Academic Dashboard.
+- **Project Hygiene:**
+    - **Cleanup:** Confirmed the removal of all temporary diagnostic and manual fix scripts.
+
 ### **Session 55: Drizzle ORM Integration, Schema Synchronization & Data Restoration (March 19, 2026)**
 - **Database Modernization:**
     - **ORM Initialization:** Created `src/db/index.js` to initialize the `db` instance using the existing `mysql2` pool.
