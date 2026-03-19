@@ -6,7 +6,8 @@ import { ClerkContext } from '@/context/ClerkContext';
 import { showLocalNotification } from '@/lib/notification-utils';
 
 /**
- * Global Real-time Listener - AGGRESSIVE DEBUG VERSION
+ * Global Real-time Listener - Production Version
+ * Handles SSE connection, leader election, and role-aware notifications.
  */
 export default function RealtimeListener({ onUpdate }) {
   const onUpdateRef = useRef(onUpdate);
@@ -19,14 +20,16 @@ export default function RealtimeListener({ onUpdate }) {
   const studentDataRef = useRef(studentCtx.studentData);
   const clerkDataRef = useRef(clerkCtx.clerkData);
   const internalStudentRef = useRef(null);
-  const notifiedSessionsRef = useRef(new Set());
+  const notifiedSessionsRef = useRef(new Set()); // Prevents duplicate notifications
 
+  // Sync refs with context updates
   useEffect(() => {
     studentDataRef.current = studentCtx.studentData;
     if (studentCtx.studentData) {
-        const b = studentCtx.studentData.student?.branch || studentCtx.studentData.branch;
+        const student = studentCtx.studentData.student || studentCtx.studentData;
+        const b = student?.branch || student?.course;
         if (typeof window !== 'undefined') window.__my_branch = b;
-        setDebugInfo(`Logged in as: ${b}`);
+        setDebugInfo(`Active: ${b}`);
     }
   }, [studentCtx.studentData]);
 
@@ -43,33 +46,61 @@ export default function RealtimeListener({ onUpdate }) {
     if (type === 'CONNECTED') return; 
     
     const student = studentDataRef.current?.student || studentDataRef.current || internalStudentRef.current;
-    
-    console.log(`[Realtime-Notify] RECEIVED: ${type}. Payload Branch: ${payload?.branch}. My Branch: ${student?.branch}`);
+    const clerk = clerkDataRef.current;
 
-    if (type === 'SESSION_STARTED') {
+    console.log(`[Realtime-Event] ${type}`, payload);
+
+    // --- STUDENT NOTIFICATIONS ---
+    if (student) {
+      if (type === 'SESSION_STARTED') {
         const sessionId = payload.sessionId || payload.id;
+        if (!sessionId || notifiedSessionsRef.current.has(sessionId)) return;
+
         const targetBranch = String(payload.branch).trim().toUpperCase();
-        const myBranch = String(student?.branch || 'UNKNOWN').trim().toUpperCase();
+        const myBranch = String(student?.branch || student?.course || 'UNKNOWN').trim().toUpperCase();
 
-        // ALWAYS SHOW ALERT FOR DEBUGGING - NO FILTERS
-        alert(`🔔 BROADCAST RECEIVED!\nSubject: ${payload.subject_code}\nTarget: ${targetBranch}\nDevice: ${myBranch}`);
-
-        // If branches match, show the native notification
         if (targetBranch === myBranch || targetBranch === 'ALL') {
+          notifiedSessionsRef.current.add(sessionId);
           showLocalNotification(
             'Attendance Started 📍',
-            `Class for ${payload.subject_code} is live.`,
+            `A secure session for ${payload.subject_code} is now active.`,
             { type: 'attendance', sessionId }
           );
-        } else {
-            console.warn('[Realtime] Branch mismatch prevented native notification');
         }
-    } else if (type === 'SESSION_ENDED') {
-        // alert('Attendance Session Ended');
+      } else if (type === 'REQUEST_UPDATED') {
+        if (payload.student_id === student.id) {
+          const statusText = payload.status === 'APPROVED' ? 'Approved ✅' : 'Rejected ❌';
+          showLocalNotification(
+            `Certificate Request ${statusText}`,
+            `Your request for ${payload.certificate_type} has been ${payload.status.toLowerCase()}.`,
+            { type: 'certificate', requestId: payload.request_id }
+          );
+        }
+      } else if (type === 'TIMETABLE_CHANGED') {
+        const myBranch = String(student?.branch || student?.course || '').trim().toUpperCase();
+        if (payload.branch?.toUpperCase() === myBranch) {
+          showLocalNotification(
+            'Timetable Updated 📅',
+            `The schedule for Semester ${payload.semester} has been updated.`,
+            { type: 'timetable', semester: payload.semester }
+          );
+        }
+      }
+    }
+
+    // --- CLERK NOTIFICATIONS ---
+    if (clerk && clerk.id) {
+      if (type === 'REQUEST_CREATED' && payload.clerkType === clerk.role) {
+          showLocalNotification(
+            'New Request 📄',
+            `A new ${payload.certificateType} application has been submitted.`,
+            { type: 'clerk_request', clerkType: payload.clerkType }
+          );
+      }
     }
   }, []);
 
-  // Catch-up and Identity
+  // background identity resolution
   useEffect(() => {
     const fetchIdentity = async () => {
       try {
@@ -82,11 +113,11 @@ export default function RealtimeListener({ onUpdate }) {
             internalStudentRef.current = data.student;
             const b = data.student.branch;
             if (typeof window !== 'undefined') window.__my_branch = b;
-            setDebugInfo(`Identity Found: ${b}`);
+            setDebugInfo(`Identity Resolved: ${b}`);
           }
         }
       } catch (e) {
-          setDebugInfo('Identity Fetch Error');
+          console.warn('[Realtime] Identity background fetch failed');
       }
     };
     
@@ -127,7 +158,12 @@ export default function RealtimeListener({ onUpdate }) {
           }
           return;
       }
+      if (event.data?.type === 'FORCE_NOTIFY') {
+          handleNotification(event.data.payload);
+          return;
+      }
       if (!isLeader) {
+        if (onUpdateRef.current) onUpdateRef.current(event.data);
         handleNotification(event.data);
       }
     };
@@ -157,8 +193,9 @@ export default function RealtimeListener({ onUpdate }) {
 
           if (isLeader) handleNotification(data);
           channel.postMessage(data);
+          if (onUpdateRef.current) onUpdateRef.current(data);
         } catch (e) {
-          console.error('[Realtime] Parse Error');
+          console.error('[Realtime] Message Parse Error');
         }
       };
 
@@ -196,7 +233,7 @@ export default function RealtimeListener({ onUpdate }) {
       if (lockResolver) lockResolver();
       channel.close();
     };
-  }, [handleNotification, debugInfo]); 
+  }, [handleNotification, debugInfo, connectionStatus]); 
 
   return null;
 }

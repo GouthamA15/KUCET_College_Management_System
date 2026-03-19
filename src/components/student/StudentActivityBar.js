@@ -103,15 +103,13 @@ export default function StudentActivityBar() {
   const isProfilePage = pathname === '/student/profile';
   const showBar = activeActivity || (hasAttendance && !isProfilePage);
 
-  if (loading && !showBar) return <RealtimeListener onUpdate={handleRealtimeUpdate} />;
-  if (!showBar) return <RealtimeListener onUpdate={handleRealtimeUpdate} />;
+  if (loading && !showBar) return null;
+  if (!showBar) return null;
 
   const { activity, period } = activeActivity || {};
 
   return (
     <div className="space-y-0 animate-in slide-in-from-top duration-500 shadow-md">
-      <RealtimeListener onUpdate={handleRealtimeUpdate} />
-      
       {/* 1. Main Activity Bar (Ongoing Lecture) */}
       {activeActivity && (
         <div className="bg-[#0b3578] border-b border-white/10 relative overflow-hidden">
