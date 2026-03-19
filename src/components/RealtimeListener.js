@@ -58,6 +58,7 @@ export default function RealtimeListener({ onUpdate }) {
 
   const handleNotification = useCallback((data) => {
     const { type, payload } = data;
+    if (type === 'CONNECTED') return; // Ignore internal meta-event
     
     // Priority: Context Data -> Internal Fallback State
     const student = studentDataRef.current?.student || studentDataRef.current || internalStudent;
@@ -130,11 +131,21 @@ export default function RealtimeListener({ onUpdate }) {
     const broadcastStatus = (status) => {
         setConnectionStatus(status);
         if (typeof window !== 'undefined') window.__sse_status = status;
+        try {
+            channel.postMessage({ type: 'STATUS_SYNC', status });
+        } catch(e) {}
     };
 
     channel.onmessage = (event) => {
       if (event.data?.type === 'STATUS_QUERY') {
-          channel.postMessage({ type: 'STATUS_REPLY', status: connectionStatus });
+          channel.postMessage({ type: 'STATUS_SYNC', status: connectionStatus });
+          return;
+      }
+      if (event.data?.type === 'STATUS_SYNC') {
+          if (!isLeader) {
+              setConnectionStatus(event.data.status);
+              if (typeof window !== 'undefined') window.__sse_status = event.data.status;
+          }
           return;
       }
       if (!isLeader) {
@@ -148,12 +159,13 @@ export default function RealtimeListener({ onUpdate }) {
       if (eventSource) eventSource.close();
       
       broadcastStatus('connecting');
-      eventSource = new EventSource('/api/realtime/stream');
+      // Append timestamp to bypass caching
+      eventSource = new EventSource('/api/realtime/stream?t=' + Date.now());
 
       eventSource.onopen = () => {
         retryCount = 0;
         broadcastStatus('connected');
-        console.log('[Realtime] SSE Connection Established');
+        console.log('[Realtime] SSE Stream Open');
       };
 
       eventSource.onmessage = (event) => {
@@ -161,6 +173,11 @@ export default function RealtimeListener({ onUpdate }) {
           if (event.data === ': ping' || !event.data) return;
           const data = JSON.parse(event.data);
           if (!data.type) return;
+
+          if (data.type === 'CONNECTED') {
+              broadcastStatus('connected');
+              return;
+          }
 
           if (isLeader) {
             handleNotification(data);
@@ -174,8 +191,10 @@ export default function RealtimeListener({ onUpdate }) {
       };
 
       eventSource.onerror = (err) => {
+        console.warn('[Realtime] SSE Error');
         broadcastStatus('error');
         eventSource.close();
+        
         const delay = Math.min(30000, Math.pow(2, retryCount) * 1000);
         retryCount++;
         setTimeout(() => {
@@ -197,7 +216,8 @@ export default function RealtimeListener({ onUpdate }) {
         });
       }).catch(e => {
         isLeader = false;
-        broadcastStatus('follower');
+        // Query leader for status
+        channel.postMessage({ type: 'STATUS_QUERY' });
       });
     } else {
       isLeader = true;
@@ -210,7 +230,7 @@ export default function RealtimeListener({ onUpdate }) {
       if (lockResolver) lockResolver();
       channel.close();
     };
-  }, [handleNotification, connectionStatus]); 
+  }, [handleNotification]); 
 
   return null;
 }

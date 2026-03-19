@@ -5,6 +5,13 @@ export async function GET(req) {
     start(controller) {
       addSSEClient(controller);
       
+      // Send immediate "connected" event to flush headers
+      try {
+        controller.enqueue(new TextEncoder().encode('data: {"type":"CONNECTED","timestamp":' + Date.now() + '}\n\n'));
+      } catch (e) {
+        console.error('[SSE] Failed to send initial data');
+      }
+      
       // Keep-alive ping every 15 seconds for aggressive proxies (Render)
       const interval = setInterval(() => {
         try {
