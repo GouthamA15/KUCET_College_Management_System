@@ -87,7 +87,7 @@ export async function POST(request) {
         const { broadcastUpdate } = await import('@/lib/sse');
         broadcastUpdate('ATTENDANCE_SAVED', { 
           faculty_id: user.id, 
-          branch: user.branch 
+          branch: assignment.branch 
         });
       } catch (sseErr) {
         console.warn('[SSE] Broadcast failed:', sseErr);

@@ -57,6 +57,7 @@ export async function GET(req, context) {
     const academics = hasAcademicData ? [academic_record] : [];
     
     student.course = getBranchFromRoll(student.roll_no);
+    student.branch = student.course;
     student.admission_type = getAdmissionTypeFromRoll(student.roll_no);
 
     // Helper to handle both URLs and legacy Buffer data

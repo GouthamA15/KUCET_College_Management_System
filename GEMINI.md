@@ -134,6 +134,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 47: Real-Time Notification Architecture Hardening (March 19, 2026)**
+- **Real-Time Notification Hardening:**
+    - **Branch Matching Alignment:** Resolved a critical notification failure where faculty teaching across departments (e.g., S&H faculty in CSE classes) failed to trigger student alerts. Updated `SESSION_STARTED` and `SESSION_ENDED` broadcasts to use the **assignment's branch** instead of the faculty's home branch.
+    - **Student Data Normalization:** Synchronized the student profile API to include a `branch` property, matching the expectations of the `RealtimeListener` client logic which previously looked for `branch` but only found `course`.
+    - **Payload Consistency:** Corrected a key mismatch where the backend sent `session_id` but the frontend expected `sessionId` for notification metadata. Added the missing `subject_code` to the broadcast payload to enable rich, subject-aware notification text.
+- **Departmental Sync:**
+    - **HOD Notification Parity:** Updated `ATTENDANCE_SAVED` and session event broadcasts to ensure HODs receive real-time updates for all faculty activity within their specific branch, regardless of the faculty's departmental affiliation.
+
 ### **Session 46: Native Android Notifications & Real-Time Alerting (March 19, 2026)**
 - **Native Notification Engine:**
     - **Plugin Integration:** Integrated `@capacitor/local-notifications` to enable Android-style system alerts.

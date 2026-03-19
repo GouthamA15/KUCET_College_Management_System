@@ -69,7 +69,7 @@ export async function POST(request) {
 
     // 1. Verify assignment belongs to faculty
     const [assignments] = await db.execute(
-      'SELECT id FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
+      'SELECT id, branch, subject_code FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
       [assignment_id, user.id]
     );
 
@@ -127,8 +127,9 @@ export async function POST(request) {
       broadcastUpdate('SESSION_STARTED', { 
         assignment_id, 
         faculty_id: user.id, 
-        branch: user.branch,
-        session_id: result.insertId,
+        branch: assignments[0].branch,
+        subject_code: assignments[0].subject_code,
+        sessionId: result.insertId,
         session_number: session_number || 1
       });
     } catch (sseErr) {
@@ -177,11 +178,12 @@ export async function DELETE(request) {
 
     // --- REAL-TIME: Notify Students/HOD ---
     try {
+      const [asgn] = await db.execute('SELECT branch FROM faculty_subject_assignments WHERE id = ?', [assignment_id]);
       const { broadcastUpdate } = await import('@/lib/sse');
       broadcastUpdate('SESSION_ENDED', { 
         assignment_id, 
         faculty_id: user.id, 
-        branch: user.branch 
+        branch: asgn[0]?.branch || user.branch 
       });
     } catch (sseErr) {
       console.warn('[SSE] Broadcast failed:', sseErr);
