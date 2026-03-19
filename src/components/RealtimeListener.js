@@ -138,7 +138,8 @@ export default function RealtimeListener({ onUpdate }) {
 
     channel.onmessage = (event) => {
       if (event.data?.type === 'STATUS_QUERY') {
-          channel.postMessage({ type: 'STATUS_SYNC', status: connectionStatus });
+          // Send back the CURRENT status from our state
+          channel.postMessage({ type: 'STATUS_SYNC', status: window.__sse_status || 'connecting' });
           return;
       }
       if (event.data?.type === 'STATUS_SYNC') {
@@ -159,7 +160,6 @@ export default function RealtimeListener({ onUpdate }) {
       if (eventSource) eventSource.close();
       
       broadcastStatus('connecting');
-      // Append timestamp to bypass caching
       eventSource = new EventSource('/api/realtime/stream?t=' + Date.now());
 
       eventSource.onopen = () => {
@@ -230,7 +230,7 @@ export default function RealtimeListener({ onUpdate }) {
       if (lockResolver) lockResolver();
       channel.close();
     };
-  }, [handleNotification]); 
+  }, [handleNotification]); // Removed connectionStatus to keep size constant and avoid infinite loop
 
   return null;
 }
