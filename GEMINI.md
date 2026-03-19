@@ -134,6 +134,16 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 51: Notification System Hardening & Diagnostic Tool Restoration (March 19, 2026)**
+- **Real-Time Stability & Performance:**
+    - **Infinite Loop Resolution:** Fixed a critical bug in `RealtimeListener` where connection status updates triggered recursive effect re-runs. Migrated status and debug state to `useRef` for effect logic while maintaining `useState` for reactive UI.
+    - **Cross-Component Sync:** Integrated `BroadcastChannel` listeners into `StudentActivityBar` and `ProfileActivityBar`, enabling instant UI refreshes for `SESSION_STARTED` and `SESSION_ENDED` events without relying on background polling.
+- **Diagnostic & Observability Tools:**
+    - **Visual Status Badge:** Restored the fixed connection status badge in the bottom-right corner, providing real-time feedback on SSE connectivity (`connected`, `connecting`, `error`) and resolved identity data.
+    - **Native Test Engine:** Re-implemented the "Test App Notifications" button in the `Hero` component, strictly scoped to native Capacitor platforms. This enables one-click verification of the entire notification pipeline.
+- **Payload Integrity:**
+    - **Event Key Alignment:** Audited and synchronized SSE payload keys (e.g., `sessionId`) between the backend broadcasting logic and frontend notification handlers to ensure reliable message delivery.
+
 ### **Session 50: Universal Notification Coverage & SSE Robustness (March 19, 2026)**
 - **Architecture Refactoring:**
     - **Global Listener Migration:** Moved the `RealtimeListener` from individual dashboards to the `RootLayout`, ensuring the application listens for real-time events (Attendance, Timetable, Requests) immediately upon opening, even on the landing page.

@@ -3,109 +3,32 @@
 import { useEffect, useState } from 'react';
 import NextImage from 'next/image';
 import { useAssets } from '@/context/AssetContext';
-import { showLocalNotification } from '@/lib/notification-utils';
 import { Capacitor } from '@capacitor/core';
+import { showLocalNotification } from '@/lib/notification-utils';
 
 export default function Hero() {
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [sseStatus, setSseStatus] = useState('offline');
-  const [myBranch, setMyBranch] = useState('UNKNOWN');
   const { getAsset } = useAssets();
-  const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+  const [isNative, setIsNative] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setImageLoaded(true), 100);
-    
-    // Poll for SSE status and branch info
-    const statusInterval = setInterval(() => {
-        if (typeof window !== 'undefined') {
-            if (window.__sse_status) setSseStatus(window.__sse_status);
-            if (window.__my_branch) setMyBranch(window.__my_branch);
-        }
-    }, 1000);
-
-    return () => {
-        clearTimeout(timer);
-        clearInterval(statusInterval);
-    };
+    if (typeof window !== 'undefined') {
+      setIsNative(Capacitor.isNativePlatform());
+    }
+    return () => clearTimeout(timer);
   }, []);
 
   const handleTestNotification = async () => {
-    alert('Attempting instant notification...');
     await showLocalNotification(
-      'Notification Test 🔔',
-      'This is a test notification from KUCET CMS app. If you see this, notifications are working!'
+      'Test Notification 🔔',
+      'If you see this, the KUCET notification pipeline is working perfectly!',
+      { type: 'test' }
     );
   };
 
   return (
     <section className="relative w-full">
-      {/* Test Notification Buttons - Visible to everyone for debugging */}
-      <div className="absolute top-20 left-4 z-[100] flex flex-col gap-2">
-        <div className="flex gap-2">
-            <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border ${
-                sseStatus === 'connected' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
-                sseStatus === 'connecting' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
-                'bg-red-500/20 text-red-400 border-red-500/30'
-            }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${
-                    sseStatus === 'connected' ? 'bg-green-400 animate-pulse' : 
-                    sseStatus === 'connecting' ? 'bg-yellow-400 animate-bounce' : 'bg-red-400'
-                }`}></span>
-                SSE: {sseStatus}
-            </div>
-
-            <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-lg">
-                BRANCH: {myBranch}
-            </div>
-        </div>
-
-        <button 
-          onClick={handleTestNotification}
-          className="bg-blue-600 hover:bg-blue-700 text-white border border-white/50 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
-        >
-          <span className="bg-green-400 w-2 h-2 rounded-full animate-ping"></span>
-          Instant Test
-        </button>
-        
-        <button 
-          onClick={async () => {
-            alert('Scheduling test notification for 5 seconds from now...');
-            await showLocalNotification(
-              'Delayed Test ⏳',
-              'This notification was scheduled 5 seconds ago. If you see this, background scheduling works!',
-              { triggerAt: new Date(Date.now() + 5000) }
-            );
-          }}
-          className="bg-slate-800 hover:bg-slate-900 text-white border border-white/30 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
-        >
-          <span className="bg-orange-400 w-2 h-2 rounded-full"></span>
-          5s Delay Test
-        </button>
-
-        <button 
-          onClick={async () => {
-            const branch = prompt('Enter Branch to simulate (CSE/CSD/ECE):', 'CSE');
-            if (!branch) return;
-
-            const bc = new BroadcastChannel('kucet_sse_sync');
-            bc.postMessage({
-                type: 'SESSION_STARTED',
-                payload: {
-                    branch: branch.toUpperCase(),
-                    subject_code: 'DEBUG-101',
-                    sessionId: Date.now()
-                }
-            });
-            alert('Simulated SESSION_STARTED broadcast sent locally.');
-          }}
-          className="bg-purple-600 hover:bg-purple-700 text-white border border-white/30 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
-        >
-          <span className="bg-white w-2 h-2 rounded-full animate-bounce"></span>
-          Simulate Start
-        </button>
-      </div>
-
       {/* Hero Image */}
       <div className="relative w-full h-75 md:h-100 lg:h-125 overflow-hidden">
         <NextImage
@@ -113,7 +36,8 @@ export default function Hero() {
           alt="KU College of Engineering and Technology Campus"
           fill
           className={`object-cover transition-opacity duration-1000 ease-in-out ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-          onLoad={() => setImageLoaded(true)}          priority
+          onLoad={() => setImageLoaded(true)}
+          priority
         />
         <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent"></div>
         
@@ -128,7 +52,21 @@ export default function Hero() {
             </p>
           </div>
         </div>
+
+        {/* Diagnostic Test Button - Only on Native */}
+        {isNative && (
+          <div className="absolute top-4 right-4 z-50">
+            <button
+              onClick={handleTestNotification}
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-[10px] font-bold px-3 py-2 rounded-full border border-white/40 shadow-xl transition-all active:scale-95 flex items-center gap-2"
+            >
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              TEST APP NOTIFICATIONS
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
 }
+

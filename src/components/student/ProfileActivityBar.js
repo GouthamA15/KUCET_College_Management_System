@@ -43,40 +43,40 @@ export default function ProfileActivityBar({ activity, student }) {
     }
   }, [reqId, reqStatus, dismissCount, incrementVisit, isProd]);
 
-  // Fetch active attendance sessions for this student (via academic info + active-sessions API)
+  const fetchSessions = useCallback(async () => {
+    if (!student) return;
+    try {
+      const res = await fetch('/api/student/academic-info');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
+      const subjects = json.data || [];
+      const assignmentIds = subjects.map((s) => s.assignment_id).filter(Boolean);
+      if (!assignmentIds.length) return;
+
+      const res2 = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds.join(',')}`);
+      const json2 = await res2.json();
+      if (!res2.ok) throw new Error(json2.error || 'Failed to fetch active attendance sessions');
+
+      setAttendanceSessions(json2.data || []);
+    } catch (error) {
+      console.error('ProfileActivityBar Session Fetch Error:', error);
+    }
+  }, [student]);
+
   useEffect(() => {
-    let cancelled = false;
+    fetchSessions();
+  }, [fetchSessions]);
 
-    const fetchSessions = async () => {
-      if (!student) return;
-      try {
-        const res = await fetch('/api/student/academic-info');
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
-        const subjects = json.data || [];
-        const assignmentIds = subjects.map((s) => s.assignment_id).filter(Boolean);
-        if (!assignmentIds.length) return;
-
-        const res2 = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds.join(',')}`);
-        const json2 = await res2.json();
-        if (!res2.ok) throw new Error(json2.error || 'Failed to fetch active attendance sessions');
-
-        if (!cancelled) {
-          setAttendanceSessions(json2.data || []);
-        }
-      } catch (error) {
-        if (!cancelled && error?.message) {
-          toast.error(error.message);
-        }
+  useEffect(() => {
+    const channel = new BroadcastChannel('kucet_sse_sync');
+    channel.onmessage = (event) => {
+      const data = event.data;
+      if (data && (data.type === 'SESSION_STARTED' || data.type === 'SESSION_ENDED')) {
+        fetchSessions();
       }
     };
-
-    fetchSessions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [student]);
+    return () => channel.close();
+  }, [fetchSessions]);
 
   const hasAttendanceSessions = attendanceSessions.length > 0;
 

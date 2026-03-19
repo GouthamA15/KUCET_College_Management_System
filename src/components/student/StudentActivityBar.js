@@ -95,6 +95,14 @@ export default function StudentActivityBar() {
     }
   }, [fetchActivity, fetchAttendanceSessions]);
 
+  useEffect(() => {
+    const channel = new BroadcastChannel('kucet_sse_sync');
+    channel.onmessage = (event) => {
+      if (event.data) handleRealtimeUpdate(event.data);
+    };
+    return () => channel.close();
+  }, [handleRealtimeUpdate]);
+
   const handleSessionVerified = (assignmentId) => {
     setAttendanceSessions(prev => prev.filter(s => s.assignment_id !== assignmentId));
   };
