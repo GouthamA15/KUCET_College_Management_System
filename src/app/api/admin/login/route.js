@@ -1,6 +1,8 @@
+import { db } from '@/db';
+import { principal } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { SignJWT } from 'jose';
 import bcrypt from 'bcrypt';
-import { query } from '@/lib/db';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 
@@ -19,17 +21,17 @@ export async function POST(request) {
       return apiError('Email and password are required', 400);
     }
 
-    const rows = await query(
-      'SELECT email, password_hash FROM principal WHERE email = ?',
-      [email]
-    );
+    const rows = await db.select({ email: principal.email, password_hash: principal.password_hash })
+      .from(principal)
+      .where(eq(principal.email, email))
+      .limit(1);
 
     if (rows.length === 0) {
       return apiError('Invalid credentials', 401);
     }
 
-    const principal = rows[0];
-    const isValidPassword = await bcrypt.compare(password, principal.password_hash);
+    const admin = rows[0];
+    const isValidPassword = await bcrypt.compare(password, admin.password_hash);
 
     if (!isValidPassword) {
       return apiError('Invalid credentials', 401);
@@ -39,7 +41,7 @@ export async function POST(request) {
     const sessionDuration = rememberMe ? '30d' : '1h';
     const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 60 * 60;
 
-    const token = await new SignJWT({ email: principal.email, role: 'admin' })
+    const token = await new SignJWT({ email: admin.email, role: 'admin' })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime(sessionDuration)

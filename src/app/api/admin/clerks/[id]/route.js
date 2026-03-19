@@ -1,17 +1,17 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { clerks } from '@/db/schema';
+import { eq, and, ne, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function DELETE(req, context) {
   const user = await getAuthUser('admin');
-
-  if (!user) {
-    return apiError('Unauthorized', 401);
-  }
-
-  const { id } = await context.params;
+  if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const result = await query('DELETE FROM clerks WHERE id = ?', [id]);
+    const { id } = await context.params;
+    const idNum = parseInt(id);
+
+    const [result] = await db.delete(clerks).where(eq(clerks.id, idNum));
 
     if (result.affectedRows === 0) {
       return apiError('Clerk not found', 404);
@@ -26,22 +26,25 @@ export async function DELETE(req, context) {
 
 export async function PUT(req, context) {
   const user = await getAuthUser('admin');
-
-  if (!user) {
-    return apiError('Unauthorized', 401);
-  }
-
-  const { id } = await context.params;
+  if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const { name, email, employee_id, role, is_hod, branch, is_active } = await req.json();
+    const { id } = await context.params;
+    const idNum = parseInt(id);
+    const body = await req.json();
+    const { name, email, employee_id, role, is_hod, branch, is_active } = body;
 
     // STRICT VALIDATION: Only one HOD per branch
     if (is_hod && branch && is_active) {
-      const existingHOD = await query(
-        'SELECT id, name FROM clerks WHERE branch = ? AND is_hod = 1 AND is_active = 1 AND id != ?',
-        [branch, id]
-      );
+      const existingHOD = await db.select({ id: clerks.id, name: clerks.name })
+        .from(clerks)
+        .where(and(
+          eq(clerks.branch, branch),
+          eq(clerks.is_hod, true),
+          eq(clerks.is_active, true),
+          ne(clerks.id, idNum)
+        ))
+        .limit(1);
 
       if (existingHOD.length > 0) {
         return apiError(
@@ -51,10 +54,9 @@ export async function PUT(req, context) {
       }
     }
 
-    const result = await query(
-      'UPDATE clerks SET name = ?, email = ?, employee_id = ?, role = ?, is_hod = ?, branch = ?, is_active = ? WHERE id = ?',
-      [name, email, employee_id, role, is_hod, branch, is_active, id]
-    );
+    const [result] = await db.update(clerks)
+      .set({ name, email, employee_id, role, is_hod, branch, is_active })
+      .where(eq(clerks.id, idNum));
 
     if (result.affectedRows === 0) {
       return apiError('Clerk not found', 404);

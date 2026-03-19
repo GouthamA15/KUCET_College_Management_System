@@ -1,15 +1,16 @@
+import { db } from '@/db';
+import { otpCodes } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { getStudentEmail } from '@/lib/student-utils';
-import { query } from '@/lib/db'; // Assuming your db utility is here
 
-// Helper to generate a secure 6-digit numeric OTP
 function generateSecureOtp() {
   const length = 6;
-  const min = Math.pow(10, length - 1); // 100000
-  const max = Math.pow(10, length) - 1; // 999999
-  const randomNumber = crypto.randomBytes(4).readUInt32LE(0); // 4 bytes = 32 bits of randomness
+  const min = Math.pow(10, length - 1); 
+  const max = Math.pow(10, length) - 1; 
+  const randomNumber = crypto.randomBytes(4).readUInt32LE(0);
   const numericOtp = (min + (randomNumber % (max - min + 1))).toString();
   return numericOtp.padStart(length, '0');
 }
@@ -17,37 +18,28 @@ function generateSecureOtp() {
 export async function POST(request) {
   try {
     const { rollNo } = await request.json();
-
-    if (!rollNo) {
-      return apiError('Roll number is required', 400);
-    }
+    if (!rollNo) return apiError('Roll number is required', 400);
 
     const studentEmail = await getStudentEmail(rollNo);
-    if (!studentEmail) {
-      return apiError('Student email not found.', 404);
-    }
+    if (!studentEmail) return apiError('Student email not found.', 404);
 
     const otp = generateSecureOtp();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // OTP valid for 5 minutes
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    // --- Database Interaction to store OTP ---
     try {
-      // Invalidate any previous OTPs for this roll_no (good practice for upsert)
-      await query('DELETE FROM otp_codes WHERE roll_no = ?', [rollNo]);
-      // Store the new OTP
-      await query(
-        'INSERT INTO otp_codes (roll_no, otp_code, expires_at) VALUES (?, ?, ?)',
-        [rollNo, otp, expiresAt.toISOString()]
-      );
+      await db.delete(otpCodes).where(eq(otpCodes.roll_no, rollNo));
+      await db.insert(otpCodes).values({
+        roll_no: rollNo,
+        otp_code: otp,
+        expires_at: expiresAt
+      });
     } catch (dbError) {
-      console.error('Error storing OTP in database:', dbError);
+      console.error('Error storing OTP:', dbError);
       return apiError('Failed to store OTP.', 500);
     }
-    // --- End Database Interaction ---
 
     const subject = 'KUCET One-Time Password (OTP)';
     const title = 'OTP for Email Verification';
-
     const bodyHtml = `
       <p>Dear Student,</p>
       <p>Please use the One-Time Password (OTP) provided below to complete your verification.</p>
@@ -55,28 +47,17 @@ export async function POST(request) {
       <p>This OTP is valid for the next 5 minutes. Do not share this code with anyone.</p>
     `;
 
-    const bodyText = `Dear Student,
-
-Please use the following One-Time Password (OTP) to complete your verification:
-
-OTP: ${otp}
-
-This OTP is valid for the next 5 minutes. Do not share this code with anyone.`;
-
     const emailResult = await sendInstitutionalEmail({
       to: studentEmail,
       subject,
       title,
-      bodyHtml,
-      bodyText
+      bodyHtml
     });
 
     if (emailResult.success) {
       return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });
     } else {
-      console.error('Failed to send OTP email:', emailResult.message);
-      // Optionally delete OTP from DB if email sending failed, to prevent stale OTPs
-      await query('DELETE FROM otp_codes WHERE roll_no = ?', [rollNo]);
+      await db.delete(otpCodes).where(eq(otpCodes.roll_no, rollNo));
       return apiError('Please try again after 15 minutes.', 500);
     }
   } catch (error) {
