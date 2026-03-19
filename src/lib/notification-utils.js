@@ -73,9 +73,10 @@ export const showLocalNotification = async (title, body, extra = {}) => {
       ]
     });
     console.log('[Notification-Utils] Successfully scheduled with Capacitor');
-    // For debugging: show a toast/alert if scheduling seems successful in code
-    if (typeof window !== 'undefined') {
-       // toast.success('Scheduled!'); 
+    
+    // For real attendance sessions, add an extra alert just in case the notification is missed
+    if (extra.type === 'attendance' && typeof window !== 'undefined') {
+        alert('🔔 ATTENDANCE SESSION STARTED!\n' + body);
     }
   } catch (error) {
     console.error('[Notification-Utils] Failed to schedule:', error);

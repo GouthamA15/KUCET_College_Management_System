@@ -8,12 +8,24 @@ import { Capacitor } from '@capacitor/core';
 
 export default function Hero() {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [sseStatus, setSseStatus] = useState('offline');
   const { getAsset } = useAssets();
   const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
 
   useEffect(() => {
     const timer = setTimeout(() => setImageLoaded(true), 100);
-    return () => clearTimeout(timer);
+    
+    // Poll for SSE status
+    const statusInterval = setInterval(() => {
+        if (typeof window !== 'undefined' && window.__sse_status) {
+            setSseStatus(window.__sse_status);
+        }
+    }, 1000);
+
+    return () => {
+        clearTimeout(timer);
+        clearInterval(statusInterval);
+    };
   }, []);
 
   const handleTestNotification = async () => {
@@ -28,11 +40,22 @@ export default function Hero() {
     <section className="relative w-full">
       {/* Test Notification Buttons - Visible to everyone for debugging */}
       <div className="absolute top-20 left-4 z-[100] flex flex-col gap-2">
+        <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border ${
+            sseStatus === 'connected' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
+            sseStatus === 'connecting' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+            'bg-red-500/20 text-red-400 border-red-500/30'
+        }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${
+                sseStatus === 'connected' ? 'bg-green-400 animate-pulse' : 
+                sseStatus === 'connecting' ? 'bg-yellow-400 animate-bounce' : 'bg-red-400'
+            }`}></span>
+            SSE: {sseStatus}
+        </div>
+
         <button 
           onClick={handleTestNotification}
           className="bg-blue-600 hover:bg-blue-700 text-white border border-white/50 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
         >
-          <span className="bg-green-400 w-2 h-2 rounded-full animate-ping"></span>
           Instant Test
         </button>
         
@@ -48,7 +71,6 @@ export default function Hero() {
           }}
           className="bg-slate-800 hover:bg-slate-900 text-white border border-white/30 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
         >
-          <span className="bg-orange-400 w-2 h-2 rounded-full"></span>
           10s Delay Test
         </button>
       </div>

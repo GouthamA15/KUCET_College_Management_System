@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import AuthProvider from "./components/AuthProvider";
 import { AssetProvider } from "@/context/AssetContext";
 import CapacitorHandler from "@/components/CapacitorHandler.client";
+import RealtimeListener from "@/components/RealtimeListener";
 
 export const metadata = {
   title: "Login | KUCET",
@@ -22,6 +23,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="antialiased">
         <CapacitorHandler />
+        <RealtimeListener />
         <AssetProvider>
           <AuthProvider>
             <Toaster position="top-center" reverseOrder={false} />
