@@ -7,10 +7,14 @@ if (!global._sse_controllers) {
 
 export function addSSEClient(controller) {
   global._sse_controllers.add(controller);
+  console.log(`[SSE] Client connected. Total clients: ${global._sse_controllers.size}`);
 }
 
 export function removeSSEClient(controller) {
-  global._sse_controllers.delete(controller);
+  if (global._sse_controllers.has(controller)) {
+    global._sse_controllers.delete(controller);
+    console.log(`[SSE] Client disconnected. Total clients: ${global._sse_controllers.size}`);
+  }
 }
 
 export function broadcastUpdate(type, payload = {}) {

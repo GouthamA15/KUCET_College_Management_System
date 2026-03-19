@@ -14,12 +14,13 @@ export default function RealtimeListener({ onUpdate }) {
   const studentCtx = useContext(StudentContext) || {};
   const clerkCtx = useContext(ClerkContext) || {};
   
-  const [internalStudent, setInternalStudent] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
 
-  // Use refs to avoid stale closures in the async leader election / SSE setup
+  // Use refs for everything to avoid useEffect triggers and stale closures
   const studentDataRef = useRef(studentCtx.studentData);
   const clerkDataRef = useRef(clerkCtx.clerkData);
+  const internalStudentRef = useRef(null);
+  const notifiedSessionsRef = useRef(new Set()); // Track notified session IDs to avoid spam
 
   useEffect(() => {
     studentDataRef.current = studentCtx.studentData;
@@ -33,51 +34,24 @@ export default function RealtimeListener({ onUpdate }) {
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
 
-  // Fallback identity fetch if context isn't available (e.g., on landing page)
-  useEffect(() => {
-    const fetchIdentity = async () => {
-      try {
-        const res = await fetch('/api/student/me');
-        if (res.ok) {
-          const { roll_no } = await res.json();
-          const profileRes = await fetch(`/api/student/${roll_no}`);
-          if (profileRes.ok) {
-            const data = await profileRes.json();
-            setInternalStudent(data.student);
-            console.log('[Realtime] Internal identity fetched:', data.student.branch);
-            // Use a small alert once to confirm identity is loaded on phone
-            // alert('Identity Loaded: ' + data.student.roll_no + ' (' + data.student.branch + ')');
-          }
-        }
-      } catch (e) {
-        console.error('[Realtime] Identity fetch failed');
-      }
-    };
-    
-    if (!studentCtx.studentData && !clerkCtx.clerkData) {
-      fetchIdentity();
-    }
-  }, [studentCtx.studentData, clerkCtx.clerkData]);
-
   const handleNotification = useCallback((data) => {
     const { type, payload } = data;
     if (type === 'CONNECTED') return; 
     
-    const student = studentDataRef.current?.student || studentDataRef.current || internalStudent;
+    const student = studentDataRef.current?.student || studentDataRef.current || internalStudentRef.current;
     const clerk = clerkDataRef.current;
-
-    console.log('[Realtime-Notify] Event:', type, 'Branch:', payload?.branch);
 
     if (student) {
       if (type === 'SESSION_STARTED') {
-        // DIAGNOSTIC ALERT: Always show this to see if event reaches here
-        alert(`EVENT: Session Started\nSubject: ${payload.subject_code}\nBranch: ${payload.branch}\nYour Branch: ${student.branch}`);
+        const sessionId = payload.sessionId || payload.id;
+        if (notifiedSessionsRef.current.has(sessionId)) return;
 
         if (payload.branch === student.branch) {
+          notifiedSessionsRef.current.add(sessionId);
           showLocalNotification(
             'Attendance Session Started 📍',
             `A secure session for ${payload.subject_code} has started. Mark your attendance now!`,
-            { type: 'attendance', sessionId: payload.sessionId }
+            { type: 'attendance', sessionId }
           );
         }
       } else if (type === 'REQUEST_UPDATED') {
@@ -111,7 +85,65 @@ export default function RealtimeListener({ onUpdate }) {
         }
       }
     }
-  }, [internalStudent]);
+  }, []);
+
+  // Catch-up logic for active sessions
+  const checkActiveSessions = useCallback(async () => {
+    const student = studentDataRef.current?.student || studentDataRef.current || internalStudentRef.current;
+    if (!student || !student.branch) return;
+
+    try {
+      // First get current activity to find relevant assignments
+      const activityRes = await fetch('/api/student/current-activity');
+      const activityData = await activityRes.json();
+      
+      if (activityRes.ok && activityData.active && activityData.activity?.assignment_id) {
+        const assignmentId = activityData.activity.assignment_id;
+        const sessionRes = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentId}`);
+        const sessionData = await sessionRes.json();
+        
+        if (sessionRes.ok && sessionData.data && sessionData.data.length > 0) {
+          sessionData.data.forEach(session => {
+            handleNotification({
+              type: 'SESSION_STARTED',
+              payload: {
+                branch: student.branch,
+                subject_code: activityData.activity.subject_code,
+                sessionId: session.session_id
+              }
+            });
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[Realtime] Catch-up failed');
+    }
+  }, [handleNotification]);
+
+  // Identity fetch logic
+  useEffect(() => {
+    const fetchIdentity = async () => {
+      try {
+        const res = await fetch('/api/student/me');
+        if (res.ok) {
+          const { roll_no } = await res.json();
+          const profileRes = await fetch(`/api/student/${roll_no}`);
+          if (profileRes.ok) {
+            const data = await profileRes.json();
+            internalStudentRef.current = data.student;
+            // check active sessions once identity is confirmed
+            checkActiveSessions();
+          }
+        }
+      } catch (e) {}
+    };
+    
+    if (!studentCtx.studentData && !clerkCtx.clerkData) {
+      fetchIdentity();
+    } else {
+        checkActiveSessions();
+    }
+  }, [studentCtx.studentData, clerkCtx.clerkData, checkActiveSessions]);
 
   useEffect(() => {
     const CHANNEL_NAME = 'kucet_sse_sync';
@@ -127,9 +159,7 @@ export default function RealtimeListener({ onUpdate }) {
     const broadcastStatus = (status) => {
         setConnectionStatus(status);
         if (typeof window !== 'undefined') window.__sse_status = status;
-        try {
-            channel.postMessage({ type: 'STATUS_SYNC', status });
-        } catch(e) {}
+        try { channel.postMessage({ type: 'STATUS_SYNC', status }); } catch(e) {}
     };
 
     channel.onmessage = (event) => {
@@ -164,6 +194,7 @@ export default function RealtimeListener({ onUpdate }) {
       eventSource.onopen = () => {
         retryCount = 0;
         broadcastStatus('connected');
+        checkActiveSessions(); // Catch up on open
       };
 
       eventSource.onmessage = (event) => {
@@ -174,13 +205,11 @@ export default function RealtimeListener({ onUpdate }) {
 
           if (data.type === 'CONNECTED') {
               broadcastStatus('connected');
+              checkActiveSessions(); // Handshake confirmed
               return;
           }
 
-          if (isLeader) {
-            handleNotification(data);
-          }
-          
+          if (isLeader) handleNotification(data);
           channel.postMessage(data);
           if (onUpdateRef.current) onUpdateRef.current(data);
         } catch (e) {
@@ -202,10 +231,7 @@ export default function RealtimeListener({ onUpdate }) {
     if (typeof navigator !== 'undefined' && navigator.locks) {
       navigator.locks.request(LOCK_NAME, { mode: 'exclusive' }, () => {
         return new Promise((resolve) => {
-          if (isUnmounted) {
-            resolve();
-            return;
-          }
+          if (isUnmounted) { resolve(); return; }
           isLeader = true;
           lockResolver = resolve;
           setupSSE();
@@ -225,7 +251,7 @@ export default function RealtimeListener({ onUpdate }) {
       if (lockResolver) lockResolver();
       channel.close();
     };
-  }, [handleNotification]); 
+  }, [handleNotification, checkActiveSessions]); 
 
   return null;
 }
