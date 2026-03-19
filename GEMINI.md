@@ -134,6 +134,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 48: Stale Closure Fix for Real-Time Notifications (March 19, 2026)**
+- **Real-Time Data Integrity:**
+    - **Stale Closure Resolution:** Fixed a critical bug in `RealtimeListener` where notification logic was trapped in a stale closure of `studentData` and `clerkData` from the moment of leader election. This prevented notifications from firing if the user logged in or data loaded after the SSE connection was established.
+    - **Data Synchronization:** Implemented `useRef` hooks within `RealtimeListener` to ensure the asynchronous `handleNotification` callback always has access to the most recent student/clerk identity state without requiring an SSE reconnection.
+- **Observability & Diagnostics:**
+    - **Native Notification Logging:** Added detailed logging to `src/lib/notification-utils.js` to enable diagnostic visibility into permission status and scheduling success within the Android WebView.
+- **Technical Hygiene:**
+    - **Syntax Correction:** Resolved a JSX syntax error in the Realtime component caused by redundant closing braces during the previous refactor.
+
 ### **Session 47: Real-Time Notification Architecture Hardening (March 19, 2026)**
 - **Real-Time Notification Hardening:**
     - **Branch Matching Alignment:** Resolved a critical notification failure where faculty teaching across departments (e.g., S&H faculty in CSE classes) failed to trigger student alerts. Updated `SESSION_STARTED` and `SESSION_ENDED` broadcasts to use the **assignment's branch** instead of the faculty's home branch.

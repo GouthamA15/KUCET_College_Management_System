@@ -35,15 +35,18 @@ export const requestNotificationPermission = async () => {
  */
 export const showLocalNotification = async (title, body, extra = {}) => {
   if (!isCapacitor()) {
-    // Fallback for web: we could use native browser Notification API if needed,
-    // but for now, we'll just return as the user specifically asked for Android notifications.
+    console.log('[Notification-Web-Fallback]', title, body);
     return;
   }
 
   try {
     const hasPermission = await requestNotificationPermission();
-    if (!hasPermission) return;
+    if (!hasPermission) {
+      console.warn('[Notification] Permission not granted');
+      return;
+    }
 
+    console.log('[Notification-Native] Scheduling:', title);
     await LocalNotifications.schedule({
       notifications: [
         {
@@ -59,6 +62,7 @@ export const showLocalNotification = async (title, body, extra = {}) => {
         }
       ]
     });
+    console.log('[Notification-Native] Scheduled successfully');
   } catch (error) {
     console.error('Failed to show notification:', error);
   }

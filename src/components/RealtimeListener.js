@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useContext } from 'react';
-import toast from 'react-hot-toast';
+import { useEffect, useRef, useContext, useCallback } from 'react';
 import { StudentContext } from '@/context/StudentContext';
 import { ClerkContext } from '@/context/ClerkContext';
 import { showLocalNotification } from '@/lib/notification-utils';
@@ -11,10 +10,83 @@ export default function RealtimeListener({ onUpdate }) {
   const { studentData } = useContext(StudentContext) || {};
   const { clerkData } = useContext(ClerkContext) || {};
   
+  // Use refs to avoid stale closures in the async leader election / SSE setup
+  const studentDataRef = useRef(studentData);
+  const clerkDataRef = useRef(clerkData);
+
+  useEffect(() => {
+    studentDataRef.current = studentData;
+  }, [studentData]);
+
+  useEffect(() => {
+    clerkDataRef.current = clerkData;
+  }, [clerkData]);
+  
   // Keep the ref updated with the latest callback
   useEffect(() => {
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
+
+  const handleNotification = useCallback((data) => {
+    const { type, payload } = data;
+    const currentStudentData = studentDataRef.current;
+    const currentClerkData = clerkDataRef.current;
+
+    // --- STUDENT NOTIFICATIONS ---
+    const student = currentStudentData?.student || currentStudentData;
+    if (student && student.id) {
+      if (type === 'SESSION_STARTED') {
+        // Notify if branch matches and student is in a matching year
+        if (payload.branch === student.branch) {
+          showLocalNotification(
+            'Attendance Session Started 📍',
+            `A secure session for ${payload.subject_code} has started. Mark your attendance now!`,
+            { type: 'attendance', sessionId: payload.sessionId }
+          );
+        }
+      } else if (type === 'REQUEST_UPDATED') {
+        // Notify specific student about their certificate request
+        if (payload.student_id === student.id) {
+          const statusText = payload.status === 'APPROVED' ? 'Approved ✅' : 'Rejected ❌';
+          showLocalNotification(
+            `Certificate Request ${statusText}`,
+            `Your request for ${payload.certificate_type} has been ${payload.status.toLowerCase()}.`,
+            { type: 'certificate', requestId: payload.request_id }
+          );
+        }
+      } else if (type === 'TIMETABLE_CHANGED') {
+        if (payload.branch === student.branch) {
+          showLocalNotification(
+            'Timetable Updated 📅',
+            `The timetable for Semester ${payload.semester} has been updated.`,
+            { type: 'timetable', semester: payload.semester }
+          );
+        }
+      }
+    }
+
+    // --- CLERK NOTIFICATIONS ---
+    if (currentClerkData && currentClerkData.id) {
+      if (type === 'REQUEST_CREATED') {
+        // Notify relevant clerk type
+        if (payload.clerkType === currentClerkData.role) {
+          showLocalNotification(
+            'New Certificate Request 📄',
+            `A new request for ${payload.certificateType} has been submitted.`,
+            { type: 'clerk_request', clerkType: payload.clerkType }
+          );
+        }
+      } else if (type === 'PROFILE_UPDATE_REQUESTED') {
+        if (currentClerkData.role === 'admission') {
+          showLocalNotification(
+            'New Profile Update Request 👤',
+            'A student has requested a profile information update.',
+            { type: 'profile_update' }
+          );
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const CHANNEL_NAME = 'kucet_sse_sync';
@@ -73,65 +145,6 @@ export default function RealtimeListener({ onUpdate }) {
         }
       };
 
-      const handleNotification = (data) => {
-        const { type, payload } = data;
-
-        // --- STUDENT NOTIFICATIONS ---
-        const student = studentData?.student || studentData;
-        if (student && student.id) {
-          if (type === 'SESSION_STARTED') {
-            // Notify if branch matches and student is in a matching year
-            if (payload.branch === student.branch) {
-              showLocalNotification(
-                'Attendance Session Started 📍',
-                `A secure session for ${payload.subject_code} has started. Mark your attendance now!`,
-                { type: 'attendance', sessionId: payload.sessionId }
-              );
-            }
-          } else if (type === 'REQUEST_UPDATED') {
-            // Notify specific student about their certificate request
-            if (payload.student_id === student.id) {
-              const statusText = payload.status === 'APPROVED' ? 'Approved ✅' : 'Rejected ❌';
-              showLocalNotification(
-                `Certificate Request ${statusText}`,
-                `Your request for ${payload.certificate_type} has been ${payload.status.toLowerCase()}.`,
-                { type: 'certificate', requestId: payload.request_id }
-              );
-            }
-          } else if (type === 'TIMETABLE_CHANGED') {
-            if (payload.branch === student.branch) {
-              showLocalNotification(
-                'Timetable Updated 📅',
-                `The timetable for Semester ${payload.semester} has been updated.`,
-                { type: 'timetable', semester: payload.semester }
-              );
-            }
-          }
-        }
-
-        // --- CLERK NOTIFICATIONS ---
-        if (clerkData && clerkData.id) {
-          if (type === 'REQUEST_CREATED') {
-            // Notify relevant clerk type
-            if (payload.clerkType === clerkData.role) {
-              showLocalNotification(
-                'New Certificate Request 📄',
-                `A new request for ${payload.certificateType} has been submitted.`,
-                { type: 'clerk_request', clerkType: payload.clerkType }
-              );
-            }
-          } else if (type === 'PROFILE_UPDATE_REQUESTED') {
-            if (clerkData.role === 'admission') {
-              showLocalNotification(
-                'New Profile Update Request 👤',
-                'A student has requested a profile information update.',
-                { type: 'profile_update' }
-              );
-            }
-          }
-        }
-      };
-
       eventSource.onerror = (err) => {
         console.warn('[Realtime-Leader] Connection lost, retrying...');
         eventSource.close();
@@ -176,7 +189,7 @@ export default function RealtimeListener({ onUpdate }) {
       if (lockResolver) lockResolver(); // Instantly release the lock so another tab takes over
       channel.close();
     };
-  }, [studentData, clerkData]); // Re-run if user context changes to ensure notifications are role-aware
+  }, [handleNotification]); 
 
   return null; // Invisible utility component
 }
