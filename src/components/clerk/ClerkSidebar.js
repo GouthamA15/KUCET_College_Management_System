@@ -75,6 +75,9 @@ export default function ClerkSidebar({ isMobileOpen, setIsMobileOpen }) {
   const menuConfig = {
     admission: [
       { label: 'Dashboard', route: '/clerk/admission/dashboard', icon: icons.dashboard },
+      { label: 'Admission Requests', route: '/clerk/admission/requests', icon: icons.attendance },
+      { label: 'Finalize admissions', route: '/clerk/admission/finalize', icon: icons.marks },
+      { label: 'Update Requests', route: '/clerk/admission/student-requests', icon: icons.materials },
       { label: 'Departments', route: '/clerk/departments', icon: icons.departments },
       { label: 'Academic Calendar', route: '/clerk/academic-calendar', icon: icons.calendar },
       { label: 'Time Table', route: '/clerk/timetable', icon: icons.timetable },

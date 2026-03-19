@@ -65,7 +65,8 @@ const menuItems = [
     subItems: [
       { label: 'Certificates', route: '/student/requests/certificates' },
       { label: 'ID Card Reissue', route: '/student/requests/id-card' },
-      { label: 'Profile Update', route: '/student/requests/profile-updates' },
+      { label: 'Modify Records', route: '/student/settings/edit-profile' },
+      { label: 'Update History', route: '/student/requests/profile-updates' },
     ]
   },
   {
