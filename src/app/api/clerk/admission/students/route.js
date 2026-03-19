@@ -1,4 +1,12 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  students as studentsTable, 
+  studentPersonalDetails, 
+  studentAcademicBackground,
+  studentImages,
+  studentSignatures
+} from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { validateRollNo } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
@@ -6,158 +14,112 @@ import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 export async function POST(req) {
   const user = await getAuthUser('clerk');
-
   if (!user || user.role !== 'admission') {
     return apiError('Forbidden: Only admission clerks can add students', 403);
   }
 
   try {
     const studentData = await req.json();
-
     const {
-      admission_no,
-      roll_no,
-      name,
-      father_name,
-      mother_name,
-      date_of_birth,
-      place_of_birth,
-      gender,
-      nationality,
-      religion,
-      sub_caste,
-      category,
-      address,
-      mobile,
-      email,
-      qualifying_exam,
-      mother_tongue,
-      father_occupation,
-      student_aadhar_no,
-      identification_marks,
-      annual_income,
-      guardian_mobile,
-      aadhaar_no,
-      seat_allotted_category,
-      area_status,
-      previous_college_details,
-      medium_of_instruction,
-      ranks, 
-      ssc_marks,
-      inter_marks,
-      blood_group,
-      fee_reimbursement,
-      pfp, 
-      signature, 
+      admission_no, roll_no, name, father_name, mother_name, date_of_birth,
+      place_of_birth, gender, nationality, religion, sub_caste, category,
+      address, mobile, email, qualifying_exam, mother_tongue, father_occupation,
+      student_aadhar_no, identification_marks, annual_income, guardian_mobile,
+      aadhaar_no, seat_allotted_category, area_status, previous_college_details,
+      medium_of_instruction, ranks, ssc_marks, inter_marks, blood_group,
+      fee_reimbursement, pfp, signature
     } = studentData;
 
     const providedRoll = roll_no || studentData.rollno || null;
-
-    if (!providedRoll) {
-      return apiError('Roll number is required', 400);
-    }
+    if (!providedRoll) return apiError('Roll number is required', 400);
 
     const { isValid } = validateRollNo(providedRoll);
-    if (!isValid) {
-      return apiError('Invalid roll number format', 400);
+    if (!isValid) return apiError('Invalid roll number format', 400);
+
+    const clerkId = user?.clerkId || user.id || null;
+    if (!clerkId) return apiError('Unauthorized: clerk id missing in token', 401);
+
+    const validBloodGroups = COLLEGE_CONFIG.bloodGroups;
+    const bloodGroupToSave = blood_group && String(blood_group).trim() ? String(blood_group).trim() : null;
+    if (bloodGroupToSave && !validBloodGroups.includes(bloodGroupToSave)) {
+      return apiError('Invalid blood group value', 400);
     }
 
-    const db = await require('@/lib/db').getDb();
-    const connection = await db.getConnection();
+    const feeReimbursementToSave = fee_reimbursement == null ? null : String(fee_reimbursement).trim().toUpperCase();
+    if (feeReimbursementToSave && !['YES', 'NO', 'GOV'].includes(feeReimbursementToSave)) {
+      return apiError('Invalid fee_reimbursement value', 400);
+    }
 
-    try {
-      await connection.beginTransaction();
+    const result = await db.transaction(async (tx) => {
+      const existing = await tx.select({ id: studentsTable.id })
+        .from(studentsTable)
+        .where(eq(studentsTable.roll_no, providedRoll))
+        .limit(1);
+      
+      if (existing.length > 0) throw new Error('STUDENT_EXISTS');
 
-      // Check if a student with this roll number already exists
-      const [existingStudent] = await connection.execute('SELECT id FROM students WHERE roll_no = ?', [providedRoll]);
-      if (existingStudent.length > 0) {
-        await connection.rollback();
-        return apiError(`Student with Roll Number ${providedRoll} already exists.`, 409);
-      }
+      const [res] = await tx.insert(studentsTable).values({
+        admission_no: admission_no || null,
+        roll_no: providedRoll,
+        name: name || null,
+        date_of_birth: toMySQLDate(date_of_birth) ? new Date(toMySQLDate(date_of_birth)) : null,
+        gender: gender || null,
+        mobile: mobile || null,
+        email: email || null,
+        added_by_clerk_id: clerkId,
+        fee_reimbursement: feeReimbursementToSave === 'YES' ? 'YES' : 'NO'
+      });
+      const studentId = res.insertId;
 
-      // Ensure clerk exists
-      const clerkId = user?.clerkId || null;
-      if (!clerkId) {
-        await connection.rollback();
-        return apiError('Unauthorized: clerk id missing in token', 401);
-      }
-
-      // Validate blood group
-      const validBloodGroups = COLLEGE_CONFIG.bloodGroups;
-      const bloodGroupToSave = blood_group && String(blood_group).trim() ? String(blood_group).trim() : null;
-      if (bloodGroupToSave && !validBloodGroups.includes(bloodGroupToSave)) {
-        await connection.rollback();
-        return apiError('Invalid blood group value', 400);
-      }
-
-      // Validate fee_reimbursement
-      const validFeeReimbursement = ['YES', 'NO', 'GOV'];
-      const feeReimbursementToSave = fee_reimbursement == null ? null : String(fee_reimbursement).trim().toUpperCase();
-      if (feeReimbursementToSave && !validFeeReimbursement.includes(feeReimbursementToSave)) {
-        await connection.rollback();
-        return apiError('Invalid fee_reimbursement value', 400);
-      }
-
-      // Insert into students table
-      const [studentResult] = await connection.execute(
-        `INSERT INTO students (admission_no, roll_no, name, date_of_birth, gender, mobile, email, added_by_clerk_id, fee_reimbursement, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [admission_no || null, providedRoll, name || null, toMySQLDate(date_of_birth) || null, gender || null, mobile || null, email || null, clerkId, feeReimbursementToSave]
-      );
-
-      const studentId = studentResult.insertId;
-
-      // Sanitize Aadhaar
       const rawAadhaar = (student_aadhar_no || aadhaar_no || '') + '';
-      const cleanAadhaar = (rawAadhaar.replace(/\D/g, '') || null);
-      const aadhaarToSave = cleanAadhaar ? cleanAadhaar.slice(0, 12) : null;
+      const aadhaarToSave = rawAadhaar.replace(/\D/g, '').slice(0, 12) || null;
 
-      // Insert personal details
-      await connection.execute(
-        `INSERT INTO student_personal_details (
-          student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, place_of_birth, father_occupation, annual_income, guardian_mobile, aadhaar_no, address, seat_allotted_category, identification_marks, blood_group
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          studentId, father_name || null, mother_name || null, nationality || null, religion || null, category || null,
-          sub_caste || null, area_status || null, mother_tongue || null, place_of_birth || null, father_occupation || null,
-          annual_income ? Number(annual_income) : null, guardian_mobile || null, aadhaarToSave, address || null,
-          seat_allotted_category || null, identification_marks || null, bloodGroupToSave
-        ]
-      );
+      await tx.insert(studentPersonalDetails).values({
+        student_id: studentId,
+        father_name: father_name || null,
+        mother_name: mother_name || null,
+        nationality: nationality || null,
+        religion: religion || null,
+        category: category || null,
+        sub_caste: sub_caste || null,
+        area_status: area_status === 'Local' ? 'Local' : 'Non-Local',
+        mother_tongue: mother_tongue || null,
+        place_of_birth: place_of_birth || null,
+        father_occupation: father_occupation || null,
+        annual_income: annual_income ? parseInt(annual_income) : null,
+        guardian_mobile: guardian_mobile || null,
+        aadhaar_no: aadhaarToSave,
+        address: address || null,
+        seat_allotted_category: seat_allotted_category || null,
+        identification_marks: identification_marks || null,
+        blood_group: bloodGroupToSave
+      });
 
-      // Insert academic background
-      await connection.execute(
-        `INSERT INTO student_academic_background (
-          student_id, qualifying_exam, previous_college_details, medium_of_instruction, ranks, ssc_marks, inter_marks
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          studentId, qualifying_exam || null, previous_college_details || null, medium_of_instruction || null,
-          ranks ? Number(ranks) : null, ssc_marks || null, inter_marks || null
-        ]
-      );
+      await tx.insert(studentAcademicBackground).values({
+        student_id: studentId,
+        qualifying_exam: qualifying_exam || null,
+        previous_college_details: previous_college_details || null,
+        medium_of_instruction: medium_of_instruction || null,
+        ranks: ranks ? parseInt(ranks) : null,
+        ssc_marks: ssc_marks || null,
+        inter_marks: inter_marks || null
+      });
 
-      // Handle Images (Buffer if base64 provided)
       if (pfp && typeof pfp === 'string' && pfp.includes(',')) {
-        const pfpBuffer = Buffer.from(pfp.split(',')[1], 'base64');
-        await connection.execute('INSERT INTO student_images (student_id, pfp) VALUES (?, ?)', [studentId, pfpBuffer]);
+        await tx.insert(studentImages).values({ student_id: studentId, pfp: pfp });
       }
       if (signature && typeof signature === 'string' && signature.includes(',')) {
-        const sigBuffer = Buffer.from(signature.split(',')[1], 'base64');
-        await connection.execute('INSERT INTO student_signatures (student_id, signature) VALUES (?, ?)', [studentId, sigBuffer]);
+        await tx.insert(studentSignatures).values({ student_id: studentId, signature: signature });
       }
 
-      await connection.commit();
-      return apiResponse({ success: true, studentId, roll_no: providedRoll, message: 'Student admitted successfully.' });
+      return { studentId };
+    });
 
-    } catch (innerError) {
-      await connection.rollback();
-      console.error('Inner admission error:', innerError);
-      return apiError('Failed to save student details', 500);
-    } finally {
-      connection.release();
-    }
+    return apiResponse({ success: true, studentId: result.studentId, roll_no: providedRoll, message: 'Student admitted successfully.' });
+
   } catch (error) {
+    if (error.message === 'STUDENT_EXISTS') return apiError('Student with this Roll Number already exists.', 409);
     console.error('Error adding student:', error);
     return apiError('Internal Server Error', 500);
   }
-      }
-      
+}

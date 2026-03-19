@@ -1,4 +1,14 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  students as studentsTable, 
+  studentPersonalDetails, 
+  studentAcademicBackground,
+  studentImages,
+  studentSignatures,
+  scholarshipSanctions,
+  studentFeePayments
+} from '@/db/schema';
+import { eq, and, asc, desc, sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { computeAcademicYear } from '@/app/lib/academicYear';
@@ -6,103 +16,66 @@ import { getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
 
 export async function GET(req, context) {
   const user = await getAuthUser('clerk');
-
-  if (!user) {
-    return apiError('Unauthorized', 401);
-  }
+  if (!user) return apiError('Unauthorized', 401);
 
   try {
     const params = await context.params;
     const { rollno } = params;
 
-    const studentSql = `
-      SELECT
-        s.*,
-        pd.father_name, pd.mother_name, pd.nationality, pd.religion, pd.category, pd.sub_caste, pd.area_status, pd.mother_tongue, pd.place_of_birth, pd.father_occupation, pd.guardian_mobile, pd.annual_income, pd.aadhaar_no, pd.address, pd.seat_allotted_category, pd.identification_marks, pd.blood_group,
-        ab.qualifying_exam, ab.previous_college_details, ab.medium_of_instruction, ab.ranks, ab.ssc_marks, ab.inter_marks
-      FROM students s
-      LEFT JOIN student_personal_details pd ON s.id = pd.student_id
-      LEFT JOIN student_academic_background ab ON s.id = ab.student_id
-      WHERE s.roll_no = ?
-    `;
-    const studentResult = await query(studentSql, [rollno]);
+    const rows = await db.select()
+      .from(studentsTable)
+      .leftJoin(studentPersonalDetails, eq(studentsTable.id, studentPersonalDetails.student_id))
+      .leftJoin(studentAcademicBackground, eq(studentsTable.id, studentAcademicBackground.student_id))
+      .where(eq(studentsTable.roll_no, rollno))
+      .limit(1);
 
-    if (studentResult.length === 0) {
-      return apiError('Student not found', 404);
-    }
+    if (rows.length === 0) return apiError('Student not found', 404);
 
-    const studentData = studentResult[0];
-    const studentId = studentData.id;
-
-    const personalDetailsFields = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'guardian_mobile', 'annual_income', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
-    const academicFields = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks', 'ssc_marks', 'inter_marks'];
-    
-    const student = {};
-    const personal_details = {};
-    const academic_record = {};
-    let hasAcademicData = false;
-
-    Object.keys(studentData).forEach(key => {
-      if (personalDetailsFields.includes(key)) {
-        personal_details[key] = studentData[key];
-      } else if (academicFields.includes(key)) {
-        if (studentData[key] !== null) hasAcademicData = true;
-        academic_record[key] = studentData[key];
-      } else {
-        student[key] = studentData[key];
-      }
-    });
-
-    student.personal_details = personal_details;
-    const academics = hasAcademicData ? [academic_record] : [];
-    
-    student.course = getBranchFromRoll(student.roll_no);
-    student.admission_type = getAdmissionTypeFromRoll(student.roll_no);
+    const studentRow = rows[0];
+    const studentId = studentRow.students.id;
 
     // Helper to handle both URLs and legacy Buffer data
     const imageHelper = (val) => {
       if (!val) return null;
-      if (typeof val === 'string' && val.startsWith('http')) return val;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
       if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
       return val;
     };
 
-    // Fetch pfp and signature separately
-    const pfpResult = await query('SELECT pfp FROM student_images WHERE student_id = ?', [studentId]);
-    if (pfpResult.length > 0 && pfpResult[0].pfp) {
-        student.pfp = imageHelper(pfpResult[0].pfp);
-    } else {
-        student.pfp = null;
-    }
+    const student = {
+      ...studentRow.students,
+      personal_details: studentRow.student_personal_details || {},
+      course: getBranchFromRoll(studentRow.students.roll_no),
+      admission_type: getAdmissionTypeFromRoll(studentRow.students.roll_no)
+    };
 
-    const sigRows = await query('SELECT signature FROM student_signatures WHERE student_id = ?', [studentId]);
-    if (sigRows.length > 0 && sigRows[0].signature) {
-        student.signature = imageHelper(sigRows[0].signature);
-    } else {
-        student.signature = null;
-    }
+    const academics = studentRow.student_academic_background ? [studentRow.student_academic_background] : [];
 
-    // Fetch one-to-many relationships separately
-    const scholarshipSql = 'SELECT * FROM scholarship_sanctions WHERE student_id = ? ORDER BY sanction_date';
-    let scholarship = await query(scholarshipSql, [studentId]);
-    scholarship = scholarship.map(s => {
-      const academic_year = s.academic_year || (s.year ? computeAcademicYear(student.roll_no, s.year) : null);
-      return {
-        ...s,
-        academic_year,
-        application_no: s.application_no ?? s.application_no,
-        proceeding_no: s.proceeding_no ?? s.proceeding_no,
-        sanctioned_amount: s.sanctioned_amount ?? s.amount_sanctioned ?? s.sanctioned_amount,
-        sanction_date: s.sanction_date ?? s.date ?? s.sanction_date,
-      };
+    // Fetch pfp and signature
+    const pfpRow = await db.query.studentImages.findFirst({ where: eq(studentImages.student_id, studentId) });
+    student.pfp = pfpRow ? imageHelper(pfpRow.pfp) : null;
+
+    const sigRow = await db.query.studentSignatures.findFirst({ where: eq(studentSignatures.student_id, studentId) });
+    student.signature = sigRow ? imageHelper(sigRow.signature) : null;
+
+    // Fetch one-to-many relationships
+    const scholarshipRows = await db.query.scholarshipSanctions.findMany({
+      where: eq(scholarshipSanctions.student_id, studentId),
+      orderBy: [asc(scholarshipSanctions.sanction_date)]
     });
+    const scholarship = scholarshipRows.map(s => ({
+      ...s,
+      academic_year: s.academic_year || (s.year ? computeAcademicYear(student.roll_no, s.year) : null),
+    }));
 
-    const feesSql = 'SELECT * FROM student_fee_payments WHERE student_id = ? ORDER BY academic_year, transaction_date';
-    const feesRaw = await query(feesSql, [studentId]);
-    const fees = feesRaw.map(f => ({
+    const feesRows = await db.query.studentFeePayments.findMany({
+      where: eq(studentFeePayments.student_id, studentId),
+      orderBy: [asc(studentFeePayments.academic_year), asc(studentFeePayments.transaction_date)]
+    });
+    const fees = feesRows.map(f => ({
       ...f,
-      transaction_ref: f.transaction_ref_no ?? f.transaction_ref ?? f.transactionRef ?? null,
-      date: f.transaction_date ?? f.date ?? null,
+      transaction_ref: f.transaction_ref_no,
+      date: f.transaction_date,
     }));
 
     return apiResponse({ student, scholarship, fees, academics });
@@ -114,10 +87,7 @@ export async function GET(req, context) {
 
 export async function PUT(req, context) {
   const user = await getAuthUser('clerk');
-
-  if (!user) {
-    return apiError('Unauthorized', 401);
-  }
+  if (!user) return apiError('Unauthorized', 401);
 
   try {
     const params = await context.params;
@@ -125,34 +95,19 @@ export async function PUT(req, context) {
     const body = await req.json();
     const { name, gender, mobile, email, date_of_birth } = body;
 
-    if (!rollno) {
-      return apiError('Roll number is required', 400);
-    }
+    if (!rollno) return apiError('Roll number is required', 400);
 
-    const checkRows = await query('SELECT roll_no FROM students WHERE roll_no = ?', [rollno]);
-    if (checkRows.length === 0) {
-      return apiError('Student not found', 404);
-    }
+    const [result] = await db.update(studentsTable)
+      .set({
+        name: name !== undefined ? (name === '' ? null : name) : undefined,
+        gender: gender !== undefined ? (gender === '' ? null : gender) : undefined,
+        mobile: mobile !== undefined ? (mobile === '' ? null : mobile) : undefined,
+        email: email !== undefined ? (email === '' ? null : email) : undefined,
+        date_of_birth: date_of_birth !== undefined ? (date_of_birth === '' ? null : new Date(date_of_birth)) : undefined
+      })
+      .where(eq(studentsTable.roll_no, rollno));
 
-    // Build dynamic update for only allowed students columns
-    const updates = [];
-    const paramsArr = [];
-    if (typeof name !== 'undefined') { updates.push('name = ?'); paramsArr.push(name === '' ? null : name); }
-    if (typeof gender !== 'undefined') { updates.push('gender = ?'); paramsArr.push(gender === '' ? null : gender); }
-    if (typeof mobile !== 'undefined') { updates.push('mobile = ?'); paramsArr.push(mobile === '' ? null : mobile); }
-    if (typeof email !== 'undefined') { updates.push('email = ?'); paramsArr.push(email === '' ? null : email); }
-    if (typeof date_of_birth !== 'undefined') { updates.push('date_of_birth = ?'); paramsArr.push(date_of_birth === '' ? null : toMySQLDate(date_of_birth)); }
-
-    if (updates.length === 0) {
-      return apiError('No updatable fields provided', 400);
-    }
-
-    const sql = `UPDATE students SET ${updates.join(', ')} WHERE roll_no = ?`;
-    const result = await query(sql, [...paramsArr, rollno]);
-
-    if (result.affectedRows === 0) {
-      return apiError('No changes made or update failed', 400);
-    }
+    if (result.affectedRows === 0) return apiError('Student not found or no changes made', 404);
 
     return apiResponse({ success: true, message: 'Student details updated successfully' });
   } catch (err) {

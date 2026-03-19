@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { clerks } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { SignJWT } from 'jose';
 import { apiResponse, apiError } from '@/lib/api-utils';
@@ -19,7 +21,7 @@ export async function POST(request) {
       return apiError('Email and password are required', 400);
     }
 
-    const results = await query('SELECT * FROM clerks WHERE email = ?', [email]);
+    const results = await db.select().from(clerks).where(eq(clerks.email, email)).limit(1);
 
     if (results.length === 0) {
       console.error(`[Clerk Login Failed] User not found for email: ${email}`);
@@ -34,7 +36,6 @@ export async function POST(request) {
       return apiError('Invalid credentials', 401);
     }
 
-    // Block login for deactivated clerks before issuing tokens/sessions
     if (!clerk.is_active) {
       console.log(`[Clerk Login] Attempt to login to deactivated account: ${email}`);
       return apiError('Your account has been deactivated. Please contact the administrator.', 403);
@@ -44,7 +45,6 @@ export async function POST(request) {
     const sessionDuration = rememberMe ? '30d' : '1h';
     const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 60 * 60;
 
-    // Include clerk DB id in JWT payload so downstream handlers can audit actions
     const token = await new SignJWT({ 
       id: clerk.id, 
       clerkId: clerk.id, 
@@ -60,7 +60,6 @@ export async function POST(request) {
 
     const response = apiResponse({ success: true, message: 'Login successful', role: clerk.role });
 
-    // Clear other auth cookies
     response.cookies.delete('admin_auth');
     response.cookies.delete('student_auth');
 
@@ -78,7 +77,6 @@ export async function POST(request) {
       maxAge: cookieMaxAge,
       path: '/',
     });
-    // Expose the clerk role in a non-httpOnly cookie so client-side code can route appropriately
     response.cookies.set('clerk_role', clerk.role || '', {
       httpOnly: false,
       secure: true,

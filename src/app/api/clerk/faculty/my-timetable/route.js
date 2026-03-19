@@ -1,36 +1,45 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { branchTimetable, syllabusSubjects, semesters } from '@/db/schema';
+import { eq, and, desc, sql, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
   try {
     const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') {
-      return apiError('Unauthorized', 401);
-    }
+    if (!user || user.role !== 'faculty') return apiError('Unauthorized', 401);
 
     const clerkId = user.id || user.clerkId;
     if (!clerkId) return apiError('Faculty ID missing.', 400);
 
-    const semRows = await query('SELECT academic_year FROM semesters ORDER BY id DESC LIMIT 1');
+    const semRows = await db.select({ academic_year: semesters.academic_year })
+      .from(semesters)
+      .orderBy(desc(semesters.id))
+      .limit(1);
     const systemYear = semRows[0]?.academic_year || '2025-26';
+    const yearPattern = `%${systemYear.substring(0, 4)}%`;
 
-    const sql = `
-      SELECT 
-        bt.day_of_week,
-        bt.period_number,
-        bt.branch,
-        bt.semester,
-        bt.room_no,
-        COALESCE(s.subject_name, bt.subject_code) as display_name,
-        bt.subject_code
-      FROM branch_timetable bt
-      LEFT JOIN syllabus_subjects s ON bt.subject_code = s.subject_code
-      WHERE bt.faculty_id = ? 
-      AND (bt.academic_year LIKE ? OR bt.academic_year = '2025-26')
-      ORDER BY FIELD(bt.day_of_week, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'), bt.period_number
-    `;
-
-    const mySchedule = await query(sql, [clerkId, `%${systemYear.substring(0, 4)}%`]);
+    const mySchedule = await db.select({
+      day_of_week: branchTimetable.day_of_week,
+      period_number: branchTimetable.period_number,
+      branch: branchTimetable.branch,
+      semester: branchTimetable.semester,
+      room_no: branchTimetable.room_no,
+      display_name: sql`COALESCE(${syllabusSubjects.subject_name}, ${branchTimetable.subject_code})`,
+      subject_code: branchTimetable.subject_code
+    })
+    .from(branchTimetable)
+    .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
+    .where(and(
+      eq(branchTimetable.faculty_id, clerkId),
+      or(
+        like(branchTimetable.academic_year, yearPattern),
+        eq(branchTimetable.academic_year, '2025-26')
+      )
+    ))
+    .orderBy(
+      sql`FIELD(${branchTimetable.day_of_week}, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT')`,
+      branchTimetable.period_number
+    );
 
     return apiResponse({ data: mySchedule });
   } catch (error) {
