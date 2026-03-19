@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { studentAdmissionDrafts } from '@/db/schema';
+import { eq, and, asc } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -13,26 +15,22 @@ export async function GET(req) {
     const entranceExam = searchParams.get('entrance_exam');
     const status = searchParams.get('status') || 'DRAFT';
 
-    let sql = `
-      SELECT id, name, father_name, exam_rank, entrance_exam, branch, created_at 
-      FROM student_admission_drafts
-      WHERE status = ?
-    `;
-    const params = [status];
+    const conditions = [eq(studentAdmissionDrafts.status, status)];
+    if (branch) conditions.push(eq(studentAdmissionDrafts.branch, branch));
+    if (entranceExam) conditions.push(eq(studentAdmissionDrafts.entrance_exam, entranceExam));
 
-    if (branch) {
-      sql += " AND branch = ?";
-      params.push(branch);
-    }
-
-    if (entranceExam) {
-      sql += " AND entrance_exam = ?";
-      params.push(entranceExam);
-    }
-
-    sql += " ORDER BY name ASC";
-    
-    const drafts = await query(sql, params);
+    const drafts = await db.select({
+      id: studentAdmissionDrafts.id,
+      name: studentAdmissionDrafts.name,
+      father_name: studentAdmissionDrafts.father_name,
+      exam_rank: studentAdmissionDrafts.exam_rank,
+      entrance_exam: studentAdmissionDrafts.entrance_exam,
+      branch: studentAdmissionDrafts.branch,
+      created_at: studentAdmissionDrafts.created_at
+    })
+    .from(studentAdmissionDrafts)
+    .where(and(...conditions))
+    .orderBy(asc(studentAdmissionDrafts.name));
     
     return apiResponse({ data: drafts });
 

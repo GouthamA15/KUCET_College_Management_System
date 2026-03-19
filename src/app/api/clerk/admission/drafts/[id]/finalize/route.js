@@ -1,4 +1,13 @@
-import { query, getDb } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  students as studentsTable, 
+  studentPersonalDetails, 
+  studentAcademicBackground, 
+  studentImages, 
+  studentSignatures, 
+  studentAdmissionDrafts 
+} from '@/db/schema';
+import { eq, or, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(req, context) {
@@ -7,91 +16,114 @@ export async function POST(req, context) {
     return apiError('Forbidden', 403);
   }
 
-  const db = getDb();
-  const connection = await db.getConnection();
-
   try {
-    await connection.beginTransaction();
-
     const params = await context.params;
-    const { id } = params;
+    const id = parseInt(params.id);
     const { roll_no } = await req.json();
 
     if (!roll_no) {
-      await connection.rollback();
       return apiError('Roll number is required', 400);
     }
 
-    // 1. Fetch the full draft data
-    const [draftRows] = await connection.execute('SELECT * FROM student_admission_drafts WHERE id = ? FOR UPDATE', [id]);
-    if (!draftRows || draftRows.length === 0) {
-      await connection.rollback();
-      return apiError('Draft not found', 404);
-    }
-    const draft = draftRows[0];
-    if (draft.status !== 'PROCESSED') {
-      await connection.rollback();
-      return apiError('Only verified drafts can be finalized', 400);
-    }
+    const result = await db.transaction(async (tx) => {
+      // 1. Fetch the full draft data with lock
+      // Note: Drizzle doesn't have a direct 'FOR UPDATE' helper in query.findFirst yet, 
+      // but we can use the standard select builder.
+      const draftRows = await tx.select()
+        .from(studentAdmissionDrafts)
+        .where(eq(studentAdmissionDrafts.id, id))
+        .for('update');
 
-    // 2. Check if roll_no or email already exists in students table
-    const [existing] = await connection.execute('SELECT id FROM students WHERE roll_no = ? OR email = ?', [roll_no, draft.email]);
-    if (existing.length > 0) {
-      await connection.rollback();
-      return apiError('A student with this Roll No or Email already exists.', 409);
-    }
+      if (draftRows.length === 0) {
+        throw new Error('DRAFT_NOT_FOUND');
+      }
+      const draft = draftRows[0];
+      if (draft.status !== 'PROCESSED') {
+        throw new Error('DRAFT_NOT_VERIFIED');
+      }
 
-    // 3. Insert into students table
-    const [studentResult] = await connection.execute(
-      `INSERT INTO students (
-        admission_no, roll_no, name, date_of_birth, gender, mobile, email, added_by_clerk_id, fee_reimbursement, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [null, roll_no, draft.name, draft.dob, draft.gender, draft.student_mobile, draft.email, user.clerkId, draft.fee_reimbursement]
-    );
+      // 2. Check if roll_no or email already exists
+      const existing = await tx.select({ id: studentsTable.id })
+        .from(studentsTable)
+        .where(or(
+          eq(studentsTable.roll_no, roll_no),
+          eq(studentsTable.email, draft.email)
+        ))
+        .limit(1);
 
-    const studentId = studentResult.insertId;
+      if (existing.length > 0) {
+        throw new Error('STUDENT_EXISTS');
+      }
 
-    // 4. Insert into personal details
-    await connection.execute(
-      `INSERT INTO student_personal_details (
-        student_id, father_name, mother_name, nationality, religion, category, sub_caste, area_status, mother_tongue, 
-        place_of_birth, father_occupation, annual_income, guardian_mobile, aadhaar_no, address, identification_marks
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        studentId, draft.father_name, draft.mother_name, draft.nationality, draft.religion, draft.category, 
-        draft.sub_caste, draft.area_status, draft.mother_tongue, draft.place_of_birth, draft.father_occupation, 
-        draft.annual_income, draft.guardian_mobile, draft.aadhaar_no, draft.permanent_address, 
-        `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim()
-      ]
-    );
+      // 3. Insert into students table
+      const [studentResult] = await tx.insert(studentsTable).values({
+        admission_no: null,
+        roll_no: roll_no,
+        name: draft.name,
+        date_of_birth: draft.dob,
+        gender: draft.gender,
+        mobile: draft.student_mobile,
+        email: draft.email,
+        added_by_clerk_id: user.clerkId || user.id,
+        fee_reimbursement: draft.fee_reimbursement === 'YES' ? 'YES' : 'NO',
+        created_at: new Date()
+      });
 
-    // 5. Insert into academic background
-    await connection.execute(
-      `INSERT INTO student_academic_background (
-        student_id, qualifying_exam, ssc_marks, inter_marks, ranks
-      ) VALUES (?, ?, ?, ?, ?)`,
-      [studentId, draft.entrance_exam, draft.ssc_marks, draft.inter_diploma_marks, draft.exam_rank]
-    );
+      const studentId = studentResult.insertId;
 
-    // 6. Insert Images if they exist
-    if (draft.pfp) {
-      await connection.execute('INSERT INTO student_images (student_id, pfp) VALUES (?, ?)', [studentId, draft.pfp]);
-    }
-    if (draft.signature) {
-      await connection.execute('INSERT INTO student_signatures (student_id, signature) VALUES (?, ?)', [studentId, draft.signature]);
-    }
+      // 4. Insert into personal details
+      await tx.insert(studentPersonalDetails).values({
+        student_id: studentId,
+        father_name: draft.father_name,
+        mother_name: draft.mother_name,
+        nationality: draft.nationality,
+        religion: draft.religion,
+        category: draft.category,
+        sub_caste: draft.sub_caste,
+        area_status: draft.area_status === 'Local' ? 'Local' : 'Non-Local',
+        mother_tongue: draft.mother_tongue,
+        place_of_birth: draft.place_of_birth,
+        father_occupation: draft.father_occupation,
+        annual_income: draft.annual_income,
+        guardian_mobile: draft.guardian_mobile,
+        aadhaar_no: draft.aadhaar_no,
+        address: draft.permanent_address,
+        identification_marks: `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim()
+      });
 
-    // 7. Mark draft as FINALIZED
-    await connection.execute('UPDATE student_admission_drafts SET status = "FINALIZED" WHERE id = ?', [id]);
+      // 5. Insert into academic background
+      await tx.insert(studentAcademicBackground).values({
+        student_id: studentId,
+        qualifying_exam: draft.entrance_exam,
+        ssc_marks: draft.ssc_marks,
+        inter_marks: draft.inter_diploma_marks,
+        ranks: draft.exam_rank
+      });
 
-    await connection.commit();
-    return apiResponse({ success: true, studentId, message: 'Student successfully admitted and record created.' });
+      // 6. Insert Images if they exist
+      if (draft.pfp) {
+        await tx.insert(studentImages).values({ student_id: studentId, pfp: draft.pfp });
+      }
+      if (draft.signature) {
+        await tx.insert(studentSignatures).values({ student_id: studentId, signature: draft.signature });
+      }
+
+      // 7. Mark draft as FINALIZED
+      await tx.update(studentAdmissionDrafts)
+        .set({ status: "FINALIZED" })
+        .where(eq(studentAdmissionDrafts.id, id));
+
+      return { studentId };
+    });
+
+    return apiResponse({ success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' });
 
   } catch (error) {
-    await connection.rollback();
+    if (error.message === 'DRAFT_NOT_FOUND') return apiError('Draft not found', 404);
+    if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);
+    if (error.message === 'STUDENT_EXISTS') return apiError('A student with this Roll No or Email already exists.', 409);
+    
     console.error('Finalization error:', error);
     return apiError('Failed to finalize admission.', 500);
-  } finally {
-    connection.release();
   }
 }

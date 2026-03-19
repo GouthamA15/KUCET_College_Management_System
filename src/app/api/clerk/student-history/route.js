@@ -1,14 +1,13 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { students, studentImportLogs, clerks } from '@/db/schema';
+import { eq, and, ne, sql, desc, or, inArray, isNotNull } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
   const user = await getAuthUser('clerk');
+  if (!user) return apiError('Unauthorized', 401);
 
-  if (!user) {
-    return apiError('Unauthorized', 401);
-  }
-
-  const currentClerkId = user?.clerkId || null;
+  const currentClerkId = user?.clerkId || user.id || null;
   if (!currentClerkId) return apiError('Unauthorized: clerk id missing in token', 401);
 
   try {
@@ -20,78 +19,80 @@ export async function GET(req) {
     const actionTypes = actionTypesRaw.map((v) => String(v || '').toUpperCase()).filter((v) => ['ADDED', 'UPDATED', 'IMPORTED'].includes(v));
     const dateRange = (params.get('dateRange') || 'all').toLowerCase();
 
-    // Build the UNION subquery (no scope/actionType/date filters inside subqueries)
-    const unionSql = `
-      SELECT s.roll_no AS rollNo, 'ADDED' AS actionType, s.added_by_clerk_id AS clerkId, s.created_at AS actionTime, NULL AS totalRecords
-      FROM students s
+    // 1. Define subqueries
+    const addedSub = db.select({
+      rollNo: students.roll_no,
+      actionType: sql`'ADDED'`,
+      clerkId: students.added_by_clerk_id,
+      actionTime: students.created_at,
+      totalRecords: sql`NULL`
+    }).from(students);
 
-      UNION ALL
+    const updatedSub = db.select({
+      rollNo: students.roll_no,
+      actionType: sql`'UPDATED'`,
+      clerkId: students.updated_by_clerk_id,
+      actionTime: students.updated_at,
+      totalRecords: sql`NULL`
+    })
+    .from(students)
+    .where(and(
+      isNotNull(students.updated_at),
+      ne(students.updated_at, students.created_at)
+    ));
 
-      SELECT s.roll_no AS rollNo, 'UPDATED' AS actionType, s.updated_by_clerk_id AS clerkId, s.updated_at AS actionTime, NULL AS totalRecords
-      FROM students s
-      WHERE s.updated_at IS NOT NULL
-        AND s.updated_at != s.created_at
+    const importedSub = db.select({
+      rollNo: sql`NULL`,
+      actionType: sql`'IMPORTED'`,
+      clerkId: studentImportLogs.clerk_id,
+      actionTime: studentImportLogs.created_at,
+      totalRecords: studentImportLogs.total_records
+    }).from(studentImportLogs);
 
-      UNION ALL
+    // 2. Combine with Union (Drizzle unionAll)
+    const activityUnion = db.unionAll(addedSub, updatedSub, importedSub).as('activity');
 
-      SELECT NULL AS rollNo, 'IMPORTED' AS actionType, l.clerk_id AS clerkId, l.created_at AS actionTime, l.total_records AS totalRecords
-      FROM student_import_logs l
-    `;
-
-    // Build outer WHERE clauses and parameter list in explicit order
-    const whereParts = ['1=1'];
-    const sqlParams = [];
-
+    // 3. Main Query with Filters
+    let conditions = [];
     if (actionTypes.length > 0) {
-      whereParts.push(`actionType IN (${actionTypes.map(() => '?').join(',')})`);
-      actionTypes.forEach((t) => sqlParams.push(t));
+      conditions.push(inArray(activityUnion.actionType, actionTypes));
     }
 
     if (dateRange === '7') {
-      whereParts.push('actionTime >= NOW() - INTERVAL 7 DAY');
+      conditions.push(sql`${activityUnion.actionTime} >= NOW() - INTERVAL 7 DAY`);
     } else if (dateRange === '30') {
-      whereParts.push('actionTime >= NOW() - INTERVAL 30 DAY');
+      conditions.push(sql`${activityUnion.actionTime} >= NOW() - INTERVAL 30 DAY`);
     }
 
-    // Scope filter applied after wrapping union: either all or only current clerk
-    whereParts.push(`(? = 'all' OR clerkId = ?)`);
-    // params order for recordsSql: first param is used by CASE WHEN (clerkName), then params from WHERE in same sequence
+    if (scope !== 'all') {
+      conditions.push(eq(activityUnion.clerkId, currentClerkId));
+    }
 
-    // Compose WHERE SQL
-    const whereSql = `WHERE ${whereParts.join(' AND ')}`;
+    const records = await db.select({
+      rollNo: activityUnion.rollNo,
+      actionType: activityUnion.actionType,
+      actionTime: activityUnion.actionTime,
+      totalRecords: activityUnion.totalRecords,
+      clerkId: activityUnion.clerkId,
+      clerkName: sql`CASE WHEN ${scope} = 'my' THEN NULL ELSE ${clerks.name} END`
+    })
+    .from(activityUnion)
+    .leftJoin(clerks, eq(activityUnion.clerkId, clerks.id))
+    .where(and(...conditions))
+    .orderBy(desc(activityUnion.actionTime));
 
-    // Build records SQL with clerk name (nullified when scope='my')
-    const recordsSql = `SELECT activity.rollNo, activity.actionType, activity.actionTime, activity.totalRecords, activity.clerkId, CASE WHEN ? = 'my' THEN NULL ELSE c.name END AS clerkName FROM (${unionSql}) AS activity LEFT JOIN clerks c ON activity.clerkId = c.id ${whereSql} ORDER BY actionTime DESC`;
+    // 4. Counts
+    const countBase = (conds) => db.select({ count: sql`COUNT(*)` }).from(activityUnion).where(and(...conds));
+    
+    let baseConds = [];
+    if (dateRange === '7') baseConds.push(sql`${activityUnion.actionTime} >= NOW() - INTERVAL 7 DAY`);
+    else if (dateRange === '30') baseConds.push(sql`${activityUnion.actionTime} >= NOW() - INTERVAL 30 DAY`);
 
-    // Prepare parameters: first for CASE WHEN, then params for actionTypes/dateRange/scope
-    const recordsParams = [];
-    recordsParams.push(scope); // for CASE WHEN
-    // actionTypes params were already pushed in 'sqlParams' in order
-    sqlParams.forEach(p => recordsParams.push(p));
-    // append scope clause params: scope and currentClerkId
-    recordsParams.push(scope, currentClerkId);
+    const allCountRows = await countBase(baseConds);
+    const myCountRows = await countBase([...baseConds, eq(activityUnion.clerkId, currentClerkId)]);
 
-    console.log('Scope:', scope);
-    console.log('Clerk ID:', currentClerkId);
-    console.log('recordsSql params:', recordsParams);
-
-    // Fetch records
-    const records = await query(recordsSql, recordsParams);
-
-    // Counts: must respect dateRange, ignore actionType filter
-    const countWhereParts = [];
-    if (dateRange === '7') countWhereParts.push('actionTime >= NOW() - INTERVAL 7 DAY');
-    else if (dateRange === '30') countWhereParts.push('actionTime >= NOW() - INTERVAL 30 DAY');
-    const countWhereSql = countWhereParts.length > 0 ? `WHERE ${countWhereParts.join(' AND ')}` : '';
-
-    const allCountSql = `SELECT COUNT(*) as cnt FROM (${unionSql}) AS activity ${countWhereSql}`;
-    const allCountRows = await query(allCountSql, []);
-    const allCount = (allCountRows && allCountRows[0] && allCountRows[0].cnt) ? Number(allCountRows[0].cnt) : 0;
-
-    const myCountSql = `SELECT COUNT(*) as cnt FROM (${unionSql}) AS activity ${countWhereSql} ${countWhereSql ? 'AND' : 'WHERE'} clerkId = ?`;
-    // If countWhereSql is empty the above will add WHERE clerkId = ?; if non-empty it appends AND clerkId = ? as intended
-    const myCountRows = await query(myCountSql, [currentClerkId]);
-    const myCount = (myCountRows && myCountRows[0] && myCountRows[0].cnt) ? Number(myCountRows[0].cnt) : 0;
+    const allCount = Number(allCountRows[0]?.count || 0);
+    const myCount = Number(myCountRows[0]?.count || 0);
 
     return apiResponse({ records, myCount, allCount });
   } catch (error) {

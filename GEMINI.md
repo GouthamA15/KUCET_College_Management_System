@@ -140,6 +140,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 59: Admission & Student Management ORM Migration (March 19, 2026)**
+- **API Refactoring (Admission Clerk):**
+    - **Bulk Import Workflow:** Refactored the high-complexity `/admission/bulk-import` route to use Drizzle ORM. Implemented transactional record-check and bulk-sync logic for Students, Personal Details, and Academic Background.
+    - **Admission Pipeline:** Migrated Draft management (`/drafts`, `/drafts/[id]`) and Finalization logic. Ensured atomic "Finalize" operation using `db.transaction()` to safely convert applicants into students with PFP/Signature preservation.
+    - **Modification Requests:** Refactored `/admission/student-requests` (GET and PUT) to handle student profile update approvals with automated Cloudinary cleanup for rejected/replaced assets.
+- **API Refactoring (Student Management):**
+    - **Search & History:** Migrated `/students/search` and `/student-history` to Drizzle. Utilized `db.unionAll()` for unified activity auditing across different tables (Additions, Updates, Imports).
+- **Validation:** Verified functional parity for all clerk-level student management tools, maintaining real-time SSE broadcasts for admission and request updates.
+
 ### **Session 58: Faculty Assignments & HOD Tools ORM Migration (March 19, 2026)**
 - **API Refactoring (Faculty/HOD):**
     - **Faculty Core Batch:** Refactored `/faculty/assignments`, `/faculty/marks`, and `/faculty/syllabus` to Drizzle ORM, ensuring type-safe fetching of student marks and curriculum metadata.

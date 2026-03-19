@@ -1,4 +1,13 @@
-import { getDb } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  studentProfileRequests, 
+  students as studentsTable, 
+  studentPersonalDetails, 
+  studentAcademicBackground, 
+  studentSignatures, 
+  studentImages 
+} from '@/db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { deleteFromCloudinary } from '@/lib/cloudinary';
 
@@ -7,55 +16,52 @@ export async function GET(req) {
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const db = getDb();
-    // Fetch pending requests with student details
-    const [rows] = await db.execute(`
-      SELECT 
-        spr.id, 
-        spr.student_id, 
-        s.roll_no, 
-        s.name, 
-        spr.new_signature, 
-        spr.new_pfp,
-        spr.new_data,
-        spr.proof_url,
-        ss.signature as old_signature,
-        si.pfp as old_pfp,
-        s.email as current_email,
-        s.mobile as current_mobile,
-        spd.father_name as current_father_name,
-        spd.mother_name as current_mother_name,
-        spd.nationality as current_nationality,
-        spd.religion as current_religion,
-        spd.category as current_category,
-        spd.sub_caste as current_sub_caste,
-        spd.area_status as current_area_status,
-        spd.mother_tongue as current_mother_tongue,
-        spd.place_of_birth as current_place_of_birth,
-        spd.father_occupation as current_father_occupation,
-        spd.guardian_mobile as current_guardian_mobile,
-        spd.annual_income as current_annual_income,
-        spd.aadhaar_no as current_aadhaar_no,
-        spd.address as current_address,
-        spd.seat_allotted_category as current_seat_allotted_category,
-        spd.identification_marks as current_identification_marks,
-        spd.blood_group as current_blood_group,
-        sab.qualifying_exam as current_qualifying_exam,
-        sab.previous_college_details as current_previous_college_details,
-        sab.medium_of_instruction as current_medium_of_instruction,
-        sab.ranks as current_ranks,
-        sab.ssc_marks as current_ssc_marks,
-        sab.inter_marks as current_inter_marks,
-        spr.created_at
-      FROM student_profile_requests spr
-      JOIN students s ON spr.student_id = s.id
-      LEFT JOIN student_personal_details spd ON spr.student_id = spd.student_id
-      LEFT JOIN student_academic_background sab ON spr.student_id = sab.student_id
-      LEFT JOIN student_signatures ss ON spr.student_id = ss.student_id
-      LEFT JOIN student_images si ON spr.student_id = si.student_id
-      WHERE spr.status = 'pending'
-      ORDER BY spr.created_at DESC
-    `);
+    const rows = await db.select({
+      id: studentProfileRequests.id,
+      student_id: studentProfileRequests.student_id,
+      roll_no: studentsTable.roll_no,
+      name: studentsTable.name,
+      new_signature: studentProfileRequests.new_signature,
+      new_pfp: studentProfileRequests.new_pfp,
+      new_data: studentProfileRequests.new_data,
+      proof_url: studentProfileRequests.proof_url,
+      old_signature: studentSignatures.signature,
+      old_pfp: studentImages.pfp,
+      current_email: studentsTable.email,
+      current_mobile: studentsTable.mobile,
+      current_father_name: studentPersonalDetails.father_name,
+      current_mother_name: studentPersonalDetails.mother_name,
+      current_nationality: studentPersonalDetails.nationality,
+      current_religion: studentPersonalDetails.religion,
+      current_category: studentPersonalDetails.category,
+      current_sub_caste: studentPersonalDetails.sub_caste,
+      current_area_status: studentPersonalDetails.area_status,
+      current_mother_tongue: studentPersonalDetails.mother_tongue,
+      current_place_of_birth: studentPersonalDetails.place_of_birth,
+      current_father_occupation: studentPersonalDetails.father_occupation,
+      current_guardian_mobile: studentPersonalDetails.guardian_mobile,
+      current_annual_income: studentPersonalDetails.annual_income,
+      current_aadhaar_no: studentPersonalDetails.aadhaar_no,
+      current_address: studentPersonalDetails.address,
+      current_seat_allotted_category: studentPersonalDetails.seat_allotted_category,
+      current_identification_marks: studentPersonalDetails.identification_marks,
+      current_blood_group: studentPersonalDetails.blood_group,
+      current_qualifying_exam: studentAcademicBackground.qualifying_exam,
+      current_previous_college_details: studentAcademicBackground.previous_college_details,
+      current_medium_of_instruction: studentAcademicBackground.medium_of_instruction,
+      current_ranks: studentAcademicBackground.ranks,
+      current_ssc_marks: studentAcademicBackground.ssc_marks,
+      current_inter_marks: studentAcademicBackground.inter_marks,
+      created_at: studentProfileRequests.created_at
+    })
+    .from(studentProfileRequests)
+    .innerJoin(studentsTable, eq(studentProfileRequests.student_id, studentsTable.id))
+    .leftJoin(studentPersonalDetails, eq(studentProfileRequests.student_id, studentPersonalDetails.student_id))
+    .leftJoin(studentAcademicBackground, eq(studentProfileRequests.student_id, studentAcademicBackground.student_id))
+    .leftJoin(studentSignatures, eq(studentProfileRequests.student_id, studentSignatures.student_id))
+    .leftJoin(studentImages, eq(studentProfileRequests.student_id, studentImages.student_id))
+    .where(eq(studentProfileRequests.status, 'pending'))
+    .orderBy(desc(studentProfileRequests.created_at));
 
     const imageHelper = (val) => {
       if (!val) return null;
@@ -65,7 +71,6 @@ export async function GET(req) {
     };
 
     const data = rows.map(row => {
-      // Map current values into a helper object for easier lookup in frontend
       const currentValues = {};
       Object.keys(row).forEach(key => {
         if (key.startsWith('current_')) {
@@ -105,89 +110,74 @@ export async function PUT(req) {
     const { requestId, action, rejectionReason } = body; 
     if (!requestId || !action) return apiError('Missing parameters', 400);
 
-    const db = getDb();
-    
-    const [requestRows] = await db.execute(
-      'SELECT student_id, new_signature, new_pfp, new_data, proof_url FROM student_profile_requests WHERE id = ? AND status = "pending"',
-      [requestId]
-    );
+    const request = await db.query.studentProfileRequests.findFirst({
+      where: and(eq(studentProfileRequests.id, requestId), eq(studentProfileRequests.status, 'pending'))
+    });
 
-    if (requestRows.length === 0) return apiError('Request not found or already processed', 404);
+    if (!request) return apiError('Request not found or already processed', 404);
 
-    const { student_id, new_signature, new_pfp, new_data, proof_url } = requestRows[0];
+    const { student_id, new_signature, new_pfp, new_data, proof_url } = request;
 
     if (action === 'approve') {
-      // 1. Update Signature if provided
-      if (new_signature) {
-        const [oldSigRows] = await db.execute('SELECT signature FROM student_signatures WHERE student_id = ?', [student_id]);
-        if (oldSigRows.length > 0 && oldSigRows[0].signature) {
-          await deleteFromCloudinary(oldSigRows[0].signature);
+      await db.transaction(async (tx) => {
+        // 1. Update Signature
+        if (new_signature) {
+          const oldSig = await tx.query.studentSignatures.findFirst({ where: eq(studentSignatures.student_id, student_id) });
+          if (oldSig?.signature) await deleteFromCloudinary(oldSig.signature);
+          await tx.insert(studentSignatures)
+            .values({ student_id, signature: new_signature })
+            .onDuplicateKeyUpdate({ set: { signature: new_signature } });
         }
-        await db.execute(
-          'INSERT INTO student_signatures (student_id, signature) VALUES (?, ?) ' +
-          'ON DUPLICATE KEY UPDATE signature = VALUES(signature)',
-          [student_id, new_signature]
-        );
-      }
-      
-      // 2. Update PFP if provided
-      if (new_pfp) {
-        const [oldImgRows] = await db.execute('SELECT pfp FROM student_images WHERE student_id = ?', [student_id]);
-        if (oldImgRows.length > 0 && oldImgRows[0].pfp) {
-          await deleteFromCloudinary(oldImgRows[0].pfp);
+        
+        // 2. Update PFP
+        if (new_pfp) {
+          const oldPfp = await tx.query.studentImages.findFirst({ where: eq(studentImages.student_id, student_id) });
+          if (oldPfp?.pfp) await deleteFromCloudinary(oldPfp.pfp);
+          await tx.insert(studentImages)
+            .values({ student_id, pfp: new_pfp })
+            .onDuplicateKeyUpdate({ set: { pfp: new_pfp } });
         }
-        await db.execute(
-          'INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ' +
-          'ON DUPLICATE KEY UPDATE pfp = VALUES(pfp)',
-          [student_id, new_pfp]
-        );
-      }
 
-      // 3. Update Text Data if provided
-      if (new_data) {
-        const data = typeof new_data === 'string' ? JSON.parse(new_data) : new_data;
-        if (data.mobile || data.email) {
-            let sets = [];
-            let params = [];
-            if (data.mobile) { sets.push('mobile = ?'); params.push(data.mobile); }
-            if (data.email) { sets.push('email = ?'); params.push(data.email); }
-            params.push(student_id);
-            await db.execute(`UPDATE students SET ${sets.join(', ')} WHERE id = ?`, params);
+        // 3. Update Text Data
+        if (new_data) {
+          const data = typeof new_data === 'string' ? JSON.parse(new_data) : new_data;
+          
+          if (data.mobile || data.email) {
+            const studentSets = {};
+            if (data.mobile) studentSets.mobile = data.mobile;
+            if (data.email) studentSets.email = data.email;
+            await tx.update(studentsTable).set(studentSets).where(eq(studentsTable.id, student_id));
+          }
+
+          const spd_fields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks','blood_group'];
+          const spd_data = {};
+          spd_fields.forEach(f => { if (data.hasOwnProperty(f)) spd_data[f] = data[f]; });
+          if (Object.keys(spd_data).length > 0) {
+            await tx.update(studentPersonalDetails).set(spd_data).where(eq(studentPersonalDetails.student_id, student_id));
+          }
+
+          const sab_fields = ['qualifying_exam','previous_college_details','medium_of_instruction','ranks','ssc_marks','inter_marks'];
+          const sab_data = {};
+          sab_fields.forEach(f => { if (data.hasOwnProperty(f)) sab_data[f] = data[f]; });
+          if (Object.keys(sab_data).length > 0) {
+            await tx.update(studentAcademicBackground).set(sab_data).where(eq(studentAcademicBackground.student_id, student_id));
+          }
         }
-        const spd_fields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks','blood_group'];
-        const spd_data = {};
-        spd_fields.forEach(f => { if (data.hasOwnProperty(f)) spd_data[f] = data[f]; });
-        if (Object.keys(spd_data).length > 0) {
-            const fields = Object.keys(spd_data);
-            const values = Object.values(spd_data);
-            const setClause = fields.map(f => `${f} = ?`).join(', ');
-            await db.execute(`UPDATE student_personal_details SET ${setClause} WHERE student_id = ?`, [...values, student_id]);
-        }
-        const sab_fields = ['qualifying_exam','previous_college_details','medium_of_instruction','ranks','ssc_marks','inter_marks'];
-        const sab_data = {};
-        sab_fields.forEach(f => { if (data.hasOwnProperty(f)) sab_data[f] = data[f]; });
-        if (Object.keys(sab_data).length > 0) {
-            const fields = Object.keys(sab_data);
-            const values = Object.values(sab_data);
-            const setClause = fields.map(f => `${f} = ?`).join(', ');
-            await db.execute(`UPDATE student_academic_background SET ${setClause} WHERE student_id = ?`, [...values, student_id]);
-        }
-      }
-      await db.execute(
-        'UPDATE student_profile_requests SET status = "approved", rejection_reason = NULL WHERE id = ?',
-        [requestId]
-      );
+
+        await tx.update(studentProfileRequests)
+          .set({ status: "approved", rejection_reason: null })
+          .where(eq(studentProfileRequests.id, requestId));
+      });
     } else {
       if (new_pfp) await deleteFromCloudinary(new_pfp);
       if (new_signature) await deleteFromCloudinary(new_signature);
       if (proof_url) await deleteFromCloudinary(proof_url);
-      await db.execute(
-        'UPDATE student_profile_requests SET status = "rejected", rejection_reason = ? WHERE id = ?',
-        [rejectionReason || 'No reason provided', requestId]
-      );
+      await db.update(studentProfileRequests)
+        .set({ status: "rejected", rejection_reason: rejectionReason || 'No reason provided' })
+        .where(eq(studentProfileRequests.id, requestId));
     }
 
-    // REAL-TIME: Broadcast to students
+    // REAL-TIME
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
       broadcastUpdate('REQUEST_UPDATED', {
@@ -196,9 +186,7 @@ export async function PUT(req) {
         request_id: requestId,
         certificate_type: 'Profile Update'
       });
-    } catch (e) {
-      console.error('SSE Broadcast error:', e);
-    }
+    } catch (e) {}
 
     return apiResponse({ success: true });
   } catch (err) {
