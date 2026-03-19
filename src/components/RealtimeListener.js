@@ -16,6 +16,9 @@ export default function RealtimeListener({ onUpdate }) {
 
   useEffect(() => {
     studentDataRef.current = studentData;
+    if (studentData) {
+        console.log('[Realtime] Student Data Context Updated:', studentData.student?.roll_no || studentData.roll_no);
+    }
   }, [studentData]);
 
   useEffect(() => {
@@ -32,20 +35,28 @@ export default function RealtimeListener({ onUpdate }) {
     const currentStudentData = studentDataRef.current;
     const currentClerkData = clerkDataRef.current;
 
+    console.log('[Realtime-Notify] Logic Triggered. Type:', type, 'Payload Branch:', payload?.branch);
+
     // --- STUDENT NOTIFICATIONS ---
     const student = currentStudentData?.student || currentStudentData;
-    if (student && student.id) {
+    if (student) {
+      console.log('[Realtime-Notify] Student Identity:', student.roll_no, 'Branch:', student.branch);
+      
       if (type === 'SESSION_STARTED') {
-        // Notify if branch matches and student is in a matching year
+        // ALERT FOR DEBUGGING: Does it even reach here?
+        // alert('SSE: SESSION_STARTED received for branch ' + payload.branch);
+        
         if (payload.branch === student.branch) {
+          console.log('[Realtime-Notify] BRANCH MATCH! Showing native notification...');
           showLocalNotification(
             'Attendance Session Started 📍',
             `A secure session for ${payload.subject_code} has started. Mark your attendance now!`,
             { type: 'attendance', sessionId: payload.sessionId }
           );
+        } else {
+          console.log('[Realtime-Notify] Branch Mismatch. Payload:', payload.branch, 'Student:', student.branch);
         }
       } else if (type === 'REQUEST_UPDATED') {
-        // Notify specific student about their certificate request
         if (payload.student_id === student.id) {
           const statusText = payload.status === 'APPROVED' ? 'Approved ✅' : 'Rejected ❌';
           showLocalNotification(
@@ -63,12 +74,13 @@ export default function RealtimeListener({ onUpdate }) {
           );
         }
       }
+    } else {
+      console.log('[Realtime-Notify] No student data found in context. Ignoring event.');
     }
 
     // --- CLERK NOTIFICATIONS ---
     if (currentClerkData && currentClerkData.id) {
       if (type === 'REQUEST_CREATED') {
-        // Notify relevant clerk type
         if (payload.clerkType === currentClerkData.role) {
           showLocalNotification(
             'New Certificate Request 📄',
@@ -97,14 +109,14 @@ export default function RealtimeListener({ onUpdate }) {
     let lockResolver = null;
     let isUnmounted = false;
 
-    // Cross-tab communication channel
     const channel = new BroadcastChannel(CHANNEL_NAME);
 
-    // Follower tabs listen for updates broadcasted by the leader tab
     channel.onmessage = (event) => {
       if (!isLeader) {
         console.log('[Realtime-Follower] Received update via broadcast:', event.data.type);
         if (onUpdateRef.current) onUpdateRef.current(event.data);
+        // followers also process notifications
+        handleNotification(event.data);
       }
     };
 
@@ -116,52 +128,41 @@ export default function RealtimeListener({ onUpdate }) {
       eventSource = new EventSource('/api/realtime/stream');
 
       eventSource.onopen = () => {
-        console.log('[Realtime-Leader] Connected');
+        console.log('[Realtime-Leader] SSE Stream Connected');
         retryCount = 0;
       };
 
       eventSource.onmessage = (event) => {
         try {
-          // Ignore keep-alive pings which might not be valid JSON
           if (event.data === ': ping' || !event.data) return;
           
           const data = JSON.parse(event.data);
           if (!data.type) return;
 
-          console.log('[Realtime-Leader] Received update:', data.type);
+          console.log('[Realtime-Leader] SSE Message Received:', data.type);
 
-          // 1. Trigger Local Notifications (ONLY for the Leader tab to avoid duplicates)
           if (isLeader) {
             handleNotification(data);
           }
           
-          // 2. Broadcast to all other open tabs (Followers)
           channel.postMessage(data);
-          
-          // 3. Process locally in this tab (Leader)
           if (onUpdateRef.current) onUpdateRef.current(data);
         } catch (e) {
-          // Silent catch for ping parse errors
+          console.error('[Realtime-Leader] Parse Error:', e);
         }
       };
 
       eventSource.onerror = (err) => {
-        console.warn('[Realtime-Leader] Connection lost, retrying...');
+        console.warn('[Realtime-Leader] SSE Connection Error, retrying...');
         eventSource.close();
-        
-        // Exponential backoff with a cap of 30 seconds
         const delay = Math.min(30000, Math.pow(2, retryCount) * 1000);
         retryCount++;
         setTimeout(() => {
-          // Only retry if we are still the leader and component is mounted
           if (isLeader && !isUnmounted) setupSSE();
         }, delay);
       };
     };
 
-    // TAB MULTIPLEXING: Leader Election
-    // Use Web Locks API to ensure only ONE tab ever opens the SSE connection.
-    // This entirely bypasses the browser's 6-connection HTTP/1.1 limit.
     if (typeof navigator !== 'undefined' && navigator.locks) {
       navigator.locks.request(LOCK_NAME, { mode: 'exclusive' }, () => {
         return new Promise((resolve) => {
@@ -171,14 +172,14 @@ export default function RealtimeListener({ onUpdate }) {
           }
           isLeader = true;
           lockResolver = resolve;
-          console.log('[Realtime] Acquired leader lock. This tab handles the SSE connection for the browser.');
+          console.log('[Realtime] ACQUIRED LEADER LOCK.');
           setupSSE();
         });
       }).catch(e => {
-        console.warn('[Realtime] Failed to acquire lock:', e);
+        console.warn('[Realtime] Lock failed, acting as follower:', e);
+        isLeader = false;
       });
     } else {
-      // Fallback for older browsers without Web Locks API support
       isLeader = true;
       setupSSE();
     }
@@ -186,10 +187,10 @@ export default function RealtimeListener({ onUpdate }) {
     return () => {
       isUnmounted = true;
       if (eventSource) eventSource.close();
-      if (lockResolver) lockResolver(); // Instantly release the lock so another tab takes over
+      if (lockResolver) lockResolver();
       channel.close();
     };
   }, [handleNotification]); 
 
-  return null; // Invisible utility component
+  return null;
 }
