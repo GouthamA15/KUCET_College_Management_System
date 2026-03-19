@@ -48,9 +48,9 @@ export const showLocalNotification = async (title, body, extra = {}) => {
 
     console.log('[Notification-Native] Scheduling:', title);
     
-    // For testing, we use a near-immediate trigger (100ms)
-    // Older Android versions sometimes struggle with exact 0ms or far-future dates
-    const triggerDate = new Date(Date.now() + 500);
+    // Use triggerAt if provided (for testing background/delayed delivery)
+    // Otherwise use a near-immediate trigger (500ms)
+    const triggerDate = extra.triggerAt instanceof Date ? extra.triggerAt : new Date(Date.now() + 500);
 
     await LocalNotifications.schedule({
       notifications: [

@@ -25,18 +25,31 @@ export default function Hero() {
 
   return (
     <section className="relative w-full">
-      {/* Test Notification Button for App Debugging */}
-      {isNative && (
-        <div className="absolute top-4 right-4 z-50">
-          <button 
-            onClick={handleTestNotification}
-            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/30 rounded-full px-5 py-2.5 text-sm font-bold shadow-xl transition-all active:scale-95 flex items-center gap-2"
-          >
-            <span className="animate-pulse bg-green-400 w-2 h-2 rounded-full"></span>
-            Test App Notifications
-          </button>
-        </div>
-      )}
+      {/* Test Notification Buttons - Visible to everyone for debugging */}
+      <div className="absolute top-20 left-4 z-[100] flex flex-col gap-2">
+        <button 
+          onClick={handleTestNotification}
+          className="bg-blue-600 hover:bg-blue-700 text-white border border-white/50 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
+        >
+          <span className="bg-green-400 w-2 h-2 rounded-full animate-ping"></span>
+          Instant Test
+        </button>
+        
+        <button 
+          onClick={async () => {
+            // Schedule for 10 seconds later
+            await showLocalNotification(
+              'Delayed Test ⏳',
+              'This notification was scheduled 10 seconds ago. If you see this, background scheduling works!',
+              { triggerAt: new Date(Date.now() + 10000) }
+            );
+          }}
+          className="bg-slate-800 hover:bg-slate-900 text-white border border-white/30 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
+        >
+          <span className="bg-orange-400 w-2 h-2 rounded-full"></span>
+          10s Delay Test
+        </button>
+      </div>
 
       {/* Hero Image */}
       <div className="relative w-full h-75 md:h-100 lg:h-125 overflow-hidden">
