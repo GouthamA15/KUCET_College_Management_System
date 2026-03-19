@@ -186,6 +186,20 @@ export async function PUT(req) {
         [rejectionReason || 'No reason provided', requestId]
       );
     }
+
+    // REAL-TIME: Broadcast to students
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('REQUEST_UPDATED', {
+        student_id: student_id,
+        status: action === 'approve' ? 'APPROVED' : 'REJECTED',
+        request_id: requestId,
+        certificate_type: 'Profile Update'
+      });
+    } catch (e) {
+      console.error('SSE Broadcast error:', e);
+    }
+
     return apiResponse({ success: true });
   } catch (err) {
     console.error('Clerk profile request process error:', err);

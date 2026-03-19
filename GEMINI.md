@@ -134,6 +134,18 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 46: Native Android Notifications & Real-Time Alerting (March 19, 2026)**
+- **Native Notification Engine:**
+    - **Plugin Integration:** Integrated `@capacitor/local-notifications` to enable Android-style system alerts.
+    - **Notification Utility:** Developed `src/lib/notification-utils.js` to manage permissions and schedule local notifications with custom metadata.
+- **Role-Aware Alerting:**
+    - **Student Notifications:** Implemented automatic alerts for Certificate/Profile request approvals, new Secure Attendance sessions, and Timetable updates.
+    - **Clerk Notifications:** Added real-time alerts for new Certificate requests and Student Profile update submissions.
+    - **Leader-Tab Logic:** Optimized the `RealtimeListener` to ensure only the leader tab (multiplexing lead) triggers native notifications, preventing duplicate alerts across multiple open tabs.
+- **Backend Event Orchestration:**
+    - **Event Broadcasting:** Updated Certificate and Profile Request APIs to broadcast `REQUEST_CREATED` and `REQUEST_UPDATED` events via SSE.
+    - **Contextual Payloads:** Enhanced SSE payloads with `student_id` and `clerkType` to enable precise, targeted alerting on the client side.
+
 ### **Session 45: Mobile UX Safe Areas & Native Download Architecture (March 19, 2026)**
 - **Safe Area Integration:**
     - **Viewport Optimization:** Implemented `viewport-fit=cover` in the global metadata to enable full-screen rendering on notched mobile devices.

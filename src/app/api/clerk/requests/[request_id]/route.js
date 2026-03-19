@@ -94,6 +94,19 @@ export async function PUT(request, { params }) {
         }
 
         if (result.affectedRows === 1) {
+            // REAL-TIME: Broadcast to students
+            try {
+                const { broadcastUpdate } = await import('@/lib/sse');
+                broadcastUpdate('REQUEST_UPDATED', {
+                    student_id: requestToUpdate.student_id,
+                    status,
+                    request_id,
+                    certificate_type: requestToUpdate.certificate_type
+                });
+            } catch (e) {
+                console.error('SSE Broadcast error:', e);
+            }
+
             return apiResponse({ success: true });
         } else {
             return apiError('Failed to update request', 500);

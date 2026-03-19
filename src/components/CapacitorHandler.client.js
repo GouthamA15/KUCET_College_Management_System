@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { App } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { requestNotificationPermission } from '@/lib/notification-utils';
 
 export default function CapacitorHandler() {
   useEffect(() => {
@@ -10,8 +11,11 @@ export default function CapacitorHandler() {
       try {
         await StatusBar.setBackgroundColor({ color: '#0b3578' }); // KUCET Blue
         await StatusBar.setStyle({ style: Style.Dark }); // Light icons on dark background
+        
+        // Request notification permission
+        await requestNotificationPermission();
       } catch (err) {
-        console.warn('Capacitor Status Bar not available:', err);
+        console.warn('Capacitor Status Bar/Notifications not available:', err);
       }
     };
 

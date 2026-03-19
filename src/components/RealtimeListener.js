@@ -1,10 +1,15 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useContext } from 'react';
 import toast from 'react-hot-toast';
+import { StudentContext } from '@/context/StudentContext';
+import { ClerkContext } from '@/context/ClerkContext';
+import { showLocalNotification } from '@/lib/notification-utils';
 
 export default function RealtimeListener({ onUpdate }) {
   const onUpdateRef = useRef(onUpdate);
+  const { studentData } = useContext(StudentContext) || {};
+  const { clerkData } = useContext(ClerkContext) || {};
   
   // Keep the ref updated with the latest callback
   useEffect(() => {
@@ -52,14 +57,78 @@ export default function RealtimeListener({ onUpdate }) {
           if (!data.type) return;
 
           console.log('[Realtime-Leader] Received update:', data.type);
+
+          // 1. Trigger Local Notifications (ONLY for the Leader tab to avoid duplicates)
+          if (isLeader) {
+            handleNotification(data);
+          }
           
-          // 1. Broadcast to all other open tabs (Followers)
+          // 2. Broadcast to all other open tabs (Followers)
           channel.postMessage(data);
           
-          // 2. Process locally in this tab (Leader)
+          // 3. Process locally in this tab (Leader)
           if (onUpdateRef.current) onUpdateRef.current(data);
         } catch (e) {
           // Silent catch for ping parse errors
+        }
+      };
+
+      const handleNotification = (data) => {
+        const { type, payload } = data;
+
+        // --- STUDENT NOTIFICATIONS ---
+        const student = studentData?.student || studentData;
+        if (student && student.id) {
+          if (type === 'SESSION_STARTED') {
+            // Notify if branch matches and student is in a matching year
+            if (payload.branch === student.branch) {
+              showLocalNotification(
+                'Attendance Session Started 📍',
+                `A secure session for ${payload.subject_code} has started. Mark your attendance now!`,
+                { type: 'attendance', sessionId: payload.sessionId }
+              );
+            }
+          } else if (type === 'REQUEST_UPDATED') {
+            // Notify specific student about their certificate request
+            if (payload.student_id === student.id) {
+              const statusText = payload.status === 'APPROVED' ? 'Approved ✅' : 'Rejected ❌';
+              showLocalNotification(
+                `Certificate Request ${statusText}`,
+                `Your request for ${payload.certificate_type} has been ${payload.status.toLowerCase()}.`,
+                { type: 'certificate', requestId: payload.request_id }
+              );
+            }
+          } else if (type === 'TIMETABLE_CHANGED') {
+            if (payload.branch === student.branch) {
+              showLocalNotification(
+                'Timetable Updated 📅',
+                `The timetable for Semester ${payload.semester} has been updated.`,
+                { type: 'timetable', semester: payload.semester }
+              );
+            }
+          }
+        }
+
+        // --- CLERK NOTIFICATIONS ---
+        if (clerkData && clerkData.id) {
+          if (type === 'REQUEST_CREATED') {
+            // Notify relevant clerk type
+            if (payload.clerkType === clerkData.role) {
+              showLocalNotification(
+                'New Certificate Request 📄',
+                `A new request for ${payload.certificateType} has been submitted.`,
+                { type: 'clerk_request', clerkType: payload.clerkType }
+              );
+            }
+          } else if (type === 'PROFILE_UPDATE_REQUESTED') {
+            if (clerkData.role === 'admission') {
+              showLocalNotification(
+                'New Profile Update Request 👤',
+                'A student has requested a profile information update.',
+                { type: 'profile_update' }
+              );
+            }
+          }
         }
       };
 
@@ -107,7 +176,7 @@ export default function RealtimeListener({ onUpdate }) {
       if (lockResolver) lockResolver(); // Instantly release the lock so another tab takes over
       channel.close();
     };
-  }, []);
+  }, [studentData, clerkData]); // Re-run if user context changes to ensure notifications are role-aware
 
   return null; // Invisible utility component
 }

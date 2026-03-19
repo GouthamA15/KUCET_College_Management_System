@@ -86,6 +86,20 @@ export async function POST(request) {
         [user.student_id, certificateType, academicYear, paymentAmountNum, transactionId || null, purpose || null, fromDateStr || null, toDateStr || null]
       );
       requestId = result.insertId;
+
+      // REAL-TIME: Broadcast to clerks
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        broadcastUpdate('REQUEST_CREATED', {
+          clerkType,
+          certificateType,
+          student_id: user.student_id,
+          roll_no: user.roll_no
+        });
+      } catch (e) {
+        console.error('SSE Broadcast error:', e);
+      }
+
     }
 
     // formData.get returns a File object in Next.js

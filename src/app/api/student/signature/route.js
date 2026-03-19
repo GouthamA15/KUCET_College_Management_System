@@ -145,6 +145,17 @@ export async function POST(req) {
       );
     }
 
+    // REAL-TIME: Broadcast to admission clerks
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('PROFILE_UPDATE_REQUESTED', {
+        student_id: user.student_id,
+        roll_no: user.roll_no
+      });
+    } catch (e) {
+      console.error('SSE Broadcast error:', e);
+    }
+
     return apiResponse({ success: true, message: 'Profile update request submitted for clerk approval.' });
   } catch (err) {
     console.error('Profile request error:', err);
