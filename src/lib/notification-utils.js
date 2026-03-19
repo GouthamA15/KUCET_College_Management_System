@@ -5,7 +5,9 @@ import { Capacitor } from '@capacitor/core';
  * Detects if the app is running on a native platform via Capacitor.
  */
 const isCapacitor = () => {
-  return typeof window !== 'undefined' && Capacitor.isNativePlatform();
+  const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+  console.log('[Notification-Utils] isNativePlatform?', isNative);
+  return isNative;
 };
 
 /**
@@ -16,13 +18,17 @@ export const requestNotificationPermission = async () => {
 
   try {
     const status = await LocalNotifications.checkPermissions();
+    console.log('[Notification-Utils] Permission Status:', status.display);
+    
     if (status.display !== 'granted') {
+      console.log('[Notification-Utils] Requesting permissions...');
       const requestStatus = await LocalNotifications.requestPermissions();
+      console.log('[Notification-Utils] Request Result:', requestStatus.display);
       return requestStatus.display === 'granted';
     }
     return true;
   } catch (error) {
-    console.error('Notification permission error:', error);
+    console.error('[Notification-Utils] Permission error:', error);
     return false;
   }
 };
@@ -34,6 +40,8 @@ export const requestNotificationPermission = async () => {
  * @param {Object} extra - Extra data to pass with the notification.
  */
 export const showLocalNotification = async (title, body, extra = {}) => {
+  console.log('[Notification-Utils] Attempting notification:', title);
+  
   if (!isCapacitor()) {
     console.log('[Notification-Web-Fallback]', title, body);
     return;
@@ -42,15 +50,13 @@ export const showLocalNotification = async (title, body, extra = {}) => {
   try {
     const hasPermission = await requestNotificationPermission();
     if (!hasPermission) {
-      console.warn('[Notification] Permission not granted');
+      console.warn('[Notification-Utils] No permission, aborting schedule');
       return;
     }
 
-    console.log('[Notification-Native] Scheduling:', title);
-    
-    // Use triggerAt if provided (for testing background/delayed delivery)
-    // Otherwise use a near-immediate trigger (500ms)
+    // Trigger in the near future
     const triggerDate = extra.triggerAt instanceof Date ? extra.triggerAt : new Date(Date.now() + 500);
+    console.log('[Notification-Utils] Scheduling for:', triggerDate.toLocaleTimeString());
 
     await LocalNotifications.schedule({
       notifications: [
@@ -60,15 +66,21 @@ export const showLocalNotification = async (title, body, extra = {}) => {
           id: Math.floor(Math.random() * 1000000), // Random ID
           schedule: { at: triggerDate }, 
           extra,
-          sound: 'default', // Using default instead of null for better Android compatibility
-          smallIcon: 'ic_stat_name', // Standard Capacitor icon name
+          sound: 'default', 
           actionTypeId: '',
           controlBadge: true
         }
       ]
     });
-    console.log('[Notification-Native] Scheduled successfully');
+    console.log('[Notification-Utils] Successfully scheduled with Capacitor');
+    // For debugging: show a toast/alert if scheduling seems successful in code
+    if (typeof window !== 'undefined') {
+       // toast.success('Scheduled!'); 
+    }
   } catch (error) {
-    console.error('Failed to show notification:', error);
+    console.error('[Notification-Utils] Failed to schedule:', error);
+    if (typeof window !== 'undefined') {
+        alert('Notification Plugin Error: ' + error.message);
+    }
   }
 };

@@ -17,6 +17,7 @@ export default function Hero() {
   }, []);
 
   const handleTestNotification = async () => {
+    alert('Attempting instant notification...');
     await showLocalNotification(
       'Notification Test 🔔',
       'This is a test notification from KUCET CMS app. If you see this, notifications are working!'
@@ -37,11 +38,12 @@ export default function Hero() {
         
         <button 
           onClick={async () => {
-            // Schedule for 10 seconds later
+            alert('Scheduling test notification for 5 seconds from now...');
+            // Schedule for 5 seconds later
             await showLocalNotification(
               'Delayed Test ⏳',
-              'This notification was scheduled 10 seconds ago. If you see this, background scheduling works!',
-              { triggerAt: new Date(Date.now() + 10000) }
+              'This notification was scheduled 5 seconds ago. If you see this, background scheduling works!',
+              { triggerAt: new Date(Date.now() + 5000) }
             );
           }}
           className="bg-slate-800 hover:bg-slate-900 text-white border border-white/30 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
