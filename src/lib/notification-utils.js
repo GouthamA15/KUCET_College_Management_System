@@ -6,8 +6,27 @@ import { Capacitor } from '@capacitor/core';
  */
 const isCapacitor = () => {
   const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
-  console.log('[Notification-Utils] isNativePlatform?', isNative);
   return isNative;
+};
+
+/**
+ * Ensures a high-priority channel exists on Android.
+ */
+const ensureChannel = async () => {
+    if (Capacitor.getPlatform() !== 'android') return;
+    try {
+        await LocalNotifications.createChannel({
+            id: 'kucet_alerts',
+            name: 'KUCET CMS Alerts',
+            description: 'Critical academic and attendance alerts',
+            importance: 5, // High importance
+            visibility: 1, // Public
+            sound: 'default',
+            vibration: true,
+        });
+    } catch (e) {
+        console.error('Failed to create notification channel');
+    }
 };
 
 /**
@@ -18,17 +37,12 @@ export const requestNotificationPermission = async () => {
 
   try {
     const status = await LocalNotifications.checkPermissions();
-    console.log('[Notification-Utils] Permission Status:', status.display);
-    
     if (status.display !== 'granted') {
-      console.log('[Notification-Utils] Requesting permissions...');
       const requestStatus = await LocalNotifications.requestPermissions();
-      console.log('[Notification-Utils] Request Result:', requestStatus.display);
       return requestStatus.display === 'granted';
     }
     return true;
   } catch (error) {
-    console.error('[Notification-Utils] Permission error:', error);
     return false;
   }
 };
@@ -40,48 +54,49 @@ export const requestNotificationPermission = async () => {
  * @param {Object} extra - Extra data to pass with the notification.
  */
 export const showLocalNotification = async (title, body, extra = {}) => {
-  console.log('[Notification-Utils] Attempting notification:', title);
-  
   if (!isCapacitor()) {
-    console.log('[Notification-Web-Fallback]', title, body);
+    console.log('[Notification-Web]', title, body);
     return;
   }
 
   try {
     const hasPermission = await requestNotificationPermission();
-    if (!hasPermission) {
-      console.warn('[Notification-Utils] No permission, aborting schedule');
-      return;
-    }
+    if (!hasPermission) return;
 
-    // Trigger in the near future
-    const triggerDate = extra.triggerAt instanceof Date ? extra.triggerAt : new Date(Date.now() + 500);
-    console.log('[Notification-Utils] Scheduling for:', triggerDate.toLocaleTimeString());
+    await ensureChannel();
+
+    // If extra.triggerAt is provided, use it. 
+    // Otherwise, use null or a very small offset to avoid "Exact Alarm" restriction issues
+    // Using a 100ms offset often bypasses the "Exact Alarm" warning on some Android versions.
+    const triggerDate = extra.triggerAt instanceof Date ? extra.triggerAt : new Date(Date.now() + 100);
 
     await LocalNotifications.schedule({
       notifications: [
         {
           title,
           body,
-          id: Math.floor(Math.random() * 1000000), // Random ID
-          schedule: { at: triggerDate }, 
+          id: Math.floor(Math.random() * 1000000),
+          schedule: { 
+            at: triggerDate,
+            allowWhileIdle: true // Critical for background delivery
+          }, 
           extra,
+          channelId: 'kucet_alerts', // Use our high importance channel
+          smallIcon: 'ic_launcher', // Use standard app icon
+          largeIcon: 'ic_launcher',
           sound: 'default', 
           actionTypeId: '',
           controlBadge: true
         }
       ]
     });
-    console.log('[Notification-Utils] Successfully scheduled with Capacitor');
     
-    // For real attendance sessions, add an extra alert just in case the notification is missed
+    // Fallback alert for real attendance sessions when app is in foreground
     if (extra.type === 'attendance' && typeof window !== 'undefined') {
-        alert('🔔 ATTENDANCE SESSION STARTED!\n' + body);
+        // Only alert if we're actually in the app
+        // alert('🔔 ATTENDANCE SESSION STARTED!\n' + body);
     }
   } catch (error) {
-    console.error('[Notification-Utils] Failed to schedule:', error);
-    if (typeof window !== 'undefined') {
-        alert('Notification Plugin Error: ' + error.message);
-    }
+    console.error('[Notification-Utils] Error:', error);
   }
 };
