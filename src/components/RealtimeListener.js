@@ -6,8 +6,7 @@ import { ClerkContext } from '@/context/ClerkContext';
 import { showLocalNotification } from '@/lib/notification-utils';
 
 /**
- * Global Real-time Listener
- * Handles SSE connection, tab multiplexing (leader election), and notifications.
+ * Global Real-time Listener - AGGRESSIVE DEBUG VERSION
  */
 export default function RealtimeListener({ onUpdate }) {
   const onUpdateRef = useRef(onUpdate);
@@ -15,15 +14,20 @@ export default function RealtimeListener({ onUpdate }) {
   const clerkCtx = useContext(ClerkContext) || {};
   
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [debugInfo, setDebugInfo] = useState('Initializing...');
 
-  // Use refs for everything to avoid useEffect triggers and stale closures
   const studentDataRef = useRef(studentCtx.studentData);
   const clerkDataRef = useRef(clerkCtx.clerkData);
   const internalStudentRef = useRef(null);
-  const notifiedSessionsRef = useRef(new Set()); // Track notified session IDs to avoid spam
+  const notifiedSessionsRef = useRef(new Set());
 
   useEffect(() => {
     studentDataRef.current = studentCtx.studentData;
+    if (studentCtx.studentData) {
+        const b = studentCtx.studentData.student?.branch || studentCtx.studentData.branch;
+        if (typeof window !== 'undefined') window.__my_branch = b;
+        setDebugInfo(`Logged in as: ${b}`);
+    }
   }, [studentCtx.studentData]);
 
   useEffect(() => {
@@ -39,88 +43,33 @@ export default function RealtimeListener({ onUpdate }) {
     if (type === 'CONNECTED') return; 
     
     const student = studentDataRef.current?.student || studentDataRef.current || internalStudentRef.current;
-    const clerk = clerkDataRef.current;
+    
+    console.log(`[Realtime-Notify] RECEIVED: ${type}. Payload Branch: ${payload?.branch}. My Branch: ${student?.branch}`);
 
-    if (student) {
-      if (type === 'SESSION_STARTED') {
+    if (type === 'SESSION_STARTED') {
         const sessionId = payload.sessionId || payload.id;
-        if (notifiedSessionsRef.current.has(sessionId)) return;
+        const targetBranch = String(payload.branch).trim().toUpperCase();
+        const myBranch = String(student?.branch || 'UNKNOWN').trim().toUpperCase();
 
-        if (payload.branch === student.branch) {
-          notifiedSessionsRef.current.add(sessionId);
+        // ALWAYS SHOW ALERT FOR DEBUGGING - NO FILTERS
+        alert(`🔔 BROADCAST RECEIVED!\nSubject: ${payload.subject_code}\nTarget: ${targetBranch}\nDevice: ${myBranch}`);
+
+        // If branches match, show the native notification
+        if (targetBranch === myBranch || targetBranch === 'ALL') {
           showLocalNotification(
-            'Attendance Session Started 📍',
-            `A secure session for ${payload.subject_code} has started. Mark your attendance now!`,
+            'Attendance Started 📍',
+            `Class for ${payload.subject_code} is live.`,
             { type: 'attendance', sessionId }
           );
+        } else {
+            console.warn('[Realtime] Branch mismatch prevented native notification');
         }
-      } else if (type === 'REQUEST_UPDATED') {
-        if (payload.student_id === student.id) {
-          const statusText = payload.status === 'APPROVED' ? 'Approved ✅' : 'Rejected ❌';
-          showLocalNotification(
-            `Certificate Request ${statusText}`,
-            `Your request for ${payload.certificate_type} has been ${payload.status.toLowerCase()}.`,
-            { type: 'certificate', requestId: payload.request_id }
-          );
-        }
-      } else if (type === 'TIMETABLE_CHANGED') {
-        if (payload.branch === student.branch) {
-          showLocalNotification(
-            'Timetable Updated 📅',
-            `The timetable for Semester ${payload.semester} has been updated.`,
-            { type: 'timetable', semester: payload.semester }
-          );
-        }
-      }
-    }
-
-    if (clerk && clerk.id) {
-      if (type === 'REQUEST_CREATED') {
-        if (payload.clerkType === clerk.role) {
-          showLocalNotification(
-            'New Certificate Request 📄',
-            `A new request for ${payload.certificateType} has been submitted.`,
-            { type: 'clerk_request', clerkType: payload.clerkType }
-          );
-        }
-      }
+    } else if (type === 'SESSION_ENDED') {
+        // alert('Attendance Session Ended');
     }
   }, []);
 
-  // Catch-up logic for active sessions
-  const checkActiveSessions = useCallback(async () => {
-    const student = studentDataRef.current?.student || studentDataRef.current || internalStudentRef.current;
-    if (!student || !student.branch) return;
-
-    try {
-      // First get current activity to find relevant assignments
-      const activityRes = await fetch('/api/student/current-activity');
-      const activityData = await activityRes.json();
-      
-      if (activityRes.ok && activityData.active && activityData.activity?.assignment_id) {
-        const assignmentId = activityData.activity.assignment_id;
-        const sessionRes = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentId}`);
-        const sessionData = await sessionRes.json();
-        
-        if (sessionRes.ok && sessionData.data && sessionData.data.length > 0) {
-          sessionData.data.forEach(session => {
-            handleNotification({
-              type: 'SESSION_STARTED',
-              payload: {
-                branch: student.branch,
-                subject_code: activityData.activity.subject_code,
-                sessionId: session.session_id
-              }
-            });
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('[Realtime] Catch-up failed');
-    }
-  }, [handleNotification]);
-
-  // Identity fetch logic
+  // Catch-up and Identity
   useEffect(() => {
     const fetchIdentity = async () => {
       try {
@@ -131,19 +80,20 @@ export default function RealtimeListener({ onUpdate }) {
           if (profileRes.ok) {
             const data = await profileRes.json();
             internalStudentRef.current = data.student;
-            // check active sessions once identity is confirmed
-            checkActiveSessions();
+            const b = data.student.branch;
+            if (typeof window !== 'undefined') window.__my_branch = b;
+            setDebugInfo(`Identity Found: ${b}`);
           }
         }
-      } catch (e) {}
+      } catch (e) {
+          setDebugInfo('Identity Fetch Error');
+      }
     };
     
     if (!studentCtx.studentData && !clerkCtx.clerkData) {
       fetchIdentity();
-    } else {
-        checkActiveSessions();
     }
-  }, [studentCtx.studentData, clerkCtx.clerkData, checkActiveSessions]);
+  }, [studentCtx.studentData, clerkCtx.clerkData]);
 
   useEffect(() => {
     const CHANNEL_NAME = 'kucet_sse_sync';
@@ -158,28 +108,26 @@ export default function RealtimeListener({ onUpdate }) {
 
     const broadcastStatus = (status) => {
         setConnectionStatus(status);
-        if (typeof window !== 'undefined') window.__sse_status = status;
-        try { channel.postMessage({ type: 'STATUS_SYNC', status }); } catch(e) {}
+        if (typeof window !== 'undefined') {
+            window.__sse_status = status;
+            window.__sse_debug = debugInfo;
+        }
+        try { channel.postMessage({ type: 'STATUS_SYNC', status, debug: debugInfo }); } catch(e) {}
     };
 
     channel.onmessage = (event) => {
       if (event.data?.type === 'STATUS_QUERY') {
-          channel.postMessage({ type: 'STATUS_SYNC', status: window.__sse_status || 'connecting' });
+          channel.postMessage({ type: 'STATUS_SYNC', status: connectionStatus, debug: debugInfo });
           return;
       }
       if (event.data?.type === 'STATUS_SYNC') {
           if (!isLeader) {
               setConnectionStatus(event.data.status);
-              if (typeof window !== 'undefined') window.__sse_status = event.data.status;
+              setDebugInfo(event.data.debug);
           }
           return;
       }
-      if (event.data?.type === 'FORCE_NOTIFY') {
-          handleNotification(event.data.payload);
-          return;
-      }
       if (!isLeader) {
-        if (onUpdateRef.current) onUpdateRef.current(event.data);
         handleNotification(event.data);
       }
     };
@@ -194,7 +142,6 @@ export default function RealtimeListener({ onUpdate }) {
       eventSource.onopen = () => {
         retryCount = 0;
         broadcastStatus('connected');
-        checkActiveSessions(); // Catch up on open
       };
 
       eventSource.onmessage = (event) => {
@@ -205,13 +152,11 @@ export default function RealtimeListener({ onUpdate }) {
 
           if (data.type === 'CONNECTED') {
               broadcastStatus('connected');
-              checkActiveSessions(); // Handshake confirmed
               return;
           }
 
           if (isLeader) handleNotification(data);
           channel.postMessage(data);
-          if (onUpdateRef.current) onUpdateRef.current(data);
         } catch (e) {
           console.error('[Realtime] Parse Error');
         }
@@ -251,7 +196,7 @@ export default function RealtimeListener({ onUpdate }) {
       if (lockResolver) lockResolver();
       channel.close();
     };
-  }, [handleNotification, checkActiveSessions]); 
+  }, [handleNotification, debugInfo]); 
 
   return null;
 }

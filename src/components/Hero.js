@@ -9,16 +9,18 @@ import { Capacitor } from '@capacitor/core';
 export default function Hero() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [sseStatus, setSseStatus] = useState('offline');
+  const [myBranch, setMyBranch] = useState('UNKNOWN');
   const { getAsset } = useAssets();
   const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
 
   useEffect(() => {
     const timer = setTimeout(() => setImageLoaded(true), 100);
     
-    // Poll for SSE status
+    // Poll for SSE status and branch info
     const statusInterval = setInterval(() => {
-        if (typeof window !== 'undefined' && window.__sse_status) {
-            setSseStatus(window.__sse_status);
+        if (typeof window !== 'undefined') {
+            if (window.__sse_status) setSseStatus(window.__sse_status);
+            if (window.__my_branch) setMyBranch(window.__my_branch);
         }
     }, 1000);
 
@@ -40,28 +42,35 @@ export default function Hero() {
     <section className="relative w-full">
       {/* Test Notification Buttons - Visible to everyone for debugging */}
       <div className="absolute top-20 left-4 z-[100] flex flex-col gap-2">
-        <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border ${
-            sseStatus === 'connected' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
-            sseStatus === 'connecting' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
-            'bg-red-500/20 text-red-400 border-red-500/30'
-        }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${
-                sseStatus === 'connected' ? 'bg-green-400 animate-pulse' : 
-                sseStatus === 'connecting' ? 'bg-yellow-400 animate-bounce' : 'bg-red-400'
-            }`}></span>
-            SSE: {sseStatus}
+        <div className="flex gap-2">
+            <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border ${
+                sseStatus === 'connected' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
+                sseStatus === 'connecting' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                'bg-red-500/20 text-red-400 border-red-500/30'
+            }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                    sseStatus === 'connected' ? 'bg-green-400 animate-pulse' : 
+                    sseStatus === 'connecting' ? 'bg-yellow-400 animate-bounce' : 'bg-red-400'
+                }`}></span>
+                SSE: {sseStatus}
+            </div>
+
+            <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-lg">
+                BRANCH: {myBranch}
+            </div>
         </div>
 
         <button 
           onClick={handleTestNotification}
           className="bg-blue-600 hover:bg-blue-700 text-white border border-white/50 rounded-lg px-4 py-2 text-xs font-black shadow-2xl transition-all active:scale-95 flex items-center gap-2 uppercase tracking-tighter"
         >
+          <span className="bg-green-400 w-2 h-2 rounded-full animate-ping"></span>
           Instant Test
         </button>
+        
         <button 
           onClick={async () => {
             alert('Scheduling test notification for 5 seconds from now...');
-            // Schedule for 5 seconds later
             await showLocalNotification(
               'Delayed Test ⏳',
               'This notification was scheduled 5 seconds ago. If you see this, background scheduling works!',
@@ -81,14 +90,11 @@ export default function Hero() {
 
             const bc = new BroadcastChannel('kucet_sse_sync');
             bc.postMessage({
-                type: 'FORCE_NOTIFY',
+                type: 'SESSION_STARTED',
                 payload: {
-                    type: 'SESSION_STARTED',
-                    payload: {
-                        branch: branch.toUpperCase(),
-                        subject_code: 'TEST-101',
-                        sessionId: 999
-                    }
+                    branch: branch.toUpperCase(),
+                    subject_code: 'DEBUG-101',
+                    sessionId: Date.now()
                 }
             });
             alert('Simulated SESSION_STARTED broadcast sent locally.');
@@ -98,7 +104,7 @@ export default function Hero() {
           <span className="bg-white w-2 h-2 rounded-full animate-bounce"></span>
           Simulate Start
         </button>
-        </div>
+      </div>
 
       {/* Hero Image */}
       <div className="relative w-full h-75 md:h-100 lg:h-125 overflow-hidden">
