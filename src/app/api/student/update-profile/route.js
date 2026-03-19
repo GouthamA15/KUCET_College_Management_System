@@ -1,67 +1,49 @@
-import { query, getDb } from '@/lib/db';
+import { db } from '@/db';
+import { students, studentPersonalDetails } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(req) {
   const user = await getAuthUser('student');
-
-  if (!user) {
-    return apiError('Unauthorized', 401);
-  }
+  if (!user) return apiError('Unauthorized', 401);
 
   try {
     const body = await req.json();
-    // SECURITY: Ignore the rollno provided in the body; use the authenticated user's roll_no
-    const rollno = user.roll_no; 
+    const rollno = user.roll_no;
+    if (!rollno) return apiError('Missing roll_no in session', 400);
 
-    if (!rollno) {
-      return apiError('Missing roll_no in session', 400);
-    }
+    const student = await db.query.students.findFirst({
+      columns: { id: true },
+      where: eq(students.roll_no, rollno)
+    });
 
-    const db = getDb();
+    if (!student) return apiError('Student not found', 404);
+    const student_id = student.id;
 
-    // Update mobile in students table if provided
+    // 1. Update mobile in students table if provided
     if (body.phone) {
-      const [result] = await db.execute('UPDATE students SET mobile = ? WHERE roll_no = ?', [body.phone, rollno]);
-      if (result.affectedRows === 0) {
-        // This could just mean the value is the same, so not necessarily an error.
-        // We can log this or decide to send a specific message.
-        console.log(`No mobile number updated for rollno: ${rollno}. Student not found or data is the same.`);
-      }
+      await db.update(students)
+        .set({ mobile: body.phone })
+        .where(eq(students.roll_no, rollno));
     }
     
-    // Now, handle personal details
-    const studentRows = await query('SELECT id FROM students WHERE roll_no = ?', [rollno]);
-    if (!studentRows || studentRows.length === 0) {
-      return apiError('Student not found', 404);
-    }
-    const student_id = studentRows[0].id;
-
-    // Allowed fields for personal details
+    // 2. Handle personal details
     const fields = [
       'father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks'
     ];
 
-    // Filter provided fields to only what's allowed
-    const providedFields = fields.filter(f => body.hasOwnProperty(f));
-    if (providedFields.length > 0) {
-        const values = providedFields.map(f => body[f] || null);
+    const updateObj = {};
+    fields.forEach(f => {
+      if (body.hasOwnProperty(f)) {
+        updateObj[f] = body[f] || null;
+      }
+    });
 
-        // Check if personal details record exists
-        const exist = await query('SELECT id FROM student_personal_details WHERE student_id = ?', [student_id]);
-
-        if (exist && exist.length > 0) {
-            // Update existing record
-            const setClause = providedFields.map(f => `${f} = ?`).join(', ');
-            const params = [...values, student_id];
-            await query(`UPDATE student_personal_details SET ${setClause} WHERE student_id = ?`, params);
-        } else {
-            // Insert new record
-            const placeholders = providedFields.map(() => '?').join(', ');
-            const sql = `INSERT INTO student_personal_details (student_id, ${providedFields.join(',')}) VALUES (?, ${placeholders})`;
-            await query(sql, [student_id, ...values]);
-        }
+    if (Object.keys(updateObj).length > 0) {
+      await db.insert(studentPersonalDetails)
+        .values({ student_id, ...updateObj })
+        .onDuplicateKeyUpdate({ set: updateObj });
     }
-
 
     return apiResponse({ success: true, message: "Profile updated successfully" });
   } catch (err) {

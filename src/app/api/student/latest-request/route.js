@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { studentRequests, students } from '@/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
@@ -18,20 +20,25 @@ export async function GET(request) {
         return apiError('Forbidden: You can only view your own requests.', 403);
     }
 
-      const sql = `SELECT sr.request_id, sr.certificate_type, sr.status, sr.reject_reason, sr.created_at
-                   FROM student_requests sr
-                   JOIN students s ON sr.student_id = s.id
-                   WHERE s.roll_no = ?
-                   ORDER BY sr.created_at DESC
-                   LIMIT 1`;
+    const rows = await db.select({
+      request_id: studentRequests.request_id,
+      certificate_type: studentRequests.certificate_type,
+      status: studentRequests.status,
+      reject_reason: studentRequests.reject_reason,
+      created_at: studentRequests.created_at,
+      updated_at: studentRequests.updated_at
+    })
+    .from(studentRequests)
+    .innerJoin(students, eq(studentRequests.student_id, students.id))
+    .where(eq(students.roll_no, rollno))
+    .orderBy(desc(studentRequests.created_at))
+    .limit(1);
 
-    const rows = await query(sql, [rollno]);
     if (!rows || rows.length === 0) {
       return apiResponse({ success: true, latestRequest: null });
     }
 
     const r = rows[0];
-    // Normalize status to exact expected values (map uppercase DB values to Title Case)
     const normalized = (r.status || '').toString().toLowerCase();
     const status = normalized === 'approved' ? 'Approved' :
                    normalized === 'rejected' ? 'Rejected' :

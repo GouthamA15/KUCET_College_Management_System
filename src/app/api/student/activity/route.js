@@ -1,4 +1,11 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  students, 
+  collegeInfo as collegeInfoTable, 
+  scholarshipWindows, 
+  scholarshipSanctions 
+} from '@/db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getCurrentAcademicYear } from '@/lib/rollNumber';
 
@@ -11,18 +18,22 @@ export async function GET(request) {
     if (!studentRoll) return apiError('Student roll number not found in session', 400);
 
     // Resolve student id
-    const students = await query('SELECT id FROM students WHERE roll_no = ?', [studentRoll]);
-    if (!students || students.length === 0) {
+    const student = await db.query.students.findFirst({
+      columns: { id: true },
+      where: eq(students.roll_no, studentRoll)
+    });
+
+    if (!student) {
       return apiResponse({
         scholarshipThumbUpdate: { active: false },
         scholarshipHardcopyPending: { active: false },
       });
     }
-    const studentId = students[0].id;
+    const studentId = student.id;
 
     // STEP 1 — Determine current academic year for this student using helper
-    const collegeRows = await query('SELECT * FROM college_info WHERE id = 1', []);
-    const collegeInfo = collegeRows && collegeRows[0] ? collegeRows[0] : null;
+    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
+    const collegeInfo = collegeRows[0] || null;
 
     let currentAcademicYear = null;
     try {
@@ -41,11 +52,9 @@ export async function GET(request) {
     }
 
     // STEP 2 — Fetch latest scholarship window
-    const windowRows = await query(
-      'SELECT academic_year, start_date, end_date FROM scholarship_windows ORDER BY id DESC LIMIT 1',
-      []
-    );
-    const win = windowRows && windowRows[0] ? windowRows[0] : null;
+    const win = await db.query.scholarshipWindows.findFirst({
+      orderBy: [desc(scholarshipWindows.id)]
+    });
 
     let windowOpen = false;
     let windowStart = null;
@@ -63,11 +72,13 @@ export async function GET(request) {
     }
 
     // STEP 3 — Fetch scholarship record for CURRENT academic year only
-    const recordRows = await query(
-      'SELECT application_no, hardcopy_submitted, thumb_update_available, thumb_status FROM scholarship_sanctions WHERE student_id = ? AND academic_year = ? ORDER BY id DESC LIMIT 1',
-      [studentId, currentAcademicYear]
-    );
-    const rec = recordRows && recordRows[0] ? recordRows[0] : null;
+    const rec = await db.query.scholarshipSanctions.findFirst({
+      where: and(
+        eq(scholarshipSanctions.student_id, studentId),
+        eq(scholarshipSanctions.academic_year, currentAcademicYear)
+      ),
+      orderBy: [desc(scholarshipSanctions.id)]
+    });
 
     const applicationNo = rec && rec.application_no ? String(rec.application_no).trim() : null;
     const hardcopySubmitted = rec ? Number(rec.hardcopy_submitted) === 1 : false;

@@ -1,4 +1,12 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  collegeInfo as collegeInfoTable, 
+  semesters, 
+  branchTimetable, 
+  syllabusSubjects, 
+  clerks 
+} from '@/db/schema';
+import { eq, and, desc, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { getCurrentSemester, getBranchFromRoll } from '@/lib/rollNumber';
@@ -31,8 +39,8 @@ export async function GET(req) {
     }
 
     // Resolve context
-    const collegeInfoRows = await query('SELECT * FROM college_info LIMIT 1');
-    const collegeInfo = collegeInfoRows[0] || null;
+    const collegeRows = await db.select().from(collegeInfoTable).limit(1);
+    const collegeInfo = collegeRows[0] || null;
     const semester = getCurrentSemester(rollNo, collegeInfo);
     const branch = getBranchFromRoll(rollNo);
 
@@ -40,33 +48,45 @@ export async function GET(req) {
       return apiResponse({ active: false, message: 'Context resolution failed' });
     }
 
-    const semRows = await query('SELECT academic_year FROM semesters ORDER BY id DESC LIMIT 1');
-    const systemYear = semRows[0]?.academic_year || '2025-26';
+    const semRow = await db.query.semesters.findFirst({
+      orderBy: [desc(semesters.id)]
+    });
+    const systemYear = semRow?.academic_year || '2025-26';
 
-    const sql = `
-      SELECT 
-        bt.room_no,
-        COALESCE(s.subject_name, bt.subject_code) as subject_name,
-        c.name as faculty_name,
-        bt.subject_code
-      FROM branch_timetable bt
-      LEFT JOIN syllabus_subjects s ON bt.subject_code = s.subject_code
-      LEFT JOIN clerks c ON bt.faculty_id = c.id
-      WHERE bt.branch = ? AND bt.semester = ? AND bt.day_of_week = ? AND bt.period_number = ?
-      AND (bt.academic_year LIKE ? OR bt.academic_year = '2025-26')
-      LIMIT 1
-    `;
+    const timetableRows = await db.select({
+      room_no: branchTimetable.room_no,
+      subject_name: syllabusSubjects.subject_name,
+      faculty_name: clerks.name,
+      subject_code: branchTimetable.subject_code
+    })
+    .from(branchTimetable)
+    .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
+    .leftJoin(clerks, eq(branchTimetable.faculty_id, clerks.id))
+    .where(and(
+      eq(branchTimetable.branch, branch),
+      eq(branchTimetable.semester, semester),
+      eq(branchTimetable.day_of_week, day),
+      eq(branchTimetable.period_number, period),
+      or(
+        like(branchTimetable.academic_year, `%${systemYear.substring(0, 4)}%`),
+        eq(branchTimetable.academic_year, '2025-26')
+      )
+    ))
+    .limit(1);
 
-    const rows = await query(sql, [branch, semester, day, period, `%${systemYear.substring(0, 4)}%`]);
-
-    if (rows.length === 0) {
+    if (timetableRows.length === 0) {
       return apiResponse({ active: false, message: 'No lecture scheduled' });
     }
+
+    const activity = {
+      ...timetableRows[0],
+      subject_name: timetableRows[0].subject_name || timetableRows[0].subject_code
+    };
 
     return apiResponse({ 
       active: true, 
       period,
-      activity: rows[0] 
+      activity 
     });
   } catch (error) {
     console.error('Student Current Activity API Error:', error);

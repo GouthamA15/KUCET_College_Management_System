@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { students } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 
@@ -19,14 +21,14 @@ export async function GET(req) {
 
     if (!rollno) return apiError('Roll number required', 400);
 
-    const rows = await query(
-      'SELECT password_hash FROM students WHERE roll_no = ?',
-      [rollno]
-    );
+    const student = await db.query.students.findFirst({
+      columns: { password_hash: true },
+      where: eq(students.roll_no, rollno)
+    });
 
-    if (rows.length === 0) return apiError('Student not found', 404);
+    if (!student) return apiError('Student not found', 404);
 
-    const isPasswordSet = !!rows[0].password_hash;
+    const isPasswordSet = !!student.password_hash;
 
     return apiResponse({ isPasswordSet });
   } catch (err) {
@@ -57,13 +59,16 @@ export async function POST(req) {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    await query(
-      'UPDATE students SET password_hash = ?, is_email_verified = 1 WHERE roll_no = ?',
-      [hashedPassword, rollno]
-    );
+    await db.update(students)
+      .set({ 
+        password_hash: hashedPassword, 
+        is_email_verified: true 
+      })
+      .where(eq(students.roll_no, rollno));
 
-    const [updatedRows] = await query('SELECT * FROM students WHERE roll_no = ?', [rollno]);
-    const updatedStudent = updatedRows;
+    const updatedStudent = await db.query.students.findFirst({
+      where: eq(students.roll_no, rollno)
+    });
 
     const response = apiResponse({ success: true, message: 'Password set successfully' });
     const { issueStudentAuthCookie } = await import('@/lib/auth-utils');

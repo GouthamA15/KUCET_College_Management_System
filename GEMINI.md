@@ -149,7 +149,8 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **ER_MULTIPLE_PRI_KEY Resolution:** Fixed a critical deployment error where Drizzle attempted to re-add existing primary keys. Updated `schema.js` to explicitly define primary keys in the table callback, aligning with TiDB's introspection behavior.
     - **Total Data Restoration:** Developed and executed a custom data restoration workflow to import all records from `tset.sql` into the live TiDB environment, bypassing local MySQL client limitations.
 - **API Refactoring (Type Safety):**
-    - **Core Route Conversion:** Refactored high-complexity student API routes (`[rollno]` and `signature`) to use Drizzle's type-safe query builder, eliminating raw SQL strings and reducing runtime risk.
+    - **Student Batch Completed:** Refactored all 22 student API routes to use Drizzle ORM query builder. This includes Attendance verification, Timetable resolution, Profile management, and Certificate request workflows.
+    - **Implementation Pattern:** Eliminated all raw SQL strings in the `/api/student` directory, replacing them with type-safe `db.select()`, `db.insert()`, and `db.update()` calls with proper join logic.
 - **Project Hygiene:**
     - **Diagnostic Cleanup:** Removed legacy diagnostic scripts (`add_indexes_v2.js`, `check_duplicates.js`, etc.) to maintain a clean production codebase.
 

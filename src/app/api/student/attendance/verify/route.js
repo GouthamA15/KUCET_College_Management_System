@@ -1,5 +1,12 @@
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  attendanceSessions, 
+  attendanceSessionLogs, 
+  students, 
+  studentAttendance 
+} from '@/db/schema';
+import { eq, and, gt, sql } from 'drizzle-orm';
 import { isWithinRange } from '@/lib/geo-utils';
 import crypto from 'crypto';
 
@@ -21,32 +28,20 @@ export async function POST(request) {
       return apiError('Location and Verification Data (PIN/QR) are required.', 400);
     }
 
-    const db = getDb();
-
     // 1. Fetch the active session
-    // We prioritize session_id if provided for ambiguity resolution in shared subjects
-    const [colInfo] = await db.execute(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions'`
-    );
-    const columns = colInfo.map(c => c.COLUMN_NAME);
-    const hasSessionNumber = columns.includes('session_number');
+    const session = await db.query.attendanceSessions.findFirst({
+      where: and(
+        session_id ? eq(attendanceSessions.id, session_id) : eq(attendanceSessions.assignment_id, assignment_id),
+        eq(attendanceSessions.is_active, true),
+        gt(attendanceSessions.expires_at, sql`NOW()`)
+      )
+    });
 
-    let sessionQuery = `
-      SELECT id, assignment_id, attendance_date, ${hasSessionNumber ? 'session_number,' : ''} session_pin, session_token, latitude, longitude, expires_at 
-      FROM attendance_sessions 
-      WHERE ${session_id ? 'id = ?' : 'assignment_id = ?'} 
-      AND is_active = 1 AND expires_at > NOW()
-    `;
-    const sessionParams = [session_id || assignment_id];
-
-    const [sessions] = await db.execute(sessionQuery, sessionParams);
-
-    if (sessions.length === 0) {
+    if (!session) {
       return apiError('No active attendance session found or session expired.', 404);
     }
 
-    const session = sessions[0];
-    const sessionNum = hasSessionNumber ? (session.session_number || 1) : 1;
+    const sessionNum = session.session_number || 1;
 
     // --- PIN / TOKEN VALIDATION ---
     if (pin) {
@@ -59,9 +54,7 @@ export async function POST(request) {
       }
     }
 
-    // --- ACTION C: GPS ACCURACY CHECK ---
-    // Accuracy of exactly 0 is suspicious. We log it and block. 
-    // Very small values like 0.5-1.0 are now allowed for high-end devices.
+    // --- GPS ACCURACY CHECK ---
     if (accuracy !== undefined && accuracy === 0) {
       console.warn(`[Geo] Suspicious accuracy (0) from student ${user.roll_no}. Possible mock.`);
       return apiError('Location accuracy error. Please ensure GPS is enabled and not mocked.', 403);
@@ -76,9 +69,7 @@ export async function POST(request) {
       return apiError('Faculty location not recorded. Please ask faculty to restart the session with GPS enabled.', 403);
     }
 
-    // Strict 50m Rule
     const allowedRadius = 50; 
-
     const distanceOk = isWithinRange(
       parseFloat(session.latitude), parseFloat(session.longitude),
       parseFloat(latitude), parseFloat(longitude),
@@ -95,27 +86,35 @@ export async function POST(request) {
                       request.headers.get('x-real-ip') || 
                       '127.0.0.1';
     
-    // Create a server-side fingerprint (IP + UserAgent) to catch Incognito/Browser switching
     const uaHash = crypto.createHash('md5').update(userAgent).digest('hex');
     const finalDeviceId = device_id || crypto.createHash('sha256').update(userAgent + ipAddress).digest('hex');
 
     // 1. Check if this specific client-side Device ID has already been used for this session
-    const [idLogs] = await db.execute(
-      `SELECT asl.student_id, s.roll_no 
-       FROM attendance_session_logs asl
-       JOIN students s ON asl.student_id = s.id
-       WHERE asl.session_id = ? AND asl.device_hash = ? AND asl.status = "SUCCESS"`,
-      [session.id, finalDeviceId]
-    );
+    const idLogs = await db.select({
+      student_id: attendanceSessionLogs.student_id,
+      roll_no: students.roll_no
+    })
+    .from(attendanceSessionLogs)
+    .innerJoin(students, eq(attendanceSessionLogs.student_id, students.id))
+    .where(and(
+      eq(attendanceSessionLogs.session_id, session.id),
+      eq(attendanceSessionLogs.device_hash, finalDeviceId),
+      eq(attendanceSessionLogs.status, 'SUCCESS')
+    ));
 
     if (idLogs.length > 0 && idLogs[0].student_id !== user.student_id) {
       const originalStudent = idLogs[0];
       
       // PROXY DETECTED: Mark original student as ABSENT
-      await db.execute(
-        'INSERT INTO student_attendance (assignment_id, student_id, date, session, status) VALUES (?, ?, ?, ?, "ABSENT") ON DUPLICATE KEY UPDATE status = "ABSENT"',
-        [session.assignment_id, originalStudent.student_id, session.attendance_date, sessionNum]
-      );
+      await db.insert(studentAttendance)
+        .values({
+          assignment_id: session.assignment_id,
+          student_id: originalStudent.student_id,
+          date: session.attendance_date,
+          session: sessionNum,
+          status: 'ABSENT'
+        })
+        .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
 
       // Notify Faculty
       try {
@@ -133,22 +132,32 @@ export async function POST(request) {
     }
 
     // 2. Check if this specific IP + User-Agent combination has already been used
-    const [proxyLogs] = await db.execute(
-      `SELECT asl.student_id, s.roll_no 
-       FROM attendance_session_logs asl
-       JOIN students s ON asl.student_id = s.id
-       WHERE asl.session_id = ? AND asl.ip_address = ? AND asl.ua_hash = ? AND asl.status = "SUCCESS"`,
-      [session.id, ipAddress, uaHash]
-    );
+    const proxyLogs = await db.select({
+      student_id: attendanceSessionLogs.student_id,
+      roll_no: students.roll_no
+    })
+    .from(attendanceSessionLogs)
+    .innerJoin(students, eq(attendanceSessionLogs.student_id, students.id))
+    .where(and(
+      eq(attendanceSessionLogs.session_id, session.id),
+      eq(attendanceSessionLogs.ip_address, ipAddress),
+      eq(attendanceSessionLogs.ua_hash, uaHash),
+      eq(attendanceSessionLogs.status, 'SUCCESS')
+    ));
 
     if (proxyLogs.length > 0 && proxyLogs[0].student_id !== user.student_id) {
       const originalStudent = proxyLogs[0];
 
       // PROXY DETECTED: Mark original student as ABSENT
-      await db.execute(
-        'INSERT INTO student_attendance (assignment_id, student_id, date, session, status) VALUES (?, ?, ?, ?, "ABSENT") ON DUPLICATE KEY UPDATE status = "ABSENT"',
-        [session.assignment_id, originalStudent.student_id, session.attendance_date, sessionNum]
-      );
+      await db.insert(studentAttendance)
+        .values({
+          assignment_id: session.assignment_id,
+          student_id: originalStudent.student_id,
+          date: session.attendance_date,
+          session: sessionNum,
+          status: 'ABSENT'
+        })
+        .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
 
       // Notify Faculty
       try {
@@ -166,10 +175,23 @@ export async function POST(request) {
     }
 
     // 5. Record the log with all fingerprinting markers
-    await db.execute(
-      'INSERT INTO attendance_session_logs (session_id, student_id, device_hash, ip_address, ua_hash, status) VALUES (?, ?, ?, ?, ?, "SUCCESS") ON DUPLICATE KEY UPDATE status = "SUCCESS", device_hash = VALUES(device_hash), ip_address = VALUES(ip_address), ua_hash = VALUES(ua_hash)',
-      [session.id, user.student_id, finalDeviceId, ipAddress, uaHash]
-    );
+    await db.insert(attendanceSessionLogs)
+      .values({
+        session_id: session.id,
+        student_id: user.student_id,
+        device_hash: finalDeviceId,
+        ip_address: ipAddress,
+        ua_hash: uaHash,
+        status: 'SUCCESS'
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          status: 'SUCCESS',
+          device_hash: finalDeviceId,
+          ip_address: ipAddress,
+          ua_hash: uaHash
+        }
+      });
 
     // --- REAL-TIME: Notify Faculty ---
     try {

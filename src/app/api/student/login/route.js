@@ -1,6 +1,7 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { students, studentPersonalDetails } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
-import { SignJWT } from 'jose';
 import bcrypt from 'bcrypt';
 import { checkRateLimit } from '@/lib/rate-limit';
 
@@ -14,77 +15,69 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { rollno, dob, rememberMe } = body; //dob used as password input field
+    const { rollno, dob, rememberMe } = body;
     if (!rollno || !dob) {
       return apiError('Missing rollno or dob', 400);
     }
     
-    const rows = await query(
-      `SELECT s.id, s.roll_no, s.name, s.is_email_verified, sp.father_name, sp.category, s.mobile, s.date_of_birth, s.password_hash
-       FROM students s
-       LEFT JOIN student_personal_details sp ON s.id = sp.student_id
-       WHERE s.roll_no = ?`,
-      [rollno]
-    );
+    const rows = await db.select({
+      id: students.id,
+      roll_no: students.roll_no,
+      name: students.name,
+      is_email_verified: students.is_email_verified,
+      father_name: studentPersonalDetails.father_name,
+      category: studentPersonalDetails.category,
+      mobile: students.mobile,
+      date_of_birth: students.date_of_birth,
+      password_hash: students.password_hash
+    })
+    .from(students)
+    .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))
+    .where(eq(students.roll_no, rollno))
+    .limit(1);
 
     if (rows.length === 0) {
       return apiError('Invalid credentials', 401);
     }
 
     const student = rows[0];
-    let isAuthenticated = false
+    let isAuthenticated = false;
 
-    // 1. CHECK PASSWORD (If set)
     if (student.password_hash) {
-      // The user entered a password in the 'dob' field
       const match = await bcrypt.compare(dob, student.password_hash);
-      if (match) {
-        isAuthenticated = true;
-      } else {
-        return apiError('Invalid credentials', 401);
-      }
-    }
-    else {
-    const dbDate = new Date(student.date_of_birth);
-    const dbDateString = dbDate.getFullYear() + '-' + String(dbDate.getMonth() + 1).padStart(2, '0') + '-' + String(dbDate.getDate()).padStart(2, '0');
-    // Helper: Normalize Input to YYYY-MM-DD
-      // This handles if frontend sends "15-08-2005" OR "2005-08-15"
+      if (match) isAuthenticated = true;
+      else return apiError('Invalid credentials', 401);
+    } else {
+      const dbDate = new Date(student.date_of_birth);
+      const dbDateString = dbDate.getFullYear() + '-' + String(dbDate.getMonth() + 1).padStart(2, '0') + '-' + String(dbDate.getDate()).padStart(2, '0');
+      
       let inputDateString = dob;
       if (dob.includes('-')) {
         const parts = dob.split('-');
         if (parts[0].length === 2 && parts[2].length === 4) {
-           // It's DD-MM-YYYY -> Convert to YYYY-MM-DD
            inputDateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
       }
 
-    if (dbDateString === inputDateString) {
-        isAuthenticated = true;
-      } else {
-        return apiError('Invalid credentials', 401);
-      }
+      if (dbDateString === inputDateString) isAuthenticated = true;
+      else return apiError('Invalid credentials', 401);
     }
 
-    if (!isAuthenticated) {
-        return apiError('Authentication failed', 401);
-    }
+    if (!isAuthenticated) return apiError('Authentication failed', 401);
     
-    const { date_of_birth: _dob, password_hash = _ph, ...profile } = student;
-
+    const { date_of_birth: _dob, password_hash: _ph, ...profile } = student;
     const response = apiResponse({ student: profile, success: true });
 
-    // Clear other auth cookies
     response.cookies.delete('admin_auth');
     response.cookies.delete('clerk_auth');
 
-    // Use common helper to issue the cookie with all verified flags
     const { issueStudentAuthCookie } = await import('@/lib/auth-utils');
     await issueStudentAuthCookie(response, student, rememberMe);
 
     return response;
 
   } catch (err) {
-     console.error(err)
+    console.error(err);
     return apiError('Server error', 500, err.message);
   }
 }

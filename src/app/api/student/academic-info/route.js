@@ -1,5 +1,15 @@
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  collegeInfo as collegeInfoTable, 
+  syllabusStructure, 
+  syllabusSubjects, 
+  studentMarks, 
+  facultySubjectAssignments, 
+  clerks, 
+  studentAttendance 
+} from '@/db/schema';
+import { eq, and, min, sql, count, countDistinct } from 'drizzle-orm';
 import { calculateYearAndSemesterAsync, getCollegeAcademicYear } from '@/lib/academic-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 
@@ -10,9 +20,8 @@ export async function GET(request) {
       return apiError('Unauthorized', 401);
     }
 
-    const db = getDb();
-    const [collegeInfoRows] = await db.execute('SELECT * FROM college_info WHERE id = 1');
-    const collegeInfo = collegeInfoRows[0] || null;
+    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
+    const collegeInfo = collegeRows[0] || null;
 
     const { semester } = await calculateYearAndSemesterAsync(user.roll_no, collegeInfo);
     const academicYear = await getCollegeAcademicYear(collegeInfo);
@@ -23,62 +32,75 @@ export async function GET(request) {
       return apiError('Unable to determine student academic context', 400);
     }
 
-    // --- OPTIMIZED AGGREGATED DATA QUERY ---
-    // This query uses LEFT JOINs and Conditional Aggregation to fetch everything in 1 pass.
-    // It filters for canonical assignments (oldest assignment per subject-branch-sem-year)
-    // and calculates both Marks and Attendance simultaneously.
-    const [subjects] = await db.execute(`
-      WITH CanonicalAssignments AS (
-        SELECT 
-          subject_code, branch, course_semester, academic_year,
-          MIN(id) as id
-        FROM faculty_subject_assignments
-        WHERE branch = ? AND course_semester = ? AND academic_year = ?
-        GROUP BY subject_code, branch, course_semester, academic_year
-      )
-      SELECT 
-        ss.subject_code,
-        sb.subject_name,
-        sb.subject_type,
-        ca.id as assignment_id,
-        MAX(fsa_all.mid_max) as mid_max,
-        GROUP_CONCAT(DISTINCT c.name SEPARATOR ' & ') as faculty_name,
+    // --- OPTIMIZED AGGREGATED DATA QUERY USING DRIZZLE ---
+    
+    // 1. Define the CTE for Canonical Assignments
+    const canonicalAssignments = db.$with('CanonicalAssignments').as(
+      db.select({
+        subject_code: facultySubjectAssignments.subject_code,
+        id: min(facultySubjectAssignments.id).as('id')
+      })
+      .from(facultySubjectAssignments)
+      .where(and(
+        eq(facultySubjectAssignments.branch, branch),
+        eq(facultySubjectAssignments.course_semester, semester),
+        eq(facultySubjectAssignments.academic_year, academicYear)
+      ))
+      .groupBy(facultySubjectAssignments.subject_code)
+    );
+
+    // 2. Main query with joins and aggregations
+    const subjects = await db.with(canonicalAssignments)
+      .select({
+        subject_code: syllabusStructure.subject_code,
+        subject_name: syllabusSubjects.subject_name,
+        subject_type: syllabusSubjects.subject_type,
+        assignment_id: canonicalAssignments.id,
+        mid_max: sql`MAX(${facultySubjectAssignments.mid_max})`,
+        faculty_name: sql`GROUP_CONCAT(DISTINCT ${clerks.name} SEPARATOR ' & ')`,
         
-        -- Marks (from canonical assignment only)
-        sm.mid1_marks,
-        sm.mid2_marks,
-        sm.assignment_marks,
-        sm.lab_theory_marks,
-        sm.lab_execution_marks,
-        sm.lab_record_marks,
+        // Marks
+        mid1_marks: studentMarks.mid1_marks,
+        mid2_marks: studentMarks.mid2_marks,
+        assignment_marks: studentMarks.assignment_marks,
+        lab_theory_marks: studentMarks.lab_theory_marks,
+        lab_execution_marks: studentMarks.lab_execution_marks,
+        lab_record_marks: studentMarks.lab_record_marks,
 
-        -- Attendance (aggregated across ALL faculty teaching this subject)
-        COUNT(DISTINCT sa.id) as total_classes,
-        COUNT(DISTINCT CASE WHEN sa.status IN ('PRESENT', 'NCC', 'MEDICAL') THEN sa.id END) as attended_classes
-
-      FROM syllabus_structure ss
-      JOIN syllabus_subjects sb ON ss.subject_code = sb.subject_code
-      LEFT JOIN CanonicalAssignments ca ON ca.subject_code = ss.subject_code
-      LEFT JOIN student_marks sm ON sm.student_id = ? AND sm.assignment_id = ca.id
-      
-      -- Join all faculty assignments for this subject to get faculty names and all attendance
-      LEFT JOIN faculty_subject_assignments fsa_all ON fsa_all.subject_code = ss.subject_code 
-           AND fsa_all.branch = ss.branch AND fsa_all.course_semester = ss.semester 
-           AND fsa_all.academic_year = ?
-      LEFT JOIN clerks c ON fsa_all.faculty_id = c.id
-      
-      -- Join attendance for the student across all assignments for this subject
-      LEFT JOIN student_attendance sa ON sa.student_id = ? AND sa.assignment_id = fsa_all.id
-
-      WHERE ss.branch = ? AND ss.semester = ? AND ss.is_group = 0
-      GROUP BY ss.subject_code, sb.subject_name, sb.subject_type, ca.id, sm.id
-    `, [
-      branch, semester, academicYear, // CTE
-      studentId,                      // Marks
-      academicYear,                   // fsa_all join
-      studentId,                      // Attendance sa join
-      branch, semester                // Main WHERE
-    ]);
+        // Attendance
+        total_classes: countDistinct(studentAttendance.id),
+        attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') THEN ${studentAttendance.id} END)`
+      })
+      .from(syllabusStructure)
+      .innerJoin(syllabusSubjects, eq(syllabusStructure.subject_code, syllabusSubjects.subject_code))
+      .leftJoin(canonicalAssignments, eq(canonicalAssignments.subject_code, syllabusStructure.subject_code))
+      .leftJoin(studentMarks, and(
+        eq(studentMarks.student_id, studentId),
+        eq(studentMarks.assignment_id, canonicalAssignments.id)
+      ))
+      .leftJoin(facultySubjectAssignments, and(
+        eq(facultySubjectAssignments.subject_code, syllabusStructure.subject_code),
+        eq(facultySubjectAssignments.branch, syllabusStructure.branch),
+        eq(facultySubjectAssignments.course_semester, syllabusStructure.semester),
+        eq(facultySubjectAssignments.academic_year, academicYear)
+      ))
+      .leftJoin(clerks, eq(facultySubjectAssignments.faculty_id, clerks.id))
+      .leftJoin(studentAttendance, and(
+        eq(studentAttendance.student_id, studentId),
+        eq(studentAttendance.assignment_id, facultySubjectAssignments.id)
+      ))
+      .where(and(
+        eq(syllabusStructure.branch, branch),
+        eq(syllabusStructure.semester, semester),
+        eq(syllabusStructure.is_group, false)
+      ))
+      .groupBy(
+        syllabusStructure.subject_code, 
+        syllabusSubjects.subject_name, 
+        syllabusSubjects.subject_type, 
+        canonicalAssignments.id,
+        studentMarks.id
+      );
 
     return apiResponse({ 
       data: subjects.map(s => ({

@@ -1,5 +1,12 @@
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
+import { db } from '@/db';
+import { 
+  facultySubjectAssignments, 
+  attendanceSessions, 
+  clerks, 
+  attendanceSessionLogs 
+} from '@/db/schema';
+import { eq, and, inArray, isNull, sql, gt } from 'drizzle-orm';
 
 /**
  * GET /api/student/attendance/active-sessions?ids=1,2,3
@@ -24,49 +31,52 @@ export async function GET(request) {
       return apiResponse({ data: [] });
     }
 
-    const db = getDb();
-
     // 1. First, find the subject codes, branch, and semester for the provided assignment IDs
-    // This allows us to find sessions started by ANY faculty for these specific subjects.
-    const [contextRows] = await db.execute(
-      `SELECT DISTINCT subject_code, branch, course_semester, academic_year 
-       FROM faculty_subject_assignments 
-       WHERE id IN (${assignmentIds.map(() => '?').join(',')})`,
-      assignmentIds
-    );
+    const contextRows = await db.select({
+      subject_code: facultySubjectAssignments.subject_code,
+      branch: facultySubjectAssignments.branch,
+      course_semester: facultySubjectAssignments.course_semester,
+      academic_year: facultySubjectAssignments.academic_year
+    })
+    .from(facultySubjectAssignments)
+    .where(inArray(facultySubjectAssignments.id, assignmentIds));
 
     if (contextRows.length === 0) {
       return apiResponse({ data: [] });
     }
 
-    const subjectCodes = contextRows.map(r => r.subject_code);
+    const subjectCodes = Array.from(new Set(contextRows.map(r => r.subject_code)));
     const branch = contextRows[0].branch;
     const semester = contextRows[0].course_semester;
     const academicYear = contextRows[0].academic_year;
 
     // 2. Fetch ALL active sessions for these subjects in this branch/sem/year
     // AND check if this student has already verified.
-    const [sessions] = await db.execute(
-      `SELECT 
-        asess.id as session_id,
-        asess.assignment_id, 
-        asess.attendance_date,
-        fsa.subject_name, 
-        fsa.subject_code,
-        c.name as faculty_name
-       FROM attendance_sessions asess
-       JOIN faculty_subject_assignments fsa ON asess.assignment_id = fsa.id
-       JOIN clerks c ON asess.faculty_id = c.id
-       LEFT JOIN attendance_session_logs asl ON asess.id = asl.session_id AND asl.student_id = ? AND asl.status = 'SUCCESS'
-       WHERE fsa.subject_code IN (${subjectCodes.map(() => '?').join(',')})
-       AND fsa.branch = ?
-       AND fsa.course_semester = ?
-       AND fsa.academic_year = ?
-       AND asess.is_active = 1 
-       AND asess.expires_at > NOW()
-       AND asl.id IS NULL`, 
-      [user.student_id, ...subjectCodes, branch, semester, academicYear]
-    );
+    const sessions = await db.select({
+      session_id: attendanceSessions.id,
+      assignment_id: attendanceSessions.assignment_id,
+      attendance_date: attendanceSessions.attendance_date,
+      subject_name: facultySubjectAssignments.subject_name,
+      subject_code: facultySubjectAssignments.subject_code,
+      faculty_name: clerks.name
+    })
+    .from(attendanceSessions)
+    .innerJoin(facultySubjectAssignments, eq(attendanceSessions.assignment_id, facultySubjectAssignments.id))
+    .innerJoin(clerks, eq(attendanceSessions.faculty_id, clerks.id))
+    .leftJoin(attendanceSessionLogs, and(
+      eq(attendanceSessions.id, attendanceSessionLogs.session_id),
+      eq(attendanceSessionLogs.student_id, user.student_id),
+      eq(attendanceSessionLogs.status, 'SUCCESS')
+    ))
+    .where(and(
+      inArray(facultySubjectAssignments.subject_code, subjectCodes),
+      eq(facultySubjectAssignments.branch, branch),
+      eq(facultySubjectAssignments.course_semester, semester),
+      eq(facultySubjectAssignments.academic_year, academicYear),
+      eq(attendanceSessions.is_active, true),
+      gt(attendanceSessions.expires_at, sql`NOW()`),
+      isNull(attendanceSessionLogs.id)
+    ));
 
     return apiResponse({ data: sessions });
   } catch (error) {

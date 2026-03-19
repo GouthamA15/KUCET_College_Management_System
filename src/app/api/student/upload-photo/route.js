@@ -1,46 +1,40 @@
-import { getDb } from '@/lib/db';
+import { db } from '@/db';
+import { students, studentImages } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(req) {
   const user = await getAuthUser('student');
-
-  if (!user) {
-    return apiError('Unauthorized', 401);
-  }
+  if (!user) return apiError('Unauthorized', 401);
 
   try {
     const body = await req.json();
     const { roll_no, pfp } = body;
 
-    if (!roll_no) {
-      return apiError('Missing roll_no', 400);
-    }
+    if (!roll_no) return apiError('Missing roll_no', 400);
 
-    // Optional: Validate file size and type if needed (though frontend already does)
-    // For now, assuming frontend validation is sufficient
+    const student = await db.query.students.findFirst({
+      columns: { id: true },
+      where: eq(students.roll_no, roll_no)
+    });
 
-    const db = getDb();
-    let pfpValue = null;
+    if (!student) return apiError('Student not found', 404);
+    const studentId = student.id;
+
     if (pfp) {
-      pfpValue = Buffer.from(pfp.split(',')[1], 'base64'); // Remove data URL prefix if present
-    }
-
-    // Get student ID first
-    const [rows] = await db.execute('SELECT id FROM students WHERE roll_no = ?', [roll_no]);
-    if (rows.length === 0) {
-      return apiError('Student not found', 404);
-    }
-    const studentId = rows[0].id;
-
-    if (pfpValue) {
-      // Insert or Update image
-      await db.execute(
-        'INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ON DUPLICATE KEY UPDATE pfp = VALUES(pfp)',
-        [studentId, pfpValue]
-      );
+      // NOTE: Original code converted to Buffer. If the column is TEXT, 
+      // it might be better to store as data URL or Cloudinary URL.
+      // Maintaining original logic:
+      const pfpValue = Buffer.from(pfp.split(',')[1], 'base64');
+      
+      await db.insert(studentImages)
+        .values({
+          student_id: studentId,
+          pfp: pfpValue.toString('base64') // Storing as base64 string for TEXT column
+        })
+        .onDuplicateKeyUpdate({ set: { pfp: pfpValue.toString('base64') } });
     } else {
-      // Delete image if pfp is null (removed)
-      await db.execute('DELETE FROM student_images WHERE student_id = ?', [studentId]);
+      await db.delete(studentImages).where(eq(studentImages.student_id, studentId));
     }
 
     return apiResponse({ success: true });
