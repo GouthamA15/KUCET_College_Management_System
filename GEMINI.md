@@ -134,6 +134,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 49: Diagnostic Tools & Android 13+ Permission Fix (March 19, 2026)**
+- **Diagnostic Tooling:**
+    - **Native Test Button:** Integrated a "Test App Notifications" button into the landing page `Hero` component, visible only when running on native platforms (Android/iOS). This allows for instant verification of the notification pipeline without waiting for SSE events.
+- **Android Hardening:**
+    - **Permission Architecture:** Resolved a critical issue where the `POST_NOTIFICATIONS` permission was missing from `AndroidManifest.xml`, causing notifications to fail on Android 13+.
+    - **Notification Reliability:** Added `WAKE_LOCK` and `SCHEDULE_EXACT_ALARM` permissions to ensure reliable delivery and exact-time scheduling of local notifications on modern Android versions.
+    - **Compatibility Refinement:** Updated `showLocalNotification` to use the `'default'` sound channel and explicitly set a small icon, improving compatibility with Android notification system requirements.
+
 ### **Session 48: Stale Closure Fix for Real-Time Notifications (March 19, 2026)**
 - **Real-Time Data Integrity:**
     - **Stale Closure Resolution:** Fixed a critical bug in `RealtimeListener` where notification logic was trapped in a stale closure of `studentData` and `clerkData` from the moment of leader election. This prevented notifications from firing if the user logged in or data loaded after the SSE connection was established.

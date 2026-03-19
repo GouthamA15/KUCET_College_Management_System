@@ -47,16 +47,21 @@ export const showLocalNotification = async (title, body, extra = {}) => {
     }
 
     console.log('[Notification-Native] Scheduling:', title);
+    
+    // For testing, we use a near-immediate trigger (100ms)
+    // Older Android versions sometimes struggle with exact 0ms or far-future dates
+    const triggerDate = new Date(Date.now() + 500);
+
     await LocalNotifications.schedule({
       notifications: [
         {
           title,
           body,
           id: Math.floor(Math.random() * 1000000), // Random ID
-          schedule: { at: new Date(Date.now() + 1000) }, // Schedule for 1 second from now
+          schedule: { at: triggerDate }, 
           extra,
-          sound: null,
-          attachments: null,
+          sound: 'default', // Using default instead of null for better Android compatibility
+          smallIcon: 'ic_stat_name', // Standard Capacitor icon name
           actionTypeId: '',
           controlBadge: true
         }

@@ -3,18 +3,41 @@
 import { useEffect, useState } from 'react';
 import NextImage from 'next/image';
 import { useAssets } from '@/context/AssetContext';
+import { showLocalNotification } from '@/lib/notification-utils';
+import { Capacitor } from '@capacitor/core';
 
 export default function Hero() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const { getAsset } = useAssets();
+  const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
 
   useEffect(() => {
     const timer = setTimeout(() => setImageLoaded(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
+  const handleTestNotification = async () => {
+    await showLocalNotification(
+      'Notification Test 🔔',
+      'This is a test notification from KUCET CMS app. If you see this, notifications are working!'
+    );
+  };
+
   return (
     <section className="relative w-full">
+      {/* Test Notification Button for App Debugging */}
+      {isNative && (
+        <div className="absolute top-4 right-4 z-50">
+          <button 
+            onClick={handleTestNotification}
+            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/30 rounded-full px-5 py-2.5 text-sm font-bold shadow-xl transition-all active:scale-95 flex items-center gap-2"
+          >
+            <span className="animate-pulse bg-green-400 w-2 h-2 rounded-full"></span>
+            Test App Notifications
+          </button>
+        </div>
+      )}
+
       {/* Hero Image */}
       <div className="relative w-full h-75 md:h-100 lg:h-125 overflow-hidden">
         <NextImage
