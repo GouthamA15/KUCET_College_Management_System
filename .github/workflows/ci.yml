@@ -14,7 +14,31 @@ jobs:
       # They don't need to be "real" secrets yet.
       JWT_SECRET: "temporary_secret_at_least_32_chars_long"
       ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      NEXT_PUBLIC_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
+      
+      # Database
+      DB_HOST: "localhost"
+      DB_USER: "root"
+      DB_PASSWORD: "password"
+      DB_DATABASE: "test_db"
+      
+      # Email
+      EMAIL_USER: "test@example.com"
+      BREVO_API_KEY: "dummy_brevo_key"
+      
+      # Auth & Security
+      CERTIFICATE_SECRET: "dummy_cert_secret"
+      GOOGLE_CLIENT_ID: "dummy_google_id"
+      GOOGLE_CLIENT_SECRET: "dummy_google_secret"
+      
+      # Cloudinary
+      CLOUDINARY_CLOUD_NAME: "dummy_cloud"
+      CLOUDINARY_API_KEY: "123456789"
+      CLOUDINARY_API_SECRET: "dummy_cloud_secret"
+      
+      # Supabase
+      NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy_anon_key"
 
     steps:
     - uses: actions/checkout@v4
