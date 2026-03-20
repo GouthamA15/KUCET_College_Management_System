@@ -12,6 +12,7 @@ import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { uploadToCloudinary } from '@/lib/cloudinary';
+import { encrypt, hashForIndex } from '@/lib/encryption';
 
 const toNull = (value) => (value === undefined || value === '' ? null : value);
 
@@ -56,7 +57,13 @@ export async function PUT(req, context) {
       if (updatedData.fee_reimbursement !== undefined) studentUpdate.fee_reimbursement = toNull(String(updatedData.fee_reimbursement).trim().toUpperCase());
       if (updatedData.date_of_birth !== undefined) studentUpdate.date_of_birth = toMySQLDate(updatedData.date_of_birth) ? new Date(toMySQLDate(updatedData.date_of_birth)) : null;
       if (updatedData.gender !== undefined) studentUpdate.gender = toNull(updatedData.gender);
-      if (updatedData.mobile !== undefined) studentUpdate.mobile = toNull(updatedData.mobile);
+      
+      if (updatedData.mobile !== undefined) {
+          const val = toNull(updatedData.mobile);
+          studentUpdate.mobile = val ? encrypt(val) : null;
+          studentUpdate.mobile_hash = val ? hashForIndex(val) : null;
+      }
+      
       if (updatedData.email !== undefined) studentUpdate.email = toNull(updatedData.email);
 
       if (Object.keys(studentUpdate).length > 0) {
@@ -75,10 +82,16 @@ export async function PUT(req, context) {
       const personalUpdate = {};
       personalFields.forEach(col => {
         if (updatedData[col] !== undefined) {
-          if (col === 'aadhaar_no' && updatedData[col] !== null) {
-            personalUpdate[col] = toNull(String(updatedData[col]).replace(/\D/g, ''));
+          let val = toNull(updatedData[col]);
+          
+          if (col === 'aadhaar_no' && val !== null) {
+            val = String(val).replace(/\D/g, '');
+            personalUpdate.aadhaar_no = encrypt(val);
+            personalUpdate.aadhaar_hash = hashForIndex(val);
+          } else if (col === 'guardian_mobile' && val !== null) {
+            personalUpdate.guardian_mobile = encrypt(val);
           } else {
-            personalUpdate[col] = toNull(updatedData[col]);
+            personalUpdate[col] = val;
           }
         }
       });
@@ -119,7 +132,7 @@ export async function PUT(req, context) {
 
     return apiResponse({ success: true, message: 'Student details updated successfully' });
   } catch (error) {
-    logger.error('Error updating student details:', error);
+    logger.error(error, 'Error updating student details for clerk');
     return apiError('Failed to update student details', 500, error.message);
   }
 }

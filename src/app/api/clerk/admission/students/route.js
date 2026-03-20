@@ -12,6 +12,7 @@ import { toMySQLDate } from '@/lib/date';
 import { validateRollNo } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { encrypt, hashForIndex } from '@/lib/encryption';
 
 export async function POST(req) {
   const user = await getAuthUser('clerk');
@@ -65,7 +66,8 @@ export async function POST(req) {
         name: name || null,
         date_of_birth: toMySQLDate(date_of_birth) ? new Date(toMySQLDate(date_of_birth)) : null,
         gender: gender || null,
-        mobile: mobile || null,
+        mobile: mobile ? encrypt(mobile) : null,
+        mobile_hash: mobile ? hashForIndex(mobile) : null,
         email: email || null,
         added_by_clerk_id: clerkId,
         fee_reimbursement: feeReimbursementToSave === 'YES' ? 'YES' : 'NO'
@@ -88,8 +90,9 @@ export async function POST(req) {
         place_of_birth: place_of_birth || null,
         father_occupation: father_occupation || null,
         annual_income: annual_income ? parseInt(annual_income) : null,
-        guardian_mobile: guardian_mobile || null,
-        aadhaar_no: aadhaarToSave,
+        guardian_mobile: guardian_mobile ? encrypt(guardian_mobile) : null,
+        aadhaar_no: aadhaarToSave ? encrypt(aadhaarToSave) : null,
+        aadhaar_hash: aadhaarToSave ? hashForIndex(aadhaarToSave) : null,
         address: address || null,
         seat_allotted_category: seat_allotted_category || null,
         identification_marks: identification_marks || null,
@@ -120,7 +123,7 @@ export async function POST(req) {
 
   } catch (error) {
     if (error.message === 'STUDENT_EXISTS') return apiError('Student with this Roll Number already exists.', 409);
-    logger.error('Error adding student:', error);
+    logger.error(error, 'Error adding student');
     return apiError('Internal Server Error', 500);
   }
 }

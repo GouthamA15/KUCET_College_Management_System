@@ -7,6 +7,7 @@ import {
 } from '@/db/schema';
 import { eq, and, like } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { decrypt } from '@/lib/encryption';
 
 export async function GET(req) {
   const user = await getAuthUser('clerk');
@@ -49,9 +50,17 @@ export async function GET(req) {
     }
 
     const rows = await query.where(condition).limit(100);
-    return apiResponse({ students: rows });
+
+    // Decrypt sensitive fields
+    const decryptedRows = rows.map(row => ({
+      ...row,
+      mobile: decrypt(row.mobile),
+      aadhaar_no: decrypt(row.aadhaar_no)
+    }));
+
+    return apiResponse({ students: decryptedRows });
   } catch (err) {
-    logger.error('Search students error:', err);
+    logger.error(err, 'Search students error');
     return apiError('Server error', 500, err.message);
   }
 }
