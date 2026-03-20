@@ -1,274 +1,131 @@
 'use client';
 
 import { useEffect, useRef, useContext, useCallback, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import toast from 'react-hot-toast';
 import { StudentContext } from '@/context/StudentContext';
 import { ClerkContext } from '@/context/ClerkContext';
 import { showLocalNotification } from '@/lib/notification-utils';
-import { Capacitor } from '@capacitor/core';
 
-/**
- * Global Real-time Listener - Production Version
- * Handles SSE connection, leader election, and role-aware notifications.
- */
-export default function RealtimeListener({ onUpdate }) {
-  const onUpdateRef = useRef(onUpdate);
-  const studentCtx = useContext(StudentContext) || {};
-  const clerkCtx = useContext(ClerkContext) || {};
+export default function RealtimeListener() {
+  const { studentData } = useContext(StudentContext) || {};
+  const { clerkData } = useContext(ClerkContext) || {};
   
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [debugInfo, setDebugInfo] = useState('Initializing...');
-
-  const studentDataRef = useRef(studentCtx.studentData);
-  const clerkDataRef = useRef(clerkCtx.clerkData);
-  const internalStudentRef = useRef(null);
-  const notifiedSessionsRef = useRef(new Set()); // Prevents duplicate notifications
+  // Use refs to store the latest identity to avoid stale closure in notification logic
+  const studentDataRef = useRef(studentData);
+  const clerkDataRef = useRef(clerkData);
   
-  // Ref-based status for non-reactive access inside the effect
-  const statusRef = useRef('connecting');
-  const debugRef = useRef('Initializing...');
-
-  // Sync refs with context updates
-  useEffect(() => {
-    studentDataRef.current = studentCtx.studentData;
-    if (studentCtx.studentData) {
-        const student = studentCtx.studentData.student || studentCtx.studentData;
-        const b = student?.branch || student?.course;
-        if (typeof window !== 'undefined') window.__my_branch = b;
-        const info = `Active: ${b}`;
-        setDebugInfo(info);
-        debugRef.current = info;
-    }
-  }, [studentCtx.studentData]);
+  const [status, setStatus] = useState('connecting');
+  const [debugInfo, setDebugInfo] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    clerkDataRef.current = clerkCtx.clerkData;
-  }, [clerkCtx.clerkData]);
-  
-  useEffect(() => {
-    onUpdateRef.current = onUpdate;
-  }, [onUpdate]);
+    studentDataRef.current = studentData;
+    clerkDataRef.current = clerkData;
+  }, [studentData, clerkData]);
 
-  const handleNotification = useCallback((data) => {
-    const { type, payload } = data;
-    if (type === 'CONNECTED') return; 
-    
-    const student = studentDataRef.current?.student || studentDataRef.current || internalStudentRef.current;
-    const clerk = clerkDataRef.current;
+  const handleNotification = useCallback((event, payload) => {
+    const sData = studentDataRef.current;
+    const cData = clerkDataRef.current;
 
-    console.log(`[Realtime-Event] ${type}`, payload);
+    console.log('📡 [Supabase Event]', event, payload);
 
-    // --- STUDENT NOTIFICATIONS ---
-    if (student) {
-      if (type === 'SESSION_STARTED') {
-        const sessionId = payload.sessionId || payload.id;
-        if (!sessionId || notifiedSessionsRef.current.has(sessionId)) return;
-
-        const targetBranch = String(payload.branch).trim().toUpperCase();
-        const myBranch = String(student?.branch || student?.course || 'UNKNOWN').trim().toUpperCase();
-
-        if (targetBranch === myBranch || targetBranch === 'ALL') {
-          notifiedSessionsRef.current.add(sessionId);
-          showLocalNotification(
-            'Attendance Started 📍',
-            `A secure session for ${payload.subject_code} is now active.`,
-            { type: 'attendance', sessionId }
-          );
-        }
-      } else if (type === 'REQUEST_UPDATED') {
-        if (payload.student_id === student.id) {
-          const statusText = payload.status === 'APPROVED' ? 'Approved ✅' : 'Rejected ❌';
-          showLocalNotification(
-            `Certificate Request ${statusText}`,
-            `Your request for ${payload.certificate_type} has been ${payload.status.toLowerCase()}.`,
-            { type: 'certificate', requestId: payload.request_id }
-          );
-        }
-      } else if (type === 'TIMETABLE_CHANGED') {
-        const myBranch = String(student?.branch || student?.course || '').trim().toUpperCase();
-        if (payload.branch?.toUpperCase() === myBranch) {
-          showLocalNotification(
-            'Timetable Updated 📅',
-            `The schedule for Semester ${payload.semester} has been updated.`,
-            { type: 'timetable', semester: payload.semester }
-          );
-        }
+    // 1. TIMETABLE UPDATES
+    if (event === 'TIMETABLE_CHANGED') {
+      if (sData?.branch === payload.branch) {
+        toast.success('Your timetable has been updated!', { duration: 5000, id: 'timetable-update' });
+        showLocalNotification('Timetable Updated', 'Your departmental timetable has been changed.', { type: 'TIMETABLE' });
       }
     }
 
-    // --- CLERK NOTIFICATIONS ---
-    if (clerk && clerk.id) {
-      if (type === 'REQUEST_CREATED' && payload.clerkType === clerk.role) {
-          showLocalNotification(
-            'New Request 📄',
-            `A new ${payload.certificateType} application has been submitted.`,
-            { type: 'clerk_request', clerkType: payload.clerkType }
-          );
+    // 2. ATTENDANCE SESSIONS
+    if (event === 'SESSION_STARTED') {
+      if (sData?.branch === payload.branch) {
+        toast('🚀 New Attendance Session Started!', { icon: '📝', duration: 10000, id: payload.sessionId });
+        showLocalNotification('Class Started', `Attendance is active for ${payload.subject_code}`, { type: 'SESSION', sessionId: payload.sessionId });
+      }
+    }
+
+    // 3. CERTIFICATE & PROFILE REQUESTS
+    if (event === 'REQUEST_CREATED' || event === 'REQUEST_UPDATED') {
+      // Logic for Clerk notifications (New requests for them to approve)
+      if (cData && payload.clerkType === cData.role) {
+         toast(`New request: ${payload.certificate_type}`, { icon: '🔔' });
+         showLocalNotification('New Request', `A new ${payload.certificate_type} needs approval.`, { type: 'CLERK_REQ' });
+      }
+      // Logic for Student notifications (Status updates on their requests)
+      if (sData && payload.student_id === sData.id) {
+         toast(`Request status updated: ${payload.certificate_type}`, { icon: '📄' });
+         showLocalNotification('Request Update', `Your ${payload.certificate_type} status has been updated.`, { type: 'STUDENT_REQ' });
       }
     }
   }, []);
 
-  // background identity resolution
   useEffect(() => {
-    const fetchIdentity = async () => {
-      try {
-        // Quick check: If clerk cookie exists, don't even try student identity
-        const isClerk = document.cookie.includes('clerk_logged_in=true');
-        if (isClerk) return;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-        const res = await fetch('/api/student/me');
-        if (res.ok) {
-          const { roll_no } = await res.json();
-          const profileRes = await fetch(`/api/student/${roll_no}`);
-          if (profileRes.ok) {
-            const data = await profileRes.json();
-            internalStudentRef.current = data.student;
-            const b = data.student.branch;
-            if (typeof window !== 'undefined') window.__my_branch = b;
-            const info = `Identity Resolved: ${b}`;
-            setDebugInfo(info);
-            debugRef.current = info;
-          }
-        }
-      } catch (e) {
-          console.warn('[Realtime] Identity background fetch failed');
-      }
-    };
-    
-    if (!studentCtx.studentData && !clerkCtx.clerkData) {
-      fetchIdentity();
+    if (!url || !key) {
+      console.error('❌ [Realtime] Missing Supabase Keys in Browser!');
+      setStatus('error');
+      setDebugInfo('MISSING_KEYS');
+      return;
     }
-  }, [studentCtx.studentData, clerkCtx.clerkData]);
 
-  useEffect(() => {
-    const CHANNEL_NAME = 'kucet_sse_sync';
-    const LOCK_NAME = 'kucet_sse_leader';
-    let isLeader = false;
-    let eventSource = null;
-    let retryCount = 0;
-    let lockResolver = null;
-    let isUnmounted = false;
+    console.log('🔌 [Realtime] Connecting to:', url);
+    const supabase = createClient(url, key, {
+      realtime: {
+        params: {
+          eventsPerSecond: 10,
+        },
+      },
+    });
 
-    const channel = new BroadcastChannel(CHANNEL_NAME);
+    const channel = supabase.channel('kucet-updates', {
+      config: {
+        broadcast: { ack: true },
+      }
+    });
 
-    const broadcastStatus = (status) => {
-        setConnectionStatus(status);
-        statusRef.current = status;
-        if (typeof window !== 'undefined') {
-            window.__sse_status = status;
-            window.__sse_debug = debugRef.current;
+    channel
+      .on('broadcast', { event: '*' }, ({ event, payload }) => {
+        handleNotification(event, payload);
+      })
+      .subscribe(async (status) => {
+        console.log('📶 [Realtime Status]:', status);
+        setDebugInfo(status);
+        
+        if (status === 'SUBSCRIBED') {
+          setStatus('connected');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setStatus('connecting');
+          // Auto-retry after 5 seconds if timed out or errored
+          const timer = setTimeout(() => setRetryCount(c => c + 1), 5000);
+          return () => clearTimeout(timer);
         }
-        try { channel.postMessage({ type: 'STATUS_SYNC', status, debug: debugRef.current }); } catch(e) {}
-    };
-
-    channel.onmessage = (event) => {
-      if (event.data?.type === 'STATUS_QUERY') {
-          channel.postMessage({ type: 'STATUS_SYNC', status: statusRef.current, debug: debugRef.current });
-          return;
-      }
-      if (event.data?.type === 'STATUS_SYNC') {
-          if (!isLeader) {
-              setConnectionStatus(event.data.status);
-              statusRef.current = event.data.status;
-              setDebugInfo(event.data.debug);
-              debugRef.current = event.data.debug;
-          }
-          return;
-      }
-      if (event.data?.type === 'FORCE_NOTIFY') {
-          handleNotification(event.data.payload);
-          return;
-      }
-      if (!isLeader) {
-        if (onUpdateRef.current) onUpdateRef.current(event.data);
-        handleNotification(event.data);
-      }
-    };
-
-    const setupSSE = () => {
-      if (isUnmounted) return;
-      if (eventSource) eventSource.close();
-      
-      broadcastStatus('connecting');
-      eventSource = new EventSource('/api/realtime/stream?t=' + Date.now());
-
-      eventSource.onopen = () => {
-        retryCount = 0;
-        broadcastStatus('connected');
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          if (event.data === ': ping' || !event.data) return;
-          const data = JSON.parse(event.data);
-          if (!data.type) return;
-
-          if (data.type === 'CONNECTED') {
-              broadcastStatus('connected');
-              return;
-          }
-
-          if (isLeader) handleNotification(data);
-          channel.postMessage(data);
-          if (onUpdateRef.current) onUpdateRef.current(data);
-        } catch (e) {
-          console.error('[Realtime] Message Parse Error');
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        broadcastStatus('error');
-        eventSource.close();
-        const delay = Math.min(30000, Math.pow(2, retryCount) * 1000);
-        retryCount++;
-        setTimeout(() => {
-          if (isLeader && !isUnmounted) setupSSE();
-        }, delay);
-      };
-    };
-
-    if (typeof navigator !== 'undefined' && navigator.locks) {
-      navigator.locks.request(LOCK_NAME, { mode: 'exclusive' }, () => {
-        return new Promise((resolve) => {
-          if (isUnmounted) { resolve(); return; }
-          isLeader = true;
-          lockResolver = resolve;
-          setupSSE();
-        });
-      }).catch(e => {
-        isLeader = false;
-        channel.postMessage({ type: 'STATUS_QUERY' });
       });
-    } else {
-      isLeader = true;
-      setupSSE();
-    }
 
     return () => {
-      isUnmounted = true;
-      if (eventSource) eventSource.close();
-      if (lockResolver) lockResolver();
-      channel.close();
+      console.log('🔌 [Realtime] Cleaning up connection');
+      supabase.removeChannel(channel);
     };
-  }, [handleNotification]); // Removed connectionStatus and debugInfo to fix infinite loop
+  }, [handleNotification, retryCount]);
 
-  // Render the visual status badge (Diagnostic Tool)
+  // Visual status indicator (minimal)
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none select-none">
-      <div className="flex flex-col items-end gap-1">
-        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter flex items-center gap-1.5 shadow-sm border ${
-          connectionStatus === 'connected' ? 'bg-green-500/10 text-green-600 border-green-200' :
-          connectionStatus === 'connecting' ? 'bg-amber-500/10 text-amber-600 border-amber-200 animate-pulse' :
-          'bg-rose-500/10 text-rose-600 border-rose-200'
+    <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none flex flex-col items-end gap-2">
+      <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter border shadow-sm transition-all duration-500 backdrop-blur-xs ${
+          status === 'connected' 
+            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+            : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
         }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${
-            connectionStatus === 'connected' ? 'bg-green-500' :
-            connectionStatus === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'
-          }`} />
-          {connectionStatus}
+          <div className={`w-1 h-1 rounded-full ${status === 'connected' ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' : 'bg-amber-500'}`}></div>
+          {status}
         </div>
         
         {debugInfo && (
-          <div className="bg-slate-900/80 text-white/50 text-[7px] px-1.5 py-0.5 rounded backdrop-blur-xs">
+          <div className="bg-slate-900/80 text-white/50 text-[7px] px-1.5 py-0.5 rounded backdrop-blur-xs uppercase tracking-widest font-bold border border-white/5">
             {debugInfo}
           </div>
         )}
@@ -276,4 +133,3 @@ export default function RealtimeListener({ onUpdate }) {
     </div>
   );
 }
-
