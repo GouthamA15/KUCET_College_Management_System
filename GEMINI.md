@@ -321,6 +321,131 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Zero Raw SQL:** Confirmed that 100% of the project's API routes now utilize Drizzle ORM, eliminating the maintenance risk of manual SQL strings.
     - **Data Restoration Verified:** Successfully restored and verified the "total data" from `tset.sql` across all modernized routes.
 - **Validation:** Verified functional parity for all core institutional features, ensuring real-time SSE broadcasts and fingerprinting-based attendance remain fully operational.
+- **Institutional Branding:**
+    - **Header Continuity:** Restored the modern blue-to-white gradient header with professional institutional logos and high-density academic metadata.
+
+### **Session 43: Overlay Login Architecture & Persistent Navigation Rail (March 18, 2026)**
+- **Overlay Login Architecture:**
+    - **Fixed Overlay Migration:** Transformed the `LoginPanel` from an in-flow layout element into a standard fixed overlay (`fixed inset-0`) with a high `z-index`, resolving critical layout conflicts and content squeezing on the Developers and Home pages.
+    - **Visual Polish:** Implemented a semi-transparent backdrop blur (`backdrop-blur-sm`) and professional "Slide-Up" and "Fade-In" animations to focus the user experience during authentication.
+    - **Overlay Confinement Fix:** Resolved a browser-level Flexbox confinement issue by enforcing explicit `top-0 left-0` positioning and decoupling the login logic from the main page flow.
+- **Persistent Navigation Rail:**
+    - **Rail Standardization:** Replaced the mobile-only "hamburger" drawer with a permanently visible 64px navigation rail on all screen sizes, ensuring consistent access to core portals (Admission, Student, Employee) without additional clicks.
+    - **Menu Button Removal:** Eliminated the "3 horizontal lines" hamburger trigger from the public header to reduce UI clutter and align with modern "app-shell" design patterns.
+    - **Adaptive Expansion:** Retained hover-expansion for desktop and click-expansion for mobile within the persistent rail, maximizing content area while keeping navigation instantly reachable.
+- **Shell & Content Synchronization:**
+    - **Content Clearing:** Updated `main-content` layout logic to maintain a permanent 64px left margin across all viewports, preventing sidebar overlap and ensuring responsive integrity.
+    - **Integration Cleanup:** Removed redundant scrolling and positioning hacks from `ClientShell` that were previously used to manage in-flow login forms.
+
+### **Session 42: Navigation Personalization, UI Cleanup & Attendance Logic Refinement (March 18, 2026)**
+- **Navigation Personalization:**
+    *   **Student Sidebar Header:** Engineered a personalized sidebar header for students featuring their **Profile Picture**, **Full Name**, and **Roll Number**, providing an immediate sense of identity within the portal.
+    *   **Clerk Sidebar Header:** Implemented a matching header for Clerks/Faculty displaying their **Avatar**, **Full Name**, and **Employee ID** (or HOD/Role designation).
+    *   **Notification Integration:** Synchronized the placement of the notification hub within the sidebar header across all roles, ensuring unread alerts are visible even when the navigation rail is expanded.
+- **UI Cleanup & Decluttering:**
+    *   **Search Bar Removal:** Permanently removed the unused "Search records..." and "Search academic records..." input fields from both Clerk and Student top bars to eliminate visual noise and streamline the header.
+    *   **Layout Standardization:** Unified the sidebar header height (`h-24`) and typography across the Student and Clerk dashboards for a consistent institutional brand experience.
+- **Attendance & Logic Refinement:**
+    *   **Verification Deduplication:** Resolved a UI conflict where two attendance PIN entry boxes appeared on the student profile page. Refactored `StudentActivityBar` to hide its verification extension when on the `/student/profile` route, allowing the `ProfileActivityBar` to serve as the primary interface.
+    *   **Public Sidebar Fix:** Resolved a navigation bug on the landing page where multiple sidebar options could be highlighted at once; implemented strict prioritization logic that ensures only the active login panel or the current route is visually selected.
+- **Documentation Alignment:** Synchronized `GEMINI.md` with the latest repository state and verified institutional compliance.
+
+### **Session 41: Security Hardening, Departmental Refinement & Navigation Shell (March 18, 2026)**
+
+### **Session 40: Institutional Governance UI Refactor & Faculty Mobile Optimization (March 17, 2026)**
+- **Government Standard UI Overhaul:**
+    - **Solid Architecture:** Systematically eliminated modern "startup-style" rounded corners (`rounded-2xl`, `rounded-3xl`) across all faculty-facing pages, replacing them with sharp, professional borders consistent with official government portals.
+    - **Administrative Typography:** Refined typography by removing excessive bold weights (`font-black`) and heavy headers. Standardized on `font-bold` and `font-semibold` with high-contrast tracking for a more authoritative, lightweight feel.
+    - **High-Density Data Grids:** Redesigned the HOD Console and Faculty Dashboard into high-density registries with solid 1px borders, shaded headers, and clear departmental branding.
+- **Faculty Mobile Optimization:**
+    - **Adaptive Stacking:** Engineered the "Live Session" activity bar and dashboard modules to stack vertically on mobile, preventing info clipping and maintaining layout integrity on small screens.
+    - **Responsive Data Matrices:** Optimized the Weekly Teaching Matrix and Timetable Editor with `overflow-x-auto` wrappers and touch-friendly grid spacing, ensuring full usability on mobile devices.
+    - **Touch-Optimized Controls:** Transformed administrative action buttons (Attendance Registry, Marks Management) into full-width mobile blocks for easier thumb interaction.
+- **Bug Fixes & Technical Integrity:**
+    - **Production Build Fix:** Resolved "missing suspense boundary" errors by wrapping all pages using `useSearchParams` in `<Suspense>` components, ensuring compatibility with Next.js static pre-rendering.
+    - **Build Error Resolution:** Resolved a critical "Identifier already declared" SyntaxError in `HODConsole.js` caused by duplicate function declarations during the refactor.
+    - **Component Cleanup:** Removed redundant legacy code and optimized sub-component rendering for the departmental control unit.
+
+### **Session 39: Hybrid Navigation Architecture, Centered Mobile Hubs & Notification Parity (March 17, 2026)**
+- **Hybrid Navigation System:**
+    - **Desktop Restoration:** Restored the authoritative horizontal `Navbar` and `Header` for all desktop views, ensuring immediate visibility of departmental menus without sidebar interaction.
+    - **Mobile-First Sidebar:** Refined sidebars to function exclusively as mobile drawers, maximizing content area on large screens while maintaining touch-optimized navigation on mobile.
+- **Centered Mobile Notification Hub:**
+    - **Strategic Placement:** Moved the notification bell to the absolute top-center of the mobile top bar for both Students and Clerks, aligning with modern UX standards.
+    - **Clerk Notification Parity:** Implemented a unified `ClerkNotificationDropdown` that aggregates both Profile Update and Certificate requests (Bonafide, NOC, etc.).
+    - **Responsive Dropdowns:** Engineered full-width responsive dropdowns (`w-[calc(100vw-2rem)]`) that remain centered and fully interactive on any device.
+- **Institutional Branding:**
+    - **The "KUCET CMS" Mark:** Replaced user greetings in the desktop navbar with a bold, high-contrast institutional brand mark for a more professional dashboard feel.
+- **Bug Fixes & UX Polishing:**
+    - **Scholarship Flag Persistence:** Fixed a critical data integrity bug where "Hardcopies submitted" and "Thumb update" flags failed to persist in application-only records.
+    - **Year-Level Data Sync:** Implemented mandatory backend synchronization to ensure "year-level" status flags remain consistent across multiple scholarship proceedings for the same academic year.
+    - **Ref Conflict Resolution:** Fixed a critical bug in the student mobile top bar where duplicate React Refs caused the notification dropdown to immediately close on touch.
+    - **Auto-Navigation:** Implemented role-aware redirection from notifications; clicking a certificate request now automatically switches the dashboard to the "Certificates" module.
+    - **Data Precision:** Fixed attendance percentage logic on the Student Home page to calculate real-time metrics from raw session counts.
+    - **Notification Refresh:** Added manual "Refresh List" triggers to clerk notification panels for real-time audit management.
+
+### **Session 38: Unified Sidebar Navigation, Institutional UI Overhaul & Responsive Architecture (March 17, 2026)**
+- **Modern Responsive Navigation:**
+    - **Rail Sidebar:** Implemented a hover-expandable rail sidebar for desktop that preserves operational space.
+    - **Mobile Drawer:** Developed a slide-over mobile drawer triggered by a hamburger menu, providing a zero-waste workspace on small screens.
+    - **Personalized Header:** Integrated student identity (PFP and Name) into the sidebar for a premium "User Hub" feel.
+    - **Sticky Controls:** Fixed the `StudentTopBar` and `ClerkTopBar` at the top of the viewport on mobile for persistent access to search and notifications.
+- **Institutional Dashboard Redesign:**
+    - **Sophisticated Aesthetic:** Switched to a lightweight, "Institutional Executive" UI with refined Inter-style typography, softer borders, and subtle shadows.
+    - **Action Center:** Implemented a prioritized "Priority Actions" banner system for critical scholarship and security alerts.
+    - **Functional Inbox:** Transformed the notification bell into a functional dropdown with "View details" and dismissal logic for certificate status updates.
+- **Clerk & Faculty Modernization:**
+    - **Sidebar Parity:** Mirrored the student navigation logic for all employee pages, supporting Admission, Scholarship, and Faculty roles.
+    - **Professional Iconography:** Replaced emojis with a custom-designed SVG icon set for all departmental and administrative links.
+    - **Identity Visibility:** Enabled persistent visibility of employee name and role on mobile top bars.
+- **Structural Cleanup:**
+    - **Dedicated Finances:** Migrated the "Fees and Scholarship" section to a dedicated `/student/finances` page, streamlining the profile view.
+    - **Modular Layouts:** Removed redundant `Header`, `Navbar`, and `Footer` calls from over 30 individual pages, centralizing navigation logic in unified layout files.
+    - **Precision Finance:** Updated the dashboard to show **Pending Dues** only for the current academic session, matching official college audit logic.
+- **Profile Refinements:**
+    - **Direct Edit Access:** Added a surgical "Edit" icon in the profile header for immediate record modification.
+    - **Dynamic PFP:** Enabled real-time profile picture rendering in top bars using actual student/employee data.
+
+### **Session 37: Student Security Hardening, Verification Workflows & Formal UI Redesign (March 15, 2026)**
+- **Redirection Logic:** Refactored `src/proxy.js` to intelligently route students: verified students go directly to `/student/profile`, while unverified students are guided to the `/student` dashboard for account setup.
+- **Security Middleware:** Implemented strict middleware enforcement to block unverified students (no email verification or password set) from accessing sensitive academic and request pages, limiting them to Home, Security, and Profile view.
+- **API Architectural Fix:** Permanently resolved the "Unexpected token <" JSON parsing error by ensuring the proxy returns proper `401 Unauthorized` JSON responses for API routes instead of HTML redirects during session expiration.
+- **Institutional UI Overhaul:**
+    - **Unified Dashboard:** Redesigned the Student Home page into a formal, single-card institutional layout with high-density data grids and professional `#0b3578` branding.
+    - **Formal Matrix:** Replaced the modern timetable cards with a structured, high-density departmental class matrix featuring sharp borders and administrative labeling.
+    - **Record Control Portal:** Transformed Profile Edit and Update History pages into authoritative modification portals with timestamped audit logs.
+    - **Clerk Verification Hub:** Upgraded the Student Requests page for clerks with a professional audit layout and **side-by-side comparison** of current College Records vs. Student Requests.
+- **Branding & Assets:** 
+    - Restored the institutional loading screen with the official college logo and a formal "Loading student dashboard" message.
+    - Integrated the official campus image into the high-level transactional email template.
+- **UI/UX Polishing:**
+    - Fixed a "Rules of Hooks" violation in the `Navbar` by refactoring context usage to top-level `useContext` calls.
+    - Simplified academic period displays to a clean "Year X / Semester Y" format.
+    - Resolved a JSX rendering bug that caused a stray "0" to appear on the Student Home page.
+    - Standardized OTP error messages to "Please try again after 15 minutes" across frontend and backend.
+- **Email Reliability:** Increased OTP rate limits to 5 requests per 15 minutes to balance security with user convenience during testing.
+
+### **Session 36: Profile Update Requests, Admission Form Hardening & UI Refinement (March 13, 2026)**
+- **Database Security:** Implemented SSL/TLS support in `src/lib/db.js` to enable secure connections for production databases like TiDB Cloud. The system now automatically detects cloud hosts and enforces encrypted transport.
+- **Request Unit (RU) Optimization:** Refactored the live "Activity Bar" polling logic for both students and faculty. Replaced recursive `setTimeout` logic with stable intervals and transition-window detection, preventing potential "Infinite Loop" bugs and significantly reducing unnecessary database queries to preserve TiDB Cloud free-tier quotas.
+- **Student Profile Control:** Transformed the student Edit Profile page into a comprehensive record management interface. Students can now view all details (Personal, Academic, Student) and request updates for any field.
+- **Request-Based System:** Implemented a mandatory "Verification Proof" (image upload) for any data updates. All changes (text data, profile photo, or signature) now flow through a centralized `student_profile_requests` table for clerk approval.
+- **Clerk Verification Interface:** Upgraded the Admission Clerk's request dashboard to display "OLD vs NEW" data comparisons and verification proofs, enabling one-click approval or rejection with reason.
+- **UI Layout Refinement:** Relocated the Verification Proof section to the bottom of the student edit profile form for better UX flow, keeping the sidebar focused on primary identity assets (photo/signature).
+- **Broken Image Fallback:** Implemented `FallbackImage` component in profile update history to gracefully handle deleted images from Cloudinary (e.g., from rejected requests), replacing broken links with neat "Image Deleted" placeholders.
+- **Admission Form:** Hardened the admission process by making `Seat Allotted Category`, `Religion`, and `Mother Tongue` mandatory fields. Verified `Father's Occupation` remains optional. Added backend validation to enforce these rules.
+- **Blood Group Utility:** Expanded global `COLLEGE_CONFIG` to include "Not available" as a valid blood group option.
+- **Scholarship Dashboard:** Improved UX and implemented a new search feature allowing clerks to find student scholarship records by name. Enhanced year record cards and metrics display for better clarity.
+- **UI Performance:** Resolved a Next.js deprecation warning in the `Hero` component by migrating from `onLoadingComplete` to the `onLoad` property for optimized image handling.
+- **Navbar & Navigation:** Resolved logic conflicts between scholarship and admission clerk navbar options. Fixed minor logout issues and navbar rendering bugs.
+- **API Enhancements:** Standardized scholarship API responses and implemented a new search-by-name endpoint (`/api/clerk/scholarship/search-by-name`) to support advanced filtering.
+- **Stability:** Fixed auto-merge failures and resolved minor UI issues in clerk settings (profile/security) and department management pages.
+
+---
+
+## Summary
+The KUCET CMS is a comprehensive institutional control system. It integrates high-security attendance, real-time departmental orchestration for HODs, and professional monitoring while maintaining strict data integrity and platform-agnostic performance.
+
 
 ---
 
