@@ -24,7 +24,6 @@
     "@capacitor/splash-screen": "^7.0.5",
     "@capacitor/status-bar": "^7.0.5",
     "@capgo/capacitor-social-login": "^7.20.0",
-    "@ducanh2912/next-pwa": "^10.2.9",
     "@react-pdf/renderer": "^4.3.2",
     "@sentry/nextjs": "^10.43.0",
     "@upstash/ratelimit": "^2.0.8",
@@ -55,6 +54,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^25.5.0",
