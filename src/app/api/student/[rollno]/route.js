@@ -13,6 +13,7 @@ import { eq, asc, desc } from 'drizzle-orm';
 import { computeAcademicYear } from '@/app/lib/academicYear';
 import { getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { decrypt } from '@/lib/encryption';
 
 export async function GET(req, context) {
   // Check any valid auth
@@ -42,8 +43,17 @@ export async function GET(req, context) {
     const studentId = studentData.id;
 
     // Nest the data as expected by the frontend
-    const student = { ...studentData };
-    student.personal_details = row.student_personal_details || {};
+    const student = { 
+      ...studentData,
+      mobile: decrypt(studentData.mobile) // Decrypt student mobile
+    };
+    
+    student.personal_details = row.student_personal_details ? {
+      ...row.student_personal_details,
+      guardian_mobile: decrypt(row.student_personal_details.guardian_mobile), // Decrypt guardian mobile
+      aadhaar_no: decrypt(row.student_personal_details.aadhaar_no) // Decrypt Aadhaar
+    } : {};
+    
     const academics = row.student_academic_background ? [row.student_academic_background] : [];
     
     student.course = getBranchFromRoll(student.roll_no);
@@ -101,7 +111,7 @@ export async function GET(req, context) {
 
     return apiResponse({ student, scholarship, fees, academics });
   } catch (error) {
-    logger.error('Error fetching student profile data:', error);
+    logger.error(error, 'Error fetching student profile data');
     return apiError('Failed to fetch student profile data', 500, error.message);
   }
 }
