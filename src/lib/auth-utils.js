@@ -4,21 +4,6 @@ import { db } from '@/db';
 import { refreshTokens } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 
-export function getDashboardPathByRole(role) {
-  switch (role) {
-    case 'scholarship':
-      return '/clerk/scholarship/dashboard';
-    case 'admission':
-      return '/clerk/admission/dashboard';
-    case 'faculty':
-      return '/clerk/faculty/dashboard';
-    case 'admin':
-      return '/admin/dashboard';
-    default:
-      return '/'; // Fallback for unknown roles or student login
-  }
-}
-
 /**
  * Generates a refresh token, hashes it, stores it in the DB, and sets it in a cookie.
  */

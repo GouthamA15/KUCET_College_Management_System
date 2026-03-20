@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
-import { getDashboardPathByRole } from '@/lib/auth-utils';
+import { getDashboardPathByRole } from '@/lib/path-utils';
 
 async function verify(token, secret) {
   try {
