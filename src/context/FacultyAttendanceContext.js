@@ -307,6 +307,12 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
   const handleSaveAttendance = useCallback(async () => {
     if (!assignment?.id) return;
+    
+    // Capture current state for rollback
+    const previousStatusMap = { ...attendanceStatusMap };
+    const previousCache = { ...attendanceCache };
+    const previousActiveSession = activeSession;
+
     setSubmitting(true);
     try {
       if (!selectedDate || !dateValidation.isValid) {
@@ -317,6 +323,23 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         student_id: s.id,
         status: attendanceStatusMap[s.id] ?? null,
       }));
+
+      // --- OPTIMISTIC UI START ---
+      toast.success('Attendance saved (Optimistic)', { id: 'attendance-save' });
+      
+      // Optimistically clear active session
+      if (activeSession) {
+        setActiveSession(null);
+      }
+
+      // Optimistically update cache
+      const cacheKey = `${selectedDate}-${selectedSession}`;
+      setAttendanceCache((prev) => {
+        const next = { ...prev };
+        delete next[cacheKey];
+        return next;
+      });
+      // --- OPTIMISTIC UI END ---
 
       const res = await fetch('/api/clerk/faculty/attendance', {
         method: 'POST',
@@ -329,29 +352,33 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         }),
       });
       const data = await res.json();
+      
       if (!res.ok) throw new Error(data.error || 'Failed to save attendance');
 
-      toast.success('Attendance saved successfully');
+      toast.success('Attendance synced with server', { id: 'attendance-save' });
 
-      // --- AUTO-CLOSE SESSION AFTER SAVE ---
-      if (activeSession) {
-        await endSession();
+      // If we didn't end the session optimistically (e.g. if it was already null), 
+      // or to ensure server state is reflected
+      if (previousActiveSession && !activeSession) {
+         // Session was already handled optimistically
+      } else if (activeSession) {
+         await endSession();
       }
-
-      const cacheKey = `${selectedDate}-${selectedSession}`;
-      setAttendanceCache((prev) => {
-        const next = { ...prev };
-        delete next[cacheKey];
-        return next;
-      });
 
       await fetchAttendanceStatus();
     } catch (error) {
-      toast.error(error.message);
+      // --- ROLLBACK START ---
+      console.error('[AttendanceSaveRollback]', error);
+      setAttendanceStatusMap(previousStatusMap);
+      setAttendanceCache(previousCache);
+      setActiveSession(previousActiveSession);
+      // --- ROLLBACK END ---
+      
+      toast.error(error.message, { id: 'attendance-save' });
     } finally {
       setSubmitting(false);
     }
-  }, [assignment, baseStudents, attendanceStatusMap, dateValidation.isValid, fetchAttendanceStatus, selectedDate, selectedSession, activeSession, endSession]);
+  }, [assignment, baseStudents, attendanceStatusMap, dateValidation.isValid, fetchAttendanceStatus, selectedDate, selectedSession, activeSession, endSession, attendanceCache]);
 
   const handleDeleteAttendance = useCallback(async () => {
     if (!assignment?.id) return;

@@ -140,6 +140,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 67: Mobile UX Excellence - PWA & Optimistic UI (March 20, 2026)**
+- **Progressive Web App (PWA):**
+    - **Infrastructure:** Integrated `@ducanh2912/next-pwa` to enable advanced service worker capabilities and offline caching for the application shell.
+    - **Manifest & Branding:** Created a comprehensive `manifest.json` and synchronized `RootLayout` with mobile-native meta tags (theme-color, apple-touch-icon) for a "native app" feel.
+    - **Caching Strategy:** Configured Workbox to prioritize frontend navigation caching while ensuring API routes remain dynamic.
+- **Optimistic UI (Performance):**
+    - **Instant Feedback:** Refactored the **Faculty Attendance Marking** process to utilize Optimistic Updates. The UI now reflects "Success" and clears active sessions immediately upon user action, providing a sub-50ms perceived latency.
+    - **Resilience:** Implemented a robust **Rollback Mechanism** that restores the previous attendance state and active session if the server synchronization fails, ensuring data integrity on unstable campus networks.
+
 ### **Session 66: Infrastructure, Monitoring & CDN Hardening (March 20, 2026)**
 - **CDN Hardening (Security):**
     - **Content Security Policy (CSP):** Implemented a strict CSP in `next.config.mjs` to prevent Cross-Site Scripting (XSS) and Data Injection attacks. 

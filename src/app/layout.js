@@ -8,6 +8,12 @@ import RealtimeListener from "@/components/RealtimeListener";
 export const metadata = {
   title: "Login | KUCET",
   description: "KU College of Engineering and Technology - A premier engineering institution affiliated with Kakatiya University, Warangal",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "KUCET CMS",
+  },
 };
 
 export const viewport = {
@@ -16,6 +22,7 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  themeColor: "#0b3578",
 };
 
 export default function RootLayout({ children }) {
