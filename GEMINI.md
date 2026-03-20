@@ -140,6 +140,17 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 65: Automated Testing Infrastructure & CI/CD Pipeline (March 20, 2026)**
+- **End-to-End (E2E) Testing:**
+    - **Infrastructure:** Initialized **Playwright** testing framework for browser automation.
+    - **Student Admission Test:** Created `tests/admission.spec.js` to automate the complete "Happy Path" for student applications, including form filling, multi-part data validation, and mock image uploads.
+    - **Attendance Mocking:** Developed `tests/attendance.spec.js` with GPS geolocation mocking capabilities to verify student dashboard behavior during active sessions.
+- **Performance Budgeting:**
+    - **Load Test Integration:** Integrated existing **k6** load tests into the continuous integration flow to enforce the "Morning Rush" performance threshold (500 concurrent users with <500ms response time).
+- **CI/CD Pipeline:**
+    - **GitHub Actions:** Configured `.github/workflows/ci.yml` to automatically trigger E2E suites and performance benchmarks on every push to `main` and `testvanilla` branches.
+    - **Artifact Management:** Enabled automatic upload of Playwright trace reports for rapid debugging of pipeline failures.
+
 ### **Session 64: Advanced Security Hardening - JWT Rotation & Modern Rate Limiting (March 20, 2026)**
 - **Authentication Infrastructure:**
     - **Refresh Token System:** Implemented a robust JWT rotation mechanism using a new `refresh_tokens` database table. This allows for short-lived access tokens (15 mins) and secure session extension without re-authentication.
