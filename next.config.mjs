@@ -39,7 +39,7 @@ const nextConfig = {
       base-uri 'self';
       form-action 'self';
       frame-ancestors 'none';
-      connect-src 'self' res.cloudinary.com *.sentry.io;
+      connect-src 'self' res.cloudinary.com *.sentry.io *.supabase.co wss://*.supabase.co;
       upgrade-insecure-requests;
     `.replace(/\s{2,}/g, ' ').trim();
 
