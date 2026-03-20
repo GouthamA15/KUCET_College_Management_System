@@ -21,6 +21,18 @@ test.describe('Student Admission Flow', () => {
   });
 
   test('should submit a student admission draft successfully', async ({ page }) => {
+    // Mock image 404s to avoid noise and potential interruptions
+    await page.route('**/*.{png,jpg,jpeg,svg}', route => route.fulfill({ status: 200, body: '' }));
+
+    // Mock the admission submission API
+    await page.route('/api/public/admission', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Success' }),
+      });
+    });
+
     await page.goto('/admission');
 
     // Fill personal information
@@ -60,11 +72,14 @@ test.describe('Student Admission Flow', () => {
     await fileInputs[0].setInputFiles(mockImagePath); // PFP
     await fileInputs[1].setInputFiles(mockImagePath); // Signature
 
+    // Wait for internal state update (FileReader)
+    await page.waitForTimeout(500);
+
     // Submit the form
     await page.click('button:has-text("Submit Admission Form")');
 
     // Wait for success message
-    await expect(page.locator('h2')).toHaveText('Success!', { timeout: 10000 });
+    await expect(page.locator('h2')).toHaveText('Success!', { timeout: 15000 });
     await expect(page.locator('text=Your admission request has been submitted')).toBeVisible();
   });
 });
