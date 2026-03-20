@@ -140,6 +140,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 78: Production Reliability - Versioned Migrations (March 20, 2026)**
+- **Database Lifecycle:**
+    - **Migration Workflow:** Transitioned from `db:push` to a formal **Versioned Migration** workflow. This ensures a permanent, traceable history of all schema changes and prevents unpredictable behavior in production environments.
+    - **Baseline Generation:** Generated the initial baseline migration (`drizzle/0001_dusty_cerise.sql`) representing the current "Institutional Grade" schema.
+    - **Programmatic Migrator:** Developed `src/db/migrate.js`, a robust Node.js script to apply pending SQL migrations to the database during deployment.
+    - **CLI Integration:** Added `db:migrate` to `package.json` for seamless integration into the automated CI/CD pipeline.
+- **Integrity:** Established a predictable and reversible database deployment path, satisfying production stability requirements.
+
+
 ### **Session 77: Horizontal Scaling - Distributed SSE via Redis (March 20, 2026)**
 - **Real-Time Infrastructure:**
     - **Redis Pub/Sub:** Migrated the Server-Sent Events (SSE) system from memory-based broadcasting to **Redis Pub/Sub** using `ioredis`. This enables horizontal scaling, ensuring real-time notifications (Timetable, Attendance) are synchronized across multiple server instances.
