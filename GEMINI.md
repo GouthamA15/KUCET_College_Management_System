@@ -140,6 +140,23 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 68: Critical Runtime Fix & Modular Utility Refactoring (March 20, 2026)**
+- **Runtime Error Resolution:**
+    - **Client-Side Module Isolation:** Resolved critical `Module not found` errors (`fs`, `net`, `tls`) in Client Components by isolating server-side database dependencies.
+    - **Path Utility Decoupling:** Created `src/lib/path-utils.js` to host browser-safe navigation logic (`getDashboardPathByRole`), eliminating inadvertent database imports in `AuthProvider.js` and `src/proxy.js`.
+- **Infrastructure Hygiene:**
+    - **Asset Management:** Integrated placeholder PWA icons and synchronized `.gitignore` to ensure critical manifest assets are tracked while maintaining folder security.
+    - **Cloud Utility:** Developed `cloudinary_sync.js` to provide bidirectional synchronization (Sync/Restore) between the local `/public` folder and Cloudinary storage, future-proofing the application for a public-folder-free deployment architecture.
+
+
+### **Session 68: Critical Runtime Fix & Modular Utility Refactoring (March 20, 2026)**
+- **Runtime Error Resolution:**
+    - **Client-Side Module Isolation:** Resolved critical `Module not found` errors (`fs`, `net`, `tls`) in Client Components by isolating server-side database dependencies.
+    - **Path Utility Decoupling:** Created `src/lib/path-utils.js` to host browser-safe navigation logic (`getDashboardPathByRole`), eliminating inadvertent database imports in `AuthProvider.js` and `src/proxy.js`.
+- **Infrastructure Hygiene:**
+    - **Asset Management:** Integrated placeholder PWA icons and synchronized `.gitignore` to ensure critical manifest assets are tracked while maintaining folder security.
+    - **Cloud Utility:** Developed `cloudinary_sync.js` to provide bidirectional synchronization (Sync/Restore) between the local `/public` folder and Cloudinary storage, future-proofing the application for a public-folder-free deployment architecture.
+
 ### **Session 67: Mobile UX Excellence - PWA & Optimistic UI (March 20, 2026)**
 - **Progressive Web App (PWA):**
     - **Infrastructure:** Integrated `@ducanh2912/next-pwa` to enable advanced service worker capabilities and offline caching for the application shell.

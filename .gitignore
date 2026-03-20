@@ -20,8 +20,6 @@
 /.next/
 /out/
 /public/
-!/public/manifest.json
-!/public/assets/icon-*.png
 /cloudinary_backup
 
 # production
