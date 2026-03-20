@@ -8,7 +8,6 @@ import RealtimeListener from "@/components/RealtimeListener";
 export const metadata = {
   title: "Login | KUCET",
   description: "KU College of Engineering and Technology - A premier engineering institution affiliated with Kakatiya University, Warangal",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

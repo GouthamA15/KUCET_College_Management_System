@@ -140,6 +140,11 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 69: Dynamic PWA Manifest & Asset Decoupling (March 20, 2026)**
+- **Dynamic Manifest:** Implemented `src/app/manifest.js` using the Next.js Metadata API to generate the PWA manifest dynamically. This allows for serving critical PWA metadata without a physical `manifest.json` in the `/public` folder.
+- **Cloud-Native Assets:** Updated the manifest to point directly to high-availability Cloudinary URLs for PWA icons (`192x192` and `512x512`), further enabling the project's transition away from local static asset storage.
+- **Infrastructure:** Refactored `RootLayout` to leverage Next.js's automatic manifest detection, resolving `404` errors caused by the removal of the local `/public` folder.
+
 ### **Session 68: Critical Runtime Fix & Modular Utility Refactoring (March 20, 2026)**
 - **Runtime Error Resolution:**
     - **Client-Side Module Isolation:** Resolved critical `Module not found` errors (`fs`, `net`, `tls`) in Client Components by isolating server-side database dependencies.
