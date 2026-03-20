@@ -140,6 +140,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 76: System Resilience - Environment Validation & Fail-Fast (March 20, 2026)**
+- **Configuration Governance:**
+    - **Environment Validation:** Implemented a robust schema-based validation for environment variables using **Zod** in `src/lib/env.js`.
+    - **Fail-Fast Mechanism:** Integrated validation into the core database utility (`src/lib/db.js`). The application now automatically validates all required credentials (DB, Email, Auth, Cloudinary) at startup and refuses to start in production if any are missing or invalid.
+    - **Informative Errors:** Added detailed console reporting for configuration errors, providing a clear checklist of missing variables to developers and sysadmins.
+- **Dependency Management:** Added `zod` to the project dependencies to support type-safe schema validation.
+
 ### **Session 75: Legal Accountability & Audit Log UI (March 20, 2026)**
 - **Administrative Transparency:**
     - **Audit Log API:** Developed a robust backend route (`/api/admin/audit-logs`) with advanced filtering for actions, user types, and target entities, supporting high-performance pagination.

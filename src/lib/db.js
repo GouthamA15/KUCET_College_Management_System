@@ -15,6 +15,9 @@ try {
   // Silent fail
 }
 
+// Fail-fast environment validation
+import './env';
+
 let pool;
 
 export function getDb() {
