@@ -140,6 +140,21 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 77: Horizontal Scaling - Distributed SSE via Redis (March 20, 2026)**
+- **Real-Time Infrastructure:**
+    - **Redis Pub/Sub:** Migrated the Server-Sent Events (SSE) system from memory-based broadcasting to **Redis Pub/Sub** using `ioredis`. This enables horizontal scaling, ensuring real-time notifications (Timetable, Attendance) are synchronized across multiple server instances.
+    - **Hybrid Broadcasting:** Implemented a robust "Redis-First" broadcasting logic with an automatic memory-based fallback for local development environments.
+    - **Connection Management:** Optimized client connection tracking and dead-connection cleanup within the distributed architecture.
+- **Dependency Management:** Integrated `ioredis` into the production stack to support advanced caching and messaging patterns.
+
+
+### **Session 77: Horizontal Scaling - Distributed SSE via Redis (March 20, 2026)**
+- **Real-Time Infrastructure:**
+    - **Redis Pub/Sub:** Migrated the Server-Sent Events (SSE) system from memory-based broadcasting to **Redis Pub/Sub** using `ioredis`. This enables horizontal scaling, ensuring real-time notifications (Timetable, Attendance) are synchronized across multiple server instances.
+    - **Hybrid Broadcasting:** Implemented a robust "Redis-First" broadcasting logic with an automatic memory-based fallback for local development environments.
+    - **Connection Management:** Optimized client connection tracking and dead-connection cleanup within the distributed architecture.
+- **Dependency Management:** Integrated `ioredis` into the production stack to support advanced caching and messaging patterns.
+
 ### **Session 76: System Resilience - Environment Validation & Fail-Fast (March 20, 2026)**
 - **Configuration Governance:**
     - **Environment Validation:** Implemented a robust schema-based validation for environment variables using **Zod** in `src/lib/env.js`.
