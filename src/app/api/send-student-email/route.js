@@ -1,6 +1,8 @@
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { sendInstitutionalEmail } from '@/lib/email';
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { students } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function POST(request) {
   try {
@@ -11,12 +13,18 @@ export async function POST(request) {
     }
 
     // Fetch student's email and verification status from database
-    const students = await query('SELECT email, is_email_verified FROM students WHERE roll_no = ?', [rollNo]);
-    if (!students || students.length === 0) {
+    const student = await db.query.students.findFirst({
+      where: eq(students.roll_no, rollNo),
+      columns: {
+        email: true,
+        is_email_verified: true
+      }
+    });
+
+    if (!student) {
       return apiError(`Student with roll number ${rollNo} not found.`, 404);
     }
 
-    const student = students[0];
     const studentEmail = student.email;
 
     if (!studentEmail) {

@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { syllabusSubjects, syllabusStructure } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -9,19 +11,16 @@ export async function GET(req) {
     }
 
     // Get all subjects associated with this branch across all semesters
-    const sql = `
-      SELECT DISTINCT 
-        s.subject_code, 
-        s.subject_name, 
-        s.subject_type,
-        ss.semester
-      FROM syllabus_subjects s
-      JOIN syllabus_structure ss ON s.subject_code = ss.subject_code
-      WHERE ss.branch = ?
-      ORDER BY ss.semester, s.subject_name
-    `;
-
-    const subjects = await query(sql, [user.branch]);
+    const subjects = await db.select({
+      subject_code: syllabusSubjects.subject_code,
+      subject_name: syllabusSubjects.subject_name,
+      subject_type: syllabusSubjects.subject_type,
+      semester: syllabusStructure.semester
+    })
+    .from(syllabusSubjects)
+    .join(syllabusStructure, eq(syllabusSubjects.subject_code, syllabusStructure.subject_code))
+    .where(eq(syllabusStructure.branch, user.branch))
+    .orderBy(syllabusStructure.semester, syllabusSubjects.subject_name);
 
     return apiResponse({ data: subjects });
   } catch (error) {

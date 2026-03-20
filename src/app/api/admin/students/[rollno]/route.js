@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { students, studentImages } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request, { params }) {
@@ -15,23 +17,26 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const studentQuery = `
-      SELECT s.*, CASE WHEN si.pfp IS NOT NULL THEN 1 ELSE 0 END as has_pfp 
-      FROM students s 
-      LEFT JOIN student_images si ON s.id = si.student_id 
-      WHERE s.roll_no = ?`;
-    const [student] = await query(studentQuery, [rollno]);
+    const studentWithImage = await db.select({
+      student: students,
+      has_pfp: studentImages.pfp
+    })
+    .from(students)
+    .leftJoin(studentImages, eq(students.id, studentImages.student_id))
+    .where(eq(students.roll_no, rollno))
+    .limit(1);
 
-    if (!student) {
+    if (studentWithImage.length === 0) {
       return apiError('Student not found', 404);
     }
 
-    if (student.has_pfp) {
+    const { student, has_pfp } = studentWithImage[0];
+
+    if (has_pfp) {
         student.pfp = `/api/student/image/${student.roll_no}`;
     } else {
         student.pfp = null;
     }
-    delete student.has_pfp;
 
     return apiResponse({ student });
   } catch (error) {

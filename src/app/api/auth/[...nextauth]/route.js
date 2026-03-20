@@ -1,6 +1,8 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google";
-import { getDb } from "@/lib/db";
+import { db } from "@/db";
+import { clerks } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const publicBaseUrlRaw = process.env.NEXT_PUBLIC_BASE_URL;
 if (process.env.NODE_ENV === 'production' && publicBaseUrlRaw) {
@@ -27,16 +29,20 @@ export const authOptions = {
             return false; // Do not allow login if email is not verified
           }
 
-          const db = getDb();
           // Check if a clerk with this email exists
-          const [clerks] = await db.execute(
-            'SELECT id, name, email, role, is_active FROM clerks WHERE email = ?',
-            [profile.email]
-          );
+          const clerk = await db.query.clerks.findFirst({
+            where: eq(clerks.email, profile.email),
+            columns: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                is_active: true
+            }
+          });
           console.log('Google Sign-in: Profile Email:', profile.email);
 
-          if (clerks.length > 0) {
-            const clerk = clerks[0];
+          if (clerk) {
             console.log('Google Sign-in: Clerk Found:', clerk.email, 'Role:', clerk.role, 'Active:', clerk.is_active);
             // If the clerk exists and is active, allow sign-in
             return clerk.is_active ? true : '/api/auth/error?error=ClerkInactive'; // Return redirect URL with error
@@ -55,10 +61,15 @@ export const authOptions = {
       // This is called after a successful sign-in
       try {
         if (account?.provider === "google" && profile) {
-          const db = getDb();
-          const [clerks] = await db.execute('SELECT id, name, role FROM clerks WHERE email = ?', [profile.email]);
-          if (clerks.length > 0) {
-            const clerk = clerks[0];
+          const clerk = await db.query.clerks.findFirst({
+            where: eq(clerks.email, profile.email),
+            columns: {
+                id: true,
+                name: true,
+                role: true
+            }
+          });
+          if (clerk) {
             token.id = clerk.id;
             token.name = clerk.name;
             token.role = clerk.role;

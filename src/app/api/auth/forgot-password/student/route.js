@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { students, passwordResetTokens } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { getBaseUrl, sendInstitutionalEmail } from '@/lib/email';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
@@ -12,14 +14,20 @@ export async function GET(req) {
       return apiError('Roll number is required', 400);
     }
 
-    const [student] = await query('SELECT is_email_verified, password_hash FROM students WHERE roll_no = ?', [rollno]);
+    const student = await db.query.students.findFirst({
+      where: eq(students.roll_no, rollno),
+      columns: {
+        is_email_verified: true,
+        password_hash: true
+      }
+    });
 
     if (!student) {
       return apiError('Student not found', 404, { is_email_verified: false, has_password_set: false });
     }
 
     return apiResponse({ 
-      is_email_verified: student.is_email_verified === 1,
+      is_email_verified: student.is_email_verified,
       has_password_set: !!student.password_hash 
     });
   } catch (error) {
@@ -35,7 +43,14 @@ export async function POST(req) {
       return apiError('Roll number is required', 400);
     }
 
-    const [student] = await query('SELECT email, password_hash, is_email_verified FROM students WHERE roll_no = ?', [rollno]);
+    const student = await db.query.students.findFirst({
+      where: eq(students.roll_no, rollno),
+      columns: {
+        email: true,
+        password_hash: true,
+        is_email_verified: true
+      }
+    });
 
     if (!student) {
       return apiError('Student not found', 404, { can_dob_login: false });
@@ -48,13 +63,15 @@ export async function POST(req) {
     // Generate raw token and store only its SHA-256 hash in DB
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const created_at = new Date();
     const expires_at = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
-    await query(
-      'INSERT INTO password_reset_tokens (token_hash, user_id, user_type, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)',
-      [tokenHash, rollno, 'student', created_at, expires_at]
-    );
+    await db.insert(passwordResetTokens).values({
+      token_hash: tokenHash,
+      user_id: rollno,
+      user_type: 'student',
+      expires_at: expires_at,
+      used_at: null
+    });
 
     const baseUrl = getBaseUrl();
     const resetLink = `${baseUrl}/reset-password/${token}`;

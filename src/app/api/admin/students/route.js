@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { students, collegeInfo } from '@/db/schema';
+import { eq, like, or } from 'drizzle-orm';
 import { getBranchFromRoll, getCurrentStudyingYear, branchCodes } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
@@ -17,8 +19,8 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const studyingYear = searchParams.get('studyingYear'); // Renamed from 'year'
-  const branchName = searchParams.get('branch'); // Renamed to branchName
+  const studyingYear = searchParams.get('studyingYear');
+  const branchName = searchParams.get('branch');
 
   if (!studyingYear || !branchName) {
     return apiError('Studying year and branch are required', 400);
@@ -32,19 +34,25 @@ export async function GET(request) {
   try {
     const now = await getNow();
     // Fetch college info for academic year boundary
-    const collegeInfoRows = await query('SELECT * FROM college_info WHERE id = 1');
-    const collegeInfo = collegeInfoRows.length > 0 ? collegeInfoRows[0] : null;
+    const collegeInfoRow = await db.query.collegeInfo.findFirst({
+      where: eq(collegeInfo.id, 1)
+    });
 
     // Fetch all students that belong to the given branch code (regardless of entry year for now)
-    // We will filter by studyingYear programmatically using rollNumber.js utilities
-    const studentsFromDb = await query('SELECT id, roll_no, name FROM students WHERE roll_no LIKE ? OR roll_no LIKE ?', [
-      `%T${branchCode}%`, // Regular pattern (e.g., %T09%)
-      `%${branchCode}%L`, // Lateral pattern (e.g., %09L)
-    ]);
+    const studentsFromDb = await db.select({
+      id: students.id,
+      roll_no: students.roll_no,
+      name: students.name
+    })
+    .from(students)
+    .where(or(
+      like(students.roll_no, `%T${branchCode}%`),
+      like(students.roll_no, `%${branchCode}%L`)
+    ));
 
     const filteredStudents = studentsFromDb.filter(student => {
       const studentBranch = getBranchFromRoll(student.roll_no);
-      const studentStudyingYear = getCurrentStudyingYear(student.roll_no, collegeInfo, now);
+      const studentStudyingYear = getCurrentStudyingYear(student.roll_no, collegeInfoRow, now);
 
       return studentBranch === branchName && String(studentStudyingYear) === studyingYear;
     });

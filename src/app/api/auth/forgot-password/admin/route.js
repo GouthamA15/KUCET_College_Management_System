@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { principal, passwordResetTokens } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { getBaseUrl, sendInstitutionalEmail } from '@/lib/email';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
@@ -10,7 +12,12 @@ export async function POST(req) {
       return apiError('Email is required', 400);
     }
 
-    const [admin] = await query('SELECT email FROM principal WHERE email = ?', [email]);
+    const admin = await db.query.principal.findFirst({
+      where: eq(principal.email, email),
+      columns: {
+        email: true
+      }
+    });
 
     if (!admin) {
       // Generic message to prevent email enumeration
@@ -19,13 +26,15 @@ export async function POST(req) {
 
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const created_at = new Date();
     const expires_at = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
-    await query(
-      'INSERT INTO password_reset_tokens (token_hash, user_id, user_type, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)',
-      [tokenHash, email, 'admin', created_at, expires_at]
-    );
+    await db.insert(passwordResetTokens).values({
+      token_hash: tokenHash,
+      user_id: email,
+      user_type: 'admin',
+      expires_at: expires_at,
+      used_at: null
+    });
 
     const baseUrl = getBaseUrl();
     const resetLink = `${baseUrl}/reset-password/${token}`;

@@ -1,4 +1,6 @@
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { syllabusSubjects, syllabusStructure, syllabusUnits } from '@/db/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -12,29 +14,35 @@ export async function GET(req) {
     const semester = searchParams.get('semester');
 
     // Fetch subjects for the branch
-    let sql = `
-      SELECT s.*, ss.semester, ss.is_group, ss.parent_group_code
-      FROM syllabus_subjects s
-      JOIN syllabus_structure ss ON s.subject_code = ss.subject_code
-      WHERE ss.branch = ?
-    `;
-    const params = [user.branch];
+    const subjectsQuery = db.select({
+      subject_code: syllabusSubjects.subject_code,
+      subject_name: syllabusSubjects.subject_name,
+      subject_type: syllabusSubjects.subject_type,
+      semester: syllabusStructure.semester,
+      is_group: syllabusStructure.is_group,
+      parent_group_code: syllabusStructure.parent_group_code
+    })
+    .from(syllabusSubjects)
+    .join(syllabusStructure, eq(syllabusSubjects.subject_code, syllabusStructure.subject_code))
+    .where(eq(syllabusStructure.branch, user.branch));
 
     if (semester) {
-      sql += ' AND ss.semester = ?';
-      params.push(semester);
+      subjectsQuery.where(and(
+        eq(syllabusStructure.branch, user.branch),
+        eq(syllabusStructure.semester, parseInt(semester))
+      ));
     }
 
-    const subjects = await query(sql, params);
+    const subjects = await subjectsQuery;
 
     // Fetch all units for these subjects
     const subjectCodes = subjects.map(s => s.subject_code);
     let units = [];
     if (subjectCodes.length > 0) {
-      units = await query(
-        `SELECT * FROM syllabus_units WHERE subject_code IN (${subjectCodes.map(() => '?').join(',')}) ORDER BY subject_code, unit_order`,
-        subjectCodes
-      );
+      units = await db.select()
+        .from(syllabusUnits)
+        .where(inArray(syllabusUnits.subject_code, subjectCodes))
+        .orderBy(syllabusUnits.subject_code, syllabusUnits.unit_order);
     }
 
     // Combine data
@@ -64,16 +72,22 @@ export async function POST(req) {
       const { subject_code, subject_name, subject_type, semester } = subject;
       
       // 1. Insert/Update into syllabus_subjects
-      await query(
-        'INSERT INTO syllabus_subjects (subject_code, subject_name, subject_type) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE subject_name = VALUES(subject_name), subject_type = VALUES(subject_type)',
-        [subject_code, subject_name, subject_type]
-      );
+      await db.insert(syllabusSubjects).values({
+        subject_code,
+        subject_name,
+        subject_type
+      }).onDuplicateKeyUpdate({
+        set: { subject_name, subject_type }
+      });
 
       // 2. Map to branch structure
-      await query(
-        'INSERT INTO syllabus_structure (branch, semester, subject_code) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE semester = VALUES(semester)',
-        [user.branch, semester, subject_code]
-      );
+      await db.insert(syllabusStructure).values({
+        branch: user.branch,
+        semester: parseInt(semester),
+        subject_code
+      }).onDuplicateKeyUpdate({
+        set: { semester: parseInt(semester) }
+      });
 
       return apiResponse({ success: true, message: 'Subject added/updated successfully' });
     }
@@ -81,10 +95,11 @@ export async function POST(req) {
     if (action === 'DELETE_SUBJECT') {
       const { subject_code } = subject;
       // Only remove mapping for THIS branch
-      await query(
-        'DELETE FROM syllabus_structure WHERE branch = ? AND subject_code = ?',
-        [user.branch, subject_code]
-      );
+      await db.delete(syllabusStructure)
+        .where(and(
+            eq(syllabusStructure.branch, user.branch),
+            eq(syllabusStructure.subject_code, subject_code)
+        ));
       return apiResponse({ success: true, message: 'Subject mapping removed' });
     }
 
@@ -104,18 +119,21 @@ export async function POST(req) {
         }
       }
 
-      await query(
-        `INSERT INTO syllabus_units (subject_code, unit_order, unit_name, topics) 
-         VALUES (?, ?, ?, ?) 
-         ON DUPLICATE KEY UPDATE unit_name = VALUES(unit_name), topics = VALUES(topics)`,
-        [subject_code, unit_order, unit_name, JSON.stringify(finalTopics)]
-      );
+      await db.insert(syllabusUnits).values({
+        subject_code,
+        unit_order: parseInt(unit_order),
+        unit_name,
+        topics: finalTopics
+      }).onDuplicateKeyUpdate({
+        set: { unit_name, topics: finalTopics }
+      });
+
       return apiResponse({ success: true, message: 'Unit saved' });
     }
 
     if (action === 'DELETE_UNIT') {
         const { id } = unit;
-        await query('DELETE FROM syllabus_units WHERE id = ?', [id]);
+        await db.delete(syllabusUnits).where(eq(syllabusUnits.id, id));
         return apiResponse({ success: true, message: 'Unit deleted' });
     }
 

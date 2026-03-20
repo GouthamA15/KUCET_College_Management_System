@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { SignJWT } from 'jose';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { clerks } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 function resolveBaseRedirect(request) {
   const forwardedHost = request.headers.get('x-forwarded-host');
@@ -52,16 +54,22 @@ export async function GET(request) {
     return NextResponse.redirect(baseRedirect, 303);
   }
 
-  const rows = await query(
-    'SELECT id, email, role, is_active, is_hod, branch FROM clerks WHERE email = ?',
-    [session.user.email]
-  );
+  const clerk = await db.query.clerks.findFirst({
+    where: eq(clerks.email, session.user.email),
+    columns: {
+      id: true,
+      email: true,
+      role: true,
+      is_active: true,
+      is_hod: true,
+      branch: true
+    }
+  });
 
-  if (!rows.length || !rows[0].is_active) {
+  if (!clerk || !clerk.is_active) {
     return NextResponse.redirect(baseRedirect, 303);
   }
 
-  const clerk = rows[0];
   const token = await buildClerkAuthToken(clerk);
   const response = NextResponse.redirect(baseRedirect, 303);
 
