@@ -23,11 +23,11 @@ export const buildInstitutionalEmailHtml = ({
   action,
   infoRows
 }) => {
-  // Use a public Cloudinary URL for the logo so it works in emails (localhost URLs are blocked by email clients)
+  // Use a public Cloudinary URL for the logo so it works in emails
+  // Added f_auto,q_auto for optimization
   const cloudName = 'djs0ry74r';
-  const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/v1772715418/kucet/public/assets/ku-logo.png`;
-  const campusImageUrl = `https://res.cloudinary.com/djs0ry74r/image/upload/v1772715356/kucet/public/assets/college-campus.jpg`;
-
+  const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/v1772715418/kucet/public/assets/ku-logo.png`;
+  
   // Build structured information rows if provided
   const infoRowsHtml = Array.isArray(infoRows) && infoRows.length > 0
     ? `

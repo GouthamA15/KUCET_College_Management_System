@@ -26,6 +26,8 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@react-pdf/renderer": "^4.3.2",
     "@sentry/nextjs": "^10.43.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.9.0",
     "docxtemplater": "^3.67.6",

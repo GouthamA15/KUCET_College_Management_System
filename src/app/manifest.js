@@ -9,12 +9,12 @@ export default function manifest() {
     theme_color: '#0b3578',
     icons: [
       {
-        src: 'https://res.cloudinary.com/dmivf099p/image/upload/v1742457123/kucet/public/assets/icon-192x192.png',
+        src: 'https://res.cloudinary.com/dmivf099p/image/upload/f_auto,q_auto/v1742457123/kucet/public/assets/icon-192x192.png',
         sizes: '192x192',
         type: 'image/png',
       },
       {
-        src: 'https://res.cloudinary.com/dmivf099p/image/upload/v1742457123/kucet/public/assets/icon-512x512.png',
+        src: 'https://res.cloudinary.com/dmivf099p/image/upload/f_auto,q_auto/v1742457123/kucet/public/assets/icon-512x512.png',
         sizes: '512x512',
         type: 'image/png',
       },

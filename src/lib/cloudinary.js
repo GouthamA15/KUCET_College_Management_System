@@ -8,6 +8,30 @@ cloudinary.config({
 });
 
 /**
+ * Transforms a raw Cloudinary URL to include optimization parameters (f_auto, q_auto)
+ * @param {string} url - The original Cloudinary URL
+ * @param {string} transformations - Additional transformations (e.g., 'w_500,h_500,c_fill')
+ * @returns {string} - The optimized URL
+ */
+export function getOptimizedUrl(url, transformations = '') {
+  if (!url || !url.includes('cloudinary.com')) return url;
+
+  const parts = url.split('/upload/');
+  if (parts.length < 2) return url;
+
+  const base = parts[0];
+  const rest = parts[1];
+  
+  // Combine f_auto, q_auto with any provided transformations
+  const autoParams = 'f_auto,q_auto';
+  const combinedTransformations = transformations 
+    ? `${autoParams},${transformations}` 
+    : autoParams;
+
+  return `${base}/upload/${combinedTransformations}/${rest}`;
+}
+
+/**
  * Uploads an image to Cloudinary
  * @param {string|Buffer|File} file - Base64 string, Buffer, or browser File object
  * @param {string} folder - Cloudinary folder name
@@ -16,28 +40,20 @@ cloudinary.config({
  */
 export async function uploadToCloudinary(file, folder, publicId = null) {
   if (!file) {
-    console.log('[CLOUDINARY] No file provided to uploadToCloudinary');
     return null;
   }
 
   let fileToUpload = file;
   
-  console.log(`[CLOUDINARY] Starting upload to folder: kucet/${folder}. Type of file: ${typeof file}`);
-
   // Handle browser File objects (from formData)
   if (file instanceof File || (typeof file === 'object' && typeof file.arrayBuffer === 'function')) {
-    console.log(`[CLOUDINARY] Processing as File object. Name: ${file.name}, Size: ${file.size} bytes`);
-    
     // SECURITY: Enforce 1MB limit
     const MAX_SIZE = 1 * 1024 * 1024; 
     if (file.size > MAX_SIZE) {
       throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
     }
 
-    if (file.size === 0) {
-      console.log('[CLOUDINARY] File size is 0, skipping upload.');
-      return null;
-    }
+    if (file.size === 0) return null;
 
     // SECURITY: Ensure it's an image
     if (file.type && !file.type.startsWith('image/')) {
@@ -50,11 +66,8 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
   }
   // Handle Buffers
   else if (Buffer.isBuffer(file)) {
-    console.log(`[CLOUDINARY] Processing as Buffer. Length: ${file.length} bytes`);
     const base64 = file.toString('base64');
     fileToUpload = `data:image/jpeg;base64,${base64}`;
-  } else if (typeof file === 'string') {
-    console.log(`[CLOUDINARY] Processing as string. Starts with: ${file.substring(0, 20)}...`);
   }
 
   const options = {
@@ -68,7 +81,8 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
 
   try {
     const result = await cloudinary.uploader.upload(fileToUpload, options);
-    return result.secure_url;
+    // Return optimized URL by default
+    return getOptimizedUrl(result.secure_url);
   } catch (error) {
     console.error('Cloudinary Upload Error:', error);
     throw new Error('Failed to upload image to cloud storage.');
@@ -83,23 +97,28 @@ export async function deleteFromCloudinary(url) {
   if (!url || !url.includes('cloudinary.com')) return;
 
   try {
-    // URL format: https://res.cloudinary.com/[cloud_name]/image/upload/v[version]/[folder]/[public_id].[ext]
-    // We need the part after 'upload/v[version]/' or 'upload/'
     const parts = url.split('/upload/');
     if (parts.length < 2) return;
 
-    // Remove the version if present (starts with 'v' followed by digits)
-    let path = parts[1].replace(/^v\d+\//, '');
+    // Remove any transformations and version string to get the path
+    const pathParts = parts[1].split('/');
+    // The public_id starts after the version (v123456789) if it exists, or directly if not.
+    // However, cloudinary.uploader.destroy expects the public_id including folder but excluding extension.
     
-    // Remove the file extension
+    // Easier way: Extract part between /upload/ and extension, remove version
+    let path = parts[1].replace(/^v\d+\//, ''); // Remove version if first
+    // If there were transformations (like f_auto,q_auto), they will be in the path too.
+    // Our getOptimizedUrl puts them right after /upload/
+    path = path.replace(/^[^/]+\//, (match) => {
+        return match.includes(',') ? '' : match; // Remove transformation segment if it has commas
+    });
+    
     const publicId = path.substring(0, path.lastIndexOf('.'));
 
-    console.log('[CLOUDINARY] Deleting asset:', publicId);
     const result = await cloudinary.uploader.destroy(publicId);
     return result;
   } catch (error) {
     console.error('Cloudinary Delete Error:', error);
-    // Don't throw, just log. Failure to delete old pic shouldn't block the update.
   }
 }
 
