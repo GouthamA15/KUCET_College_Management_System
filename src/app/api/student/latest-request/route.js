@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -55,7 +56,7 @@ export async function GET(request) {
 
     return apiResponse({ success: true, latestRequest });
   } catch (error) {
-    console.error('Failed to fetch latest request', error);
+    logger.error('Failed to fetch latest request', error);
     return apiError('Failed to fetch latest request', 500);
   }
 }

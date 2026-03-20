@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, otpCodes } from '@/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
@@ -52,7 +53,7 @@ export async function POST(req) {
           expires_at: expiresAt
         });
       } catch (dbError) {
-        console.error('[DATABASE ERROR] OTP management failed:', dbError);
+        logger.error('[DATABASE ERROR] OTP management failed:', dbError);
         return apiError('Please try again after 15 minutes.', 500);
       }
 
@@ -79,22 +80,22 @@ export async function POST(req) {
           bodyHtml: bodyHtml,
         });
       } catch (mailError) {
-        console.error('[MAIL EXCEPTION] Failed during sendEmail:', mailError);
+        logger.error('[MAIL EXCEPTION] Failed during sendEmail:', mailError);
         return apiError('Please try again after 15 minutes.', 500);
       }
 
       if (emailResponse.success) {
         return apiResponse({ message: 'OTP sent to your new email address.' });
       } else {
-        console.error('[MAIL FAILURE] sendEmail returned false:', emailResponse.message);
+        logger.error('[MAIL FAILURE] sendEmail returned false:', emailResponse.message);
         return apiError('Please try again after 15 minutes.', 500);
       }
     } catch (error) {
-      console.error('[GENERAL ERROR] send-update-email-otp:', error);
+      logger.error('[GENERAL ERROR] send-update-email-otp:', error);
       return apiError('An internal server error occurred.', 500);
     }
   } catch (outerError) {
-    console.error('[CRITICAL ERROR] send-update-email-otp rate limit check:', outerError);
+    logger.error('[CRITICAL ERROR] send-update-email-otp rate limit check:', outerError);
     return apiError('Internal Server Error', 500);
   }
 }

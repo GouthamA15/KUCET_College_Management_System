@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { semesters } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -32,7 +33,7 @@ export async function GET(request) {
     const rows = await query.orderBy(desc(semesters.academic_year), desc(semesters.semester));
     return apiResponse({ data: rows });
   } catch (error) {
-    console.error('API_GET_SEMESTERS_ERROR:', error);
+    logger.error('API_GET_SEMESTERS_ERROR:', error);
     return apiError('Internal Server Error', 500);
   }
 }

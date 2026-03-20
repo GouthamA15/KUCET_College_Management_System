@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { branchConfig } from '@/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
@@ -17,7 +18,7 @@ export async function GET(req) {
 
     return apiResponse({ data: config || { branch: user.branch, mid_max: 20, assignment_max: 10 } });
   } catch (error) {
-    console.error('HOD Config API Error:', error);
+    logger.error('HOD Config API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -47,7 +48,7 @@ export async function PATCH(req) {
 
     return apiResponse({ message: 'Configuration updated successfully' });
   } catch (error) {
-    console.error('HOD Config Update Error:', error);
+    logger.error('HOD Config Update Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

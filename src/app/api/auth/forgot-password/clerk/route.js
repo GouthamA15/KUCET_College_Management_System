@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { clerks, passwordResetTokens } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -71,7 +72,7 @@ If you did not initiate this request, please ignore this email or contact the ad
 
     return apiResponse({ message: 'Password reset link sent to your email' });
   } catch (error) {
-    console.error('FORGOT PASSWORD ERROR:', error);
+    logger.error('FORGOT PASSWORD ERROR:', error);
     return apiError('Internal server error', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { scholarshipSanctions } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -17,7 +18,7 @@ export async function DELETE(req, ctx) {
     
     return apiResponse({ success: true });
   } catch (error) {
-    console.error('Error deleting sanction:', error);
+    logger.error('Error deleting sanction:', error);
     return apiError('Internal Server Error', 500);
   }
 }

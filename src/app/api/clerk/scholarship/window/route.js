@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { scholarshipWindows, students as studentsTable } from '@/db/schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
@@ -39,7 +40,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Error fetching scholarship window:', error);
+    logger.error('Error fetching scholarship window:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -174,7 +175,7 @@ export async function POST(req) {
           )
         );
       } catch (e) {
-        console.error('Failed to send scholarship window notification emails:', e);
+        logger.error('Failed to send scholarship window notification emails:', e);
       }
     }
 
@@ -190,7 +191,7 @@ export async function POST(req) {
       existing ? 200 : 201
     );
   } catch (error) {
-    console.error('Error saving scholarship window:', error);
+    logger.error('Error saving scholarship window:', error);
     return apiError('Internal Server Error', 500);
   }
 }

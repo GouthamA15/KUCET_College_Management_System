@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { scholarshipSanctions, scholarshipWindows } from '@/db/schema';
 import { eq, and, or, isNull, sql, desc, count } from 'drizzle-orm';
@@ -64,7 +65,7 @@ export async function GET() {
       windowEndDate,
     });
   } catch (error) {
-    console.error('Error fetching scholarship metrics:', error);
+    logger.error('Error fetching scholarship metrics:', error);
     return apiError('Internal Server Error', 500);
   }
 }

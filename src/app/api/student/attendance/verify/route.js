@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { db } from '@/db';
 import { 
@@ -211,7 +212,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('Attendance Verification Error:', error);
+    logger.error('Attendance Verification Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

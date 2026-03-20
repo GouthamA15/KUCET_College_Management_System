@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
@@ -133,7 +134,7 @@ export async function POST(req, context) {
     if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);
     if (error.message === 'STUDENT_EXISTS') return apiError('A student with this Roll No or Email already exists.', 409);
     
-    console.error('Finalization error:', error);
+    logger.error('Finalization error:', error);
     return apiError('Failed to finalize admission.', 500);
   }
 }

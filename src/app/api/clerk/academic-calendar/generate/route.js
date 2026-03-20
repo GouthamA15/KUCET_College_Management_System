@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { academicCalendar, semesters } from '@/db/schema';
 import { eq, and, sql, between } from 'drizzle-orm';
@@ -81,7 +82,7 @@ export async function POST(request) {
     return apiResponse({ message: 'Calendar generated successfully' });
 
   } catch (error) {
-    console.error('API_GENERATE_CALENDAR_ERROR:', error);
+    logger.error('API_GENERATE_CALENDAR_ERROR:', error);
     return apiError('Internal Server Error', 500);
   }
 }

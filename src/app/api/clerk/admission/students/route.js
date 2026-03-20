@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
@@ -119,7 +120,7 @@ export async function POST(req) {
 
   } catch (error) {
     if (error.message === 'STUDENT_EXISTS') return apiError('Student with this Roll Number already exists.', 409);
-    console.error('Error adding student:', error);
+    logger.error('Error adding student:', error);
     return apiError('Internal Server Error', 500);
   }
 }

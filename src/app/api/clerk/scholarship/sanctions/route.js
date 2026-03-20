@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { scholarshipSanctions, students as studentsTable, scholarshipWindows } from '@/db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
@@ -55,7 +56,7 @@ export async function POST(req) {
         }
       }
     } catch (e) {
-      console.error('Failed to evaluate scholarship window for sanction emails:', e);
+      logger.error('Failed to evaluate scholarship window for sanction emails:', e);
     }
 
     // Fetch existing rows for student + academic_year
@@ -171,7 +172,7 @@ export async function POST(req) {
           });
         }
       } catch (e) {
-        console.error('Failed to send thumb notification email:', e);
+        logger.error('Failed to send thumb notification email:', e);
       }
     }
 
@@ -193,7 +194,7 @@ export async function POST(req) {
           });
         }
       } catch (e) {
-        console.error('Failed to send hardcopy submission email:', e);
+        logger.error('Failed to send hardcopy submission email:', e);
       }
     }
 
@@ -207,7 +208,7 @@ export async function POST(req) {
       sanction_date 
     }, isNewInsert ? 201 : 200);
   } catch (error) {
-    console.error('Error inserting sanction:', error);
+    logger.error('Error inserting sanction:', error);
     return apiError('Internal Server Error', 500);
   }
 }

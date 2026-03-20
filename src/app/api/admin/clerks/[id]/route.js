@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { clerks } from '@/db/schema';
 import { eq, and, ne, sql } from 'drizzle-orm';
@@ -37,7 +38,7 @@ export async function DELETE(req, context) {
 
     return apiResponse({ message: 'Clerk deleted successfully' });
   } catch (error) {
-    console.error('Error deleting clerk:', error);
+    logger.error('Error deleting clerk:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -101,7 +102,7 @@ export async function PUT(req, context) {
 
     return apiResponse({ message: 'Clerk updated successfully' });
   } catch (error) {
-    console.error('Error updating clerk:', error);
+    logger.error('Error updating clerk:', error);
     if (error && error.code === 'ER_DUP_ENTRY') {
       return apiError('Email or Employee ID already exists', 409);
     }

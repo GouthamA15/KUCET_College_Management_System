@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
@@ -137,7 +138,7 @@ export async function GET(req, ctx) {
 
     return apiResponse({ data: response });
   } catch (error) {
-    console.error('Error fetching application data:', error);
+    logger.error('Error fetching application data:', error);
     return apiError('Internal Server Error', 500);
   }
 }

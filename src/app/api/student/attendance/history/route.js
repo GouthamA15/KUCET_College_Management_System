@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { db } from '@/db';
 import { studentAttendance } from '@/db/schema';
@@ -32,7 +33,7 @@ export async function GET(request) {
 
     return apiResponse({ data: history });
   } catch (error) {
-    console.error('Student Attendance History Error:', error);
+    logger.error('Student Attendance History Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

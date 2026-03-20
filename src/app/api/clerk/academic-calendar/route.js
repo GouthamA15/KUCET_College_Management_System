@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { academicCalendar } from '@/db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
@@ -34,7 +35,7 @@ export async function GET(request) {
 
     return apiResponse({ data: rows });
   } catch (error) {
-    console.error('API_GET_ACADEMIC_CALENDAR_ERROR:', error);
+    logger.error('API_GET_ACADEMIC_CALENDAR_ERROR:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -81,7 +82,7 @@ export async function POST(request) {
 
       return apiResponse({ message: 'Calendar updated successfully' });
     } catch (error) {
-      console.error('API_POST_ACADEMIC_CALENDAR_ERROR:', error);
+      logger.error('API_POST_ACADEMIC_CALENDAR_ERROR:', error);
       return apiError('Internal Server Error', 500);
     }
   }

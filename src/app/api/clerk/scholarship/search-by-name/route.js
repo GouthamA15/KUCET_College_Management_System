@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students as studentsTable } from '@/db/schema';
 import { eq, and, like, sql } from 'drizzle-orm';
@@ -31,7 +32,7 @@ export async function GET(req) {
 
     return apiResponse({ students: rows || [] });
   } catch (error) {
-    console.error('Error searching scholarship students by name:', error);
+    logger.error('Error searching scholarship students by name:', error);
     return apiError('Internal Server Error', 500);
   }
 }

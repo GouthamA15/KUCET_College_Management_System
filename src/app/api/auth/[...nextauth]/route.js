@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google";
 import { db } from "@/db";
@@ -40,10 +41,10 @@ export const authOptions = {
                 is_active: true
             }
           });
-          console.log('Google Sign-in: Profile Email:', profile.email);
+          logger.info('Google Sign-in: Profile Email:', profile.email);
 
           if (clerk) {
-            console.log('Google Sign-in: Clerk Found:', clerk.email, 'Role:', clerk.role, 'Active:', clerk.is_active);
+            logger.info('Google Sign-in: Clerk Found:', clerk.email, 'Role:', clerk.role, 'Active:', clerk.is_active);
             // If the clerk exists and is active, allow sign-in
             return clerk.is_active ? true : '/api/auth/error?error=ClerkInactive'; // Return redirect URL with error
           } else {
@@ -53,7 +54,7 @@ export const authOptions = {
         }
         return '/api/auth/error?error=GoogleAuthError'; // General error for other providers or unexpected issues
       } catch (error) {
-        console.error('SignIn Callback Error:', error);
+        logger.error('SignIn Callback Error:', error);
         return '/api/auth/error?error=SignInError';
       }
     },
@@ -76,7 +77,7 @@ export const authOptions = {
           }
         }
       } catch (error) {
-        console.error('JWT Callback Error:', error);
+        logger.error('JWT Callback Error:', error);
       }
       return token;
     },
@@ -90,14 +91,14 @@ export const authOptions = {
           session.user.role = token.role;
         }
       } catch (error) {
-        console.error('Session Callback Error:', error);
+        logger.error('Session Callback Error:', error);
       }
       return session;
     },
     async redirect({ url, baseUrl }) {
       if (!globalThis.__nextauth_redirect_logged) {
         globalThis.__nextauth_redirect_logged = true;
-        console.log('[NEXTAUTH_REDIRECT]', {
+        logger.info('[NEXTAUTH_REDIRECT]', {
           url,
           baseUrl,
           NEXTAUTH_URL: process.env.NEXTAUTH_URL,

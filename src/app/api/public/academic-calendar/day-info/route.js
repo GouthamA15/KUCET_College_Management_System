@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { semesters, academicCalendar } from '@/db/schema';
@@ -68,7 +69,7 @@ export async function GET(request) {
 
     return NextResponse.json({ data: calendarEntry });
   } catch (error) {
-    console.error('API_GET_DAY_INFO_ERROR:', error);
+    logger.error('API_GET_DAY_INFO_ERROR:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

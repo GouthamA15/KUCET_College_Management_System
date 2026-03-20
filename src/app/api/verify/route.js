@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students, certificateVerifications } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -34,7 +35,7 @@ export async function POST(request) {
 
         // 2. If no result found or not approved, return valid: false
         if (results.length === 0 || results[0].status !== 'APPROVED') {
-            console.log(`[VERIFY] No valid record found for ID: ${certId}`);
+            logger.info(`[VERIFY] No valid record found for ID: ${certId}`);
             return apiResponse({ valid: false });
         }
 
@@ -50,9 +51,9 @@ export async function POST(request) {
                 ip_address: ip,
                 user_agent: userAgent
             });
-            console.log(`[VERIFY] Logged scan for Request ID: ${certData.request_id}`);
+            logger.info(`[VERIFY] Logged scan for Request ID: ${certData.request_id}`);
         } catch (dbErr) {
-            console.error("[VERIFY] Logging to table failed:", dbErr.message);
+            logger.error("[VERIFY] Logging to table failed:", dbErr.message);
         }
 
         // 4. Return success details to the frontend
@@ -69,7 +70,7 @@ export async function POST(request) {
         });
 
     } catch (error) {
-        console.error("Critical Verification Error:", error);
+        logger.error("Critical Verification Error:", error);
         return apiError("Internal Server Error", 500, { valid: false });
     }
 }

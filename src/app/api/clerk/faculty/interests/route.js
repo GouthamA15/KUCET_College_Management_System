@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { facultySubjectInterests } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -15,7 +16,7 @@ export async function GET(request) {
 
     return apiResponse({ data: interests });
   } catch (error) {
-    console.error('Interests Fetch Error:', error);
+    logger.error('Interests Fetch Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -57,7 +58,7 @@ export async function POST(request) {
 
     return apiResponse({ message: 'Interest submitted successfully' });
   } catch (error) {
-    console.error('Interest Submit Error:', error);
+    logger.error('Interest Submit Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -40,7 +41,7 @@ export async function POST(req) {
 
     return apiResponse({ message: 'Password changed successfully' });
   } catch (error) {
-    console.error('CHANGE PASSWORD ERROR:', error);
+    logger.error('CHANGE PASSWORD ERROR:', error);
     return apiError('Internal server error', 500);
   }
 }

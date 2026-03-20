@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
@@ -82,7 +83,7 @@ export async function GET(request) {
 
     return apiResponse({ data: students, sessions: [] });
   } catch (error) {
-    console.error('Students Fetch Error:', error);
+    logger.error('Students Fetch Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   studentProfileRequests, 
@@ -96,7 +97,7 @@ export async function GET(req) {
 
     return apiResponse({ data });
   } catch (err) {
-    console.error('Clerk profile request fetch error:', err);
+    logger.error('Clerk profile request fetch error:', err);
     return apiError('Server error', 500, err.message);
   }
 }
@@ -190,7 +191,7 @@ export async function PUT(req) {
 
     return apiResponse({ success: true });
   } catch (err) {
-    console.error('Clerk profile request process error:', err);
+    logger.error('Clerk profile request process error:', err);
     return apiError('Server error', 500, err.message);
   }
 }

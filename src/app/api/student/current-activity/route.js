@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   collegeInfo as collegeInfoTable, 
@@ -89,7 +90,7 @@ export async function GET(req) {
       activity 
     });
   } catch (error) {
-    console.error('Student Current Activity API Error:', error);
+    logger.error('Student Current Activity API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
@@ -50,7 +51,7 @@ export async function GET(req) {
     const rows = await query.where(condition).limit(100);
     return apiResponse({ students: rows });
   } catch (err) {
-    console.error('Search students error:', err);
+    logger.error('Search students error:', err);
     return apiError('Server error', 500, err.message);
   }
 }

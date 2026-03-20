@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAdmissionDrafts } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
@@ -32,7 +33,7 @@ export async function GET(req, context) {
     
     return apiResponse({ data: draft });
   } catch (error) {
-    console.error('Error fetching draft detail:', error);
+    logger.error('Error fetching draft detail:', error);
     return apiError('Server Error', 500);
   }
 }
@@ -122,7 +123,7 @@ export async function PUT(req, context) {
   
       return apiResponse({ success: true, message: 'Draft updated successfully' });
     } catch (error) {
-      console.error('Error updating draft:', error);
+      logger.error('Error updating draft:', error);
       return apiError('Server Error', 500);
     }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { refreshTokens, students, clerks, principal } from '@/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
@@ -81,7 +82,7 @@ export async function POST(req) {
     return response;
 
   } catch (error) {
-    console.error('[AUTH_REFRESH_ERROR]', error);
+    logger.error('[AUTH_REFRESH_ERROR]', error);
     return apiError('Internal Server Error', 500);
   }
 }

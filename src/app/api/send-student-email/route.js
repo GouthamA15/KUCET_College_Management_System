@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { db } from '@/db';
@@ -51,7 +52,7 @@ export async function POST(request) {
       return apiError(emailResult.message || 'Failed to send email.', 500);
     }
   } catch (error) {
-    console.error('Error in send-student-email API:', error);
+    logger.error('Error in send-student-email API:', error);
     return apiError('An internal server error occurred.', 500);
   }
 }

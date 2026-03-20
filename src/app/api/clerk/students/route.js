@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
@@ -32,7 +33,7 @@ export async function GET(req) {
 
     return apiResponse({ students });
   } catch (error) {
-    console.error('Error fetching students:', error);
+    logger.error('Error fetching students:', error);
     return apiError('Failed to fetch students', 500, error.message);
   }
 }
@@ -89,7 +90,7 @@ export async function POST(req) {
 
     return apiResponse({ message: 'Student added successfully', studentId: result.insertId }, 201);
   } catch (error) {
-    console.error('Error adding student:', error);
+    logger.error('Error adding student:', error);
     if (error.code === 'ER_DUP_ENTRY') return apiError('Roll number or Email already exists', 409);
     return apiError('Failed to add student', 500, error.message);
   }

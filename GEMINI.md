@@ -140,19 +140,33 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 71: Production Polish - Custom Error Handling & Silent Auth (March 20, 2026)**
+- **User Experience (UX):**
+    - **Custom 404 Page:** Implemented `src/app/not-found.js` with professional KUCET branding and navigation recovery options.
+    - **Global Error Boundary:** Created `src/app/error.js` to handle runtime crashes gracefully, providing institutional fallback UI and error logging.
+- **Authentication Resilience:**
+    - **Silent Token Rotation:** Updated `src/proxy.js` and `src/lib/api-utils.js` to automatically detect expired access tokens and attempt a background refresh via the `/api/auth/refresh` endpoint. This prevents user session timeouts during active use.
+- **Bug Fixes:**
+    - **Real-time Sanitization:** Resolved redundant `/api/student/me` calls in `RealtimeListener` for clerk roles, eliminating unnecessary `401 Unauthorized` console errors.
+
+
+### **Session 71: Production Polish - Custom Error Handling (March 20, 2026)**
+- **User Experience (UX):**
+    - **Custom 404 Page:** Implemented `src/app/not-found.js` with professional KUCET branding and navigation recovery options.
+    - **Global Error Boundary:** Created `src/app/error.js` to handle runtime crashes gracefully, providing institutional fallback UI and error logging.
+- **Bug Fixes:**
+    - **Real-time Sanitization:** Resolved redundant `/api/student/me` calls in `RealtimeListener` for clerk roles, eliminating unnecessary `401 Unauthorized` console errors.
+
+### **Session 70: Authentication Reliability & Silent Rotation (March 20, 2026)**
+- **Silent Token Rotation:**
+    - **Middleware Enhancement:** Updated `src/proxy.js` to automatically detect expired access tokens and attempt a background refresh via the `/api/auth/refresh` endpoint. This ensures a seamless user experience without forced logouts.
+    - **API Utility Integration:** Refactored `getAuthUser` in `src/lib/api-utils.js` to support on-the-fly token rotation for server-side API requests, maintaining authorization continuity.
+- **Resilience:** Improved the robustness of the authentication layer by bridging the Edge-runtime middleware with Node.js-based refresh logic, ensuring consistent session management across all application environments.
+
 ### **Session 69: Dynamic PWA Manifest & Asset Decoupling (March 20, 2026)**
 - **Dynamic Manifest:** Implemented `src/app/manifest.js` using the Next.js Metadata API to generate the PWA manifest dynamically. This allows for serving critical PWA metadata without a physical `manifest.json` in the `/public` folder.
 - **Cloud-Native Assets:** Updated the manifest to point directly to high-availability Cloudinary URLs for PWA icons (`192x192` and `512x512`), further enabling the project's transition away from local static asset storage.
 - **Infrastructure:** Refactored `RootLayout` to leverage Next.js's automatic manifest detection, resolving `404` errors caused by the removal of the local `/public` folder.
-
-### **Session 68: Critical Runtime Fix & Modular Utility Refactoring (March 20, 2026)**
-- **Runtime Error Resolution:**
-    - **Client-Side Module Isolation:** Resolved critical `Module not found` errors (`fs`, `net`, `tls`) in Client Components by isolating server-side database dependencies.
-    - **Path Utility Decoupling:** Created `src/lib/path-utils.js` to host browser-safe navigation logic (`getDashboardPathByRole`), eliminating inadvertent database imports in `AuthProvider.js` and `src/proxy.js`.
-- **Infrastructure Hygiene:**
-    - **Asset Management:** Integrated placeholder PWA icons and synchronized `.gitignore` to ensure critical manifest assets are tracked while maintaining folder security.
-    - **Cloud Utility:** Developed `cloudinary_sync.js` to provide bidirectional synchronization (Sync/Restore) between the local `/public` folder and Cloudinary storage, future-proofing the application for a public-folder-free deployment architecture.
-
 
 ### **Session 68: Critical Runtime Fix & Modular Utility Refactoring (March 20, 2026)**
 - **Runtime Error Resolution:**

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { facultySubjectAssignments, collegeInfo as collegeInfoTable } from '@/db/schema';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
@@ -40,7 +41,7 @@ export async function GET(request) {
 
     return apiResponse({ data: assignmentsWithActivity });
   } catch (error) {
-    console.error('Assignments Fetch Error:', error);
+    logger.error('Assignments Fetch Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

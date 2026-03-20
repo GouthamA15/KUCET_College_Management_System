@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
@@ -108,7 +109,7 @@ export async function POST(request) {
 
     return apiResponse({ message: 'Attendance updated successfully' });
   } catch (error) {
-    console.error('Attendance Update Error:', error);
+    logger.error('Attendance Update Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -180,7 +181,7 @@ export async function DELETE(request) {
 
     return apiResponse({ message: 'Attendance for the selected date has been deleted' });
   } catch (error) {
-    console.error('Attendance Delete Error:', error);
+    logger.error('Attendance Delete Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

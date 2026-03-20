@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { otpCodes } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -34,7 +35,7 @@ export async function POST(request) {
         expires_at: expiresAt
       });
     } catch (dbError) {
-      console.error('Error storing OTP:', dbError);
+      logger.error('Error storing OTP:', dbError);
       return apiError('Failed to store OTP.', 500);
     }
 
@@ -61,7 +62,7 @@ export async function POST(request) {
       return apiError('Please try again after 15 minutes.', 500);
     }
   } catch (error) {
-    console.error('Error in send-otp API:', error);
+    logger.error('Error in send-otp API:', error);
     return apiError('An internal server error occurred.', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, studentRequestImages } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -72,7 +73,7 @@ export async function GET(req, context) {
     });
 
   } catch (error) {
-    console.error('Error serving request image:', error);
+    logger.error('Error serving request image:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

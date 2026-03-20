@@ -1,7 +1,7 @@
-import { SignJWT } from 'jose';
+import { SignJWT, jwtVerify } from 'jose';
 import crypto from 'crypto';
 import { db } from '@/db';
-import { refreshTokens } from '@/db/schema';
+import { refreshTokens, students, clerks, principal } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 /**
@@ -151,4 +151,57 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false) 
   await issueRefreshToken(response, admin.email, 'admin', rememberMe);
 
   return response;
+}
+
+/**
+ * Attempts to refresh the access token using the refresh token from cookies.
+ * This is used by the middleware (proxy.js) for silent rotation.
+ */
+export async function refreshAccessToken(response, userType, cookies) {
+  try {
+    const refreshToken = cookies.get(`${userType}_refresh_token`)?.value;
+    if (!refreshToken) return null;
+
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+    // 1. Find the token in DB
+    const tokenRecord = await db.query.refreshTokens.findFirst({
+      where: and(
+        eq(refreshTokens.token_hash, tokenHash),
+        eq(refreshTokens.user_type, userType)
+      )
+    });
+
+    if (!tokenRecord || tokenRecord.revoked_at || new Date(tokenRecord.expires_at) < new Date()) {
+      return null;
+    }
+
+    // 2. Revoke old token
+    await db.update(refreshTokens)
+      .set({ revoked_at: new Date() })
+      .where(eq(refreshTokens.id, tokenRecord.id));
+
+    // 3. Fetch user and issue new tokens
+    if (userType === 'student') {
+      const user = await db.query.students.findFirst({ where: eq(students.roll_no, tokenRecord.user_id) });
+      if (!user) return null;
+      await issueStudentAuthCookie(response, user, true);
+      return user;
+    } else if (userType === 'clerk') {
+      const user = await db.query.clerks.findFirst({ where: eq(clerks.email, tokenRecord.user_id) });
+      if (!user || !user.is_active) return null;
+      await issueClerkAuthCookie(response, user, true);
+      return user;
+    } else if (userType === 'admin') {
+      const user = await db.query.principal.findFirst({ where: eq(principal.email, tokenRecord.user_id) });
+      if (!user) return null;
+      await issueAdminAuthCookie(response, user, true);
+      return user;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`[SilentRefreshError][${userType}]`, error);
+    return null;
+  }
 }

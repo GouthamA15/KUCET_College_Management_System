@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAttendance } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -32,7 +33,7 @@ export async function GET(request) {
 
     return apiResponse({ data: history });
   } catch (error) {
-    console.error('Attendance History Error:', error);
+    logger.error('Attendance History Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

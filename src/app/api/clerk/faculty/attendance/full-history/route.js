@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAttendance } from '@/db/schema';
 import { eq, and, asc, desc, sql } from 'drizzle-orm';
@@ -61,7 +62,7 @@ export async function GET(request) {
       uniqueDates 
     });
   } catch (error) {
-    console.error('Attendance Full History Error:', error);
+    logger.error('Attendance Full History Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

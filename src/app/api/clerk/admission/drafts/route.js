@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAdmissionDrafts } from '@/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
@@ -35,7 +36,7 @@ export async function GET(req) {
     return apiResponse({ data: drafts });
 
   } catch (error) {
-    console.error('Error fetching admission drafts:', error);
+    logger.error('Error fetching admission drafts:', error);
     return apiError('Failed to fetch admission drafts.', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
@@ -122,7 +123,7 @@ export async function GET(request) {
       canonical_id: canonicalId 
     });
   } catch (error) {
-    console.error('Marks Fetch Error:', error);
+    logger.error('Marks Fetch Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -241,7 +242,7 @@ export async function POST(request) {
       
     return apiResponse({ message: `Successfully updated ${marks_data.length} records` });
   } catch (error) {
-    console.error('Marks Bulk Update Error:', error);
+    logger.error('Marks Bulk Update Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

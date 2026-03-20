@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students } from '@/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
@@ -30,7 +31,7 @@ export async function GET(req) {
 
     return apiResponse({ isUnique: true, message: 'Email is available.' });
   } catch (error) {
-    console.error('Error checking email uniqueness:', error);
+    logger.error('Error checking email uniqueness:', error);
     return apiError('Server error', 500);
   }
 }

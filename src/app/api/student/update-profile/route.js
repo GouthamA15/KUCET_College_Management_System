@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -47,7 +48,7 @@ export async function POST(req) {
 
     return apiResponse({ success: true, message: "Profile updated successfully" });
   } catch (err) {
-    console.error("Update profile error:", err);
+    logger.error("Update profile error:", err);
     return apiError('Server error', 500, err.message);
   }
 }

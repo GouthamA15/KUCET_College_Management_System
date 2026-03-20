@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
@@ -31,7 +32,7 @@ export async function GET(req) {
 
     return apiResponse({ data: assignments });
   } catch (error) {
-    console.error('Subject Assignments GET Error:', error);
+    logger.error('Subject Assignments GET Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -68,7 +69,7 @@ export async function POST(req) {
 
     return apiResponse({ success: true, message: 'Faculty assigned successfully' });
   } catch (error) {
-    console.error('Subject Assignments POST Error:', error);
+    logger.error('Subject Assignments POST Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -94,7 +95,7 @@ export async function DELETE(req) {
   
       return apiResponse({ success: true, message: 'Assignment revoked' });
     } catch (error) {
-      console.error('Subject Assignments DELETE Error:', error);
+      logger.error('Subject Assignments DELETE Error:', error);
       return apiError('Internal Server Error', 500);
     }
 }

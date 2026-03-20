@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, studentAttendance, facultySubjectAssignments, semesters } from '@/db/schema';
 import { eq, and, sql, desc, like, or } from 'drizzle-orm';
@@ -65,7 +66,7 @@ export async function GET(req) {
       semester 
     });
   } catch (error) {
-    console.error('Attendance Analytics API Error:', error);
+    logger.error('Attendance Analytics API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

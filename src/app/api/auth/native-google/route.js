@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { OAuth2Client } from 'google-auth-library';
 import { db } from '@/db';
 import { clerks } from '@/db/schema';
@@ -94,7 +95,7 @@ export async function POST(request) {
 
     return response;
   } catch (error) {
-    console.error('Native Google Login Error:', error);
+    logger.error('Native Google Login Error:', error);
     return apiError('Native authentication failed', 500);
   }
 }

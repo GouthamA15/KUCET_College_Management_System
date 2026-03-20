@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
@@ -274,7 +275,7 @@ export async function POST(req) {
     });
 
   } catch (error) {
-    console.error('BULK IMPORT ERROR:', error);
+    logger.error('BULK IMPORT ERROR:', error);
     return apiError('Import failed', 500);
   }
 }

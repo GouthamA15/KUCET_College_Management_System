@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { otpCodes } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -28,7 +29,7 @@ export async function POST(request) {
       return apiError('Invalid OTP.', 400);
     }
   } catch (error) {
-    console.error('Error verifying OTP:', error);
+    logger.error('Error verifying OTP:', error);
     return apiError('An internal server error occurred.', 500);
   }
 }

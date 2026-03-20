@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, studentImportLogs, clerks } from '@/db/schema';
 import { eq, and, ne, sql, desc, or, inArray, isNotNull } from 'drizzle-orm';
@@ -96,7 +97,7 @@ export async function GET(req) {
 
     return apiResponse({ records, myCount, allCount });
   } catch (error) {
-    console.error('Error in student-history GET:', error);
+    logger.error('Error in student-history GET:', error);
     return apiError('Internal Server Error', 500);
   }
 }

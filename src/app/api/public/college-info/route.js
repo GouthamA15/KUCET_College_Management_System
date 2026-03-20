@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { collegeInfo } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -22,7 +23,7 @@ export async function GET() {
 
     return apiResponse({ collegeInfo: row });
   } catch (error) {
-    console.error('Error fetching public college info:', error);
+    logger.error('Error fetching public college info:', error);
     return apiError('Server error', 500);
   }
 }

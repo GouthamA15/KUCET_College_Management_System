@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentProfileRequests } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -28,7 +29,7 @@ export async function GET(req) {
 
     return apiResponse({ data: requests });
   } catch (err) {
-    console.error('Profile requests fetch error:', err);
+    logger.error('Profile requests fetch error:', err);
     return apiError('Server error', 500, err.message);
   }
 }

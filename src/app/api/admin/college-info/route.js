@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { collegeInfo as collegeInfoTable } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
@@ -21,7 +22,7 @@ export async function GET() {
     if (rows.length === 0) return apiResponse({ collegeInfo: {} });
     return apiResponse({ collegeInfo: rows[0] });
   } catch (error) {
-    console.error('Error fetching college info:', error);
+    logger.error('Error fetching college info:', error);
     return apiError('Server error', 500);
   }
 }
@@ -68,7 +69,7 @@ export async function PUT(req) {
 
     return apiResponse({ message: 'College information updated successfully' });
   } catch (error) {
-    console.error('Error updating college info:', error);
+    logger.error('Error updating college info:', error);
     return apiError('Server error', 500);
   }
 }

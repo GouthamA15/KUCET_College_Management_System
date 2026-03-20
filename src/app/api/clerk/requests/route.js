@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students } from '@/db/schema';
 import { eq, and, inArray, sql, desc, asc } from 'drizzle-orm';
@@ -110,7 +111,7 @@ export async function GET(request) {
       return apiResponse({ records: rows });
     }
   } catch (error) {
-    console.error('Error fetching clerk requests:', error);
+    logger.error('Error fetching clerk requests:', error);
     return apiError('Failed to fetch requests', 500);
   }
 }

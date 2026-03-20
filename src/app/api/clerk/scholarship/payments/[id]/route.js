@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentFeePayments } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -16,7 +17,7 @@ export async function DELETE(req, ctx) {
     
     return apiResponse({ success: true });
   } catch (error) {
-    console.error('Error deleting payment:', error);
+    logger.error('Error deleting payment:', error);
     return apiError('Internal Server Error', 500);
   }
 }

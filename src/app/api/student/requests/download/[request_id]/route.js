@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import crypto from 'crypto'; 
 import QRCode from 'qrcode';
 import React from 'react';
@@ -224,7 +225,7 @@ export async function GET(request, context) {
         return new NextResponse(pdfBuffer, { status: 200, headers });
 
     } catch (error) {
-        console.error("Error generating certificate:", error);
+        logger.error("Error generating certificate:", error);
         return apiError('An error occurred while generating the certificate.', 500, error.message);
     }
 }

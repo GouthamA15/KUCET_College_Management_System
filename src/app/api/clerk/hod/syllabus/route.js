@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { syllabusSubjects, syllabusStructure, syllabusUnits } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -53,7 +54,7 @@ export async function GET(req) {
 
     return apiResponse({ data });
   } catch (error) {
-    console.error('HOD Syllabus GET Error:', error);
+    logger.error('HOD Syllabus GET Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -139,7 +140,7 @@ export async function POST(req) {
 
     return apiError('Invalid action', 400);
   } catch (error) {
-    console.error('HOD Syllabus POST Error:', error);
+    logger.error('HOD Syllabus POST Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

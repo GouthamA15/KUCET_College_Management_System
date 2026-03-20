@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { issueClerkAuthCookie } from '@/lib/auth-utils';
+import logger from '@/lib/logger';
 
 export async function POST(request) {
   try {
@@ -24,7 +25,7 @@ export async function POST(request) {
     const results = await db.select().from(clerks).where(eq(clerks.email, email)).limit(1);
 
     if (results.length === 0) {
-      console.error(`[Clerk Login Failed] User not found for email: ${email}`);
+      logger.warn({ email }, '[Clerk Login Failed] User not found');
       return apiError('Invalid credentials', 401);
     }
 
@@ -32,12 +33,12 @@ export async function POST(request) {
     const passwordMatch = await bcrypt.compare(password, clerk.password_hash);
 
     if (!passwordMatch) {
-      console.error(`[Clerk Login Failed] Password mismatch for email: ${email}`);
+      logger.warn({ email }, '[Clerk Login Failed] Password mismatch');
       return apiError('Invalid credentials', 401);
     }
 
     if (!clerk.is_active) {
-      console.log(`[Clerk Login] Attempt to login to deactivated account: ${email}`);
+      logger.info({ email }, '[Clerk Login] Attempt to login to deactivated account');
       return apiError('Your account has been deactivated. Please contact the administrator.', 403);
     }
 
@@ -50,7 +51,7 @@ export async function POST(request) {
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error(error, 'Login error');
     return apiError('An internal server error occurred.', 500);
   }
 }

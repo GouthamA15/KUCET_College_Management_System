@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { addSSEClient, removeSSEClient } from '@/lib/sse';
 
 export async function GET(req) {
@@ -9,7 +10,7 @@ export async function GET(req) {
       try {
         controller.enqueue(new TextEncoder().encode('data: {"type":"CONNECTED","timestamp":' + Date.now() + '}\n\n'));
       } catch (e) {
-        console.error('[SSE] Failed to send initial data');
+        logger.error('[SSE] Failed to send initial data');
       }
       
       // Keep-alive ping every 15 seconds for aggressive proxies (Render)

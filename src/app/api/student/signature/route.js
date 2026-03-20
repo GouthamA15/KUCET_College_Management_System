@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   studentSignatures, 
@@ -81,7 +82,7 @@ export async function GET(req) {
       }
     });
   } catch (err) {
-    console.error('Profile fetch error:', err);
+    logger.error('Profile fetch error:', err);
     return apiError('Server error', 500, err.message);
   }
 }
@@ -153,12 +154,12 @@ export async function POST(req) {
         roll_no: user.roll_no
       });
     } catch (e) {
-      console.error('SSE Broadcast error:', e);
+      logger.error('SSE Broadcast error:', e);
     }
 
     return apiResponse({ success: true, message: 'Profile update request submitted for clerk approval.' });
   } catch (err) {
-    console.error('Profile request error:', err);
+    logger.error('Profile request error:', err);
     return apiError('Server error', 500, err.message);
   }
 }

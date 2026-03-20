@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
@@ -99,7 +100,7 @@ export async function GET(request) {
 
     return apiResponse({ data: rows, sessions, verified_ids });
   } catch (error) {
-    console.error('Attendance Status Error:', error);
+    logger.error('Attendance Status Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

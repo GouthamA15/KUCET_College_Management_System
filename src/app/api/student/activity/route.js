@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students, 
@@ -130,7 +131,7 @@ export async function GET(request) {
       scholarshipApplicationsOpen,
     });
   } catch (error) {
-    console.error('Failed to fetch student activity', error);
+    logger.error('Failed to fetch student activity', error);
     return apiError('Internal Server Error', 500);
   }
 }

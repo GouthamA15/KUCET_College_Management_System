@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { academicCalendar, semesters } from '@/db/schema';
 import { eq, and, between, sql, notInArray, min, max } from 'drizzle-orm';
@@ -87,7 +88,7 @@ export async function POST(request) {
   } catch (error) {
     if (error.message === 'CALENDAR_NOT_FOUND') return apiError('Calendar not generated for this semester.', 404);
     if (error.message === 'OUT_OF_RANGE') return apiError('Bulk update range cannot be outside the generated semester range.', 400);
-    console.error('API_BULK_UPDATE_CALENDAR_ERROR:', error);
+    logger.error('API_BULK_UPDATE_CALENDAR_ERROR:', error);
     return apiError('Internal Server Error', 500);
   }
 }

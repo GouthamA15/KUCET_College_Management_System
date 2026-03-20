@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { SignJWT } from 'jose';
@@ -41,7 +42,7 @@ export async function GET(request) {
   const baseRedirect = resolveBaseRedirect(request);
   if (!globalThis.__google_complete_redirect_logged) {
     globalThis.__google_complete_redirect_logged = true;
-    console.log('[GOOGLE_COMPLETE_REDIRECT]', {
+    logger.info('[GOOGLE_COMPLETE_REDIRECT]', {
       requestUrl: request.url,
       forwardedHost: request.headers.get('x-forwarded-host'),
       forwardedProto: request.headers.get('x-forwarded-proto'),

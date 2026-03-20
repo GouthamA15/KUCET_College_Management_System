@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { issueAdminAuthCookie } from '@/lib/auth-utils';
+import logger from '@/lib/logger';
 
 export async function POST(request) {
   try {
@@ -27,6 +28,7 @@ export async function POST(request) {
       .limit(1);
 
     if (rows.length === 0) {
+      logger.warn({ email }, '[Admin Login Failed] User not found');
       return apiError('Invalid credentials', 401);
     }
 
@@ -34,6 +36,7 @@ export async function POST(request) {
     const isValidPassword = await bcrypt.compare(password, admin.password_hash);
 
     if (!isValidPassword) {
+      logger.warn({ email }, '[Admin Login Failed] Password mismatch');
       return apiError('Invalid credentials', 401);
     }
 
@@ -48,7 +51,7 @@ export async function POST(request) {
     return response;
 
   } catch (error) {
-    console.error('Admin Login error:', error);
+    logger.error(error, 'Admin Login error');
     return apiError('An internal server error occurred.', 500);
   }
 }

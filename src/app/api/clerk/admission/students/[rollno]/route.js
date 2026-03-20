@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
@@ -118,7 +119,7 @@ export async function PUT(req, context) {
 
     return apiResponse({ success: true, message: 'Student details updated successfully' });
   } catch (error) {
-    console.error('Error updating student details:', error);
+    logger.error('Error updating student details:', error);
     return apiError('Failed to update student details', 500, error.message);
   }
 }

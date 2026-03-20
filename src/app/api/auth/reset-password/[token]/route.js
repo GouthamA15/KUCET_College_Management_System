@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { passwordResetTokens, students, clerks, principal } from '@/db/schema';
 import { eq, and, isNull, sql } from 'drizzle-orm';
@@ -22,7 +23,7 @@ export async function GET(req, { params }) {
 
     return apiResponse({ status: 'VALID' });
   } catch (err) {
-    console.error('RESET TOKEN VALIDATION ERROR:', err);
+    logger.error('RESET TOKEN VALIDATION ERROR:', err);
     return apiError('INVALID', 400);
   }
 }
@@ -73,7 +74,7 @@ export async function POST(req, { params }) {
     return apiResponse({ message: 'Password reset successful' });
   } catch (err) {
     if (err.message === 'TOKEN_ALREADY_USED') return apiError('USED', 409);
-    console.error('RESET PASSWORD ERROR:', err);
+    logger.error('RESET PASSWORD ERROR:', err);
     return apiError('Internal server error', 500);
   }
 }

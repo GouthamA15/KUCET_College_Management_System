@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -10,7 +11,7 @@ export async function GET(req) {
 
     return apiResponse({ roll_no: user.roll_no });
   } catch (error) {
-    console.error('API /student/me error:', error);
+    logger.error('API /student/me error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

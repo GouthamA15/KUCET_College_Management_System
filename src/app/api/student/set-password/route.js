@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -32,7 +33,7 @@ export async function GET(req) {
 
     return apiResponse({ isPasswordSet });
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     return apiError('Server error', 500);
   }
 }
@@ -76,7 +77,7 @@ export async function POST(req) {
 
     return response;
   } catch (err) {
-    console.error('Password set error:', err);
+    logger.error('Password set error:', err);
     return apiError('Server error', 500);
   }
 }

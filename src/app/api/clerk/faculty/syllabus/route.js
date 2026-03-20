@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   syllabusStructure, 
@@ -138,7 +139,7 @@ export async function GET(request) {
 
     return apiResponse({ data: syllabusOverview });
   } catch (error) {
-    console.error('Syllabus Fetch Error:', error);
+    logger.error('Syllabus Fetch Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

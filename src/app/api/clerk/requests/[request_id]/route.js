@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students, clerks } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
@@ -104,7 +105,7 @@ export async function PUT(request, { params }) {
             return apiError('Failed to update request', 500);
         }
     } catch (error) {
-        console.error("Error updating request:", error);
+        logger.error("Error updating request:", error);
         return apiError('An error occurred while updating the request', 500, error.message);
     }
 }
@@ -149,7 +150,7 @@ export async function GET(request, { params }) {
 
         return apiResponse(rows[0]);
     } catch (error) {
-        console.error('Error fetching request details:', error);
+        logger.error('Error fetching request details:', error);
         return apiError('Failed to fetch request details', 500);
     }
 }

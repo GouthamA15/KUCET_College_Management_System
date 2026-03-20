@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, otpCodes } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -56,11 +57,11 @@ export async function POST(req) {
       return response;
 
     } catch (error) {
-      console.error('Verify OTP Error:', error);
+      logger.error('Verify OTP Error:', error);
       return apiError('An internal server error occurred.', 500);
     }
   } catch (outerError) {
-    console.error('[CRITICAL] Verify OTP Rate Limit/Auth Error:', outerError);
+    logger.error('[CRITICAL] Verify OTP Rate Limit/Auth Error:', outerError);
     return apiError('Internal Server Error', 500);
   }
 }

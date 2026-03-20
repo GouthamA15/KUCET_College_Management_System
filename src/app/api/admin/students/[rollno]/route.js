@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, studentImages } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -40,7 +41,7 @@ export async function GET(request, { params }) {
 
     return apiResponse({ student });
   } catch (error) {
-    console.error('Failed to fetch student:', error);
+    logger.error('Failed to fetch student:', error);
     return apiError('Failed to fetch student', 500);
   }
 }

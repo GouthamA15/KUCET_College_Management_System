@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   attendanceSessions, 
@@ -46,7 +47,7 @@ export async function GET(request) {
 
     return apiResponse({ active: true, session: sessions[0] });
   } catch (error) {
-    console.error('Fetch Session Error:', error);
+    logger.error('Fetch Session Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -139,7 +140,7 @@ export async function POST(request) {
       }
     });
   } catch (error) {
-    console.error('Create Session Error:', error);
+    logger.error('Create Session Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -189,7 +190,7 @@ export async function DELETE(request) {
 
     return apiResponse({ message: 'Session ended successfully' });
   } catch (error) {
-    console.error('End Session Error:', error);
+    logger.error('End Session Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

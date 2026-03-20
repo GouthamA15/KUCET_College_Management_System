@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students, 
@@ -100,7 +101,7 @@ export async function GET(req, context) {
 
     return apiResponse({ student, scholarship, fees, academics });
   } catch (error) {
-    console.error('Error fetching student profile data:', error);
+    logger.error('Error fetching student profile data:', error);
     return apiError('Failed to fetch student profile data', 500, error.message);
   }
 }

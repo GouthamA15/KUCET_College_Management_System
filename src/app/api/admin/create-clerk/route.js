@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { clerks } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -50,12 +51,12 @@ export async function POST(req) {
     });
 
     if (!emailResult.success) {
-      console.error(`Failed to send welcome email to ${email}: ${emailResult.message}`);
+      logger.error(`Failed to send welcome email to ${email}: ${emailResult.message}`);
     }
 
     return apiResponse({ success: true, clerkId: result.insertId }, 201);
   } catch (error) {
-    console.error('Error creating clerk:', error);
+    logger.error('Error creating clerk:', error);
     if (error.code === 'ER_DUP_ENTRY') {
       return apiError('Email or Employee ID already exists', 409);
     }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, passwordResetTokens } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -31,7 +32,7 @@ export async function GET(req) {
       has_password_set: !!student.password_hash 
     });
   } catch (error) {
-    console.error('FORGOT PASSWORD STATUS ERROR:', error);
+    logger.error('FORGOT PASSWORD STATUS ERROR:', error);
     return apiError('Internal server error', 500, { is_email_verified: false, has_password_set: false });
   }
 }
@@ -109,7 +110,7 @@ If you did not initiate this request, please ignore this email or contact the ad
 
     return apiResponse({ message: 'Password reset link sent to your email', can_dob_login: false });
   } catch (error) {
-    console.error('FORGOT PASSWORD ERROR:', error);
+    logger.error('FORGOT PASSWORD ERROR:', error);
     return apiError('Internal server error', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { branchTimetable, syllabusSubjects, semesters } from '@/db/schema';
 import { eq, and, desc, sql, like, or } from 'drizzle-orm';
@@ -43,7 +44,7 @@ export async function GET(req) {
 
     return apiResponse({ data: mySchedule });
   } catch (error) {
-    console.error('Faculty My-Timetable API Error:', error);
+    logger.error('Faculty My-Timetable API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

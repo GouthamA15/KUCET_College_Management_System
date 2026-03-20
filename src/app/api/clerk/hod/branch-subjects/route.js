@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { syllabusSubjects, syllabusStructure } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -24,7 +25,7 @@ export async function GET(req) {
 
     return apiResponse({ data: subjects });
   } catch (error) {
-    console.error('Branch Subjects API Error:', error);
+    logger.error('Branch Subjects API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

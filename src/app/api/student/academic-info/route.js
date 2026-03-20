@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { db } from '@/db';
 import { 
@@ -112,7 +113,7 @@ export async function GET(request) {
       academicYear
     });
   } catch (error) {
-    console.error('Student Academic Info Error:', error);
+    logger.error('Student Academic Info Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAdmissionDrafts, students, clerks, studentPersonalDetails } from '@/db/schema';
 import { eq, or } from 'drizzle-orm';
@@ -101,7 +102,7 @@ export async function POST(req) {
     return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
 
   } catch (error) {
-    console.error('Error saving admission draft:', error);
+    logger.error('Error saving admission draft:', error);
     return apiError('Failed to submit application.', 500);
   }
 }

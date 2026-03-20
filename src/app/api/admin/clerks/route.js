@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { clerks } from '@/db/schema';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
@@ -22,7 +23,7 @@ export async function GET() {
 
     return apiResponse({ data });
   } catch (error) {
-    console.error('Error fetching clerks:', error);
+    logger.error('Error fetching clerks:', error);
     return apiError('Internal Server Error', 500);
   }
 }

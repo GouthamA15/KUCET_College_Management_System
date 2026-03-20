@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentFeePayments, students as studentsTable } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -47,7 +48,7 @@ export async function POST(req) {
       transaction_date,
     }, 201);
   } catch (error) {
-    console.error('Error inserting payment:', error);
+    logger.error('Error inserting payment:', error);
     return apiError('Internal Server Error', 500);
   }
 }

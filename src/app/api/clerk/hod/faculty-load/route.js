@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   semesters, 
@@ -68,7 +69,7 @@ export async function GET(req) {
       meta: { systemYear }
     });
   } catch (error) {
-    console.error('Faculty Load API Error:', error);
+    logger.error('Faculty Load API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   facultySubjectInterests, 
@@ -48,7 +49,7 @@ export async function POST(request) {
     return apiResponse({ message: `Interest ${status.toLowerCase()} successfully` });
   } catch (error) {
     if (error.message === 'NOT_FOUND') return apiError('Interest not found', 404);
-    console.error('Approve Interest Error:', error);
+    logger.error('Approve Interest Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

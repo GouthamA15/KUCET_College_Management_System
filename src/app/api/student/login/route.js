@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 import { checkRateLimit } from '@/lib/rate-limit';
+import logger from '@/lib/logger';
 
 export async function POST(req) {
   try {
@@ -37,6 +38,7 @@ export async function POST(req) {
     .limit(1);
 
     if (rows.length === 0) {
+      logger.warn({ rollno }, '[Student Login Failed] User not found');
       return apiError('Invalid credentials', 401);
     }
 
@@ -46,7 +48,10 @@ export async function POST(req) {
     if (student.password_hash) {
       const match = await bcrypt.compare(dob, student.password_hash);
       if (match) isAuthenticated = true;
-      else return apiError('Invalid credentials', 401);
+      else {
+        logger.warn({ rollno }, '[Student Login Failed] Password mismatch');
+        return apiError('Invalid credentials', 401);
+      }
     } else {
       const dbDate = new Date(student.date_of_birth);
       const dbDateString = dbDate.getFullYear() + '-' + String(dbDate.getMonth() + 1).padStart(2, '0') + '-' + String(dbDate.getDate()).padStart(2, '0');
@@ -60,7 +65,10 @@ export async function POST(req) {
       }
 
       if (dbDateString === inputDateString) isAuthenticated = true;
-      else return apiError('Invalid credentials', 401);
+      else {
+        logger.warn({ rollno }, '[Student Login Failed] DOB mismatch');
+        return apiError('Invalid credentials', 401);
+      }
     }
 
     if (!isAuthenticated) return apiError('Authentication failed', 401);
@@ -77,7 +85,7 @@ export async function POST(req) {
     return response;
 
   } catch (err) {
-    console.error(err);
+    logger.error(err, 'Student Login Error');
     return apiError('Server error', 500, err.message);
   }
 }

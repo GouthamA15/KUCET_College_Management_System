@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -35,7 +36,7 @@ export async function POST(req) {
 
     return apiResponse({ success: true, message: 'Personal details saved' });
   } catch (err) {
-    console.error('Personal details save error:', err);
+    logger.error('Personal details save error:', err);
     return apiError('Server error', 500, err.message);
   }
 }

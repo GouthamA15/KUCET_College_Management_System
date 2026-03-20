@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students as studentsTable, collegeInfo as collegeInfoTable } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -37,7 +38,7 @@ export async function GET(req) {
 
     return apiResponse({ data: stats });
   } catch (error) {
-    console.error('Error fetching student stats:', error);
+    logger.error('Error fetching student stats:', error);
     return apiError('Internal Server Error', 500);
   }
 }

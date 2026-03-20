@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { db } from '@/db';
 import { 
@@ -80,7 +81,7 @@ export async function GET(request) {
 
     return apiResponse({ data: sessions });
   } catch (error) {
-    console.error('Fetch Active Sessions Error:', error);
+    logger.error('Fetch Active Sessions Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

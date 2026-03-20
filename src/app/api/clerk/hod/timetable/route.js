@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   branchTimetable, 
@@ -55,7 +56,7 @@ export async function GET(req) {
 
     return apiResponse({ data: timetable });
   } catch (error) {
-    console.error('Timetable API Error:', error);
+    logger.error('Timetable API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -131,7 +132,7 @@ export async function POST(req) {
 
     return apiResponse({ success: true, message: 'Slot updated successfully' });
   } catch (error) {
-    console.error('Timetable Save Error:', error);
+    logger.error('Timetable Save Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -170,7 +171,7 @@ export async function DELETE(req) {
 
     return apiResponse({ success: true, message: 'Lecture deleted successfully' });
   } catch (error) {
-    console.error('Timetable Delete Error:', error);
+    logger.error('Timetable Delete Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

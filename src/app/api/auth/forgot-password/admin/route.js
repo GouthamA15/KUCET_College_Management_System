@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { principal, passwordResetTokens } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -72,7 +73,7 @@ If you did not initiate this request, please ignore this email or contact the ad
 
     return apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
   } catch (error) {
-    console.error('FORGOT PASSWORD ERROR:', error);
+    logger.error('FORGOT PASSWORD ERROR:', error);
     // Still return a generic message to the user
     return apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
   }

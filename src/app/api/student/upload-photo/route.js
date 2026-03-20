@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, studentImages } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -39,7 +40,7 @@ export async function POST(req) {
 
     return apiResponse({ success: true });
   } catch (err) {
-    console.error("Photo upload error:", err);
+    logger.error("Photo upload error:", err);
     return apiError('Server error', 500, err.message);
   }
 }

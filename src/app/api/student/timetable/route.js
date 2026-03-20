@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   collegeInfo as collegeInfoTable, 
@@ -57,7 +58,7 @@ export async function GET(req) {
 
     return apiResponse({ data: timetable, meta: { branch, semester, systemYear, rollNo } });
   } catch (error) {
-    console.error('Student Timetable API Error:', error);
+    logger.error('Student Timetable API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, collegeInfo } from '@/db/schema';
 import { eq, like, or } from 'drizzle-orm';
@@ -59,7 +60,7 @@ export async function GET(request) {
 
     return apiResponse({ students: filteredStudents });
   } catch (error) {
-    console.error('Failed to fetch students:', error);
+    logger.error('Failed to fetch students:', error);
     return apiError('Failed to fetch students', 500);
   }
 }

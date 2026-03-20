@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   facultySubjectInterests, 
@@ -60,7 +61,7 @@ export async function GET(request) {
 
     return apiResponse({ data: interests });
   } catch (error) {
-    console.error('Admin Interests Fetch Error:', error);
+    logger.error('Admin Interests Fetch Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from "@/db";
 import { 
   students, 
@@ -45,7 +46,7 @@ export async function GET(request) {
 
     return apiResponse({ data: rows });
   } catch (error) {
-    console.error("Error fetching student requests:", error);
+    logger.error("Error fetching student requests:", error);
     return apiError("Failed to fetch requests", 500);
   }
 }
@@ -141,7 +142,7 @@ export async function POST(request) {
           roll_no: user.roll_no
         });
       } catch (e) {
-        console.error('SSE Broadcast error:', e);
+        logger.error('SSE Broadcast error:', e);
       }
     }
 
@@ -174,7 +175,7 @@ export async function POST(request) {
 
     return apiResponse({ success: true, requestId });
   } catch (error) {
-    console.error("Error processing certificate request:", error);
+    logger.error("Error processing certificate request:", error);
     if (error.code === "ER_DUP_ENTRY") return apiError("Duplicate request detected.", 409);
     return apiError("Internal Server Error", 500);
   }

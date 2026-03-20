@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { db } from '@/db';
 import { clerks, semesters } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -33,7 +34,7 @@ export async function GET(req) {
 
     return apiResponse({ data: clerk });
   } catch (error) {
-    console.error('Database error:', error);
+    logger.error('Database error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
