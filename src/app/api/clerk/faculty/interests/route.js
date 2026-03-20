@@ -1,22 +1,22 @@
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { facultySubjectInterests } from '@/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
 
 export async function GET(request) {
   try {
     const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') {
-      return apiError('Unauthorized', 401);
-    }
+    if (!user || user.role !== 'faculty') return apiError('Unauthorized', 401);
 
-    const db = getDb();
-    const [interests] = await db.execute(
-      'SELECT * FROM faculty_subject_interests WHERE faculty_id = ? ORDER BY created_at DESC',
-      [user.id]
-    );
+    const interests = await db.query.facultySubjectInterests.findMany({
+      where: eq(facultySubjectInterests.faculty_id, user.id),
+      orderBy: [desc(facultySubjectInterests.created_at)]
+    });
 
     return apiResponse({ data: interests });
   } catch (error) {
-    console.error('Interests Fetch Error:', error);
+    logger.error('Interests Fetch Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -24,9 +24,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty') {
-      return apiError('Unauthorized', 401);
-    }
+    if (!user || user.role !== 'faculty') return apiError('Unauthorized', 401);
 
     const body = await request.json();
     const { subject_code, subject_name, branch, semester, academic_year } = body;
@@ -35,25 +33,32 @@ export async function POST(request) {
       return apiError('Missing required fields', 400);
     }
 
-    const db = getDb();
-    // Check if already exists
-    const [existing] = await db.execute(
-      'SELECT id FROM faculty_subject_interests WHERE faculty_id = ? AND subject_code = ? AND branch = ? AND semester = ? AND academic_year = ?',
-      [user.id, subject_code, branch, semester, academic_year]
-    );
+    const existing = await db.query.facultySubjectInterests.findFirst({
+      where: and(
+        eq(facultySubjectInterests.faculty_id, user.id),
+        eq(facultySubjectInterests.subject_code, subject_code),
+        eq(facultySubjectInterests.branch, branch),
+        eq(facultySubjectInterests.semester, semester),
+        eq(facultySubjectInterests.academic_year, academic_year)
+      )
+    });
 
-    if (existing.length > 0) {
+    if (existing) {
       return apiError('Interest already submitted for this subject', 400);
     }
 
-    await db.execute(
-      'INSERT INTO faculty_subject_interests (faculty_id, subject_code, subject_name, branch, semester, academic_year) VALUES (?, ?, ?, ?, ?, ?)',
-      [user.id, subject_code, subject_name, branch, semester, academic_year]
-    );
+    await db.insert(facultySubjectInterests).values({
+      faculty_id: user.id,
+      subject_code,
+      subject_name,
+      branch,
+      semester: parseInt(semester),
+      academic_year
+    });
 
     return apiResponse({ message: 'Interest submitted successfully' });
   } catch (error) {
-    console.error('Interest Submit Error:', error);
+    logger.error('Interest Submit Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

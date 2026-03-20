@@ -113,7 +113,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           assignment_id: assignment.id,
           latitude,
           longitude,
-          attendance_date: selectedDate
+          attendance_date: selectedDate,
+          session_number: selectedSession
         }),
       });
       
@@ -306,6 +307,12 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
   const handleSaveAttendance = useCallback(async () => {
     if (!assignment?.id) return;
+    
+    // Capture current state for rollback
+    const previousStatusMap = { ...attendanceStatusMap };
+    const previousCache = { ...attendanceCache };
+    const previousActiveSession = activeSession;
+
     setSubmitting(true);
     try {
       if (!selectedDate || !dateValidation.isValid) {
@@ -316,6 +323,23 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         student_id: s.id,
         status: attendanceStatusMap[s.id] ?? null,
       }));
+
+      // --- OPTIMISTIC UI START ---
+      toast.success('Attendance saved (Optimistic)', { id: 'attendance-save' });
+      
+      // Optimistically clear active session
+      if (activeSession) {
+        setActiveSession(null);
+      }
+
+      // Optimistically update cache
+      const cacheKey = `${selectedDate}-${selectedSession}`;
+      setAttendanceCache((prev) => {
+        const next = { ...prev };
+        delete next[cacheKey];
+        return next;
+      });
+      // --- OPTIMISTIC UI END ---
 
       const res = await fetch('/api/clerk/faculty/attendance', {
         method: 'POST',
@@ -328,29 +352,33 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         }),
       });
       const data = await res.json();
+      
       if (!res.ok) throw new Error(data.error || 'Failed to save attendance');
 
-      toast.success('Attendance saved successfully');
+      toast.success('Attendance synced with server', { id: 'attendance-save' });
 
-      // --- AUTO-CLOSE SESSION AFTER SAVE ---
-      if (activeSession) {
-        await endSession();
+      // If we didn't end the session optimistically (e.g. if it was already null), 
+      // or to ensure server state is reflected
+      if (previousActiveSession && !activeSession) {
+         // Session was already handled optimistically
+      } else if (activeSession) {
+         await endSession();
       }
-
-      const cacheKey = `${selectedDate}-${selectedSession}`;
-      setAttendanceCache((prev) => {
-        const next = { ...prev };
-        delete next[cacheKey];
-        return next;
-      });
 
       await fetchAttendanceStatus();
     } catch (error) {
-      toast.error(error.message);
+      // --- ROLLBACK START ---
+      console.error('[AttendanceSaveRollback]', error);
+      setAttendanceStatusMap(previousStatusMap);
+      setAttendanceCache(previousCache);
+      setActiveSession(previousActiveSession);
+      // --- ROLLBACK END ---
+      
+      toast.error(error.message, { id: 'attendance-save' });
     } finally {
       setSubmitting(false);
     }
-  }, [assignment, baseStudents, attendanceStatusMap, dateValidation.isValid, fetchAttendanceStatus, selectedDate, selectedSession, activeSession, endSession]);
+  }, [assignment, baseStudents, attendanceStatusMap, dateValidation.isValid, fetchAttendanceStatus, selectedDate, selectedSession, activeSession, endSession, attendanceCache]);
 
   const handleDeleteAttendance = useCallback(async () => {
     if (!assignment?.id) return;
@@ -422,6 +450,52 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     if (data.type === 'STUDENT_VERIFIED' && data.payload.assignment_id === assignment.id) {
       console.log('[AttendanceSync] Student verified, refreshing...');
       fetchAttendanceStatus();
+    } else if (data.type === 'PROXY_ATTEMPTED' && data.payload.assignment_id === assignment.id) {
+      const { attempting_roll_no, original_roll_no, original_student_id } = data.payload;
+      
+      // 1. Show Formal Government-Style Toaster
+      toast.error(
+        (t) => (
+          <div className="flex flex-col gap-1 border-l-4 border-red-600 pl-2">
+            <span className="font-black text-xs uppercase tracking-widest text-red-800">Security Breach Detected</span>
+            <div className="text-[11px] font-bold text-gray-700 leading-tight">
+              Student <span className="text-red-600">{original_roll_no}</span> attempted proxy for <span className="text-blue-700">{attempting_roll_no}</span>.
+            </div>
+            <div className="text-[9px] font-bold text-gray-500 uppercase mt-1">
+              Action: {original_roll_no} marked as ABSENT.
+            </div>
+          </div>
+        ),
+        { 
+          duration: 10000, 
+          id: `proxy-${original_roll_no}`,
+          style: {
+            borderRadius: '0px',
+            border: '1px solid #fee2e2',
+            background: '#fff',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+            padding: '12px'
+          }
+        }
+      );
+
+      // 2. Update Local State: Remove from verified and set to ABSENT
+      setVerifiedStudentIds(prev => {
+        const next = new Set(prev);
+        next.delete(original_student_id);
+        return next;
+      });
+
+      setAttendanceStatusMap(prev => ({
+        ...prev,
+        [original_student_id]: 'ABSENT'
+      }));
+
+      // 3. Update Absent Count Map to align with the stage cycle
+      setAbsentCountMap(prev => ({
+        ...prev,
+        [original_student_id]: 2 // Stage 2 is the first 'ABSENT' stage
+      }));
     }
   }, [assignment.id, fetchAttendanceStatus]);
 

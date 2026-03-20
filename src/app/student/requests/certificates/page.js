@@ -5,12 +5,12 @@ import { useStudent } from '@/context/StudentContext';
 import { useRouter } from 'next/navigation';
 import ScrollHandler from './ScrollHandler';
 import toast from 'react-hot-toast';
-import Footer from '../../../../components/Footer';
 import CertificatePageLayout from '../../../../components/student/requests/CertificatePageLayout';
 import CertificateRequestForm from '../../../../components/student/requests/CertificateRequestForm';
 import RequestHistoryDesktop from '../../../../components/student/requests/RequestHistoryDesktop';
 import RequestHistoryMobile from '../../../../components/student/requests/RequestHistoryMobile';
 import RejectDetailsModal from '../../../../components/student/requests/RejectDetailsModal';
+import { isCapacitor, downloadToDevice } from '@/lib/capacitor-utils';
 
 const certificateOptions = [
   { value: 'Bonafide Certificate', label: 'Bonafide Certificate', fee: 100, clerk: 'admission' },
@@ -97,9 +97,7 @@ export default function CertificateRequestsPage() {
         throw new Error(err.error || 'Failed to generate certificate');
       }
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
+      
       const contentDisp = res.headers.get('Content-Disposition') || res.headers.get('content-disposition');
       let filename = `Certificate_${req.roll_number || 'certificate'}.pdf`;
       if (contentDisp) {
@@ -118,11 +116,20 @@ export default function CertificateRequestsPage() {
           if (filenameMatch) filename = filenameMatch[1];
         }
       }
-      a.download = filename || `Certificate_${req.roll_number || 'certificate'}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+
+      if (isCapacitor()) {
+        await downloadToDevice(blob, filename, 'application/pdf');
+        toast.success('Certificate downloaded successfully!');
+      } else {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename || `Certificate_${req.roll_number || 'certificate'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
     } catch (error) {
       console.error('Download error', error);
       setDownloadErrors(prev => ({ ...prev, [req.request_id]: 'Failed to generate certificate. Try again.' }));
@@ -231,7 +238,6 @@ export default function CertificateRequestsPage() {
       />
 
       <RejectDetailsModal isOpen={showRejectModal} request={rejectReq} onClose={closeRejectModal} onReapply={handleReapply} />
-      <Footer />
     </>
   );
 }

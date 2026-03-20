@@ -1,5 +1,8 @@
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { studentAttendance } from '@/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
 
 export async function GET(request) {
   try {
@@ -9,22 +12,28 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const student_id = searchParams.get('student_id');
-    const assignment_id = searchParams.get('assignment_id');
+    const student_id = searchParams.get('student_id') ? parseInt(searchParams.get('student_id')) : null;
+    const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
 
     if (!student_id || !assignment_id) {
       return apiError('Missing required parameters', 400);
     }
 
-    const db = getDb();
-    const [history] = await db.execute(
-      'SELECT date, status, session FROM student_attendance WHERE student_id = ? AND assignment_id = ? ORDER BY date DESC, session DESC',
-      [student_id, assignment_id]
-    );
+    const history = await db.select({
+      date: studentAttendance.date,
+      status: studentAttendance.status,
+      session: studentAttendance.session
+    })
+    .from(studentAttendance)
+    .where(and(
+      eq(studentAttendance.student_id, student_id),
+      eq(studentAttendance.assignment_id, assignment_id)
+    ))
+    .orderBy(desc(studentAttendance.date), desc(studentAttendance.session));
 
     return apiResponse({ data: history });
   } catch (error) {
-    console.error('Attendance History Error:', error);
+    logger.error('Attendance History Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

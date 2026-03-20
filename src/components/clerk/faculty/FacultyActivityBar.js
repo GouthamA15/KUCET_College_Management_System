@@ -1,16 +1,20 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import RealtimeListener from '@/components/RealtimeListener';
 
 export default function FacultyActivityBar() {
   const [activeActivity, setActiveActivity] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isUnmountedRef = useRef(false);
 
   const fetchActivity = useCallback(async () => {
+    if (isUnmountedRef.current) return;
     try {
       const res = await fetch('/api/clerk/faculty/current-activity');
       const data = await res.json();
+      if (isUnmountedRef.current) return;
+
       if (res.ok && data.active) {
         setActiveActivity(data);
       } else {
@@ -19,45 +23,37 @@ export default function FacultyActivityBar() {
     } catch (e) {
       console.error('Failed to sync current activity');
     } finally {
-      setLoading(false);
+      if (!isUnmountedRef.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    isUnmountedRef.current = false;
     fetchActivity();
     
-    // Smart timer for next period transition
-    const calculateNextTransition = () => {
+    // Check for period transitions every 30 seconds
+    const interval = setInterval(() => {
       const now = new Date();
-      const hours = now.getHours();
-      const minutes = now.getMinutes();
-      const currentTime = hours * 100 + minutes;
+      const time = now.getHours() * 100 + now.getMinutes();
+      const transitionTimes = [930, 1020, 1110, 1120, 1210, 1300, 1400, 1450, 1540, 1630];
+      
+      const isTransitionWindow = transitionTimes.some(t => {
+        const diff = time - t;
+        return diff >= 0 && diff <= 1; // 1 minute window
+      });
 
-      const transitions = [930, 1020, 1110, 1120, 1210, 1300, 1400, 1450, 1540, 1630];
-      const nextTransition = transitions.find(t => t > currentTime);
-
-      if (nextTransition) {
-        const nextHours = Math.floor(nextTransition / 100);
-        const nextMinutes = nextTransition % 100;
-        const nextDate = new Date();
-        nextDate.setHours(nextHours, nextMinutes, 0, 0);
-        
-        const delay = nextDate.getTime() - now.getTime();
-        return setTimeout(() => {
-          fetchActivity();
-          // Recursively set next timer
-          calculateNextTransition();
-        }, delay + 1000); // Add 1s buffer
+      if (isTransitionWindow) {
+        fetchActivity();
       }
-      return null;
-    };
+    }, 30000);
 
-    const timer = calculateNextTransition();
-    const interval = setInterval(fetchActivity, 5 * 60 * 1000); // 5-min backup
+    // Backup: Slow refresh every 10 minutes
+    const backupInterval = setInterval(fetchActivity, 10 * 60 * 1000);
     
     return () => {
-      if (timer) clearTimeout(timer);
+      isUnmountedRef.current = true;
       clearInterval(interval);
+      clearInterval(backupInterval);
     };
   }, [fetchActivity]);
 
@@ -75,40 +71,40 @@ export default function FacultyActivityBar() {
   return (
     <>
       <RealtimeListener onUpdate={handleRealtimeUpdate} />
-      <div className="bg-[#0b3578] border-b border-white/10 shadow-2xl relative overflow-hidden animate-in slide-in-from-top duration-500">
-        <div className="absolute inset-0 bg-blue-600/20 animate-pulse"></div>
+      <div className="bg-[#0b3578] border-b border-white/10 shadow-lg relative overflow-hidden">
+        <div className="absolute inset-0 bg-blue-600/5"></div>
         
-        <div className="max-w-[1200px] mx-auto px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-10 h-10 bg-white/10 rounded-full border border-white/20">
-               <span className="relative flex h-3 w-3">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="flex items-center justify-center w-8 h-8 bg-white/10 border border-white/20">
+               <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                </span>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                 <span className="text-[10px] font-black text-blue-200 uppercase tracking-[0.2em]">Live Session</span>
-                 <span className="text-[10px] font-bold text-white/40 uppercase">&bull; Period {period}</span>
+                 <span className="text-[9px] font-bold text-blue-200 uppercase tracking-widest">Active Session</span>
+                 <span className="text-[9px] font-medium text-white/50 uppercase border-l border-white/20 pl-2">Period {period}</span>
               </div>
-              <h3 className="text-white font-black tracking-tight leading-none uppercase">
+              <h3 className="text-white text-sm font-bold tracking-tight leading-tight uppercase mt-0.5">
                 {activity.subject_name || activity.subject_code}
               </h3>
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
-             <div className="text-right border-r border-white/10 pr-6">
-                <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-0.5">Location</p>
-                <p className="text-white font-black text-sm uppercase">{activity.room_no || 'TBD'}</p>
+          <div className="grid grid-cols-3 md:flex md:items-center gap-2 md:gap-8 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
+             <div className="text-center md:text-right md:border-r md:border-white/10 md:pr-8">
+                <p className="text-[8px] font-bold text-blue-200 uppercase tracking-widest mb-0.5 opacity-70">Room</p>
+                <p className="text-white font-bold text-[11px] uppercase">{activity.room_no || 'TBD'}</p>
              </div>
-             <div className="text-right border-r border-white/10 pr-6">
-                <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-0.5">Department</p>
-                <p className="text-white font-black text-sm uppercase">{activity.branch}</p>
+             <div className="text-center md:text-right md:border-r md:border-white/10 md:pr-8">
+                <p className="text-[8px] font-bold text-blue-200 uppercase tracking-widest mb-0.5 opacity-70">Branch</p>
+                <p className="text-white font-bold text-[11px] uppercase">{activity.branch}</p>
              </div>
-             <div className="text-right">
-                <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-0.5">Class</p>
-                <p className="text-white font-black text-sm uppercase">Semester {activity.semester}</p>
+             <div className="text-center md:text-right">
+                <p className="text-[8px] font-bold text-blue-200 uppercase tracking-widest mb-0.5 opacity-70">Class</p>
+                <p className="text-white font-bold text-[11px] uppercase">Sem {activity.semester}</p>
              </div>
           </div>
         </div>

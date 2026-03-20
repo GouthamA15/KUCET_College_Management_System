@@ -6,10 +6,6 @@ import { useStudent } from '@/context/StudentContext';
 import { getSyllabusUrl } from '@/lib/getSyllabusUrl';
 import { getBranchFromRoll, getCurrentStudyingYear, getCurrentSemester } from '@/lib/rollNumber';
 import { AcademicsProvider, useAcademicsCache } from '@/context/AcademicsContext';
-import StudentProfileLayout from '@/components/student/StudentProfileLayout';
-import Header from '@/app/components/Header/Header';
-import Navbar from '@/app/components/Navbar/Navbar';
-import Footer from '@/components/Footer';
 import toast from 'react-hot-toast';
 
 // Utility: derive subject metadata (kept isolated for future DB migration)
@@ -117,16 +113,11 @@ function AcademicsInner({ studentData, collegeInfo }) {
   const syllabusUrl = resolveSyllabusUrl(studentData, collegeInfo);
 
   return (
-    <StudentProfileLayout>
-      <Header />
-      <Navbar role={'student'} activeTab={'academics'} />
-
-      <main className="flex-1 px-6 py-4">
-        <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
-          <header className="mb-4">
-            <h1 className="text-2xl font-semibold text-gray-800">Academic Subjects and Performance</h1>
-            <p className="text-sm text-gray-600 mt-1">Overview of your current semester subjects, attendance, and internal assessment results.</p>
-          </header>
+    <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+      <header className="mb-4">
+        <h1 className="text-2xl font-semibold text-gray-800">Academic Subjects and Performance</h1>
+        <p className="text-sm text-gray-600 mt-1">Overview of your current semester subjects, attendance, and internal assessment results.</p>
+      </header>
 
           <div className="flex items-center gap-2 mb-3">
             <button onClick={() => setActiveTab('subjects')} className={`px-3 py-2 rounded-md text-sm ${activeTab === 'subjects' ? 'bg-[#0b3578] text-white' : 'bg-white border'}`}>Subjects</button>
@@ -329,9 +320,5 @@ function AcademicsInner({ studentData, collegeInfo }) {
               })()}            </section>
           )}
         </div>
-      </main>
-
-      <Footer />
-    </StudentProfileLayout>
   );
 }

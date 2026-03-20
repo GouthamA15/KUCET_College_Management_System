@@ -1,4 +1,7 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { scholarshipSanctions, scholarshipWindows } from '@/db/schema';
+import { eq, and, or, isNull, sql, desc, count } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 
@@ -7,25 +10,33 @@ export async function GET() {
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const [hardRow] = await query(
-      'SELECT COUNT(*) AS count FROM scholarship_sanctions WHERE application_no IS NOT NULL AND hardcopy_submitted = 0',
-      []
-    );
-    const [thumbRow] = await query(
-      "SELECT COUNT(*) AS count FROM scholarship_sanctions WHERE thumb_update_available = 1 AND (thumb_status IS NULL OR UPPER(thumb_status) = 'PENDING')",
-      []
-    );
-    const [totalRow] = await query('SELECT COUNT(*) AS count FROM scholarship_sanctions', []);
+    const hardRow = await db.select({ count: count() })
+      .from(scholarshipSanctions)
+      .where(and(
+        sql`${scholarshipSanctions.application_no} IS NOT NULL`,
+        eq(scholarshipSanctions.hardcopy_submitted, 0)
+      ));
 
-    const pendingHardCopies = Number(hardRow?.count || 0);
-    const pendingThumbs = Number(thumbRow?.count || 0);
-    const totalRecords = Number(totalRow?.count || 0);
+    const thumbRow = await db.select({ count: count() })
+      .from(scholarshipSanctions)
+      .where(and(
+        eq(scholarshipSanctions.thumb_update_available, true),
+        or(
+          isNull(scholarshipSanctions.thumb_status),
+          eq(sql`UPPER(${scholarshipSanctions.thumb_status})`, 'PENDING')
+        )
+      ));
 
-    const windowRows = await query(
-      'SELECT id, start_date, end_date FROM scholarship_windows ORDER BY id DESC LIMIT 1',
-      []
-    );
-    const window = windowRows && windowRows[0] ? windowRows[0] : null;
+    const totalRow = await db.select({ count: count() })
+      .from(scholarshipSanctions);
+
+    const pendingHardCopies = Number(hardRow[0]?.count || 0);
+    const pendingThumbs = Number(thumbRow[0]?.count || 0);
+    const totalRecords = Number(totalRow[0]?.count || 0);
+
+    const window = await db.query.scholarshipWindows.findFirst({
+      orderBy: [desc(scholarshipWindows.id)]
+    });
 
     let windowStatus = 'CLOSED';
     let windowStartDate = null;
@@ -33,7 +44,6 @@ export async function GET() {
 
     if (window && window.start_date && window.end_date) {
       const now = await getNow();
-      // DB returns dates as strings (YYYY-MM-DD) due to dateStrings: true
       const start = new Date(window.start_date);
       const end = new Date(window.end_date);
       const today = new Date(now.toISOString().slice(0, 10));
@@ -55,7 +65,7 @@ export async function GET() {
       windowEndDate,
     });
   } catch (error) {
-    console.error('Error fetching scholarship metrics:', error);
+    logger.error('Error fetching scholarship metrics:', error);
     return apiError('Internal Server Error', 500);
   }
 }

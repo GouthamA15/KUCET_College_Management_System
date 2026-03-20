@@ -1,88 +1,79 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { studentRequests, studentRequestImages } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req, context) {
-  const params = await context.params;
-  const { request_id } = params;
+  try {
+    const params = await context.params;
+    const { request_id } = params;
+    const requestIdNum = parseInt(request_id);
 
-  if (!request_id) {
-    return new NextResponse('Request ID required', { status: 400 });
-  }
+    if (!request_id) {
+      return new NextResponse('Request ID required', { status: 400 });
+    }
 
-  // AUTHENTICATION
-  const user = await getAuthUser(); // Try to get any authenticated user
+    const user = await getAuthUser();
+    if (!user) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
 
-  if (!user) {
-    return new NextResponse('Unauthorized', { status: 401 });
-  }
-
-  let isAuthorized = false;
-
-  // 1. Admin/Clerk check
-  if (user.role === 'admin' || user.role === 'admission' || user.role === 'scholarship' || user.role === 'faculty') {
-    isAuthorized = true;
-  }
-
-  // 2. Student ownership check
-  if (!isAuthorized && user.student_id) {
-    const rows = await query('SELECT student_id FROM student_requests WHERE request_id = ?', [request_id]);
-    if (rows.length > 0 && rows[0].student_id === user.student_id) {
+    let isAuthorized = false;
+    if (['admin', 'admission', 'scholarship', 'faculty'].includes(user.role)) {
       isAuthorized = true;
     }
-  }
 
-  if (!isAuthorized) {
-    return new NextResponse('Forbidden', { status: 403 });
-  }
-
-  try {
-    const rows = await query(
-      `SELECT payment_screenshot 
-       FROM student_request_images 
-       WHERE request_id = ?`,
-      [request_id]
-    );
-
-    if (rows.length === 0 || !rows[0].payment_screenshot) {
-      return new NextResponse('Image not found', { status: 404 });
-    }
-
-    const imageBufferOrUrl = rows[0].payment_screenshot;
-
-    // If it's a Cloudinary URL (string), fetch and return it (Proxy)
-    if (typeof imageBufferOrUrl === 'string' && imageBufferOrUrl.startsWith('http')) {
-      try {
-        const imageRes = await fetch(imageBufferOrUrl);
-        if (!imageRes.ok) throw new Error('Cloudinary fetch failed');
-        
-        const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
-        const buffer = await imageRes.arrayBuffer();
-
-        return new NextResponse(Buffer.from(buffer), {
-          headers: {
-            'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=86400, must-revalidate',
-          },
-        });
-      } catch (proxyErr) {
-        console.error('Error proxying Cloudinary image:', proxyErr);
-        return new NextResponse('Error loading image from cloud', { status: 502 });
+    if (!isAuthorized && user.student_id) {
+      const request = await db.query.studentRequests.findFirst({
+        columns: { student_id: true },
+        where: eq(studentRequests.request_id, requestIdNum)
+      });
+      if (request && request.student_id === user.student_id) {
+        isAuthorized = true;
       }
     }
 
-    // Otherwise, treat as Buffer (old BLOB data)
+    if (!isAuthorized) {
+      return new NextResponse('Forbidden', { status: 403 });
+    }
+
+    const imageRow = await db.query.studentRequestImages.findFirst({
+      where: eq(studentRequestImages.request_id, requestIdNum)
+    });
+
+    if (!imageRow || !imageRow.payment_screenshot) {
+      return new NextResponse('Image not found', { status: 404 });
+    }
+
+    const imageBufferOrUrl = imageRow.payment_screenshot;
+
+    if (typeof imageBufferOrUrl === 'string' && imageBufferOrUrl.startsWith('http')) {
+      const imageRes = await fetch(imageBufferOrUrl);
+      if (!imageRes.ok) throw new Error('Cloudinary fetch failed');
+      
+      const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
+      const buffer = await imageRes.arrayBuffer();
+
+      return new NextResponse(Buffer.from(buffer), {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400, must-revalidate',
+        },
+      });
+    }
+
+    // Treat as Buffer (old BLOB data)
     return new NextResponse(imageBufferOrUrl, {
       headers: {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
       },
     });
 
   } catch (error) {
-    console.error('Error serving request image:', error);
+    logger.error('Error serving request image:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

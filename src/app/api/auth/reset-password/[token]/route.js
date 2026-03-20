@@ -1,119 +1,80 @@
-import { query, getDb } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { passwordResetTokens, students, clerks, principal } from '@/db/schema';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
-// Validation endpoint (read-only): check token status
 export async function GET(req, { params }) {
   try {
-    // `params` may be a Promise in Next.js dynamic route handlers; await it.
     const resolved = params ? await params : {};
     const { token } = resolved || {};
-    if (!token) {
-      console.log('[RESET VALIDATION] missing token');
-      return apiError('INVALID', 400);
-    }
-
-    // Debug logging (temporary)
-    try { console.log(`[RESET VALIDATION] rawToken length=${String(token).length}, alg=sha256`); } catch (e) {}
+    if (!token) return apiError('INVALID', 400);
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    console.log(`[RESET VALIDATION] incomingHash=${tokenHash}`);
+    const tokenData = await db.query.passwordResetTokens.findFirst({
+      where: eq(passwordResetTokens.token_hash, tokenHash)
+    });
 
-    const rows = await query('SELECT * FROM password_reset_tokens WHERE token_hash = ? LIMIT 1', [tokenHash]);
-    console.log('[RESET VALIDATION] db rows found=', rows?.length ?? 0);
-    const tokenData = rows[0];
-
-    if (!tokenData) {
-      console.log('[RESET VALIDATION] tokenData not found for hash');
-      return apiError('INVALID', 400);
-    }
-    if (tokenData.used_at) {
-      console.log('[RESET VALIDATION] token already used_at=', tokenData.used_at);
-      return apiError('USED', 409);
-    }
-    if (new Date(tokenData.expires_at) < new Date()) {
-      console.log('[RESET VALIDATION] token expired at=', tokenData.expires_at);
-      return apiError('EXPIRED', 410);
-    }
+    if (!tokenData) return apiError('INVALID', 400);
+    if (tokenData.used_at) return apiError('USED', 409);
+    if (new Date(tokenData.expires_at) < new Date()) return apiError('EXPIRED', 410);
 
     return apiResponse({ status: 'VALID' });
   } catch (err) {
-    console.error('RESET TOKEN VALIDATION ERROR:', err);
+    logger.error('RESET TOKEN VALIDATION ERROR:', err);
     return apiError('INVALID', 400);
   }
 }
 
-// Consumption endpoint: set new password and mark token used in a transaction
 export async function POST(req, { params }) {
-  let conn;
   try {
     const resolved = params ? await params : {};
     const { token } = resolved || {};
     const { password } = await req.json();
 
-    if (!token || !password) {
-      console.log('[RESET CONSUME] missing token or password');
-      return apiError('Missing token or password', 400);
-    }
+    if (!token || !password) return apiError('Missing token or password', 400);
 
-    try { console.log(`[RESET CONSUME] rawToken length=${String(token).length}, alg=sha256`); } catch (e) {}
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    console.log(`[RESET CONSUME] incomingHash=${tokenHash}`);
-    const rows = await query('SELECT * FROM password_reset_tokens WHERE token_hash = ? LIMIT 1', [tokenHash]);
-    console.log('[RESET CONSUME] db rows found=', rows?.length ?? 0);
-    const tokenData = rows[0];
+    const tokenData = await db.query.passwordResetTokens.findFirst({
+      where: eq(passwordResetTokens.token_hash, tokenHash)
+    });
 
-    if (!tokenData) {
-      console.log('[RESET CONSUME] tokenData not found for hash');
-      return apiError('INVALID', 400);
-    }
-    if (tokenData.used_at) {
-      console.log('[RESET CONSUME] token already used_at=', tokenData.used_at);
-      return apiError('USED', 409);
-    }
-    if (new Date(tokenData.expires_at) < new Date()) {
-      console.log('[RESET CONSUME] token expired at=', tokenData.expires_at);
-      return apiError('EXPIRED', 410);
-    }
-
-    // Begin transaction
-    const pool = getDb();
-    conn = await pool.getConnection();
-    await conn.beginTransaction();
+    if (!tokenData) return apiError('INVALID', 400);
+    if (tokenData.used_at) return apiError('USED', 409);
+    if (new Date(tokenData.expires_at) < new Date()) return apiError('EXPIRED', 410);
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    let updateResult;
-    if (tokenData.user_type === 'student') {
-      updateResult = await conn.execute('UPDATE students SET password_hash = ? WHERE roll_no = ?', [hashedPassword, tokenData.user_id]);
-    } else if (tokenData.user_type === 'clerk') {
-      updateResult = await conn.execute('UPDATE clerks SET password_hash = ? WHERE email = ?', [hashedPassword, tokenData.user_id]);
-    } else if (tokenData.user_type === 'admin') {
-      updateResult = await conn.execute('UPDATE principal SET password_hash = ? WHERE email = ?', [hashedPassword, tokenData.user_id]);
-    } else {
-      await conn.rollback();
-      return apiError('Invalid user type', 500);
-    }
+    await db.transaction(async (tx) => {
+      // 1. Update the appropriate user table
+      if (tokenData.user_type === 'student') {
+        await tx.update(students).set({ password_hash: hashedPassword }).where(eq(students.roll_no, tokenData.user_id));
+      } else if (tokenData.user_type === 'clerk') {
+        await tx.update(clerks).set({ password_hash: hashedPassword }).where(eq(clerks.email, tokenData.user_id));
+      } else if (tokenData.user_type === 'admin') {
+        await tx.update(principal).set({ password_hash: hashedPassword }).where(eq(principal.email, tokenData.user_id));
+      } else {
+        throw new Error('INVALID_USER_TYPE');
+      }
 
-    // Mark token as used (single-use) - only succeed if token wasn't used concurrently
-    const [res] = await conn.execute('UPDATE password_reset_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL', [new Date(), tokenHash]);
-    // res.affectedRows may be available depending on driver
-    const affected = res && (res.affectedRows ?? res.affected_rows ?? (Array.isArray(res) ? res[0]?.affectedRows : undefined));
+      // 2. Mark token as used
+      const [res] = await tx.update(passwordResetTokens)
+        .set({ used_at: new Date() })
+        .where(and(eq(passwordResetTokens.token_hash, tokenHash), isNull(passwordResetTokens.used_at)));
+      
+      // Check for concurrent usage
+      if (res.affectedRows === 0) {
+        throw new Error('TOKEN_ALREADY_USED');
+      }
+    });
 
-    if (!affected || affected === 0) {
-      await conn.rollback();
-      return apiError('USED', 409);
-    }
-
-    await conn.commit();
     return apiResponse({ message: 'Password reset successful' });
   } catch (err) {
-    console.error('RESET PASSWORD ERROR:', err);
-    try { if (conn) await conn.rollback(); } catch (e) {}
+    if (err.message === 'TOKEN_ALREADY_USED') return apiError('USED', 409);
+    logger.error('RESET PASSWORD ERROR:', err);
     return apiError('Internal server error', 500);
-  } finally {
-    try { if (conn) conn.release(); } catch (e) {}
   }
 }

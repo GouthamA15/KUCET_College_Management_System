@@ -1,18 +1,12 @@
 'use client';
-import Header from '@/app/components/Header/Header';
-import Navbar from '@/app/components/Navbar/Navbar';
-import Footer from '@/components/Footer';
 import ComingSoon from '@/components/ComingSoon';
+import { useClerk } from '@/context/ClerkContext';
 
 export default function ClerkDepartmentsPage() {
+  const { clerkData: clerk } = useClerk();
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
-      <Navbar role={'clerk'} />
-      <main className="flex-1 flex items-center justify-center p-6">
-        <ComingSoon title="Departments" icon="🏢" />
-      </main>
-      <Footer />
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <ComingSoon title="Departments" icon="🏢" />
     </div>
   );
 }

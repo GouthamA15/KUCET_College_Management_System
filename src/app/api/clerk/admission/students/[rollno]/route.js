@@ -1,183 +1,138 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { 
+  students as studentsTable, 
+  studentPersonalDetails, 
+  studentAcademicBackground,
+  studentImages,
+  studentSignatures
+} from '@/db/schema';
+import { eq, sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { uploadToCloudinary } from '@/lib/cloudinary';
+import { encrypt, hashForIndex } from '@/lib/encryption';
 
-// Helper function to handle undefined/empty values and convert them to null
 const toNull = (value) => (value === undefined || value === '' ? null : value);
 
 export async function PUT(req, context) {
   const user = await getAuthUser('clerk');
-
   if (!user || user.role !== 'admission') {
     return apiError('Forbidden: Only admission clerks can update student details', 403);
   }
 
-  // Ensure clerk id is present in token and use it for audit fields
-  const clerkId = user?.clerkId || null;
-  if (!clerkId) {
-    return apiError('Unauthorized: clerk id missing in token', 401);
-  }
+  const clerkId = user?.clerkId || user.id || null;
+  if (!clerkId) return apiError('Unauthorized: clerk id missing in token', 401);
 
   try {
     const params = await context.params;
     const { rollno } = params;
-
-    if (!rollno) {
-      return apiError('Missing rollno parameter', 400);
-    }
+    if (!rollno) return apiError('Missing rollno parameter', 400);
 
     const updatedData = await req.json();
-    // Prevent changing clerk tracking from frontend
-    if (updatedData.added_by_clerk_id !== undefined) {
-      delete updatedData.added_by_clerk_id;
-    }
-    // Validate blood_group and fee_reimbursement early if provided
+
+    // Validations
     if (updatedData.blood_group !== undefined) {
       const bg = updatedData.blood_group == null ? null : String(updatedData.blood_group).trim();
-      const validBloodGroups = COLLEGE_CONFIG.bloodGroups;
-      if (bg && !validBloodGroups.includes(bg)) {
-        return apiError('Invalid blood group value', 400);
-      }
+      if (bg && !COLLEGE_CONFIG.bloodGroups.includes(bg)) return apiError('Invalid blood group value', 400);
     }
     if (updatedData.fee_reimbursement !== undefined) {
       const fr = updatedData.fee_reimbursement == null ? null : String(updatedData.fee_reimbursement).trim().toUpperCase();
-      const validFeeReimbursement = ['YES', 'NO', 'GOV'];
-      if (fr && !validFeeReimbursement.includes(fr)) {
-        return apiError('Invalid fee_reimbursement value', 400);
+      if (fr && !['YES', 'NO', 'GOV'].includes(fr)) return apiError('Invalid fee_reimbursement value', 400);
+    }
+
+    const studentRows = await db.select({ id: studentsTable.id })
+      .from(studentsTable)
+      .where(eq(studentsTable.roll_no, rollno))
+      .limit(1);
+    if (studentRows.length === 0) return apiError('Student not found', 404);
+    const studentId = studentRows[0].id;
+
+    await db.transaction(async (tx) => {
+      // 1. Update Core Students
+      const studentUpdate = {};
+      if (updatedData.name !== undefined) studentUpdate.name = toNull(updatedData.name);
+      if (updatedData.admission_no !== undefined) studentUpdate.admission_no = toNull(updatedData.admission_no);
+      if (updatedData.fee_reimbursement !== undefined) studentUpdate.fee_reimbursement = toNull(String(updatedData.fee_reimbursement).trim().toUpperCase());
+      if (updatedData.date_of_birth !== undefined) studentUpdate.date_of_birth = toMySQLDate(updatedData.date_of_birth) ? new Date(toMySQLDate(updatedData.date_of_birth)) : null;
+      if (updatedData.gender !== undefined) studentUpdate.gender = toNull(updatedData.gender);
+      
+      if (updatedData.mobile !== undefined) {
+          const val = toNull(updatedData.mobile);
+          studentUpdate.mobile = val ? encrypt(val) : null;
+          studentUpdate.mobile_hash = val ? hashForIndex(val) : null;
       }
-    }
+      
+      if (updatedData.email !== undefined) studentUpdate.email = toNull(updatedData.email);
 
-    // Find student ID
-    const [student] = await query('SELECT id FROM students WHERE roll_no = ?', [rollno]);
-    if (!student) {
-      return apiError('Student not found', 404);
-    }
-    const studentId = student.id;
-
-    // --- Update `students` table ---
-    const studentUpdateFields = [];
-    const studentUpdateValues = [];
-
-    if (updatedData.name !== undefined) { studentUpdateFields.push('name = ?'); studentUpdateValues.push(toNull(updatedData.name)); }
-    if (updatedData.admission_no !== undefined) { studentUpdateFields.push('admission_no = ?'); studentUpdateValues.push(toNull(updatedData.admission_no)); }
-    if (updatedData.fee_reimbursement !== undefined) { studentUpdateFields.push('fee_reimbursement = ?'); studentUpdateValues.push(toNull(String(updatedData.fee_reimbursement).trim().toUpperCase())); }
-    if (updatedData.date_of_birth !== undefined) { studentUpdateFields.push('date_of_birth = ?'); studentUpdateValues.push(toMySQLDate(updatedData.date_of_birth)); }
-    if (updatedData.gender !== undefined) { studentUpdateFields.push('gender = ?'); studentUpdateValues.push(toNull(updatedData.gender)); }
-    if (updatedData.mobile !== undefined) { studentUpdateFields.push('mobile = ?'); studentUpdateValues.push(toNull(updatedData.mobile)); }
-    if (updatedData.email !== undefined) { studentUpdateFields.push('email = ?'); studentUpdateValues.push(toNull(updatedData.email)); }
-    // Note: roll_no is typically not updated directly after admission, and it's used as the identifier here.
-
-    if (studentUpdateFields.length > 0) {
-      // add audit columns for update
-      studentUpdateFields.push('updated_at = NOW()', 'updated_by_clerk_id = ?');
-      studentUpdateValues.push(clerkId);
-      await query(`UPDATE students SET ${studentUpdateFields.join(', ')} WHERE id = ?`, [...studentUpdateValues, studentId]);
-    }
-
-    // --- Update `student_personal_details` table ---
-    const personalUpdateFields = [];
-    const personalUpdateValues = [];
-    const personalInsertValues = [];
-    const personalColumns = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'guardian_mobile', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
-
-    let hasPersonalUpdates = false;
-    // Validate and prepare personal columns. blood_group must be one of allowed values when provided.
-    personalColumns.forEach(col => {
-      if (updatedData[col] !== undefined) {
-        if (col === 'aadhaar_no' && updatedData[col] !== null) {
-          // Sanitize aadhaar_no: remove all non-digits before storing
-          personalUpdateFields.push(`${col} = ?`);
-          personalUpdateValues.push(toNull(String(updatedData[col]).replace(/\D/g, '')));
-        } else if (col === 'blood_group') {
-          const bg = updatedData[col] == null ? null : String(updatedData[col]).trim();
-          personalUpdateFields.push(`${col} = ?`);
-          personalUpdateValues.push(toNull(bg));
-        } else {
-          personalUpdateFields.push(`${col} = ?`);
-          personalUpdateValues.push(toNull(updatedData[col]));
-        }
-        hasPersonalUpdates = true;
+      if (Object.keys(studentUpdate).length > 0) {
+        await tx.update(studentsTable)
+          .set({ ...studentUpdate, updated_at: new Date(), updated_by_clerk_id: clerkId })
+          .where(eq(studentsTable.id, studentId));
+      } else {
+        // Just audit update if other tables change
+        await tx.update(studentsTable)
+          .set({ updated_at: new Date(), updated_by_clerk_id: clerkId })
+          .where(eq(studentsTable.id, studentId));
       }
-    });
 
-    if (hasPersonalUpdates) {
-        const [existingPersonal] = await query('SELECT id FROM student_personal_details WHERE student_id = ?', [studentId]);
-        if (existingPersonal) {
-             await query(`UPDATE student_personal_details SET ${personalUpdateFields.join(', ')} WHERE student_id = ?`, [...personalUpdateValues, studentId]);
-        } else {
-            // If no personal details exist, insert them
-            const insertCols = ['student_id'];
-            const insertVals = [studentId];
-            personalColumns.forEach(col => {
-                if (updatedData[col] !== undefined) { // Only include columns present in updatedData
-                    insertCols.push(col);
-                    if (col === 'aadhaar_no' && updatedData[col] !== null) {
-                        insertVals.push(toNull(String(updatedData[col]).replace(/\D/g, '')));
-                    } else {
-                        insertVals.push(toNull(updatedData[col]));
-                    }
-                }
-            });
-            if (insertCols.length > 1) { // More than just student_id
-                await query(`INSERT INTO student_personal_details (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`, insertVals);
-            }
-        }
-    }
-
-    // --- Update `student_academic_background` table ---
-    const academicUpdateFields = [];
-    const academicUpdateValues = [];
-    const academicColumns = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks', 'ssc_marks', 'inter_marks'];
-
-    let hasAcademicUpdates = false;
-    academicColumns.forEach(col => {
+      // 2. Update Personal Details
+      const personalFields = ['father_name', 'mother_name', 'nationality', 'religion', 'category', 'sub_caste', 'area_status', 'mother_tongue', 'place_of_birth', 'father_occupation', 'annual_income', 'guardian_mobile', 'aadhaar_no', 'address', 'seat_allotted_category', 'identification_marks', 'blood_group'];
+      const personalUpdate = {};
+      personalFields.forEach(col => {
         if (updatedData[col] !== undefined) {
-            academicUpdateFields.push(`${col} = ?`);
-            academicUpdateValues.push(toNull(updatedData[col]));
-            hasAcademicUpdates = true;
+          let val = toNull(updatedData[col]);
+          
+          if (col === 'aadhaar_no' && val !== null) {
+            val = String(val).replace(/\D/g, '');
+            personalUpdate.aadhaar_no = encrypt(val);
+            personalUpdate.aadhaar_hash = hashForIndex(val);
+          } else if (col === 'guardian_mobile' && val !== null) {
+            personalUpdate.guardian_mobile = encrypt(val);
+          } else {
+            personalUpdate[col] = val;
+          }
         }
-    });
+      });
 
-    if (hasAcademicUpdates) {
-        const [existingAcademic] = await query('SELECT id FROM student_academic_background WHERE student_id = ?', [studentId]);
-        if (existingAcademic) {
-            await query(`UPDATE student_academic_background SET ${academicUpdateFields.join(', ')} WHERE student_id = ?`, [...academicUpdateValues, studentId]);
-        } else {
-            const insertCols = ['student_id'];
-            const insertVals = [studentId];
-            academicColumns.forEach(col => {
-                if (updatedData[col] !== undefined) {
-                    insertCols.push(col);
-                    insertVals.push(toNull(updatedData[col]));
-                }
-            });
-            if (insertCols.length > 1) {
-                await query(`INSERT INTO student_academic_background (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`, insertVals);
-            }
-        }
-    }
+      if (Object.keys(personalUpdate).length > 0) {
+        await tx.insert(studentPersonalDetails)
+          .values({ student_id: studentId, ...personalUpdate })
+          .onDuplicateKeyUpdate({ set: personalUpdate });
+      }
 
-    // --- Update `student_images` and `student_signatures` if provided ---
-    if (updatedData.pfp) {
+      // 3. Update Academic Background
+      const academicFields = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks', 'ssc_marks', 'inter_marks'];
+      const academicUpdate = {};
+      academicFields.forEach(col => {
+        if (updatedData[col] !== undefined) academicUpdate[col] = toNull(updatedData[col]);
+      });
+
+      if (Object.keys(academicUpdate).length > 0) {
+        await tx.insert(studentAcademicBackground)
+          .values({ student_id: studentId, ...academicUpdate })
+          .onDuplicateKeyUpdate({ set: academicUpdate });
+      }
+
+      // 4. Update Images
+      if (updatedData.pfp) {
         const pfpUrl = await uploadToCloudinary(updatedData.pfp, 'students/pfp');
-        await query('INSERT INTO student_images (student_id, pfp) VALUES (?, ?) ON DUPLICATE KEY UPDATE pfp = ?', [studentId, pfpUrl, pfpUrl]);
-    }
-    if (updatedData.signature) {
+        await tx.insert(studentImages)
+          .values({ student_id: studentId, pfp: pfpUrl })
+          .onDuplicateKeyUpdate({ set: { pfp: pfpUrl } });
+      }
+      if (updatedData.signature) {
         const sigUrl = await uploadToCloudinary(updatedData.signature, 'students/signatures');
-        await query('INSERT INTO student_signatures (student_id, signature) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature = ?', [studentId, sigUrl, sigUrl]);
-    }
-
-    // If personal/academic updates were applied but students table was not modified above,
-    // set the updated_at and updated_by_clerk_id audit fields on students table.
-    if ((hasPersonalUpdates || hasAcademicUpdates) && studentUpdateFields.length === 0) {
-      await query('UPDATE students SET updated_at = NOW(), updated_by_clerk_id = ? WHERE id = ?', [clerkId, studentId]);
-    }
-
+        await tx.insert(studentSignatures)
+          .values({ student_id: studentId, signature: sigUrl })
+          .onDuplicateKeyUpdate({ set: { signature: sigUrl } });
+      }
+    });
 
     return apiResponse({ success: true, message: 'Student details updated successfully' });
   } catch (error) {
-    console.error('Error updating student details:', error);
+    logger.error(error, 'Error updating student details for clerk');
     return apiError('Failed to update student details', 500, error.message);
   }
 }

@@ -1,8 +1,5 @@
 "use client";
 
-import Header from '@/components/Header';
-import AdminNavbar from '@/components/AdminNavbar';
-import Footer from '@/components/Footer';
 import StudentProfileCard from '@/components/StudentProfileCard';
 import { useRef, useEffect, useState } from 'react';
 import { useAdmin } from '@/context/AdminContext';
@@ -92,129 +89,124 @@ export default function AdminDashboardPage() {
     : 0;
 
   return (
-    <>
-      <Header />
-      <AdminNavbar />
-      <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center py-8">
-        <div className="w-full max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-8 flex flex-col items-center">
-          <h1 className="text-2xl font-bold text-[#0b3578] mb-6">Admin Dashboard</h1>
-          <form onSubmit={handleSearch} className="w-full flex flex-col sm:flex-row gap-2 mb-6">
-            <input
-              type="text"
-              placeholder="Search by Roll No."
-              value={searchRoll}
-              onChange={e => setSearchRoll(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3578] focus:border-transparent text-gray-800"
-            />
-            <button type="submit" className="bg-[#0b3578] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#0a2d66] transition-all cursor-pointer">Search</button>
-          </form>
+    <div className="flex flex-col items-center justify-center">
+      <div className="w-full max-w-6xl mx-auto bg-white border border-slate-200 shadow-sm p-8 flex flex-col items-center">
+        <h1 className="text-2xl font-bold text-[#0b3578] mb-6 tracking-tight uppercase">Admin Dashboard</h1>
+        <form onSubmit={handleSearch} className="w-full flex flex-col sm:flex-row gap-2 mb-6">
+          <input
+            type="text"
+            placeholder="Search by Roll No."
+            value={searchRoll}
+            onChange={e => setSearchRoll(e.target.value)}
+            className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#0b3578] focus:border-transparent text-gray-800"
+          />
+          <button type="submit" className="bg-[#0b3578] text-white px-4 py-2 rounded font-semibold hover:bg-[#0a2d66] transition-all cursor-pointer uppercase text-sm tracking-wide">Search</button>
+        </form>
 
-          <div className="w-full flex border-b mb-6">
-            <button
-              onClick={() => setActiveTab('stats')}
-              className={`px-6 py-2 font-semibold transition ${activeTab === 'stats' ? 'text-[#0b3578] border-b-2 border-[#0b3578]' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Overview & Stats
-            </button>
-            <button
-              onClick={() => setActiveTab('faculty')}
-              className={`px-6 py-2 font-semibold transition ${activeTab === 'faculty' ? 'text-[#0b3578] border-b-2 border-[#0b3578]' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Faculty Management
-            </button>
+        <div className="w-full flex border-b mb-6">
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`px-6 py-2 font-semibold transition uppercase text-xs tracking-widest ${activeTab === 'stats' ? 'text-[#0b3578] border-b-2 border-[#0b3578]' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Overview & Stats
+          </button>
+          <button
+            onClick={() => setActiveTab('faculty')}
+            className={`px-6 py-2 font-semibold transition uppercase text-xs tracking-widest ${activeTab === 'faculty' ? 'text-[#0b3578] border-b-2 border-[#0b3578]' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Faculty Management
+          </button>
+        </div>
+
+        {searchError && <div className="text-red-600 text-sm mb-2">{searchError}</div>}
+        {searchedStudent && (
+          <div className="w-full mb-6">
+            <StudentProfileCard student={searchedStudent} />
           </div>
+        )}
 
-          {searchError && <div className="text-red-600 text-sm mb-2">{searchError}</div>}
-          {searchedStudent && (
-            <div className="w-full mb-6">
-              <StudentProfileCard student={searchedStudent} />
-            </div>
-          )}
-
-          {activeTab === 'stats' ? (
-            <>
-              <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-blue-50 rounded-lg p-4 flex justify-between items-center">
-                  <span className="font-semibold text-blue-900">Total Clerks</span>
-                  <span className="text-xl font-bold text-blue-700">{totalClerks}</span>
-                </div>
-                <div className="bg-green-50 rounded-lg p-4 flex justify-between items-center">
-                  <span className="font-semibold text-green-900">Active Clerks</span>
-                  <span className="text-xl font-bold text-green-700">{activeClerks}</span>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-4 flex justify-between items-center">
-                  <span className="font-semibold text-purple-900">Total Students</span>
-                  <span className="text-xl font-bold text-purple-700">{totalStudentsInCollege}</span>
-                </div>
+        {activeTab === 'stats' ? (
+          <>
+            <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-white border border-slate-200 p-4 flex justify-between items-center">
+                <span className="font-semibold text-slate-600 uppercase text-[10px] tracking-widest">Total Clerks</span>
+                <span className="text-xl font-bold text-[#0b3578]">{totalClerks}</span>
               </div>
+              <div className="bg-white border border-slate-200 p-4 flex justify-between items-center">
+                <span className="font-semibold text-slate-600 uppercase text-[10px] tracking-widest">Active Clerks</span>
+                <span className="text-xl font-bold text-green-700">{activeClerks}</span>
+              </div>
+              <div className="bg-white border border-slate-200 p-4 flex justify-between items-center">
+                <span className="font-semibold text-slate-600 uppercase text-[10px] tracking-widest">Total Students</span>
+                <span className="text-xl font-bold text-purple-700">{totalStudentsInCollege}</span>
+              </div>
+            </div>
 
-              <div className="w-full mb-4 overflow-x-auto">
-                <h2 className="text-lg font-semibold text-[#0b3578] mb-2">Student Statistics</h2>
-                {studentStats ? (
-                  <table className="min-w-full bg-white border border-gray-200">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="py-2 px-4 border-b text-left text-sm font-semibold text-gray-600">Branch</th>
-                        {studyYears.map(year => (
-                          <th key={year} className="py-2 px-4 border-b text-center text-sm font-semibold text-gray-600">Year {year}</th>
-                        ))}
-                        <th className="py-2 px-4 border-b text-center text-sm font-semibold text-gray-600">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.keys(studentStats).sort().map(branch => (
-                        <tr key={branch} className="hover:bg-gray-50">
-                          <td className="py-2 px-4 border-b text-sm text-gray-800 font-medium">{branch}</td>
-                          {studyYears.map(year => (
-                            <td key={year} className="py-2 px-4 border-b text-center text-sm text-gray-800">{studentStats[branch][year]}</td>
-                          ))}
-                          <td className="py-2 px-4 border-b text-center text-sm text-gray-800 font-bold">{studentStats[branch].total}</td>
-                        </tr>
+            <div className="w-full mb-4 overflow-x-auto">
+              <h2 className="text-sm font-bold text-[#0b3578] mb-4 uppercase tracking-wider">Student Statistics</h2>
+              {studentStats ? (
+                <table className="min-w-full bg-white border border-slate-200">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className="py-2 px-4 border-b border-slate-200 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Branch</th>
+                      {studyYears.map(year => (
+                        <th key={year} className="py-2 px-4 border-b border-slate-200 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Year {year}</th>
                       ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p>Loading student stats...</p>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="w-full">
-              <FacultyInterestsManager />
+                      <th className="py-2 px-4 border-b border-slate-200 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(studentStats).sort().map(branch => (
+                      <tr key={branch} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2 px-4 border-b border-slate-100 text-xs text-slate-800 font-bold uppercase">{branch}</td>
+                        {studyYears.map(year => (
+                          <td key={year} className="py-2 px-4 border-b border-slate-100 text-center text-xs text-slate-600">{studentStats[branch][year]}</td>
+                        ))}
+                        <td className="py-2 px-4 border-b border-slate-100 text-center text-xs text-slate-900 font-black">{studentStats[branch].total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-xs text-slate-500 italic">Loading student stats...</p>
+              )}
             </div>
-          )}
+          </>
+        ) : (
+          <div className="w-full">
+            <FacultyInterestsManager />
+          </div>
+        )}
 
-        </div>
-          <div className="w-full max-w-4xl mx-auto mt-8">
-            <CollegeInfoEditor />
-          </div>
-        <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6 mt-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <h2 className="text-xl font-bold text-[#0b3578]">All Students</h2>
-            <div className="flex gap-2 items-center">
-              <select value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1 text-sm">
-                {BRANCHES.map(b => (
-                  <option key={b.code} value={b.name}>{b.name}</option>
-                ))}
-              </select>
-              <select value={selectedStudyingYear} onChange={e => setSelectedStudyingYear(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1 text-sm">
-                {studyYears.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-              <button onClick={handleFetchAllStudents} className="bg-[#0b3578] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#0a2d66] transition-all cursor-pointer">Fetch</button>
-            </div>
-          </div>
-          {loadingAll && <div className="text-blue-700">Loading students...</div>}
-          {allError && <div className="text-red-600 text-sm mb-2">{allError}</div>}
-          <div className="max-h-[400px] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {allStudents.map(student => (
-              <StudentProfileCard key={student.roll_no} student={student} />
-            ))}
+      </div>
+      <div className="w-full max-w-4xl mx-auto mt-8">
+        <CollegeInfoEditor />
+      </div>
+      <div className="w-full max-w-3xl mx-auto bg-white border border-slate-200 shadow-sm p-6 mt-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <h2 className="text-lg font-bold text-[#0b3578] uppercase tracking-wider">All Students</h2>
+          <div className="flex gap-2 items-center">
+            <select value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)} className="border border-slate-200 rounded px-2 py-1 text-xs">
+              {BRANCHES.map(b => (
+                <option key={b.code} value={b.name}>{b.name}</option>
+              ))}
+            </select>
+            <select value={selectedStudyingYear} onChange={e => setSelectedStudyingYear(e.target.value)} className="border border-slate-200 rounded px-2 py-1 text-xs">
+              {studyYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <button onClick={handleFetchAllStudents} className="bg-[#0b3578] text-white px-4 py-1 rounded font-bold hover:bg-[#0a2d66] transition-all cursor-pointer uppercase text-[10px] tracking-widest">Fetch</button>
           </div>
         </div>
-      </main>
-      <Footer />
-    </>
+        {loadingAll && <div className="text-blue-700 text-xs animate-pulse">Loading students...</div>}
+        {allError && <div className="text-red-600 text-[10px] mb-2">{allError}</div>}
+        <div className="max-h-[400px] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 custom-scrollbar">
+          {allStudents.map(student => (
+            <StudentProfileCard key={student.roll_no} student={student} />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

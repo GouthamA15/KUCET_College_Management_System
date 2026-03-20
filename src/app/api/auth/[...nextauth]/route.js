@@ -1,6 +1,9 @@
+import logger from '@/lib/logger';
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google";
-import { getDb } from "@/lib/db";
+import { db } from "@/db";
+import { clerks } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const publicBaseUrlRaw = process.env.NEXT_PUBLIC_BASE_URL;
 if (process.env.NODE_ENV === 'production' && publicBaseUrlRaw) {
@@ -21,55 +24,81 @@ export const authOptions = {
   ],
   callbacks: {
     async signIn({ account, profile }) {
-      if (account.provider === "google") {
-        if (!profile.email_verified) {
-          return false; // Do not allow login if email is not verified
-        }
+      try {
+        if (account.provider === "google") {
+          if (!profile.email_verified) {
+            return false; // Do not allow login if email is not verified
+          }
 
-        const db = getDb();
-        // Check if a clerk with this email exists
-        const [clerks] = await db.execute(
-          'SELECT id, name, email, role, is_active FROM clerks WHERE email = ?',
-          [profile.email]
-        );
-        console.log('Google Sign-in: Profile Email:', profile.email);
+          // Check if a clerk with this email exists
+          const clerk = await db.query.clerks.findFirst({
+            where: eq(clerks.email, profile.email),
+            columns: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                is_active: true
+            }
+          });
+          logger.info('Google Sign-in: Profile Email:', profile.email);
 
-        if (clerks.length > 0) {
-          const clerk = clerks[0];
-          console.log('Google Sign-in: Clerk Found:', clerk.email, 'Role:', clerk.role, 'Active:', clerk.is_active);
-          // If the clerk exists and is active, allow sign-in
-          return clerk.is_active ? true : '/api/auth/error?error=ClerkInactive'; // Return redirect URL with error
-        } else {
-          // If the clerk does not exist, do not allow sign-in
-          return '/api/auth/error?error=ClerkNotFound'; // Return redirect URL with error
+          if (clerk) {
+            logger.info('Google Sign-in: Clerk Found:', clerk.email, 'Role:', clerk.role, 'Active:', clerk.is_active);
+            // If the clerk exists and is active, allow sign-in
+            return clerk.is_active ? true : '/api/auth/error?error=ClerkInactive'; // Return redirect URL with error
+          } else {
+            // If the clerk does not exist, do not allow sign-in
+            return '/api/auth/error?error=ClerkNotFound'; // Return redirect URL with error
+          }
         }
+        return '/api/auth/error?error=GoogleAuthError'; // General error for other providers or unexpected issues
+      } catch (error) {
+        logger.error('SignIn Callback Error:', error);
+        return '/api/auth/error?error=SignInError';
       }
-      return '/api/auth/error?error=GoogleAuthError'; // General error for other providers or unexpected issues
     },
     async jwt({ token, user, account, profile }) {
       // This is called after a successful sign-in
-      if (account?.provider === "google" && profile) {
-        const db = getDb();
-        const [clerks] = await db.execute('SELECT id, name, role FROM clerks WHERE email = ?', [profile.email]);
-        if (clerks.length > 0) {
-          const clerk = clerks[0];
-          token.id = clerk.id;
-          token.name = clerk.name;
-          token.role = clerk.role;
+      try {
+        if (account?.provider === "google" && profile) {
+          const clerk = await db.query.clerks.findFirst({
+            where: eq(clerks.email, profile.email),
+            columns: {
+                id: true,
+                name: true,
+                role: true
+            }
+          });
+          if (clerk) {
+            token.id = clerk.id;
+            token.name = clerk.name;
+            token.role = clerk.role;
+          }
         }
+      } catch (error) {
+        logger.error('JWT Callback Error:', error);
       }
       return token;
     },
     async session({ session, token }) {
       // Add custom properties to the session object
-      session.user.id = token.id;
-      session.user.role = token.role;
+      try {
+        if (token?.id) {
+          session.user.id = token.id;
+        }
+        if (token?.role) {
+          session.user.role = token.role;
+        }
+      } catch (error) {
+        logger.error('Session Callback Error:', error);
+      }
       return session;
     },
     async redirect({ url, baseUrl }) {
       if (!globalThis.__nextauth_redirect_logged) {
         globalThis.__nextauth_redirect_logged = true;
-        console.log('[NEXTAUTH_REDIRECT]', {
+        logger.info('[NEXTAUTH_REDIRECT]', {
           url,
           baseUrl,
           NEXTAUTH_URL: process.env.NEXTAUTH_URL,
@@ -89,7 +118,7 @@ export const authOptions = {
       return normalizedBase;
     }
   },
-  secret: process.env.JWT_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || process.env.JWT_SECRET,
   session: {
     strategy: "jwt",
   },

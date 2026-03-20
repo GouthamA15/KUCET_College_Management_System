@@ -1,75 +1,55 @@
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { 
+  facultySubjectInterests, 
+  facultySubjectAssignments 
+} from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
 
 export async function POST(request) {
   try {
     const user = await getAuthUser('admin');
-    if (!user) {
-      return apiError('Unauthorized', 401);
-    }
+    if (!user) return apiError('Unauthorized', 401);
 
     const body = await request.json();
     const { interest_id, status } = body;
 
-    if (!interest_id || !status) {
-      return apiError('Missing required fields', 400);
-    }
+    if (!interest_id || !status) return apiError('Missing required fields', 400);
+    if (!['APPROVED', 'REJECTED'].includes(status)) return apiError('Invalid status', 400);
 
-    if (!['APPROVED', 'REJECTED'].includes(status)) {
-      return apiError('Invalid status', 400);
-    }
+    await db.transaction(async (tx) => {
+      const interest = await tx.query.facultySubjectInterests.findFirst({
+        where: eq(facultySubjectInterests.id, interest_id)
+      });
 
-    const db = getDb();
-    const connection = await db.getConnection();
-    await connection.beginTransaction();
-
-    try {
-      // Get interest details
-      const [interests] = await connection.execute(
-        'SELECT * FROM faculty_subject_interests WHERE id = ?',
-        [interest_id]
-      );
-
-      if (interests.length === 0) {
-        await connection.rollback();
-        return apiError('Interest not found', 404);
+      if (!interest) {
+        throw new Error('NOT_FOUND');
       }
 
-      const interest = interests[0];
-
-      // Update interest status
-      await connection.execute(
-        'UPDATE faculty_subject_interests SET status = ? WHERE id = ?',
-        [status, interest_id]
-      );
+      await tx.update(facultySubjectInterests)
+        .set({ status })
+        .where(eq(facultySubjectInterests.id, interest_id));
 
       if (status === 'APPROVED') {
-        // Create assignment
         const academicTerm = interest.semester % 2 === 0 ? 2 : 1;
-        await connection.execute(
-          'INSERT INTO faculty_subject_assignments (faculty_id, subject_code, subject_name, branch, course_semester, academic_term, academic_year) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [
-            interest.faculty_id,
-            interest.subject_code,
-            interest.subject_name,
-            interest.branch,
-            interest.semester, // maps to course_semester
-            academicTerm,
-            interest.academic_year,
-          ]
-        );
+        await tx.insert(facultySubjectAssignments).values({
+          faculty_id: interest.faculty_id,
+          subject_code: interest.subject_code,
+          subject_name: interest.subject_name,
+          branch: interest.branch,
+          course_semester: interest.semester,
+          academic_term: academicTerm,
+          academic_year: interest.academic_year,
+          is_active: true
+        });
       }
+    });
 
-      await connection.commit();
-      return apiResponse({ message: `Interest ${status.toLowerCase()} successfully` });
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
+    return apiResponse({ message: `Interest ${status.toLowerCase()} successfully` });
   } catch (error) {
-    console.error('Approve Interest Error:', error);
+    if (error.message === 'NOT_FOUND') return apiError('Interest not found', 404);
+    logger.error('Approve Interest Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

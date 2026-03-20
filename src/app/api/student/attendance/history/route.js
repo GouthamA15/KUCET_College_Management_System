@@ -1,5 +1,8 @@
+import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
+import { db } from '@/db';
+import { studentAttendance } from '@/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 
 export async function GET(request) {
   try {
@@ -15,15 +18,22 @@ export async function GET(request) {
       return apiError('Assignment ID is required', 400);
     }
 
-    const db = getDb();
-    const [history] = await db.execute(
-      'SELECT date, status, session FROM student_attendance WHERE student_id = ? AND assignment_id = ? ORDER BY date DESC, session DESC',
-      [user.student_id, assignment_id]
-    );
+    const history = await db.query.studentAttendance.findMany({
+      columns: {
+        date: true,
+        status: true,
+        session: true
+      },
+      where: and(
+        eq(studentAttendance.student_id, user.student_id),
+        eq(studentAttendance.assignment_id, parseInt(assignment_id))
+      ),
+      orderBy: [desc(studentAttendance.date), desc(studentAttendance.session)]
+    });
 
     return apiResponse({ data: history });
   } catch (error) {
-    console.error('Student Attendance History Error:', error);
+    logger.error('Student Attendance History Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

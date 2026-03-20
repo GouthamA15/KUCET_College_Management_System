@@ -1,4 +1,7 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { principal, passwordResetTokens } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { getBaseUrl, sendInstitutionalEmail } from '@/lib/email';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
@@ -10,7 +13,12 @@ export async function POST(req) {
       return apiError('Email is required', 400);
     }
 
-    const [admin] = await query('SELECT email FROM principal WHERE email = ?', [email]);
+    const admin = await db.query.principal.findFirst({
+      where: eq(principal.email, email),
+      columns: {
+        email: true
+      }
+    });
 
     if (!admin) {
       // Generic message to prevent email enumeration
@@ -19,13 +27,15 @@ export async function POST(req) {
 
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const created_at = new Date();
     const expires_at = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
-    await query(
-      'INSERT INTO password_reset_tokens (token_hash, user_id, user_type, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, ?, NULL)',
-      [tokenHash, email, 'admin', created_at, expires_at]
-    );
+    await db.insert(passwordResetTokens).values({
+      token_hash: tokenHash,
+      user_id: email,
+      user_type: 'admin',
+      expires_at: expires_at,
+      used_at: null
+    });
 
     const baseUrl = getBaseUrl();
     const resetLink = `${baseUrl}/reset-password/${token}`;
@@ -63,7 +73,7 @@ If you did not initiate this request, please ignore this email or contact the ad
 
     return apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
   } catch (error) {
-    console.error('FORGOT PASSWORD ERROR:', error);
+    logger.error('FORGOT PASSWORD ERROR:', error);
     // Still return a generic message to the user
     return apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
   }

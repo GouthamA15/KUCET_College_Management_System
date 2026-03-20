@@ -234,8 +234,8 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>9. Seat Allotted Category</label>
-                            <input maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
+                            <label className={labelClasses}>9. Seat Allotted Category <span className="text-red-500">*</span></label>
+                            <input required maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
                         </div>
 
                         <div className="space-y-1">
@@ -257,13 +257,13 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>13. Religion</label>
-                            <input maxLength="30" value={form.religion} onChange={e => setForm({...form, religion: e.target.value.toUpperCase()})} className={inputClasses} placeholder="RELIGION" />
+                            <label className={labelClasses}>13. Religion <span className="text-red-500">*</span></label>
+                            <input required maxLength="30" value={form.religion} onChange={e => setForm({...form, religion: e.target.value.toUpperCase()})} className={inputClasses} placeholder="RELIGION" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>14. Mother Tongue</label>
-                            <input maxLength="30" value={form.mother_tongue} onChange={e => setForm({...form, mother_tongue: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER TONGUE" />
+                            <label className={labelClasses}>14. Mother Tongue <span className="text-red-500">*</span></label>
+                            <input required maxLength="30" value={form.mother_tongue} onChange={e => setForm({...form, mother_tongue: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER TONGUE" />
                         </div>
 
                         <div className="space-y-1">

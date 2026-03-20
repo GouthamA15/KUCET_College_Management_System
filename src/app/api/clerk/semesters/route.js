@@ -1,33 +1,39 @@
-import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import { getAuthUser, apiError } from '@/lib/api-utils';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { semesters } from '@/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
   try {
     const user = await getAuthUser('clerk');
-    if (!user) {
-      return apiError('Unauthorized', 401);
-    }
+    if (!user) return apiError('Unauthorized', 401);
 
     const { searchParams } = new URL(request.url);
     const academic_year = searchParams.get('academic_year');
     const semester = searchParams.get('semester');
 
-    const db = await getDb();
-    let query = 'SELECT id, academic_year, semester, start_date, end_date, weekend_pattern FROM semesters';
-    const queryParams = [];
+    const query = db.select({
+      id: semesters.id,
+      academic_year: semesters.academic_year,
+      semester: semesters.semester,
+      start_date: semesters.start_date,
+      end_date: semesters.end_date,
+      weekend_pattern: semesters.weekend_pattern
+    })
+    .from(semesters);
 
     if (academic_year && semester) {
-      query += ' WHERE academic_year = ? AND semester = ?';
-      queryParams.push(academic_year, semester);
+      query.where(and(
+        eq(semesters.academic_year, academic_year),
+        eq(semesters.semester, parseInt(semester))
+      ));
     }
     
-    query += ' ORDER BY academic_year DESC, semester DESC';
-
-    const [rows] = await db.execute(query, queryParams);
-    return NextResponse.json({ data: rows });
+    const rows = await query.orderBy(desc(semesters.academic_year), desc(semesters.semester));
+    return apiResponse({ data: rows });
   } catch (error) {
-    console.error('API_GET_SEMESTERS_ERROR:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    logger.error('API_GET_SEMESTERS_ERROR:', error);
+    return apiError('Internal Server Error', 500);
   }
 }

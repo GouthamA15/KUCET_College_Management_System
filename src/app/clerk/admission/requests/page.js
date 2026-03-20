@@ -2,9 +2,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import Header from '@/app/components/Header/Header';
-import Navbar from '@/app/components/Navbar/Navbar';
-import Footer from '@/components/Footer';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 // Only Blood Group uses dropdown options; other fields are plain inputs
@@ -165,64 +162,60 @@ const AdmissionRequestsPage = () => {
     }, []);
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header />
-            <Navbar role={'clerkAdmission'} />
+        <div className="p-4 sm:p-6 lg:p-8">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800">Student Admission Requests</h1>
+                <button onClick={fetchDrafts} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-sm font-medium hover:bg-gray-100">
+                    <span className={`${loading ? 'animate-spin' : ''}`}>↻</span> Refresh
+                </button>
+            </div>
 
-            <main className="flex-1 p-4 sm:p-6 lg:p-8">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold text-gray-800">Student Admission Requests</h1>
-                    <button onClick={fetchDrafts} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-sm font-medium hover:bg-gray-100">
-                        <span className={`${loading ? 'animate-spin' : ''}`}>↻</span> Refresh
-                    </button>
-                </div>
-
-                <div className="bg-white border border-gray-300 overflow-hidden">
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                            <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full mb-3"></div>
-                            <p>Loading applications...</p>
-                        </div>
-                    ) : drafts.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500 font-medium">No pending requests found.</div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-left border border-gray-300 text-sm">
-                            <thead className="bg-gray-100 text-gray-700 text-xs font-semibold border-b border-gray-300">
-                                <tr>
-                                    <th className="px-4 py-2 border-r border-gray-300 font-semibold">Student Name</th>
-                                    <th className="px-4 py-2 border-r border-gray-300 font-semibold">Father&apos;s Name</th>
-                                    <th className="px-4 py-2 border-r border-gray-300 font-semibold">Exam / Rank</th>
-                                    <th className="px-4 py-2 font-semibold text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {drafts.map(draft => (
-                                    <tr key={draft.id}>
-                                        <td className="px-4 py-2 border-r border-gray-200 font-medium text-gray-900">{draft.name}</td>
-                                        <td className="px-4 py-2 border-r border-gray-200 text-gray-700">{draft.father_name}</td>
-                                        <td className="px-4 py-2 border-r border-gray-200 text-gray-700">
-                                            <span className="mr-1">{draft.entrance_exam}</span>
-                                            <span className="text-gray-500">(Rank {draft.exam_rank})</span>
-                                        </td>
-                                        <td className="px-4 py-2 text-right">
-                                            <button 
-                                                onClick={() => fetchDetail(draft.id)}
-                                                disabled={fetchingDetail}
-                                                className="px-4 py-1 border border-gray-500 bg-white text-gray-800 text-xs font-medium hover:bg-gray-100 disabled:opacity-60"
-                                            >
-                                                {selectedDraftId === draft.id && fetchingDetail ? 'Loading...' : 'View & Verify'}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+            <div className="bg-white border border-gray-300 overflow-hidden">
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                        <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full mb-3"></div>
+                        <p>Loading applications...</p>
                     </div>
-                    )}
+                ) : drafts.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500 font-medium">No pending requests found.</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-left border border-gray-300 text-sm">
+                        <thead className="bg-gray-100 text-gray-700 text-xs font-semibold border-b border-gray-300">
+                            <tr>
+                                <th className="px-4 py-2 border-r border-gray-300 font-semibold">Student Name</th>
+                                <th className="px-4 py-2 border-r border-gray-300 font-semibold">Father&apos;s Name</th>
+                                <th className="px-4 py-2 border-r border-gray-300 font-semibold">Exam / Rank</th>
+                                <th className="px-4 py-2 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {drafts.map(draft => (
+                                <tr key={draft.id}>
+                                    <td className="px-4 py-2 border-r border-gray-200 font-medium text-gray-900">{draft.name}</td>
+                                    <td className="px-4 py-2 border-r border-gray-200 text-gray-700">{draft.father_name}</td>
+                                    <td className="px-4 py-2 border-r border-gray-200 text-gray-700">
+                                        <span className="mr-1">{draft.entrance_exam}</span>
+                                        <span className="text-gray-500">(Rank {draft.exam_rank})</span>
+                                    </td>
+                                    <td className="px-4 py-2 text-right">
+                                        <button 
+                                            onClick={() => fetchDetail(draft.id)}
+                                            disabled={fetchingDetail}
+                                            className="px-4 py-1 border border-gray-500 bg-white text-gray-800 text-xs font-medium hover:bg-gray-100 disabled:opacity-60"
+                                        >
+                                            {selectedDraftId === draft.id && fetchingDetail ? 'Loading...' : 'View & Verify'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
+                )}
+            </div>
 
-                {/* Verification & Edit Modal */}
+            {/* Verification & Edit Modal */}
             {detail && (
                 <AdmissionModal
                     detail={{ ...detail, ...editForm }}
@@ -249,8 +242,6 @@ const AdmissionRequestsPage = () => {
                     setRejectionReason={setRejectionReason}
                 />
             )}
-            </main>
-            <Footer />
         </div>
     );
 };

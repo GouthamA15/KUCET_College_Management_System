@@ -335,20 +335,28 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   if (!activePanel) return null;
 
   return (
-    <div id="login-panels" className="mb-8">
-      <div className="bg-gradient-to-b from-[#0b3578] to-[#1a4a8f] py-8 lg:py-12 px-4">
-        <div className="w-full max-w-md mx-auto">
+    <div 
+      id="login-panels" 
+      className="fixed top-0 left-0 w-full h-full z-[100] flex items-center justify-center p-4 lg:p-8 overflow-y-auto bg-slate-900/60 backdrop-blur-sm animate-fadeIn"
+      style={{ position: 'fixed', zIndex: 1000 }}
+      onClick={(e) => {
+        if (e.target.id === 'login-panels') onClose();
+      }}
+    >
+      <div className="w-full max-w-md relative animate-slideUp">
+        <div className="bg-gradient-to-b from-[#0b3578] to-[#1a4a8f] rounded-2xl shadow-2xl overflow-hidden border border-white/10">
+          <div className="py-8 lg:py-10 px-6 md:px-8">
           
           {/* Student Login Panel */}
           <div 
             className={`transition-all duration-400 ease-out ${
               activePanel === 'student' 
                 ? 'opacity-100 transform translate-y-0' 
-                : 'opacity-0 transform -translate-y-4 absolute pointer-events-none'
+                : 'opacity-0 transform -translate-y-4 absolute inset-0 pointer-events-none'
             }`}
           >
             {activePanel === 'student' && (
-              <div className="bg-white rounded-md border shadow-sm p-6 md:p-8 animate-slideDown">
+              <div className="bg-white rounded-xl border shadow-sm p-6 md:p-8">
                 <div className="text-center mb-6 space-y-1">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 rounded mb-2">
                     <svg className="w-6 h-6 text-[#0b3578]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -546,7 +554,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
             }`}
           >
             {activePanel === 'clerk' && (
-              <div className="bg-white rounded-md border shadow-sm p-6 md:p-8 animate-slideDown">
+              <div className="bg-white rounded-xl border shadow-sm p-6 md:p-8">
                 <div className="text-center mb-6 space-y-1">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-green-50 rounded mb-2">
                     <svg className="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -610,7 +618,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <svg className="w-4 h-4 mr-2" viewBox="0 0 48 48" aria-hidden>
                       <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
                       <path fill="#FF3D00" d="M6.306 14.691c-1.413 3.453-2.306 7.243-2.306 11.309C4 28.061 5.484 31.402 7.727 34.091l5.657-5.657C12.015 26.68 11.231 25.158 11.231 24s.784-2.68 2.14-3.64l-5.657-5.657z" />
-                      <path fill="#4CAF50" d="M24 48c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 40.776 26.753 42 24 42c-5.223 0-9.641-3.343-11.303-7.918l-5.657 5.657C10.237 43.945 16.598 48 24 48z" />
+                      <path fill="#4CAF50" d="M24 48c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 40.776 26.753 42 24 42c-5.223 0-9.641-3.343-11.303-7.918l-5.657-5.657C10.237 43.945 16.598 48 24 48z" />
                       <path fill="#1976D2" d="M43.611 20.083L43.595 20L42 20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.022 36.372 44 30.636 44 24c0-1.341-.138-2.65-.389-3.917z" />
                     </svg>
                     Sign in with Google
@@ -756,11 +764,11 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
             className={`transition-all duration-400 ease-out ${
               activePanel === 'admin' 
                 ? 'opacity-100 transform translate-y-0' 
-                : 'opacity-0 transform -translate-y-4 absolute pointer-events-none'
+                : 'opacity-0 transform -translate-y-4 absolute inset-0 pointer-events-none'
             }`}
           >
             {activePanel === 'admin' && (
-              <div className="bg-white rounded-md border shadow-sm p-6 md:p-8 animate-slideDown">
+              <div className="bg-white rounded-xl border shadow-sm p-6 md:p-8">
                 <div className="text-center mb-6 space-y-1">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-red-50 rounded mb-2">
                     <svg className="w-6 h-6 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -899,14 +907,20 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
             )}
           </div>
 
+          </div>
         </div>
         
         {/* Close button */}
         <button 
           onClick={onClose}
-          className="block mx-auto mt-6 text-white/80 hover:text-white text-sm transition-colors duration-200"
+          className="block mx-auto mt-6 text-white/80 hover:text-white text-sm transition-colors duration-200 group"
         >
-          ✕ Close Panel
+          <span className="flex items-center gap-2">
+            <svg className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Close Panel
+          </span>
         </button>
       </div>
     </div>

@@ -1,4 +1,7 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { branchConfig } from '@/db/schema';
+import { eq, desc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -8,14 +11,14 @@ export async function GET(req) {
       return apiError('Unauthorized', 401);
     }
 
-    const config = await query(
-      'SELECT * FROM branch_config WHERE branch = ? ORDER BY id DESC LIMIT 1',
-      [user.branch]
-    );
+    const config = await db.query.branchConfig.findFirst({
+      where: eq(branchConfig.branch, user.branch),
+      orderBy: [desc(branchConfig.id)]
+    });
 
-    return apiResponse({ data: config[0] || { branch: user.branch, mid_max: 20, assignment_max: 10 } });
+    return apiResponse({ data: config || { branch: user.branch, mid_max: 20, assignment_max: 10 } });
   } catch (error) {
-    console.error('HOD Config API Error:', error);
+    logger.error('HOD Config API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -29,16 +32,23 @@ export async function PATCH(req) {
 
     const { mid_max, assignment_max, academic_year, semester } = await req.json();
 
-    await query(
-      `INSERT INTO branch_config (branch, academic_year, semester, mid_max, assignment_max)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE mid_max = VALUES(mid_max), assignment_max = VALUES(assignment_max)`,
-      [user.branch, academic_year, semester, mid_max, assignment_max]
-    );
+    await db.insert(branchConfig).values({
+      branch: user.branch,
+      academic_year: academic_year,
+      semester: parseInt(semester),
+      mid_max: parseInt(mid_max),
+      assignment_max: parseInt(assignment_max)
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        mid_max: sql`VALUES(mid_max)`,
+        assignment_max: sql`VALUES(assignment_max)`
+      }
+    });
 
     return apiResponse({ message: 'Configuration updated successfully' });
   } catch (error) {
-    console.error('HOD Config Update Error:', error);
+    logger.error('HOD Config Update Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

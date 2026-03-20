@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useClerk } from '@/context/ClerkContext';
-import Header from '@/components/Header';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import { useSearchParams } from 'next/navigation';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
 import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
@@ -20,14 +18,38 @@ import { validateRollNo } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
 
 
-export default function ScholarshipDashboard() {
+function ScholarshipDashboardContent() {
+  const searchParams = useSearchParams();
   const { clerkData: clerk, loading: isClerkLoading } = useClerk();
-  const { state, setField, resetStudent } = useScholarshipDashboard();
-  const { roll, searchMode, applicationNoInput, rollError, student, feeSummary, yearList, summariesByYear, expandedByYear } = state;
+  const { state, setField, resetStudent, setState } = useScholarshipDashboard();
+  const {
+    roll,
+    searchMode,
+    applicationNoInput,
+    nameInput,
+    nameResults,
+    rollError,
+    student,
+    feeSummary,
+    yearList,
+    summariesByYear,
+    expandedByYear,
+  } = state;
   const setRoll = (v) => setField('roll', v);
   const setSearchMode = (v) => setField('searchMode', v);
   const setApplicationNoInput = (v) => setField('applicationNoInput', v);
+  const setNameInput = (v) => setField('nameInput', v);
+  const setNameResults = (v) => setField('nameResults', v);
   const setRollError = (v) => setField('rollError', v);
+  const setExpandedByYear = (updater) => {
+    setState((prev) => ({
+      ...prev,
+      expandedByYear:
+        typeof updater === 'function'
+          ? updater(prev.expandedByYear || {})
+          : updater,
+    }));
+  };
   const MAX_ROLL = 10;
   const [loading, setLoading] = useState(false); // For fetching student data
   const [scholarshipProceedings, setScholarshipProceedings] = useState([]);
@@ -35,6 +57,28 @@ export default function ScholarshipDashboard() {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [view, setView] = useState('dashboard');
+
+  // URL Parameter Handling: switch view and auto-scroll
+  useEffect(() => {
+    const v = searchParams.get('view');
+    const scroll = searchParams.get('scroll');
+    
+    if (v === 'requests' || v === 'certificates') {
+      setView('certificates');
+      
+      if (scroll === '1') {
+        const timer = setTimeout(() => {
+          const el = document.getElementById('certificate-section');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [searchParams]);
+
+  const [metricsRefreshToken, setMetricsRefreshToken] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalYear, setModalYear] = useState('');
   // Modal form state
@@ -70,6 +114,45 @@ export default function ScholarshipDashboard() {
     fn(v);
   };
 
+  const handleClearDashboard = () => {
+    // Clear search inputs
+    setRoll('');
+    setApplicationNoInput('');
+    setNameInput('');
+    setNameResults([]);
+    setRollError('');
+    setSearchMode('roll');
+
+    // Clear loaded student/session data
+    localResetStudent();
+
+    // Reset modal-related local state
+    setModalOpen(false);
+    setModalYear('');
+    setSchAppNo('');
+    setSchProceedingNo('');
+    setSchAmount('');
+    setSchDate('');
+    setPayAmount('');
+    setPayRef('');
+    setPayDate('');
+    setSaving(false);
+    setAppEditing(false);
+    setThumbUpdateAvailable(false);
+    setThumbStatus('Pending');
+    setHardcopySubmitted(false);
+
+    // Scroll back to the top of the dashboard for clarity
+    if (typeof window !== 'undefined') {
+      const el = document.getElementById('scholarship-dashboard-top');
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  };
+
   
 
 
@@ -97,8 +180,52 @@ export default function ScholarshipDashboard() {
     setStudentPayments([]);
   };
 
+  const handleSelectStudentFromName = async (rollNo) => {
+    if (!rollNo) return;
+    setRoll(String(rollNo));
+    setSearchMode('roll');
+    setNameResults([]);
+    // Reuse existing roll search flow
+    try {
+      await fetchStudent();
+    } catch {
+      // fetchStudent already reports errors via toast
+    }
+  };
+
   const fetchStudent = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+
+    // Name search: only fetch list of candidates; selection will refetch by roll
+    if (searchMode === 'name') {
+      const term = String(nameInput || '').trim();
+      if (term.length < 2) {
+        toast.error('Enter at least 2 characters for name search');
+        return;
+      }
+      setLoading(true);
+      setNameResults([]);
+      const id = toast.loading('Searching students by name...');
+      try {
+        const url = `/api/clerk/scholarship/search-by-name?name=${encodeURIComponent(term)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || 'Failed to search students');
+        const list = Array.isArray(data?.students) ? data.students : [];
+        if (list.length === 0) {
+          toast.error('No students found for given name', { id });
+        } else {
+          toast.success(`Found ${list.length} student(s)`, { id });
+        }
+        setNameResults(list);
+      } catch (err) {
+        toast.error(err.message || 'Failed to search students', { id });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (searchMode === 'roll') {
       if (!roll) return;
       // Enforce same client-side constraints as LoginPanel / Admission clerk
@@ -406,132 +533,166 @@ export default function ScholarshipDashboard() {
 
   if (isClerkLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <p className="text-gray-600">Loading scholarship dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <Header />
-      <Navbar role={'clerkScholarship'} onLogout={handleLogout} />
-      <main className="flex-1">
-        <div className="max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
-          <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4">Scholarship Clerk Dashboard</h1>
+    <div className="max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
+      <h1
+        id="scholarship-dashboard-top"
+        className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4"
+      >
+        Scholarship Clerk Dashboard
+      </h1>
 
-          {view === 'certificates' ? (
-            <div>
-              <button
-                onClick={() => setView('dashboard')}
-                className="text-sm text-indigo-600 mb-3"
-              >
-                 Back to Dashboard
-              </button>
-              <CertificateDashboard clerkType="scholarship" />
-            </div>
-          ) : (
-            <>
-              {/* Metrics section */}
-              <ScholarshipMetricsCards />
-
-              {/* Primary search action */}
-              <ScholarshipSearchCard
-                searchMode={searchMode}
-                setSearchMode={setSearchMode}
-                roll={roll}
-                setRoll={setRoll}
-                applicationNoInput={applicationNoInput}
-                setApplicationNoInput={setApplicationNoInput}
-                rollError={rollError}
-                setRollError={setRollError}
-                MAX_ROLL={MAX_ROLL}
-                loading={loading}
-                onSubmit={fetchStudent}
-              />
-
-              {/* Student details & year-wise records */}
-              {student && (
-                <section className="space-y-6 mt-4">
-                  <StudentInfoCard
-                    student={student}
-                    onImageClick={(src) => {
-                      setImagePreviewSrc(src);
-                      setImagePreviewOpen(true);
-                    }}
-                  />
-
-                  <YearRecordsList
-                    yearList={yearList}
-                    summariesByYear={summariesByYear}
-                    expandedByYear={expandedByYear}
-                    onToggleExpand={(yy) =>
-                      setExpandedByYear((prev) => ({ ...prev, [yy]: !prev[yy] }))
-                    }
-                    onOpenModal={(yy) => openAddModal(yy)}
-                    computeRecordState={computeRecordState}
-                    feeSummary={feeSummary}
-                    student={student}
-                    toDmy={toDmy}
-                  />
-
-                  <AddEditRecordModal
-                    open={modalOpen}
-                    year={modalYear}
-                    student={student}
-                    summary={summariesByYear[modalYear] || null}
-                    formState={{
-                      schAppNo,
-                      schProceedingNo,
-                      schAmount,
-                      schDate,
-                      payAmount,
-                      payRef,
-                      payDate,
-                      appEditing,
-                      thumbUpdateAvailable,
-                      thumbStatus,
-                      hardcopySubmitted,
-                    }}
-                    setFormState={(k, v) => {
-                      const setters = {
-                        schAppNo: setSchAppNo,
-                        schProceedingNo: setSchProceedingNo,
-                        schAmount: setSchAmount,
-                        schDate: setSchDate,
-                        payAmount: setPayAmount,
-                        payRef: setPayRef,
-                        payDate: setPayDate,
-                        appEditing: setAppEditing,
-                        thumbUpdateAvailable: setThumbUpdateAvailable,
-                        thumbStatus: setThumbStatus,
-                        hardcopySubmitted: setHardcopySubmitted,
-                      };
-                      (setters[k] || (() => {}))(v);
-                    }}
-                    saving={saving}
-                    onSave={handleSaveRecord}
-                    onClose={() => setModalOpen(false)}
-                    onDeletePayment={deletePayment}
-                    onDeleteScholarship={deleteScholarship}
-                    toDmy={toDmy}
-                  />
-                </section>
-              )}
-
-              {/* Scholarship submission window management */}
-              <ScholarshipWindowCard />
-
-              {/* Secondary tools */}
-              <ScholarshipToolsSection
-                onOpenCertificates={() => setView('certificates')}
-              />
-            </>
-          )}
+      {view === 'certificates' ? (
+        <div>
+          <button
+            onClick={() => setView('dashboard')}
+            className="text-sm text-indigo-600 mb-3"
+          >
+            ← Back to Dashboard
+          </button>
+          <CertificateDashboard clerkType="scholarship" />
         </div>
-      </main>
-      <Footer />
+      ) : (
+        <>
+          {/* Metrics section */}
+          <ScholarshipMetricsCards refreshToken={metricsRefreshToken} />
+
+          {/* Primary search action */}
+          <ScholarshipSearchCard
+            searchMode={searchMode}
+            setSearchMode={setSearchMode}
+            roll={roll}
+            setRoll={setRoll}
+            applicationNoInput={applicationNoInput}
+            setApplicationNoInput={setApplicationNoInput}
+            nameInput={nameInput}
+            setNameInput={setNameInput}
+            rollError={rollError}
+            setRollError={setRollError}
+            MAX_ROLL={MAX_ROLL}
+            loading={loading}
+            onSubmit={fetchStudent}
+            nameResults={nameResults}
+            onSelectStudentFromName={handleSelectStudentFromName}
+          />
+
+          {student && (
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={handleClearDashboard}
+                className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          {/* Student details & year-wise records */}
+          {student && (
+            <section className="space-y-6 mt-4">
+              <StudentInfoCard
+                student={student}
+                onImageClick={(src) => {
+                  setImagePreviewSrc(src);
+                  setImagePreviewOpen(true);
+                }}
+              />
+
+              <YearRecordsList
+                yearList={yearList}
+                summariesByYear={summariesByYear}
+                expandedByYear={expandedByYear}
+                onToggleExpand={(yy) =>
+                  setExpandedByYear((prev) => ({ ...prev, [yy]: !prev[yy] }))
+                }
+                onOpenModal={(yy) => openAddModal(yy)}
+                computeRecordState={computeRecordState}
+                feeSummary={feeSummary}
+                student={student}
+                toDmy={toDmy}
+              />
+
+              <AddEditRecordModal
+                open={modalOpen}
+                year={modalYear}
+                student={student}
+                summary={summariesByYear[modalYear] || null}
+                formState={{
+                  schAppNo,
+                  schProceedingNo,
+                  schAmount,
+                  schDate,
+                  payAmount,
+                  payRef,
+                  payDate,
+                  appEditing,
+                  thumbUpdateAvailable,
+                  thumbStatus,
+                  hardcopySubmitted,
+                }}
+                setFormState={(k, v) => {
+                  const setters = {
+                    schAppNo: setSchAppNo,
+                    schProceedingNo: setSchProceedingNo,
+                    schAmount: setSchAmount,
+                    schDate: setSchDate,
+                    payAmount: setPayAmount,
+                    payRef: setPayRef,
+                    payDate: setPayDate,
+                    appEditing: setAppEditing,
+                    thumbUpdateAvailable: setThumbUpdateAvailable,
+                    thumbStatus: setThumbStatus,
+                    hardcopySubmitted: setHardcopySubmitted,
+                  };
+                  (setters[k] || (() => {}))(v);
+                }}
+                saving={saving}
+                onSave={handleSaveRecord}
+                onClose={() => setModalOpen(false)}
+                onDeletePayment={deletePayment}
+                onDeleteScholarship={deleteScholarship}
+                toDmy={toDmy}
+              />
+            </section>
+          )}
+
+          {/* Scholarship submission window management */}
+          <ScholarshipWindowCard
+            onWindowUpdated={() => {
+              setMetricsRefreshToken((t) => t + 1);
+              if (typeof window !== 'undefined') {
+                const el = document.getElementById('scholarship-dashboard-top');
+                if (el && typeof el.scrollIntoView === 'function') {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }
+            }}
+          />
+
+          {/* Secondary tools */}
+          <ScholarshipToolsSection
+            onOpenCertificates={() => setView('certificates')}
+          />
+        </>
+      )}
       <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />
     </div>
+  );
+}
+
+export default function ScholarshipDashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] p-6 text-slate-500 font-bold uppercase tracking-widest text-xs">Loading Scholarship Dashboard...</div>}>
+      <ScholarshipDashboardContent />
+    </Suspense>
   );
 }

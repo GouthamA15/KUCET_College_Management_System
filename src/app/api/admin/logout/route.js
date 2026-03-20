@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { apiResponse, apiError } from '@/lib/api-utils';
 
 export async function POST() {
@@ -22,7 +23,7 @@ export async function POST() {
 
     return response;
   } catch (error) {
-    console.error('Admin Logout error:', error);
+    logger.error('Admin Logout error:', error);
     return apiError('An internal server error occurred.', 500);
   }
 }

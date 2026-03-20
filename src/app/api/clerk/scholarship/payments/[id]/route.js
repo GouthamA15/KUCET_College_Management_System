@@ -1,4 +1,7 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { studentFeePayments } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function DELETE(req, ctx) {
@@ -6,16 +9,15 @@ export async function DELETE(req, ctx) {
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
-    const idRaw = params?.id;
-    const id = Number(idRaw);
+    const params = await ctx.params;
+    const id = Number(params?.id);
     if (!id || !Number.isInteger(id) || id <= 0) return apiError('Invalid id', 400);
 
-    const delSql = 'DELETE FROM student_fee_payments WHERE id = ?';
-    await query(delSql, [id]);
+    await db.delete(studentFeePayments).where(eq(studentFeePayments.id, id));
+    
     return apiResponse({ success: true });
   } catch (error) {
-    console.error('Error deleting payment:', error);
+    logger.error('Error deleting payment:', error);
     return apiError('Internal Server Error', 500);
   }
 }

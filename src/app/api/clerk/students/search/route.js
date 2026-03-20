@@ -1,12 +1,17 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { 
+  students as studentsTable, 
+  studentPersonalDetails, 
+  studentAcademicBackground 
+} from '@/db/schema';
+import { eq, and, like } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { decrypt } from '@/lib/encryption';
 
 export async function GET(req) {
   const user = await getAuthUser('clerk');
-
-  if (!user) {
-    return apiError('Unauthorized', 401);
-  }
+  if (!user) return apiError('Unauthorized', 401);
 
   try {
     const url = req.nextUrl;
@@ -18,43 +23,44 @@ export async function GET(req) {
       return apiError('Provide name or admission_no or roll_no', 400);
     }
 
-    let sql = `
-      SELECT
-        s.id,
-        s.roll_no,
-        s.admission_no,
-        s.name,
-        s.email,
-        s.mobile,
-        pd.father_name,
-        pd.mother_name,
-        pd.aadhaar_no,
-        ab.ssc_marks,
-        ab.inter_marks
-      FROM students s
-      LEFT JOIN student_personal_details pd ON s.id = pd.student_id
-      LEFT JOIN student_academic_background ab ON s.id = ab.student_id
-      WHERE
-    `;
-    const params = [];
+    const query = db.select({
+      id: studentsTable.id,
+      roll_no: studentsTable.roll_no,
+      admission_no: studentsTable.admission_no,
+      name: studentsTable.name,
+      email: studentsTable.email,
+      mobile: studentsTable.mobile,
+      father_name: studentPersonalDetails.father_name,
+      mother_name: studentPersonalDetails.mother_name,
+      aadhaar_no: studentPersonalDetails.aadhaar_no,
+      ssc_marks: studentAcademicBackground.ssc_marks,
+      inter_marks: studentAcademicBackground.inter_marks
+    })
+    .from(studentsTable)
+    .leftJoin(studentPersonalDetails, eq(studentsTable.id, studentPersonalDetails.student_id))
+    .leftJoin(studentAcademicBackground, eq(studentsTable.id, studentAcademicBackground.student_id));
 
+    let condition;
     if (roll_no) {
-      sql += 's.roll_no = ?';
-      params.push(roll_no);
+      condition = eq(studentsTable.roll_no, roll_no);
     } else if (admission_no) {
-      sql += 's.admission_no = ?';
-      params.push(admission_no);
+      condition = eq(studentsTable.admission_no, admission_no);
     } else {
-      sql += 's.name LIKE ?';
-      params.push(`%${name}%`);
+      condition = like(studentsTable.name, `%${name}%`);
     }
 
-    sql += ' LIMIT 100';
+    const rows = await query.where(condition).limit(100);
 
-    const rows = await query(sql, params);
-    return apiResponse({ students: rows });
+    // Decrypt sensitive fields
+    const decryptedRows = rows.map(row => ({
+      ...row,
+      mobile: decrypt(row.mobile),
+      aadhaar_no: decrypt(row.aadhaar_no)
+    }));
+
+    return apiResponse({ students: decryptedRows });
   } catch (err) {
-    console.error('Search students error:', err);
+    logger.error(err, 'Search students error');
     return apiError('Server error', 500, err.message);
   }
 }

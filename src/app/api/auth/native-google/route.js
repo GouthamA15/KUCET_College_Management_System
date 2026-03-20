@@ -1,5 +1,8 @@
+import logger from '@/lib/logger';
 import { OAuth2Client } from 'google-auth-library';
-import { query } from '@/lib/db';
+import { db } from '@/db';
+import { clerks } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { SignJWT } from 'jose';
 import { apiResponse, apiError } from '@/lib/api-utils';
 
@@ -26,13 +29,13 @@ export async function POST(request) {
     }
 
     // 2. Check if clerk exists in database
-    const results = await query('SELECT * FROM clerks WHERE email = ?', [email]);
+    const clerk = await db.query.clerks.findFirst({
+      where: eq(clerks.email, email)
+    });
 
-    if (results.length === 0) {
+    if (!clerk) {
       return apiError('No clerk found with this email', 404);
     }
-
-    const clerk = results[0];
 
     // 3. Block deactivated clerks
     if (!clerk.is_active) {
@@ -92,7 +95,7 @@ export async function POST(request) {
 
     return response;
   } catch (error) {
-    console.error('Native Google Login Error:', error);
+    logger.error('Native Google Login Error:', error);
     return apiError('Native authentication failed', 500);
   }
 }

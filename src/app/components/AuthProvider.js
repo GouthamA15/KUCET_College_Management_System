@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { SessionProvider, useSession } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
-import { getDashboardPathByRole } from '@/lib/auth-utils';
+import { getDashboardPathByRole } from '@/lib/path-utils';
 
 function SessionMonitor({ children }) {
   const { data: session, status } = useSession();
@@ -28,7 +28,7 @@ function SessionMonitor({ children }) {
 
 export default function AuthProvider({ children }) {
   return (
-    <SessionProvider>
+    <SessionProvider session={null} refetchInterval={0} refetchOnWindowFocus={false}>
       <SessionMonitor>{children}</SessionMonitor>
     </SessionProvider>
   );

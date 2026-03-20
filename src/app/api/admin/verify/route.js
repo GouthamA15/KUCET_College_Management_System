@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET() {
@@ -11,7 +12,7 @@ export async function GET() {
     return apiResponse({ valid: true, admin: user });
 
   } catch (error) {
-    console.error('Admin token verification error:', error);
+    logger.error('Admin token verification error:', error);
     return apiError('Invalid token', 401);
   }
 }

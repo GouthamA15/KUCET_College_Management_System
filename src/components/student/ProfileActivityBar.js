@@ -1,8 +1,9 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import AttendanceVerificationActivity from './AttendanceVerificationActivity';
+import { isCapacitor, downloadToDevice } from '@/lib/capacitor-utils';
 
 export default function ProfileActivityBar({ activity, student }) {
   const {
@@ -42,40 +43,40 @@ export default function ProfileActivityBar({ activity, student }) {
     }
   }, [reqId, reqStatus, dismissCount, incrementVisit, isProd]);
 
-  // Fetch active attendance sessions for this student (via academic info + active-sessions API)
+  const fetchSessions = useCallback(async () => {
+    if (!student) return;
+    try {
+      const res = await fetch('/api/student/academic-info');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
+      const subjects = json.data || [];
+      const assignmentIds = subjects.map((s) => s.assignment_id).filter(Boolean);
+      if (!assignmentIds.length) return;
+
+      const res2 = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds.join(',')}`);
+      const json2 = await res2.json();
+      if (!res2.ok) throw new Error(json2.error || 'Failed to fetch active attendance sessions');
+
+      setAttendanceSessions(json2.data || []);
+    } catch (error) {
+      console.error('ProfileActivityBar Session Fetch Error:', error);
+    }
+  }, [student]);
+
   useEffect(() => {
-    let cancelled = false;
+    fetchSessions();
+  }, [fetchSessions]);
 
-    const fetchSessions = async () => {
-      if (!student) return;
-      try {
-        const res = await fetch('/api/student/academic-info');
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
-        const subjects = json.data || [];
-        const assignmentIds = subjects.map((s) => s.assignment_id).filter(Boolean);
-        if (!assignmentIds.length) return;
-
-        const res2 = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds.join(',')}`);
-        const json2 = await res2.json();
-        if (!res2.ok) throw new Error(json2.error || 'Failed to fetch active attendance sessions');
-
-        if (!cancelled) {
-          setAttendanceSessions(json2.data || []);
-        }
-      } catch (error) {
-        if (!cancelled && error?.message) {
-          toast.error(error.message);
-        }
+  useEffect(() => {
+    const channel = new BroadcastChannel('kucet_sse_sync');
+    channel.onmessage = (event) => {
+      const data = event.data;
+      if (data && (data.type === 'SESSION_STARTED' || data.type === 'SESSION_ENDED')) {
+        fetchSessions();
       }
     };
-
-    fetchSessions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [student]);
+    return () => channel.close();
+  }, [fetchSessions]);
 
   const hasAttendanceSessions = attendanceSessions.length > 0;
 
@@ -98,16 +99,24 @@ export default function ProfileActivityBar({ activity, student }) {
       const res = await fetch(`/api/student/requests/download/${id}`, { method: 'GET', credentials: 'same-origin' });
       if (!res.ok) return;
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${type}-${id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      
+      const filename = `${type}-${id}.pdf`;
+
+      if (isCapacitor()) {
+        await downloadToDevice(blob, filename, 'application/pdf');
+        toast.success('Certificate downloaded successfully!');
+      } else {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
     } catch (e) {
-      // ignore
+      console.error('Download error:', e);
     }
   };
 
@@ -242,7 +251,7 @@ export default function ProfileActivityBar({ activity, student }) {
               </div>
               <div className="flex items-center">
                 <Link
-                  href="https://telanganaepass.cgg.gov.in/"
+                  href="https://telanganaepass.cgg.gov.in//epassonlinelinks.do"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm font-semibold text-blue-700 hover:underline"

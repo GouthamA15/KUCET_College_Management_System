@@ -15,11 +15,14 @@ try {
   // Silent fail
 }
 
+// Fail-fast environment validation
+import './env.js';
+
 let pool;
 
 export function getDb() {
   if (!pool) {
-    pool = mysql.createPool({
+    const poolConfig = {
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
@@ -34,7 +37,18 @@ export function getDb() {
       keepAliveInitialDelay: 10000,
       idleTimeout: 60000, // Close idle connections after 60 seconds
       maxIdle: 25, // Max idle connections, the same as the connection limit
-    });
+    };
+
+    // TiDB Cloud and many production databases require SSL
+    if (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) {
+      poolConfig.ssl = {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true,
+      };
+      console.log('[DB] SSL/TLS Encryption enabled for database connection.');
+    }
+
+    pool = mysql.createPool(poolConfig);
   }
   return pool;
 }
@@ -45,9 +59,13 @@ export function getDb() {
 export async function query(sql, params, retries = 2) {
   const db = getDb();
   
+  // PERMANENT FIX: Ensure no 'undefined' values are passed as bind parameters.
+  // mysql2 throws an error if a parameter is undefined; we convert them to null.
+  const sanitizedParams = params ? params.map(p => p === undefined ? null : p) : params;
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const [rows] = await db.execute(sql, params);
+      const [rows] = await db.execute(sql, sanitizedParams);
       return rows;
     } catch (error) {
       const isConnectionError = error.code === 'ECONNRESET' || error.code === 'PROTOCOL_CONNECTION_LOST';

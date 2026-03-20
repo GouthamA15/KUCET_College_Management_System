@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
-export default function ScholarshipMetricsCards() {
+export default function ScholarshipMetricsCards({ refreshToken = 0 }) {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,7 +27,7 @@ export default function ScholarshipMetricsCards() {
 
     fetchMetrics();
     return () => { isMounted = false; };
-  }, []);
+  }, [refreshToken]);
 
   const items = [
     {

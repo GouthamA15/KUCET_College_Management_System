@@ -1,3 +1,4 @@
+import logger from '@/lib/logger';
 import { apiResponse, apiError } from "@/lib/api-utils";
 import { v2 as cloudinary } from "cloudinary";
 import { sendInstitutionalEmail } from "@/lib/email";
@@ -33,7 +34,7 @@ export async function GET(request) {
     const limitGB = limitBytes / (1024 * 1024 * 1024);
     const percent = (usageBytes / limitBytes) * 100;
 
-    console.log(`[STORAGE_CHECK] Current Usage: ${usageGB.toFixed(2)} GB (${percent.toFixed(1)}%)`);
+    logger.info(`[STORAGE_CHECK] Current Usage: ${usageGB.toFixed(2)} GB (${percent.toFixed(1)}%)`);
 
     // Trigger Alert if threshold reached (20GB)
     if (usageGB >= 0) {
@@ -76,7 +77,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error("[STORAGE_CHECK_ERROR]", error);
+    logger.error("[STORAGE_CHECK_ERROR]", error);
     return apiError("Internal Server Error", 500);
   }
 }

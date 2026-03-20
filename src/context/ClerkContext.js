@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import RealtimeListener from '@/components/RealtimeListener';
 
-const ClerkContext = createContext();
+export const ClerkContext = createContext();
 
 export function ClerkProvider({ children }) {
   // ... rest of state
@@ -15,6 +15,7 @@ export function ClerkProvider({ children }) {
   const [facultyInterests, setFacultyInterests] = useState([]);
   const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
   const [pendingProfileRequests, setPendingProfileRequests] = useState([]);
+  const [pendingCertificateRequests, setPendingCertificateRequests] = useState([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [hodBranchData, setHodBranchData] = useState(null);
   const [isLoadingHOD, setIsLoadingHOD] = useState(false);
@@ -56,7 +57,7 @@ export function ClerkProvider({ children }) {
       ]);
       const asgnJson = await asgnRes.json();
       const intJson = await intRes.json();
-      
+
       if (asgnRes.ok) setFacultyAssignments(asgnJson.data || []);
       if (intRes.ok) setFacultyInterests(intJson.data || []);
     } catch (e) {
@@ -81,7 +82,7 @@ export function ClerkProvider({ children }) {
       const ttJson = await ttRes.json();
       const subjectsJson = await subjectsRes.json();
       const assignmentsJson = await assignmentsRes.json();
-      
+
       if (configRes.ok && facultyRes.ok && ttRes.ok && subjectsRes.ok && assignmentsRes.ok) {
         setHodBranchData({
           config: configJson.data,
@@ -113,6 +114,33 @@ export function ClerkProvider({ children }) {
     }
   }, []);
 
+  const fetchPendingCertificateRequests = useCallback(async (role) => {
+    if (!role) return;
+    setIsLoadingRequests(true);
+    try {
+      const res = await fetch(`/api/clerk/requests?clerkType=${role}`);
+      const json = await res.json();
+      if (res.ok) {
+        setPendingCertificateRequests(json.records || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch pending certificate requests', e);
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  }, []);
+
+  const refreshAllRequests = useCallback(async (role) => {
+    const promises = [];
+    if (role === 'admission') {
+      promises.push(fetchPendingProfileRequests());
+      promises.push(fetchPendingCertificateRequests('admission'));
+    } else if (role === 'scholarship') {
+      promises.push(fetchPendingCertificateRequests('scholarship'));
+    }
+    await Promise.all(promises);
+  }, [fetchPendingProfileRequests, fetchPendingCertificateRequests]);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -126,12 +154,16 @@ export function ClerkProvider({ children }) {
       }
       if (clerk?.role === 'admission') {
         promises.push(fetchPendingProfileRequests());
+        promises.push(fetchPendingCertificateRequests('admission'));
+      }
+      if (clerk?.role === 'scholarship') {
+        promises.push(fetchPendingCertificateRequests('scholarship'));
       }
       await Promise.all(promises);
       setLoading(false);
     };
     init();
-  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests, fetchHODData]);
+  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests, fetchPendingCertificateRequests, fetchHODData]);
 
   const handleRealtimeUpdate = useCallback((data) => {
     if (clerkData?.is_hod && data.payload.branch === clerkData.branch) {
@@ -155,8 +187,11 @@ export function ClerkProvider({ children }) {
       isLoadingFaculty,
       refreshFaculty: fetchFacultyData,
       pendingProfileRequests,
+      pendingCertificateRequests,
       isLoadingRequests,
       refreshProfileRequests: fetchPendingProfileRequests,
+      refreshCertificateRequests: fetchPendingCertificateRequests,
+      refreshAllRequests,
       hodBranchData,
       isLoadingHOD,
       refreshHOD: fetchHODData
@@ -165,7 +200,7 @@ export function ClerkProvider({ children }) {
       {children}
     </ClerkContext.Provider>
   );
-}
+  }
 
 export function useClerk() {
   const context = useContext(ClerkContext);

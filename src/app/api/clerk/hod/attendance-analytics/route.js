@@ -1,4 +1,7 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { students, studentAttendance, facultySubjectAssignments, semesters } from '@/db/schema';
+import { eq, and, sql, desc, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -9,45 +12,52 @@ export async function GET(req) {
     }
 
     const { searchParams } = new URL(req.url);
-    const semester = searchParams.get('semester') || 6;
+    const semester = parseInt(searchParams.get('semester') || '6', 10);
 
     // Resolve system year
-    const semRows = await query('SELECT academic_year FROM semesters ORDER BY id DESC LIMIT 1');
-    const systemYear = semRows[0]?.academic_year || '2025-26';
+    const latestSem = await db.query.semesters.findFirst({
+        orderBy: desc(semesters.id)
+    });
+    const systemYear = latestSem?.academic_year || '2025-26';
 
     /**
      * This query calculates:
-     * 1. Total sessions conducted for each subject in this branch/sem
+     * 1. Total sessions conducted for each student in this branch/sem
      * 2. Total sessions attended by each student
      * 3. Overall percentage across all subjects
      */
-    const sql = `
-      SELECT 
-        s.roll_no,
-        s.name,
-        COUNT(sa.id) as total_present,
-        (
+    
+    // Subquery for total sessions recorded for the specific student in branch/sem
+    // In Drizzle we can use a raw SQL snippet for complex aggregations if needed
+    
+    const risks = await db.select({
+        roll_no: students.roll_no,
+        name: students.name,
+        total_present: sql`COUNT(${studentAttendance.id})`,
+        total_sessions_recorded: sql`(
           SELECT COUNT(*) 
           FROM student_attendance sa2 
           JOIN faculty_subject_assignments fsa2 ON sa2.assignment_id = fsa2.id
-          WHERE sa2.student_id = s.id 
-          AND fsa2.course_semester = ? 
-          AND fsa2.branch = ?
-        ) as total_sessions_recorded,
-        ROUND((COUNT(CASE WHEN sa.status = 'PRESENT' THEN 1 END) / COUNT(sa.id)) * 100, 1) as percentage
-      FROM students s
-      JOIN student_attendance sa ON s.id = sa.student_id
-      JOIN faculty_subject_assignments fsa ON sa.assignment_id = fsa.id
-      WHERE fsa.branch = ? AND fsa.course_semester = ? 
-      AND (fsa.academic_year LIKE ? OR fsa.academic_year = '2025-26')
-      GROUP BY s.id, s.roll_no, s.name
-      HAVING percentage < 75
-      ORDER BY percentage ASC
-    `;
-
-    const risks = await query(sql, [
-      semester, user.branch, user.branch, semester, `%${systemYear.substring(0, 4)}%`
-    ]);
+          WHERE sa2.student_id = ${students.id} 
+          AND fsa2.course_semester = ${semester} 
+          AND fsa2.branch = ${user.branch}
+        )`,
+        percentage: sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' THEN 1 END) / COUNT(${studentAttendance.id})) * 100, 1)`
+    })
+    .from(students)
+    .join(studentAttendance, eq(students.id, studentAttendance.student_id))
+    .join(facultySubjectAssignments, eq(studentAttendance.assignment_id, facultySubjectAssignments.id))
+    .where(and(
+        eq(facultySubjectAssignments.branch, user.branch),
+        eq(facultySubjectAssignments.course_semester, semester),
+        or(
+            like(facultySubjectAssignments.academic_year, `%${systemYear.substring(0, 4)}%`),
+            eq(facultySubjectAssignments.academic_year, '2025-26')
+        )
+    ))
+    .groupBy(students.id, students.roll_no, students.name)
+    .having(({ percentage }) => sql`${percentage} < 75`)
+    .orderBy(sql`percentage ASC`);
 
     return apiResponse({ 
       data: risks,
@@ -56,7 +66,7 @@ export async function GET(req) {
       semester 
     });
   } catch (error) {
-    console.error('Attendance Analytics API Error:', error);
+    logger.error('Attendance Analytics API Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

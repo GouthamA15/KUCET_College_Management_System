@@ -1,107 +1,88 @@
-import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import { getAuthUser, apiError } from '@/lib/api-utils';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { academicCalendar, semesters } from '@/db/schema';
+import { eq, and, sql, between } from 'drizzle-orm';
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(request) {
   try {
     const user = await getAuthUser('clerk');
-    if (!user) {
-      return apiError('Unauthorized', 401);
-    }
+    if (!user) return apiError('Unauthorized', 401);
     
-    const {
-      academic_year,
-      semester,
-      start_date,
-      end_date,
-      weekend_days
-    } = await request.json();
+    const body = await request.json();
+    const { academic_year, semester, start_date, end_date, weekend_days } = body;
 
     if (!academic_year || !semester || !start_date || !end_date || !Array.isArray(weekend_days)) {
-      return NextResponse.json({ error: 'Missing or invalid required fields' }, { status: 400 });
+      return apiError('Missing or invalid required fields', 400);
     }
 
     const startDate = new Date(start_date);
     const endDate = new Date(end_date);
+    if (startDate > endDate) return apiError('Start date cannot be after end date.', 400);
 
-    if (startDate > endDate) {
-      return NextResponse.json({ error: 'Start date cannot be after end date.' }, { status: 400 });
-    }
+    const semNum = parseInt(semester);
 
-    const db = await getDb();
-    const connection = await db.getConnection(); // Use a connection for transactions
-    await connection.beginTransaction();
-
-    try {
+    await db.transaction(async (tx) => {
       // 0. Upsert into the semesters table
-      const upsertSemesterQuery = `
-        INSERT INTO semesters (academic_year, semester, start_date, end_date, weekend_pattern, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-        start_date = VALUES(start_date),
-        end_date = VALUES(end_date),
-        weekend_pattern = VALUES(weekend_pattern),
-        updated_at = NOW()
-      `;
-      await connection.query(upsertSemesterQuery, [
+      await tx.insert(semesters).values({
         academic_year,
-        semester,
+        semester: semNum,
         start_date,
         end_date,
-        JSON.stringify(weekend_days)
-      ]);
+        weekend_pattern: weekend_days,
+        created_at: new Date(),
+        updated_at: new Date()
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          start_date: sql`VALUES(start_date)`,
+          end_date: sql`VALUES(end_date)`,
+          weekend_pattern: sql`VALUES(weekend_pattern)`,
+          updated_at: sql`NOW()`
+        }
+      });
 
       // 1. Generate all days as WORKING days
       const dates = [];
-      let currentDate = new Date(startDate.toISOString().slice(0,10)); // Use UTC date
-
+      let currentDate = new Date(startDate.toISOString().slice(0,10));
       while (currentDate <= endDate) {
         dates.push(currentDate.toISOString().slice(0, 10));
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
       if (dates.length > 0) {
-        const insertQuery = `
-          INSERT IGNORE INTO academic_calendar (date, academic_year, semester, day_type)
-          VALUES ?
-        `;
-        const values = dates.map(date => [date, academic_year, semester, 'WORKING']);
-        await connection.query(insertQuery, [values]);
+        const values = dates.map(date => ({
+          date,
+          academic_year,
+          semester: semNum,
+          day_type: 'WORKING'
+        }));
+        // Use insertIgnore or manual batch insert since Drizzle doesn't have insertIgnore helper directly
+        await tx.insert(academicCalendar).values(values).onDuplicateKeyUpdate({ set: { id: sql`id` } });
       }
       
       // 2. Update weekend days to HOLIDAY
       if (weekend_days.length > 0) {
-        const dayMap = { 'SUNDAY': 0, 'MONDAY': 1, 'TUESDAY': 2, 'WEDNESDAY': 3, 'THURSDAY': 4, 'FRIDAY': 5, 'SATURDAY': 6 };
-        const weekendDayIndexes = weekend_days.map(day => dayMap[day.toUpperCase()]).filter(d => d !== undefined);
+        const dayMap = { 'SUNDAY': 1, 'MONDAY': 2, 'TUESDAY': 3, 'WEDNESDAY': 4, 'THURSDAY': 5, 'FRIDAY': 6, 'SATURDAY': 7 };
+        const mysqlDayIndexes = weekend_days.map(day => dayMap[day.toUpperCase()]).filter(d => d);
 
-        if (weekendDayIndexes.length > 0) {
-          const updateQuery = `
-            UPDATE academic_calendar
-            SET day_type = 'HOLIDAY', holiday_name = 'Weekend'
-            WHERE academic_year = ? 
-              AND semester = ?
-              AND date BETWEEN ? AND ?
-              AND DAYOFWEEK(date) IN (?)
-          `;
-          // DAYOFWEEK() in MySQL: 1=Sunday, 2=Monday..., so we need to add 1 to our indexes
-          const mysqlDayIndexes = weekendDayIndexes.map(d => d + 1);
-          await connection.query(updateQuery, [academic_year, semester, start_date, end_date, mysqlDayIndexes]);
+        if (mysqlDayIndexes.length > 0) {
+          await tx.update(academicCalendar)
+            .set({ day_type: 'HOLIDAY', holiday_name: 'Weekend' })
+            .where(and(
+              eq(academicCalendar.academic_year, academic_year),
+              eq(academicCalendar.semester, semNum),
+              between(academicCalendar.date, start_date, end_date),
+              sql`DAYOFWEEK(${academicCalendar.date}) IN (${sql.join(mysqlDayIndexes, sql`, `)})`
+            ));
         }
       }
+    });
 
-      await connection.commit();
-      return NextResponse.json({ message: 'Calendar generated successfully' });
-
-    } catch (error) {
-      await connection.rollback();
-      console.error('API_GENERATE_CALENDAR_ERROR:', error);
-      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-    } finally {
-      connection.release();
-    }
+    return apiResponse({ message: 'Calendar generated successfully' });
 
   } catch (error) {
-    console.error('API_GENERATE_CALENDAR_ERROR:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    logger.error('API_GENERATE_CALENDAR_ERROR:', error);
+    return apiError('Internal Server Error', 500);
   }
 }

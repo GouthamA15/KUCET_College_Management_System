@@ -1,4 +1,7 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { clerks } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 
@@ -12,7 +15,12 @@ export async function POST(req) {
 
     const { oldPassword, newPassword } = await req.json();
 
-    const [clerk] = await query('SELECT password_hash FROM clerks WHERE email = ?', [user.email]);
+    const clerk = await db.query.clerks.findFirst({
+      where: eq(clerks.email, user.email),
+      columns: {
+        password_hash: true
+      }
+    });
 
     if (!clerk) {
       return apiError('Clerk not found', 404);
@@ -27,11 +35,13 @@ export async function POST(req) {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-    await query('UPDATE clerks SET password_hash = ? WHERE email = ?', [hashedPassword, user.email]);
+    await db.update(clerks)
+      .set({ password_hash: hashedPassword })
+      .where(eq(clerks.email, user.email));
 
     return apiResponse({ message: 'Password changed successfully' });
   } catch (error) {
-    console.error('CHANGE PASSWORD ERROR:', error);
+    logger.error('CHANGE PASSWORD ERROR:', error);
     return apiError('Internal server error', 500);
   }
 }

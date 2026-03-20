@@ -1,12 +1,16 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { studentAdmissionDrafts, students, clerks, studentPersonalDetails } from '@/db/schema';
+import { eq, or } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { encrypt, hashForIndex } from '@/lib/encryption';
 
 export async function POST(req) {
   try {
-    const ip = req.headers.get('x-forwarded-for') || 'anonymous';
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
     const rateCheck = await checkRateLimit(`admission:${ip}`, 5, 3600); // 5 per hour
     
     if (!rateCheck.success) {
@@ -16,37 +20,44 @@ export async function POST(req) {
     const draftData = await req.json();
 
     // Basic validation
-    if (!draftData.name || !draftData.admission_year || !draftData.entrance_exam || !draftData.branch) {
-      return apiError('Missing required fields: name, admission_year, entrance_exam, or branch.', 400);
+    if (!draftData.name || !draftData.admission_year || !draftData.entrance_exam || !draftData.branch || !draftData.seat_allotted_category || !draftData.religion || !draftData.mother_tongue) {
+      return apiError('Missing required fields.', 400);
     }
     
-    // 1. Comprehensive Uniqueness Checks
-    // ... same uniqueness logic ...
-    const [emailInDraft] = await query('SELECT id FROM student_admission_drafts WHERE email = ?', [draftData.email]);
-    const [emailInStudent] = await query('SELECT id FROM students WHERE email = ?', [draftData.email]);
-    const [emailInClerk] = await query('SELECT id FROM clerks WHERE email = ?', [draftData.email]);
-    
-    if (emailInDraft || emailInStudent || emailInClerk) {
-        return apiError('This email address is already registered in our system.', 409);
-    }
-
-    const [mobileInDraft] = await query('SELECT id FROM student_admission_drafts WHERE student_mobile = ?', [draftData.student_mobile]);
-    const [mobileInStudent] = await query('SELECT id FROM students WHERE mobile = ?', [draftData.student_mobile]);
-    
-    if (mobileInDraft || mobileInStudent) {
-        return apiError('This mobile number is already in use.', 409);
+    // 1. Email Uniqueness Check (Plain text)
+    if (draftData.email) {
+        const emailInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.email, draftData.email) });
+        const emailInStudent = await db.query.students.findFirst({ where: eq(students.email, draftData.email) });
+        const emailInClerk = await db.query.clerks.findFirst({ where: eq(clerks.email, draftData.email) });
+        
+        if (emailInDraft || emailInStudent || emailInClerk) {
+            return apiError('This email address is already registered in our system.', 409);
+        }
     }
 
+    // 2. Mobile Uniqueness Check (Using Blind Index)
+    if (draftData.student_mobile) {
+        const mobileHash = hashForIndex(draftData.student_mobile);
+        const mobileInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.mobile_hash, mobileHash) });
+        const mobileInStudent = await db.query.students.findFirst({ where: eq(students.mobile_hash, mobileHash) });
+        
+        if (mobileInDraft || mobileInStudent) {
+            return apiError('This mobile number is already in use.', 409);
+        }
+    }
+
+    // 3. Aadhaar Uniqueness Check (Using Blind Index)
     if (draftData.aadhaar_no) {
-        const [aadhaarInDraft] = await query('SELECT id FROM student_admission_drafts WHERE aadhaar_no = ?', [draftData.aadhaar_no]);
-        const [aadhaarInStudent] = await query('SELECT student_id FROM student_personal_details WHERE aadhaar_no = ?', [draftData.aadhaar_no]);
+        const aadhaarHash = hashForIndex(draftData.aadhaar_no);
+        const aadhaarInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.aadhaar_hash, aadhaarHash) });
+        const aadhaarInStudent = await db.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.aadhaar_hash, aadhaarHash) });
         
         if (aadhaarInDraft || aadhaarInStudent) {
             return apiError('This Aadhaar number is already registered.', 409);
         }
     }
 
-    // 2. Upload to Cloudinary
+    // 4. Upload to Cloudinary
     let pfpUrl = null;
     let signatureUrl = null;
 
@@ -57,40 +68,57 @@ export async function POST(req) {
       signatureUrl = await uploadToCloudinary(draftData.signature, 'admission_drafts/signatures');
     }
 
-    const sql = `
-      INSERT INTO student_admission_drafts (
-        status, admission_year, entrance_exam, branch, name, father_name, mother_name, dob, gender, email, student_mobile, guardian_mobile,
-        pfp, signature, exam_rank, area_status, category, sub_caste, seat_allotted_category, ssc_marks, inter_diploma_marks,
-        nationality, religion, mother_tongue, blood_group, place_of_birth, father_occupation, annual_income, aadhaar_no,
-        fee_reimbursement, identification_mark_1, identification_mark_2, permanent_address
-      ) VALUES (
-        'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?
-      )
-    `;
-
-    const params = [
-      draftData.admission_year, draftData.entrance_exam, draftData.branch, draftData.name,
-      draftData.father_name || null, draftData.mother_name || null, toMySQLDate(draftData.dob),
-      draftData.gender || null, draftData.email || null, draftData.student_mobile || null,
-      draftData.guardian_mobile || null, pfpUrl, signatureUrl, draftData.exam_rank || null,
-      draftData.area_status || null, draftData.category || null, draftData.sub_caste || null,
-      draftData.seat_allotted_category || null, draftData.ssc_marks || null,
-      draftData.inter_diploma_marks || null, draftData.nationality || null, draftData.religion || null,
-      draftData.mother_tongue || null, draftData.blood_group || null, draftData.place_of_birth || null,
-      draftData.father_occupation || null, draftData.annual_income || null, draftData.aadhaar_no || null,
-      draftData.fee_reimbursement || null, draftData.identification_mark_1 || null,
-      draftData.identification_mark_2 || null, draftData.permanent_address || null
-    ];
+    // 5. Encrypt Sensitive Fields & Generate Hashes
+    const encryptedMobile = draftData.student_mobile ? encrypt(draftData.student_mobile) : null;
+    const mobileHash = draftData.student_mobile ? hashForIndex(draftData.student_mobile) : null;
     
-    const result = await query(sql, params);
+    const encryptedGuardianMobile = draftData.guardian_mobile ? encrypt(draftData.guardian_mobile) : null;
+    
+    const encryptedAadhaar = draftData.aadhaar_no ? encrypt(draftData.aadhaar_no) : null;
+    const aadhaarHash = draftData.aadhaar_no ? hashForIndex(draftData.aadhaar_no) : null;
+
+    const [result] = await db.insert(studentAdmissionDrafts).values({
+        status: 'DRAFT',
+        admission_year: draftData.admission_year,
+        entrance_exam: draftData.entrance_exam,
+        branch: draftData.branch,
+        name: draftData.name,
+        father_name: draftData.father_name || null,
+        mother_name: draftData.mother_name || null,
+        dob: toMySQLDate(draftData.dob),
+        gender: draftData.gender || null,
+        email: draftData.email || null,
+        student_mobile: encryptedMobile,
+        mobile_hash: mobileHash,
+        guardian_mobile: encryptedGuardianMobile,
+        pfp: pfpUrl,
+        signature: signatureUrl,
+        exam_rank: draftData.exam_rank || null,
+        area_status: draftData.area_status || null,
+        category: draftData.category || null,
+        sub_caste: draftData.sub_caste || null,
+        seat_allotted_category: draftData.seat_allotted_category || null,
+        ssc_marks: draftData.ssc_marks || null,
+        inter_diploma_marks: draftData.inter_diploma_marks || null,
+        nationality: draftData.nationality || null,
+        religion: draftData.religion || null,
+        mother_tongue: draftData.mother_tongue || null,
+        blood_group: draftData.blood_group || null,
+        place_of_birth: draftData.place_of_birth || null,
+        father_occupation: draftData.father_occupation || null,
+        annual_income: draftData.annual_income || null,
+        aadhaar_no: encryptedAadhaar,
+        aadhaar_hash: aadhaarHash,
+        fee_reimbursement: draftData.fee_reimbursement || null,
+        identification_mark_1: draftData.identification_mark_1 || null,
+        identification_mark_2: draftData.identification_mark_2 || null,
+        permanent_address: draftData.permanent_address || null
+    });
 
     return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
 
   } catch (error) {
-    console.error('Error saving admission draft:', error);
+    logger.error(error, 'Error saving admission draft');
     return apiError('Failed to submit application.', 500);
   }
 }

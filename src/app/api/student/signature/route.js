@@ -1,14 +1,23 @@
-import { getDb } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { 
+  studentSignatures, 
+  studentImages, 
+  studentProfileRequests, 
+  studentPersonalDetails, 
+  studentAcademicBackground, 
+  students 
+} from '@/db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { uploadToCloudinary } from '@/lib/cloudinary';
+import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
 
 export async function GET(req) {
   const user = await getAuthUser('student');
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const db = getDb();
-
     // Helper to handle both URLs and legacy Buffer data
     const imageHelper = (val) => {
       if (!val) return null;
@@ -18,48 +27,81 @@ export async function GET(req) {
     };
     
     // 1. Fetch current signature
-    const [sigRows] = await db.execute(
-      'SELECT signature FROM student_signatures WHERE student_id = ?',
-      [user.student_id]
-    );
+    const sigRow = await db.query.studentSignatures.findFirst({
+      where: eq(studentSignatures.student_id, user.student_id)
+    });
 
     // 2. Fetch current image (PFP)
-    const [pfpRows] = await db.execute(
-      'SELECT pfp FROM student_images WHERE student_id = ?',
-      [user.student_id]
-    );
+    const pfpRow = await db.query.studentImages.findFirst({
+      where: eq(studentImages.student_id, user.student_id)
+    });
 
     // 3. Fetch latest request (pending or rejected)
-    const [reqRows] = await db.execute(
-      'SELECT id, status, rejection_reason, new_signature, new_pfp, created_at FROM student_profile_requests ' +
-      'WHERE student_id = ? ORDER BY created_at DESC LIMIT 1',
-      [user.student_id]
-    );
+    const latestReqRow = await db.query.studentProfileRequests.findFirst({
+      where: eq(studentProfileRequests.student_id, user.student_id),
+      orderBy: [desc(studentProfileRequests.created_at)]
+    });
 
     let latestRequest = null;
-    if (reqRows.length > 0) {
-      const row = reqRows[0];
-      
+    if (latestReqRow) {
+      let newData = latestReqRow.new_data;
+      if (newData) {
+          const data = typeof newData === 'string' ? JSON.parse(newData) : newData;
+          // Decrypt sensitive fields in the request data
+          if (data.mobile) data.mobile = decrypt(data.mobile);
+          if (data.guardian_mobile) data.guardian_mobile = decrypt(data.guardian_mobile);
+          if (data.aadhaar_no) data.aadhaar_no = decrypt(data.aadhaar_no);
+          newData = data;
+      }
+
       latestRequest = {
-        id: row.id,
-        status: row.status,
-        rejection_reason: row.rejection_reason,
-        created_at: row.created_at,
-        new_signature: imageHelper(row.new_signature),
-        new_pfp: imageHelper(row.new_pfp)
+        ...latestReqRow,
+        new_data: newData,
+        new_signature: imageHelper(latestReqRow.new_signature),
+        new_pfp: imageHelper(latestReqRow.new_pfp),
+        proof_url: imageHelper(latestReqRow.proof_url)
       };
     }
 
-    const currentSignature = sigRows.length > 0 ? imageHelper(sigRows[0].signature) : null;
-    const currentPfp = pfpRows.length > 0 ? imageHelper(pfpRows[0].pfp) : null;
+    const currentSignature = sigRow ? imageHelper(sigRow.signature) : null;
+    const currentPfp = pfpRow ? imageHelper(pfpRow.pfp) : null;
+
+    // 4. Fetch full student details for comparison
+    const personalRow = await db.query.studentPersonalDetails.findFirst({
+      where: eq(studentPersonalDetails.student_id, user.student_id)
+    });
+    const academicRow = await db.query.studentAcademicBackground.findFirst({
+      where: eq(studentAcademicBackground.student_id, user.student_id)
+    });
+    const studentRow = await db.query.students.findFirst({
+      columns: {
+        roll_no: true,
+        name: true,
+        mobile: true,
+        email: true
+      },
+      where: eq(students.id, user.student_id)
+    });
+
+    // Decrypt current sensitive fields
+    if (studentRow) studentRow.mobile = decrypt(studentRow.mobile);
+    if (personalRow) {
+        personalRow.guardian_mobile = decrypt(personalRow.guardian_mobile);
+        personalRow.aadhaar_no = decrypt(personalRow.aadhaar_no);
+    }
 
     return apiResponse({
       signature: currentSignature,
       pfp: currentPfp,
-      latestRequest: latestRequest
+      latestRequest: latestRequest,
+      details: {
+        student: studentRow || {},
+        personal: personalRow || {},
+        academic: academicRow || {}
+      }
     });
   } catch (err) {
-    console.error('Profile fetch error:', err);
+    logger.error(err, 'Profile fetch error');
     return apiError('Server error', 500, err.message);
   }
 }
@@ -71,54 +113,80 @@ export async function POST(req) {
 
   try {
     const { checkRateLimit } = require('@/lib/rate-limit');
-    const rateCheck = await checkRateLimit(`profile_req:${user.student_id}`, 3, 86400); // 3 per day
+    const rateCheck = await checkRateLimit(`profile_req:${user.student_id}`, 5, 86400); // 5 per day
     if (!rateCheck.success) {
-      return apiError('You can only submit 3 update requests per day.', 429);
+      return apiError('You can only submit 5 update requests per day.', 429);
     }
 
     const body = await req.json();
-    const { signature, pfp } = body;
-    if (!signature && !pfp) return apiError('Either signature or profile picture is required', 400);
-
-    const db = getDb();
+    const { signature, pfp, data, proof } = body;
     
-    // Upload to Cloudinary if provided
-    const signatureUrl = signature ? await uploadToCloudinary(signature, 'requests/signatures') : null;
-    const pfpUrl = pfp ? await uploadToCloudinary(pfp, 'requests/pfp') : null;
-
-    // Check if there's already a pending request
-    const [pending] = await db.execute(
-      'SELECT id FROM student_profile_requests WHERE student_id = ? AND status = "pending"',
-      [user.student_id]
-    );
-
-    if (pending.length > 0) {
-      // Update existing pending request
-      let updateSql = 'UPDATE student_profile_requests SET updated_at = CURRENT_TIMESTAMP';
-      let params = [];
-      if (signatureUrl) {
-        updateSql += ', new_signature = ?';
-        params.push(signatureUrl);
-      }
-      if (pfpUrl) {
-        updateSql += ', new_pfp = ?';
-        params.push(pfpUrl);
-      }
-      updateSql += ' WHERE id = ?';
-      params.push(pending[0].id);
-      
-      await db.execute(updateSql, params);
-    } else {
-      // Create a new request (status defaults to 'pending')
-      await db.execute(
-        'INSERT INTO student_profile_requests (student_id, new_signature, new_pfp) VALUES (?, ?, ?)',
-        [user.student_id, signatureUrl, pfpUrl]
-      );
+    // If updating text data, proof is mandatory
+    if (data && !proof) {
+      return apiError('Verification proof (image) is required for updating profile details.', 400);
     }
 
-    return apiResponse({ success: true, message: 'Request submitted for approval' });
+    if (!signature && !pfp && !data) {
+      return apiError('No changes provided to request an update.', 400);
+    }
+
+    // Encrypt sensitive fields in the data payload before storing
+    const encryptedData = data ? { ...data } : null;
+    if (encryptedData) {
+        if (encryptedData.mobile) encryptedData.mobile = encrypt(encryptedData.mobile);
+        if (encryptedData.guardian_mobile) encryptedData.guardian_mobile = encrypt(encryptedData.guardian_mobile);
+        if (encryptedData.aadhaar_no) encryptedData.aadhaar_no = encrypt(encryptedData.aadhaar_no);
+    }
+    
+    // Upload images to Cloudinary if provided
+    const signatureUrl = signature ? await uploadToCloudinary(signature, 'requests/signatures') : null;
+    const pfpUrl = pfp ? await uploadToCloudinary(pfp, 'requests/pfp') : null;
+    const proofUrl = proof ? await uploadToCloudinary(proof, 'requests/proofs') : null;
+
+    // Check if there's already a pending request
+    const pending = await db.query.studentProfileRequests.findFirst({
+      where: and(
+        eq(studentProfileRequests.student_id, user.student_id),
+        eq(studentProfileRequests.status, 'pending')
+      )
+    });
+
+    if (pending) {
+      // Update existing pending request
+      const updateData = {};
+      if (signatureUrl) updateData.new_signature = signatureUrl;
+      if (pfpUrl) updateData.new_pfp = pfpUrl;
+      if (encryptedData) updateData.new_data = encryptedData;
+      if (proofUrl) updateData.proof_url = proofUrl;
+      
+      await db.update(studentProfileRequests)
+        .set(updateData)
+        .where(eq(studentProfileRequests.id, pending.id));
+    } else {
+      // Create a new request (status defaults to 'pending')
+      await db.insert(studentProfileRequests).values({
+        student_id: user.student_id,
+        new_signature: signatureUrl,
+        new_pfp: pfpUrl,
+        new_data: encryptedData || null,
+        proof_url: proofUrl
+      });
+    }
+
+    // REAL-TIME: Broadcast to admission clerks
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      broadcastUpdate('PROFILE_UPDATE_REQUESTED', {
+        student_id: user.student_id,
+        roll_no: user.roll_no
+      });
+    } catch (e) {
+      logger.error(e, 'SSE Broadcast error');
+    }
+
+    return apiResponse({ success: true, message: 'Profile update request submitted for clerk approval.' });
   } catch (err) {
-    console.error('Profile request error:', err);
+    logger.error(err, 'Profile request error');
     return apiError('Server error', 500, err.message);
   }
 }

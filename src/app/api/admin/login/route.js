@@ -1,8 +1,11 @@
-import { SignJWT } from 'jose';
+import { db } from '@/db';
+import { principal } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
-import { query } from '@/lib/db';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { issueAdminAuthCookie } from '@/lib/auth-utils';
+import logger from '@/lib/logger';
 
 export async function POST(request) {
   try {
@@ -19,31 +22,23 @@ export async function POST(request) {
       return apiError('Email and password are required', 400);
     }
 
-    const rows = await query(
-      'SELECT email, password_hash FROM principal WHERE email = ?',
-      [email]
-    );
+    const rows = await db.select({ id: principal.id, email: principal.email, password_hash: principal.password_hash })
+      .from(principal)
+      .where(eq(principal.email, email))
+      .limit(1);
 
     if (rows.length === 0) {
+      logger.warn({ email }, '[Admin Login Failed] User not found');
       return apiError('Invalid credentials', 401);
     }
 
-    const principal = rows[0];
-    const isValidPassword = await bcrypt.compare(password, principal.password_hash);
+    const admin = rows[0];
+    const isValidPassword = await bcrypt.compare(password, admin.password_hash);
 
     if (!isValidPassword) {
+      logger.warn({ email }, '[Admin Login Failed] Password mismatch');
       return apiError('Invalid credentials', 401);
     }
-
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    const sessionDuration = rememberMe ? '30d' : '1h';
-    const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 60 * 60;
-
-    const token = await new SignJWT({ email: principal.email, role: 'admin' })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(sessionDuration)
-      .sign(secret);
 
     const response = apiResponse({ success: true, message: 'Admin login successful' });
 
@@ -51,17 +46,12 @@ export async function POST(request) {
     response.cookies.delete('clerk_auth');
     response.cookies.delete('student_auth');
 
-    response.cookies.set('admin_auth', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: cookieMaxAge,
-      path: '/',
-    });
+    await issueAdminAuthCookie(response, admin, rememberMe);
+
     return response;
 
   } catch (error) {
-    console.error('Admin Login error:', error);
+    logger.error(error, 'Admin Login error');
     return apiError('An internal server error occurred.', 500);
   }
 }

@@ -1,9 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '@/app/components/Header/Header';
-import Navbar from '@/app/components/Navbar/Navbar';
-import Footer from '@/app/components/Footer/Footer';
 import AssignedSubjectsList from '@/components/clerk/faculty/AssignedSubjectsList';
 import AttendanceSheet from '@/components/clerk/faculty/AttendanceSheet';
 import MarksEntrySheet from '@/components/clerk/faculty/MarksEntrySheet';
@@ -46,7 +43,7 @@ export default function FacultyDashboardOverview() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center font-bold text-gray-400">LOADING FACULTY CONSOLE...</div>;
+    return <div className="min-h-[60vh] flex items-center justify-center font-bold text-gray-400">LOADING FACULTY CONSOLE...</div>;
   }
 
   const cards = [
@@ -74,93 +71,91 @@ export default function FacultyDashboardOverview() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <Header />
-      <Navbar role="faculty" />
+    <>
       <FacultyActivityBar />
-      <main className="flex-1 max-w-[1200px] mx-auto w-full px-6 mt-6 pb-12">
-        <h1 className="text-2xl font-black text-gray-900 mb-6 uppercase tracking-tight">Faculty Dashboard</h1>
+      <div className="max-w-7xl mx-auto w-full mt-4 pb-12 px-4">
+        <div className="border-b-2 border-[#0b3578] mb-6 pb-2">
+          <h1 className="text-xl font-bold text-slate-800 uppercase tracking-wide">Faculty Administration Portal</h1>
+          <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest mt-1">Official Academic Management Console</p>
+        </div>
         
         {clerk?.is_hod && !activeSection && (
-          <div className="mb-10">
+          <div className="mb-8">
             <HODConsole />
           </div>
         )}
 
         {!activeSection && (
-          <div className="mb-10">
+          <div className="mb-8">
             <PersonalSchedule />
           </div>
         )}
 
         {!activeSection ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map((card) => (
               <button
                 key={card.id}
                 onClick={() => setActiveSection(card.id)}
-                className="flex flex-col text-left bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all group"
+                className="flex flex-col text-left bg-white border border-slate-200 shadow-sm hover:border-[#0b3578] transition-colors group"
               >
-                <div className={`${card.color} p-5 flex items-center justify-between`}>
-                  <span className="text-3xl">{card.icon}</span>
-                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
+                <div className={`${card.color.replace('bg-', 'text-')} p-4 border-b border-slate-100 flex items-center justify-between`}>
+                  <span className="text-2xl opacity-80">{card.icon}</span>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-[#0b3578]">Access Module →</div>
                 </div>
-                <div className="p-6">
-                  <h3 className="text-lg font-black text-gray-900 mb-1 uppercase tracking-tight">{card.title}</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed font-medium">{card.description}</p>
+                <div className="p-5">
+                  <h3 className="text-sm font-bold text-slate-800 mb-2 uppercase tracking-tight">{card.title}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed font-normal">{card.description}</p>
                 </div>
               </button>
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-            <div className="flex justify-between items-center mb-8 border-b border-gray-50 pb-6">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">
+          <div className="bg-white border border-slate-200 shadow-md p-4 md:p-8">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 border-b border-slate-100 pb-4 gap-4">
+              <h2 className="text-lg font-bold text-slate-800 tracking-tight uppercase">
                 {activeSection === 'subjects' ? 'My Assigned Subjects' : cards.find(c => c.id === activeSection)?.title}
               </h2>
               <button
                 onClick={handleBackToDashboard}
-                className="text-xs font-black text-blue-600 hover:text-blue-800 flex items-center gap-2 uppercase tracking-widest"
+                className="text-[10px] font-bold text-[#0b3578] hover:underline flex items-center gap-2 uppercase tracking-widest border border-[#0b3578]/20 px-3 py-1.5 bg-blue-50/50 w-fit"
               >
                 &larr; Return to Dashboard
               </button>
             </div>
 
-            {activeSection === 'subjects' && !selectedAssignment && (
-              <AssignedSubjectsList onSelectAssignment={handleSelectAssignment} />
-            )}
+            <div className="overflow-x-auto">
+              {activeSection === 'subjects' && !selectedAssignment && (
+                <AssignedSubjectsList onSelectAssignment={handleSelectAssignment} />
+              )}
 
-            {activeSection === 'attendance' && selectedAssignment && (
-              <FacultyAttendanceProvider assignment={selectedAssignment}>
-                <AttendanceSheet onBack={() => { setSelectedAssignment(null); setActiveSection('subjects'); }} />
-              </FacultyAttendanceProvider>
-            )}
+              {activeSection === 'attendance' && selectedAssignment && (
+                <FacultyAttendanceProvider assignment={selectedAssignment}>
+                  <AttendanceSheet onBack={() => { setSelectedAssignment(null); setActiveSection('subjects'); }} />
+                </FacultyAttendanceProvider>
+              )}
 
-            {activeSection === 'marks' && selectedAssignment && (
-              <MarksEntrySheet 
-                assignment={selectedAssignment} 
-                onBack={() => { setSelectedAssignment(null); setActiveSection('subjects'); }} 
-              />
-            )}
+              {activeSection === 'marks' && selectedAssignment && (
+                <MarksEntrySheet 
+                  assignment={selectedAssignment} 
+                  onBack={() => { setSelectedAssignment(null); setActiveSection('subjects'); }} 
+                />
+              )}
 
-            {activeSection === 'interests' && (
-              <div className="space-y-12">
-                <SubjectInterestForm onInterestSubmitted={handleInterestSubmitted} />
-                <InterestStatusList />
-              </div>
-            )}
-            
-            {activeSection === 'classList' && (
-              <ClassList />
-            )}
+              {activeSection === 'interests' && (
+                <div className="space-y-10">
+                  <SubjectInterestForm onInterestSubmitted={handleInterestSubmitted} />
+                  <InterestStatusList />
+                </div>
+              )}
+              
+              {activeSection === 'classList' && (
+                <ClassList />
+              )}
+            </div>
           </div>
         )}
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </>
   );
 }

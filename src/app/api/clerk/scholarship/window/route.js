@@ -1,4 +1,7 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { scholarshipWindows, students as studentsTable } from '@/db/schema';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { getNow } from '@/lib/clock';
@@ -9,11 +12,9 @@ export async function GET() {
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const rows = await query(
-      'SELECT id, academic_year, start_date, end_date FROM scholarship_windows ORDER BY id DESC LIMIT 1',
-      []
-    );
-    const win = rows && rows[0] ? rows[0] : null;
+    const win = await db.query.scholarshipWindows.findFirst({
+      orderBy: [desc(scholarshipWindows.id)]
+    });
 
     if (!win) {
       return apiResponse({ window: null });
@@ -39,7 +40,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Error fetching scholarship window:', error);
+    logger.error('Error fetching scholarship window:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -64,13 +65,10 @@ export async function POST(req) {
       return apiError('Start date cannot be after end date', 400);
     }
 
-    const rows = await query(
-      'SELECT id, academic_year, start_date, end_date FROM scholarship_windows ORDER BY id DESC LIMIT 1',
-      []
-    );
-    const existing = rows && rows[0] ? rows[0] : null;
+    const existing = await db.query.scholarshipWindows.findFirst({
+      orderBy: [desc(scholarshipWindows.id)]
+    });
 
-    const oldStartDate = existing?.start_date || null;
     const oldEndDate = existing?.end_date || null;
     const oldAcademicYear = existing?.academic_year || null;
 
@@ -92,17 +90,17 @@ export async function POST(req) {
 
     let id;
     if (existing) {
-      await query(
-        'UPDATE scholarship_windows SET academic_year = ?, start_date = ?, end_date = ? WHERE id = ?',
-        [academicYear, startDate, endDate, existing.id]
-      );
+      await db.update(scholarshipWindows)
+        .set({ academic_year: academicYear, start_date: startDate, end_date: endDate })
+        .where(eq(scholarshipWindows.id, existing.id));
       id = existing.id;
     } else {
-      const result = await query(
-        'INSERT INTO scholarship_windows (academic_year, start_date, end_date) VALUES (?, ?, ?)',
-        [academicYear, startDate, endDate]
-      );
-      id = result?.insertId || result?.[0]?.insertId || null;
+      const [result] = await db.insert(scholarshipWindows).values({
+        academic_year: academicYear,
+        start_date: startDate,
+        end_date: endDate
+      });
+      id = result.insertId;
     }
 
     // Compute current status for UI (OPEN/CLOSED)
@@ -115,8 +113,8 @@ export async function POST(req) {
       status = 'OPEN';
     }
 
-    // STEP 5–8: Email notifications based on event type
-    if (eventType === 'WINDOW_CREATED' || eventType === 'WINDOW_EXTENDED') {
+    // Email notifications based on event type
+    if ((eventType === 'WINDOW_CREATED' || eventType === 'WINDOW_EXTENDED') && status === 'OPEN') {
       try {
         const formatDateDDMMYYYY = (dateStr) => {
           if (!dateStr) return 'N/A';
@@ -127,19 +125,20 @@ export async function POST(req) {
             const year = d.getFullYear();
             return `${day}-${month}-${year}`;
           }
-          const parts = String(dateStr).split('-');
-          if (parts.length === 3) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
-          }
           return String(dateStr);
         };
 
         const formattedStart = formatDateDDMMYYYY(startDate);
         const formattedEnd = formatDateDDMMYYYY(endDate);
-        const students = await query(
-          "SELECT id, name, email FROM students WHERE fee_reimbursement = 'YES' AND student_status = 'ACTIVE' AND email IS NOT NULL AND email <> ''",
-          []
-        );
+        
+        const eligibleStudents = await db.select({ id: studentsTable.id, name: studentsTable.name, email: studentsTable.email })
+          .from(studentsTable)
+          .where(and(
+            eq(studentsTable.fee_reimbursement, 'YES'),
+            eq(studentsTable.student_status, 'ACTIVE'),
+            sql`${studentsTable.email} IS NOT NULL`,
+            sql`${studentsTable.email} <> ''`
+          ));
 
         const subject =
           eventType === 'WINDOW_CREATED'
@@ -148,7 +147,7 @@ export async function POST(req) {
 
         const title = subject;
 
-          const bodyHtml =
+        const bodyHtml =
           eventType === 'WINDOW_CREATED'
             ? `<p>Dear Student,</p>
                <p>Scholarship applications are now open for the academic year ${academicYear}.</p>
@@ -162,7 +161,7 @@ export async function POST(req) {
                <p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
 
         await Promise.all(
-          (students || []).map((s) =>
+          (eligibleStudents || []).map((s) =>
             sendInstitutionalEmail({
               to: s.email,
               subject,
@@ -175,16 +174,8 @@ export async function POST(req) {
             }).catch(() => null)
           )
         );
-
-        console.log(
-          'Scholarship window notification sent',
-          'Event:',
-          eventType,
-          'Eligible students notified:',
-          students?.length || 0
-        );
       } catch (e) {
-        console.error('Failed to send scholarship window notification emails:', e);
+        logger.error('Failed to send scholarship window notification emails:', e);
       }
     }
 
@@ -200,7 +191,7 @@ export async function POST(req) {
       existing ? 200 : 201
     );
   } catch (error) {
-    console.error('Error saving scholarship window:', error);
+    logger.error('Error saving scholarship window:', error);
     return apiError('Internal Server Error', 500);
   }
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
-import { getDashboardPathByRole } from '@/lib/auth-utils';
+import { getDashboardPathByRole } from '@/lib/path-utils';
 
 async function verify(token, secret) {
   try {
@@ -8,8 +8,54 @@ async function verify(token, secret) {
     const { payload } = await jwtVerify(token, secretKey, {
       algorithms: ['HS256'],
     });
-    return payload;
+    return { payload, expired: false };
   } catch (error) {
+    if (error.code === 'ERR_JWT_EXPIRED') {
+      return { payload: null, expired: true };
+    }
+    return { payload: null, expired: false };
+  }
+}
+
+async function handleUnauthorized(request) {
+  const { pathname } = request.nextUrl;
+  
+  if (pathname.startsWith('/api/')) {
+    return new NextResponse(
+      JSON.stringify({ error: 'Unauthorized', message: 'Session expired or invalid' }),
+      { status: 401, headers: { 'content-type': 'application/json' } }
+    );
+  }
+  
+  return NextResponse.redirect(new URL('/', request.url), 303);
+}
+
+/**
+ * Silent Refresh Helper for Middleware (Edge)
+ * Calls the /api/auth/refresh internal endpoint
+ */
+async function attemptSilentRefresh(userType, request) {
+  try {
+    const baseUrl = request.nextUrl.origin;
+    const cookieHeader = request.headers.get('cookie');
+
+    const res = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cookie': cookieHeader || '' 
+      },
+      body: JSON.stringify({ type: userType }),
+    });
+
+    if (res.ok) {
+      // The refresh API sets cookies on its response. 
+      // We need to extract them and pass them back to our proxy response.
+      return res;
+    }
+    return null;
+  } catch (err) {
+    console.error(`[EdgeRefreshError][${userType}]`, err);
     return null;
   }
 }
@@ -23,78 +69,103 @@ export async function proxy(request) {
   const studentAuth = cookies.get('student_auth');
   const jwtSecret = process.env.JWT_SECRET;
 
-  // Home ("/") is a pure login gate. Authenticated users are redirected server-side.
-  if (pathname === '/') {
-    const adminPayload = adminAuth ? await verify(adminAuth.value, jwtSecret) : null;
-    if (adminPayload) {
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
-    }
+  let response = NextResponse.next();
+  let refreshTriggered = false;
 
-    const clerkPayload = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : null;
+  // 1. Verify Tokens
+  let adminRes = adminAuth ? await verify(adminAuth.value, jwtSecret) : { payload: null };
+  let clerkRes = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : { payload: null };
+  let studentRes = studentAuth ? await verify(studentAuth.value, jwtSecret) : { payload: null };
+
+  // 2. Handle Silent Refresh if expired
+  if (!adminRes.payload && adminRes.expired) {
+    const refreshRes = await attemptSilentRefresh('admin', request);
+    if (refreshRes) {
+        // Apply new cookies to our current response
+        const setCookie = refreshRes.headers.get('set-cookie');
+        if (setCookie) {
+            response.headers.set('set-cookie', setCookie);
+            // Re-verify after refresh to get payload for redirects
+            const newToken = refreshRes.headers.get('set-cookie')?.match(/admin_auth=([^;]+)/)?.[1];
+            if (newToken) adminRes = await verify(newToken, jwtSecret);
+            refreshTriggered = true;
+        }
+    }
+  }
+
+  if (!clerkRes.payload && clerkRes.expired && !refreshTriggered) {
+    const refreshRes = await attemptSilentRefresh('clerk', request);
+    if (refreshRes) {
+        const setCookie = refreshRes.headers.get('set-cookie');
+        if (setCookie) {
+            response.headers.set('set-cookie', setCookie);
+            const newToken = setCookie.match(/clerk_auth=([^;]+)/)?.[1];
+            if (newToken) clerkRes = await verify(newToken, jwtSecret);
+            refreshTriggered = true;
+        }
+    }
+  }
+
+  if (!studentRes.payload && studentRes.expired && !refreshTriggered) {
+    const refreshRes = await attemptSilentRefresh('student', request);
+    if (refreshRes) {
+        const setCookie = refreshRes.headers.get('set-cookie');
+        if (setCookie) {
+            response.headers.set('set-cookie', setCookie);
+            const newToken = setCookie.match(/student_auth=([^;]+)/)?.[1];
+            if (newToken) studentRes = await verify(newToken, jwtSecret);
+            refreshTriggered = true;
+        }
+    }
+  }
+
+  const adminPayload = adminRes.payload;
+  const clerkPayload = clerkRes.payload;
+  const studentPayload = studentRes.payload;
+
+  // Home ("/") Logic
+  if (pathname === '/') {
+    if (adminPayload) return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
     if (clerkPayload) {
       const dashboard = getDashboardPathByRole(clerkPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
-
-    const studentPayload = studentAuth ? await verify(studentAuth.value, jwtSecret) : null;
     if (studentPayload) {
-      return NextResponse.redirect(new URL('/student/profile', request.url), 303);
+      const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
+      const target = isVerified ? '/student/profile' : '/student';
+      return NextResponse.redirect(new URL(target, request.url), 303);
     }
-
-    // Unauthenticated users proceed to Home.
-    return NextResponse.next();
+    return response;
   }
 
-  // Protect /admin routes
+  // Protect Routes
   if (pathname.startsWith('/admin')) {
-    const adminPayload = adminAuth ? await verify(adminAuth.value, jwtSecret) : null;
-    if (!adminPayload) {
-      return NextResponse.redirect(new URL('/', request.url), 303);
-    }
-    if (pathname === '/admin') {
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
-    }
+    if (!adminPayload) return handleUnauthorized(request);
+    if (pathname === '/admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
   }
-
-  // Protect /clerk routes
   else if (pathname.startsWith('/clerk')) {
-    const clerkPayload = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : null;
-    if (!clerkPayload) {
-      return NextResponse.redirect(new URL('/', request.url), 303);
-    }
+    if (!clerkPayload) return handleUnauthorized(request);
     if (pathname === '/clerk') {
       const dashboard = getDashboardPathByRole(clerkPayload.role);
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
-    // Enforce role-based access for clerk subpaths via server-only redirects
-    if (pathname.startsWith('/clerk/scholarship') && clerkPayload.role !== 'scholarship') {
-      const dashboard = getDashboardPathByRole(clerkPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
-    }
-    if (pathname.startsWith('/clerk/admission') && clerkPayload.role !== 'admission') {
-      const dashboard = getDashboardPathByRole(clerkPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
-    }
-    if (pathname.startsWith('/clerk/faculty') && clerkPayload.role !== 'faculty') {
-      const dashboard = getDashboardPathByRole(clerkPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
-    }
+    // Role checks...
+    if (pathname.startsWith('/clerk/scholarship') && clerkPayload.role !== 'scholarship') return NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303);
+    if (pathname.startsWith('/clerk/admission') && clerkPayload.role !== 'admission') return NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303);
+    if (pathname.startsWith('/clerk/faculty') && clerkPayload.role !== 'faculty') return NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303);
   }
-
-  // Protect /student routes
   else if (pathname.startsWith('/student')) {
-    const studentPayload = studentAuth ? await verify(studentAuth.value, jwtSecret) : null;
-    if (!studentPayload) {
-      return NextResponse.redirect(new URL('/', request.url), 303);
-    }
-    if (pathname === '/student') {
-      return NextResponse.redirect(new URL('/student/profile', request.url), 303);
-    }
+    if (!studentPayload) return handleUnauthorized(request);
+    const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
+    const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security' || pathname === '/student/profile';
+    if (!isVerified && !allowedForUnverified) return NextResponse.redirect(new URL('/student', request.url), 303);
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
-  matcher: ['/', '/admin/:path*', '/clerk/:path*', '/student/:path*'],
+  matcher: [
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|assets|screenshots).*)',
+  ],
 };

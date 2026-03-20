@@ -1,5 +1,11 @@
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { 
+  attendanceSessions, 
+  facultySubjectAssignments 
+} from '@/db/schema';
+import { eq, and, gt, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { getDb } from '@/lib/db';
 import crypto from 'crypto';
 
 /**
@@ -14,19 +20,26 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const assignment_id = searchParams.get('assignment_id');
+    const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
 
     if (!assignment_id) {
       return apiError('Missing assignment_id', 400);
     }
 
-    const db = getDb();
-    const [sessions] = await db.execute(
-      `SELECT id, session_pin, session_token, expires_at 
-       FROM attendance_sessions 
-       WHERE assignment_id = ? AND is_active = 1 AND expires_at > NOW()`,
-      [assignment_id]
-    );
+    const sessions = await db.select({
+      id: attendanceSessions.id,
+      session_pin: attendanceSessions.session_pin,
+      session_token: attendanceSessions.session_token,
+      expires_at: attendanceSessions.expires_at,
+      session_number: attendanceSessions.session_number
+    })
+    .from(attendanceSessions)
+    .where(and(
+      eq(attendanceSessions.assignment_id, assignment_id),
+      eq(attendanceSessions.is_active, true),
+      gt(attendanceSessions.expires_at, sql`NOW()`)
+    ))
+    .limit(1);
 
     if (sessions.length === 0) {
       return apiResponse({ active: false });
@@ -34,7 +47,7 @@ export async function GET(request) {
 
     return apiResponse({ active: true, session: sessions[0] });
   } catch (error) {
-    console.error('Fetch Session Error:', error);
+    logger.error('Fetch Session Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -51,29 +64,33 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, latitude, longitude, accuracy, attendance_date } = body;
+    const { assignment_id, latitude, longitude, accuracy, attendance_date, session_number } = body;
 
     if (!assignment_id || !attendance_date) {
       return apiError('Missing assignment_id or attendance_date', 400);
     }
 
-    const db = getDb();
-
     // 1. Verify assignment belongs to faculty
-    const [assignments] = await db.execute(
-      'SELECT id FROM faculty_subject_assignments WHERE id = ? AND faculty_id = ?',
-      [assignment_id, user.id]
-    );
+    const assignments = await db.select({
+      id: facultySubjectAssignments.id,
+      branch: facultySubjectAssignments.branch,
+      subject_code: facultySubjectAssignments.subject_code
+    })
+    .from(facultySubjectAssignments)
+    .where(and(
+      eq(facultySubjectAssignments.id, assignment_id),
+      eq(facultySubjectAssignments.faculty_id, user.id)
+    ))
+    .limit(1);
 
     if (assignments.length === 0) {
       return apiError('Assignment not found or unauthorized', 404);
     }
 
     // 2. Deactivate any existing sessions for this assignment
-    await db.execute(
-      'UPDATE attendance_sessions SET is_active = 0 WHERE assignment_id = ?',
-      [assignment_id]
-    );
+    await db.update(attendanceSessions)
+      .set({ is_active: false })
+      .where(eq(attendanceSessions.assignment_id, assignment_id));
 
     // 3. Generate PIN and Token
     const sessionPin = crypto.randomInt(1000, 9999).toString();
@@ -81,40 +98,21 @@ export async function POST(request) {
     
     // Session valid for 10 minutes by default
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
-    const expiresAtSql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
 
     // 4. Create new session
-    // Check if columns exist for backwards compatibility
-    const [colInfo] = await db.execute(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attendance_sessions'`
-    );
-    const columns = colInfo.map(c => c.COLUMN_NAME);
-    const hasAttendanceDate = columns.includes('attendance_date');
-    const hasAccuracy = columns.includes('accuracy');
-
-    let result;
-    if (hasAttendanceDate && hasAccuracy) {
-      [result] = await db.execute(
-        `INSERT INTO attendance_sessions 
-         (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, accuracy, expires_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, accuracy ?? null, expiresAtSql]
-      );
-    } else if (hasAttendanceDate) {
-      [result] = await db.execute(
-        `INSERT INTO attendance_sessions 
-         (assignment_id, attendance_date, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [assignment_id, attendance_date, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
-      );
-    } else {
-      [result] = await db.execute(
-        `INSERT INTO attendance_sessions 
-         (assignment_id, faculty_id, session_pin, session_token, latitude, longitude, expires_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [assignment_id, user.id, sessionPin, sessionToken, latitude ?? null, longitude ?? null, expiresAtSql]
-      );
-    }
+    const [result] = await db.insert(attendanceSessions).values({
+      assignment_id: assignment_id,
+      faculty_id: user.id,
+      session_pin: sessionPin,
+      session_token: sessionToken,
+      latitude: latitude ? String(latitude) : null,
+      longitude: longitude ? String(longitude) : null,
+      accuracy: accuracy ? parseFloat(accuracy) : null,
+      attendance_date: attendance_date,
+      session_number: session_number || 1,
+      expires_at: expiresAt,
+      is_active: true
+    });
 
     // --- REAL-TIME: Notify Students/HOD ---
     try {
@@ -122,8 +120,10 @@ export async function POST(request) {
       broadcastUpdate('SESSION_STARTED', { 
         assignment_id, 
         faculty_id: user.id, 
-        branch: user.branch,
-        session_id: result.insertId
+        branch: assignments[0].branch,
+        subject_code: assignments[0].subject_code,
+        sessionId: result.insertId,
+        session_number: session_number || 1
       });
     } catch (sseErr) {
       console.warn('[SSE] Broadcast failed:', sseErr);
@@ -135,11 +135,12 @@ export async function POST(request) {
         id: result.insertId,
         session_pin: sessionPin,
         session_token: sessionToken,
-        expires_at: expiresAtSql
+        expires_at: expiresAt,
+        session_number: session_number || 1
       }
     });
   } catch (error) {
-    console.error('Create Session Error:', error);
+    logger.error('Create Session Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -156,25 +157,32 @@ export async function DELETE(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const assignment_id = searchParams.get('assignment_id');
+    const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
 
     if (!assignment_id) {
       return apiError('Missing assignment_id', 400);
     }
 
-    const db = getDb();
-    await db.execute(
-      'UPDATE attendance_sessions SET is_active = 0 WHERE assignment_id = ? AND faculty_id = ? AND is_active = 1',
-      [assignment_id, user.id]
-    );
+    await db.update(attendanceSessions)
+      .set({ is_active: false })
+      .where(and(
+        eq(attendanceSessions.assignment_id, assignment_id),
+        eq(attendanceSessions.faculty_id, user.id),
+        eq(attendanceSessions.is_active, true)
+      ));
 
     // --- REAL-TIME: Notify Students/HOD ---
     try {
+      const asgnRows = await db.select({ branch: facultySubjectAssignments.branch })
+        .from(facultySubjectAssignments)
+        .where(eq(facultySubjectAssignments.id, assignment_id))
+        .limit(1);
+        
       const { broadcastUpdate } = await import('@/lib/sse');
       broadcastUpdate('SESSION_ENDED', { 
         assignment_id, 
         faculty_id: user.id, 
-        branch: user.branch 
+        branch: asgnRows[0]?.branch || user.branch 
       });
     } catch (sseErr) {
       console.warn('[SSE] Broadcast failed:', sseErr);
@@ -182,7 +190,7 @@ export async function DELETE(request) {
 
     return apiResponse({ message: 'Session ended successfully' });
   } catch (error) {
-    console.error('End Session Error:', error);
+    logger.error('End Session Error:', error);
     return apiError('Internal Server Error', 500);
   }
 }

@@ -1,5 +1,9 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { students, studentImages, studentPersonalDetails, studentAcademicBackground } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { decrypt } from '@/lib/encryption';
 
 export async function GET(request, { params }) {
   const user = await getAuthUser('admin');
@@ -15,27 +19,41 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const studentQuery = `
-      SELECT s.*, CASE WHEN si.pfp IS NOT NULL THEN 1 ELSE 0 END as has_pfp 
-      FROM students s 
-      LEFT JOIN student_images si ON s.id = si.student_id 
-      WHERE s.roll_no = ?`;
-    const [student] = await query(studentQuery, [rollno]);
+    const studentData = await db.select({
+      student: students,
+      personal: studentPersonalDetails,
+      academic: studentAcademicBackground,
+      has_pfp: studentImages.pfp
+    })
+    .from(students)
+    .leftJoin(studentImages, eq(students.id, studentImages.student_id))
+    .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))
+    .leftJoin(studentAcademicBackground, eq(students.id, studentAcademicBackground.student_id))
+    .where(eq(students.roll_no, rollno))
+    .limit(1);
 
-    if (!student) {
+    if (studentData.length === 0) {
       return apiError('Student not found', 404);
     }
 
-    if (student.has_pfp) {
-        student.pfp = `/api/student/image/${student.roll_no}`;
-    } else {
-        student.pfp = null;
-    }
-    delete student.has_pfp;
+    const { student, personal, academic, has_pfp } = studentData[0];
 
-    return apiResponse({ student });
+    // Decrypt sensitive fields
+    const decryptedStudent = {
+      ...student,
+      mobile: decrypt(student.mobile),
+      personal_details: personal ? {
+        ...personal,
+        guardian_mobile: decrypt(personal.guardian_mobile),
+        aadhaar_no: decrypt(personal.aadhaar_no)
+      } : null,
+      academic_background: academic || null,
+      pfp: has_pfp ? `/api/student/image/${student.roll_no}` : null
+    };
+
+    return apiResponse({ student: decryptedStudent });
   } catch (error) {
-    console.error('Failed to fetch student:', error);
+    logger.error(error, 'Failed to fetch student for admin');
     return apiError('Failed to fetch student', 500);
   }
 }

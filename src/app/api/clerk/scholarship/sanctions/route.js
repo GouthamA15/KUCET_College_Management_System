@@ -1,7 +1,11 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { scholarshipSanctions, students as studentsTable, scholarshipWindows } from '@/db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { sendInstitutionalEmail } from '@/lib/email';
+import { getNow } from '@/lib/clock';
 
 const toNull = (v) => (v === undefined || v === '' ? null : v);
 
@@ -24,221 +28,187 @@ export async function POST(req) {
     if (!academic_year || !academic_year.match(/^\d{4}-\d{2}$/)) return apiError('Invalid academic_year', 400);
     if (!application_no) return apiError('Missing application_no', 400);
     if (String(application_no).length > 12) return apiError('application_no must be at most 12 digits', 400);
-    // Proceeding number is OPTIONAL at creation; if amount is provided, require a proceeding number
     if (sanctioned_amount !== null && !(sanctioned_amount > 0)) return apiError('Invalid sanctioned_amount', 400);
     if (sanctioned_amount !== null && !proceeding_no) return apiError('Missing proceeding_no for provided amount', 400);
-    // Sanction date is required only when amount is provided
     if (sanctioned_amount !== null && !sanction_date) return apiError('Invalid sanction_date', 400);
 
-    const [student] = await query('SELECT id, name, email, is_email_verified, roll_no FROM students WHERE roll_no = ?', [roll_no]);
-    if (!student) return apiError('Student not found', 404);
-    // Fetch existing rows for student + academic_year
-    const existing = await query('SELECT id, application_no, proceeding_no, thumb_update_available, thumb_status, hardcopy_submitted FROM scholarship_sanctions WHERE student_id = ? AND academic_year = ?', [student.id, academic_year]);
+    const studentRows = await db.select({ id: studentsTable.id, name: studentsTable.name, email: studentsTable.email, is_email_verified: studentsTable.is_email_verified })
+      .from(studentsTable)
+      .where(eq(studentsTable.roll_no, roll_no))
+      .limit(1);
+    
+    if (studentRows.length === 0) return apiError('Student not found', 404);
+    const student = studentRows[0];
 
-    // Determine operation: UPDATE existing row or INSERT new
+    // Determine if scholarship window is currently OPEN
+    let windowAllowsEmail = false;
+    try {
+      const win = await db.query.scholarshipWindows.findFirst({
+        orderBy: [desc(scholarshipWindows.id)]
+      });
+      if (win && win.start_date && win.end_date) {
+        const now = await getNow();
+        const today = new Date(now.toISOString().slice(0, 10));
+        const start = new Date(win.start_date);
+        const end = new Date(win.end_date);
+        if (today >= start && today <= end) {
+          windowAllowsEmail = true;
+        }
+      }
+    } catch (e) {
+      logger.error('Failed to evaluate scholarship window for sanction emails:', e);
+    }
+
+    // Fetch existing rows for student + academic_year
+    const existing = await db.query.scholarshipSanctions.findMany({
+      where: and(
+        eq(scholarshipSanctions.student_id, student.id),
+        eq(scholarshipSanctions.academic_year, academic_year)
+      )
+    });
+
     const providedProceeding = proceeding_no && String(proceeding_no).trim() !== '' ? String(proceeding_no).trim() : null;
     const providedApp = application_no && String(application_no).trim() !== '' ? String(application_no).trim() : null;
     const providedThumbFlag = body.thumb_update_available ? 1 : 0;
     const providedThumbStatus = body.thumb_status ? String(body.thumb_status) : null;
+    const thumbIsPending = typeof providedThumbStatus === 'string'
+      && providedThumbStatus.trim().toUpperCase() === 'PENDING';
     const providedHardcopyFlag = body.hardcopy_submitted ? 1 : 0;
 
-    // Determine previous thumb state and application state for this student+year (any existing row)
     const prevThumb = existing.some(r => !!r.thumb_update_available);
     const prevHasApplication = existing.some(r => r.application_no && String(r.application_no).trim() !== '');
 
-    // If proceeding_no provided, try to update row with same proceeding; otherwise update base row with null proceeding; else insert
-    let targetRow = null;
+    let targetRowId = null;
+    let isNewInsert = false;
+
     if (providedProceeding) {
-      targetRow = existing.find(r => String(r.proceeding_no || '') === providedProceeding) || null;
-      if (targetRow) {
-        // Update existing row matching proceeding_no (include thumb and hardcopy fields when provided)
-        await query('UPDATE scholarship_sanctions SET sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?), thumb_update_available = ?, thumb_status = COALESCE(?, thumb_status), hardcopy_submitted = ? WHERE id = ?', [sanctioned_amount, sanction_date, providedApp, providedThumbFlag, providedThumbStatus, providedHardcopyFlag, targetRow.id]);
-        // Send email if thumb was newly enabled
-        if (!prevThumb && providedThumbFlag) {
-          try {
-            const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
-            const s = stu && stu[0];
-            if (s && s.email && s.is_email_verified) {
-              const subject = 'Scholarship Thumb Verification Required';
-              const html = `<p>Dear ${s.name || 'Student'},</p><p>Your scholarship application requires biometric (thumb) verification. Please visit your nearest Mee-Seva center to complete the verification process.</p><p>Application Number: ${providedApp || ''}</p><p>Academic Year: ${academic_year}</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
-              await sendInstitutionalEmail({ to: s.email, subject, title: subject, bodyHtml: html, infoRows: [{ label: 'Application Number', value: providedApp || '' }, { label: 'Academic Year', value: academic_year }] });
-            }
-          } catch (e) {
-            console.error('Failed to send thumb notification email (proceeding update):', e);
-          }
+      const existingRow = existing.find(r => String(r.proceeding_no || '') === providedProceeding) || null;
+      if (existingRow) {
+        await db.update(scholarshipSanctions)
+          .set({ 
+            sanctioned_amount: sanctioned_amount ? String(sanctioned_amount) : null, 
+            sanction_date: sanction_date, 
+            application_no: sql`COALESCE(${scholarshipSanctions.application_no}, ${providedApp})` 
+          })
+          .where(eq(scholarshipSanctions.id, existingRow.id));
+        targetRowId = existingRow.id;
+      } else {
+        const baseRow = existing.find(r => !r.proceeding_no) || null;
+        if (baseRow) {
+          await db.update(scholarshipSanctions)
+            .set({ 
+              proceeding_no: providedProceeding, 
+              sanctioned_amount: sanctioned_amount ? String(sanctioned_amount) : null, 
+              sanction_date: sanction_date, 
+              application_no: sql`COALESCE(${scholarshipSanctions.application_no}, ${providedApp})` 
+            })
+            .where(eq(scholarshipSanctions.id, baseRow.id));
+          targetRowId = baseRow.id;
+        } else {
+          const [ins] = await db.insert(scholarshipSanctions).values({
+            student_id: student.id,
+            academic_year: academic_year,
+            application_no: providedApp,
+            proceeding_no: providedProceeding,
+            sanctioned_amount: sanctioned_amount ? String(sanctioned_amount) : null,
+            sanction_date: sanction_date
+          });
+          targetRowId = ins.insertId;
+          isNewInsert = true;
         }
-
-        const newApp = providedApp ?? targetRow.application_no;
-        if (!prevHasApplication && newApp && providedHardcopyFlag === 0) {
-          try {
-            if (student.email && student.is_email_verified) {
-              const subject = 'Scholarship Hard Copy Submission Required';
-              const html = `<p>Dear ${student.name || 'Student'},</p><p>Your scholarship application has been recorded in the college system.</p><p>Please submit the required hard copy documents to the scholarship office.</p><p>Application Number: ${newApp}</p><p>Failure to submit the documents may delay your scholarship processing.</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
-              await sendInstitutionalEmail({
-                to: student.email,
-                subject,
-                title: subject,
-                bodyHtml: html,
-                infoRows: [
-                  { label: 'Application Number', value: newApp },
-                  { label: 'Academic Year', value: academic_year },
-                ],
-              });
-            }
-          } catch (e) {
-            console.error('Failed to send hardcopy submission email (proceeding update):', e);
-          }
-        }
-
-        return apiResponse({ id: targetRow.id, student_id: student.id, academic_year, application_no: newApp, proceeding_no: providedProceeding, sanctioned_amount, sanction_date });
       }
-      // No row with proceeding; see if base row without proceeding exists
+    } else {
       const baseRow = existing.find(r => !r.proceeding_no) || null;
       if (baseRow) {
-        await query('UPDATE scholarship_sanctions SET proceeding_no = ?, sanctioned_amount = ?, sanction_date = ?, application_no = COALESCE(application_no, ?), thumb_update_available = ?, thumb_status = COALESCE(?, thumb_status), hardcopy_submitted = ? WHERE id = ?', [providedProceeding, sanctioned_amount, sanction_date, providedApp, providedThumbFlag, providedThumbStatus, providedHardcopyFlag, baseRow.id]);
-        if (!prevThumb && providedThumbFlag) {
-          try {
-            const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
-            const s = stu && stu[0];
-            if (s && s.email && s.is_email_verified) {
-              const subject = 'Scholarship Thumb Verification Required';
-              const html = `<p>Dear ${s.name || 'Student'},</p><p>Your scholarship application requires biometric (thumb) verification. Please visit your nearest Mee-Seva center to complete the verification process.</p><p>Application Number: ${providedApp || ''}</p><p>Academic Year: ${academic_year}</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
-              await sendInstitutionalEmail({ to: s.email, subject, title: subject, bodyHtml: html, infoRows: [{ label: 'Application Number', value: providedApp || '' }, { label: 'Academic Year', value: academic_year }] });
-            }
-          } catch (e) {
-            console.error('Failed to send thumb notification email (baseRow update):', e);
-          }
+        if (providedApp && !baseRow.application_no) {
+          await db.update(scholarshipSanctions)
+            .set({ application_no: providedApp })
+            .where(eq(scholarshipSanctions.id, baseRow.id));
         }
-
-        const newApp = providedApp ?? baseRow.application_no;
-        if (!prevHasApplication && newApp && providedHardcopyFlag === 0) {
-          try {
-            if (student.email && student.is_email_verified) {
-              const subject = 'Scholarship Hard Copy Submission Required';
-              const html = `<p>Dear ${student.name || 'Student'},</p><p>Your scholarship application has been recorded in the college system.</p><p>Please submit the required hard copy documents to the scholarship office.</p><p>Application Number: ${newApp}</p><p>Failure to submit the documents may delay your scholarship processing.</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
-              await sendInstitutionalEmail({
-                to: student.email,
-                subject,
-                title: subject,
-                bodyHtml: html,
-                infoRows: [
-                  { label: 'Application Number', value: newApp },
-                  { label: 'Academic Year', value: academic_year },
-                ],
-              });
-            }
-          } catch (e) {
-            console.error('Failed to send hardcopy submission email (baseRow update):', e);
-          }
-        }
-
-        return apiResponse({ id: baseRow.id, student_id: student.id, academic_year, application_no: newApp, proceeding_no: providedProceeding, sanctioned_amount, sanction_date });
+        targetRowId = baseRow.id;
+      } else {
+        const [ins] = await db.insert(scholarshipSanctions).values({
+          student_id: student.id,
+          academic_year: academic_year,
+          application_no: providedApp,
+          proceeding_no: null,
+          sanctioned_amount: null,
+          sanction_date: null
+        });
+        targetRowId = ins.insertId;
+        isNewInsert = true;
       }
-      // Insert new row with provided proceeding
-      const insertSql = 'INSERT INTO scholarship_sanctions (student_id, academic_year, application_no, proceeding_no, sanctioned_amount, sanction_date, hardcopy_submitted) VALUES (?, ?, ?, ?, ?, ?, ?)';
-      const ins = await query(insertSql, [student.id, academic_year, providedApp, providedProceeding, sanctioned_amount, sanction_date, providedHardcopyFlag]);
-      const insertedId = ins?.insertId || ins?.[0]?.insertId || null;
-      // If newly inserted and thumb flag provided, update thumb fields and possibly send email
-      if (providedThumbFlag) {
-        try {
-          await query('UPDATE scholarship_sanctions SET thumb_update_available = ?, thumb_status = ? WHERE id = ?', [providedThumbFlag, providedThumbStatus, insertedId]);
-          if (!prevThumb && providedThumbFlag) {
-            const stu = await query('SELECT name, email, is_email_verified, roll_no FROM students WHERE id = ?', [student.id]);
-            const s = stu && stu[0];
-            if (s && s.email && s.is_email_verified) {
-              const subject = 'Scholarship Thumb Verification Required';
-              const html = `<p>Dear ${s.name || 'Student'},</p><p>Your scholarship application requires biometric (thumb) verification. Please visit your nearest Mee-Seva center to complete the verification process.</p><p>Application Number: ${providedApp || ''}</p><p>Academic Year: ${academic_year}</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
-              await sendInstitutionalEmail({ to: s.email, subject, title: subject, bodyHtml: html, infoRows: [{ label: 'Application Number', value: providedApp || '' }, { label: 'Academic Year', value: academic_year }] });
-            }
-          }
-        } catch (e) {
-          console.error('Failed to send thumb notification email (insert):', e);
-        }
-      }
-
-      if (!prevHasApplication && providedApp && providedHardcopyFlag === 0) {
-        try {
-          if (student.email && student.is_email_verified) {
-            const subject = 'Scholarship Hard Copy Submission Required';
-            const html = `<p>Dear ${student.name || 'Student'},</p><p>Your scholarship application has been recorded in the college system.</p><p>Please submit the required hard copy documents to the scholarship office.</p><p>Application Number: ${providedApp}</p><p>Failure to submit the documents may delay your scholarship processing.</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
-            await sendInstitutionalEmail({
-              to: student.email,
-              subject,
-              title: subject,
-              bodyHtml: html,
-              infoRows: [
-                { label: 'Application Number', value: providedApp },
-                { label: 'Academic Year', value: academic_year },
-              ],
-            });
-          }
-        } catch (e) {
-          console.error('Failed to send hardcopy submission email (insert):', e);
-        }
-      }
-
-      return apiResponse({ id: insertedId, student_id: student.id, academic_year, application_no: providedApp, proceeding_no: providedProceeding, sanctioned_amount, sanction_date }, 201);
     }
 
-    // No proceeding provided: ensure a base row exists (application-only case)
-    const baseRow = existing.find(r => !r.proceeding_no) || null;
-    if (baseRow) {
-      // Update application_no if not set; otherwise keep existing
-      if (providedApp && !baseRow.application_no) {
-        await query('UPDATE scholarship_sanctions SET application_no = ?, hardcopy_submitted = ? WHERE id = ?', [providedApp, providedHardcopyFlag, baseRow.id]);
-      }
-      const appOut = providedApp || baseRow.application_no || null;
+    // MANDATORY SYNC STEP
+    await db.update(scholarshipSanctions)
+      .set({ 
+        hardcopy_submitted: providedHardcopyFlag, 
+        thumb_update_available: providedThumbFlag === 1, 
+        thumb_status: providedThumbStatus 
+      })
+      .where(and(
+        eq(scholarshipSanctions.student_id, student.id),
+        eq(scholarshipSanctions.academic_year, academic_year)
+      ));
 
-      if (!prevHasApplication && appOut && providedHardcopyFlag === 0) {
-        try {
-          if (student.email && student.is_email_verified) {
-            const subject = 'Scholarship Hard Copy Submission Required';
-            const html = `<p>Dear ${student.name || 'Student'},</p><p>Your scholarship application has been recorded in the college system.</p><p>Please submit the required hard copy documents to the scholarship office.</p><p>Application Number: ${appOut}</p><p>Failure to submit the documents may delay your scholarship processing.</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
-            await sendInstitutionalEmail({
-              to: student.email,
-              subject,
-              title: subject,
-              bodyHtml: html,
-              infoRows: [
-                { label: 'Application Number', value: appOut },
-                { label: 'Academic Year', value: academic_year },
-              ],
-            });
-          }
-        } catch (e) {
-          console.error('Failed to send hardcopy submission email (baseRow app-only):', e);
+    const currentApp = providedApp || (existing.find(r => r.application_no)?.application_no) || null;
+
+    // Email trigger: Thumb Verification
+    if (!prevThumb && providedThumbFlag && thumbIsPending && windowAllowsEmail) {
+      try {
+        if (student.email && student.is_email_verified) {
+          const subject = 'Scholarship Thumb Verification Required';
+          const html = `<p>Dear ${student.name || 'Student'},</p><p>Your scholarship application requires biometric (thumb) verification. Please visit your nearest Mee-Seva center to complete the verification process.</p><p>Application Number: ${currentApp || ''}</p><p>Academic Year: ${academic_year}</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
+          await sendInstitutionalEmail({ 
+            to: student.email, 
+            subject, 
+            title: subject, 
+            bodyHtml: html, 
+            infoRows: [
+              { label: 'Application Number', value: currentApp || '' }, 
+              { label: 'Academic Year', value: academic_year }
+            ] 
+          });
         }
+      } catch (e) {
+        logger.error('Failed to send thumb notification email:', e);
       }
-
-      return apiResponse({ id: baseRow.id, student_id: student.id, academic_year, application_no: appOut, proceeding_no: null, sanctioned_amount: null, sanction_date: null });
     }
-    // Insert base row with application_no and nulls
-    const insertSql = 'INSERT INTO scholarship_sanctions (student_id, academic_year, application_no, proceeding_no, sanctioned_amount, sanction_date, hardcopy_submitted) VALUES (?, ?, ?, NULL, NULL, NULL, ?)';
-    const ins = await query(insertSql, [student.id, academic_year, providedApp, providedHardcopyFlag]);
-    const insertedId = ins?.insertId || ins?.[0]?.insertId || null;
-    if (!prevHasApplication && providedApp && providedHardcopyFlag === 0) {
+
+    // Email trigger: Hard Copy Submission
+    if (!prevHasApplication && currentApp && providedHardcopyFlag === 0 && windowAllowsEmail) {
       try {
         if (student.email && student.is_email_verified) {
           const subject = 'Scholarship Hard Copy Submission Required';
-          const html = `<p>Dear ${student.name || 'Student'},</p><p>Your scholarship application has been recorded in the college system.</p><p>Please submit the required hard copy documents to the scholarship office.</p><p>Application Number: ${providedApp}</p><p>Failure to submit the documents may delay your scholarship processing.</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
+          const html = `<p>Dear ${student.name || 'Student'},</p><p>Your scholarship application has been recorded in the college system.</p><p>Please submit the required hard copy documents to the scholarship office.</p><p>Application Number: ${currentApp}</p><p>Failure to submit the documents may delay your scholarship processing.</p><p>KU College of Engineering &amp; Technology<br/>Warangal</p>`;
           await sendInstitutionalEmail({
             to: student.email,
             subject,
             title: subject,
             bodyHtml: html,
             infoRows: [
-              { label: 'Application Number', value: providedApp },
+              { label: 'Application Number', value: currentApp },
               { label: 'Academic Year', value: academic_year },
             ],
           });
         }
       } catch (e) {
-        console.error('Failed to send hardcopy submission email (baseRow insert):', e);
+        logger.error('Failed to send hardcopy submission email:', e);
       }
     }
-    return apiResponse({ id: insertedId, student_id: student.id, academic_year, application_no: providedApp, proceeding_no: null, sanctioned_amount: null, sanction_date: null }, 201);
+
+    return apiResponse({ 
+      id: targetRowId, 
+      student_id: student.id, 
+      academic_year, 
+      application_no: currentApp, 
+      proceeding_no: providedProceeding, 
+      sanctioned_amount, 
+      sanction_date 
+    }, isNewInsert ? 201 : 200);
   } catch (error) {
-    console.error('Error inserting sanction:', error);
+    logger.error('Error inserting sanction:', error);
     return apiError('Internal Server Error', 500);
   }
 }

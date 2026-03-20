@@ -2,21 +2,15 @@
 
 import React, { useState } from 'react';
 import { useStudent } from '@/context/StudentContext';
-import Header from '@/app/components/Header/Header';
-import Navbar from '@/app/components/Navbar/Navbar';
-import Footer from '@/components/Footer';
 import { getBranchFromRoll, getResolvedCurrentAcademicYear, getBatchFromRoll } from '@/lib/rollNumber';
 import { calculateYearAndSemester } from '@/lib/academic-utils';
-import StudentProfileLayout from '@/components/student/StudentProfileLayout';
-import ProfileActivityBar from '@/components/student/ProfileActivityBar';
 import ProfileHeaderCard from '@/components/student/ProfileHeaderCard';
 import ProfileStatusBar from '@/components/student/ProfileStatusBar';
 import ProfileTabs from '@/components/student/ProfileTabs';
 import PersonalInfoTab from '@/components/student/PersonalInfoTab';
-import FinancialSummaryTable from '@/components/student/FinancialSummaryTable';
-import FinancialSummaryCardsMobile from '@/components/student/FinancialSummaryCardsMobile';
 import SetPasswordGate from '@/components/student/SetPasswordGate';
-import useFinancialRows from '@/components/student/useFinancialRows';
+import ProfileActivityBar from '@/components/student/ProfileActivityBar';
+import ProfileWarningBar from '@/components/student/ProfileWarningBar';
 import useProfileEdit from '@/components/student/hooks/useProfileEdit';
 import useEmailVerification from '@/components/student/hooks/useEmailVerification';
 import usePasswordSetup from '@/components/student/hooks/usePasswordSetup';
@@ -26,6 +20,9 @@ import Loading from './loading';
 export default function StudentProfileNew() {
   const { studentData, collegeInfo, loading: contextLoading, refreshData } = useStudent();
   const [activeTab, setActiveTab] = useState('personal');
+
+  const activity = useProfileActivity();
+  
   // Feature hooks (call unconditionally to preserve hook order)
   const password = usePasswordSetup(studentData?.student?.roll_no);
   const profileEdit = useProfileEdit(studentData, refreshData);
@@ -38,13 +35,6 @@ export default function StudentProfileNew() {
     openSetPasswordModal: password.setShowSetPasswordModal,
     refreshData,
   });
-  const activity = useProfileActivity();
-  const { rows, yearlyTotalFee } = useFinancialRows(
-    studentData?.student?.roll_no, 
-    studentData?.scholarship || [],
-    studentData?.fees || [],
-    getBranchFromRoll(studentData?.student?.roll_no)
-  );
 
   if (!studentData && contextLoading) return <Loading />;
   if (!studentData) return null;
@@ -58,16 +48,14 @@ export default function StudentProfileNew() {
   const batchString = (() => { try { return getBatchFromRoll(student.roll_no); } catch { return null; } })();
 
   return (
-    <StudentProfileLayout>
-      <Header />
-      <Navbar role={'student'} activeTab={'profile'} onLogout={async () => { try { await fetch('/api/student/logout', { method: 'POST' }); } catch {} finally { localStorage.removeItem('logged_in_student'); sessionStorage.clear(); window.location.replace('/'); } }} />
-
+    <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
       <SetPasswordGate show={password.showSetPasswordModal} rollno={student.roll_no} email={profileEdit.email} onPasswordSet={() => { password.setShowSetPasswordModal(false); refreshData(); }} />
 
       <ProfileActivityBar activity={activity} student={student} />
+      <ProfileWarningBar student={student} />
 
-      <main className="flex-1 flex items-start justify-center px-6 py-6">
-        <div className="w-full max-w-6xl bg-white shadow-xl rounded-lg p-6 overflow-hidden">
+      <div className="flex items-start justify-center">
+        <div className="w-full bg-white shadow-xl rounded-lg p-6 overflow-hidden border border-slate-100">
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8">
             <ProfileHeaderCard student={student} />
             <div className="flex flex-col justify-start">
@@ -76,17 +64,11 @@ export default function StudentProfileNew() {
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 personalPanel={<PersonalInfoTab student={student} />}
-                financialPanel={<>
-                  <FinancialSummaryTable rows={rows} totalExpectedFee={yearlyTotalFee} />
-                  <FinancialSummaryCardsMobile rows={rows} totalExpectedFee={yearlyTotalFee} />
-                </>}
               />
             </div>
           </div>
         </div>
-      </main>
-
-      <Footer />
-    </StudentProfileLayout>
+      </div>
+    </div>
   );
 }

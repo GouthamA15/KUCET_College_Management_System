@@ -1,4 +1,7 @@
-import { query } from '@/lib/db';
+import logger from '@/lib/logger';
+import { db } from '@/db';
+import { scholarshipSanctions } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function DELETE(req, ctx) {
@@ -7,16 +10,15 @@ export async function DELETE(req, ctx) {
   if (!user || user.role !== 'scholarship') return apiError('Unauthorized', 403);
 
   try {
-    const params = ctx?.params ? (typeof ctx.params.then === 'function' ? await ctx.params : ctx.params) : {};
-    const idRaw = params?.id;
-    const id = Number(idRaw);
+    const params = await ctx.params;
+    const id = Number(params?.id);
     if (!id || !Number.isInteger(id) || id <= 0) return apiError('Invalid id', 400);
 
-    const delSql = 'DELETE FROM scholarship_sanctions WHERE id = ?';
-    await query(delSql, [id]);
+    await db.delete(scholarshipSanctions).where(eq(scholarshipSanctions.id, id));
+    
     return apiResponse({ success: true });
   } catch (error) {
-    console.error('Error deleting sanction:', error);
+    logger.error('Error deleting sanction:', error);
     return apiError('Internal Server Error', 500);
   }
 }

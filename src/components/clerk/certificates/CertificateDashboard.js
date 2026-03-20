@@ -184,7 +184,7 @@ export default function CertificateDashboard({ clerkType }) {
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-4" id="certificate-section">
       {/* Filters moved to contextual popover aligned with the main content card */}
 
       {/* Main: Single grid with stacked left cards */}

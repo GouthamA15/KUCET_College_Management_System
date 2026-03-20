@@ -1,9 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useContext } from 'react';
+import { useStudent, StudentContext } from '@/context/StudentContext';
+import { useClerk, ClerkContext } from '@/context/ClerkContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
+import NotificationDropdown from './NotificationDropdown';
+import ClerkNotificationDropdown from './clerk/ClerkNotificationDropdown';
+
 export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -11,9 +16,28 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const [mobileExpanded, setMobileExpanded] = useState({});
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
+  // Use useContext directly to avoid throwing when Provider is missing (e.g. guest home)
+  // Hooks must be called unconditionally at the top level
+  const studentContext = useContext(StudentContext);
+  const clerkContext = useContext(ClerkContext);
+
+  const studentData = studentContext?.studentData;
+  const clerkData = clerkContext?.clerkData;
+
+  // Get student and clerk names for greeting
+  let studentName = null;
+  let clerkName = null;
+
+  if (role === 'student' || studentProfileMode) {
+    studentName = studentData?.student?.name || studentData?.name || null;
+  }
+  if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') {
+    clerkName = clerkData?.name || null;
+  }
   // Single source-of-truth menu configuration per role
   const menuConfig = {
       student: [
+      { label: 'HOME', route: '/student' },
       { label: 'PROFILE', route: '/student/profile' },
       { label: 'ACADEMICS', route: '/student/academics' },
       { label: 'TIME TABLE', route: '/student/timetable' },
@@ -108,15 +132,38 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     effectiveRole = 'clerkScholarship';
   }
 
-  const menuItems = menuConfig[effectiveRole] || menuConfig['guest'] || [
+  // Determine if student is fully verified to control menu visibility
+  let isStudentVerified = true;
+  if (effectiveRole === 'student') {
+    const s = studentData?.student;
+    if (s) {
+      isStudentVerified = !!(s.is_email_verified && s.password_hash);
+    }
+  }
+
+  const menuItemsRaw = menuConfig[effectiveRole] || menuConfig['guest'] || [
+    { label: 'HOME', route: '/' },
     { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'EMPLOYEE LOGIN', action: 'open-panel-clerk' },
     { label: 'SUPER ADMIN', action: 'open-panel-admin' }
   ];
 
+  // Filter student menu if unverified
+  const menuItems = (effectiveRole === 'student' && !isStudentVerified)
+    ? [
+        { label: 'HOME', route: '/student' },
+        { label: 'PROFILE', route: '/student/profile' },
+        { label: 'MENU', children: [
+            { label: 'Security & Privacy', route: '/student/settings/security' },
+            { label: 'Logout', action: 'logout' }
+          ]
+        }
+      ]
+    : menuItemsRaw;
+
   const handleNavClick = (panel) => {
-    if (pathname !== '/') {
+    if (pathname !== '/' && pathname !== '/admission') {
       router.push('/');
       return;
     }
@@ -155,8 +202,13 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         return;
       }
 
-      // Clerk and Faculty logout endpoint
-      if (effectiveRole === 'clerk' || effectiveRole === 'faculty') {
+      // Clerk (including admission/scholarship variants) and Faculty logout endpoint
+      if (
+        effectiveRole === 'clerk' ||
+        effectiveRole === 'clerkAdmission' ||
+        effectiveRole === 'clerkScholarship' ||
+        effectiveRole === 'faculty'
+      ) {
         await fetch('/api/clerk/logout', { method: 'POST' });
         window.location.replace('/');
         return;
@@ -202,90 +254,105 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
 
   return (
     <>
-      <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50">
+      <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-13">
-            <div className="flex-shrink-0">
-              <span className="text-white text-lg font-bold tracking-wide">LOGIN PORTAL</span>
+            <div className="flex-shrink-0 flex items-center gap-4">
+              <span className="text-white text-lg font-black tracking-tighter">KUCET CMS</span>
             </div>
+
             {/* Desktop Menu */}
-            <div className="hidden md:flex items-center gap-4">
-              {(menuItems || []).map((item, idx) => {
-                const hasChildren = Array.isArray(item.children) && item.children.length > 0;
-                if (hasChildren) {
-                  return (
-                    <div key={idx} className="relative group">
-                      <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative flex items-center cursor-pointer">
-                        <span>{item.label}</span>
-                        <svg className="w-4 h-4 ml-2 transform transition-transform duration-200 ease-in-out group-hover:rotate-90" viewBox="0 0 20 20" fill="none" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 4l8 6-8 6" />
-                        </svg>
-                        <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
-                          // underline parent if any child matches current pathname
-                          (Array.isArray(item.children) && item.children.some(c => c.route && pathname && pathname.startsWith(c.route))) ? 'w-full' : 'w-0 group-hover:w-full'
-                        }`}></span>
-                      </button>
-                      <div className="absolute left-0 top-full w-56 bg-white rounded-b-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform z-50">
-                        {item.children.map((c, ci) => {
-                            if (c.route && c.route !== '#') {
-                            const childActive = pathname && pathname.startsWith(c.route);
-                            return (
-                              <Link key={ci} href={c.route} className={`block px-4 py-2 text-sm ${childActive ? 'text-[#0b3578] underline' : 'text-gray-700 hover:bg-[#0b3578] hover:text-white'} transition-colors`}>{c.label}</Link>
-                            );
-                          }
-                          if (c.action) {
-                            return (
-                              <button key={ci} onClick={() => performAction(c.action)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">{c.label}</button>
-                            );
-                          }
-                          return (
-                            <button key={ci} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors" onClick={(e) => e.preventDefault()}>{c.label}</button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                }
-                // action items
-                if (item.action) {
-                  if (typeof item.action === 'string' && item.action.startsWith('open-panel-')) {
-                    const panelName = item.action.split('open-panel-')[1];
+            <div className="hidden md:flex items-center gap-6">
+              <div className="flex items-center gap-4">
+                {(menuItems || []).map((item, idx) => {
+                  const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+                  if (hasChildren) {
                     return (
-                      <button key={idx} onClick={() => handleNavClick(panelName)} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer`}>
+                      <div key={idx} className="relative group">
+                        <button className="text-white px-3 py-2 text-sm tracking-wide uppercase relative flex items-center cursor-pointer">
+                          <span>{item.label}</span>
+                          <svg className="w-4 h-4 ml-2 transform transition-transform duration-200 ease-in-out group-hover:rotate-90" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 4l8 6-8 6" />
+                          </svg>
+                          <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
+                            // underline parent if any child matches current pathname
+                            (Array.isArray(item.children) && item.children.some(c => c.route && pathname && pathname.startsWith(c.route))) ? 'w-full' : 'w-0 group-hover:w-full'
+                          }`}></span>
+                        </button>
+                        <div className="absolute left-0 top-full w-56 bg-white rounded-b-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform z-50">
+                          {item.children.map((c, ci) => {
+                              if (c.route && c.route !== '#') {
+                              const childActive = pathname && pathname.startsWith(c.route);
+                              return (
+                                <Link key={ci} href={c.route} className={`block px-4 py-2 text-sm ${childActive ? 'text-[#0b3578] underline' : 'text-gray-700 hover:bg-[#0b3578] hover:text-white'} transition-colors`}>{c.label}</Link>
+                              );
+                            }
+                            if (c.action) {
+                              return (
+                                <button key={ci} onClick={() => performAction(c.action)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors">{c.label}</button>
+                              );
+                            }
+                            return (
+                              <button key={ci} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#0b3578] hover:text-white transition-colors" onClick={(e) => e.preventDefault()}>{c.label}</button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+                  // action items
+                  if (item.action) {
+                    if (typeof item.action === 'string' && item.action.startsWith('open-panel-')) {
+                      const panelName = item.action.split('open-panel-')[1];
+                      return (
+                        <button key={idx} onClick={() => handleNavClick(panelName)} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer`}>
+                          {item.label}
+                          <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${isActive(panelName) ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                        </button>
+                      );
+                    }
+                    return (
+                      <button key={idx} onClick={() => performAction(item.action)} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
                         {item.label}
-                        <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${isActive(panelName) ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                        <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                       </button>
                     );
                   }
+                  // Render a real link only when a valid route exists and is not a placeholder
+                  if (item.route && item.route !== '#') {
+                    // Exact match for root route to prevent multiple highlighting
+                    const routeActive = item.route === '/' 
+                      ? pathname === '/' 
+                      : (pathname && pathname.startsWith(item.route));
+
+                    return (
+                      <Link key={idx} href={item.route} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
+                        {item.label}
+                        <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${routeActive ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                      </Link>
+                    );
+                  }
+                  // Otherwise render a non-navigating button (avoids showing '#' in status bar)
                   return (
-                    <button key={idx} onClick={() => performAction(item.action)} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group cursor-pointer">
+                    <button key={idx} onClick={() => {}} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group text-left`}>
                       {item.label}
                       <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                     </button>
                   );
-                }
-                // Render a real link only when a valid route exists and is not a placeholder
-                if (item.route && item.route !== '#') {
-                  // Treat clerk dashboards generically: any /clerk/*/dashboard should highlight the DASHBOARD item
-                  const routeActive = pathname && (
-                    pathname.startsWith(item.route) ||
-                    (item.label === 'DASHBOARD' && item.route.includes('/clerk/') && pathname.startsWith('/clerk/') && pathname.endsWith('/dashboard'))
-                  );
-                  return (
-                    <Link key={idx} href={item.route} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                      {item.label}
-                      <span className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${routeActive ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-                    </Link>
-                  );
-                }
-                // Otherwise render a non-navigating button (avoids showing '#' in status bar)
-                return (
-                  <button key={idx} onClick={() => {}} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group text-left`}>
-                    {item.label}
-                    <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
-                  </button>
-                );
-              })}
+                })}
+              </div>
+
+              {/* Functional Notification Dropdown */}
+              {effectiveRole === 'student' && (
+                <div className="border-l border-white/10 pl-4">
+                  <NotificationDropdown />
+                </div>
+              )}
+              {(effectiveRole === 'clerkAdmission' || effectiveRole === 'clerkScholarship') && (
+                <div className="border-l border-white/10 pl-4">
+                  <ClerkNotificationDropdown />
+                </div>
+              )}
             </div>
             {/* Mobile Menu Button (single element morphing hamburger -> X) */}
             <div className="md:hidden">
@@ -324,7 +391,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
             {(menuItems || []).map((item, idx) => {
               const hasChildren = Array.isArray(item.children) && item.children.length > 0;
               const expanded = !!mobileExpanded[idx];
-              const mobileRouteActive = pathname && item.route && item.route !== '#' && pathname.startsWith(item.route);
+              const mobileRouteActive = pathname && item.route && item.route !== '#' && (item.route === '/' ? pathname === '/' : pathname.startsWith(item.route));
               return (
                 <div key={idx} className="mb-0">
                   <div className={`flex items-center justify-between w-full ${hasChildren ? 'cursor-pointer' : ''}`}>
