@@ -1,21 +1,39 @@
 import { db } from '@/db';
 import { clerks } from '@/db/schema';
 import { eq, and, ne, sql } from 'drizzle-orm';
-import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 
 export async function DELETE(req, context) {
   const user = await getAuthUser('admin');
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const { id } = await context.params;
-    const idNum = parseInt(id);
+    const params = await context.params;
+    const idNum = parseInt(params.id);
+
+    const clerkBefore = await db.query.clerks.findFirst({
+      where: eq(clerks.id, idNum)
+    });
+
+    if (!clerkBefore) {
+      return apiError('Clerk not found', 404);
+    }
 
     const [result] = await db.delete(clerks).where(eq(clerks.id, idNum));
 
     if (result.affectedRows === 0) {
-      return apiError('Clerk not found', 404);
+      return apiError('Failed to delete clerk', 500);
     }
+
+    // Audit Log
+    await logAudit(req, {
+      userId: user.id,
+      userType: 'admin',
+      action: 'DELETE_CLERK',
+      targetId: idNum,
+      targetType: 'clerk',
+      before: clerkBefore
+    });
 
     return apiResponse({ message: 'Clerk deleted successfully' });
   } catch (error) {
@@ -29,10 +47,18 @@ export async function PUT(req, context) {
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const { id } = await context.params;
-    const idNum = parseInt(id);
+    const params = await context.params;
+    const idNum = parseInt(params.id);
     const body = await req.json();
     const { name, email, employee_id, role, is_hod, branch, is_active } = body;
+
+    const clerkBefore = await db.query.clerks.findFirst({
+      where: eq(clerks.id, idNum)
+    });
+
+    if (!clerkBefore) {
+      return apiError('Clerk not found', 404);
+    }
 
     // STRICT VALIDATION: Only one HOD per branch
     if (is_hod && branch && is_active) {
@@ -59,8 +85,19 @@ export async function PUT(req, context) {
       .where(eq(clerks.id, idNum));
 
     if (result.affectedRows === 0) {
-      return apiError('Clerk not found', 404);
+      return apiError('Failed to update clerk', 500);
     }
+
+    // Audit Log
+    await logAudit(req, {
+      userId: user.id,
+      userType: 'admin',
+      action: 'UPDATE_CLERK',
+      targetId: idNum,
+      targetType: 'clerk',
+      before: clerkBefore,
+      after: { name, email, employee_id, role, is_hod, branch, is_active }
+    });
 
     return apiResponse({ message: 'Clerk updated successfully' });
   } catch (error) {

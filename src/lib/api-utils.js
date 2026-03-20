@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJwt } from './auth';
+import { db } from '@/db';
+import { auditLogs } from '@/db/schema';
 
 /**
  * Standard API response helper
@@ -16,6 +18,33 @@ export function apiError(message, status = 500, details = null) {
   const response = { error: message };
   if (details) response.details = details;
   return NextResponse.json(response, { status });
+}
+
+/**
+ * Audit log helper
+ * @param {Request} req The incoming request object
+ * @param {Object} data Audit data (userId, userType, action, targetId, targetType, before, after)
+ */
+export async function logAudit(req, { userId, userType, action, targetId, targetType, before, after }) {
+  try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+    const userAgent = req.headers.get('user-agent') || 'Unknown Device';
+
+    await db.insert(auditLogs).values({
+      user_id: userId || null,
+      user_type: userType || 'system',
+      action: action,
+      target_id: targetId ? String(targetId) : null,
+      target_type: targetType || null,
+      payload_before: before || null,
+      payload_after: after || null,
+      ip_address: ip,
+      user_agent: userAgent,
+    });
+  } catch (error) {
+    // We log the error but don't fail the main request if audit fails
+    console.error('[AUDIT_LOG_ERROR]', error);
+  }
 }
 
 /**

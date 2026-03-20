@@ -459,3 +459,21 @@ export const studentImportLogs = mysqlTable('student_import_logs', {
 }, (table) => ({
   importCreatedAtIdx: index('idx_import_created_at').on(table.created_at),
 }));
+
+export const auditLogs = mysqlTable('audit_logs', {
+  id: int('id').autoincrement().notNull().primaryKey(),
+  user_id: int('user_id'), // ID of the Admin or Clerk
+  user_type: mysqlEnum('user_type', ['admin', 'clerk', 'student', 'system']).notNull(),
+  action: varchar('action', { length: 100 }).notNull(), // e.g., 'UPDATE_MARKS', 'APPROVE_CERTIFICATE'
+  target_id: varchar('target_id', { length: 255 }), // ID of the entity being modified
+  target_type: varchar('target_type', { length: 100 }), // e.g., 'student', 'marks', 'certificate'
+  payload_before: json('payload_before'),
+  payload_after: json('payload_after'),
+  ip_address: varchar('ip_address', { length: 45 }),
+  user_agent: text('user_agent'),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  actionIdx: index('idx_audit_action').on(table.action),
+  user_idx: index('idx_audit_user').on(table.user_id, table.user_type),
+  targetIdx: index('idx_audit_target').on(table.target_id, table.target_type),
+}));

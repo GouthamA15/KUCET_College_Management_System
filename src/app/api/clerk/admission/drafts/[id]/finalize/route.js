@@ -8,7 +8,7 @@ import {
   studentAdmissionDrafts 
 } from '@/db/schema';
 import { eq, or, sql } from 'drizzle-orm';
-import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 
 export async function POST(req, context) {
   const user = await getAuthUser('clerk');
@@ -114,6 +114,16 @@ export async function POST(req, context) {
         .where(eq(studentAdmissionDrafts.id, id));
 
       return { studentId };
+    });
+
+    // Audit Log
+    await logAudit(req, {
+      userId: user.clerkId || user.id,
+      userType: 'clerk',
+      action: 'FINALIZE_ADMISSION',
+      targetId: result.studentId,
+      targetType: 'student',
+      payload_after: { draft_id: id, roll_no: roll_no }
     });
 
     return apiResponse({ success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' });

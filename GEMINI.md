@@ -140,6 +140,17 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 63: Comprehensive Audit Logging System (March 20, 2026)**
+- **Infrastructure:**
+    - **Database Schema:** Implemented the `audit_logs` table to track administrative actions across the system. Includes fields for `user_id`, `action`, `payload_before`, `payload_after`, `ip_address`, and `user_agent`.
+    - **Utility Helper:** Developed a centralized `logAudit` helper in `src/lib/api-utils.js` to streamline logging across API routes with automatic IP and User-Agent extraction.
+- **Integration (Phase 1):**
+    - **Marks Management:** Integrated auditing into the Faculty Marks update process (`BULK_UPDATE_MARKS`).
+    - **Certificate Workflow:** Added detailed logging for Certificate Request approvals and rejections (`APPROVE_CERTIFICATE`, `REJECT_CERTIFICATE`) with state snapshots.
+    - **Admission Pipeline:** Implemented logging for the finalization of student admissions (`FINALIZE_ADMISSION`).
+    - **Administrative Governance:** Integrated auditing for Super Admin clerk management, including creation, updates, and deletions (`UPDATE_CLERK`, `DELETE_CLERK`).
+- **Legal Compliance:** Established a robust audit trail for high-stakes modifications (marks, certificates, identity), ensuring accountability and non-repudiation within the college portal.
+
 ### **Session 62: Full Drizzle ORM Refactor of Remaining Raw SQL Routes (March 20, 2026)**
 - **API Refactoring (Final Phase):**
     - **Authentication & Security:** Refactored the NextAuth configuration (`[...nextauth]`), Native Google login, Google Complete flow, and Change/Forgot Password routes for all roles (Admin, Clerk, Student) to use Drizzle ORM.

@@ -7,7 +7,7 @@ import {
   collegeInfo as collegeInfoTable 
 } from '@/db/schema';
 import { eq, and, asc, sql, or, like } from 'drizzle-orm';
-import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
 import { branchCodes } from '@/lib/rollNumber';
 
@@ -227,6 +227,16 @@ export async function POST(request) {
       await tx.insert(studentMarks)
         .values(values)
         .onDuplicateKeyUpdate({ set: updateSet });
+    });
+
+    // Audit Log
+    await logAudit(request, {
+      userId: user.id,
+      userType: 'clerk',
+      action: 'BULK_UPDATE_MARKS',
+      targetId: targetAssignmentId,
+      targetType: 'assignment',
+      payload_after: { record_count: marks_data.length, mid_max }
     });
       
     return apiResponse({ message: `Successfully updated ${marks_data.length} records` });

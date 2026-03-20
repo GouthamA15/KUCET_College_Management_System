@@ -1,7 +1,7 @@
 import { db } from '@/db';
 import { studentRequests, students, clerks } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import crypto from 'crypto';
 
 const clerkToTypes = {
@@ -34,7 +34,8 @@ export async function PUT(request, { params }) {
             certificate_type: studentRequests.certificate_type,
             generated_certificate_id: studentRequests.generated_certificate_id,
             student_id: studentRequests.student_id,
-            roll_no: students.roll_no
+            roll_no: students.roll_no,
+            status: studentRequests.status
         })
         .from(studentRequests)
         .innerJoin(students, eq(studentRequests.student_id, students.id))
@@ -77,6 +78,17 @@ export async function PUT(request, { params }) {
             .where(eq(studentRequests.request_id, requestIdNum));
 
         if (result.affectedRows === 1) {
+            // Audit Log
+            await logAudit(request, {
+                userId: clerk.id,
+                userType: 'clerk',
+                action: status === 'APPROVED' ? 'APPROVE_CERTIFICATE' : 'REJECT_CERTIFICATE',
+                targetId: requestIdNum,
+                targetType: 'certificate_request',
+                before: { status: requestToUpdate.status },
+                after: { status: status, reject_reason: updateData.reject_reason, cert_id: updateData.generated_certificate_id }
+            });
+
             // REAL-TIME
             try {
                 const { broadcastUpdate } = await import('@/lib/sse');
