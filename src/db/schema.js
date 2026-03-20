@@ -6,7 +6,7 @@ import {
 // --- 1. COLLEGE CONFIGURATION ---
 
 export const collegeInfo = mysqlTable('college_info', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   first_sem_start_month: tinyint('first_sem_start_month'),
   first_sem_start_day: tinyint('first_sem_start_day'),
   second_sem_start_month: tinyint('second_sem_start_month'),
@@ -17,7 +17,7 @@ export const collegeInfo = mysqlTable('college_info', {
 // --- 2. CORE IDENTITY & AUTHENTICATION ---
 
 export const students = mysqlTable('students', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   admission_no: varchar('admission_no', { length: 255 }),
   roll_no: varchar('roll_no', { length: 255 }),
   fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO']).default('NO').notNull(),
@@ -43,7 +43,7 @@ export const students = mysqlTable('students', {
 }));
 
 export const clerks = mysqlTable('clerks', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   email: varchar('email', { length: 255 }).notNull(),
   employee_id: varchar('employee_id', { length: 255 }),
@@ -60,7 +60,7 @@ export const clerks = mysqlTable('clerks', {
 }));
 
 export const principal = mysqlTable('principal', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   email: varchar('email', { length: 255 }).notNull(),
   password_hash: varchar('password_hash', { length: 255 }).notNull(),
   created_at: timestamp('created_at').defaultNow(),
@@ -71,7 +71,7 @@ export const principal = mysqlTable('principal', {
 // --- 2. STUDENT PERSONAL & ACADEMIC RECORDS ---
 
 export const studentPersonalDetails = mysqlTable('student_personal_details', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id'),
   father_name: varchar('father_name', { length: 255 }),
   mother_name: varchar('mother_name', { length: 255 }),
@@ -96,7 +96,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
 }));
 
 export const studentAcademicBackground = mysqlTable('student_academic_background', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id'),
   qualifying_exam: varchar('qualifying_exam', { length: 50 }),
   previous_college_details: text('previous_college_details'),
@@ -109,7 +109,7 @@ export const studentAcademicBackground = mysqlTable('student_academic_background
 }));
 
 export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   status: mysqlEnum('status', ['DRAFT', 'PROCESSED', 'FINALIZED']).default('DRAFT').notNull(),
   admission_year: varchar('admission_year', { length: 9 }).notNull(),
   entrance_exam: varchar('entrance_exam', { length: 10 }).notNull(),
@@ -152,7 +152,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
 }));
 
 export const academicCalendar = mysqlTable('academic_calendar', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   date: date('date').notNull(),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   semester: tinyint('semester').notNull(),
@@ -167,7 +167,7 @@ export const academicCalendar = mysqlTable('academic_calendar', {
 
 
 export const studentAttendance = mysqlTable('student_attendance', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id').notNull(),
   assignment_id: int('assignment_id').notNull(),
   date: date('date').notNull(),
@@ -181,7 +181,7 @@ export const studentAttendance = mysqlTable('student_attendance', {
 }));
 
 export const studentMarks = mysqlTable('student_marks', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id').notNull(),
   assignment_id: int('assignment_id').notNull(),
   mid1_marks: decimal('mid1_marks', { precision: 5, scale: 2 }),
@@ -199,7 +199,7 @@ export const studentMarks = mysqlTable('student_marks', {
 // --- 4. DEPARTMENTAL & SCHEDULING ---
 
 export const branchConfig = mysqlTable('branch_config', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   branch: varchar('branch', { length: 50 }).notNull(),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   semester: tinyint('semester').notNull(),
@@ -213,7 +213,7 @@ export const branchConfig = mysqlTable('branch_config', {
 }));
 
 export const branchTimetable = mysqlTable('branch_timetable', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   branch: varchar('branch', { length: 50 }).notNull(),
   semester: tinyint('semester').notNull(),
   section: varchar('section', { length: 5 }).default('A'),
@@ -231,7 +231,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
 }));
 
 export const facultySubjectAssignments = mysqlTable('faculty_subject_assignments', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   faculty_id: int('faculty_id').notNull(),
   subject_code: varchar('subject_code', { length: 50 }).notNull(),
   subject_name: varchar('subject_name', { length: 255 }).notNull(),
@@ -257,7 +257,7 @@ export const syllabusSubjects = mysqlTable('syllabus_subjects', {
 });
 
 export const syllabusStructure = mysqlTable('syllabus_structure', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   branch: varchar('branch', { length: 50 }).notNull(),
   semester: tinyint('semester').notNull(),
   subject_code: varchar('subject_code', { length: 50 }).notNull(),
@@ -269,7 +269,7 @@ export const syllabusStructure = mysqlTable('syllabus_structure', {
 }));
 
 export const syllabusUnits = mysqlTable('syllabus_units', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   subject_code: varchar('subject_code', { length: 50 }).notNull(),
   unit_order: tinyint('unit_order').notNull(),
   unit_name: varchar('unit_name', { length: 255 }).notNull(),
@@ -281,16 +281,14 @@ export const syllabusUnits = mysqlTable('syllabus_units', {
 // --- 6. ASSETS & SIGNATURES ---
 
 export const studentImages = mysqlTable('student_images', {
-  id: int('id').autoincrement().notNull().primaryKey(),
-  student_id: int('student_id').notNull(),
+  student_id: int('student_id').notNull().primaryKey(),
   pfp: text('pfp'),
 }, (table) => ({
   studentIdx: index('idx_si_student').on(table.student_id),
 }));
 
 export const studentSignatures = mysqlTable('student_signatures', {
-  id: int('id').autoincrement().notNull().primaryKey(),
-  student_id: int('student_id').notNull(),
+  student_id: int('student_id').notNull().primaryKey(),
   signature: text('signature'),
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
@@ -300,7 +298,7 @@ export const studentSignatures = mysqlTable('student_signatures', {
 // --- 7. REQUESTS & CERTIFICATES ---
 
 export const studentRequests = mysqlTable('student_requests', {
-  request_id: int('request_id').autoincrement().notNull().primaryKey(),
+  request_id: int('request_id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id').notNull(),
   certificate_type: varchar('certificate_type', { length: 100 }).notNull(),
   purpose: text('purpose'),
@@ -326,15 +324,14 @@ export const studentRequests = mysqlTable('student_requests', {
 }));
 
 export const studentRequestImages = mysqlTable('student_request_images', {
-  id: int('id').autoincrement().notNull().primaryKey(),
-  request_id: int('request_id').notNull(),
+  request_id: int('request_id').notNull().primaryKey(),
   payment_screenshot: text('payment_screenshot'),
 }, (table) => ({
   requestIdx: index('idx_sri_request').on(table.request_id),
 }));
 
 export const certificateVerifications = mysqlTable('certificate_verifications', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   request_id: int('request_id').notNull(),
   verification_date: timestamp('verification_date').defaultNow(),
   ip_address: varchar('ip_address', { length: 45 }),
@@ -346,7 +343,7 @@ export const certificateVerifications = mysqlTable('certificate_verifications', 
 // --- 8. SECURITY & UTILITY ---
 
 export const otpCodes = mysqlTable('otp_codes', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   roll_no: varchar('roll_no', { length: 255 }).notNull(),
   otp_code: varchar('otp_code', { length: 6 }).notNull(),
   created_at: timestamp('created_at').defaultNow(),
@@ -356,7 +353,7 @@ export const otpCodes = mysqlTable('otp_codes', {
 }));
 
 export const passwordResetTokens = mysqlTable('password_reset_tokens', {
-  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().notNull().primaryKey(),
+  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
   token_hash: varchar('token_hash', { length: 255 }).notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(),
   user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),
@@ -379,7 +376,7 @@ export const rateLimits = mysqlTable('rate_limits', {
 // --- 9. SCHOLARSHIP & FINANCE ---
 
 export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id').notNull(),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   application_no: varchar('application_no', { length: 255 }).notNull(),
@@ -397,7 +394,7 @@ export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
 }));
 
 export const scholarshipWindows = mysqlTable('scholarship_windows', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   academic_year: varchar('academic_year', { length: 9 }),
   start_date: date('start_date'),
   end_date: date('end_date'),
@@ -406,7 +403,7 @@ export const scholarshipWindows = mysqlTable('scholarship_windows', {
 });
 
 export const studentFeePayments = mysqlTable('student_fee_payments', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id').notNull(),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
@@ -422,7 +419,7 @@ export const studentFeePayments = mysqlTable('student_fee_payments', {
 // --- 10. REAL-TIME & SESSIONS ---
 
 export const attendanceSessions = mysqlTable('attendance_sessions', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   assignment_id: int('assignment_id').notNull(),
   attendance_date: date('attendance_date'),
   faculty_id: int('faculty_id').notNull(),
@@ -442,7 +439,7 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
 }));
 
 export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   session_id: int('session_id').notNull(),
   student_id: int('student_id').notNull(),
   device_hash: varchar('device_hash', { length: 255 }),
@@ -458,7 +455,7 @@ export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
 // --- 11. SEMESTER MANAGEMENT ---
 
 export const semesters = mysqlTable('semesters', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   academic_year: varchar('academic_year', { length: 9 }).notNull(),
   semester: tinyint('semester').notNull(),
   start_date: date('start_date').notNull(),
@@ -469,7 +466,7 @@ export const semesters = mysqlTable('semesters', {
 });
 
 export const facultySubjectInterests = mysqlTable('faculty_subject_interests', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   faculty_id: int('faculty_id').notNull(),
   subject_code: varchar('subject_code', { length: 50 }).notNull(),
   subject_name: varchar('subject_name', { length: 255 }).notNull(),
@@ -485,7 +482,7 @@ export const facultySubjectInterests = mysqlTable('faculty_subject_interests', {
 }));
 
 export const studentProfileRequests = mysqlTable('student_profile_requests', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id').notNull(),
   new_signature: text('new_signature'),
   new_pfp: text('new_pfp'),
@@ -501,7 +498,7 @@ export const studentProfileRequests = mysqlTable('student_profile_requests', {
 }));
 
 export const studentImportLogs = mysqlTable('student_import_logs', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   clerk_id: int('clerk_id').notNull(),
   total_records: int('total_records').notNull(),
   file_name: varchar('file_name', { length: 255 }),
@@ -511,7 +508,7 @@ export const studentImportLogs = mysqlTable('student_import_logs', {
 }));
 
 export const auditLogs = mysqlTable('audit_logs', {
-  id: int('id').autoincrement().notNull().primaryKey(),
+  id: int('id').autoincrement().primaryKey().notNull(),
   user_id: int('user_id'), // ID of the Admin or Clerk
   user_type: mysqlEnum('user_type', ['admin', 'clerk', 'student', 'system']).notNull(),
   action: varchar('action', { length: 100 }).notNull(), // e.g., 'UPDATE_MARKS', 'APPROVE_CERTIFICATE'
@@ -529,7 +526,7 @@ export const auditLogs = mysqlTable('audit_logs', {
 }));
 
 export const refreshTokens = mysqlTable('refresh_tokens', {
-  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().notNull().primaryKey(),
+  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
   token_hash: varchar('token_hash', { length: 255 }).notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(), // roll_no for student, email for clerk/admin
   user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),

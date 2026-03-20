@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "593a9186-5ca8-4944-a7b6-c1ad8a1beeda",
+  "id": "06503df9-d261-4798-a2d2-7e37d4afac55",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "academic_calendar": {
@@ -85,7 +85,14 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "academic_calendar_id_pk": {
+          "name": "academic_calendar_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -160,10 +167,25 @@
             "ua_hash"
           ],
           "isUnique": false
+        },
+        "idx_asl_student_session": {
+          "name": "idx_asl_student_session",
+          "columns": [
+            "student_id",
+            "session_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "attendance_session_logs_id_pk": {
+          "name": "attendance_session_logs_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -281,10 +303,143 @@
             "expires_at"
           ],
           "isUnique": false
+        },
+        "idx_session_token": {
+          "name": "idx_session_token",
+          "columns": [
+            "session_token"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "attendance_sessions_id_pk": {
+          "name": "attendance_sessions_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "audit_logs": {
+      "name": "audit_logs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_type": {
+          "name": "user_type",
+          "type": "enum('admin','clerk','student','system')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "action": {
+          "name": "action",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "payload_before": {
+          "name": "payload_before",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "payload_after": {
+          "name": "payload_after",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "varchar(45)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "idx_audit_action": {
+          "name": "idx_audit_action",
+          "columns": [
+            "action"
+          ],
+          "isUnique": false
+        },
+        "idx_audit_user": {
+          "name": "idx_audit_user",
+          "columns": [
+            "user_id",
+            "user_type"
+          ],
+          "isUnique": false
+        },
+        "idx_audit_target": {
+          "name": "idx_audit_target",
+          "columns": [
+            "target_id",
+            "target_type"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "audit_logs_id_pk": {
+          "name": "audit_logs_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -360,9 +515,26 @@
           "onUpdate": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_bc_lookup": {
+          "name": "idx_bc_lookup",
+          "columns": [
+            "branch",
+            "academic_year",
+            "semester"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "branch_config_id_pk": {
+          "name": "branch_config_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -466,10 +638,25 @@
             "academic_year"
           ],
           "isUnique": false
+        },
+        "idx_bt_day_period": {
+          "name": "idx_bt_day_period",
+          "columns": [
+            "day_of_week",
+            "period_number"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "branch_timetable_id_pk": {
+          "name": "branch_timetable_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -513,9 +700,24 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_cv_request": {
+          "name": "idx_cv_request",
+          "columns": [
+            "request_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "certificate_verifications_id_pk": {
+          "name": "certificate_verifications_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -605,9 +807,31 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_clerks_email": {
+          "name": "idx_clerks_email",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        },
+        "idx_clerks_employee_id": {
+          "name": "idx_clerks_employee_id",
+          "columns": [
+            "employee_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "clerks_id_pk": {
+          "name": "clerks_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -659,7 +883,14 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "college_info_id_pk": {
+          "name": "college_info_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -763,10 +994,24 @@
             "course_semester"
           ],
           "isUnique": false
+        },
+        "idx_fsa_faculty": {
+          "name": "idx_fsa_faculty",
+          "columns": [
+            "faculty_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "faculty_subject_assignments_id_pk": {
+          "name": "faculty_subject_assignments_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -847,9 +1092,31 @@
           "onUpdate": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_fsi_faculty": {
+          "name": "idx_fsi_faculty",
+          "columns": [
+            "faculty_id"
+          ],
+          "isUnique": false
+        },
+        "idx_fsi_status": {
+          "name": "idx_fsi_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "faculty_subject_interests_id_pk": {
+          "name": "faculty_subject_interests_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -893,9 +1160,24 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_otp_roll_no": {
+          "name": "idx_otp_roll_no",
+          "columns": [
+            "roll_no"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "otp_codes_id_pk": {
+          "name": "otp_codes_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -971,7 +1253,14 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "password_reset_tokens_id_pk": {
+          "name": "password_reset_tokens_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1008,9 +1297,24 @@
           "default": "(now())"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_principal_email": {
+          "name": "idx_principal_email",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "principal_id_pk": {
+          "name": "principal_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1050,7 +1354,104 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "rate_limits_key_name_pk": {
+          "name": "rate_limits_key_name_pk",
+          "columns": [
+            "key_name"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "refresh_tokens": {
+      "name": "refresh_tokens",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_type": {
+          "name": "user_type",
+          "type": "enum('student','clerk','admin')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "replaced_by_token_id": {
+          "name": "replaced_by_token_id",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_refresh_token_hash": {
+          "name": "idx_refresh_token_hash",
+          "columns": [
+            "token_hash"
+          ],
+          "isUnique": false
+        },
+        "idx_refresh_user": {
+          "name": "idx_refresh_user",
+          "columns": [
+            "user_id",
+            "user_type"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "refresh_tokens_id_pk": {
+          "name": "refresh_tokens_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1166,7 +1567,14 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "scholarship_sanctions_id_pk": {
+          "name": "scholarship_sanctions_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1220,7 +1628,14 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "scholarship_windows_id_pk": {
+          "name": "scholarship_windows_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1288,7 +1703,14 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "semesters_id_pk": {
+          "name": "semesters_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1352,9 +1774,24 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_sab_student_id": {
+          "name": "idx_sab_student_id",
+          "columns": [
+            "student_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_academic_background_id_pk": {
+          "name": "student_academic_background_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1617,9 +2054,38 @@
           "onUpdate": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_draft_email": {
+          "name": "idx_draft_email",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        },
+        "idx_draft_mobile": {
+          "name": "idx_draft_mobile",
+          "columns": [
+            "student_mobile"
+          ],
+          "isUnique": false
+        },
+        "idx_draft_status": {
+          "name": "idx_draft_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_admission_drafts_id_pk": {
+          "name": "student_admission_drafts_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1694,10 +2160,25 @@
             "date"
           ],
           "isUnique": false
+        },
+        "idx_sa_student_assignment": {
+          "name": "idx_sa_student_assignment",
+          "columns": [
+            "student_id",
+            "assignment_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_attendance_id_pk": {
+          "name": "student_attendance_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1769,9 +2250,24 @@
           "default": "(now())"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_sfp_student": {
+          "name": "idx_sfp_student",
+          "columns": [
+            "student_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_fee_payments_id_pk": {
+          "name": "student_fee_payments_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1793,9 +2289,24 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_si_student": {
+          "name": "idx_si_student",
+          "columns": [
+            "student_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_images_student_id_pk": {
+          "name": "student_images_student_id_pk",
+          "columns": [
+            "student_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1849,7 +2360,14 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_import_logs_id_pk": {
+          "name": "student_import_logs_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -1936,9 +2454,25 @@
           "onUpdate": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_marks_student_assignment": {
+          "name": "idx_marks_student_assignment",
+          "columns": [
+            "student_id",
+            "assignment_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_marks_id_pk": {
+          "name": "student_marks_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -2079,9 +2613,31 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_spd_student_id": {
+          "name": "idx_spd_student_id",
+          "columns": [
+            "student_id"
+          ],
+          "isUnique": false
+        },
+        "idx_spd_aadhaar": {
+          "name": "idx_spd_aadhaar",
+          "columns": [
+            "aadhaar_no"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_personal_details_id_pk": {
+          "name": "student_personal_details_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -2162,9 +2718,31 @@
           "onUpdate": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_spr_student": {
+          "name": "idx_spr_student",
+          "columns": [
+            "student_id"
+          ],
+          "isUnique": false
+        },
+        "idx_spr_status": {
+          "name": "idx_spr_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_profile_requests_id_pk": {
+          "name": "student_profile_requests_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -2186,9 +2764,24 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_sri_request": {
+          "name": "idx_sri_request",
+          "columns": [
+            "request_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_request_images_request_id_pk": {
+          "name": "student_request_images_request_id_pk",
+          "columns": [
+            "request_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -2339,10 +2932,31 @@
             "generated_certificate_id"
           ],
           "isUnique": false
+        },
+        "idx_sr_student": {
+          "name": "idx_sr_student",
+          "columns": [
+            "student_id"
+          ],
+          "isUnique": false
+        },
+        "idx_sr_status": {
+          "name": "idx_sr_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_requests_request_id_pk": {
+          "name": "student_requests_request_id_pk",
+          "columns": [
+            "request_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -2372,9 +2986,24 @@
           "onUpdate": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_ss_student": {
+          "name": "idx_ss_student",
+          "columns": [
+            "student_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "student_signatures_student_id_pk": {
+          "name": "student_signatures_student_id_pk",
+          "columns": [
+            "student_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -2514,6 +3143,20 @@
           ],
           "isUnique": false
         },
+        "idx_students_email": {
+          "name": "idx_students_email",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        },
+        "idx_students_mobile": {
+          "name": "idx_students_mobile",
+          "columns": [
+            "mobile"
+          ],
+          "isUnique": false
+        },
         "idx_students_created_at": {
           "name": "idx_students_created_at",
           "columns": [
@@ -2530,7 +3173,14 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "students_id_pk": {
+          "name": "students_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -2599,7 +3249,14 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "syllabus_structure_id_pk": {
+          "name": "syllabus_structure_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -2630,7 +3287,14 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "syllabus_subjects_subject_code_pk": {
+          "name": "syllabus_subjects_subject_code_pk",
+          "columns": [
+            "subject_code"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
@@ -2673,9 +3337,24 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_su_subject": {
+          "name": "idx_su_subject",
+          "columns": [
+            "subject_code"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "syllabus_units_id_pk": {
+          "name": "syllabus_units_id_pk",
+          "columns": [
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraint": {}
     }
