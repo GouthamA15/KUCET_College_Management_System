@@ -1,8 +1,9 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { students, studentImages } from '@/db/schema';
+import { students, studentImages, studentPersonalDetails, studentAcademicBackground } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { decrypt } from '@/lib/encryption';
 
 export async function GET(request, { params }) {
   const user = await getAuthUser('admin');
@@ -18,30 +19,41 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const studentWithImage = await db.select({
+    const studentData = await db.select({
       student: students,
+      personal: studentPersonalDetails,
+      academic: studentAcademicBackground,
       has_pfp: studentImages.pfp
     })
     .from(students)
     .leftJoin(studentImages, eq(students.id, studentImages.student_id))
+    .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))
+    .leftJoin(studentAcademicBackground, eq(students.id, studentAcademicBackground.student_id))
     .where(eq(students.roll_no, rollno))
     .limit(1);
 
-    if (studentWithImage.length === 0) {
+    if (studentData.length === 0) {
       return apiError('Student not found', 404);
     }
 
-    const { student, has_pfp } = studentWithImage[0];
+    const { student, personal, academic, has_pfp } = studentData[0];
 
-    if (has_pfp) {
-        student.pfp = `/api/student/image/${student.roll_no}`;
-    } else {
-        student.pfp = null;
-    }
+    // Decrypt sensitive fields
+    const decryptedStudent = {
+      ...student,
+      mobile: decrypt(student.mobile),
+      personal_details: personal ? {
+        ...personal,
+        guardian_mobile: decrypt(personal.guardian_mobile),
+        aadhaar_no: decrypt(personal.aadhaar_no)
+      } : null,
+      academic_background: academic || null,
+      pfp: has_pfp ? `/api/student/image/${student.roll_no}` : null
+    };
 
-    return apiResponse({ student });
+    return apiResponse({ student: decryptedStudent });
   } catch (error) {
-    logger.error('Failed to fetch student:', error);
+    logger.error(error, 'Failed to fetch student for admin');
     return apiError('Failed to fetch student', 500);
   }
 }

@@ -24,7 +24,8 @@ export const students = mysqlTable('students', {
   name: varchar('name', { length: 255 }),
   date_of_birth: date('date_of_birth'),
   gender: varchar('gender', { length: 50 }),
-  mobile: varchar('mobile', { length: 20 }),
+  mobile: varchar('mobile', { length: 255 }), // Encrypted
+  mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Blind Index
   email: varchar('email', { length: 255 }),
   created_at: timestamp('created_at').defaultNow(),
   is_email_verified: boolean('is_email_verified').default(false).notNull(),
@@ -36,10 +37,9 @@ export const students = mysqlTable('students', {
   student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED']).default('ACTIVE'),
 }, (table) => ({
   rollNoIdx: index('idx_roll_no').on(table.roll_no),
+  mobileHashIdx: index('idx_students_mobile_hash').on(table.mobile_hash),
   emailIdx: index('idx_students_email').on(table.email),
-  mobileIdx: index('idx_students_mobile').on(table.mobile),
   createdAtIdx: index('idx_students_created_at').on(table.created_at),
-  updatedAtIdx: index('idx_students_updated_at').on(table.updated_at),
 }));
 
 export const clerks = mysqlTable('clerks', {
@@ -83,16 +83,17 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
   mother_tongue: varchar('mother_tongue', { length: 100 }),
   place_of_birth: varchar('place_of_birth', { length: 255 }),
   father_occupation: varchar('father_occupation', { length: 255 }),
-  guardian_mobile: varchar('guardian_mobile', { length: 20 }),
+  guardian_mobile: varchar('guardian_mobile', { length: 255 }), // Encrypted
   annual_income: int('annual_income'),
-  aadhaar_no: varchar('aadhaar_no', { length: 12 }),
+  aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
+  aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Blind Index
   address: text('address'),
   seat_allotted_category: varchar('seat_allotted_category', { length: 100 }),
   identification_marks: text('identification_marks'),
   blood_group: mysqlEnum('blood_group', ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
 }, (table) => ({
   studentIdIdx: index('idx_spd_student_id').on(table.student_id),
-  aadhaarIdx: index('idx_spd_aadhaar').on(table.aadhaar_no),
+  aadhaarHashIdx: index('idx_spd_aadhaar_hash').on(table.aadhaar_hash),
 }));
 
 export const studentAcademicBackground = mysqlTable('student_academic_background', {
@@ -120,8 +121,9 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   dob: date('dob'),
   gender: varchar('gender', { length: 10 }),
   email: varchar('email', { length: 255 }),
-  student_mobile: varchar('student_mobile', { length: 20 }),
-  guardian_mobile: varchar('guardian_mobile', { length: 20 }),
+  student_mobile: varchar('student_mobile', { length: 255 }), // Encrypted
+  mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Index
+  guardian_mobile: varchar('guardian_mobile', { length: 255 }), // Encrypted
   pfp: text('pfp'),
   signature: text('signature'),
   exam_rank: int('exam_rank'),
@@ -138,7 +140,8 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   place_of_birth: varchar('place_of_birth', { length: 255 }),
   father_occupation: varchar('father_occupation', { length: 255 }),
   annual_income: int('annual_income'),
-  aadhaar_no: varchar('aadhaar_no', { length: 12 }),
+  aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
+  aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Index
   fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO', 'GOV']),
   identification_mark_1: text('identification_mark_1'),
   identification_mark_2: text('identification_mark_2'),
@@ -147,7 +150,8 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
   emailIdx: index('idx_draft_email').on(table.email),
-  mobileIdx: index('idx_draft_mobile').on(table.student_mobile),
+  mobileHashIdx: index('idx_draft_mobile_hash').on(table.mobile_hash),
+  aadhaarHashIdx: index('idx_draft_aadhaar_hash').on(table.aadhaar_hash),
   statusIdx: index('idx_draft_status').on(table.status),
 }));
 

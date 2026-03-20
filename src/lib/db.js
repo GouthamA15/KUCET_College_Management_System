@@ -16,7 +16,7 @@ try {
 }
 
 // Fail-fast environment validation
-import './env';
+import './env.js';
 
 let pool;
 

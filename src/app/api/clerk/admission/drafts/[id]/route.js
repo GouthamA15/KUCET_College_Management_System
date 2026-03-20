@@ -6,6 +6,7 @@ import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 import { sendInstitutionalEmail } from '@/lib/email';
+import { encrypt, decrypt } from '@/lib/encryption';
 
 export async function GET(req, context) {
   const user = await getAuthUser('clerk');
@@ -21,6 +22,11 @@ export async function GET(req, context) {
 
     if (!draft) return apiError('Draft not found', 404);
 
+    // Decrypt sensitive fields for display
+    draft.student_mobile = decrypt(draft.student_mobile);
+    draft.guardian_mobile = decrypt(draft.guardian_mobile);
+    draft.aadhaar_no = decrypt(draft.aadhaar_no);
+
     const imageHelper = (val) => {
       if (!val) return null;
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
@@ -33,7 +39,7 @@ export async function GET(req, context) {
     
     return apiResponse({ data: draft });
   } catch (error) {
-    logger.error('Error fetching draft detail:', error);
+    logger.error(error, 'Error fetching draft detail');
     return apiError('Server Error', 500);
   }
 }
@@ -107,11 +113,17 @@ export async function PUT(req, context) {
       const updateObj = {};
       for (const field of allowedFields) {
           if (body[field] !== undefined) {
+              let value = body[field] === '' ? null : body[field];
+              
               if (field === 'dob') {
-                  updateObj[field] = toMySQLDate(body[field]);
-              } else {
-                  updateObj[field] = body[field] === '' ? null : body[field];
+                  value = toMySQLDate(body[field]);
+              } 
+              // Encrypt sensitive fields before saving
+              else if (value && (field === 'student_mobile' || field === 'guardian_mobile' || field === 'aadhaar_no')) {
+                  value = encrypt(value);
               }
+
+              updateObj[field] = value;
           }
       }
 
@@ -123,7 +135,7 @@ export async function PUT(req, context) {
   
       return apiResponse({ success: true, message: 'Draft updated successfully' });
     } catch (error) {
-      logger.error('Error updating draft:', error);
+      logger.error(error, 'Error updating draft');
       return apiError('Server Error', 500);
     }
 }

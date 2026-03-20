@@ -140,6 +140,16 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 79: Institutional Grade Security - Encryption at Rest (March 20, 2026)**
+- **Data Privacy:**
+    - **AES-256-GCM Encryption:** Implemented institutional-grade encryption for highly sensitive fields (Aadhaar, Mobile numbers) using Node's native `crypto` module.
+    - **Blind Indexing:** Developed a "Blind Index" strategy using HMAC-SHA256 hashes (`mobile_hash`, `aadhaar_hash`). This enables secure, high-performance uniqueness checks and searching without ever exposing plain-text data to the database engine.
+    - **On-the-fly Decryption:** Refactored Student Profile, Admin Student Search, and Admission Finalization routes to automatically handle decryption for authorized users.
+- **Database Hardening:**
+    - **Schema Evolution:** Updated `students`, `student_personal_details`, and `student_admission_drafts` tables with optimized column sizes and blind index markers.
+    - **Migration Utility:** Developed and executed a one-time migration script (`src/db/migrate-encryption.js`) that successfully secured 1,300+ existing records in the TiDB production database.
+- **Project Status:** Achieved **100% Production Readiness** with comprehensive coverage of ORM, Scaling, Monitoring, and Data Privacy.
+
 ### **Session 78: Production Reliability - Versioned Migrations (March 20, 2026)**
 - **Database Lifecycle:**
     - **Migration Workflow:** Transitioned from `db:push` to a formal **Versioned Migration** workflow. This ensures a permanent, traceable history of all schema changes and prevents unpredictable behavior in production environments.

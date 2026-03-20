@@ -11,7 +11,7 @@ import { eq, and, inArray, sql } from 'drizzle-orm';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { encrypt } from '@/lib/encryption';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -59,6 +59,7 @@ const ALIASES = {
     father_occupation: ['father_occupation', 'father_work'],
     annual_income: ['annual_income', 'income'],
     identification_marks: ['identification_mark', 'identify_marks'],
+    guardian_mobile: ['guardian_mobile', 'parent_mobile', 'emergency_contact']
   },
   student_academic_background: {
     qualifying_exam: ['qualifying_exam', 'qualifyingexam'],
@@ -180,8 +181,16 @@ export async function POST(req) {
 
       Object.keys(record).forEach(key => {
         if (key.startsWith('_')) return;
-        if (ALIASES.students[key]) student[key] = record[key];
-        else if (ALIASES.student_personal_details[key]) personal[key] = record[key];
+        if (ALIASES.students[key]) {
+            let val = record[key];
+            if (key === 'mobile' && val) val = encrypt(val);
+            student[key] = val;
+        }
+        else if (ALIASES.student_personal_details[key]) {
+            let val = record[key];
+            if ((key === 'aadhaar_no' || key === 'guardian_mobile') && val) val = encrypt(val);
+            personal[key] = val;
+        }
         else if (ALIASES.student_academic_background[key]) academic[key] = record[key];
       });
 
@@ -275,7 +284,7 @@ export async function POST(req) {
     });
 
   } catch (error) {
-    logger.error('BULK IMPORT ERROR:', error);
+    logger.error(error, 'BULK IMPORT ERROR');
     return apiError('Import failed', 500);
   }
 }

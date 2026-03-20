@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import logger from './logger';
+import logger from './logger.js';
 
 const envSchema = z.object({
   // Node Environment
@@ -16,9 +16,10 @@ const envSchema = z.object({
   EMAIL_USER: z.string().email("EMAIL_USER must be a valid email"),
   BREVO_API_KEY: z.string().min(1, "BREVO_API_KEY is required"),
 
-  // Auth
+  // Secrets for JWT and Certificate
   JWT_SECRET: z.string().min(32, "JWT_SECRET should be at least 32 characters for security"),
   CERTIFICATE_SECRET: z.string().min(1, "CERTIFICATE_SECRET is required"),
+  ENCRYPTION_KEY: z.string().length(64, "ENCRYPTION_KEY must be a 64-character hex string"),
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
   GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
 

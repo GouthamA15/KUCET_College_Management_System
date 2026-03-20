@@ -28,8 +28,6 @@ export async function POST(req, context) {
 
     const result = await db.transaction(async (tx) => {
       // 1. Fetch the full draft data with lock
-      // Note: Drizzle doesn't have a direct 'FOR UPDATE' helper in query.findFirst yet, 
-      // but we can use the standard select builder.
       const draftRows = await tx.select()
         .from(studentAdmissionDrafts)
         .where(eq(studentAdmissionDrafts.id, id))
@@ -64,6 +62,7 @@ export async function POST(req, context) {
         date_of_birth: draft.dob,
         gender: draft.gender,
         mobile: draft.student_mobile,
+        mobile_hash: draft.mobile_hash, // Transfer blind index
         email: draft.email,
         added_by_clerk_id: user.clerkId || user.id,
         fee_reimbursement: draft.fee_reimbursement === 'YES' ? 'YES' : 'NO',
@@ -88,6 +87,7 @@ export async function POST(req, context) {
         annual_income: draft.annual_income,
         guardian_mobile: draft.guardian_mobile,
         aadhaar_no: draft.aadhaar_no,
+        aadhaar_hash: draft.aadhaar_hash, // Transfer blind index
         address: draft.permanent_address,
         identification_marks: `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim()
       });
@@ -97,7 +97,7 @@ export async function POST(req, context) {
         student_id: studentId,
         qualifying_exam: draft.entrance_exam,
         ssc_marks: draft.ssc_marks,
-        inter_marks: draft.inter_diploma_marks,
+        inter_marks: draft.inter_marks || draft.inter_diploma_marks,
         ranks: draft.exam_rank
       });
 
@@ -134,7 +134,7 @@ export async function POST(req, context) {
     if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);
     if (error.message === 'STUDENT_EXISTS') return apiError('A student with this Roll No or Email already exists.', 409);
     
-    logger.error('Finalization error:', error);
+    logger.error(error, 'Finalization error');
     return apiError('Failed to finalize admission.', 500);
   }
 }
