@@ -140,6 +140,16 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 66: Infrastructure, Monitoring & CDN Hardening (March 20, 2026)**
+- **CDN Hardening (Security):**
+    - **Content Security Policy (CSP):** Implemented a strict CSP in `next.config.mjs` to prevent Cross-Site Scripting (XSS) and Data Injection attacks. 
+    - **Resource White-listing:** Specifically authorized `res.cloudinary.com` for images and `*.sentry.io` for monitoring, while enforcing `'none'` for object-src and frame-ancestors.
+- **Observability Strategy:**
+    - **Error Tracking:** Confirmed Sentry is operational for full-stack error tracking.
+    - **Monitoring Recommendations:** Documented the strategy for integrating **BetterStack** or **Datadog** for real-time API latency and database performance monitoring.
+- **Data Resilience:**
+    - **Disaster Recovery:** Recommended enabling **Point-in-Time Recovery (PITR)** on Railway/TiDB to ensure sub-second recovery objectives for institutional data.
+
 ### **Session 65: Automated Testing Infrastructure & CI/CD Pipeline (March 20, 2026)**
 - **End-to-End (E2E) Testing:**
     - **Infrastructure:** Initialized **Playwright** testing framework for browser automation.
