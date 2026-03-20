@@ -2,9 +2,9 @@ import { db } from '@/db';
 import { clerks } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
-import { SignJWT } from 'jose';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { issueClerkAuthCookie } from '@/lib/auth-utils';
 
 export async function POST(request) {
   try {
@@ -41,49 +41,12 @@ export async function POST(request) {
       return apiError('Your account has been deactivated. Please contact the administrator.', 403);
     }
 
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    const sessionDuration = rememberMe ? '30d' : '1h';
-    const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 60 * 60;
-
-    const token = await new SignJWT({ 
-      id: clerk.id, 
-      clerkId: clerk.id, 
-      email: clerk.email, 
-      role: clerk.role,
-      is_hod: !!clerk.is_hod,
-      branch: clerk.branch 
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(sessionDuration)
-      .sign(secret);
-
     const response = apiResponse({ success: true, message: 'Login successful', role: clerk.role });
 
     response.cookies.delete('admin_auth');
     response.cookies.delete('student_auth');
 
-    response.cookies.set('clerk_auth', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: cookieMaxAge,
-      path: '/',
-    });
-    response.cookies.set('clerk_logged_in', 'true', {
-      httpOnly: false,
-      secure: true,
-      sameSite: 'lax',
-      maxAge: cookieMaxAge,
-      path: '/',
-    });
-    response.cookies.set('clerk_role', clerk.role || '', {
-      httpOnly: false,
-      secure: true,
-      sameSite: 'lax',
-      maxAge: cookieMaxAge,
-      path: '/',
-    });
+    await issueClerkAuthCookie(response, clerk, rememberMe);
 
     return response;
   } catch (error) {

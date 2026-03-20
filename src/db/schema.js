@@ -477,3 +477,17 @@ export const auditLogs = mysqlTable('audit_logs', {
   user_idx: index('idx_audit_user').on(table.user_id, table.user_type),
   targetIdx: index('idx_audit_target').on(table.target_id, table.target_type),
 }));
+
+export const refreshTokens = mysqlTable('refresh_tokens', {
+  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().notNull().primaryKey(),
+  token_hash: varchar('token_hash', { length: 255 }).notNull(),
+  user_id: varchar('user_id', { length: 255 }).notNull(), // roll_no for student, email for clerk/admin
+  user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),
+  expires_at: timestamp('expires_at').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  revoked_at: timestamp('revoked_at'),
+  replaced_by_token_id: bigint('replaced_by_token_id', { mode: 'number', unsigned: true }),
+}, (table) => ({
+  tokenHashIdx: index('idx_refresh_token_hash').on(table.token_hash),
+  userIdIdx: index('idx_refresh_user').on(table.user_id, table.user_type),
+}));

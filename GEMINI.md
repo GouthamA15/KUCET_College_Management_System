@@ -140,6 +140,16 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 64: Advanced Security Hardening - JWT Rotation & Modern Rate Limiting (March 20, 2026)**
+- **Authentication Infrastructure:**
+    - **Refresh Token System:** Implemented a robust JWT rotation mechanism using a new `refresh_tokens` database table. This allows for short-lived access tokens (15 mins) and secure session extension without re-authentication.
+    - **Security Hardening:** Added automatic revocation of all user tokens if a reused/stolen refresh token is detected (Reuse Detection).
+    - **Unified Auth Helpers:** Refactored all login routes (Student, Clerk, Admin) to use centralized `auth-utils` for consistent cookie management and token issuance.
+- **Traffic Governance:**
+    - **Drizzle-Based Rate Limiting:** Refactored the internal rate limiter to use Drizzle ORM with atomic SQL increments. This provides reliable brute-force protection for login and sensitive API endpoints.
+    - **Distributed Support:** Modernized the rate limiting logic to be compatible with distributed server environments (Ready for Upstash Redis migration).
+- **Session Lifecycle:** Added a dedicated `/api/auth/refresh` endpoint to handle silent token rotation for all system roles.
+
 ### **Session 63: Comprehensive Audit Logging System (March 20, 2026)**
 - **Infrastructure:**
     - **Database Schema:** Implemented the `audit_logs` table to track administrative actions across the system. Includes fields for `user_id`, `action`, `payload_before`, `payload_after`, `ip_address`, and `user_agent`.

@@ -1,8 +1,11 @@
-import { query } from './db';
+import { db } from '@/db';
+import { rateLimits } from '@/db/schema';
+import { eq, sql, lt } from 'drizzle-orm';
 
 /**
- * Basic Rate Limiter using MySQL
- * @param {string} key - Unique key for the limit (e.g., 'upload:123' or 'ip:1.2.3.4')
+ * Robust Rate Limiter using MySQL (Drizzle)
+ * For production, consider moving to Upstash Redis if running on serverless.
+ * @param {string} key - Unique key for the limit
  * @param {number} limit - Max allowed points
  * @param {number} windowSeconds - Time window in seconds
  * @returns {Promise<{success: boolean, remaining: number}>}
@@ -11,54 +14,58 @@ export async function checkRateLimit(key, limit, windowSeconds) {
   try {
     const now = new Date();
     
-    // 1. Clean up expired limits occasionally (10% chance per request to avoid overhead)
+    // 1. Occasional cleanup (10% chance)
     if (Math.random() < 0.1) {
-      query('DELETE FROM rate_limits WHERE expire_at < NOW()').catch(e => console.error('Rate Limit Cleanup Error:', e));
+      db.delete(rateLimits)
+        .where(lt(rateLimits.expire_at, now))
+        .execute()
+        .catch(e => console.error('[RATE_LIMIT_CLEANUP_ERROR]', e));
     }
 
-    // 2. Fetch current points
-    const [row] = await query(
-      'SELECT points, expire_at FROM rate_limits WHERE key_name = ?',
-      [key]
-    );
+    // 2. Try to fetch existing limit
+    const existing = await db.query.rateLimits.findFirst({
+      where: eq(rateLimits.key_name, key)
+    });
 
-    if (!row) {
-      // First time: Create new record
+    if (!existing) {
+      // Create new record
       const expireAt = new Date(now.getTime() + windowSeconds * 1000);
-      await query(
-        'INSERT INTO rate_limits (key_name, points, expire_at) VALUES (?, 1, ?)',
-        [key, expireAt]
-      );
+      await db.insert(rateLimits).values({
+        key_name: key,
+        points: 1,
+        expire_at: expireAt
+      });
       return { success: true, remaining: limit - 1 };
     }
 
-    // Check if expired
-    const expireAt = new Date(row.expire_at);
-    if (expireAt < now) {
-      // Expired: Reset
+    // 3. Check if expired
+    if (new Date(existing.expire_at) < now) {
       const newExpireAt = new Date(now.getTime() + windowSeconds * 1000);
-      await query(
-        'UPDATE rate_limits SET points = 1, expire_at = ? WHERE key_name = ?',
-        [newExpireAt, key]
-      );
+      await db.update(rateLimits)
+        .set({ 
+          points: 1, 
+          expire_at: newExpireAt 
+        })
+        .where(eq(rateLimits.key_name, key));
       return { success: true, remaining: limit - 1 };
     }
 
-    // Not expired: Check points
-    if (row.points >= limit) {
+    // 4. Check points
+    if (existing.points >= limit) {
       return { success: false, remaining: 0 };
     }
 
-    // Increment points
-    await query(
-      'UPDATE rate_limits SET points = points + 1 WHERE key_name = ?',
-      [key]
-    );
+    // 5. Atomic increment
+    await db.update(rateLimits)
+      .set({ 
+        points: sql`${rateLimits.points} + 1` 
+      })
+      .where(eq(rateLimits.key_name, key));
 
-    return { success: true, remaining: limit - (row.points + 1) };
+    return { success: true, remaining: limit - (existing.points + 1) };
 
   } catch (error) {
-    console.error('Rate Limit Error:', error);
-    return { success: true, remaining: 1 }; // Fail open to not block users on DB error
+    console.error('[RATE_LIMIT_ERROR]', error);
+    return { success: true, remaining: 1 }; // Fail open
   }
 }
