@@ -9,7 +9,9 @@ test.describe('Attendance Marking Flow', () => {
   });
 
   test('should show attendance bar when a session is active', async ({ page }) => {
-    const roll_no = '22016E0101';
+    // A valid KUCET roll number format is YY567TBBSS (Regular) or YY567BBSSL (Lateral)
+    // 22 = 2022, 567 = KUCET, T = Regular, 09 = CSE, 01 = Serial
+    const roll_no = '22567T0901';
     const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
     
     // Generate a valid mock JWT
