@@ -11,6 +11,7 @@ import {
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { deleteFromCloudinary } from '@/lib/cloudinary';
+import { decrypt, hashForIndex } from '@/lib/encryption';
 
 export async function GET(req) {
   const user = await getAuthUser('clerk');
@@ -75,9 +76,24 @@ export async function GET(req) {
       const currentValues = {};
       Object.keys(row).forEach(key => {
         if (key.startsWith('current_')) {
-          currentValues[key.replace('current_', '')] = row[key];
+          let val = row[key];
+          // Decrypt current values
+          if (val && (key === 'current_mobile' || key === 'current_guardian_mobile' || key === 'current_aadhaar_no')) {
+              val = decrypt(val);
+          }
+          currentValues[key.replace('current_', '')] = val;
         }
       });
+
+      // Decrypt new_data values
+      let newData = row.new_data;
+      if (newData) {
+          const parsed = typeof newData === 'string' ? JSON.parse(newData) : newData;
+          if (parsed.mobile) parsed.mobile = decrypt(parsed.mobile);
+          if (parsed.guardian_mobile) parsed.guardian_mobile = decrypt(parsed.guardian_mobile);
+          if (parsed.aadhaar_no) parsed.aadhaar_no = decrypt(parsed.aadhaar_no);
+          newData = parsed;
+      }
 
       return {
         id: row.id,
@@ -86,7 +102,7 @@ export async function GET(req) {
         name: row.name,
         new_signature: imageHelper(row.new_signature),
         new_pfp: imageHelper(row.new_pfp),
-        new_data: row.new_data,
+        new_data: newData,
         proof_url: imageHelper(row.proof_url),
         old_signature: imageHelper(row.old_signature),
         old_pfp: imageHelper(row.old_pfp),
@@ -97,7 +113,7 @@ export async function GET(req) {
 
     return apiResponse({ data });
   } catch (err) {
-    logger.error('Clerk profile request fetch error:', err);
+    logger.error(err, 'Clerk profile request fetch error');
     return apiError('Server error', 500, err.message);
   }
 }
@@ -145,14 +161,29 @@ export async function PUT(req) {
           
           if (data.mobile || data.email) {
             const studentSets = {};
-            if (data.mobile) studentSets.mobile = data.mobile;
+            if (data.mobile) {
+                studentSets.mobile = data.mobile; // Already encrypted in DB
+                // Need to generate hash for blind index
+                const plainMobile = decrypt(data.mobile);
+                studentSets.mobile_hash = hashForIndex(plainMobile);
+            }
             if (data.email) studentSets.email = data.email;
             await tx.update(studentsTable).set(studentSets).where(eq(studentsTable.id, student_id));
           }
 
           const spd_fields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks','blood_group'];
           const spd_data = {};
-          spd_fields.forEach(f => { if (data.hasOwnProperty(f)) spd_data[f] = data[f]; });
+          spd_fields.forEach(f => { 
+              if (data.hasOwnProperty(f)) {
+                  spd_data[f] = data[f];
+                  // Handle blind index for Aadhaar if it was changed
+                  if (f === 'aadhaar_no' && data[f]) {
+                      const plainAadhaar = decrypt(data[f]);
+                      spd_data['aadhaar_hash'] = hashForIndex(plainAadhaar);
+                  }
+              }
+          });
+          
           if (Object.keys(spd_data).length > 0) {
             await tx.update(studentPersonalDetails).set(spd_data).where(eq(studentPersonalDetails.student_id, student_id));
           }
@@ -191,7 +222,7 @@ export async function PUT(req) {
 
     return apiResponse({ success: true });
   } catch (err) {
-    logger.error('Clerk profile request process error:', err);
+    logger.error(err, 'Clerk profile request process error');
     return apiError('Server error', 500, err.message);
   }
 }

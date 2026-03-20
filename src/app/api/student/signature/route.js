@@ -11,6 +11,7 @@ import {
 import { eq, desc, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { uploadToCloudinary } from '@/lib/cloudinary';
+import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
 
 export async function GET(req) {
   const user = await getAuthUser('student');
@@ -43,8 +44,19 @@ export async function GET(req) {
 
     let latestRequest = null;
     if (latestReqRow) {
+      let newData = latestReqRow.new_data;
+      if (newData) {
+          const data = typeof newData === 'string' ? JSON.parse(newData) : newData;
+          // Decrypt sensitive fields in the request data
+          if (data.mobile) data.mobile = decrypt(data.mobile);
+          if (data.guardian_mobile) data.guardian_mobile = decrypt(data.guardian_mobile);
+          if (data.aadhaar_no) data.aadhaar_no = decrypt(data.aadhaar_no);
+          newData = data;
+      }
+
       latestRequest = {
         ...latestReqRow,
+        new_data: newData,
         new_signature: imageHelper(latestReqRow.new_signature),
         new_pfp: imageHelper(latestReqRow.new_pfp),
         proof_url: imageHelper(latestReqRow.proof_url)
@@ -71,6 +83,13 @@ export async function GET(req) {
       where: eq(students.id, user.student_id)
     });
 
+    // Decrypt current sensitive fields
+    if (studentRow) studentRow.mobile = decrypt(studentRow.mobile);
+    if (personalRow) {
+        personalRow.guardian_mobile = decrypt(personalRow.guardian_mobile);
+        personalRow.aadhaar_no = decrypt(personalRow.aadhaar_no);
+    }
+
     return apiResponse({
       signature: currentSignature,
       pfp: currentPfp,
@@ -82,7 +101,7 @@ export async function GET(req) {
       }
     });
   } catch (err) {
-    logger.error('Profile fetch error:', err);
+    logger.error(err, 'Profile fetch error');
     return apiError('Server error', 500, err.message);
   }
 }
@@ -110,6 +129,14 @@ export async function POST(req) {
     if (!signature && !pfp && !data) {
       return apiError('No changes provided to request an update.', 400);
     }
+
+    // Encrypt sensitive fields in the data payload before storing
+    const encryptedData = data ? { ...data } : null;
+    if (encryptedData) {
+        if (encryptedData.mobile) encryptedData.mobile = encrypt(encryptedData.mobile);
+        if (encryptedData.guardian_mobile) encryptedData.guardian_mobile = encrypt(encryptedData.guardian_mobile);
+        if (encryptedData.aadhaar_no) encryptedData.aadhaar_no = encrypt(encryptedData.aadhaar_no);
+    }
     
     // Upload images to Cloudinary if provided
     const signatureUrl = signature ? await uploadToCloudinary(signature, 'requests/signatures') : null;
@@ -129,7 +156,7 @@ export async function POST(req) {
       const updateData = {};
       if (signatureUrl) updateData.new_signature = signatureUrl;
       if (pfpUrl) updateData.new_pfp = pfpUrl;
-      if (data) updateData.new_data = data;
+      if (encryptedData) updateData.new_data = encryptedData;
       if (proofUrl) updateData.proof_url = proofUrl;
       
       await db.update(studentProfileRequests)
@@ -141,7 +168,7 @@ export async function POST(req) {
         student_id: user.student_id,
         new_signature: signatureUrl,
         new_pfp: pfpUrl,
-        new_data: data || null,
+        new_data: encryptedData || null,
         proof_url: proofUrl
       });
     }
@@ -154,12 +181,12 @@ export async function POST(req) {
         roll_no: user.roll_no
       });
     } catch (e) {
-      logger.error('SSE Broadcast error:', e);
+      logger.error(e, 'SSE Broadcast error');
     }
 
     return apiResponse({ success: true, message: 'Profile update request submitted for clerk approval.' });
   } catch (err) {
-    logger.error('Profile request error:', err);
+    logger.error(err, 'Profile request error');
     return apiError('Server error', 500, err.message);
   }
 }
