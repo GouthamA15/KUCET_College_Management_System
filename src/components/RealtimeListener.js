@@ -111,6 +111,10 @@ export default function RealtimeListener({ onUpdate }) {
   useEffect(() => {
     const fetchIdentity = async () => {
       try {
+        // Quick check: If clerk cookie exists, don't even try student identity
+        const isClerk = document.cookie.includes('clerk_logged_in=true');
+        if (isClerk) return;
+
         const res = await fetch('/api/student/me');
         if (res.ok) {
           const { roll_no } = await res.json();
