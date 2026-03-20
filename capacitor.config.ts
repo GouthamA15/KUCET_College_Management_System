@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'KUCET CMS',
   webDir: 'public',
   server: {
-    url: 'https://kucet-college-management-system-test.onrender.com/',
+    url: 'https://kucet-college-management-system-test.vercel.app',
     cleartext: true,
     allowNavigation: [
       '*.onrender.com'

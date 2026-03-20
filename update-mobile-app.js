@@ -3,7 +3,7 @@ const { execSync } = require('child_process');
 
 // --- CONFIGURATION ---
 const NEW_URL = process.argv[2];
-const NEW_APP_NAME = process.argv[3] || 'KUCET CMS';
+const NEW_APP_NAME = process.argv[3] || 'KUCET CMS'; 
 // ---------------------
 
 if (!NEW_URL) {
