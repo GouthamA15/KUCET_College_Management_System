@@ -10,6 +10,7 @@ import { eq, and, asc, sql } from 'drizzle-orm';
 import { getBranchFromRoll, getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
+import { decrypt } from '@/lib/encryption';
 
 export async function GET(req, ctx) {
   const user = await getAuthUser('clerk');
@@ -128,7 +129,7 @@ export async function GET(req, ctx) {
         fee_category: new Set(['CSD', 'IT', 'CIVIL']).has(String(course).toUpperCase()) ? 'SFC' : 'NON-SFC',
         course,
         email: student.email ?? null,
-        mobile: student.mobile ?? null,
+        mobile: decrypt(student.mobile) ?? null,
         pfp: student.has_pfp ? `/api/student/image/${student.roll_no}` : null,
         admission_year,
         current_year,

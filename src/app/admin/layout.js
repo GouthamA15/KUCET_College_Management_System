@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AdminProvider } from '@/context/AdminContext';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import Footer from '@/components/Footer';
+import Header from '@/components/Header';
 
 export default function AdminLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -33,6 +34,8 @@ export default function AdminLayout({ children }) {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:ml-16">
+
+          <Header />
           
           {/* Mobile Spacer */}
           <div className="lg:hidden h-14"></div>

@@ -27,24 +27,12 @@ export default function CertificateRequestForm({
 
   const isIncomeTax = selectedCertificate === 'Income Tax (IT) Certificate';
   const isNoObjection = selectedCertificate === 'No Objection Certificate';
-
-  // Certificates that should display QR / UPI payment options
-  const upiRequiredTypes = [
-    'Bonafide Certificate',
-    'Course Completion Certificate',
-    'Custodian Certificate',
-    'Transfer Certificate (TC)',
-    'Migration Certificate',
-    'Study Conduct Certificate',
-  ];
-  const isUPIRequired = upiRequiredTypes.includes(selectedCertificate);
+  const requiresPayment = fee > 0;
+  const requiresTransactionId = fee > 0;
 
   // Show the form whenever a certificate requires any payment proof or fee-related action
   // Also show for No Objection certificate which has no fee/upload but needs a purpose + submit
-  const showForm = isNoObjection || isUPIRequired || isIncomeTax || fee > 0;
-
-  // Transaction ID is required for certificates that expect a UPI transaction
-  const requiresTransactionId = isUPIRequired;
+  const showForm = isNoObjection || isIncomeTax || requiresPayment;
 
   const fileInputRef = useRef(null);
 
@@ -135,8 +123,8 @@ export default function CertificateRequestForm({
       setDateError('');
       return;
     }
-    // Conditional validation per certificate type
-    if (isUPIRequired || (!isIncomeTax && fee > 0)) {
+    // Conditional validation per certificate type based on fee
+    if (!isIncomeTax && requiresPayment) {
       // Requires both UTR and screenshot
       if (!transactionId || !paymentScreenshot) {
         toast.error('Please enter UTR and upload payment screenshot.');
@@ -307,7 +295,7 @@ export default function CertificateRequestForm({
               ) : (
                 <>
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    {isUPIRequired ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
+                    {requiresPayment && !isIncomeTax ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
                   </h3>
                   <p className="text-sm text-gray-600 mb-3">
                     {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <1MB).'}

@@ -22,11 +22,25 @@ export const downloadToDevice = async (blob, filename, contentType = 'applicatio
     // 1. Convert blob to base64
     const base64Data = await blobToBase64(blob);
 
-    // 2. Write to local filesystem (Documents directory is accessible to FileOpener)
+    // 2. Write to local filesystem
+    // On Android, Directory.Documents usually maps to the app's private folder or a visible Documents folder.
+    // To save directly to the "Downloads" folder, we use Directory.ExternalStorage and the "Download" path.
+    // However, Directory.Documents is generally safer for FileOpener to access across all platforms.
+    // For true "Download" folder behavior on Android, we'll try Directory.ExternalStorage.
+    
+    let directory = Directory.Documents;
+    let path = filename;
+
+    if (Capacitor.getPlatform() === 'android') {
+      // On modern Android (10+), we use Directory.Documents which is user-visible.
+      // If the user specifically wants the "Download" folder:
+      directory = Directory.Documents; 
+    }
+
     const result = await Filesystem.writeFile({
-      path: filename,
+      path: path,
       data: base64Data,
-      directory: Directory.Documents,
+      directory: directory,
       recursive: true
     });
 
@@ -35,6 +49,22 @@ export const downloadToDevice = async (blob, filename, contentType = 'applicatio
       filePath: result.uri,
       contentType: contentType
     });
+
+    // On Android, we can also use a "Media" scan or a specific intent to make it show up in Downloads,
+    // but usually Filesystem.writeFile to Directory.Documents is the standard Capacitor way.
+    // To ensure it stays in the Download folder specifically:
+    if (Capacitor.getPlatform() === 'android') {
+       try {
+         // Attempt to save to ExternalStorage/Download which is the standard user-facing folder
+         await Filesystem.writeFile({
+           path: `Download/${filename}`,
+           data: base64Data,
+           directory: Directory.ExternalStorage,
+         });
+       } catch (e) {
+         console.warn('Failed to save specifically to Download folder, fallback to Documents used.', e);
+       }
+    }
 
     return true;
   } catch (error) {

@@ -29,6 +29,8 @@ export default function ClerkLayout({ children }) {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:ml-16">
+
+          <Header />
           
           {/* Mobile Spacer */}
           <div className="lg:hidden h-[calc(4rem+env(safe-area-inset-top))]"></div>
