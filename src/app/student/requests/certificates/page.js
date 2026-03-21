@@ -12,6 +12,9 @@ import RequestHistoryMobile from '../../../../components/student/requests/Reques
 import RejectDetailsModal from '../../../../components/student/requests/RejectDetailsModal';
 import { isCapacitor, downloadToDevice } from '@/lib/capacitor-utils';
 
+// Page-level UPI VPA (source of truth for UPI ID)
+const UPI_VPA = 'kuengineeringcollege@sbi';
+
 const certificateOptions = [
   { value: 'Bonafide Certificate', label: 'Bonafide Certificate', fee: 100, clerk: 'admission' },
   { value: 'No Objection Certificate', label: 'No Objection Certificate', fee: 0, clerk: 'admission'},
@@ -211,6 +214,7 @@ export default function CertificateRequestsPage() {
             fee={fee}
             selectedOption={selectedOption}
             onSubmit={handleSubmit}
+            upiVPA={UPI_VPA}
             isLoading={isLoading}
           />
         }
