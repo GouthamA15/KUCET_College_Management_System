@@ -78,8 +78,10 @@ test.describe('Student Admission Flow', () => {
     // Submit the form
     await page.click('button:has-text("Submit Admission Form")');
 
-    // Wait for success message
-    await expect(page.locator('h2')).toHaveText('Success!', { timeout: 15000 });
-    await expect(page.locator('text=Your admission request has been submitted')).toBeVisible();
+    // Wait for success message (use accessible role-based selectors)
+    await expect(
+      page.getByRole('heading', { name: 'Success!' })
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Your admission request has been submitted')).toBeVisible();
   });
 });
