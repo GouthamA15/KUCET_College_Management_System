@@ -132,7 +132,7 @@ export async function proxy(request) {
     }
     if (studentPayload) {
       const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
-      const target = isVerified ? '/student/profile' : '/student';
+      const target = isVerified ? '/student' : '/student/profile';
       return NextResponse.redirect(new URL(target, request.url), 303);
     }
     return response;
