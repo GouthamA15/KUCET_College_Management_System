@@ -26,9 +26,7 @@ export default function CustodianCertificatePDF({
       date={date}
       logoUrl={logoUrl}
       signatureUrl={stampSign || signatureUrl}
-      signatureImageStyle={styles.stampSign}
       qrUrl={qrUrl}
-      qrStyle={styles.qrSectionCenter}
     >
       <CertificateTitle text="CUSTODIAN CERTIFICATE" />
 
@@ -53,11 +51,11 @@ export default function CustodianCertificatePDF({
         </Text>
       </View>
 
-      {/* College Seal - Positioned at bottom left */}
+      {/* College Seal - Optional and positioned carefully to not clash with QR */}
       {stampUrl ? (
         <Image
           src={stampUrl}
-          style={{ position: "absolute", left: 40, bottom: 40, width: 100, height: 100 }}
+          style={{ position: "absolute", left: 120, bottom: 40, width: 80, height: 80 }}
           alt="College Seal"
         />
       ) : null}

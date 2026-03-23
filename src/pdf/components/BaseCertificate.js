@@ -1,6 +1,5 @@
 import React from "react";
-import { Document, Text, Font } from "@react-pdf/renderer";
-import PageBorder from "./PageBorder";
+import { Document, Page, View, Text, Font } from "@react-pdf/renderer";
 import CertificateHeader from "./CertificateHeader";
 import SignatureBlock from "./SignatureBlock";
 import QRBlock from "./QRBlock";
@@ -25,30 +24,34 @@ export default function BaseCertificate({
 }) {
   return (
     <Document>
-      <PageBorder>
+      
+      <Page size="A4" style={styles.page}>
         {certId ? <Text style={styles.certId}>Certificate ID: {certId}</Text> : null}
+        <View style={styles.container}>
+          
 
-        <CertificateHeader
-          logoUrl={logoUrl}
-          collegeName={COLLEGE_CONFIG.name}
-          collegeAddress={COLLEGE_CONFIG.address}
-        />
-
-        {date ? <Text style={styles.date}>Date: {date}</Text> : null}
-
-        {showWatermark && <CertificateWatermark imageUrl={logoUrl} />}
-
-        {children}
-
-        {showSignature && (
-          <SignatureBlock 
-            signatureUrl={signatureUrl} 
-            imageStyle={signatureImageStyle} 
+          <CertificateHeader
+            logoUrl={logoUrl}
+            collegeName={COLLEGE_CONFIG.name}
+            collegeAddress={COLLEGE_CONFIG.address}
           />
-        )}
 
-        <QRBlock qrUrl={qrUrl} style={qrStyle} />
-      </PageBorder>
+          {date ? <Text style={styles.date}>Date: {date}</Text> : null}
+
+          {showWatermark && <CertificateWatermark imageUrl={logoUrl} />}
+
+          {children}
+
+          {showSignature && (
+            <SignatureBlock 
+              signatureUrl={signatureUrl} 
+              imageStyle={signatureImageStyle} 
+            />
+          )}
+
+          <QRBlock qrUrl={qrUrl} style={qrStyle} />
+        </View>
+      </Page>
     </Document>
   );
 }

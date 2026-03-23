@@ -1,7 +1,6 @@
 import React from "react";
 import { Text, View } from "@react-pdf/renderer";
 import CertificateTitle from "../components/CertificateTitle";
-import CertificateWatermark from "../components/CertificateWatermark";
 import BaseCertificate from "../components/BaseCertificate";
 import { styles } from "../components/Styles";
 
@@ -11,9 +10,11 @@ export default function IncomeTaxCertificatePDF({
   studentName,
   fatherName,
   admissionNo,
+  year,
+  semester,
   course,
-  academicYear,
   feeAmount,
+  purpose,
   logoUrl,
   signatureUrl,
   qrUrl,
@@ -26,17 +27,24 @@ export default function IncomeTaxCertificatePDF({
       signatureUrl={signatureUrl}
       qrUrl={qrUrl}
     >
-      <CertificateTitle text="INCOME TAX CERTIFICATE" />
+      <CertificateTitle text={"FEE PARTICULARS\n\nTO WHOMSOEVER IT MAY CONCERN"} />
 
       <View style={styles.content}>
-        <Text style={[styles.paragraph, { lineHeight: 1.7, fontSize: 14, textAlign: "justify" }]}>
-          This is to certify that Mr./Ms. <Text style={styles.bold}>{studentName}</Text>,
-          {" "}S/o., D/o. <Text style={styles.bold}>{fatherName}</Text>{" "}
-          bearing Admission No. <Text style={styles.bold}>{admissionNo}</Text>{" "}
-          of B.Tech <Text style={styles.bold}>{course}</Text> during
-          {" "}<Text style={styles.bold}>{academicYear}</Text>, has paid tuition and fees totaling
-          {" "}<Text style={styles.bold}>{feeAmount}</Text> to KU College of Engineering & Technology.
-          {" "}This certificate is issued for the purpose of Income Tax documentation.
+        <Text style={styles.paragraph}>
+          This is to certify that Mr. / Ms. <Text style={styles.bold}>{studentName}</Text>
+          {" "}S/o. / D/o. <Text style={styles.bold}>{fatherName}</Text>
+          {" "}is a student of this institution studying B.Tech. <Text style={styles.bold}>{year}</Text> Yr.
+          {" "}Semester <Text style={styles.bold}>{semester}</Text> in
+          {" "}<Text style={styles.bold}>{course}</Text> branch, bearing Hall Ticket No. <Text style={styles.bold}>{admissionNo}</Text>
+          {" "}has <Text style={styles.bold}>paid the Tuition fee an amount of {feeAmount}</Text>.
+        </Text>
+
+        <Text style={[styles.paragraph, { marginTop: 15 }]}>
+          The fee particulars above are subjected to any modifications by the Government of telangana and Kakatiya University withot any notice.
+        </Text>
+
+        <Text style={[styles.paragraph, { marginTop: 15 }]}>
+          This certificate is issued in response to his/her application dated {date} for the purpose of <Text style={styles.bold}>{purpose}</Text>.
         </Text>
       </View>
     </BaseCertificate>
