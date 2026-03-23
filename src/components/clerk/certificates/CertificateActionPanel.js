@@ -33,7 +33,8 @@ export default function CertificateActionPanel({ request }) {
     return `₹${n}`;
   };
 
-  const screenshotSrc = (request?.request_id && Number(request.payment_amount) > 0) 
+  const isNoObjection = request?.certificate_type === 'No Objection Certificate';
+  const screenshotSrc = (request?.request_id && !isNoObjection) 
     ? `/api/student/requests/image/${request.request_id}?t=${request.updated_at ? new Date(request.updated_at).getTime() : (request.created_at ? new Date(request.created_at).getTime() : 0)}` 
     : null;
 
@@ -126,7 +127,22 @@ export default function CertificateActionPanel({ request }) {
         </div>
 
         <div className="flex flex-col">
-          <h4 className="font-medium text-gray-800 mb-2">Payment Screenshot</h4>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-gray-800">Payment Screenshot</h4>
+            {screenshotSrc && (
+              <a 
+                href={screenshotSrc} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+              >
+                <span>View Full Image</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            )}
+          </div>
           <div className="flex-1 min-h-[180px] w-full rounded-md border bg-gray-50 grid place-items-center relative overflow-hidden">
             {screenshotSrc ? (
               <>
