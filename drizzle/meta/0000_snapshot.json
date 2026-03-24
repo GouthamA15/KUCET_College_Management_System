@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "06503df9-d261-4798-a2d2-7e37d4afac55",
+  "id": "35aec951-e908-44d8-9619-bd5c5f37d61c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "academic_calendar": {
@@ -86,8 +86,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "academic_calendar_id_pk": {
-          "name": "academic_calendar_id_pk",
+        "academic_calendar_id": {
+          "name": "academic_calendar_id",
           "columns": [
             "id"
           ]
@@ -179,8 +179,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "attendance_session_logs_id_pk": {
-          "name": "attendance_session_logs_id_pk",
+        "attendance_session_logs_id": {
+          "name": "attendance_session_logs_id",
           "columns": [
             "id"
           ]
@@ -314,8 +314,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "attendance_sessions_id_pk": {
-          "name": "attendance_sessions_id_pk",
+        "attendance_sessions_id": {
+          "name": "attendance_sessions_id",
           "columns": [
             "id"
           ]
@@ -433,8 +433,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "audit_logs_id_pk": {
-          "name": "audit_logs_id_pk",
+        "audit_logs_id": {
+          "name": "audit_logs_id",
           "columns": [
             "id"
           ]
@@ -528,8 +528,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "branch_config_id_pk": {
-          "name": "branch_config_id_pk",
+        "branch_config_id": {
+          "name": "branch_config_id",
           "columns": [
             "id"
           ]
@@ -650,8 +650,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "branch_timetable_id_pk": {
-          "name": "branch_timetable_id_pk",
+        "branch_timetable_id": {
+          "name": "branch_timetable_id",
           "columns": [
             "id"
           ]
@@ -698,6 +698,34 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "device_name": {
+          "name": "device_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "location_name": {
+          "name": "location_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "decimal(10,8)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "decimal(11,8)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -711,8 +739,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "certificate_verifications_id_pk": {
-          "name": "certificate_verifications_id_pk",
+        "certificate_verifications_id": {
+          "name": "certificate_verifications_id",
           "columns": [
             "id"
           ]
@@ -825,8 +853,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "clerks_id_pk": {
-          "name": "clerks_id_pk",
+        "clerks_id": {
+          "name": "clerks_id",
           "columns": [
             "id"
           ]
@@ -884,8 +912,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "college_info_id_pk": {
-          "name": "college_info_id_pk",
+        "college_info_id": {
+          "name": "college_info_id",
           "columns": [
             "id"
           ]
@@ -1005,8 +1033,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "faculty_subject_assignments_id_pk": {
-          "name": "faculty_subject_assignments_id_pk",
+        "faculty_subject_assignments_id": {
+          "name": "faculty_subject_assignments_id",
           "columns": [
             "id"
           ]
@@ -1110,8 +1138,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "faculty_subject_interests_id_pk": {
-          "name": "faculty_subject_interests_id_pk",
+        "faculty_subject_interests_id": {
+          "name": "faculty_subject_interests_id",
           "columns": [
             "id"
           ]
@@ -1171,8 +1199,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "otp_codes_id_pk": {
-          "name": "otp_codes_id_pk",
+        "otp_codes_id": {
+          "name": "otp_codes_id",
           "columns": [
             "id"
           ]
@@ -1254,8 +1282,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "password_reset_tokens_id_pk": {
-          "name": "password_reset_tokens_id_pk",
+        "password_reset_tokens_id": {
+          "name": "password_reset_tokens_id",
           "columns": [
             "id"
           ]
@@ -1308,8 +1336,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "principal_id_pk": {
-          "name": "principal_id_pk",
+        "principal_id": {
+          "name": "principal_id",
           "columns": [
             "id"
           ]
@@ -1355,8 +1383,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "rate_limits_key_name_pk": {
-          "name": "rate_limits_key_name_pk",
+        "rate_limits_key_name": {
+          "name": "rate_limits_key_name",
           "columns": [
             "key_name"
           ]
@@ -1445,8 +1473,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "refresh_tokens_id_pk": {
-          "name": "refresh_tokens_id_pk",
+        "refresh_tokens_id": {
+          "name": "refresh_tokens_id",
           "columns": [
             "id"
           ]
@@ -1568,8 +1596,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "scholarship_sanctions_id_pk": {
-          "name": "scholarship_sanctions_id_pk",
+        "scholarship_sanctions_id": {
+          "name": "scholarship_sanctions_id",
           "columns": [
             "id"
           ]
@@ -1629,8 +1657,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "scholarship_windows_id_pk": {
-          "name": "scholarship_windows_id_pk",
+        "scholarship_windows_id": {
+          "name": "scholarship_windows_id",
           "columns": [
             "id"
           ]
@@ -1704,8 +1732,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "semesters_id_pk": {
-          "name": "semesters_id_pk",
+        "semesters_id": {
+          "name": "semesters_id",
           "columns": [
             "id"
           ]
@@ -1785,8 +1813,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_academic_background_id_pk": {
-          "name": "student_academic_background_id_pk",
+        "student_academic_background_id": {
+          "name": "student_academic_background_id",
           "columns": [
             "id"
           ]
@@ -1878,14 +1906,21 @@
         },
         "student_mobile": {
           "name": "student_mobile",
-          "type": "varchar(20)",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mobile_hash": {
+          "name": "mobile_hash",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "guardian_mobile": {
           "name": "guardian_mobile",
-          "type": "varchar(20)",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2004,7 +2039,14 @@
         },
         "aadhaar_no": {
           "name": "aadhaar_no",
-          "type": "varchar(12)",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "aadhaar_hash": {
+          "name": "aadhaar_hash",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2062,10 +2104,17 @@
           ],
           "isUnique": false
         },
-        "idx_draft_mobile": {
-          "name": "idx_draft_mobile",
+        "idx_draft_mobile_hash": {
+          "name": "idx_draft_mobile_hash",
           "columns": [
-            "student_mobile"
+            "mobile_hash"
+          ],
+          "isUnique": false
+        },
+        "idx_draft_aadhaar_hash": {
+          "name": "idx_draft_aadhaar_hash",
+          "columns": [
+            "aadhaar_hash"
           ],
           "isUnique": false
         },
@@ -2079,8 +2128,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_admission_drafts_id_pk": {
-          "name": "student_admission_drafts_id_pk",
+        "student_admission_drafts_id": {
+          "name": "student_admission_drafts_id",
           "columns": [
             "id"
           ]
@@ -2172,8 +2221,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_attendance_id_pk": {
-          "name": "student_attendance_id_pk",
+        "student_attendance_id": {
+          "name": "student_attendance_id",
           "columns": [
             "id"
           ]
@@ -2261,8 +2310,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_fee_payments_id_pk": {
-          "name": "student_fee_payments_id_pk",
+        "student_fee_payments_id": {
+          "name": "student_fee_payments_id",
           "columns": [
             "id"
           ]
@@ -2300,8 +2349,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_images_student_id_pk": {
-          "name": "student_images_student_id_pk",
+        "student_images_student_id": {
+          "name": "student_images_student_id",
           "columns": [
             "student_id"
           ]
@@ -2361,8 +2410,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_import_logs_id_pk": {
-          "name": "student_import_logs_id_pk",
+        "student_import_logs_id": {
+          "name": "student_import_logs_id",
           "columns": [
             "id"
           ]
@@ -2466,8 +2515,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_marks_id_pk": {
-          "name": "student_marks_id_pk",
+        "student_marks_id": {
+          "name": "student_marks_id",
           "columns": [
             "id"
           ]
@@ -2565,7 +2614,7 @@
         },
         "guardian_mobile": {
           "name": "guardian_mobile",
-          "type": "varchar(20)",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2579,7 +2628,14 @@
         },
         "aadhaar_no": {
           "name": "aadhaar_no",
-          "type": "varchar(12)",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "aadhaar_hash": {
+          "name": "aadhaar_hash",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2621,18 +2677,18 @@
           ],
           "isUnique": false
         },
-        "idx_spd_aadhaar": {
-          "name": "idx_spd_aadhaar",
+        "idx_spd_aadhaar_hash": {
+          "name": "idx_spd_aadhaar_hash",
           "columns": [
-            "aadhaar_no"
+            "aadhaar_hash"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_personal_details_id_pk": {
-          "name": "student_personal_details_id_pk",
+        "student_personal_details_id": {
+          "name": "student_personal_details_id",
           "columns": [
             "id"
           ]
@@ -2736,8 +2792,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_profile_requests_id_pk": {
-          "name": "student_profile_requests_id_pk",
+        "student_profile_requests_id": {
+          "name": "student_profile_requests_id",
           "columns": [
             "id"
           ]
@@ -2775,8 +2831,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_request_images_request_id_pk": {
-          "name": "student_request_images_request_id_pk",
+        "student_request_images_request_id": {
+          "name": "student_request_images_request_id",
           "columns": [
             "request_id"
           ]
@@ -2950,8 +3006,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_requests_request_id_pk": {
-          "name": "student_requests_request_id_pk",
+        "student_requests_request_id": {
+          "name": "student_requests_request_id",
           "columns": [
             "request_id"
           ]
@@ -2997,8 +3053,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "student_signatures_student_id_pk": {
-          "name": "student_signatures_student_id_pk",
+        "student_signatures_student_id": {
+          "name": "student_signatures_student_id",
           "columns": [
             "student_id"
           ]
@@ -3062,7 +3118,14 @@
         },
         "mobile": {
           "name": "mobile",
-          "type": "varchar(20)",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mobile_hash": {
+          "name": "mobile_hash",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -3143,17 +3206,17 @@
           ],
           "isUnique": false
         },
+        "idx_students_mobile_hash": {
+          "name": "idx_students_mobile_hash",
+          "columns": [
+            "mobile_hash"
+          ],
+          "isUnique": false
+        },
         "idx_students_email": {
           "name": "idx_students_email",
           "columns": [
             "email"
-          ],
-          "isUnique": false
-        },
-        "idx_students_mobile": {
-          "name": "idx_students_mobile",
-          "columns": [
-            "mobile"
           ],
           "isUnique": false
         },
@@ -3163,19 +3226,12 @@
             "created_at"
           ],
           "isUnique": false
-        },
-        "idx_students_updated_at": {
-          "name": "idx_students_updated_at",
-          "columns": [
-            "updated_at"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "students_id_pk": {
-          "name": "students_id_pk",
+        "students_id": {
+          "name": "students_id",
           "columns": [
             "id"
           ]
@@ -3250,8 +3306,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "syllabus_structure_id_pk": {
-          "name": "syllabus_structure_id_pk",
+        "syllabus_structure_id": {
+          "name": "syllabus_structure_id",
           "columns": [
             "id"
           ]
@@ -3288,8 +3344,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "syllabus_subjects_subject_code_pk": {
-          "name": "syllabus_subjects_subject_code_pk",
+        "syllabus_subjects_subject_code": {
+          "name": "syllabus_subjects_subject_code",
           "columns": [
             "subject_code"
           ]
@@ -3348,8 +3404,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "syllabus_units_id_pk": {
-          "name": "syllabus_units_id_pk",
+        "syllabus_units_id": {
+          "name": "syllabus_units_id",
           "columns": [
             "id"
           ]
