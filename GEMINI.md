@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 20, 2026
+**Last Updated:** March 23, 2026
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports four primary user roles: **Super Admin**, **Head of Department (HOD)**, **Clerk/Faculty**, and **Student**. 
@@ -141,6 +141,58 @@ A robust, production-ready web application built with **Next.js** for managing t
 ---
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
+
+### **Session 85: Institutional Certificate Standards & Request Validation (March 24, 2026)**
+- **Certificate PDF Overhaul:**
+    - **A4 Institutional Standards:** Re-engineered the entire `@react-pdf/renderer` stack to strictly adhere to institutional A4 standards. Updated `Styles.js`, `BaseCertificate.js`, and `CertificateHeader.js` with professional branding and typography.
+    - **Template Modernization:** Refined layout and field precision for Bonafide, Course Completion, Custodian, Income Tax, Migration, NOC, Study/Conduct, and Transfer certificates.
+- **Student Request Experience:**
+    - **Transaction Tracking:** Enhanced the `CertificateRequestForm` to support transaction ID tracking specifically for Income Tax certificates and other fee-bearing requests.
+    - **Validation Logic:** Implemented stricter client-side validation for certificate prerequisites, ensuring all required metadata is captured before submission.
+- **Clerk Administrative Tools:**
+    - **Proof Visibility:** Updated the `CertificateActionPanel` and related API routes to ensure verification screenshots are visible even for zero-fee administrative requests.
+    - **Full View Support:** Integrated a full-screen preview for payment proofs and supporting documents within the clerk dashboard.
+
+### **Session 84: Premium Student UI & Authentication Refinement (March 23, 2026)**
+- **Student UI Overhaul:**
+    - **Premium Experience:** Re-engineered `StudentSidebar.js` and `StudentTopBar.js` with a focus on high-density information and "Premium Glass" aesthetics.
+    - **Live Session Pulse:** Implemented a real-time "Live Now" session indicator for mobile sidebar, featuring dynamic aurora glows and status orbs that sync every 60 seconds.
+    - **Profile Dropdown:** Replaced static user displays in the top bar with a modern, hover-aware profile dropdown, centralizing access to profile management.
+    - **Enhanced Navigation:** Redesigned the personalized sidebar header for desktop with high-contrast typography and a direct "Profile" shortcut, streamlining the primary navigation flow.
+- **Authentication & Security:**
+    - **Redirection Logic Inversion:** Refactored `src/proxy.js` to prioritize the dashboard as the primary landing page for verified students, while automatically guiding unverified users to the profile setup page.
+    - **API Refinement:** Streamlined the student login route (`/api/student/login/route.js`) by adjusting rate-limiting hooks to improve high-traffic reliability.
+- **Stability & Performance:**
+    - **E2E Test Hardening:** Refined Playwright selectors in `tests/admission.spec.js` to accommodate the new UI layout and ensure CI/CD reliability.
+    - **State Management:** Integrated `useCallback` and robust interval management in the sidebar to prevent memory leaks during long-running sessions.
+
+### **Session 83: Institutional Branding & Payment UX Optimization (March 22, 2026)**
+- **Global Header Standardization:**
+    - **Unified Branding:** Integrated the institutional `<Header />` component across all core layouts (`AdminLayout`, `ClerkLayout`, `StudentLayout`) and standalone pages (`AdmissionPage`, `TimeMachine`).
+    - **Responsive Architecture:** Configured the global header for `hidden md:block` visibility, prioritizing mobile workspace while maintaining desktop institutional presence.
+- **Payment Flow Excellence:**
+    - **Hybrid Payment Section:** Refactored the Certificate Request payment interface with a seamless toggle between **QR Code** and **UPI Deep Link** modes.
+    - **Mobile Optimization:** Implemented automatic UPI mode selection for mobile devices with pre-filled transaction metadata (VPA: `kuengineeringcollege@sbi`, Amount, and Certificate Type).
+    - **Validation Logic:** Simplified payment requirement checks in `CertificateRequestForm`, ensuring consistent proof-of-payment (UTR/Screenshot) for all fee-bearing requests.
+- **Infrastructure & Docs:**
+    - **Subdomain Strategy:** Finalized the official institutional subdomain `login.kucet.ac.in` in `DEPLOYMENT_STRATEGY.md`.
+    - **Hosting Tiers:** Clarified the "Zero Cost" (Vercel/TiDB) vs "Budget Production" (Railway/MySQL) deployment paths.
+- **Test Hardening:**
+    - **Playwright Selectors:** Refactored `tests/admission.spec.js` to use accessible role-based selectors (`getByRole`, `getByText`), significantly increasing CI/CD resilience against UI layout shifts.
+
+### **Session 82: Production Reliability, Mobile Excellence & CI Hardening (March 20, 2026)**
+- **CI/CD Hardening:**
+    - **Lock File Strategy:** Restored `package-lock.json` to the repository to enable deterministic builds and efficient dependency caching in GitHub Actions.
+    - **Environment Validation:** Populated CI workflows with dummy environment variables to satisfy Zod-based schema validation during production build and automated testing.
+- **Test Stability:**
+    - **Playwright Mocking:** Implemented comprehensive API mocking for student admission and attendance tests, enabling full-flow verification without a live database.
+    - **Auth Bypass:** Added JWT generation and cookie injection to Playwright tests, allowing them to bypass middleware redirects and test protected routes autonomously.
+    - **Image 404 Suppression:** Suppressed upstream image errors during testing to ensure cleaner logs and faster execution.
+- **Android Mobile Excellence:**
+    - **Visible Downloads:** Refactored `downloadToDevice` to store certificates directly in the user-accessible `Downloads` folder on Android using `Directory.ExternalStorage`.
+    - **File Sharing Permissions:** Updated `file_paths.xml` to allow the Android `FileProvider` to safely share files from the `Download` directory with external PDF viewers.
+- **Data Privacy Fixes:**
+    - **Scholarship Decryption:** Resolved a bug where mobile numbers appeared as encrypted strings in the Scholarship Clerk's dashboard; implemented on-the-fly decryption for student summary and application search routes.
 
 ### **Session 81: Vercel Readiness - Supabase Realtime & Native Fixes (March 20, 2026)**
 - **Real-Time Evolution:**
@@ -440,12 +492,6 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Navbar & Navigation:** Resolved logic conflicts between scholarship and admission clerk navbar options. Fixed minor logout issues and navbar rendering bugs.
 - **API Enhancements:** Standardized scholarship API responses and implemented a new search-by-name endpoint (`/api/clerk/scholarship/search-by-name`) to support advanced filtering.
 - **Stability:** Fixed auto-merge failures and resolved minor UI issues in clerk settings (profile/security) and department management pages.
-
----
-
-## Summary
-The KUCET CMS is a comprehensive institutional control system. It integrates high-security attendance, real-time departmental orchestration for HODs, and professional monitoring while maintaining strict data integrity and platform-agnostic performance.
-
 
 ---
 
