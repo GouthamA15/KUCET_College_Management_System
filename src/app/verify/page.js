@@ -8,8 +8,8 @@ import { useEffect, useState, Suspense } from 'react';
 
 function VerifyContent() {
   const searchParams = useSearchParams();
-  const certId = searchParams.get('id');
-  const rollNo = searchParams.get('roll');
+  const certId = searchParams.get('id')?.trim();
+  const rollNo = searchParams.get('roll')?.trim();
   
   const missingParams = !certId || !rollNo;
 
@@ -21,21 +21,61 @@ function VerifyContent() {
       return;
     }
 
-    fetch('/api/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ certId, rollNo }),
-    })
-    .then(res => res.json())
-    .then(result => {
-      if (result.valid) {
-        setData(result.details);
-        setStatus('success');
-      } else {
-        setStatus('failed');
-      }
-    })
-    .catch(() => setStatus('error'));
+    const verify = async (locationData = {}) => {
+      // Get device info from UA
+      let deviceName = 'Unknown Device';
+      try {
+        const ua = navigator.userAgent;
+        if (ua.includes('iPhone')) deviceName = 'iPhone';
+        else if (ua.includes('iPad')) deviceName = 'iPad';
+        else if (ua.includes('Android')) {
+          const match = ua.match(/Android\s+([^\s;]+|[^;)]+)/);
+          deviceName = match ? `Android Device (${match[1]})` : 'Android Device';
+        } else if (ua.includes('Windows')) deviceName = 'Windows PC';
+        else if (ua.includes('Macintosh')) deviceName = 'MacBook/iMac';
+      } catch (e) {}
+
+      fetch('/api/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          certId, 
+          rollNo,
+          deviceName,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude
+        }),
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.valid) {
+          setData(result.details);
+          setStatus('success');
+        } else {
+          setStatus('failed');
+        }
+      })
+      .catch(() => setStatus('error'));
+    };
+
+    // Try to get location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          verify({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude
+          });
+        },
+        () => {
+          // If denied or error, verify without location
+          verify();
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      verify();
+    }
   }, [certId, rollNo, missingParams]);
 
   const showInvalidUI = missingParams || status === 'failed' || status === 'error';

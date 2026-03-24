@@ -124,7 +124,7 @@ export async function GET(request, context) {
         let attendanceValue = isBonafide ? certRequest.generated_attendance : null;
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-        const verificationUrl = `${baseUrl}/verify?id=${certId}&roll=${rollNo}`;
+        const verificationUrl = `${baseUrl}/verify?id=${certId?.trim()}&roll=${rollNo?.trim()}`;
         const qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
 
         const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
