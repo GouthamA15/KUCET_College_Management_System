@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "node src/db/migrate.js",
+    "db:backup": "node src/db/backup.js",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
@@ -40,6 +41,7 @@
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.16.0",
+    "mysqldump": "^3.2.0",
     "next": "^16.1.6",
     "next-auth": "^4.24.13",
     "pino": "^10.3.1",

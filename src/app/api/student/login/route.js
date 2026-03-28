@@ -9,11 +9,9 @@ import logger from '@/lib/logger';
 export async function POST(req) {
   try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`login_student:${ip}`, 5, 900); // 5 attempts per 15 min
     
-    if (!rateCheck.success) {
-      return apiError('Too many login attempts. Please try again in 15 minutes.', 429);
-    }
+    
+    
 
     const body = await req.json();
     const { rollno, dob, rememberMe } = body;

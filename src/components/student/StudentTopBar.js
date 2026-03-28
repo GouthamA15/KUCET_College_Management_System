@@ -19,15 +19,19 @@ export default function StudentTopBar({ onMenuClick }) {
   const showRequestNotif = !!latestRequest && localVisible && !(latestRequest && dismissCount >= 4 && isProd);
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const mobileDropdownRef = useRef(null);
   const desktopDropdownRef = useRef(null);
+  const profileDropdownRef = useRef(null);
 
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (mobileDropdownRef.current && mobileDropdownRef.current.contains(event.target)) return;
       if (desktopDropdownRef.current && desktopDropdownRef.current.contains(event.target)) return;
+      if (profileDropdownRef.current && profileDropdownRef.current.contains(event.target)) return;
       setNotifOpen(false);
+      setProfileOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -60,8 +64,8 @@ export default function StudentTopBar({ onMenuClick }) {
 
   return (
     <header className="h-16 lg:h-20 flex items-center justify-between px-4 lg:px-8 bg-transparent relative">
-      {/* Left: Mobile Menu Toggle & Search */}
-      <div className="flex items-center gap-4 flex-1">
+      {/* Left: Mobile Menu Toggle */}
+      <div className="flex items-center gap-4">
         <button 
           onClick={onMenuClick}
           className="lg:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
@@ -72,9 +76,11 @@ export default function StudentTopBar({ onMenuClick }) {
         </button>
       </div>
 
-      {/* Middle: Notification Hub for Mobile */}
-      <div className="lg:hidden absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
-         <div className="relative scale-110 sm:scale-125" ref={mobileDropdownRef}>
+      {/* Right Side: Notifications & Profile */}
+      <div className="flex items-center gap-2 lg:gap-5">
+        
+        {/* Mobile Notification Hub - Fixed Positioning */}
+        <div className="lg:hidden relative" ref={mobileDropdownRef}>
             <button 
               onClick={() => setNotifOpen(!notifOpen)}
               className={`p-2 transition-colors rounded-xl relative ${notifOpen ? 'text-[#0b3578] bg-blue-50' : 'text-slate-400 hover:text-[#0b3578] hover:bg-slate-50'}`}
@@ -87,9 +93,9 @@ export default function StudentTopBar({ onMenuClick }) {
               )}
             </button>
 
-            {/* Centered Dropdown for Mobile */}
+            {/* Mobile Dropdown - Prevent Clipping */}
             {notifOpen && (
-              <div className="absolute left-1/2 -translate-x-1/2 mt-3 w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[70] animate-fadeIn">
+              <div className="fixed sm:absolute right-4 sm:right-0 top-16 sm:top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[70] animate-fadeIn">
                 <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inbox</span>
                   <span className="text-[9px] font-bold text-[#0b3578] bg-blue-50 px-2 py-0.5 rounded-full">{notifications.length} New</span>
@@ -107,10 +113,7 @@ export default function StudentTopBar({ onMenuClick }) {
                             {n.type === 'success' ? '✓' : n.type === 'error' ? '!' : 'i'}
                           </div>
                           <div className="flex-1 pr-4 text-left">
-                            <div className="flex items-center justify-between gap-2">
-                              <h4 className="text-sm font-bold text-slate-800">{n.title}</h4>
-                              <span className="text-[9px] font-medium text-slate-400">{n.time}</span>
-                            </div>
+                            <h4 className="text-sm font-bold text-slate-800">{n.title}</h4>
                             <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{n.desc}</p>
                             <div className="mt-2">
                               <Link href={n.link} onClick={() => setNotifOpen(false)} className="text-[10px] font-bold text-[#0b3578] uppercase tracking-wider hover:underline">
@@ -140,12 +143,8 @@ export default function StudentTopBar({ onMenuClick }) {
               </div>
             )}
          </div>
-      </div>
 
-      {/* Right Side: Profile & Notifications (Desktop Only Bell) */}
-      <div className="flex items-center gap-3 lg:gap-5">
-        
-        {/* Desktop Bell - Hidden on Mobile since it's centered */}
+        {/* Desktop Bell - Hidden on Mobile */}
         <div className="relative hidden lg:block" ref={desktopDropdownRef}>
           <button 
             onClick={() => setNotifOpen(!notifOpen)}
@@ -181,11 +180,8 @@ export default function StudentTopBar({ onMenuClick }) {
                         }`}>
                           {n.type === 'success' ? '✓' : n.type === 'error' ? '!' : 'i'}
                         </div>
-                        <div className="flex-1 pr-4">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="text-sm font-bold text-slate-800">{n.title}</h4>
-                            <span className="text-[9px] font-medium text-slate-400">{n.time}</span>
-                          </div>
+                        <div className="flex-1 pr-4 text-left">
+                          <h4 className="text-sm font-bold text-slate-800">{n.title}</h4>
                           <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{n.desc}</p>
                           <div className="mt-2">
                             <Link 
@@ -199,7 +195,6 @@ export default function StudentTopBar({ onMenuClick }) {
                         </div>
                       </div>
                       
-                      {/* Dismiss Button */}
                       <button 
                         onClick={handleDismiss}
                         className="absolute top-4 right-4 text-slate-300 hover:text-slate-600 transition-colors p-1"
@@ -230,26 +225,47 @@ export default function StudentTopBar({ onMenuClick }) {
           )}
         </div>
 
-        <div className="flex items-center gap-3 pl-3 lg:pl-4 border-l border-slate-200">
-          <div className="text-right max-w-[100px] sm:max-w-none">
-            <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-none truncate">{student?.name || 'Loading...'}</p>
-            <p className="text-[8px] sm:text-[10px] text-slate-400 mt-1 uppercase tracking-tighter">{student?.roll_no || '---'}</p>
-          </div>
-          <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full overflow-hidden bg-slate-200 relative border border-slate-100 shadow-sm flex-shrink-0">
-            {student?.pfp ? (
-              <Image 
-                src={student.pfp} 
-                alt="Profile" 
-                fill 
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-[#0b3578] text-white text-xs font-bold uppercase">
-                {student?.name?.charAt(0) || 'S'}
-              </div>
-            )}
-          </div>
+        {/* Profile Section */}
+        <div className="relative" ref={profileDropdownRef}>
+          <button 
+            onClick={() => setProfileOpen(!profileOpen)}
+            className={`flex items-center gap-3 pl-3 lg:pl-4 border-l border-slate-200 transition-colors py-1 rounded-lg ${profileOpen ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
+          >
+            <div className="text-right max-w-[120px] sm:max-w-[200px]">
+              <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-tight break-words line-clamp-2">{student?.name || 'Loading...'}</p>
+              <p className="text-[8px] sm:text-[10px] text-slate-400 mt-1 uppercase tracking-tighter">{student?.roll_no || '---'}</p>
+            </div>
+            <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full overflow-hidden bg-slate-200 relative border border-slate-100 shadow-sm flex-shrink-0">
+              {student?.pfp ? (
+                <Image 
+                  src={student.pfp} 
+                  alt="Profile" 
+                  fill 
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-[#0b3578] text-white text-xs font-bold uppercase">
+                  {student?.name?.charAt(0) || 'S'}
+                </div>
+              )}
+            </div>
+          </button>
+
+          {profileOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-[70] animate-fadeIn">
+              <Link 
+                href="/student/profile" 
+                onClick={() => setProfileOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <svg className="w-4 h-4 text-[#0b3578]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                View/Edit Profile
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>

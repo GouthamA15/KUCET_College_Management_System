@@ -127,6 +127,7 @@ export async function GET(request, { params }) {
             status: studentRequests.status,
             payment_amount: studentRequests.payment_amount,
             transaction_id: studentRequests.transaction_id,
+            payment_screenshot: studentRequests.payment_screenshot,
             purpose: studentRequests.purpose,
             academic_year: studentRequests.academic_year,
             created_at: studentRequests.created_at,

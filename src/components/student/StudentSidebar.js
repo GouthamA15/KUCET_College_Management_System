@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -16,15 +16,6 @@ const menuItems = [
       </svg>
     ),
     route: '/student',
-  },
-  {
-    label: 'Profile',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-      </svg>
-    ),
-    route: '/student/profile',
   },
   {
     label: 'Academics',
@@ -87,6 +78,27 @@ export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
   const [isHovered, setIsHovered] = useState(false);
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [activeActivity, setActiveActivity] = useState(null);
+
+  const fetchActivity = useCallback(async () => {
+    try {
+      const res = await fetch('/api/student/current-activity');
+      const data = await res.json();
+      if (res.ok && data.active) {
+        setActiveActivity(data);
+      } else {
+        setActiveActivity(null);
+      }
+    } catch (e) {
+      console.error('Failed to sync current student activity');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActivity();
+    const interval = setInterval(fetchActivity, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, [fetchActivity]);
 
   const handleLogout = async () => {
     await fetch('/api/student/logout', { method: 'POST' });
@@ -110,12 +122,101 @@ export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
         ${isNotifOpen ? '' : 'overflow-hidden'}
       `}
     >
-      {/* Personalized Header Section */}
-      <div className="h-24 flex items-center px-3 gap-3 border-b border-white/5 relative group">
+      {/* Mobile Close Button - Minimalist */}
+      {isMobileOpen && (
+        <div className="lg:hidden flex justify-end p-3 pb-0">
+          <button 
+            onClick={() => setIsMobileOpen(false)}
+            className="text-blue-100/40 hover:text-white transition-colors p-1"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Live Now Session - Premium Glass UI */}
+      {isMobileOpen && (
+        <div className="lg:hidden px-3 py-5 border-b border-white/5">
+          <div className={`relative group overflow-hidden rounded-[22px] border transition-all duration-700 p-4 ${
+            activeActivity 
+              ? 'bg-gradient-to-br from-emerald-600/20 via-[#0a2e63] to-emerald-900/20 border-emerald-400/30 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)]' 
+              : 'bg-gradient-to-br from-amber-600/10 via-[#0a2e63]/40 to-amber-900/10 border-amber-400/20 shadow-none'
+          }`}>
+            {/* Dynamic Aurora Glows */}
+            <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-[45px] transition-colors duration-1000 ${
+              activeActivity ? 'bg-emerald-500/20 animate-pulse' : 'bg-amber-500/10'
+            }`}></div>
+            <div className={`absolute -left-10 -bottom-10 w-28 h-28 rounded-full blur-[40px] transition-colors duration-1000 ${
+              activeActivity ? 'bg-green-500/10' : 'bg-orange-500/5'
+            }`}></div>
+            
+            <div className="flex items-center gap-4 relative z-10">
+              {/* Status Orb Container */}
+              <div className={`flex items-center justify-center w-12 h-12 rounded-[18px] shrink-0 transition-all duration-500 border backdrop-blur-xl ${
+                activeActivity 
+                  ? 'bg-emerald-500/10 border-emerald-400/40 shadow-[0_0_20px_rgba(52,211,153,0.2)]' 
+                  : 'bg-white/5 border-white/10'
+              }`}>
+                <div className="relative flex h-3.5 w-3.5">
+                  {activeActivity ? (
+                    <>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 shadow-[0_0_15px_#34d399]"></span>
+                    </>
+                  ) : (
+                    <div className="relative flex items-center justify-center w-full h-full">
+                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400/40"></span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
+                      activeActivity 
+                        ? 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300' 
+                        : 'bg-amber-500/10 border-amber-400/20 text-amber-300/70'
+                    }`}>
+                      {activeActivity ? 'Live' : 'Next'}
+                    </div>
+                    <span className={`text-[10px] font-bold uppercase tracking-tight ${activeActivity ? 'text-white/80' : 'text-white/40'}`}>
+                      {activeActivity ? 'Session' : 'Break'}
+                    </span>
+                  </div>
+                  {activeActivity?.period && (
+                    <div className="bg-black/40 px-2 py-0.5 rounded-lg border border-white/10 backdrop-blur-md">
+                       <span className="text-[10px] font-black text-white/90 uppercase tabular-nums">P{activeActivity.period}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <h4 className={`text-[15px] font-black uppercase truncate tracking-tight leading-none ${activeActivity ? 'text-white' : 'text-white/40'}`}>
+                  {activeActivity?.activity?.subject_name || 'No Class Found'}
+                </h4>
+                
+                {activeActivity && (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{activeActivity.activity?.room_no || 'TBD'}</span>
+                    <span className="w-1 h-1 rounded-full bg-white/10"></span>
+                    <span className="text-[9px] font-bold text-emerald-400/60 uppercase truncate">{activeActivity.activity?.faculty_name || 'Faculty'}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Personalized Header Section - Desktop Only */}
+      <div className={`hidden lg:flex items-center px-3 gap-2 border-b border-white/5 relative group transition-all duration-300 ${isExpanded ? 'h-16' : 'h-14'}`}>
         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
         
         {/* Student Avatar / PFP */}
-        <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 flex-shrink-0 relative border border-white/10 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex-shrink-0 relative border border-white/10 flex items-center justify-center shadow-lg group-hover:border-blue-400/30 transition-colors">
            {student?.pfp ? (
              <Image 
                src={student.pfp} 
@@ -125,40 +226,36 @@ export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
                unoptimized
              />
            ) : (
-             <span className="text-white font-bold text-xs">{student?.name?.charAt(0) || 'S'}</span>
+             <span className="text-white font-bold text-[10px]">{student?.name?.charAt(0) || 'S'}</span>
            )}
         </div>
 
-        {/* Student Name & Roll No */}
-        <div className={`flex flex-col min-w-0 transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
-           <span className="text-white font-bold text-sm truncate leading-tight uppercase tracking-tight">
+        {/* Student Name & Roll No - Hidden on Mobile */}
+        <div className={`hidden lg:flex flex-col min-w-0 transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
+           <span className="text-white font-bold text-[11px] uppercase tracking-tight break-words line-clamp-2">
               {student?.name || 'Student'}
            </span>
            <span className="text-blue-200/40 text-[9px] font-black uppercase tracking-widest mt-0.5">
               {student?.roll_no || '---'}
            </span>
+           
+           {/* Manage Profile Link - Desktop Only */}
+           <Link 
+             href="/student/profile" 
+             className="text-[8px] font-bold text-blue-200/50 hover:text-white uppercase tracking-wider mt-1 transition-colors w-fit"
+           >
+             Profile →
+           </Link>
         </div>
 
         {/* Notification Bell in Sidebar */}
         <div className={`transition-all duration-300 ${isExpanded ? 'ml-auto' : 'hidden'}`}>
           <NotificationDropdown onOpenChange={setIsNotifOpen} />
         </div>
-        
-        {/* Close Button - Mobile Only */}
-        {isMobileOpen && (
-          <button 
-            onClick={() => setIsMobileOpen(false)}
-            className="lg:hidden ml-auto text-blue-100/60 hover:text-white"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto custom-scrollbar">
         {menuItems.map((item) => {
           const isActive = pathname === item.route || (item.route !== '/student' && item.route !== '#' && pathname.startsWith(item.route));
           
@@ -243,20 +340,23 @@ export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
       </nav>
 
       {/* Footer / Logout */}
-      <div className="p-3 border-t border-white/5">
+      <div className={`flex items-center px-3 border-t border-white/5 transition-all duration-300 ${isExpanded ? 'h-16' : 'h-14'}`}>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center rounded-xl transition-all duration-200 group relative overflow-hidden h-12 text-red-100/60 hover:bg-red-500/10 hover:text-red-300"
+          className={`flex items-center rounded-lg transition-all duration-200 group relative overflow-hidden h-8 text-red-100/60 hover:bg-red-500/10 hover:text-red-400 ${
+            isExpanded ? 'w-full px-2' : 'w-8 justify-center'
+          }`}
+          title="Logout"
         >
-          <div className="w-10 flex-shrink-0 flex items-center justify-center ml-0.5">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex-shrink-0 flex items-center justify-center">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
           </div>
-          <span className={`text-sm font-medium whitespace-nowrap ml-3 transition-all duration-300 ${
-            isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+          <span className={`text-[10px] font-bold whitespace-nowrap ml-2 transition-all duration-300 ${
+            isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none absolute'
           }`}>
-            Logout
+            Logout Session
           </span>
         </button>
       </div>

@@ -124,7 +124,7 @@ export async function GET(request, context) {
         let attendanceValue = isBonafide ? certRequest.generated_attendance : null;
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-        const verificationUrl = `${baseUrl}/verify?id=${certId}&roll=${rollNo}`;
+        const verificationUrl = `${baseUrl}/verify?id=${certId?.trim()}&roll=${rollNo?.trim()}`;
         const qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
 
         const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
@@ -187,10 +187,13 @@ export async function GET(request, context) {
                 break;
             case 'Course Completion Certificate':
                 data.aggCgpa = 'N/A';
-                data.year = today.getFullYear();
+                data.completionYear = today.getFullYear();
                 break;
             case 'Income Tax (IT) Certificate':
-                data.feeAmount = certRequest.payment_amount || 'N/A';
+                data.year = yearWords[yearOfStudy - 1] || 'N/A';
+                data.semester = semesterWords[currentSemester - 1] || 'N/A';
+                data.feeAmount = '35,000/- (Rupees Thirty-five Thousand only)';
+                data.purpose = certRequest.purpose || '';
                 break;
             case 'Transfer Certificate (TC)':
                 data.conduct = 'Good';

@@ -340,6 +340,10 @@ export const certificateVerifications = mysqlTable('certificate_verifications', 
   verification_date: timestamp('verification_date').defaultNow(),
   ip_address: varchar('ip_address', { length: 45 }),
   user_agent: text('user_agent'),
+  device_name: varchar('device_name', { length: 255 }),
+  location_name: varchar('location_name', { length: 255 }),
+  latitude: decimal('latitude', { precision: 10, scale: 8 }),
+  longitude: decimal('longitude', { precision: 11, scale: 8 }),
 }, (table) => ({
   requestIdx: index('idx_cv_request').on(table.request_id),
 }));

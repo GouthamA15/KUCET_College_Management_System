@@ -28,7 +28,7 @@ export default function CertificateRequestForm({
   const isIncomeTax = selectedCertificate === 'Income Tax (IT) Certificate';
   const isNoObjection = selectedCertificate === 'No Objection Certificate';
   const requiresPayment = fee > 0;
-  const requiresTransactionId = fee > 0;
+  const requiresTransactionId = fee > 0 || isIncomeTax;
 
   // Show the form whenever a certificate requires any payment proof or fee-related action
   // Also show for No Objection certificate which has no fee/upload but needs a purpose + submit
@@ -91,12 +91,20 @@ export default function CertificateRequestForm({
   };
 
   useEffect(() => {
-    return () => {
-      if (paymentPreviewUrl) {
-        try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
-      }
-    };
-  }, [paymentPreviewUrl]);
+    // Reset form state when certificate type changes
+    setTransactionId('');
+    setPaymentScreenshot(null);
+    if (paymentPreviewUrl) {
+      try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
+      setPaymentPreviewUrl(null);
+    }
+    setPurposeOption('Select');
+    setCustomPurpose('');
+    setFromDate('');
+    setToDate('');
+    setPurposeError('');
+    setDateError('');
+  }, [selectedCertificate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,16 +121,19 @@ export default function CertificateRequestForm({
 
       const finalPurpose = customPurpose.trim();
       await onSubmit({ transactionId: '', paymentScreenshot: null, finalPurpose, fromDate, toDate });
-      setTransactionId('');
-      setPaymentScreenshot(null);
-      setPurposeOption('Select');
-      setCustomPurpose('');
-      setFromDate('');
-      setToDate('');
-      setPurposeError('');
-      setDateError('');
       return;
     }
+
+    // Validation for standard purpose selection
+    if (purposeOption === 'Select') {
+      toast.error('Please select a purpose for the certificate.');
+      return;
+    }
+    if (purposeOption === 'Other' && !customPurpose.trim()) {
+      toast.error('Please specify your purpose.');
+      return;
+    }
+
     // Conditional validation per certificate type based on fee
     if (!isIncomeTax && requiresPayment) {
       // Requires both UTR and screenshot
@@ -137,17 +148,8 @@ export default function CertificateRequestForm({
         return;
       }
     }
-    const finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
+    const finalPurpose = purposeOption === 'Other' ? customPurpose.trim() : purposeOption;
     await onSubmit({ transactionId, paymentScreenshot, finalPurpose, fromDate: null, toDate: null });
-    // Reset local state on success (page controls success via onSubmit)
-    setTransactionId('');
-    setPaymentScreenshot(null);
-    setPurposeOption('Select');
-    setCustomPurpose('');
-    setFromDate('');
-    setToDate('');
-    setPurposeError('');
-    setDateError('');
   };
 
   return (
@@ -372,7 +374,21 @@ export default function CertificateRequestForm({
                 {(() => {
                   const nocPurposeInvalid = isNoObjection && !!validateNocPurpose(customPurpose);
                   const nocDatesInvalid = isNoObjection && !!validateNocDates(fromDate, toDate);
-                  const isSubmitDisabled = isLoading || (isNoObjection && (nocPurposeInvalid || nocDatesInvalid));
+                  
+                  // Standard purpose validation
+                  const standardPurposeInvalid = !isNoObjection && (
+                    purposeOption === 'Select' || 
+                    (purposeOption === 'Other' && !customPurpose.trim())
+                  );
+
+                  // Payment validation
+                  const paymentInvalid = !isNoObjection && (
+                    (requiresPayment && !isIncomeTax && (!transactionId || !paymentScreenshot)) ||
+                    (isIncomeTax && !paymentScreenshot)
+                  );
+
+                  const isSubmitDisabled = isLoading || nocPurposeInvalid || nocDatesInvalid || standardPurposeInvalid || paymentInvalid;
+                  
                   return (
                     <button
                       type="submit"
