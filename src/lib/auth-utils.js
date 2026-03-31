@@ -64,6 +64,15 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
     path: '/',
   });
 
+  // Set companion cookies for UI
+  response.cookies.set('student_logged_in', 'true', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60,
+    path: '/',
+  });
+
   // Issue Refresh Token
   await issueRefreshToken(response, student.roll_no, 'student', rememberMe);
 

@@ -287,9 +287,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
         // Trigger a hard reload to "/" so proxy.js runs and redirects server-side
         window.location.replace('/');
       } else {
-        toast.error(data.message || 'Clerk login failed', { id: toastId });
-        setClerkError(data.message || 'Clerk login failed');
-        console.error('Clerk login failed:', data.message);
+        toast.error(data.error || 'Clerk login failed', { id: toastId });
+        setClerkError(data.error || 'Clerk login failed');
+        console.error('Clerk login failed:', data.error);
       }
     } catch (error) {
       toast.error('An unexpected error occurred', { id: toastId });
@@ -321,9 +321,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
         // Trigger a hard reload to "/" so proxy.js runs and redirects server-side
         window.location.replace('/');
       } else {
-        toast.error(data.message || 'Admin login failed', { id: toastId });
-        setAdminError(data.message || 'Admin login failed');
-        console.error('Admin login failed:', data.message);
+        toast.error(data.error || 'Admin login failed', { id: toastId });
+        setAdminError(data.error || 'Admin login failed');
+        console.error('Admin login failed:', data.error);
       }
     } catch (error) {
       toast.error('An unexpected error occurred', { id: toastId });
