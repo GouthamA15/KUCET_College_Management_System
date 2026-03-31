@@ -5,8 +5,8 @@ import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
     try {
-        const user = await getAuthUser(request);
-        if (!user || user.role !== 'admin') {
+        const user = await getAuthUser('admin');
+        if (!user) {
             return apiError("Unauthorized", 401);
         }
 
