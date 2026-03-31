@@ -152,11 +152,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Infrastructure & Security:**
     - **Drizzle Schema Evolution:** Updated Drizzle configuration and snapshots to align with the new verification metadata requirements.
     - **SSL Enforcement:** Standardized TLS/SSL requirements across backup utilities and database configurations for secure transit.
-- **Security & Reliability Hardening:**
+- **Database Backup Reliability & Security:**
     *   **Backup Privacy Secured:** Updated `src/db/backup.js` to use `access_mode: 'authenticated'` for Cloudinary uploads, preventing public access to database snapshots.
-    *   **Rate Limiting Implemented:** Applied a Redis-backed rate limiter to the `/api/verify` endpoint (5 req/min), protecting against brute-force certificate scraping.
-    *   **Secure Geolocation:** Transitioned from unencrypted HTTP to `https://ipapi.co` for geolocation in the verification route, ensuring user privacy.
+    *   **Retention Policy (Pruning):** Implemented a professional pruning script in `src/db/backup.js` that keeps 30 daily, 4 weekly, and 12 monthly backups, preventing storage bloat.
+    *   **Checksum Verification:** Integrated MD5 hashing to compare local dumps with Cloudinary ETags, guaranteeing 100% data integrity during transit.
+    *   **Failure Notifications:**
+        *   **Email-Only:** Integrated automated failure alerts in `src/db/backup.js` that notify developers via Brevo if a backup or pruning fails. Removed previous Discord webhook dependency for cleaner execution.
     *   **Temp File Hygiene:** Refactored the backup process to use `os.tmpdir()` and guaranteed cleanup via `finally` blocks, eliminating persistent local SQL dumps.
+- **System Monitoring & Maintenance:**
+    *   **Storage Alert API:** Refined `/api/public/system/storage-alert` to proactively monitor Cloudinary usage. Implemented a 20GB threshold that triggers institutional email alerts to developers, ensuring zero service interruption.
 
 ### **Session 85: Institutional Certificate Standards & Request Validation (March 24, 2026)**
 - **Certificate PDF Overhaul:**

@@ -22,6 +22,8 @@ export async function GET(request) {
     "uzair.mdf@gmail.com"
   ];
 
+  const ALERT_THRESHOLD_GB = 0;
+
   try {
     // Fetch Cloudinary Usage
     const usageData = await cloudinary.api.usage();
@@ -37,7 +39,7 @@ export async function GET(request) {
     logger.info(`[STORAGE_CHECK] Current Usage: ${usageGB.toFixed(2)} GB (${percent.toFixed(1)}%)`);
 
     // Trigger Alert if threshold reached (20GB)
-    if (usageGB >= 0) {
+    if (usageGB >= ALERT_THRESHOLD_GB) {
       // Send email to each developer
       const emailPromises = developerEmails.map(email => 
         sendInstitutionalEmail({
@@ -46,13 +48,14 @@ export async function GET(request) {
           title: "Storage Threshold Reached",
           bodyHtml: `
             <p>This is an automated system alert for your Cloudinary storage.</p>
-            <p style="color: #b91c1c; font-weight: bold;">Your storage usage has exceeded the 20GB threshold.</p>
+            <p style="color: #b91c1c; font-weight: bold;">Your Cloudinary storage usage has exceeded the ${ALERT_THRESHOLD_GB}GB threshold.</p>
+            <p>Current usage is <strong>${usageGB.toFixed(2)} GB</strong> which is <strong>${percent.toFixed(1)}%</strong> of your total limit.</p>
             <p>Please log in to your Cloudinary dashboard to manage your assets or consider upgrading your plan to prevent service interruption.</p>
           `,
           infoRows: [
             { label: "Current Usage", value: `${usageGB.toFixed(2)} GB` },
             { label: "Total Limit", value: `${limitGB.toFixed(2)} GB` },
-            { label: "Alert Threshold", value: "20.00 GB" }
+            { label: "Alert Threshold", value: `${ALERT_THRESHOLD_GB}.00 GB` }
           ],
           action: {
             label: "View Cloudinary Dashboard",
@@ -73,7 +76,7 @@ export async function GET(request) {
     return apiResponse({ 
       alert_sent: false, 
       usage: `${usageGB.toFixed(2)} GB`,
-      message: "Storage usage is within safe limits." 
+      message: `Storage usage is within safe limits (Threshold: ${ALERT_THRESHOLD_GB}GB).` 
     });
 
   } catch (error) {
