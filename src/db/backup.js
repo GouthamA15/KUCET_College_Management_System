@@ -1,6 +1,7 @@
 const mysqldump = require('mysqldump');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { v2: cloudinary } = require('cloudinary');
 const dotenv = require('dotenv');
 
@@ -23,12 +24,13 @@ cloudinary.config({
 async function runBackup() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const backupFilename = `kucet_db_backup_${timestamp}.sql`;
-  const backupPath = path.join(process.cwd(), backupFilename);
+  // Use os.tmpdir() for better security and hygiene
+  const backupPath = path.join(os.tmpdir(), backupFilename);
 
   console.log(`--- STARTING DATABASE BACKUP [${new Date().toLocaleString()}] ---`);
 
   try {
-    console.log(`Exporting database to ${backupFilename}...`);
+    console.log(`Exporting database to temporary directory: ${backupPath}...`);
 
     // 1. Run Pure Node Dump
     await mysqldump({
@@ -47,24 +49,30 @@ async function runBackup() {
 
     console.log(`✅ Export complete. Size: ${(fs.statSync(backupPath).size / 1024 / 1024).toFixed(2)} MB`);
 
-    // 2. Upload to Cloudinary
+    // 2. Upload to Cloudinary with restricted access mode
     console.log('Uploading to Cloudinary (backups folder)...');
     const result = await cloudinary.uploader.upload(backupPath, {
       folder: 'kucet/backups',
       resource_type: 'raw',
       public_id: backupFilename,
+      access_mode: 'authenticated', // Prevents public access via URL; requires signed URL or Auth header
     });
 
     console.log(`🚀 Backup safely stored at: ${result.secure_url}`);
 
-    // 3. Cleanup local file
-    fs.unlinkSync(backupPath);
-    console.log('🧹 Local temporary file removed.');
-    console.log('--- BACKUP PROCESS COMPLETE ---');
-
   } catch (error) {
     console.error(`❌ Backup Failed: ${error.message}`);
-    if (fs.existsSync(backupPath)) fs.unlinkSync(backupPath);
+  } finally {
+    // 3. Cleanup local file (Always ensure cleanup in finally block)
+    if (fs.existsSync(backupPath)) {
+      try {
+        fs.unlinkSync(backupPath);
+        console.log('Sweep: Local temporary file removed.');
+      } catch (cleanupErr) {
+        console.warn(`🧹 Warning: Failed to remove temp file: ${cleanupErr.message}`);
+      }
+    }
+    console.log('--- BACKUP PROCESS COMPLETE ---');
   }
 }
 

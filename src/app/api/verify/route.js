@@ -3,9 +3,19 @@ import { db } from '@/db';
 import { studentRequests, students, certificateVerifications } from '@/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(request) {
     try {
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+        
+        // 0. RATE LIMITING (5 requests per minute per IP)
+        const rl = await checkRateLimit(`verify_cert_${ip}`, 5, 60);
+        if (!rl.success) {
+            logger.warn(`[VERIFY_BLOCKED] Rate limit exceeded for IP: ${ip}`);
+            return apiResponse({ valid: false, message: "Too many attempts. Please try again later." }, 429);
+        }
+
         const body = await request.json();
         
         // Normalize inputs
@@ -15,9 +25,6 @@ export async function POST(request) {
         if (!certId || !rollNo) {
             return apiResponse({ valid: false, message: "Missing params" }, 400);
         }
-
-        // Debug DB
-        // console.log("DB_KEYS:", Object.keys(db));
 
         // 1. Check for the certificate by ID only first to be more robust
         const results = await db.select({
@@ -41,10 +48,6 @@ export async function POST(request) {
 
         if (!certData) {
             logger.info(`[VERIFY_FAIL] No matching Roll No for Cert ID: "${certId}". Input Roll: "${rollNo}"`);
-            // Log what we did find for debugging
-            if (results.length > 0) {
-                logger.info(`[VERIFY_DEBUG] Found ${results.length} records for this ID, but rolls were: ${results.map(r => `"${r.roll_no}"`).join(', ')}`);
-            }
             return apiResponse({ valid: false });
         }
         
@@ -54,26 +57,26 @@ export async function POST(request) {
         }
 
         // 3. LOG THE VERIFICATION 
-        const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
         const userAgent = request.headers.get('user-agent') || 'Unknown Device';
         const deviceName = body.deviceName || null;
         const latitude = body.latitude || null;
         const longitude = body.longitude || null;
 
-        // IP-based Location Lookup
+        // IP-based Location Lookup (HTTPS Secured)
         let locationName = 'Unknown Location';
         let finalLat = latitude ? String(latitude) : null;
         let finalLon = longitude ? String(longitude) : null;
 
         try {
             if (ip && ip !== '127.0.0.1' && ip !== '::1') {
-                const geoRes = await fetch(`http://ip-api.com/json/${ip}?fields=status,city,regionName,country,lat,lon`);
+                // Using ipapi.co for free HTTPS geolocation
+                const geoRes = await fetch(`https://ipapi.co/${ip}/json/`);
                 const geoData = await geoRes.json();
-                if (geoData.status === 'success') {
-                    locationName = `${geoData.city}, ${geoData.regionName}`;
+                if (!geoData.error) {
+                    locationName = `${geoData.city}, ${geoData.region}`;
                     // FALLBACK: If browser GPS was denied, use IP-based coordinates
-                    if (!finalLat) finalLat = String(geoData.lat);
-                    if (!finalLon) finalLon = String(geoData.lon);
+                    if (!finalLat) finalLat = String(geoData.latitude);
+                    if (!finalLon) finalLon = String(geoData.longitude);
                 }
             }
         } catch (e) {
@@ -98,20 +101,19 @@ export async function POST(request) {
         // 4. Return success details to the frontend
         return apiResponse({
             valid: true,
-        details: {
-            name: certData.name,
-            roll_no: certData.roll_no,
-            cert_id: certData.generated_certificate_id,
-            issue_date: (certData.completed_at && !isNaN(new Date(certData.completed_at).getTime())) 
-                ? new Date(certData.completed_at).toLocaleDateString('en-GB') 
-                : 'N/A',
-            cert_type: certData.certificate_type,
-            type: certData.certificate_type
+            details: {
+                name: certData.name,
+                roll_no: certData.roll_no,
+                cert_id: certData.generated_certificate_id,
+                issue_date: (certData.completed_at && !isNaN(new Date(certData.completed_at).getTime())) 
+                    ? new Date(certData.completed_at).toLocaleDateString('en-GB') 
+                    : 'N/A',
+                cert_type: certData.certificate_type,
+                type: certData.certificate_type
             }
         });
 
     } catch (error) {
-        console.error("DEBUG_VERIFY_ERROR:", error);
         logger.error("Critical Verification Error:", error);
         return apiError("Internal Server Error", 500, { valid: false });
     }

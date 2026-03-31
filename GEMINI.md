@@ -142,6 +142,22 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 86: Database Resiliency & Verification Intelligence (March 31, 2026)**
+- **Database Backup Infrastructure:**
+    - **Automated Backups:** Implemented a daily database backup workflow using GitHub Actions (`db-backup.yml`).
+    - **Cloudinary Integration:** Developed `src/db/backup.js` to perform secure MySQL dumps and upload them as `raw` resources to Cloudinary, ensuring institutional data durability.
+- **Verification System Refinement:**
+    - **Device & Location Tracking:** Enhanced the verification schema in `src/db/schema.js` to include `device_hash`, `ip_address`, and `location` metadata for all certificate verifications.
+    - **Input Normalization:** Refactored `src/app/api/verify/route.js` and `src/app/verify/page.js` to normalize input fields (Roll Number, Certificate ID) and prioritize approved records, resolving previous verification failures.
+- **Infrastructure & Security:**
+    - **Drizzle Schema Evolution:** Updated Drizzle configuration and snapshots to align with the new verification metadata requirements.
+    - **SSL Enforcement:** Standardized TLS/SSL requirements across backup utilities and database configurations for secure transit.
+- **Security & Reliability Hardening:**
+    *   **Backup Privacy Secured:** Updated `src/db/backup.js` to use `access_mode: 'authenticated'` for Cloudinary uploads, preventing public access to database snapshots.
+    *   **Rate Limiting Implemented:** Applied a Redis-backed rate limiter to the `/api/verify` endpoint (5 req/min), protecting against brute-force certificate scraping.
+    *   **Secure Geolocation:** Transitioned from unencrypted HTTP to `https://ipapi.co` for geolocation in the verification route, ensuring user privacy.
+    *   **Temp File Hygiene:** Refactored the backup process to use `os.tmpdir()` and guaranteed cleanup via `finally` blocks, eliminating persistent local SQL dumps.
+
 ### **Session 85: Institutional Certificate Standards & Request Validation (March 24, 2026)**
 - **Certificate PDF Overhaul:**
     - **A4 Institutional Standards:** Re-engineered the entire `@react-pdf/renderer` stack to strictly adhere to institutional A4 standards. Updated `Styles.js`, `BaseCertificate.js`, and `CertificateHeader.js` with professional branding and typography.
