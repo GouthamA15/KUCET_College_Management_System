@@ -20,7 +20,7 @@ export async function GET(request) {
     const currentAcademicYear = await getCollegeAcademicYear(collegeInfo);
 
     const allocatedSubquery = db.select({
-      name: clerks.name,
+      names: sql`GROUP_CONCAT(${clerks.name} SEPARATOR ', ')`.as('names'),
       subject_code: facultySubjectAssignments.subject_code,
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,
@@ -28,6 +28,12 @@ export async function GET(request) {
     })
     .from(facultySubjectAssignments)
     .innerJoin(clerks, eq(facultySubjectAssignments.faculty_id, clerks.id))
+    .groupBy(
+      facultySubjectAssignments.subject_code,
+      facultySubjectAssignments.branch,
+      facultySubjectAssignments.course_semester,
+      facultySubjectAssignments.academic_year
+    )
     .as('asgn');
 
     const interests = await db.select({
@@ -43,7 +49,7 @@ export async function GET(request) {
       updated_at: facultySubjectInterests.updated_at,
       faculty_name: clerks.name,
       employee_id: clerks.employee_id,
-      allocated_faculty_name: allocatedSubquery.name
+      allocated_faculty_name: allocatedSubquery.names
     })
     .from(facultySubjectInterests)
     .innerJoin(clerks, eq(facultySubjectInterests.faculty_id, clerks.id))
