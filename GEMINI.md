@@ -23,23 +23,24 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 2. Technical Stack
 - **Frontend:** Next.js 16.1.6, React 19.2.4, Tailwind CSS 4
 - **Backend:** Next.js API Routes (App Router), Node.js
-- **Database:** MySQL (Railway-hosted, accessed via `mysql2/promise`), integrated with **Drizzle ORM** for type-safe querying and versioned migrations.
-- **Authentication:** JWT-based (HTTP-only cookies) using `jose` for edge-runtime compatibility. Includes native Google OAuth support.
-- **Real-Time:** Supabase Realtime (WebSockets) for lightweight server-to-client broadcasting.
-- **Monitoring:** Sentry SDK for full-stack error tracking and performance profiling.
-- **PDF Generation:** Custom template-based certificates using `@react-pdf/renderer` 4.3.2
-- **Cloud Storage:** Cloudinary integration for images, signatures, and screenshots
+- **Mobile (Native):** Capacitor 7 (Android) with GPS-based geolocation and local notifications.
+- **Database:** TiDB Cloud (MySQL-compatible Serverless), accessed via `mysql2/promise` with SSL/TLS enforcement. Integrated with **Drizzle ORM** for type-safe querying and versioned migrations.
+- **Authentication:** JWT-based (HTTP-only cookies) using `jose` for edge-runtime compatibility. Includes native Google OAuth support via `next-auth` and `google-auth-library`.
+- **Real-Time:** Supabase Realtime (WebSockets) for lightweight server-to-client broadcasting, with Redis Pub/Sub (`ioredis`) for distributed SSE.
+- **Monitoring & Logging:** Sentry SDK for full-stack error tracking, `pino` for structured logging.
+- **PDF & Document Generation:** `@react-pdf/renderer` 4.3.2 for certificates, `docxtemplater` for Word docs.
+- **Cloud Storage:** Cloudinary SDK 2.9.0 for images, signatures, and backups.
+- **Infrastructure & PWA:** `@ducanh2912/next-pwa` for offline capabilities, Upstash Redis for global rate limiting (`@upstash/ratelimit`).
 - **Additional Libraries:**
   - `drizzle-orm` 0.45.1 - Type-safe ORM
-  - `@supabase/supabase-js` 2.49.1 - Real-time Messaging Hub
+  - `@supabase/supabase-js` 2.99.3 - Real-time Messaging Hub
   - `bcrypt` 6.0.0 - Password hashing
+  - `zod` 4.3.6 - Schema validation
   - `react-hot-toast` 2.6.0 - Toast notifications
   - `react-datepicker` 9.1.0 - Date input components
   - `qrcode` 1.5.4 - QR code generation for certificates
   - `xlsx-js-style` 1.2.0 - Excel file handling
-  - `docxtemplater` 3.67.6 - Document templating
-  - `google-auth-library` 10.6.1 - Secure ID token verification
-  - `cloudinary` 2.9.0 - Cloud storage SDK
+  - `mysqldump` 3.2.0 - Database backup utility
 
 ---
 
@@ -159,6 +160,18 @@ A robust, production-ready web application built with **Next.js** for managing t
     *   **Failure Notifications:**
         *   **Email-Only:** Integrated automated failure alerts in `src/db/backup.js` that notify developers via Brevo if a backup or pruning fails. Removed previous Discord webhook dependency for cleaner execution.
     *   **Temp File Hygiene:** Refactored the backup process to use `os.tmpdir()` and guaranteed cleanup via `finally` blocks, eliminating persistent local SQL dumps.
+- **Verification System Resilience:**
+    *   **Fail-Over Geolocation:** Implemented a multi-tier geolocation strategy in `/api/verify`. It uses `ipapi.co` (HTTPS) as primary and `ip-api.com` (HTTP) as fallback, with absolute silence on critical failures to ensure the app never crashes due to third-party outages.
+- **Infrastructure & Secrets Governance:**
+    *   **Environment Validation:** Integrated new database and backup variables into the Zod-based `src/lib/env.js` schema. The application now "fails fast" at startup if critical credentials are missing.
+- **Database Archiving & Performance:**
+    *   **Automated Archiving:** Implemented `src/db/archive-verifications.js` to automatically move verification records older than 6 months to a dedicated `certificate_verifications_archive` table, maintaining high query performance for the live registry.
+    *   **Archive Schema:** Defined a mirror schema for archived records, preserving original IDs and adding an `archived_at` timestamp for auditability.
+- **Institutional Verification Registry (Admin Dashboard):**
+    *   **Real-time Monitoring:** Developed a specialized dashboard at `/admin/verifications` for institutional oversight of certificate scans.
+    *   **Forgery Detection:** Implemented "High-Frequency Scan" detection to flag certificates scanned excessively, helping admins identify potential counterfeit attempts.
+    *   **Global Scan Analytics:** Integrated location-based aggregation to track where institutional documents are being verified globally.
+    *   **Live Audit Log:** Added a real-time verification log with IP, device, and location metadata for comprehensive transparency.
 - **System Monitoring & Maintenance:**
     *   **Storage Alert API:** Refined `/api/public/system/storage-alert` to proactively monitor Cloudinary usage. Implemented a 20GB threshold that triggers institutional email alerts to developers, ensuring zero service interruption.
 

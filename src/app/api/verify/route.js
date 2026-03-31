@@ -62,25 +62,57 @@ export async function POST(request) {
         const latitude = body.latitude || null;
         const longitude = body.longitude || null;
 
-        // IP-based Location Lookup (HTTPS Secured)
+        // IP-based Location Lookup (Multi-tier Fail-over)
         let locationName = 'Unknown Location';
         let finalLat = latitude ? String(latitude) : null;
         let finalLon = longitude ? String(longitude) : null;
 
-        try {
-            if (ip && ip !== '127.0.0.1' && ip !== '::1') {
-                // Using ipapi.co for free HTTPS geolocation
-                const geoRes = await fetch(`https://ipapi.co/${ip}/json/`);
-                const geoData = await geoRes.json();
-                if (!geoData.error) {
-                    locationName = `${geoData.city}, ${geoData.region}`;
-                    // FALLBACK: If browser GPS was denied, use IP-based coordinates
-                    if (!finalLat) finalLat = String(geoData.latitude);
-                    if (!finalLon) finalLon = String(geoData.longitude);
+        /**
+         * Multi-tier Geolocation Strategy:
+         * 1. Primary: ipapi.co (HTTPS, 1000/day limit)
+         * 2. Fallback: ip-api.com (HTTP, 45/min limit)
+         * 3. Silence: If all fail, use 'Unknown Location' and don't crash.
+         */
+        const fetchGeoData = async (clientIp) => {
+            if (!clientIp || clientIp === '127.0.0.1' || clientIp === '::1') return null;
+
+            try {
+                // Tier 1: Primary (HTTPS)
+                const res = await fetch(`https://ipapi.co/${clientIp}/json/`, { timeout: 3000 });
+                const data = await res.json();
+                if (!data.error) return {
+                    location: `${data.city}, ${data.region}`,
+                    lat: String(data.latitude),
+                    lon: String(data.longitude)
+                };
+            } catch (e1) {
+                logger.warn(`[GEOLOCATION_T1_FAIL] ${clientIp}: ${e1.message}`);
+                try {
+                    // Tier 2: Fallback (HTTP)
+                    const res2 = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,city,regionName,lat,lon`, { timeout: 3000 });
+                    const data2 = await res2.json();
+                    if (data2.status === 'success') return {
+                        location: `${data2.city}, ${data2.regionName}`,
+                        lat: String(data2.lat),
+                        lon: String(data2.lon)
+                    };
+                } catch (e2) {
+                    logger.warn(`[GEOLOCATION_T2_FAIL] ${clientIp}: ${e2.message}`);
                 }
             }
-        } catch (e) {
-            logger.warn(`[VERIFY] IP Geolocation failed for ${ip}`);
+            return null;
+        };
+
+        try {
+            const geo = await fetchGeoData(ip);
+            if (geo) {
+                locationName = geo.location;
+                if (!finalLat) finalLat = geo.lat;
+                if (!finalLon) finalLon = geo.lon;
+            }
+        } catch (globalGeoErr) {
+            // Absolute silence on geolocation crash to prevent app failure
+            logger.error("[GEOLOCATION_CRITICAL_ERROR]", globalGeoErr.message);
         }
 
         try {

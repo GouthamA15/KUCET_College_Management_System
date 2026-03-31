@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "node src/db/migrate.js",
     "db:backup": "node src/db/backup.js",
+    "db:archive": "node src/db/archive-verifications.js",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
