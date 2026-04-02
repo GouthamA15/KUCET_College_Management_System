@@ -22,7 +22,7 @@ export async function GET(request) {
     "uzair.mdf@gmail.com"
   ];
 
-  const ALERT_THRESHOLD_GB = 0;
+  const ALERT_THRESHOLD_GB = 20;
 
   try {
     // Fetch Cloudinary Usage

@@ -143,6 +143,21 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (Feb-Mar 2026)
 
+### **Session 87: Authentication Resiliency & Institutional UI Overhaul (March 31, 2026)**
+- **Authentication & Cookie Infrastructure:**
+    - **Silent Refresh Fix:** Resolved a critical bug in the middleware (`proxy.js`) where multiple `set-cookie` headers were being lost during token rotation. Implemented `getSetCookie()` and `NextResponse.cookies.get()` to ensure all auth, refresh, and companion cookies are correctly propagated across the system.
+    - **Session Tracking Consistency:** Added `student_logged_in` companion cookies for students to match the clerk implementation, enabling reliable frontend session detection without reading httpOnly tokens.
+- **UI/UX Modernization & Navigation:**
+    - **Student Mobile Top Bar:** Overhauled the mobile top bar by replacing the central notification hub with a centered institutional college logo for a more professional brand presence.
+    - **Direct Profile Access:** Transformed the student top bar's profile section into a direct clickable Link to `/student/profile`, eliminating redundant dropdown menus for primary navigation.
+    - **Smart Sidebar Pulse:** Updated `StudentSidebar.js` to intelligently hide the "Live Session" block when no class is found in the timetable, ensuring a zero-waste mobile workspace during breaks or off-hours.
+- **Bug Fixes & System Stability:**
+    - **Clerk Login Feedback:** Fixed a frontend issue in `LoginPanel.js` where deactivated employee accounts showed an `undefined` error. The system now correctly extracts and displays the specific server-provided reason (e.g., "Account deactivated").
+    - **Faculty Interest Integrity:** Resolved a "Duplicate Key" React rendering error in the HOD console (`FacultyInterestsManager.js`) by implementing `GROUP_CONCAT` in the underlying API route, safely consolidating multiple subject allocations.
+- **Compliance & Disaster Recovery:**
+    - **Documentation Standards:** Authored the official `PRIVACY_POLICY.md` to document and disclose the collection of IP addresses and approximate locations during certificate verification scans.
+    - **DRP Hardening:** Updated `DEPLOYMENT_STRATEGY.md` with explicit, step-by-step command-line instructions for downloading and restoring Cloudinary database backups to fresh MySQL instances.
+
 ### **Session 86: Database Resiliency & Verification Intelligence (March 31, 2026)**
 - **Database Backup Infrastructure:**
     - **Automated Backups:** Implemented a daily database backup workflow using GitHub Actions (`db-backup.yml`).
