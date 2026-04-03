@@ -144,8 +144,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const menuItemsRaw = menuConfig[effectiveRole] || menuConfig['guest'] || [
     { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
-    { label: 'EMPLOYEE LOGIN', action: 'open-panel-clerk' },
-    { label: 'SUPER ADMIN', action: 'open-panel-admin' }
+    { label: 'STAFF LOGIN', action: 'open-panel-clerk' }
   ];
 
   // Filter student menu if unverified
