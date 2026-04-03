@@ -23,8 +23,8 @@ export function ClerkProvider({ children }) {
   const fetchCollegeInfo = useCallback(async () => {
     try {
       const res = await fetch('/api/public/college-info');
-      const data = await res.json();
       if (res.ok) {
+        const data = await res.json();
         setCollegeInfo(data.collegeInfo);
       }
     } catch (e) {
@@ -35,12 +35,17 @@ export function ClerkProvider({ children }) {
   const fetchClerk = useCallback(async () => {
     try {
       const res = await fetch('/api/clerk/me');
-      const data = await res.json();
       if (res.ok) {
+        const data = await res.json();
         setClerkData(data.data);
         return data.data;
       } else {
-        setError(data.error || 'Failed to fetch clerk data');
+        try {
+          const data = await res.json();
+          setError(data.error || 'Failed to fetch clerk data');
+        } catch {
+          setError('Failed to fetch clerk data');
+        }
       }
     } catch (e) {
       setError('Network error');
@@ -55,11 +60,15 @@ export function ClerkProvider({ children }) {
         fetch('/api/clerk/faculty/assignments'),
         fetch('/api/clerk/faculty/interests')
       ]);
-      const asgnJson = await asgnRes.json();
-      const intJson = await intRes.json();
 
-      if (asgnRes.ok) setFacultyAssignments(asgnJson.data || []);
-      if (intRes.ok) setFacultyInterests(intJson.data || []);
+      if (asgnRes.ok) {
+        const asgnJson = await asgnRes.json();
+        setFacultyAssignments(asgnJson.data || []);
+      }
+      if (intRes.ok) {
+        const intJson = await intRes.json();
+        setFacultyInterests(intJson.data || []);
+      }
     } catch (e) {
       console.error('Failed to fetch faculty data', e);
     } finally {
@@ -77,13 +86,14 @@ export function ClerkProvider({ children }) {
         fetch('/api/clerk/hod/branch-subjects'),
         fetch('/api/clerk/hod/subject-assignments')
       ]);
-      const configJson = await configRes.json();
-      const facultyJson = await facultyRes.json();
-      const ttJson = await ttRes.json();
-      const subjectsJson = await subjectsRes.json();
-      const assignmentsJson = await assignmentsRes.json();
 
       if (configRes.ok && facultyRes.ok && ttRes.ok && subjectsRes.ok && assignmentsRes.ok) {
+        const configJson = await configRes.json();
+        const facultyJson = await facultyRes.json();
+        const ttJson = await ttRes.json();
+        const subjectsJson = await subjectsRes.json();
+        const assignmentsJson = await assignmentsRes.json();
+
         setHodBranchData({
           config: configJson.data,
           faculty: facultyJson.data,
@@ -103,8 +113,8 @@ export function ClerkProvider({ children }) {
     setIsLoadingRequests(true);
     try {
       const res = await fetch('/api/clerk/admission/student-requests');
-      const json = await res.json();
       if (res.ok) {
+        const json = await res.json();
         setPendingProfileRequests(json.data || []);
       }
     } catch (e) {
@@ -119,8 +129,8 @@ export function ClerkProvider({ children }) {
     setIsLoadingRequests(true);
     try {
       const res = await fetch(`/api/clerk/requests?clerkType=${role}`);
-      const json = await res.json();
       if (res.ok) {
+        const json = await res.json();
         setPendingCertificateRequests(json.records || []);
       }
     } catch (e) {
@@ -175,12 +185,12 @@ export function ClerkProvider({ children }) {
   }, [clerkData, fetchHODData]);
 
   return (
-    <ClerkContext.Provider value={{ 
-      clerkData, 
-      collegeInfo, 
-      setClerkData, 
-      loading, 
-      error, 
+    <ClerkContext.Provider value={{
+      clerkData,
+      collegeInfo,
+      setClerkData,
+      loading,
+      error,
       refreshClerk: fetchClerk,
       facultyAssignments,
       facultyInterests,
@@ -200,7 +210,7 @@ export function ClerkProvider({ children }) {
       {children}
     </ClerkContext.Provider>
   );
-  }
+}
 
 export function useClerk() {
   const context = useContext(ClerkContext);

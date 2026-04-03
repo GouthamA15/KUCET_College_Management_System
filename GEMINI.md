@@ -1,6 +1,15 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 23, 2026
+**Last Updated:** March 31, 2026
+
+## Table of Contents
+1. [Project Overview](#1-project-overview)
+2. [Technical Stack](#2-technical-stack)
+3. [Core Architectural Concepts](#3-core-architectural-concepts)
+4. [Database Schema](#4-database-schema)
+5. [Specialized Modules & Features](#5-specialized-modules--features)
+6. [Recent Activity Log](#6-recent-activity-log)
+7. [Summary](#summary)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET (Kakatiya University College of Engineering and Technology). The system supports four primary user roles: **Super Admin**, **Head of Department (HOD)**, **Clerk/Faculty**, and **Student**. 
@@ -57,7 +66,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **JWT Verification:** Decodes the HTTP-only cookie, verifies signature using `HS256`, and redirects unauthorized users.
 - **Session Enrichment:** Tokens include `is_hod`, `branch`, and `academic_year` data to enable granular permissions.
 
-### B. Global State Management (`src/context/`)
+### C. Global State Management (`src/context/`)
 - **StudentContext**: Tracks profile status, pending certificate requests, and performance data.
 - **ClerkContext**: Manages clerk profile and the `hodBranchData` (config, faculty load, timetable, branch subjects).
 - **AdminContext**: System-wide statistics and clerk role management (HOD promotion).
@@ -65,25 +74,25 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **AcademicsContext**: Caching layer for student academic performance and subjects.
 - **AssetContext**: Centralized asset management and background pre-caching.
 
-### C. Time Management & The "Time Machine"
+### D. Time Management & The "Time Machine"
 - **Authoritative Clock:** `src/lib/clock.js` provides `getNow()` and `getNowSync()`.
 - **Precision Travel:** Supports `datetime-local` input for travel to exact hours/minutes.
 - **Consistency:** All business logic uses `getNow()` to respect mock time for testing semester transitions.
 
-### D. Academic Intelligence (`src/lib/rollNumber.js`)
+### E. Academic Intelligence (`src/lib/rollNumber.js`)
 - **Regex-Based Parsing:** Decodes roll components (Entry year, Branch, Serial, Academic Type).
 - **Dynamic Calculations:** Resolves Studying Year and Semester (1-8) based on date boundaries.
 
-### E. College Configuration (`src/lib/college-config.js`)
+### F. College Configuration (`src/lib/college-config.js`)
 - **Centralized Settings:** Single source of truth for semester start dates, fee structures, and category allotments.
 
-### F. Real-Time Sync (Supabase)
+### G. Real-Time Sync (Supabase)
 - **Architecture:** Transitioned from local SSE to **Supabase Realtime (Broadcast)**. 
 - **The Radio Tower:** `src/lib/sse.js` sends events to Supabase via WebSocket hooks.
 - **Global Reach:** Enables real-time sync on Serverless platforms (Vercel) where persistent connections are otherwise restricted.
 - **Listeners:** `RealtimeListener` component allows UI to react instantly to server pings without refreshing.
 
-### G. HOD & Branch Intelligence
+### H. HOD & Branch Intelligence
 - **Sub-Role Pattern:** HODs are elevated Faculty members with authority over a specific branch.
 - **Departmental Authority:** HODs manage timetables, faculty load, and syllabus for their branch.
 
@@ -141,9 +150,25 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ---
 
-## 6. Recent Activity Log (Feb-Mar 2026)
+## 6. Recent Activity Log (Feb-Apr 2026)
 
-### **Session 87: Authentication Resiliency & Institutional UI Overhaul (March 31, 2026)**
+### April 2026
+
+#### **Session 88: HOD Console Refactoring & Drizzle ORM Hardening (April 3, 2026)**
+- **API Hardening & Error Resolution:**
+    - **Faculty Load Refactor:** Resolved `Unknown column 'scheduled_weekly' in 'order clause'` error in `/api/clerk/hod/faculty-load` by replacing string aliases with explicit Drizzle `sql` expression objects in both the `select` and `orderBy` clauses.
+    - **SQL Ambiguity Fix:** Fixed `Column 'id' in field list is ambiguous` in the faculty load endpoint by explicitly qualifying table names in SQL subqueries (e.g., `branch_timetable.faculty_id = clerks.id`) instead of relying on ambiguous column names.
+    - **Branch Subjects Join Fix:** Resolved 500 errors in `/api/clerk/hod/branch-subjects` by rewriting the query to start from `syllabus_structure` and using an `innerJoin` on `syllabus_subjects`, ensuring relations resolve correctly without relying on missing Drizzle relational configurations.
+- **Code Quality & Stability:**
+    - **Scoping Fixes:** Fixed `ReferenceError: user is not defined` in API catch blocks by moving the `user` variable declaration outside the `try` block in both `faculty-load` and `branch-subjects` routes.
+    - **Safety Checks:** Implemented strict `user.branch` existence checks in HOD API routes to prevent query failures when a clerk profile is missing branch assignments.
+    - **Logging Improvements:** Replaced generic API error logging with structured `logger.error` calls that include user email and branch context to improve future debugging.
+
+---
+
+### March 2026
+
+#### **Session 87: Authentication Resiliency & Institutional UI Overhaul (March 31, 2026)**
 - **Authentication & Cookie Infrastructure:**
     - **Silent Refresh Fix:** Resolved a critical bug in the middleware (`proxy.js`) where multiple `set-cookie` headers were being lost during token rotation. Implemented `getSetCookie()` and `NextResponse.cookies.get()` to ensure all auth, refresh, and companion cookies are correctly propagated across the system.
     - **Session Tracking Consistency:** Added `student_logged_in` companion cookies for students to match the clerk implementation, enabling reliable frontend session detection without reading httpOnly tokens.
@@ -158,7 +183,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Documentation Standards:** Authored the official `PRIVACY_POLICY.md` to document and disclose the collection of IP addresses and approximate locations during certificate verification scans.
     - **DRP Hardening:** Updated `DEPLOYMENT_STRATEGY.md` with explicit, step-by-step command-line instructions for downloading and restoring Cloudinary database backups to fresh MySQL instances.
 
-### **Session 86: Database Resiliency & Verification Intelligence (March 31, 2026)**
+---
+
+#### **Session 86: Database Resiliency & Verification Intelligence (March 31, 2026)**
 - **Database Backup Infrastructure:**
     - **Automated Backups:** Implemented a daily database backup workflow using GitHub Actions (`db-backup.yml`).
     - **Cloudinary Integration:** Developed `src/db/backup.js` to perform secure MySQL dumps and upload them as `raw` resources to Cloudinary, ensuring institutional data durability.
@@ -169,28 +196,30 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Drizzle Schema Evolution:** Updated Drizzle configuration and snapshots to align with the new verification metadata requirements.
     - **SSL Enforcement:** Standardized TLS/SSL requirements across backup utilities and database configurations for secure transit.
 - **Database Backup Reliability & Security:**
-    *   **Backup Privacy Secured:** Updated `src/db/backup.js` to use `access_mode: 'authenticated'` for Cloudinary uploads, preventing public access to database snapshots.
-    *   **Retention Policy (Pruning):** Implemented a professional pruning script in `src/db/backup.js` that keeps 30 daily, 4 weekly, and 12 monthly backups, preventing storage bloat.
-    *   **Checksum Verification:** Integrated MD5 hashing to compare local dumps with Cloudinary ETags, guaranteeing 100% data integrity during transit.
-    *   **Failure Notifications:**
-        *   **Email-Only:** Integrated automated failure alerts in `src/db/backup.js` that notify developers via Brevo if a backup or pruning fails. Removed previous Discord webhook dependency for cleaner execution.
-    *   **Temp File Hygiene:** Refactored the backup process to use `os.tmpdir()` and guaranteed cleanup via `finally` blocks, eliminating persistent local SQL dumps.
+    - **Backup Privacy Secured:** Updated `src/db/backup.js` to use `access_mode: 'authenticated'` for Cloudinary uploads, preventing public access to database snapshots.
+    - **Retention Policy (Pruning):** Implemented a professional pruning script in `src/db/backup.js` that keeps 30 daily, 4 weekly, and 12 monthly backups, preventing storage bloat.
+    - **Checksum Verification:** Integrated MD5 hashing to compare local dumps with Cloudinary ETags, guaranteeing 100% data integrity during transit.
+    - **Failure Notifications:**
+        - **Email-Only:** Integrated automated failure alerts in `src/db/backup.js` that notify developers via Brevo if a backup or pruning fails. Removed previous Discord webhook dependency for cleaner execution.
+    - **Temp File Hygiene:** Refactored the backup process to use `os.tmpdir()` and guaranteed cleanup via `finally` blocks, eliminating persistent local SQL dumps.
 - **Verification System Resilience:**
-    *   **Fail-Over Geolocation:** Implemented a multi-tier geolocation strategy in `/api/verify`. It uses `ipapi.co` (HTTPS) as primary and `ip-api.com` (HTTP) as fallback, with absolute silence on critical failures to ensure the app never crashes due to third-party outages.
+    - **Fail-Over Geolocation:** Implemented a multi-tier geolocation strategy in `/api/verify`. It uses `ipapi.co` (HTTPS) as primary and `ip-api.com` (HTTP) as fallback, with absolute silence on critical failures to ensure the app never crashes due to third-party outages.
 - **Infrastructure & Secrets Governance:**
-    *   **Environment Validation:** Integrated new database and backup variables into the Zod-based `src/lib/env.js` schema. The application now "fails fast" at startup if critical credentials are missing.
+    - **Environment Validation:** Integrated new database and backup variables into the Zod-based `src/lib/env.js` schema. The application now "fails fast" at startup if critical credentials are missing.
 - **Database Archiving & Performance:**
-    *   **Automated Archiving:** Implemented `src/db/archive-verifications.js` to automatically move verification records older than 6 months to a dedicated `certificate_verifications_archive` table, maintaining high query performance for the live registry.
-    *   **Archive Schema:** Defined a mirror schema for archived records, preserving original IDs and adding an `archived_at` timestamp for auditability.
+    - **Automated Archiving:** Implemented `src/db/archive-verifications.js` to automatically move verification records older than 6 months to a dedicated `certificate_verifications_archive` table, maintaining high query performance for the live registry.
+    - **Archive Schema:** Defined a mirror schema for archived records, preserving original IDs and adding an `archived_at` timestamp for auditability.
 - **Institutional Verification Registry (Admin Dashboard):**
-    *   **Real-time Monitoring:** Developed a specialized dashboard at `/admin/verifications` for institutional oversight of certificate scans.
-    *   **Forgery Detection:** Implemented "High-Frequency Scan" detection to flag certificates scanned excessively, helping admins identify potential counterfeit attempts.
-    *   **Global Scan Analytics:** Integrated location-based aggregation to track where institutional documents are being verified globally.
-    *   **Live Audit Log:** Added a real-time verification log with IP, device, and location metadata for comprehensive transparency.
+    - **Real-time Monitoring:** Developed a specialized dashboard at `/admin/verifications` for institutional oversight of certificate scans.
+    - **Forgery Detection:** Implemented "High-Frequency Scan" detection to flag certificates scanned excessively, helping admins identify potential counterfeit attempts.
+    - **Global Scan Analytics:** Integrated location-based aggregation to track where institutional documents are being verified globally.
+    - **Live Audit Log:** Added a real-time verification log with IP, device, and location metadata for comprehensive transparency.
 - **System Monitoring & Maintenance:**
-    *   **Storage Alert API:** Refined `/api/public/system/storage-alert` to proactively monitor Cloudinary usage. Implemented a 20GB threshold that triggers institutional email alerts to developers, ensuring zero service interruption.
+    - **Storage Alert API:** Refined `/api/public/system/storage-alert` to proactively monitor Cloudinary usage. Implemented a 20GB threshold that triggers institutional email alerts to developers, ensuring zero service interruption.
 
-### **Session 85: Institutional Certificate Standards & Request Validation (March 24, 2026)**
+---
+
+#### **Session 85: Institutional Certificate Standards & Request Validation (March 24, 2026)**
 - **Certificate PDF Overhaul:**
     - **A4 Institutional Standards:** Re-engineered the entire `@react-pdf/renderer` stack to strictly adhere to institutional A4 standards. Updated `Styles.js`, `BaseCertificate.js`, and `CertificateHeader.js` with professional branding and typography.
     - **Template Modernization:** Refined layout and field precision for Bonafide, Course Completion, Custodian, Income Tax, Migration, NOC, Study/Conduct, and Transfer certificates.
@@ -201,7 +230,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Proof Visibility:** Updated the `CertificateActionPanel` and related API routes to ensure verification screenshots are visible even for zero-fee administrative requests.
     - **Full View Support:** Integrated a full-screen preview for payment proofs and supporting documents within the clerk dashboard.
 
-### **Session 84: Premium Student UI & Authentication Refinement (March 23, 2026)**
+---
+
+#### **Session 84: Premium Student UI & Authentication Refinement (March 23, 2026)**
 - **Student UI Overhaul:**
     - **Premium Experience:** Re-engineered `StudentSidebar.js` and `StudentTopBar.js` with a focus on high-density information and "Premium Glass" aesthetics.
     - **Live Session Pulse:** Implemented a real-time "Live Now" session indicator for mobile sidebar, featuring dynamic aurora glows and status orbs that sync every 60 seconds.
@@ -214,7 +245,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **E2E Test Hardening:** Refined Playwright selectors in `tests/admission.spec.js` to accommodate the new UI layout and ensure CI/CD reliability.
     - **State Management:** Integrated `useCallback` and robust interval management in the sidebar to prevent memory leaks during long-running sessions.
 
-### **Session 83: Institutional Branding & Payment UX Optimization (March 22, 2026)**
+---
+
+#### **Session 83: Institutional Branding & Payment UX Optimization (March 22, 2026)**
 - **Global Header Standardization:**
     - **Unified Branding:** Integrated the institutional `<Header />` component across all core layouts (`AdminLayout`, `ClerkLayout`, `StudentLayout`) and standalone pages (`AdmissionPage`, `TimeMachine`).
     - **Responsive Architecture:** Configured the global header for `hidden md:block` visibility, prioritizing mobile workspace while maintaining desktop institutional presence.
@@ -228,7 +261,9 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Test Hardening:**
     - **Playwright Selectors:** Refactored `tests/admission.spec.js` to use accessible role-based selectors (`getByRole`, `getByText`), significantly increasing CI/CD resilience against UI layout shifts.
 
-### **Session 82: Production Reliability, Mobile Excellence & CI Hardening (March 20, 2026)**
+---
+
+#### **Session 82: Production Reliability, Mobile Excellence & CI Hardening (March 20, 2026)**
 - **CI/CD Hardening:**
     - **Lock File Strategy:** Restored `package-lock.json` to the repository to enable deterministic builds and efficient dependency caching in GitHub Actions.
     - **Environment Validation:** Populated CI workflows with dummy environment variables to satisfy Zod-based schema validation during production build and automated testing.
@@ -242,7 +277,9 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Data Privacy Fixes:**
     - **Scholarship Decryption:** Resolved a bug where mobile numbers appeared as encrypted strings in the Scholarship Clerk's dashboard; implemented on-the-fly decryption for student summary and application search routes.
 
-### **Session 81: Vercel Readiness - Supabase Realtime & Native Fixes (March 20, 2026)**
+---
+
+#### **Session 81: Vercel Readiness - Supabase Realtime & Native Fixes (March 20, 2026)**
 - **Real-Time Evolution:**
     - **Supabase Migration:** Replaced the local memory-based SSE architecture with **Supabase Realtime (Broadcast)**. This ensures 100% stability for real-time updates (Attendance, Timetable) on Vercel's serverless platform.
     - **Infrastructure Hardening:** Configured specific **Content Security Policy (CSP)** rules in `next.config.mjs` to whitelist Supabase WebSocket and API connections.
@@ -253,11 +290,15 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Clerk UI Optimization:** Resolved redundant `401 Unauthorized` errors on Clerk dashboards by skipping student identity fetches for authenticated administrative roles.
     - **End-to-End Encryption Consistency:** Fixed decryption issues in the Student Profile and Modification Request pages, ensuring phone and Aadhaar numbers appear in plain text for authorized views.
 
-### **Session 80: Administrative UI Cleanup (March 20, 2026)**
+---
+
+#### **Session 80: Administrative UI Cleanup (March 20, 2026)**
 - **Dashboard Optimization:** Removed the non-existent "Settings" link from the `AdminSidebar` and deleted the redundant `src/app/admin/settings` placeholder directory. This streamlines the Super Admin portal, focusing only on active functional modules.
 - **Hygiene:** Cleaned up orphaned components and navigation entries to ensure a polished production experience.
 
-### **Session 79: Institutional Grade Security - Encryption at Rest (March 20, 2026)**
+---
+
+#### **Session 79: Institutional Grade Security - Encryption at Rest (March 20, 2026)**
 - **Data Privacy:**
     - **AES-256-GCM Encryption:** Implemented institutional-grade encryption for highly sensitive fields (Aadhaar, Mobile numbers) using Node's native `crypto` module.
     - **Blind Indexing:** Developed a "Blind Index" strategy using HMAC-SHA256 hashes (`mobile_hash`, `aadhaar_hash`). This enables secure, high-performance uniqueness checks and searching without ever exposing plain-text data to the database engine.
@@ -267,7 +308,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Migration Utility:** Developed and executed a one-time migration script (`src/db/migrate-encryption.js`) that successfully secured 1,300+ existing records in the TiDB production database.
 - **Project Status:** Achieved **100% Production Readiness** with comprehensive coverage of ORM, Scaling, Monitoring, and Data Privacy.
 
-### **Session 78: Production Reliability - Versioned Migrations (March 20, 2026)**
+---
+
+#### **Session 78: Production Reliability - Versioned Migrations (March 20, 2026)**
 - **Database Lifecycle:**
     - **Migration Workflow:** Transitioned from `db:push` to a formal **Versioned Migration** workflow. This ensures a permanent, traceable history of all schema changes and prevents unpredictable behavior in production environments.
     - **Baseline Generation:** Generated the initial baseline migration (`drizzle/0001_dusty_cerise.sql`) representing the current "Institutional Grade" schema.
@@ -275,21 +318,27 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **CLI Integration:** Added `db:migrate` to `package.json` for seamless integration into the automated CI/CD pipeline.
 - **Integrity:** Established a predictable and reversible database deployment path, satisfying production stability requirements.
 
-### **Session 77: Horizontal Scaling - Distributed SSE via Redis (March 20, 2026)**
+---
+
+#### **Session 77: Horizontal Scaling - Distributed SSE via Redis (March 20, 2026)**
 - **Real-Time Infrastructure:**
     - **Redis Pub/Sub:** Migrated the Server-Sent Events (SSE) system from memory-based broadcasting to **Redis Pub/Sub** using `ioredis`. This enables horizontal scaling, ensuring real-time notifications (Timetable, Attendance) are synchronized across multiple server instances.
     - **Hybrid Broadcasting:** Implemented a robust "Redis-First" broadcasting logic with an automatic memory-based fallback for local development environments.
     - **Connection Management:** Optimized client connection tracking and dead-connection cleanup within the distributed architecture.
 - **Dependency Management:** Integrated `ioredis` into the production stack to support advanced caching and messaging patterns.
 
-### **Session 76: System Resilience - Environment Validation & Fail-Fast (March 20, 2026)**
+---
+
+#### **Session 76: System Resilience - Environment Validation & Fail-Fast (March 20, 2026)**
 - **Configuration Governance:**
     - **Environment Validation:** Implemented a robust schema-based validation for environment variables using **Zod** in `src/lib/env.js`.
     - **Fail-Fast Mechanism:** Integrated validation into the core database utility (`src/lib/db.js`). The application now automatically validates all required credentials (DB, Email, Auth, Cloudinary) at startup and refuses to start in production if any are missing or invalid.
     - **Informative Errors:** Added detailed console reporting for configuration errors, providing a clear checklist of missing variables to developers and sysadmins.
 - **Dependency Management:** Added `zod` to the project dependencies to support type-safe schema validation.
 
-### **Session 75: Legal Accountability & Audit Log UI (March 20, 2026)**
+---
+
+#### **Session 75: Legal Accountability & Audit Log UI (March 20, 2026)**
 - **Administrative Transparency:**
     - **Audit Log API:** Developed a robust backend route (`/api/admin/audit-logs`) with advanced filtering for actions, user types, and target entities, supporting high-performance pagination.
     - **Audit Trails Dashboard:** Implemented a new "Audit Trails" page in the Super Admin portal featuring a high-density activity registry.
@@ -297,7 +346,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Navigation Integration:** Added a permanent "Audit Trails" link to the `AdminSidebar` for immediate administrative oversight.
 - **Compliance:** Established a user-friendly interface for the comprehensive logging system, ensuring institutional accountability and non-repudiation for all administrative actions.
 
-### **Session 74: Database Integrity & Multi-Tier Deployment Strategy (March 20, 2026)**
+---
+
+#### **Session 74: Database Integrity & Multi-Tier Deployment Strategy (March 20, 2026)**
 - **Disaster Recovery:**
     - **PITR Strategy:** Formally documented and recommended the enablement of **Point-in-Time Recovery (PITR)** on TiDB Cloud/Railway to ensure sub-second data restoration capabilities for critical institutional records.
 - **Environment Governance:**
@@ -305,7 +356,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **CI/CD Synchronization:** Updated `.github/workflows/ci.yml` to automatically run E2E and Load tests on the `staging` branch, ensuring zero-regression releases to `main`.
 - **Infrastructure Documentation:** Updated `DEPLOYMENT_STRATEGY.md` with the latest production stack, including Upstash Redis and Datadog monitoring recommendations.
 
-### **Session 73: High-Performance Infrastructure & Asset Optimization (March 20, 2026)**
+---
+
+#### **Session 73: High-Performance Infrastructure & Asset Optimization (March 20, 2026)**
 - **Traffic Governance:**
     - **Redis Rate Limiting:** Migrated to **Upstash Redis** for high-frequency rate limiting. Implemented a robust "Redis-First, DB-Fallback" strategy to ensure brute-force protection remains operational even during cache outages.
 - **Database Performance:**
@@ -315,7 +368,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Cloudinary Transformation:** Implemented global **Auto-Format (f_auto)** and **Auto-Quality (q_auto)** transformations via a new `getOptimizedUrl` helper. This reduces image payload sizes by up to 60% for mobile users.
     - **Decoupled Delivery:** Refactored PWA manifest and Email templates to leverage these high-availability optimized cloud URLs.
 
-### **Session 72: Production Polish - Custom Error Handling & Structured Logging (March 20, 2026)**
+---
+
+#### **Session 72: Production Polish - Custom Error Handling & Structured Logging (March 20, 2026)**
 - **User Experience (UX):**
     - **Custom 404 Page:** Implemented `src/app/not-found.js` with professional KUCET branding and navigation recovery options.
     - **Global Error Boundary:** Created `src/app/error.js` to handle runtime crashes gracefully, providing institutional fallback UI and error logging.
@@ -324,26 +379,33 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Bug Fixes:**
     - **Real-time Sanitization:** Resolved redundant `/api/student/me` calls in `RealtimeListener` for clerk roles, eliminating unnecessary `401 Unauthorized` console errors.
 
+---
 
-### **Session 71: Production Polish - Custom Error Handling (March 20, 2026)**
+#### **Session 71: Production Polish - Custom Error Handling (March 20, 2026)**
 - **User Experience (UX):**
     - **Custom 404 Page:** Implemented `src/app/not-found.js` with professional KUCET branding and navigation recovery options.
     - **Global Error Boundary:** Created `src/app/error.js` to handle runtime crashes gracefully, providing institutional fallback UI and error logging.
 - **Bug Fixes:**
     - **Real-time Sanitization:** Resolved redundant `/api/student/me` calls in `RealtimeListener` for clerk roles, eliminating unnecessary `401 Unauthorized` console errors.
 
-### **Session 70: Authentication Reliability & Silent Rotation (March 20, 2026)**
+---
+
+#### **Session 70: Authentication Reliability & Silent Rotation (March 20, 2026)**
 - **Silent Token Rotation:**
     - **Middleware Enhancement:** Updated `src/proxy.js` to automatically detect expired access tokens and attempt a background refresh via the `/api/auth/refresh` endpoint. This ensures a seamless user experience without forced logouts.
     - **API Utility Integration:** Refactored `getAuthUser` in `src/lib/api-utils.js` to support on-the-fly token rotation for server-side API requests, maintaining authorization continuity.
 - **Resilience:** Improved the robustness of the authentication layer by bridging the Edge-runtime middleware with Node.js-based refresh logic, ensuring consistent session management across all application environments.
 
-### **Session 69: Dynamic PWA Manifest & Asset Decoupling (March 20, 2026)**
+---
+
+#### **Session 69: Dynamic PWA Manifest & Asset Decoupling (March 20, 2026)**
 - **Dynamic Manifest:** Implemented `src/app/manifest.js` using the Next.js Metadata API to generate the PWA manifest dynamically. This allows for serving critical PWA metadata without a physical `manifest.json` in the `/public` folder.
 - **Cloud-Native Assets:** Updated the manifest to point directly to high-availability Cloudinary URLs for PWA icons (`192x192` and `512x512`), further enabling the project's transition away from local static asset storage.
 - **Infrastructure:** Refactored `RootLayout` to leverage Next.js's automatic manifest detection, resolving `404` errors caused by the removal of the local `/public` folder.
 
-### **Session 68: Critical Runtime Fix & Modular Utility Refactoring (March 20, 2026)**
+---
+
+#### **Session 68: Critical Runtime Fix & Modular Utility Refactoring (March 20, 2026)**
 - **Runtime Error Resolution:**
     - **Client-Side Module Isolation:** Resolved critical `Module not found` errors (`fs`, `net`, `tls`) in Client Components by isolating server-side database dependencies.
     - **Path Utility Decoupling:** Created `src/lib/path-utils.js` to host browser-safe navigation logic (`getDashboardPathByRole`), eliminating inadvertent database imports in `AuthProvider.js` and `src/proxy.js`.
@@ -351,7 +413,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Asset Management:** Integrated placeholder PWA icons and synchronized `.gitignore` to ensure critical manifest assets are tracked while maintaining folder security.
     - **Cloud Utility:** Developed `cloudinary_sync.js` to provide bidirectional synchronization (Sync/Restore) between the local `/public` folder and Cloudinary storage, future-proofing the application for a public-folder-free deployment architecture.
 
-### **Session 67: Mobile UX Excellence - PWA & Optimistic UI (March 20, 2026)**
+---
+
+#### **Session 67: Mobile UX Excellence - PWA & Optimistic UI (March 20, 2026)**
 - **Progressive Web App (PWA):**
     - **Infrastructure:** Integrated `@ducanh2912/next-pwa` to enable advanced service worker capabilities and offline caching for the application shell.
     - **Manifest & Branding:** Created a comprehensive `manifest.json` and synchronized `RootLayout` with mobile-native meta tags (theme-color, apple-touch-icon) for a "native app" feel.
@@ -360,7 +424,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Instant Feedback:** Refactored the **Faculty Attendance Marking** process to utilize Optimistic Updates. The UI now reflects "Success" and clears active sessions immediately upon user action, providing a sub-50ms perceived latency.
     - **Resilience:** Implemented a robust **Rollback Mechanism** that restores the previous attendance state and active session if the server synchronization fails, ensuring data integrity on unstable campus networks.
 
-### **Session 66: Infrastructure, Monitoring & CDN Hardening (March 20, 2026)**
+---
+
+#### **Session 66: Infrastructure, Monitoring & CDN Hardening (March 20, 2026)**
 - **CDN Hardening (Security):**
     - **Content Security Policy (CSP):** Implemented a strict CSP in `next.config.mjs` to prevent Cross-Site Scripting (XSS) and Data Injection attacks. 
     - **Resource White-listing:** Specifically authorized `res.cloudinary.com` for images and `*.sentry.io` for monitoring, while enforcing `'none'` for object-src and frame-ancestors.
@@ -370,7 +436,9 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Data Resilience:**
     - **Disaster Recovery:** Recommended enabling **Point-in-Time Recovery (PITR)** on Railway/TiDB to ensure sub-second recovery objectives for institutional data.
 
-### **Session 65: Automated Testing Infrastructure & CI/CD Pipeline (March 20, 2026)**
+---
+
+#### **Session 65: Automated Testing Infrastructure & CI/CD Pipeline (March 20, 2026)**
 - **End-to-End (E2E) Testing:**
     - **Infrastructure:** Initialized **Playwright** testing framework for browser automation.
     - **Student Admission Test:** Created `tests/admission.spec.js` to automate the complete "Happy Path" for student applications, including form filling, multi-part data validation, and mock image uploads.
@@ -381,7 +449,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **GitHub Actions:** Configured `.github/workflows/ci.yml` to automatically trigger E2E suites and performance benchmarks on every push to `main` and `testvanilla` branches.
     - **Artifact Management:** Enabled automatic upload of Playwright trace reports for rapid debugging of pipeline failures.
 
-### **Session 64: Advanced Security Hardening - JWT Rotation & Modern Rate Limiting (March 20, 2026)**
+---
+
+#### **Session 64: Advanced Security Hardening - JWT Rotation & Modern Rate Limiting (March 20, 2026)**
 - **Authentication Infrastructure:**
     - **Refresh Token System:** Implemented a robust JWT rotation mechanism using a new `refresh_tokens` database table. This allows for short-lived access tokens (15 mins) and secure session extension without re-authentication.
     - **Security Hardening:** Added automatic revocation of all user tokens if a reused/stolen refresh token is detected (Reuse Detection).
@@ -391,7 +461,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Distributed Support:** Modernized the rate limiting logic to be compatible with distributed server environments (Ready for Upstash Redis migration).
 - **Session Lifecycle:** Added a dedicated `/api/auth/refresh` endpoint to handle silent token rotation for all system roles.
 
-### **Session 63: Comprehensive Audit Logging System (March 20, 2026)**
+---
+
+#### **Session 63: Comprehensive Audit Logging System (March 20, 2026)**
 - **Infrastructure:**
     - **Database Schema:** Implemented the `audit_logs` table to track administrative actions across the system. Includes fields for `user_id`, `action`, `payload_before`, `payload_after`, `ip_address`, and `user_agent`.
     - **Utility Helper:** Developed a centralized `logAudit` helper in `src/lib/api-utils.js` to streamline logging across API routes with automatic IP and User-Agent extraction.
@@ -402,7 +474,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Administrative Governance:** Integrated auditing for Super Admin clerk management, including creation, updates, and deletions (`UPDATE_CLERK`, `DELETE_CLERK`).
 - **Legal Compliance:** Established a robust audit trail for high-stakes modifications (marks, certificates, identity), ensuring accountability and non-repudiation within the college portal.
 
-### **Session 62: Full Drizzle ORM Refactor of Remaining Raw SQL Routes (March 20, 2026)**
+---
+
+#### **Session 62: Full Drizzle ORM Refactor of Remaining Raw SQL Routes (March 20, 2026)**
 - **API Refactoring (Final Phase):**
     - **Authentication & Security:** Refactored the NextAuth configuration (`[...nextauth]`), Native Google login, Google Complete flow, and Change/Forgot Password routes for all roles (Admin, Clerk, Student) to use Drizzle ORM.
     - **Admin & Public Tools:** Migrated Admin student search, public admission form submission, public college info, and academic calendar day-info routes.
@@ -411,7 +485,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **True Zero Raw SQL:** Successfully migrated the remaining 19 API routes that were still relying on legacy `mysql2` raw queries (`db.execute()` / `query()`). Confirmed that 100% of all 104 `route.js` files in the `src/app/api` directory are now fully modernized and Drizzle-compatible.
     - **Cleanup:** Verified no legacy `@/lib/db` imports remain across the API directory for database interactions.
 
-### **Session 61: Complete System Modernization & SQL Elimination (March 19, 2026)**
+---
+
+#### **Session 61: Complete System Modernization & SQL Elimination (March 19, 2026)**
 - **API Refactoring (Comprehensive Finalization):**
     - **Student Lifecycle:** Refactored core Student Management routes (`/students`, `/students/[rollno]`) across Admission and General Clerk roles. Implemented type-safe transactional updates for personal and academic records.
     - **Academic Infrastructure:** Migrated the entire Academic Calendar system, including generation logic, bulk day-type updates, and semester synchronization.
@@ -424,7 +500,9 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Institutional Branding:**
     - **Header Continuity:** Restored the modern blue-to-white gradient header with professional institutional logos and high-density academic metadata.
 
-### **Session 43: Overlay Login Architecture & Persistent Navigation Rail (March 18, 2026)**
+---
+
+#### **Session 43: Overlay Login Architecture & Persistent Navigation Rail (March 18, 2026)**
 - **Overlay Login Architecture:**
     - **Fixed Overlay Migration:** Transformed the `LoginPanel` from an in-flow layout element into a standard fixed overlay (`fixed inset-0`) with a high `z-index`, resolving critical layout conflicts and content squeezing on the Developers and Home pages.
     - **Visual Polish:** Implemented a semi-transparent backdrop blur (`backdrop-blur-sm`) and professional "Slide-Up" and "Fade-In" animations to focus the user experience during authentication.
@@ -437,22 +515,28 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Content Clearing:** Updated `main-content` layout logic to maintain a permanent 64px left margin across all viewports, preventing sidebar overlap and ensuring responsive integrity.
     - **Integration Cleanup:** Removed redundant scrolling and positioning hacks from `ClientShell` that were previously used to manage in-flow login forms.
 
-### **Session 42: Navigation Personalization, UI Cleanup & Attendance Logic Refinement (March 18, 2026)**
+---
+
+#### **Session 42: Navigation Personalization, UI Cleanup & Attendance Logic Refinement (March 18, 2026)**
 - **Navigation Personalization:**
-    *   **Student Sidebar Header:** Engineered a personalized sidebar header for students featuring their **Profile Picture**, **Full Name**, and **Roll Number**, providing an immediate sense of identity within the portal.
-    *   **Clerk Sidebar Header:** Implemented a matching header for Clerks/Faculty displaying their **Avatar**, **Full Name**, and **Employee ID** (or HOD/Role designation).
-    *   **Notification Integration:** Synchronized the placement of the notification hub within the sidebar header across all roles, ensuring unread alerts are visible even when the navigation rail is expanded.
+    - **Student Sidebar Header:** Engineered a personalized sidebar header for students featuring their **Profile Picture**, **Full Name**, and **Roll Number**, providing an immediate sense of identity within the portal.
+    - **Clerk Sidebar Header:** Implemented a matching header for Clerks/Faculty displaying their **Avatar**, **Full Name**, and **Employee ID** (or HOD/Role designation).
+    - **Notification Integration:** Synchronized the placement of the notification hub within the sidebar header across all roles, ensuring unread alerts are visible even when the navigation rail is expanded.
 - **UI Cleanup & Decluttering:**
-    *   **Search Bar Removal:** Permanently removed the unused "Search records..." and "Search academic records..." input fields from both Clerk and Student top bars to eliminate visual noise and streamline the header.
-    *   **Layout Standardization:** Unified the sidebar header height (`h-24`) and typography across the Student and Clerk dashboards for a consistent institutional brand experience.
+    - **Search Bar Removal:** Permanently removed the unused "Search records..." and "Search academic records..." input fields from both Clerk and Student top bars to eliminate visual noise and streamline the header.
+    - **Layout Standardization:** Unified the sidebar header height (`h-24`) and typography across the Student and Clerk dashboards for a consistent institutional brand experience.
 - **Attendance & Logic Refinement:**
-    *   **Verification Deduplication:** Resolved a UI conflict where two attendance PIN entry boxes appeared on the student profile page. Refactored `StudentActivityBar` to hide its verification extension when on the `/student/profile` route, allowing the `ProfileActivityBar` to serve as the primary interface.
-    *   **Public Sidebar Fix:** Resolved a navigation bug on the landing page where multiple sidebar options could be highlighted at once; implemented strict prioritization logic that ensures only the active login panel or the current route is visually selected.
+    - **Verification Deduplication:** Resolved a UI conflict where two attendance PIN entry boxes appeared on the student profile page. Refactored `StudentActivityBar` to hide its verification extension when on the `/student/profile` route, allowing the `ProfileActivityBar` to serve as the primary interface.
+    - **Public Sidebar Fix:** Resolved a navigation bug on the landing page where multiple sidebar options could be highlighted at once; implemented strict prioritization logic that ensures only the active login panel or the current route is visually selected.
 - **Documentation Alignment:** Synchronized `GEMINI.md` with the latest repository state and verified institutional compliance.
 
-### **Session 41: Security Hardening, Departmental Refinement & Navigation Shell (March 18, 2026)**
+---
 
-### **Session 40: Institutional Governance UI Refactor & Faculty Mobile Optimization (March 17, 2026)**
+#### **Session 41: Security Hardening, Departmental Refinement & Navigation Shell (March 18, 2026)**
+
+---
+
+#### **Session 40: Institutional Governance UI Refactor & Faculty Mobile Optimization (March 17, 2026)**
 - **Government Standard UI Overhaul:**
     - **Solid Architecture:** Systematically eliminated modern "startup-style" rounded corners (`rounded-2xl`, `rounded-3xl`) across all faculty-facing pages, replacing them with sharp, professional borders consistent with official government portals.
     - **Administrative Typography:** Refined typography by removing excessive bold weights (`font-black`) and heavy headers. Standardized on `font-bold` and `font-semibold` with high-contrast tracking for a more authoritative, lightweight feel.
@@ -466,7 +550,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Build Error Resolution:** Resolved a critical "Identifier already declared" SyntaxError in `HODConsole.js` caused by duplicate function declarations during the refactor.
     - **Component Cleanup:** Removed redundant legacy code and optimized sub-component rendering for the departmental control unit.
 
-### **Session 39: Hybrid Navigation Architecture, Centered Mobile Hubs & Notification Parity (March 17, 2026)**
+---
+
+#### **Session 39: Hybrid Navigation Architecture, Centered Mobile Hubs & Notification Parity (March 17, 2026)**
 - **Hybrid Navigation System:**
     - **Desktop Restoration:** Restored the authoritative horizontal `Navbar` and `Header` for all desktop views, ensuring immediate visibility of departmental menus without sidebar interaction.
     - **Mobile-First Sidebar:** Refined sidebars to function exclusively as mobile drawers, maximizing content area on large screens while maintaining touch-optimized navigation on mobile.
@@ -484,7 +570,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Data Precision:** Fixed attendance percentage logic on the Student Home page to calculate real-time metrics from raw session counts.
     - **Notification Refresh:** Added manual "Refresh List" triggers to clerk notification panels for real-time audit management.
 
-### **Session 38: Unified Sidebar Navigation, Institutional UI Overhaul & Responsive Architecture (March 17, 2026)**
+---
+
+#### **Session 38: Unified Sidebar Navigation, Institutional UI Overhaul & Responsive Architecture (March 17, 2026)**
 - **Modern Responsive Navigation:**
     - **Rail Sidebar:** Implemented a hover-expandable rail sidebar for desktop that preserves operational space.
     - **Mobile Drawer:** Developed a slide-over mobile drawer triggered by a hamburger menu, providing a zero-waste workspace on small screens.
@@ -506,7 +594,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Direct Edit Access:** Added a surgical "Edit" icon in the profile header for immediate record modification.
     - **Dynamic PFP:** Enabled real-time profile picture rendering in top bars using actual student/employee data.
 
-### **Session 37: Student Security Hardening, Verification Workflows & Formal UI Redesign (March 15, 2026)**
+---
+
+#### **Session 37: Student Security Hardening, Verification Workflows & Formal UI Redesign (March 15, 2026)**
 - **Redirection Logic:** Refactored `src/proxy.js` to intelligently route students: verified students go directly to `/student/profile`, while unverified students are guided to the `/student` dashboard for account setup.
 - **Security Middleware:** Implemented strict middleware enforcement to block unverified students (no email verification or password set) from accessing sensitive academic and request pages, limiting them to Home, Security, and Profile view.
 - **API Architectural Fix:** Permanently resolved the "Unexpected token <" JSON parsing error by ensuring the proxy returns proper `401 Unauthorized` JSON responses for API routes instead of HTML redirects during session expiration.
@@ -525,7 +615,9 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Standardized OTP error messages to "Please try again after 15 minutes" across frontend and backend.
 - **Email Reliability:** Increased OTP rate limits to 5 requests per 15 minutes to balance security with user convenience during testing.
 
-### **Session 36: Profile Update Requests, Admission Form Hardening & UI Refinement (March 13, 2026)**
+---
+
+#### **Session 36: Profile Update Requests, Admission Form Hardening & UI Refinement (March 13, 2026)**
 - **Database Security:** Implemented SSL/TLS support in `src/lib/db.js` to enable secure connections for production databases like TiDB Cloud. The system now automatically detects cloud hosts and enforces encrypted transport.
 - **Request Unit (RU) Optimization:** Refactored the live "Activity Bar" polling logic for both students and faculty. Replaced recursive `setTimeout` logic with stable intervals and transition-window detection, preventing potential "Infinite Loop" bugs and significantly reducing unnecessary database queries to preserve TiDB Cloud free-tier quotas.
 - **Student Profile Control:** Transformed the student Edit Profile page into a comprehensive record management interface. Students can now view all details (Personal, Academic, Student) and request updates for any field.

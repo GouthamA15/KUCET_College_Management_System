@@ -17,8 +17,8 @@ export function AdminProvider({ children }) {
   const fetchCollegeInfo = useCallback(async () => {
     try {
       const res = await fetch('/api/public/college-info');
-      const data = await res.json();
       if (res.ok) {
+        const data = await res.json();
         setCollegeInfo(data.collegeInfo);
       }
     } catch (e) {
@@ -75,8 +75,8 @@ export function AdminProvider({ children }) {
     setIsLoadingFaculty(true);
     try {
       const res = await fetch('/api/admin/faculty/interests');
-      const json = await res.json();
       if (res.ok) {
+        const json = await res.json();
         setFacultyInterests(json.data || []);
         return json.data;
       }
