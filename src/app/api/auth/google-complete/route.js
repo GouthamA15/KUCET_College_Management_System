@@ -71,34 +71,15 @@ export async function GET(request) {
     return NextResponse.redirect(baseRedirect, 303);
   }
 
-  const token = await buildClerkAuthToken(clerk);
   const response = NextResponse.redirect(baseRedirect, 303);
 
   // Clear other auth cookies
   response.cookies.delete('admin_auth');
   response.cookies.delete('student_auth');
 
-  response.cookies.set('clerk_auth', token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'strict',
-    maxAge: 60 * 60,
-    path: '/',
-  });
-  response.cookies.set('clerk_logged_in', 'true', {
-    httpOnly: false,
-    secure: true,
-    sameSite: 'lax',
-    maxAge: 60 * 60,
-    path: '/',
-  });
-  response.cookies.set('clerk_role', clerk.role || '', {
-    httpOnly: false,
-    secure: true,
-    sameSite: 'lax',
-    maxAge: 60 * 60,
-    path: '/',
-  });
+  // Use the standard utility to issue 30-day cookies for Google Login
+  const { issueClerkAuthCookie } = await import('@/lib/auth-utils');
+  await issueClerkAuthCookie(response, clerk, true);
 
   return response;
 }
