@@ -10,6 +10,8 @@ import {
 import { eq, and, desc, asc, sql, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req) {
   let user;
   try {
@@ -65,11 +67,7 @@ export async function GET(req) {
       subjects: subjectsExpr
     })
     .from(clerks)
-    .where(and(
-      eq(clerks.role, 'faculty'),
-      eq(clerks.branch, user.branch),
-      eq(clerks.is_active, true)
-    ))
+    .where(eq(clerks.role, 'faculty'))
     .orderBy(desc(scheduledWeeklyExpr), asc(clerks.name));
 
     return apiResponse({ 

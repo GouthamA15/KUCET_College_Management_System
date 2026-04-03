@@ -159,7 +159,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [assignment]);
 
-  const fetchAttendanceStatus = useCallback(async (forcedDate, forcedSession) => {
+  const fetchAttendanceStatus = useCallback(async (forcedDate, forcedSession, bypassCache = false) => {
     if (!assignment?.id) return;
 
     const dateToUse = forcedDate || selectedDate;
@@ -169,7 +169,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     if (!dateToUse && !activeSession) return;
 
     const cacheKey = `${dateToUse}-${sessionToUse}`;
-    if (!activeSession && dateToUse && attendanceCache[cacheKey]) {
+    if (!bypassCache && !activeSession && dateToUse && attendanceCache[cacheKey]) {
       setAttendanceStatusMap(attendanceCache[cacheKey].statusMap || {});
       setExistingSessionsForSelectedDate(attendanceCache[cacheKey].sessions || []);
       return;
@@ -246,7 +246,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [selectedDate, selectedSession, fetchAttendanceStatus]);
 
-  // ... (Manual refresh useEffect same) ...
+  const handleManualRefresh = useCallback(() => {
+    fetchAttendanceStatus(null, null, true);
+  }, [fetchAttendanceStatus]);
 
   const setAttendanceStatus = useCallback((studentId, status) => {
     setAttendanceStatusMap((prev) => ({ ...prev, [studentId]: status }));
@@ -324,6 +326,12 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         status: attendanceStatusMap[s.id] ?? null,
       }));
 
+      // Validation: Ensure no students are left as null
+      const missing = attendanceData.filter(a => a.status === null);
+      if (missing.length > 0) {
+        throw new Error(`Please set attendance status for all students. (${missing.length} remaining)`);
+      }
+
       // --- OPTIMISTIC UI START ---
       toast.success('Attendance saved (Optimistic)', { id: 'attendance-save' });
       
@@ -365,7 +373,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
          await endSession();
       }
 
-      await fetchAttendanceStatus();
+      await fetchAttendanceStatus(selectedDate, selectedSession, true);
     } catch (error) {
       // --- ROLLBACK START ---
       console.error('[AttendanceSaveRollback]', error);

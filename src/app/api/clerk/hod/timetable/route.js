@@ -77,6 +77,7 @@ export async function POST(req) {
 
     if (sanitizedFacultyId) {
       const yearPrefix = academic_year.substring(0, 7);
+      const isEvenSem = parseInt(semester) % 2 === 0;
       
       const conflictRows = await db.select({
         branch: branchTimetable.branch,
@@ -95,6 +96,8 @@ export async function POST(req) {
           like(branchTimetable.academic_year, `%${yearPrefix}%`),
           eq(branchTimetable.academic_year, academic_year)
         ),
+        // Term Parity Check: Only conflict if both are Odd or both are Even
+        sql`(${branchTimetable.semester} % 2 = 0) = ${isEvenSem}`,
         sql`NOT (${eq(branchTimetable.branch, user.branch)} AND ${eq(branchTimetable.semester, semester)} AND ${eq(branchTimetable.section, section)})`
       ))
       .limit(1);
@@ -144,32 +147,49 @@ export async function DELETE(req) {
       return apiError('Unauthorized', 401);
     }
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get('action'); // 'clearSemester' or 'clearAll'
     const semester = searchParams.get('semester');
     const section = searchParams.get('section') || 'A';
     const day_of_week = searchParams.get('day_of_week');
     const period_number = searchParams.get('period_number');
 
-    if (!semester || !day_of_week || !period_number) {
-      return apiError('Missing required parameters', 400);
+    if (action === 'clearSemester') {
+      if (!semester) return apiError('Missing semester', 400);
+      await db.delete(branchTimetable)
+        .where(and(
+          eq(branchTimetable.branch, user.branch),
+          eq(branchTimetable.semester, parseInt(semester)),
+          eq(branchTimetable.section, section)
+        ));
+    } 
+    else if (action === 'clearAll') {
+      await db.delete(branchTimetable)
+        .where(eq(branchTimetable.branch, user.branch));
     }
+    else {
+      // Single slot deletion
+      if (!semester || !day_of_week || !period_number) {
+        return apiError('Missing required parameters', 400);
+      }
 
-    await db.delete(branchTimetable)
-      .where(and(
-        eq(branchTimetable.branch, user.branch),
-        eq(branchTimetable.semester, parseInt(semester)),
-        eq(branchTimetable.section, section),
-        eq(branchTimetable.day_of_week, day_of_week),
-        eq(branchTimetable.period_number, parseInt(period_number))
-      ));
+      await db.delete(branchTimetable)
+        .where(and(
+          eq(branchTimetable.branch, user.branch),
+          eq(branchTimetable.semester, parseInt(semester)),
+          eq(branchTimetable.section, section),
+          eq(branchTimetable.day_of_week, day_of_week),
+          eq(branchTimetable.period_number, parseInt(period_number))
+        ));
+    }
 
     // REAL-TIME
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
-      broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester });
+      broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester: semester ? parseInt(semester) : 'ALL' });
     } catch (e) {}
 
-    return apiResponse({ success: true, message: 'Lecture deleted successfully' });
+    return apiResponse({ success: true, message: 'Timetable data updated successfully' });
   } catch (error) {
     logger.error('Timetable Delete Error:', error);
     return apiError('Internal Server Error', 500);

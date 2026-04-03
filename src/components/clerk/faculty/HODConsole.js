@@ -156,6 +156,32 @@ export default function HODConsole() {
     }
   };
 
+  const handleClearTimetable = async (action) => {
+    const message = action === 'clearAll' 
+      ? 'CRITICAL: This will permanently DELETE the timetable for EVERY semester (S1-S8) in this department. Are you absolutely sure?'
+      : `Are you sure you want to clear the entire timetable for Semester ${selectedSem}?`;
+    
+    if (!confirm(message)) return;
+    
+    setIsSaving(true);
+    try {
+      const url = `/api/clerk/hod/timetable?action=${action}&semester=${selectedSem}`;
+      const res = await fetch(url, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success(action === 'clearAll' ? 'Departmental timetable wiped' : `Semester ${selectedSem} timetable cleared`);
+        fetchSemesterTimetable(selectedSem);
+        refreshHOD();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Clear failed');
+      }
+    } catch (e) {
+      toast.error('Network error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!clerkData?.is_hod) return null;
 
   return (
@@ -231,7 +257,24 @@ export default function HODConsole() {
                       ))}
                     </div>
                   </div>
-                  {isLoadingTimetable && <div className="w-4 h-4 border-2 border-[#0b3578] border-t-transparent animate-spin"></div>}
+                  
+                  <div className="flex items-center gap-3">
+                    {isLoadingTimetable && <div className="w-4 h-4 border-2 border-[#0b3578] border-t-transparent animate-spin"></div>}
+                    <button 
+                      onClick={() => handleClearTimetable('clearSemester')}
+                      className="px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-bold uppercase tracking-widest hover:bg-amber-100 transition-all flex items-center gap-2"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      Clear Sem {selectedSem}
+                    </button>
+                    <button 
+                      onClick={() => handleClearTimetable('clearAll')}
+                      className="px-3 py-2 bg-red-50 text-red-700 border border-red-200 text-[9px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                      Wipe Departmental Timetable
+                    </button>
+                  </div>
                 </div>
 
                 <TimetableManager 
@@ -316,12 +359,12 @@ export default function HODConsole() {
                     </optgroup>
                   )}
 
-                  <optgroup label="Departmental Registry">
+                  <optgroup label="Institutional Registry (All Departments)">
                     {collegeFaculty
                       .filter(f => !modalSelectedSubject || !officialAssignments.some(oa => oa.faculty_id === f.id && oa.subject_code === modalSelectedSubject))
                       .map(f => (
                         <option key={f.id} value={f.id}>
-                          {f.name} {f.home_branch ? `(${f.home_branch})` : ''}
+                          {f.name} {f.home_branch ? `(${f.home_branch})` : '(No Branch)'}
                         </option>
                       ))
                     }
