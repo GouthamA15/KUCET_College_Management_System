@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** March 31, 2026
+**Last Updated:** April 3, 2026
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -153,6 +153,25 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-Apr 2026)
 
 ### April 2026
+
+#### **Session 89: Institutional Staff Login & Static Asset Optimization (April 3, 2026)**
+- **Unified Staff Login:**
+    - **Consolidated Flow:** Merged Clerk and Admin login into a single "Staff Login" interface, reducing UI friction. Created a unified API route `/api/auth/employee-login` that handles authentication across both `principal` and `clerks` tables with automatic role detection.
+    - **Remember Me Reliability:** Updated `issueAuthCookie` utilities to directly apply 30-day expiration for both JWTs and browser cookies when the "Remember Me" option is selected.
+- **Performance & Asset Optimization:**
+    - **Static Asset Restoration:** Re-introduced the physical `/public/assets` folder with high-frequency UI assets (logos, branding, dev photos).
+    - **CDN Logic Refinement:** Updated `getAssetUrl` in `src/lib/assets.js` to prioritize local `/public` folder delivery (sub-100ms) for verified static assets, falling back to Cloudinary only for dynamic or sensitive resources.
+- **HOD Console & Timetable Governance:**
+    - **Destructive Actions:** Implemented "Clear Semester" and "Wipe Departmental Timetable" tools in the HOD Console with strict confirmation dialogs to allow rapid schedule resets.
+    - **Institutional Registry:** Enhanced the timetable faculty selection modal to search across the entire institutional faculty registry, displaying home branch information for guest lecturers.
+- **Database & Drizzle Hardening:**
+    - **Bug Reporting:** Introduced the `bug_reports` table for systematic tracking of user-reported issues with screenshot support.
+    - **Migration Robustness:** Refactored `drizzle.config.js` and `migrate.js` to handle environment overrides (`.env.local`) more gracefully, ensuring reliable schema synchronization across dev and production.
+- **Attendance System Integrity:**
+    - **Mandatory Validation:** Implemented strict status validation in the faculty attendance marking process, preventing records from being saved with `null` values.
+    - **Cache Bypassing:** Added a manual refresh mechanism to the attendance context to allow faculty to bypass local state caching and sync directly with the server during live sessions.
+
+---
 
 #### **Session 88: HOD Console Refactoring & Drizzle ORM Hardening (April 3, 2026)**
 - **API Hardening & Error Resolution:**
