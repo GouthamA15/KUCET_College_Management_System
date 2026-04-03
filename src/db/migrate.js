@@ -2,7 +2,8 @@ const { drizzle } = require('drizzle-orm/mysql2');
 const { migrate } = require('drizzle-orm/mysql2/migrator');
 const mysql = require('mysql2/promise');
 const path = require('path');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config();
+require('dotenv').config({ path: '.env.local', override: true });
 
 async function runMigrations() {
   console.log('⏳ Running migrations...');

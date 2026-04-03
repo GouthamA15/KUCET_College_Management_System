@@ -562,3 +562,15 @@ export const refreshTokens = mysqlTable('refresh_tokens', {
   tokenHashIdx: index('idx_refresh_token_hash').on(table.token_hash),
   userIdIdx: index('idx_refresh_user').on(table.user_id, table.user_type),
 }));
+
+export const bugReports = mysqlTable('bug_reports', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  description: text('description').notNull(),
+  screenshot_url: text('screenshot_url'),
+  status: mysqlEnum('status', ['OPEN', 'RESOLVED', 'CLOSED']).default('OPEN').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  statusIdx: index('idx_bug_status').on(table.status),
+  createdAtIdx: index('idx_bug_created_at').on(table.created_at),
+}));

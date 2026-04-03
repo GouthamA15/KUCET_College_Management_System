@@ -1,9 +1,10 @@
 import { config } from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
 
-// Load from .env or .env.local (Next.js default)
-config({ path: '.env.local' });
-config(); // Fallback to standard .env
+// Load from standard .env first
+config();
+// Override with .env.local if it exists
+config({ path: '.env.local', override: true });
 
 export default defineConfig({
   schema: './src/db/schema.js',
