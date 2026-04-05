@@ -81,41 +81,50 @@ export async function proxy(request) {
   if (!adminRes.payload && adminRes.expired) {
     const refreshRes = await attemptSilentRefresh('admin', request);
     if (refreshRes) {
-        // Apply new cookies to our current response
-        const setCookie = refreshRes.headers.get('set-cookie');
-        if (setCookie) {
-            response.headers.set('set-cookie', setCookie);
-            // Re-verify after refresh to get payload for redirects
-            const newToken = refreshRes.headers.get('set-cookie')?.match(/admin_auth=([^;]+)/)?.[1];
-            if (newToken) adminRes = await verify(newToken, jwtSecret);
-            refreshTriggered = true;
-        }
+      // PROPER COOKIE PROPAGATION: Use getSetCookie() to get ALL cookies (auth + refresh + UI)
+      const allCookies = refreshRes.headers.getSetCookie();
+      if (allCookies.length > 0) {
+        allCookies.forEach(cookieStr => {
+          response.headers.append('set-cookie', cookieStr);
+        });
+
+        // Use the built-in .cookies helper for reliable extraction
+        const newToken = refreshRes.cookies.get('admin_auth')?.value;
+        if (newToken) adminRes = await verify(newToken, jwtSecret);
+        refreshTriggered = true;
+      }
     }
   }
 
   if (!clerkRes.payload && clerkRes.expired && !refreshTriggered) {
     const refreshRes = await attemptSilentRefresh('clerk', request);
     if (refreshRes) {
-        const setCookie = refreshRes.headers.get('set-cookie');
-        if (setCookie) {
-            response.headers.set('set-cookie', setCookie);
-            const newToken = setCookie.match(/clerk_auth=([^;]+)/)?.[1];
-            if (newToken) clerkRes = await verify(newToken, jwtSecret);
-            refreshTriggered = true;
-        }
+      const allCookies = refreshRes.headers.getSetCookie();
+      if (allCookies.length > 0) {
+        allCookies.forEach(cookieStr => {
+          response.headers.append('set-cookie', cookieStr);
+        });
+
+        const newToken = refreshRes.cookies.get('clerk_auth')?.value;
+        if (newToken) clerkRes = await verify(newToken, jwtSecret);
+        refreshTriggered = true;
+      }
     }
   }
 
   if (!studentRes.payload && studentRes.expired && !refreshTriggered) {
     const refreshRes = await attemptSilentRefresh('student', request);
     if (refreshRes) {
-        const setCookie = refreshRes.headers.get('set-cookie');
-        if (setCookie) {
-            response.headers.set('set-cookie', setCookie);
-            const newToken = setCookie.match(/student_auth=([^;]+)/)?.[1];
-            if (newToken) studentRes = await verify(newToken, jwtSecret);
-            refreshTriggered = true;
-        }
+      const allCookies = refreshRes.headers.getSetCookie();
+      if (allCookies.length > 0) {
+        allCookies.forEach(cookieStr => {
+          response.headers.append('set-cookie', cookieStr);
+        });
+
+        const newToken = refreshRes.cookies.get('student_auth')?.value;
+        if (newToken) studentRes = await verify(newToken, jwtSecret);
+        refreshTriggered = true;
+      }
     }
   }
 

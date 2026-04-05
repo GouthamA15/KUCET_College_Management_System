@@ -19,7 +19,6 @@
 # next.js
 /.next/
 /out/
-/public/
 /cloudinary_backup
 
 # production

@@ -1,14 +1,19 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, studentAttendance, facultySubjectAssignments, semesters } from '@/db/schema';
-import { eq, and, sql, desc, like, or } from 'drizzle-orm';
+import { eq, and, sql, desc, asc, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
+  let user;
   try {
-    const user = await getAuthUser('clerk');
+    user = await getAuthUser('clerk');
     if (!user || user.role !== 'faculty' || !user.is_hod) {
       return apiError('Unauthorized', 401);
+    }
+
+    if (!user.branch) {
+      return apiError('Branch not assigned to your profile', 400);
     }
 
     const { searchParams } = new URL(req.url);
@@ -20,20 +25,12 @@ export async function GET(req) {
     });
     const systemYear = latestSem?.academic_year || '2025-26';
 
-    /**
-     * This query calculates:
-     * 1. Total sessions conducted for each student in this branch/sem
-     * 2. Total sessions attended by each student
-     * 3. Overall percentage across all subjects
-     */
-    
-    // Subquery for total sessions recorded for the specific student in branch/sem
-    // In Drizzle we can use a raw SQL snippet for complex aggregations if needed
+    const percentageExpr = sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' THEN 1 END) / COUNT(${studentAttendance.id})) * 100, 1)`;
     
     const risks = await db.select({
         roll_no: students.roll_no,
         name: students.name,
-        total_present: sql`COUNT(${studentAttendance.id})`,
+        total_present: sql`COUNT(${studentAttendance.id})`.mapWith(Number),
         total_sessions_recorded: sql`(
           SELECT COUNT(*) 
           FROM student_attendance sa2 
@@ -41,12 +38,12 @@ export async function GET(req) {
           WHERE sa2.student_id = ${students.id} 
           AND fsa2.course_semester = ${semester} 
           AND fsa2.branch = ${user.branch}
-        )`,
-        percentage: sql`ROUND((COUNT(CASE WHEN ${studentAttendance.status} = 'PRESENT' THEN 1 END) / COUNT(${studentAttendance.id})) * 100, 1)`
+        )`.mapWith(Number),
+        percentage: percentageExpr.mapWith(Number)
     })
     .from(students)
-    .join(studentAttendance, eq(students.id, studentAttendance.student_id))
-    .join(facultySubjectAssignments, eq(studentAttendance.assignment_id, facultySubjectAssignments.id))
+    .innerJoin(studentAttendance, eq(students.id, studentAttendance.student_id))
+    .innerJoin(facultySubjectAssignments, eq(studentAttendance.assignment_id, facultySubjectAssignments.id))
     .where(and(
         eq(facultySubjectAssignments.branch, user.branch),
         eq(facultySubjectAssignments.course_semester, semester),
@@ -56,8 +53,8 @@ export async function GET(req) {
         )
     ))
     .groupBy(students.id, students.roll_no, students.name)
-    .having(({ percentage }) => sql`${percentage} < 75`)
-    .orderBy(sql`percentage ASC`);
+    .having(sql`${percentageExpr} < 75`)
+    .orderBy(asc(percentageExpr));
 
     return apiResponse({ 
       data: risks,
@@ -66,7 +63,8 @@ export async function GET(req) {
       semester 
     });
   } catch (error) {
-    logger.error('Attendance Analytics API Error:', error);
-    return apiError('Internal Server Error', 500);
+    logger.error({ err: error, user: user?.email, branch: user?.branch }, 'Attendance Analytics API Error');
+    console.error('[DEBUG] Attendance Analytics Error:', error.message);
+    return apiError('Internal Server Error', 500, error.message);
   }
 }

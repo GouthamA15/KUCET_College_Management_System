@@ -1,21 +1,32 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { syllabusSubjects, syllabusStructure, syllabusUnits } from '@/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, asc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
+  let user;
   try {
-    const user = await getAuthUser('clerk');
+    user = await getAuthUser('clerk');
     if (!user || user.role !== 'faculty' || !user.is_hod) {
       return apiError('Unauthorized', 401);
+    }
+
+    if (!user.branch) {
+      return apiError('Branch not assigned to your profile', 400);
     }
 
     const { searchParams } = new URL(req.url);
     const semester = searchParams.get('semester');
 
+    // Build conditions
+    const conditions = [eq(syllabusStructure.branch, user.branch)];
+    if (semester) {
+      conditions.push(eq(syllabusStructure.semester, parseInt(semester)));
+    }
+
     // Fetch subjects for the branch
-    const subjectsQuery = db.select({
+    const subjects = await db.select({
       subject_code: syllabusSubjects.subject_code,
       subject_name: syllabusSubjects.subject_name,
       subject_type: syllabusSubjects.subject_type,
@@ -23,18 +34,10 @@ export async function GET(req) {
       is_group: syllabusStructure.is_group,
       parent_group_code: syllabusStructure.parent_group_code
     })
-    .from(syllabusSubjects)
-    .join(syllabusStructure, eq(syllabusSubjects.subject_code, syllabusStructure.subject_code))
-    .where(eq(syllabusStructure.branch, user.branch));
-
-    if (semester) {
-      subjectsQuery.where(and(
-        eq(syllabusStructure.branch, user.branch),
-        eq(syllabusStructure.semester, parseInt(semester))
-      ));
-    }
-
-    const subjects = await subjectsQuery;
+    .from(syllabusStructure)
+    .innerJoin(syllabusSubjects, eq(syllabusStructure.subject_code, syllabusSubjects.subject_code))
+    .where(and(...conditions))
+    .orderBy(asc(syllabusStructure.semester), asc(syllabusSubjects.subject_name));
 
     // Fetch all units for these subjects
     const subjectCodes = subjects.map(s => s.subject_code);
@@ -43,7 +46,7 @@ export async function GET(req) {
       units = await db.select()
         .from(syllabusUnits)
         .where(inArray(syllabusUnits.subject_code, subjectCodes))
-        .orderBy(syllabusUnits.subject_code, syllabusUnits.unit_order);
+        .orderBy(asc(syllabusUnits.subject_code), asc(syllabusUnits.unit_order));
     }
 
     // Combine data
@@ -54,8 +57,9 @@ export async function GET(req) {
 
     return apiResponse({ data });
   } catch (error) {
-    logger.error('HOD Syllabus GET Error:', error);
-    return apiError('Internal Server Error', 500);
+    logger.error({ err: error, user: user?.email, branch: user?.branch }, 'HOD Syllabus GET Error');
+    console.error('[DEBUG] Syllabus Error:', error.message);
+    return apiError('Internal Server Error', 500, error.message);
   }
 }
 

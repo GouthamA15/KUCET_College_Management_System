@@ -72,12 +72,61 @@ The application uses **Zod-based environment validation**. In production, it wil
 *   `NEXTAUTH_SECRET` (JWT Security)
 
 ### B. Database Disaster Recovery
-*   **Point-in-Time Recovery (PITR):** **CRITICAL.** Ensure PITR is "ON" in TiDB or Railway dashboard. This allows "rewinding" the database to any specific second to recover from accidental deletions.
-*   **Blind Indexing:** Searching for Mobile/Aadhaar is done via `mobile_hash` (HMAC-SHA256) to ensure high-performance lookups without exposing plain-text data.
+
+#### 1. Point-in-Time Recovery (PITR)
+**CRITICAL.** Ensure PITR is "ON" in TiDB or Railway dashboard. This allows "rewinding" the database to any specific second to recover from accidental deletions without using a backup file.
+
+#### 2. Automated Backups (Daily)
+The system automatically performs a daily dump and uploads it to Cloudinary with `authenticated` access mode.
+- **Location:** `kucet/backups` folder in Cloudinary.
+- **Retention:** 30 daily, 4 weekly, 12 monthly backups.
+- **Integrity:** Verified via MD5 checksum during upload.
+
+#### 3. Restoration Procedure (Emergency)
+To restore a backup to a fresh MySQL instance, follow these steps:
+
+**Step 1: Download the Backup**
+Locate the desired `.sql` file in the Cloudinary Media Library (Authenticated Access) or use the Cloudinary CLI:
+```bash
+# Using Cloudinary CLI (requires CLOUDINARY_URL env)
+cld admin resource kucet/backups/kucet_db_backup_2026-03-21T00-00-00-000Z.sql -t raw
+```
+*Alternatively, download via the Cloudinary Dashboard directly.*
+
+**Step 2: Prepare Fresh MySQL Instance**
+Ensure the database exists on the new server:
+```sql
+CREATE DATABASE kucet_cms;
+```
+
+**Step 3: Restore the SQL Dump**
+Use the standard MySQL client to import the downloaded file:
+```bash
+# Command Template
+mysql -h <new_host> -u <new_user> -p <database_name> < downloaded_backup.sql
+
+# Example for Railway/TiDB
+mysql -h aws.connect.tidbcloud.com -u <user> -p kucet_cms < kucet_db_backup_2026-03-21.sql
+```
+
+**Step 4: Re-run Migrations**
+Ensure the schema is perfectly synced with the code:
+```bash
+npm run db:migrate
+```
 
 ---
 
-## 6. Implementation Checklist (Go-Live)
+## 6. Privacy & Data Governance
+### A. Institutional Data Policy
+- **Encryption:** Aadhaar and Mobile numbers are AES-256-GCM encrypted at rest.
+- **Verification Logging:** To prevent certificate forgery, the system logs the **IP Address**, **Device Type**, and **Approximate Location** (via GeoIP) whenever a certificate QR code is scanned.
+- **Retention:** Audit logs are kept for 2 years. Verification archives are moved to cold storage after 6 months.
+- **Compliance:** All data handling must comply with the [Institutional Privacy Policy](./PRIVACY_POLICY.md).
+
+---
+
+## 7. Implementation Checklist (Go-Live)
 1. [ ] **cPanel DNS:** Add CNAME `login` -> (Vercel/Railway URL).
 2. [ ] **Environment Setup:** Add all `.env` secrets to the hosting provider's dashboard.
 3. [ ] **Database Migration:** Run `npm run db:migrate` to initialize the production schema.

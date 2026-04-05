@@ -264,71 +264,38 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
     }
   };
 
-  const handleClerkSubmit = async (e) => {
+  const handleEmployeeSubmit = async (e) => {
     e.preventDefault();
-    setClerkError('');
+    const isClerk = activePanel === 'clerk';
+    const errorSetter = isClerk ? setClerkError : setAdminError;
+    const formData = isClerk ? clerkForm : adminForm;
+    const rememberMe = isClerk ? clerkRememberMe : adminRememberMe;
+
+    errorSetter('');
     const toastId = toast.loading('Logging in...');
     try {
-      const res = await fetch('/api/clerk/login', {
+      const res = await fetch('/api/auth/employee-login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...clerkForm,
-          rememberMe: clerkRememberMe
+          email: formData.email,
+          password: formData.password,
+          rememberMe
         }),
       });
 
-      const data = await res.json(); // Parse JSON to get error message
-
-      if (res.ok) {
-        toast.success('Login successful!', { id: toastId });
-        // Trigger a hard reload to "/" so proxy.js runs and redirects server-side
-        window.location.replace('/');
-      } else {
-        toast.error(data.message || 'Clerk login failed', { id: toastId });
-        setClerkError(data.message || 'Clerk login failed');
-        console.error('Clerk login failed:', data.message);
-      }
-    } catch (error) {
-      toast.error('An unexpected error occurred', { id: toastId });
-      setClerkError('An unexpected error occurred');
-      console.error('An error occurred during clerk login:', error);
-    }
-  };
-
-  const handleAdminSubmit = async (e) => {
-    e.preventDefault();
-    setAdminError('');
-    const toastId = toast.loading('Logging in...');
-    try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...adminForm,
-          rememberMe: adminRememberMe
-        }),
-      });
-      
       const data = await res.json();
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        // Trigger a hard reload to "/" so proxy.js runs and redirects server-side
         window.location.replace('/');
       } else {
-        toast.error(data.message || 'Admin login failed', { id: toastId });
-        setAdminError(data.message || 'Admin login failed');
-        console.error('Admin login failed:', data.message);
+        toast.error(data.error || 'Login failed', { id: toastId });
+        errorSetter(data.error || 'Login failed');
       }
     } catch (error) {
       toast.error('An unexpected error occurred', { id: toastId });
-      setAdminError('An unexpected error occurred');
-      console.error('An error occurred during admin login:', error);
+      errorSetter('An unexpected error occurred');
     }
   };
 
@@ -406,7 +373,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password
                       <span className="block text-xs text-gray-500 font-normal mt-0.5">
-                        First time user ? Use your DOB in the format : DD-MM-YYYY
+                        First time user ? Use your DOB in the format : DD-MM-YYYY(ex: "31-12-2000") as password
                       </span>
                     </label>
                     <div className="relative">
@@ -545,15 +512,15 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
             )}
           </div>
 
-          {/* Clerk Login Panel */}
+          {/* Unified Employee Login Panel (Clerk/Admin) */}
           <div 
             className={`transition-all duration-400 ease-out ${
-              activePanel === 'clerk' 
+              (activePanel === 'clerk' || activePanel === 'admin')
                 ? 'opacity-100 transform translate-y-0' 
-                : 'opacity-0 transform -translate-y-4 absolute pointer-events-none'
+                : 'opacity-0 transform -translate-y-4 absolute inset-0 pointer-events-none'
             }`}
           >
-            {activePanel === 'clerk' && (
+            {(activePanel === 'clerk' || activePanel === 'admin') && (
               <div className="bg-white rounded-xl border shadow-sm p-6 md:p-8">
                 <div className="text-center mb-6 space-y-1">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-green-50 rounded mb-2">
@@ -562,7 +529,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     </svg>
                   </div>
                   <h2 className="text-2xl font-semibold text-[#0b3578]">Employee Login</h2>
-                  <p className="text-gray-500 text-sm mt-1">Administrative staff portal</p>
+                  <p className="text-gray-500 text-sm mt-1">Institutional staff portal</p>
                 </div>
                 
                 {mode === 'login' ? (
@@ -632,15 +599,19 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       <span className="px-2 bg-white text-gray-500">Or</span>
                     </div>
                   </div>
-                <form onSubmit={handleClerkSubmit} className="space-y-5">
+                <form onSubmit={handleEmployeeSubmit} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Email Address
                     </label>
                       <input
                       type="email"
-                      value={clerkForm.email ?? ''}
-                      onChange={(e) => setClerkForm({ ...clerkForm, email: e.target.value })}
+                      value={activePanel === 'clerk' ? clerkForm.email : adminForm.email}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (activePanel === 'clerk') setClerkForm({ ...clerkForm, email: val });
+                        else setAdminForm({ ...adminForm, email: val });
+                      }}
                       placeholder="Enter your email"
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
                       required
@@ -653,20 +624,27 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     </label>
                     <div className="relative">
                       <input
-                        type={clerkPasswordVisible ? 'text' : 'password'}
-                        value={clerkForm.password ?? ''}
-                        onChange={(e) => setClerkForm({ ...clerkForm, password: e.target.value })}
+                        type={(activePanel === 'clerk' ? clerkPasswordVisible : adminPasswordVisible) ? 'text' : 'password'}
+                        value={activePanel === 'clerk' ? clerkForm.password : adminForm.password}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (activePanel === 'clerk') setClerkForm({ ...clerkForm, password: val });
+                          else setAdminForm({ ...adminForm, password: val });
+                        }}
                         placeholder="Enter your password"
                         className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
                         required
                       />
                       <button
                         type="button"
-                        onClick={() => setClerkPasswordVisible((v) => !v)}
-                        aria-label={clerkPasswordVisible ? 'Hide password' : 'Show password'}
+                        onClick={() => {
+                          if (activePanel === 'clerk') setClerkPasswordVisible(v => !v);
+                          else setAdminPasswordVisible(v => !v);
+                        }}
+                        aria-label="Toggle password visibility"
                         className="absolute inset-y-0 right-2 flex items-center justify-center px-2 text-gray-500 hover:text-gray-700 focus:outline-none"
                       >
-                        {clerkPasswordVisible ? (
+                        {(activePanel === 'clerk' ? clerkPasswordVisible : adminPasswordVisible) ? (
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -683,19 +661,23 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center">
                         <input
-                          id="clerk-remember-me"
+                          id="employee-remember-me"
                           type="checkbox"
-                          checked={clerkRememberMe}
-                          onChange={(e) => setClerkRememberMe(e.target.checked)}
+                          checked={activePanel === 'clerk' ? clerkRememberMe : adminRememberMe}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            if (activePanel === 'clerk') setClerkRememberMe(val);
+                            else setAdminRememberMe(val);
+                          }}
                           className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                         />
-                        <label htmlFor="clerk-remember-me" className="ml-2 block text-xs text-gray-700">
+                        <label htmlFor="employee-remember-me" className="ml-2 block text-xs text-gray-700">
                           Remember Me
                         </label>
                       </div>
                       <button
                         type="button"
-                        onClick={() => { if (activeRole === 'employee') { setMode('forgot-password'); setFpEmail(clerkForm.email ?? ''); } }}
+                        onClick={() => { setMode('forgot-password'); setFpEmail(activePanel === 'clerk' ? clerkForm.email : adminForm.email); }}
                         className="text-xs text-blue-500 hover:text-blue-700"
                       >
                         Forgot Password?
@@ -709,8 +691,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   >
                     Login
                   </button>
-                  {clerkError && (
-                    <div className="text-red-600 text-sm mt-2 text-center">{clerkError}</div>
+                  {(activePanel === 'clerk' ? clerkError : adminError) && (
+                    <div className="text-red-600 text-sm mt-2 text-center">{activePanel === 'clerk' ? clerkError : adminError}</div>
                   )}
                 </form>
                 </div>
@@ -749,153 +731,6 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         Back to Login
                       </button>
                     </div>
-                    {fpEmailMessage && <p className="text-green-500 text-xs italic mt-4">{fpEmailMessage}</p>}
-                  </form>
-                )}
-
-                <p className="text-center text-xs text-gray-500 mt-4">
-                  Make sure to Enter a Valid Email Address
-                </p>
-              </div>
-            )}
-          </div>
-                    {/* Super Admin Login Panel */}
-          <div 
-            className={`transition-all duration-400 ease-out ${
-              activePanel === 'admin' 
-                ? 'opacity-100 transform translate-y-0' 
-                : 'opacity-0 transform -translate-y-4 absolute inset-0 pointer-events-none'
-            }`}
-          >
-            {activePanel === 'admin' && (
-              <div className="bg-white rounded-xl border shadow-sm p-6 md:p-8">
-                <div className="text-center mb-6 space-y-1">
-                  <div className="inline-flex items-center justify-center w-12 h-12 bg-red-50 rounded mb-2">
-                    <svg className="w-6 h-6 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  </div>
-                  <h2 className="text-2xl font-semibold text-[#0b3578]">Super Admin</h2>
-                  <p className="text-gray-500 text-sm mt-1">System administrator access</p>
-                </div>
-                
-                {mode === 'login' ? (
-                <form onSubmit={handleAdminSubmit} className="space-y-5">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address
-                    </label>
-                      <input
-                      type="email"
-                      value={adminForm.email ?? ''}
-                      onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
-                      placeholder="Enter admin email"
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={adminPasswordVisible ? 'text' : 'password'}
-                        value={adminForm.password ?? ''}
-                        onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                        placeholder="Enter admin password"
-                        className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setAdminPasswordVisible((v) => !v)}
-                        aria-label={adminPasswordVisible ? 'Hide password' : 'Show password'}
-                        className="absolute inset-y-0 right-2 flex items-center justify-center px-2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                      >
-                        {adminPasswordVisible ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center">
-                        <input
-                          id="admin-remember-me"
-                          type="checkbox"
-                          checked={adminRememberMe}
-                          onChange={(e) => setAdminRememberMe(e.target.checked)}
-                          className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="admin-remember-me" className="ml-2 block text-xs text-gray-700">
-                          Remember Me
-                        </label>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { if (activeRole === 'employee') { setMode('forgot-password'); setFpEmail(adminForm.email ?? ''); } }}
-                        className="text-xs text-blue-500 hover:text-blue-700"
-                      >
-                        Forgot Password?
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    className="w-full mt-2 bg-red-700 text-white py-2.5 rounded-md font-medium hover:bg-red-800 transition-colors duration-150 text-sm"
-                  >
-                    Login
-                  </button>
-                  {adminError && (
-                    <div className="text-red-600 text-sm mt-2 text-center">{adminError}</div>
-                  )}
-                </form>
-                ) : (
-                  <form onSubmit={handleForgotEmployeeSubmit} className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                      <input
-                        type="email"
-                        value={fpEmail ?? ''}
-                        onChange={(e) => setFpEmail(e.target.value)}
-                        placeholder="Enter your email address"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-400"
-                        required
-                        disabled={fpEmailLoading}
-                      />
-                    </div>
-                      <div className="flex items-center justify-between">
-                        {EMAIL_REGEX.test((fpEmail || '').trim()) ? (
-                          <button
-                            type="submit"
-                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                            disabled={fpEmailLoading}
-                          >
-                            {fpEmailLoading ? 'Sending...' : 'Send Reset Link'}
-                          </button>
-                        ) : (
-                          <p className="text-sm text-gray-500">&nbsp;</p>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => setMode('login')}
-                          className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
-                        >
-                          Back to Login
-                        </button>
-                      </div>
                     {fpEmailMessage && <p className="text-green-500 text-xs italic mt-4">{fpEmailMessage}</p>}
                   </form>
                 )}

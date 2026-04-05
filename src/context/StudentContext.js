@@ -21,8 +21,8 @@ export function StudentProvider({ children }) {
   const fetchCollegeInfo = useCallback(async () => {
     try {
       const res = await fetch('/api/public/college-info');
-      const data = await res.json();
       if (res.ok) {
+        const data = await res.json();
         setCollegeInfo(data.collegeInfo);
       }
     } catch (e) {
@@ -34,8 +34,8 @@ export function StudentProvider({ children }) {
     setIsLoadingAcademic(true);
     try {
       const res = await fetch('/api/student/academic-info');
-      const json = await res.json();
       if (res.ok) {
+        const json = await res.json();
         setAcademicPerformance(json.data || []);
         return json.data;
       }
@@ -55,8 +55,8 @@ export function StudentProvider({ children }) {
         fetch(`/api/student/latest-request?rollno=${rollno}`)
       ]);
       
-      const data = await profileRes.json();
       if (profileRes.ok) {
+        const data = await profileRes.json();
         if (data.student && data.student.pfp) {
           data.student.pfp = `${data.student.pfp}?t=${getNowSync().getTime()}`;
         }
@@ -74,7 +74,12 @@ export function StudentProvider({ children }) {
         
         return data;
       } else {
-        setError(data.message || 'Failed to fetch profile');
+        try {
+          const data = await profileRes.json();
+          setError(data.message || 'Failed to fetch profile');
+        } catch {
+          setError('Failed to fetch profile');
+        }
       }
     } catch (e) {
       setError('Network error');

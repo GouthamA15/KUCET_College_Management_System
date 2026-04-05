@@ -348,6 +348,22 @@ export const certificateVerifications = mysqlTable('certificate_verifications', 
   requestIdx: index('idx_cv_request').on(table.request_id),
 }));
 
+export const certificateVerificationsArchive = mysqlTable('certificate_verifications_archive', {
+  id: int('id').primaryKey().notNull(), // No autoincrement here to preserve original IDs
+  request_id: int('request_id').notNull(),
+  verification_date: timestamp('verification_date').notNull(),
+  ip_address: varchar('ip_address', { length: 45 }),
+  user_agent: text('user_agent'),
+  device_name: varchar('device_name', { length: 255 }),
+  location_name: varchar('location_name', { length: 255 }),
+  latitude: decimal('latitude', { precision: 10, scale: 8 }),
+  longitude: decimal('longitude', { precision: 11, scale: 8 }),
+  archived_at: timestamp('archived_at').defaultNow(),
+}, (table) => ({
+  requestIdx: index('idx_cv_archive_request').on(table.request_id),
+  dateIdx: index('idx_cv_archive_date').on(table.verification_date),
+}));
+
 // --- 8. SECURITY & UTILITY ---
 
 export const otpCodes = mysqlTable('otp_codes', {
@@ -545,4 +561,16 @@ export const refreshTokens = mysqlTable('refresh_tokens', {
 }, (table) => ({
   tokenHashIdx: index('idx_refresh_token_hash').on(table.token_hash),
   userIdIdx: index('idx_refresh_user').on(table.user_id, table.user_type),
+}));
+
+export const bugReports = mysqlTable('bug_reports', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  description: text('description').notNull(),
+  screenshot_url: text('screenshot_url'),
+  status: mysqlEnum('status', ['OPEN', 'RESOLVED', 'CLOSED']).default('OPEN').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  statusIdx: index('idx_bug_status').on(table.status),
+  createdAtIdx: index('idx_bug_created_at').on(table.created_at),
 }));

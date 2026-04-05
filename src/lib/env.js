@@ -11,6 +11,7 @@ const envSchema = z.object({
   DB_USER: z.string().min(1, "DB_USER is required"),
   DB_PASSWORD: z.string().min(1, "DB_PASSWORD is required"),
   DB_DATABASE: z.string().min(1, "DB_DATABASE is required"),
+  DB_SSL: z.enum(['true', 'false']).default('false'),
 
   // Email
   EMAIL_USER: z.string().email("EMAIL_USER must be a valid email"),

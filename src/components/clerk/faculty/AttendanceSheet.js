@@ -51,30 +51,10 @@ const SessionControlPanel = () => {
     verifiedStudentIds, 
     students, 
     setAttendanceStatus, 
-    fetchAttendanceStatus,
+    handleManualRefresh,
     selectedDate,
     dateValidation
   } = useFacultyAttendance();
-
-  // Filter students who have verified but aren't yet saved as PRESENT
-  const verifiedList = students.filter(s => verifiedStudentIds.has(s.id));
-
-  const handleConfirmAll = () => {
-    students.forEach(s => {
-      if (verifiedStudentIds.has(s.id)) {
-        setAttendanceStatus(s.id, 'PRESENT');
-      } else if (s.status === null) {
-        // Set all N/A students to ABSENT
-        setAttendanceStatus(s.id, 'ABSENT');
-      }
-    });
-    toast.success(`Attendance synchronized: Verified students marked PRESENT, others marked ABSENT.`);
-  };
-
-  const handleManualRefresh = () => {
-    fetchAttendanceStatus();
-    toast.success('List updated', { duration: 1000, id: 'refresh-sync' });
-  };
 
   return (
     <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl mb-6 shadow-sm">

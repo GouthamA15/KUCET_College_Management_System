@@ -137,74 +137,48 @@ export default function StudentSidebar({ isMobileOpen, setIsMobileOpen }) {
       )}
 
       {/* Mobile Live Now Session - Premium Glass UI */}
-      {isMobileOpen && (
+      {isMobileOpen && activeActivity && (
         <div className="lg:hidden px-3 py-5 border-b border-white/5">
-          <div className={`relative group overflow-hidden rounded-[22px] border transition-all duration-700 p-4 ${
-            activeActivity 
-              ? 'bg-gradient-to-br from-emerald-600/20 via-[#0a2e63] to-emerald-900/20 border-emerald-400/30 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)]' 
-              : 'bg-gradient-to-br from-amber-600/10 via-[#0a2e63]/40 to-amber-900/10 border-amber-400/20 shadow-none'
-          }`}>
+          <div className="relative group overflow-hidden rounded-[22px] border transition-all duration-700 p-4 bg-gradient-to-br from-emerald-600/20 via-[#0a2e63] to-emerald-900/20 border-emerald-400/30 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)]">
             {/* Dynamic Aurora Glows */}
-            <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-[45px] transition-colors duration-1000 ${
-              activeActivity ? 'bg-emerald-500/20 animate-pulse' : 'bg-amber-500/10'
-            }`}></div>
-            <div className={`absolute -left-10 -bottom-10 w-28 h-28 rounded-full blur-[40px] transition-colors duration-1000 ${
-              activeActivity ? 'bg-green-500/10' : 'bg-orange-500/5'
-            }`}></div>
+            <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full blur-[45px] transition-colors duration-1000 bg-emerald-500/20 animate-pulse"></div>
+            <div className="absolute -left-10 -bottom-10 w-28 h-28 rounded-full blur-[40px] transition-colors duration-1000 bg-green-500/10"></div>
             
             <div className="flex items-center gap-4 relative z-10">
               {/* Status Orb Container */}
-              <div className={`flex items-center justify-center w-12 h-12 rounded-[18px] shrink-0 transition-all duration-500 border backdrop-blur-xl ${
-                activeActivity 
-                  ? 'bg-emerald-500/10 border-emerald-400/40 shadow-[0_0_20px_rgba(52,211,153,0.2)]' 
-                  : 'bg-white/5 border-white/10'
-              }`}>
+              <div className="flex items-center justify-center w-12 h-12 rounded-[18px] shrink-0 transition-all duration-500 border backdrop-blur-xl bg-emerald-500/10 border-emerald-400/40 shadow-[0_0_20px_rgba(52,211,153,0.2)]">
                 <div className="relative flex h-3.5 w-3.5">
-                  {activeActivity ? (
-                    <>
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 shadow-[0_0_15px_#34d399]"></span>
-                    </>
-                  ) : (
-                    <div className="relative flex items-center justify-center w-full h-full">
-                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400/40"></span>
-                    </div>
-                  )}
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 shadow-[0_0_15px_#34d399]"></span>
                 </div>
               </div>
               
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <div className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
-                      activeActivity 
-                        ? 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300' 
-                        : 'bg-amber-500/10 border-amber-400/20 text-amber-300/70'
-                    }`}>
-                      {activeActivity ? 'Live' : 'Next'}
+                    <div className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border bg-emerald-500/20 border-emerald-400/30 text-emerald-300">
+                      Live
                     </div>
-                    <span className={`text-[10px] font-bold uppercase tracking-tight ${activeActivity ? 'text-white/80' : 'text-white/40'}`}>
-                      {activeActivity ? 'Session' : 'Break'}
+                    <span className="text-[10px] font-bold uppercase tracking-tight text-white/80">
+                      Session
                     </span>
                   </div>
-                  {activeActivity?.period && (
+                  {activeActivity.period && (
                     <div className="bg-black/40 px-2 py-0.5 rounded-lg border border-white/10 backdrop-blur-md">
                        <span className="text-[10px] font-black text-white/90 uppercase tabular-nums">P{activeActivity.period}</span>
                     </div>
                   )}
                 </div>
                 
-                <h4 className={`text-[15px] font-black uppercase truncate tracking-tight leading-none ${activeActivity ? 'text-white' : 'text-white/40'}`}>
-                  {activeActivity?.activity?.subject_name || 'No Class Found'}
+                <h4 className="text-[15px] font-black uppercase truncate tracking-tight leading-none text-white">
+                  {activeActivity.activity?.subject_name || 'Class Session'}
                 </h4>
                 
-                {activeActivity && (
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{activeActivity.activity?.room_no || 'TBD'}</span>
-                    <span className="w-1 h-1 rounded-full bg-white/10"></span>
-                    <span className="text-[9px] font-bold text-emerald-400/60 uppercase truncate">{activeActivity.activity?.faculty_name || 'Faculty'}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">{activeActivity.activity?.room_no || 'TBD'}</span>
+                  <span className="w-1 h-1 rounded-full bg-white/10"></span>
+                  <span className="text-[9px] font-bold text-emerald-400/60 uppercase truncate">{activeActivity.activity?.faculty_name || 'Faculty'}</span>
+                </div>
               </div>
             </div>
           </div>

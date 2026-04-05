@@ -14,11 +14,12 @@ const ASSET_MANIFEST = [
   '/assets/kakatiya-kala-thoranam.png',
   '/assets/rudramadevi_statue.jpg',
   '/assets/college-campus.jpg',
+  '/assets/default-avatar.svg',
   
   // Developer Photos
   '/assets/DevPics/Dev1.png',
   '/assets/DevPics/Dev2.jpg',
-  '/assets/DevPics/Dev3.jpeg',
+  '/assets/DevPics/Dev3.jpg',
   '/assets/DevPics/Group.jpg',
   
   // Developer Audio Files (Crucial for instant playback on hover)
