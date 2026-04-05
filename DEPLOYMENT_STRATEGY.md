@@ -124,9 +124,32 @@ npm run db:migrate
 - **Retention:** Audit logs are kept for 2 years. Verification archives are moved to cold storage after 6 months.
 - **Compliance:** All data handling must comply with the [Institutional Privacy Policy](./PRIVACY_POLICY.md).
 
+## 7. Mobile SMS Infrastructure (Future Expansion)
+To support OTPs, attendance alerts, and fee reminders via SMS, the following providers are recommended based on affordability and reliability in the Indian market (2026).
+
+### A. Recommended SMS API Providers
+
+| Provider | Purpose | Approx. Cost | Key Advantage |
+| :--- | :--- | :--- | :--- |
+| **Fast2SMS** | Bulk Alerts / Budget | ₹0.12 - ₹0.20 | Lowest entry cost; ideal for general announcements. |
+| **2Factor** | Mission-Critical OTP | ₹0.15 - ₹0.18 | **15-second delivery guarantee**; pay-per-delivery model. |
+| **MSG91** | Developer Scale | ₹0.16 - ₹0.22 | Best API documentation; Startup program (25k free SMS/mo). |
+| **Textlocal** | Admin Dashboard | ₹0.20 - ₹0.25 | Superior UI for manual staff broadcasts (Fees/Holidays). |
+
+### B. Mandatory DLT Compliance (TRAI India)
+Before sending any SMS, the college **must** complete the Distributed Ledger Technology (DLT) registration:
+1. **Entity Registration:** Register KUCET as a "Principal Entity" on a portal (e.g., Jio/Airtel DLT).
+2. **Header (Sender ID):** Claim a 6-character alphabetic ID (e.g., `KUCETC`).
+3. **Template Approval:** Every message format (e.g., *"Your OTP is {#var#}"*) must be pre-approved by the DLT provider to avoid blocking.
+
+### C. Technical Implementation Strategy
+* **OTP Priority:** Use **2Factor** for login/security OTPs due to their dedicated high-speed routes.
+* **Bulk Priority:** Use **Fast2SMS** for non-urgent attendance or fee notifications to minimize operational costs.
+* **Fallback:** Consider **WhatsApp Business API** (via MSG91) as a secondary channel for high-priority documents.
+
 ---
 
-## 7. Implementation Checklist (Go-Live)
+## 8. Implementation Checklist (Go-Live)
 1. [ ] **cPanel DNS:** Add CNAME `login` -> (Vercel/Railway URL).
 2. [ ] **Environment Setup:** Add all `.env` secrets to the hosting provider's dashboard.
 3. [ ] **Database Migration:** Run `npm run db:migrate` to initialize the production schema.
@@ -135,4 +158,4 @@ npm run db:migrate
 
 ---
 **Prepared by:** Gemini CLI  
-**Last Updated:** March 21, 2026
+**Last Updated:** April 6, 2026
