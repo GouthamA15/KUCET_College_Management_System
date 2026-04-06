@@ -304,7 +304,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   return (
     <div 
       id="login-panels" 
-      className="fixed top-0 left-0 w-full h-full z-[100] flex items-center justify-center p-4 lg:p-8 overflow-y-auto bg-slate-900/60 backdrop-blur-sm animate-fadeIn"
+      className="fixed top-0 left-0 w-full h-full z-[100] flex items-center justify-center p-4 lg:p-8 overflow-y-auto bg-slate-900/60 animate-fadeIn"
       style={{ position: 'fixed', zIndex: 1000 }}
       onClick={(e) => {
         if (e.target.id === 'login-panels') onClose();

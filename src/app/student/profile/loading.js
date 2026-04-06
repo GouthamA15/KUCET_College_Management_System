@@ -3,7 +3,7 @@ import { getAssetUrl } from '@/lib/assets';
 
 export default function Loading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-start justify-center bg-gray-50">
       <div className="text-center">
         <Image src={getAssetUrl('/assets/ku-logo.png')} alt="KUCET logo" width={160} height={160} className="w-40 h-auto mx-auto" priority />
         <div className="mt-4 flex items-center justify-center" aria-hidden>

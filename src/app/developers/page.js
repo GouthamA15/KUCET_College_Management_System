@@ -175,9 +175,6 @@ export default function DevelopersPage() {
     <div className="min-h-screen bg-gray-50 font-sans relative">
       {/* Header at the top */}
       <Header />
-
-      {/* Client-side shell: navbar, login panels and toasts */}
-      <ClientShell />
       
       <div id="main-content" className="flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">
         <main className="flex-grow container mx-auto px-4 py-12">
