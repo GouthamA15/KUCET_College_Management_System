@@ -9,6 +9,89 @@ import ChangePasswordModal from './ChangePasswordModal';
 import NotificationDropdown from './NotificationDropdown';
 import ClerkNotificationDropdown from './clerk/ClerkNotificationDropdown';
 
+// Single source-of-truth menu configuration per role
+export const NAV_MENU_CONFIG = {
+    student: [
+    { label: 'HOME', route: '/student' },
+    { label: 'PROFILE', route: '/student/profile' },
+    { label: 'ACADEMICS', route: '/student/academics' },
+  { label: 'FINANCES', route: '/student/finances' },
+    { label: 'TIME TABLE', route: '/student/timetable' },
+    { label: 'REQUESTS', children: [
+        { label: 'Certificates', route: '/student/requests/certificates' },
+        { label: 'Profile Updates', route: '/student/requests/profile-updates' },
+        { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
+      ]
+    },
+    { label: 'MENU', children: [
+        { label: 'Edit Profile', route: '/student/settings/edit-profile' },
+        { label: 'Security & Privacy', route: '/student/settings/security' }
+      ]
+    }
+  ],
+  clerk: [
+    { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
+    { label: 'DEPARTMENTS', route: '/clerk/departments' },
+      { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
+    { label: 'TIME TABLE', route: '/clerk/timetable' },
+    { label: 'FACULTIES', route: '/clerk/faculties' },
+    { label: 'MENU', children: [
+        { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
+        { label: 'Security & Privacy', route: '/clerk/settings/security' }
+      ]
+    },
+  ],
+    // Explicit menu for Admission clerks (keeps Academic Calendar)
+    clerkAdmission: [
+      { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
+      { label: 'DEPARTMENTS', route: '/clerk/departments' },
+      { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
+      { label: 'TIME TABLE', route: '/clerk/timetable' },
+      { label: 'FACULTIES', route: '/clerk/faculties' },
+      { label: 'MENU', children: [
+          { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
+          { label: 'Security & Privacy', route: '/clerk/settings/security' }
+        ]
+      },
+    ],
+    // Scholarship clerks: omit Academic Calendar
+    clerkScholarship: [
+      { label: 'DASHBOARD', route: '/clerk/scholarship/dashboard' },
+      { label: 'DEPARTMENTS', route: '/clerk/departments' },
+      { label: 'TIME TABLE', route: '/clerk/timetable' },
+      { label: 'FACULTIES', route: '/clerk/faculties' },
+      { label: 'MENU', children: [
+          { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
+          { label: 'Security & Privacy', route: '/clerk/settings/security' }
+        ]
+      },
+    ],
+  faculty: [
+    { label: 'DASHBOARD', route: '/clerk/faculty/dashboard' },
+    { label: 'ATTENDANCE', route: '/clerk/faculty/attendance' },
+    { label: 'MARKS', route: '/clerk/faculty/marks' },
+    { label: 'TIME TABLE', route: '/clerk/faculty/time-table' },
+    { label: 'MATERIALS', route: '/clerk/faculty/materials' },
+    { label: 'PROFILE', route: '/clerk/faculty/profile' },
+    { label: 'MENU', children: [
+        { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
+        { label: 'Security & Privacy', route: '/clerk/settings/security' }
+      ]
+    }
+  ],
+  superAdmin: [
+    { label: 'HOME', route: '/' },
+    { label: 'ADMIN DASHBOARD', route: '/admin/dashboard' },
+    { label: 'MANAGE CLERKS', route: '/admin/manage-clerks' },
+    { label: 'STUDENT STATS', route: '/admin/student-stats' },
+    { label: 'MENU', children: [
+        { label: 'Edit Profile', route: '/admin/settings/edit-profile' },
+        { label: 'Security & Privacy', route: '/admin/settings/security' }
+      ]
+    }
+  ]
+};
+
 export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -34,93 +117,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') {
     clerkName = clerkData?.name || null;
   }
-  // Single source-of-truth menu configuration per role
-  const menuConfig = {
-      student: [
-      { label: 'HOME', route: '/student' },
-      { label: 'PROFILE', route: '/student/profile' },
-      { label: 'ACADEMICS', route: '/student/academics' },
-      { label: 'TIME TABLE', route: '/student/timetable' },
-      { label: 'REQUESTS', children: [
-          { label: 'Certificates', route: '/student/requests/certificates' },
-          { label: 'Profile Updates', route: '/student/requests/profile-updates' },
-          { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
-        ]
-      },
-      { label: 'MENU', children: [
-          { label: 'Edit Profile', route: '/student/settings/edit-profile' },
-          { label: 'Security & Privacy', route: '/student/settings/security' },
-          { label: 'Logout', action: 'logout' }
-        ]
-      }
-    ],
-    clerk: [
-      { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
-      { label: 'DEPARTMENTS', route: '/clerk/departments' },
-        { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
-      { label: 'TIME TABLE', route: '/clerk/timetable' },
-      { label: 'FACULTIES', route: '/clerk/faculties' },
-      { label: 'MENU', children: [
-          { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
-          { label: 'Security & Privacy', route: '/clerk/settings/security' },
-          { label: 'Logout', action: 'logout' }
-        ]
-      },
-    ],
-      // Explicit menu for Admission clerks (keeps Academic Calendar)
-      clerkAdmission: [
-        { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
-        { label: 'DEPARTMENTS', route: '/clerk/departments' },
-        { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
-        { label: 'TIME TABLE', route: '/clerk/timetable' },
-        { label: 'FACULTIES', route: '/clerk/faculties' },
-        { label: 'MENU', children: [
-            { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
-            { label: 'Security & Privacy', route: '/clerk/settings/security' },
-            { label: 'Logout', action: 'logout' }
-          ]
-        },
-      ],
-      // Scholarship clerks: omit Academic Calendar
-      clerkScholarship: [
-        { label: 'DASHBOARD', route: '/clerk/scholarship/dashboard' },
-        { label: 'DEPARTMENTS', route: '/clerk/departments' },
-        { label: 'TIME TABLE', route: '/clerk/timetable' },
-        { label: 'FACULTIES', route: '/clerk/faculties' },
-        { label: 'MENU', children: [
-            { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
-            { label: 'Security & Privacy', route: '/clerk/settings/security' },
-            { label: 'Logout', action: 'logout' }
-          ]
-        },
-      ],
-    faculty: [
-      { label: 'DASHBOARD', route: '/clerk/faculty/dashboard' },
-      { label: 'ATTENDANCE', route: '/clerk/faculty/attendance' },
-      { label: 'MARKS', route: '/clerk/faculty/marks' },
-      { label: 'TIME TABLE', route: '/clerk/faculty/time-table' },
-      { label: 'MATERIALS', route: '/clerk/faculty/materials' },
-      { label: 'PROFILE', route: '/clerk/faculty/profile' },
-      { label: 'MENU', children: [
-          { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
-          { label: 'Security & Privacy', route: '/clerk/settings/security' },
-          { label: 'Logout', action: 'logout' }
-        ]
-      }
-    ],
-    superAdmin: [
-      { label: 'HOME', route: '/' },
-      { label: 'ADMIN DASHBOARD', route: '/admin/dashboard' },
-      { label: 'MANAGE CLERKS', route: '/admin/manage-clerks' },
-      { label: 'STUDENT STATS', route: '/admin/student-stats' },
-      { label: 'MENU', children: [
-          { label: 'Edit Profile', route: '/admin/settings/edit-profile' },
-          { label: 'Security & Privacy', route: '/admin/settings/security' },
-          { label: 'Logout', action: 'logout' }
-        ]
-      }
-    ]
-  };
+  // (menu definitions moved to top-level `NAV_MENU_CONFIG` for reuse)
 
   // Role selection: prefer explicit `role` prop. Fall back to studentProfileMode for backward compatibility.
   let effectiveRole = role || (studentProfileMode ? 'student' : 'guest');
@@ -141,7 +138,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     }
   }
 
-  const menuItemsRaw = menuConfig[effectiveRole] || menuConfig['guest'] || [
+  const menuItemsRaw = NAV_MENU_CONFIG[effectiveRole] || NAV_MENU_CONFIG['guest'] || [
     { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'STAFF LOGIN', action: 'open-panel-clerk' }
@@ -153,8 +150,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         { label: 'HOME', route: '/student' },
         { label: 'PROFILE', route: '/student/profile' },
         { label: 'MENU', children: [
-            { label: 'Security & Privacy', route: '/student/settings/security' },
-            { label: 'Logout', action: 'logout' }
+            { label: 'Security & Privacy', route: '/student/settings/security' }
           ]
         }
       ]
@@ -252,11 +248,11 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
 
   return (
     <>
-      <nav className="bg-[#0b3578] shadow-lg sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
+      <nav className={`bg-[#0b3578] shadow-lg sticky z-50 pt-[env(safe-area-inset-top)]`} style={{ top: 'var(--site-header-height, 72px)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-13">
             <div className="flex-shrink-0 flex items-center gap-4">
-              <span className="text-white text-lg font-black tracking-tighter">KUCET CMS</span>
+              <span className="text-white text-lg font-bold">LOGIN PORTAL</span>
             </div>
 
             {/* Desktop Menu */}

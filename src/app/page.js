@@ -30,7 +30,7 @@ export default async function Home({ searchParams }) {
       <ClientShell serverError={error} />
 
       {/* Main server-rendered content. */}
-      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 flex flex-col min-h-screen">
+      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 flex flex-col min-h-screen mt-25">
         <div className="grow">
           <Hero />
           <AboutSection />

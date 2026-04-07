@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { StudentProvider } from '@/context/StudentContext';
 import { ProfileActivityProvider } from '@/context/ProfileActivityContext';
 import StudentActivityBar from '@/components/student/StudentActivityBar';
-import StudentSidebar from '@/components/student/StudentSidebar';
+import Sidebar from '@/components/Sidebar';
 import StudentTopBar from '@/components/student/StudentTopBar';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
@@ -19,10 +19,7 @@ export default function StudentLayout({ children }) {
         <div className="min-h-screen bg-[#f8fafc] flex font-sans">
           
           {/* Sidebar - Always present, handles its own desktop/mobile visibility */}
-          <StudentSidebar 
-            isMobileOpen={isMobileMenuOpen} 
-            setIsMobileOpen={setIsMobileMenuOpen} 
-          />
+          <Sidebar role="student" isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen} />
 
           {/* Mobile Top Bar (Search & Profile) - Fixed on Mobile */}
           <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-[#f8fafc]/80 backdrop-blur-xl border-b border-slate-100/50 shadow-sm w-full pt-[env(safe-area-inset-top)]">
@@ -30,9 +27,12 @@ export default function StudentLayout({ children }) {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:ml-16">
+          <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:pt-[var(--site-header-height,72px)]">
 
-            <Header />
+            {/* Global header only on desktop */}
+            <div className="hidden lg:block">
+              <Header />
+            </div>
             
             {/* Mobile Spacer */}
             <div className="lg:hidden h-[calc(4rem+env(safe-area-inset-top))]"></div>
@@ -50,10 +50,10 @@ export default function StudentLayout({ children }) {
             <Footer />
           </div>
 
-          {/* Mobile Overlay */}
+          {/* Mobile Overlay (below sidebar, above content) */}
           {isMobileMenuOpen && (
             <div 
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 lg:hidden transition-all duration-300"
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden transition-all duration-300"
               onClick={() => setIsMobileMenuOpen(false)}
             />
           )}
