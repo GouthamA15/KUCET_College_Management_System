@@ -118,21 +118,29 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
       style={{
-        top: `calc(${headerVar} + 40px)`,
-        height: '500px',
+        top: `${headerVar}`,
+        height: `calc(100vh - ${headerVar} - 140px)`,
         left: 0,
         width: expanded ? `${expandedWidthPx}px` : '4rem',
         transition: 'width 250ms ease'
       }}
-      className="hidden lg:flex fixed left-0 z-40 bg-[#12418f]/80 backdrop-blur-md border border-[#0a2f6b]/70 rounded-r-2xl overflow-hidden"
+      className="hidden lg:flex fixed left-0 z-40 bg-[#0A3D91] backdrop-blur-md border border-[#0a2f6b]/70 rounded-r-2xl overflow-hidden"
       aria-hidden={false}
     >
       <div className="flex flex-col h-full text-slate-100">
         <div
           ref={desktopScrollRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 pr-1 relative scrollbar-hide"
+          className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 pr-2 relative scrollbar-hide"
         >
-          <nav className="space-y-1.5 pr-2">
+          <div
+            className={`px-2 pb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-300 transition-opacity ${
+              expanded ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          >
+            Overview
+          </div>
+
+          <nav className="space-y-1.5 pr-1">
         {menu.map((item, idx) => {
           const Icon = ICON_MAP[item.label] || FileText;
           const isStudentDashboard = role === 'student' && item.label === 'HOME';
@@ -146,23 +154,23 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
           const IconBlock = (
             <div
               className="flex-shrink-0 flex items-center"
-              style={{ width: 32, minWidth: 32 }}
+              style={{ width: 36, minWidth: 36 }}
             >
               <div
-                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
-                  active ? 'bg-white/20 text-white' : 'text-slate-200'
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors ${
+                  active ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-200 group-hover:bg-white/20 group-hover:text-white'
                 }`}
               >
-                <Icon size={18} />
+                <Icon size={16} />
               </div>
             </div>
           );
 
           const LabelBlock = (
             <div
-              className={`ml-2 truncate text-[13px] font-medium leading-tight transform transition-all duration-200 ${
+              className={`ml-1 truncate text-[13px] font-semibold leading-tight tracking-tight transform transition-all duration-200 ${
                 expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 pointer-events-none'
-              } ${active ? 'text-white' : 'text-slate-200'}`}
+              } ${active ? 'text-white' : 'text-slate-200'} group-hover:text-white`}
             >
               {displayLabel}
             </div>
@@ -176,24 +184,37 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
                 <button
                   type="button"
                   onClick={() => setDesktopExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                  className={`w-full flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg ${
+                  className={`group w-full flex items-center gap-3 py-2 rounded-xl ${
+                    expanded ? 'justify-between px-2' : 'justify-center px-0'
+                  } ${
                     open || active ? 'bg-white/10' : 'hover:bg-white/5'
                   } transition-colors`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {IconBlock}
                     {LabelBlock}
                   </div>
-                  <div
-                    className={`mr-1 flex items-center justify-center text-slate-500 transform transition-transform duration-200 ${expanded ? 'opacity-100' : 'opacity-0 pointer-events-none'} ${open ? 'rotate-90' : 'rotate-0'}`}
-                  >
-                    <svg className="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 4l8 6-8 6" />
-                    </svg>
-                  </div>
+                  {expanded && (
+                    <div
+                      className="flex-shrink-0 flex items-center"
+                      style={{ width: 36, minWidth: 36 }}
+                    >
+                      <div
+                        className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors transform transition-transform duration-200 ${
+                          open ? 'rotate-90' : 'rotate-0'
+                        } ${
+                          open || active
+                            ? 'bg-white/20 text-white'
+                            : 'bg-white/10 text-slate-200 group-hover:bg-white/20 group-hover:text-white'
+                        }`}
+                      >
+                        <ChevronDown size={16} />
+                      </div>
+                    </div>
+                  )}
                 </button>
                 {expanded && open && (
-                  <div className="ml-8 mt-1 space-y-0.5 border-l border-white/10 pl-3">
+                  <div className="ml-9 mt-1.5 space-y-1 border-l border-white/10 pl-3">
                     {item.children.map((c, ci) => {
                       const childIsActive = c.route && isActiveRoute(c.route);
                       if (c.action) {
@@ -201,8 +222,8 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
                           <button
                             key={ci}
                             onClick={() => performAction(c.action)}
-                            className={`w-full text-left px-1.5 py-1.5 text-[13px] rounded-md transition-colors ${
-                              childIsActive ? 'bg-white/10 text-white font-semibold' : 'text-slate-200 hover:bg-white/5'
+                            className={`w-full text-left px-2 py-1.5 text-[12px] font-medium rounded-lg transition-colors ${
+                              childIsActive ? 'bg-white/10 text-white' : 'text-slate-200 hover:bg-white/5'
                             }`}
                           >
                             {c.label}
@@ -214,8 +235,8 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
                           <Link
                             key={ci}
                             href={c.route}
-                            className={`block px-1.5 py-1.5 text-[13px] rounded-md transition-colors ${
-                              childIsActive ? 'bg-white/10 text-white font-semibold' : 'text-slate-200 hover:bg-white/5'
+                            className={`block px-2 py-1.5 text-[12px] font-medium rounded-lg transition-colors ${
+                              childIsActive ? 'bg-white/10 text-white' : 'text-slate-200 hover:bg-white/5'
                             }`}
                           >
                             {c.label}
@@ -223,7 +244,7 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
                         );
                       }
                       return (
-                        <div key={ci} className="px-1.5 py-1.5 text-[13px] text-slate-200">
+                        <div key={ci} className="px-2 py-1.5 text-[12px] text-slate-400">
                           {c.label}
                         </div>
                       );
@@ -237,9 +258,9 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
           // Action items (direct)
           if (item.action) {
             return (
-              <button key={idx} onClick={() => performAction(item.action)} className="w-full p-0 rounded-md">
+              <button key={idx} onClick={() => performAction(item.action)} className="group w-full p-0 rounded-md">
                 <div
-                  className={`flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors ${
+                  className={`flex items-center gap-2 px-2 py-2 rounded-xl transition-colors ${
                     active ? 'bg-white/10' : 'hover:bg-white/5'
                   }`}
                 >
@@ -252,9 +273,9 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
 
           // Normal route link
           return (
-            <Link key={idx} href={item.route || '#'} className="block p-0 rounded-md">
+            <Link key={idx} href={item.route || '#'} className="group block p-0 rounded-md">
               <div
-                className={`flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 px-2 py-2 rounded-xl transition-colors ${
                   active ? 'bg-white/10' : 'hover:bg-white/5'
                 }`}
               >
@@ -278,29 +299,31 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
             </div>
           )}
         </div>
-
-        <div className="flex-none p-2 border-t border-white/10 bg-transparent">
-          <button
-            type="button"
-            onClick={() => performAction('logout')}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[13px] font-medium text-rose-200 hover:bg-rose-500/20 hover:text-rose-50 transition-colors"
-          >
-            <div className="flex-shrink-0 pl-1">
-              <div className="w-8 h-8 flex items-center justify-center">
-                <LogOut size={16} />
-              </div>
-            </div>
-            <div
-              className={`ml-2 truncate transform transition-all duration-200 ${
-                expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 pointer-events-none'
-              }`}
-            >
-              Logout
-            </div>
-          </button>
-        </div>
       </div>
     </aside>
+  );
+
+  const LogoutButton = (
+    <div
+      style={{
+        bottom: '20px',
+        left: 0,
+        width: '4rem',
+        transition: 'width 250ms ease'
+      }}
+      className="hidden lg:flex fixed z-40 items-center justify-center"
+    >
+      <button
+        type="button"
+        onClick={() => performAction('logout')}
+        className="group flex-shrink-0 w-14 h-14 flex items-center justify-center bg-red-400 rounded-full hover:bg-red-500 transition-colors relative"
+      >
+        <LogOut size={24} className="text-white" />
+        <div className="absolute bottom-full mb-3 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 text-white text-sm font-semibold px-3 py-1 rounded whitespace-nowrap pointer-events-none">
+          Log out
+        </div>
+      </button>
+    </div>
   );
 
   const MobileNav = (
@@ -399,6 +422,7 @@ export default function Sidebar({ role = 'student', isMobileOpen = false, setIsM
   return (
     <>
       {DesktopNav}
+      {LogoutButton}
       {MobileNav}
     </>
   );
