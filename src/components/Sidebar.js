@@ -38,6 +38,7 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
   if (role === 'clerk' && clerkData?.role) {
     if (clerkData.role === 'admission') role = 'clerkAdmission';
     else if (clerkData.role === 'scholarship') role = 'clerkScholarship';
+    else if (clerkData.role === 'faculty') role = 'faculty';
   }
 
   const menu = NAV_MENU_CONFIG[role] || NAV_MENU_CONFIG['student'] || [];

@@ -6,8 +6,6 @@ import Sidebar from '@/components/Sidebar';
 import ClerkTopBar from '@/components/clerk/ClerkTopBar';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
-import Navbar from '@/components/Navbar';
-import { useClerk } from '@/context/ClerkContext';
 
 export default function ClerkLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
