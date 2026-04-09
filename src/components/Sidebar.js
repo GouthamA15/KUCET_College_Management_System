@@ -3,7 +3,7 @@
 import { useContext, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { NAV_MENU_CONFIG } from './Navbar';
+import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { ClerkContext } from '@/context/ClerkContext';
 import { StudentContext } from '@/context/StudentContext';
 import { Home, User, Book, Calendar, FileText, Settings, LogOut, Plus, Wallet, ChevronDown } from 'lucide-react';
@@ -27,8 +27,12 @@ const ICON_MAP = {
 export default function Sidebar({ role: initialRole = 'student', isMobileOpen = false, setIsMobileOpen = () => {}, onLogout }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { clerkData } = useContext(ClerkContext) || {};
-  const { studentData } = useContext(StudentContext) || {};
+  const clerkContext = useContext(ClerkContext);
+  const studentContext = useContext(StudentContext);
+  const clerkData = clerkContext?.clerkData;
+  const studentData = studentContext?.studentData;
+  const isClerkLoading = clerkContext?.loading;
+  
   const [expanded, setExpanded] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState({});
   const [desktopExpanded, setDesktopExpanded] = useState({});
@@ -41,7 +45,7 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
     else if (clerkData.role === 'faculty') role = 'faculty';
   }
 
-  const menu = NAV_MENU_CONFIG[role] || NAV_MENU_CONFIG['student'] || [];
+  const menu = (role === 'clerk' && isClerkLoading) ? [] : (NAV_MENU_CONFIG[role] || NAV_MENU_CONFIG['student'] || []);
 
   // Estimate expanded width based on the longest visible label
   const computeMaxLabelLength = () => {
