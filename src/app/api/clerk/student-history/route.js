@@ -1,7 +1,8 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, studentImportLogs, clerks } from '@/db/schema';
-import { eq, and, ne, sql, inArray, isNotNull } from 'drizzle-orm';
+import { eq, and, ne, sql, desc, inArray, isNotNull } from 'drizzle-orm';
+import { unionAll } from 'drizzle-orm/mysql-core';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {
@@ -20,187 +21,92 @@ export async function GET(req) {
     const actionTypes = actionTypesRaw.map((v) => String(v || '').toUpperCase()).filter((v) => ['ADDED', 'UPDATED', 'IMPORTED'].includes(v));
     const dateRange = (params.get('dateRange') || 'all').toLowerCase();
 
-    // Build date filter conditions
-    const getDateCondition = (timeField) => {
-      if (dateRange === '7') {
-        return sql`${timeField} >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
-      } else if (dateRange === '30') {
-        return sql`${timeField} >= DATE_SUB(NOW(), INTERVAL 30 DAY)`;
-      }
-      return undefined;
-    };
+    // 1. Define subqueries for unionAll
+    const addedSub = db.select({
+      rollNo: students.roll_no,
+      actionType: sql`'ADDED'`.as('actionType'),
+      clerkId: students.added_by_clerk_id,
+      actionTime: students.created_at,
+      totalRecords: sql`NULL`.as('totalRecords')
+    })
+    .from(students)
+    .where(isNotNull(students.added_by_clerk_id));
 
-    // Helper to build conditions array that filters out undefined
-    const buildConditions = (arr) => arr.filter(c => c !== undefined);
-    
-    // Helper to apply where clause safely
-    const applyWhere = (query, conditions) => {
-      const filtered = buildConditions(conditions);
-      if (filtered.length === 0) return query;
-      return filtered.length === 1 ? query.where(filtered[0]) : query.where(and(...filtered));
-    };
+    const updatedSub = db.select({
+      rollNo: students.roll_no,
+      actionType: sql`'UPDATED'`.as('actionType'),
+      clerkId: students.updated_by_clerk_id,
+      actionTime: students.updated_at,
+      totalRecords: sql`NULL`.as('totalRecords')
+    })
+    .from(students)
+    .where(and(
+      isNotNull(students.updated_by_clerk_id),
+      isNotNull(students.updated_at),
+      ne(students.updated_at, students.created_at)
+    ));
 
-    // Fetch all three activity types
-    const [addedRecords, updatedRecords, importedRecords] = await Promise.all([
-      // Added records
-      applyWhere(
-        db.select({
-          rollNo: students.roll_no,
-          actionType: sql`'ADDED'`.as('actionType'),
-          clerkId: students.added_by_clerk_id,
-          actionTime: students.created_at,
-          totalRecords: sql`null`.as('totalRecords')
-        })
-          .from(students),
-        [
-          isNotNull(students.added_by_clerk_id),
-          getDateCondition(students.created_at),
-          scope !== 'all' ? eq(students.added_by_clerk_id, currentClerkId) : undefined
-        ]
-      ),
+    const importedSub = db.select({
+      rollNo: sql`NULL`.as('rollNo'),
+      actionType: sql`'IMPORTED'`.as('actionType'),
+      clerkId: studentImportLogs.clerk_id,
+      actionTime: studentImportLogs.created_at,
+      totalRecords: studentImportLogs.total_records
+    })
+    .from(studentImportLogs);
 
-      // Updated records
-      applyWhere(
-        db.select({
-          rollNo: students.roll_no,
-          actionType: sql`'UPDATED'`.as('actionType'),
-          clerkId: students.updated_by_clerk_id,
-          actionTime: students.updated_at,
-          totalRecords: sql`null`.as('totalRecords')
-        })
-          .from(students),
-        [
-          isNotNull(students.updated_by_clerk_id),
-          isNotNull(students.updated_at),
-          ne(students.updated_at, students.created_at),
-          getDateCondition(students.updated_at),
-          scope !== 'all' ? eq(students.updated_by_clerk_id, currentClerkId) : undefined
-        ]
-      ),
+    // 2. Combine with Union (Drizzle unionAll)
+    const activityUnion = unionAll(addedSub, updatedSub, importedSub).as('activity');   
 
-      // Imported records
-      applyWhere(
-        db.select({
-          rollNo: sql`null`.as('rollNo'),
-          actionType: sql`'IMPORTED'`.as('actionType'),
-          clerkId: studentImportLogs.clerk_id,
-          actionTime: studentImportLogs.created_at,
-          totalRecords: studentImportLogs.total_records
-        })
-          .from(studentImportLogs),
-        [
-          getDateCondition(studentImportLogs.created_at),
-          scope !== 'all' ? eq(studentImportLogs.clerk_id, currentClerkId) : undefined
-        ]
-      )
-    ]);
-
-    // Combine all records
-    let allRecords = [...addedRecords, ...updatedRecords, ...importedRecords];
-
-    // Filter by action types if specified
+    // 3. Main Query with Filters (DB-level sorting and combined filtering)
+    let conditions = [];
     if (actionTypes.length > 0) {
-      allRecords = allRecords.filter(r => actionTypes.includes(r.actionType));
+      conditions.push(inArray(activityUnion.actionType, actionTypes));
     }
 
-    // Sort by actionTime descending
-    allRecords.sort((a, b) => {
-      const timeA = new Date(a.actionTime).getTime();
-      const timeB = new Date(b.actionTime).getTime();
-      return timeB - timeA;
-    });
-
-    // Get unique clerk IDs and fetch clerk names
-    const clerkIds = [...new Set(allRecords.map(r => r.clerkId).filter(Boolean))];
-    let clerkMap = {};
-    if (clerkIds.length > 0) {
-      const clerkRows = await db.select({
-        id: clerks.id,
-        name: clerks.name
-      })
-        .from(clerks)
-        .where(inArray(clerks.id, clerkIds));
-
-      clerkMap = Object.fromEntries(clerkRows.map(c => [c.id, c.name]));
+    if (dateRange === '7') {
+      conditions.push(sql`${activityUnion.actionTime} >= DATE_SUB(NOW(), INTERVAL 7 DAY)`);
+    } else if (dateRange === '30') {
+      conditions.push(sql`${activityUnion.actionTime} >= DATE_SUB(NOW(), INTERVAL 30 DAY)`);        
     }
 
-    // Enrich records with clerk names
-    const enrichedRecords = allRecords.map(r => ({
-      ...r,
-      clerkName: scope === 'my' ? null : (clerkMap[r.clerkId] || null)
-    }));
+    if (scope !== 'all') {
+      conditions.push(eq(activityUnion.clerkId, currentClerkId));
+    }
 
-    // Count totals
-    const [allAddedCount, allUpdatedCount, allImportedCount] = await Promise.all([
-      applyWhere(
-        db.select({ count: sql`COUNT(*)`.as('count') }).from(students),
-        [
-          isNotNull(students.added_by_clerk_id),
-          getDateCondition(students.created_at)
-        ]
-      ),
-      applyWhere(
-        db.select({ count: sql`COUNT(*)`.as('count') }).from(students),
-        [
-          isNotNull(students.updated_by_clerk_id),
-          isNotNull(students.updated_at),
-          ne(students.updated_at, students.created_at),
-          getDateCondition(students.updated_at)
-        ]
-      ),
-      applyWhere(
-        db.select({ count: sql`COUNT(*)`.as('count') }).from(studentImportLogs),
-        [
-          getDateCondition(studentImportLogs.created_at)
-        ]
-      )
+    // Use a CTE or subquery for joining clerks to ensure high performance
+    const records = await db.select({
+      rollNo: activityUnion.rollNo,
+      actionType: activityUnion.actionType,
+      actionTime: activityUnion.actionTime,
+      totalRecords: activityUnion.totalRecords,
+      clerkId: activityUnion.clerkId,
+      clerkName: sql`CASE WHEN ${scope} = 'my' THEN NULL ELSE ${clerks.name} END`
+    })
+    .from(activityUnion)
+    .leftJoin(clerks, eq(activityUnion.clerkId, clerks.id))
+    .where(and(...conditions))
+    .orderBy(desc(activityUnion.actionTime))
+    .limit(100); 
+
+    // 4. Counts (Centralized logic for summary statistics)
+    const countBase = (conds) => db.select({ count: sql`COUNT(*)` }).from(activityUnion).where(and(...conds));
+
+    let baseConds = [];
+    if (dateRange === '7') baseConds.push(sql`${activityUnion.actionTime} >= DATE_SUB(NOW(), INTERVAL 7 DAY)`);
+    else if (dateRange === '30') baseConds.push(sql`${activityUnion.actionTime} >= DATE_SUB(NOW(), INTERVAL 30 DAY)`);
+
+    const [allCountRows, myCountRows] = await Promise.all([
+      countBase(baseConds),
+      countBase([...baseConds, eq(activityUnion.clerkId, currentClerkId)])
     ]);
 
-    const [myAddedCount, myUpdatedCount, myImportedCount] = await Promise.all([
-      applyWhere(
-        db.select({ count: sql`COUNT(*)`.as('count') }).from(students),
-        [
-          eq(students.added_by_clerk_id, currentClerkId),
-          getDateCondition(students.created_at)
-        ]
-      ),
-      applyWhere(
-        db.select({ count: sql`COUNT(*)`.as('count') }).from(students),
-        [
-          eq(students.updated_by_clerk_id, currentClerkId),
-          isNotNull(students.updated_at),
-          ne(students.updated_at, students.created_at),
-          getDateCondition(students.updated_at)
-        ]
-      ),
-      applyWhere(
-        db.select({ count: sql`COUNT(*)`.as('count') }).from(studentImportLogs),
-        [
-          eq(studentImportLogs.clerk_id, currentClerkId),
-          getDateCondition(studentImportLogs.created_at)
-        ]
-      )
-    ]);
+    const allCount = Number(allCountRows[0]?.count || 0);
+    const myCount = Number(myCountRows[0]?.count || 0);
 
-    const allCount = 
-      Number(allAddedCount[0]?.count || 0) +
-      Number(allUpdatedCount[0]?.count || 0) +
-      Number(allImportedCount[0]?.count || 0);
-
-    const myCount =
-      Number(myAddedCount[0]?.count || 0) +
-      Number(myUpdatedCount[0]?.count || 0) +
-      Number(myImportedCount[0]?.count || 0);
-
-    return apiResponse({ records: enrichedRecords, myCount, allCount });
+    return apiResponse({ records, myCount, allCount });
   } catch (error) {
-    const errorDetails = error instanceof Error ? error : new Error(String(error));
-    logger.error({
-      msg: 'Error in student-history GET',
-      error: errorDetails,
-      stack: errorDetails.stack,
-      cause: error
-    });
+    logger.error(error, 'Error in student-history GET');
     return apiError('Internal Server Error', 500);
   }
 }

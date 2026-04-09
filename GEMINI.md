@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** April 3, 2026
+**Last Updated:** April 9, 2026
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -657,12 +657,17 @@ A robust, production-ready web application built with **Next.js** for managing t
 #### **Session 90: Security Restoration & API Performance Audit (April 9, 2026)**
 - **Security Hardening:**
     - **Login Rate Limiting Restored:** Identified and fixed a critical regression where the rate-limiting enforcement block was missing in `src/app/api/admin/login/route.js` and `src/app/api/student/login/route.js`. Re-implemented `429 Too Many Requests` responses to prevent brute-force attacks.
-- **API Performance Analysis:**
-    - **Student History Audit:** Analyzed the refactored `student-history` API. Identified a "Memory Exhaustion" risk due to the removal of database-level `unionAll` in favor of server-side array sorting. Recommended reverting to SQL-level orchestration for scalability.
-- **UI Architecture:**
-    - **Sidebar Consolidation:** Evaluated the new unified `Sidebar.js`. Verified that role-based menu visibility must be strictly maintained across Clerk and Student roles to prevent privilege escalation.
+- **API Performance & Scalability:**
+    - **Student History Optimization:** Refactored `src/app/api/clerk/student-history/route.js` to restore the high-performance `db.unionAll` architecture. Eliminated the server-side memory bottleneck by moving sorting, filtering, and combining logic back to the MySQL/TiDB engine.
+- **UI Architecture & Security:**
+    - **Role-Aware Sidebar:** Hardened the unified `Sidebar.js` by integrating `ClerkContext` and `StudentContext`. The sidebar now dynamically detects specific clerk sub-roles (Admission vs. Scholarship) to prevent menu leakage and unauthorized navigation access.
 - **System Synchronization:**
     - **Codebase Pull:** Synchronized with the latest remote changes (`testvanilla` branch) and performed a comprehensive diff analysis to identify potential regressions in authentication and departmental workflows.
+- **Runtime Error Resolution:**
+    - **Dependency Synchronization:** Identified and resolved a missing `lucide-react` dependency error preventing local development.
+    - **Context Isolation:** Fixed a crash in the `Sidebar` component by transitioning from guarded context hooks (`useStudent`) to direct `useContext` calls, enabling the sidebar to render gracefully when specific role providers are absent.
+    - **Drizzle Syntax Modernization:** Resolved `db.unionAll is not a function` by importing `unionAll` directly from `drizzle-orm/mysql-core`.
+    - **SQL Subquery Integrity:** Fixed raw SQL alias reference errors in `student-history` by appending `.as('alias')` to all `sql` statement fields inside Drizzle subqueries prior to union aggregation.
 
 ---
 

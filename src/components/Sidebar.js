@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useContext, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { NAV_MENU_CONFIG } from './Navbar';
+import { ClerkContext } from '@/context/ClerkContext';
+import { StudentContext } from '@/context/StudentContext';
 import { Home, User, Book, Calendar, FileText, Settings, LogOut, Plus, Wallet, ChevronDown } from 'lucide-react';
 
 const ICON_MAP = {
@@ -17,14 +19,26 @@ const ICON_MAP = {
   'DEPARTMENTS': FileText,
   'FACULTIES': User,
   'MENU': Settings,
+  'ATTENDANCE': Book,
+  'MARKS': FileText,
+  'MATERIALS': Book,
 };
 
-export default function Sidebar({ role = 'student', isMobileOpen = false, setIsMobileOpen = () => {}, onLogout }) {
+export default function Sidebar({ role: initialRole = 'student', isMobileOpen = false, setIsMobileOpen = () => {}, onLogout }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { clerkData } = useContext(ClerkContext) || {};
+  const { studentData } = useContext(StudentContext) || {};
   const [expanded, setExpanded] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState({});
   const [desktopExpanded, setDesktopExpanded] = useState({});
+
+  // Determine effective role for menu mapping
+  let role = initialRole;
+  if (role === 'clerk' && clerkData?.role) {
+    if (clerkData.role === 'admission') role = 'clerkAdmission';
+    else if (clerkData.role === 'scholarship') role = 'clerkScholarship';
+  }
 
   const menu = NAV_MENU_CONFIG[role] || NAV_MENU_CONFIG['student'] || [];
 
