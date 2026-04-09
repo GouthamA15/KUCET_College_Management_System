@@ -668,6 +668,12 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Context Isolation:** Fixed a crash in the `Sidebar` component by transitioning from guarded context hooks (`useStudent`) to direct `useContext` calls, enabling the sidebar to render gracefully when specific role providers are absent.
     - **Drizzle Syntax Modernization:** Resolved `db.unionAll is not a function` by importing `unionAll` directly from `drizzle-orm/mysql-core`.
     - **SQL Subquery Integrity:** Fixed raw SQL alias reference errors in `student-history` by appending `.as('alias')` to all `sql` statement fields inside Drizzle subqueries prior to union aggregation.
+- **Architectural Optimization:**
+    - **Navigation Decoupling:** Created `src/lib/menu-config.js` to extract navigation data from heavy UI components (`Navbar.js`). This eliminated an 11-13 second compilation bottleneck in Turbopack development mode.
+    - **Layout Lean-up:** Refactored `src/app/clerk/layout.js` to remove redundant imports and context consumers, accelerating the rendering pipeline for all staff-facing pages.
+- **Faculty Module Restoration:**
+    - **Sidebar Role Mapping:** Updated `Sidebar.js` to explicitly support the `faculty` sub-role mapping, ensuring correct menu propagation for teaching staff.
+    - **Timetable Redirection:** Implemented intelligent redirection in `/clerk/timetable` to guide Faculty users directly to their functional matrix (`/clerk/faculty/time-table`), bypassing "Coming Soon" placeholders.
 
 ---
 
