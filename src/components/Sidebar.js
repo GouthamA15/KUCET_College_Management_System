@@ -134,18 +134,18 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
       onMouseLeave={() => setExpanded(false)}
       style={{
         top: `${headerVar}`,
-        height: `calc(100vh - ${headerVar} - 140px)`,
+        height: `calc(100vh - ${headerVar})`,
         left: 0,
         width: expanded ? `${expandedWidthPx}px` : '4rem',
         transition: 'width 250ms ease'
       }}
-      className="hidden lg:flex fixed left-0 z-40 bg-[#0A3D91] backdrop-blur-md border border-[#0a2f6b]/70 rounded-r-2xl overflow-hidden"
+      className="hidden lg:flex fixed left-0 z-40 bg-[#0A3D91] backdrop-blur-md border border-[#0a2f6b]/70 rounded-r-2xl overflow-hidden relative"
       aria-hidden={false}
     >
       <div className="flex flex-col h-full text-slate-100">
         <div
           ref={desktopScrollRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 pr-2 relative scrollbar-hide"
+          className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 pr-2 pb-24 relative scrollbar-hide"
         >
           <div
             className={`px-2 pb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-300 transition-opacity ${
@@ -314,32 +314,23 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
             </div>
           )}
         </div>
+
+        {/* Logout Button */}
+        <div className={`absolute bottom-4 left-0 right-0 border-t border-white/15 ${expanded ? 'px-2 pt-4' : 'p-2'} flex items-center justify-center gap-2`}>
+          <button
+            type="button"
+            onClick={() => performAction('logout')}
+            title="Logout"
+            className="group w-12 h-12 flex items-center justify-center rounded-full text-white bg-red-500 hover:bg-red-600 transition-all"
+          >
+            <LogOut size={30} />
+          </button>
+          {expanded && <span className="text-sm font-semibold text-white">Logout</span>}
+        </div>
       </div>
     </aside>
   );
 
-  const LogoutButton = (
-    <div
-      style={{
-        bottom: '20px',
-        left: 0,
-        width: '4rem',
-        transition: 'width 250ms ease'
-      }}
-      className="hidden lg:flex fixed z-40 items-center justify-center"
-    >
-      <button
-        type="button"
-        onClick={() => performAction('logout')}
-        className="group flex-shrink-0 w-14 h-14 flex items-center justify-center bg-red-400 rounded-full hover:bg-red-500 transition-colors relative"
-      >
-        <LogOut size={24} className="text-white" />
-        <div className="absolute bottom-full mb-3 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 text-white text-sm font-semibold px-3 py-1 rounded whitespace-nowrap pointer-events-none">
-          Log out
-        </div>
-      </button>
-    </div>
-  );
 
   const MobileNav = (
     <aside
@@ -437,7 +428,6 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
   return (
     <>
       {DesktopNav}
-      {LogoutButton}
       {MobileNav}
     </>
   );
