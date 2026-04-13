@@ -32,10 +32,11 @@ export default function RealtimeListener() {
   // Use refs to store the latest identity to avoid stale closure in notification logic
   const studentDataRef = useRef(studentData);
   const clerkDataRef = useRef(clerkData);
+  const channelRef = useRef(null);
+  const retryTimeoutRef = useRef(null);
   
   const [status, setStatus] = useState('connecting');
   const [debugInfo, setDebugInfo] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     studentDataRef.current = studentData;
@@ -89,37 +90,64 @@ export default function RealtimeListener() {
       return;
     }
 
-    console.log('🔌 [Realtime] Initializing Channel...');
-    
-    const channel = supabase.channel('kucet-updates', {
-      config: {
-        broadcast: { ack: true },
-      }
-    });
+    const initRealtime = () => {
+      if (channelRef.current) return;
 
-    channel
-      .on('broadcast', { event: '*' }, ({ event, payload }) => {
-        handleNotification(event, payload);
-      })
-      .subscribe(async (status) => {
-        console.log('📶 [Realtime Status]:', status);
-        setDebugInfo(status);
-        
-        if (status === 'SUBSCRIBED') {
-          setStatus('connected');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setStatus('connecting');
-          // Auto-retry after 5 seconds if timed out or errored
-          const timer = setTimeout(() => setRetryCount(c => c + 1), 5000);
-          return () => clearTimeout(timer);
+      console.log('🔌 [Realtime] Initializing Channel...');
+      
+      const channel = supabase.channel('kucet-updates', {
+        config: {
+          broadcast: { ack: true },
         }
       });
 
-    return () => {
-      console.log('🔌 [Realtime] Cleaning up channel');
-      supabase.removeChannel(channel);
+      channel
+        .on('broadcast', { event: '*' }, ({ event, payload }) => {
+          handleNotification(event, payload);
+        })
+        .subscribe(async (status) => {
+          console.log('📶 [Realtime Status]:', status);
+          setDebugInfo(status);
+          
+          if (status === 'SUBSCRIBED') {
+            setStatus('connected');
+            if (retryTimeoutRef.current) {
+              clearTimeout(retryTimeoutRef.current);
+              retryTimeoutRef.current = null;
+            }
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            setStatus('connecting');
+            // Clean up existing channel to allow re-initialization
+            if (channelRef.current) {
+              supabase.removeChannel(channelRef.current);
+              channelRef.current = null;
+            }
+            
+            // Auto-retry with backoff
+            if (!retryTimeoutRef.current) {
+              console.log('🔄 [Realtime] Scheduling retry...');
+              retryTimeoutRef.current = setTimeout(() => {
+                retryTimeoutRef.current = null;
+                initRealtime();
+              }, 5000);
+            }
+          }
+        });
+
+      channelRef.current = channel;
     };
-  }, [handleNotification, retryCount]);
+
+    initRealtime();
+
+    return () => {
+      console.log('🔌 [Realtime] Cleaning up component');
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [handleNotification]);
 
   // Visual status indicator (minimal)
   return (
