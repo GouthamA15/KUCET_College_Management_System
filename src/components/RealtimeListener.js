@@ -15,7 +15,7 @@ let supabase = null;
 if (typeof window !== 'undefined' && supabaseUrl && supabaseKey) {
   supabase = createClient(supabaseUrl, supabaseKey, {
     auth: {
-      persistSession: false, // Prevents GoTrueClient from trying to manage auth in this context
+      persistSession: false, 
     },
     realtime: {
       params: {
@@ -29,11 +29,8 @@ export default function RealtimeListener() {
   const { studentData } = useContext(StudentContext) || {};
   const { clerkData } = useContext(ClerkContext) || {};
   
-  // Use refs to store the latest identity to avoid stale closure in notification logic
   const studentDataRef = useRef(studentData);
   const clerkDataRef = useRef(clerkData);
-  const channelRef = useRef(null);
-  const retryTimeoutRef = useRef(null);
   
   const [status, setStatus] = useState('connecting');
   const [debugInfo, setDebugInfo] = useState('');
@@ -49,7 +46,6 @@ export default function RealtimeListener() {
 
     console.log('📡 [Supabase Event]', event, payload);
 
-    // 1. TIMETABLE UPDATES
     if (event === 'TIMETABLE_CHANGED') {
       if (sData?.branch === payload.branch) {
         toast.success('Your timetable has been updated!', { duration: 5000, id: 'timetable-update' });
@@ -57,7 +53,6 @@ export default function RealtimeListener() {
       }
     }
 
-    // 2. ATTENDANCE SESSIONS
     if (event === 'SESSION_STARTED') {
       if (sData?.branch === payload.branch) {
         toast('🚀 New Attendance Session Started!', { icon: '📝', duration: 10000, id: payload.sessionId });
@@ -65,14 +60,11 @@ export default function RealtimeListener() {
       }
     }
 
-    // 3. CERTIFICATE & PROFILE REQUESTS
     if (event === 'REQUEST_CREATED' || event === 'REQUEST_UPDATED') {
-      // Logic for Clerk notifications (New requests for them to approve)
       if (cData && payload.clerkType === cData.role) {
          toast(`New request: ${payload.certificate_type}`, { icon: '🔔' });
          showLocalNotification('New Request', `A new ${payload.certificate_type} needs approval.`, { type: 'CLERK_REQ' });
       }
-      // Logic for Student notifications (Status updates on their requests)
       if (sData && payload.student_id === sData.id) {
          toast(`Request status updated: ${payload.certificate_type}`, { icon: '📄' });
          showLocalNotification('Request Update', `Your ${payload.certificate_type} status has been updated.`, { type: 'STUDENT_REQ' });
@@ -81,79 +73,43 @@ export default function RealtimeListener() {
   }, []);
 
   useEffect(() => {
-    if (!supabase) {
-      if (!supabaseUrl || !supabaseKey) {
-        console.error('❌ [Realtime] Missing Supabase Keys in Browser!');
-        setStatus('error');
-        setDebugInfo('MISSING_KEYS');
+    if (!supabase) return;
+
+    let mounted = true;
+    
+    console.log('🔌 [Realtime] Connecting to channel...');
+    const channel = supabase.channel('kucet-updates', {
+      config: {
+        broadcast: { ack: true },
       }
-      return;
-    }
+    });
 
-    const initRealtime = () => {
-      // Don't initialize if already have a channel or a retry is pending
-      if (channelRef.current || retryTimeoutRef.current) return;
-
-      console.log('🔌 [Realtime] Initializing Channel...');
-      
-      const channel = supabase.channel('kucet-updates', {
-        config: {
-          broadcast: { ack: true },
+    channel
+      .on('broadcast', { event: '*' }, ({ event, payload }) => {
+        if (mounted) handleNotification(event, payload);
+      })
+      .subscribe((status) => {
+        if (!mounted) return;
+        
+        console.log('📶 [Realtime Status]:', status);
+        setDebugInfo(status);
+        
+        if (status === 'SUBSCRIBED') {
+          setStatus('connected');
+        } else {
+          // Supabase handles reconnections internally. 
+          // We just update the UI status.
+          setStatus('connecting');
         }
       });
 
-      channel
-        .on('broadcast', { event: '*' }, ({ event, payload }) => {
-          handleNotification(event, payload);
-        })
-        .subscribe(async (status) => {
-          console.log('📶 [Realtime Status]:', status);
-          setDebugInfo(status);
-          
-          if (status === 'SUBSCRIBED') {
-            setStatus('connected');
-            if (retryTimeoutRef.current) {
-              clearTimeout(retryTimeoutRef.current);
-              retryTimeoutRef.current = null;
-            }
-          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            setStatus('connecting');
-            
-            // Clean up existing channel safely to allow re-initialization
-            // Crucial: Set ref to null BEFORE removing to prevent recursive loops if removeChannel triggers status callback
-            const existingChannel = channelRef.current;
-            channelRef.current = null;
-            if (existingChannel) {
-              supabase.removeChannel(existingChannel);
-            }
-            
-            // Auto-retry with backoff (async only)
-            if (!retryTimeoutRef.current) {
-              console.log('🔄 [Realtime] Scheduling retry in 5s...');
-              retryTimeoutRef.current = setTimeout(() => {
-                retryTimeoutRef.current = null;
-                initRealtime();
-              }, 5000);
-            }
-          }
-        });
-
-      channelRef.current = channel;
-    };
-
-    initRealtime();
-
     return () => {
-      console.log('🔌 [Realtime] Cleaning up component');
-      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      mounted = false;
+      console.log('🔌 [Realtime] Cleaning up channel');
+      supabase.removeChannel(channel);
     };
   }, [handleNotification]);
 
-  // Visual status indicator (minimal)
   return (
     <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none flex flex-col items-end gap-2">
       <div className="flex items-center gap-2">
