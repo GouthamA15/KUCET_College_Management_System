@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** April 3, 2026
+**Last Updated:** April 9, 2026
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -96,9 +96,27 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Sub-Role Pattern:** HODs are elevated Faculty members with authority over a specific branch.
 - **Departmental Authority:** HODs manage timetables, faculty load, and syllabus for their branch.
 
+### **I. Service Layer (Business Logic Modularization)**
+- **Architecture:** Transitioning complex logic from API routes (`src/app/api`) to a dedicated Service Layer (`src/services`).
+- **Standard:** Services are static classes (e.g., `StudentService`, `FacultyService`) that handle database transactions, complex queries, and business rules.
+- **Benefits:**
+    - **Reusability:** Share logic between different API routes or server-side actions.
+    - **Testability:** Decouples business rules from the Next.js request/response lifecycle.
+    - **Readability:** API routes remain "thin," focusing only on authorization and request parsing.
+
 ---
 
 ## 4. Database Schema
+...
+#### **Session 91: Service Layer Implementation & Business Logic Modularization (April 13, 2026)**
+- **Service Layer Architecture:**
+    - **Initialization:** Created the `src/services` directory to house centralized business logic, decoupling it from Next.js API routes.
+    - **StudentService:** Extracted student filtering and multi-table transactional creation logic into `StudentService.js`.
+    - **FacultyService:** Modularized faculty workload metrics and academic year resolution into `FacultyService.js`.
+- **API Refactoring:**
+    - **Clerk Students:** Refactored `/api/clerk/students` to use `StudentService`, simplifying request handling and improving error granularity.
+    - **Faculty Load:** Refactored `/api/clerk/hod/faculty-load` to use `FacultyService`, moving complex SQL `sql` expressions and subqueries out of the route handler.
+- **Maintenance Standards:** Established the "Thin Route, Fat Service" pattern for all future backend development to ensure long-term maintainability and testability.
 
 ### **1. Core Identity & Authentication**
 - `students`: Core records (`roll_no`, `email`, `password_hash`).
@@ -654,5 +672,28 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ---
 
-## Summary
+#### **Session 90: Security Restoration & API Performance Audit (April 9, 2026)**
+- **Security Hardening:**
+    - **Login Rate Limiting Restored:** Identified and fixed a critical regression where the rate-limiting enforcement block was missing in `src/app/api/admin/login/route.js` and `src/app/api/student/login/route.js`. Re-implemented `429 Too Many Requests` responses to prevent brute-force attacks.
+- **API Performance & Scalability:**
+    - **Student History Optimization:** Refactored `src/app/api/clerk/student-history/route.js` to restore the high-performance `db.unionAll` architecture. Eliminated the server-side memory bottleneck by moving sorting, filtering, and combining logic back to the MySQL/TiDB engine.
+- **UI Architecture & Security:**
+    - **Role-Aware Sidebar:** Hardened the unified `Sidebar.js` by integrating `ClerkContext` and `StudentContext`. The sidebar now dynamically detects specific clerk sub-roles (Admission vs. Scholarship) to prevent menu leakage and unauthorized navigation access.
+- **System Synchronization:**
+    - **Codebase Pull:** Synchronized with the latest remote changes (`testvanilla` branch) and performed a comprehensive diff analysis to identify potential regressions in authentication and departmental workflows.
+- **Runtime Error Resolution:**
+    - **Dependency Synchronization:** Identified and resolved a missing `lucide-react` dependency error preventing local development.
+    - **Context Isolation:** Fixed a crash in the `Sidebar` component by transitioning from guarded context hooks (`useStudent`) to direct `useContext` calls, enabling the sidebar to render gracefully when specific role providers are absent.
+    - **Drizzle Syntax Modernization:** Resolved `db.unionAll is not a function` by importing `unionAll` directly from `drizzle-orm/mysql-core`.
+    - **SQL Subquery Integrity:** Fixed raw SQL alias reference errors in `student-history` by appending `.as('alias')` to all `sql` statement fields inside Drizzle subqueries prior to union aggregation.
+- **Architectural Optimization:**
+    - **Navigation Decoupling:** Created `src/lib/menu-config.js` to extract navigation data from heavy UI components (`Navbar.js`). This eliminated an 11-13 second compilation bottleneck in Turbopack development mode.
+    - **Layout Lean-up:** Refactored `src/app/clerk/layout.js` to remove redundant imports and context consumers, accelerating the rendering pipeline for all staff-facing pages.
+- **Faculty Module Restoration:**
+    - **Sidebar Role Mapping:** Updated `Sidebar.js` to explicitly support the `faculty` sub-role mapping, ensuring correct menu propagation for teaching staff.
+    - **Timetable Redirection:** Implemented intelligent redirection in `/clerk/timetable` to guide Faculty users directly to their functional matrix (`/clerk/faculty/time-table`), bypassing "Coming Soon" placeholders.
+
+---
+
+## 7. Summary
 The KUCET CMS is a comprehensive institutional control system. It integrates high-security attendance, real-time departmental orchestration for HODs, and professional monitoring while maintaining strict data integrity and platform-agnostic performance.

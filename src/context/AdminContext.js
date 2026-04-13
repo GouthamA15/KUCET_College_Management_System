@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-const AdminContext = createContext();
+export const AdminContext = createContext();
 
 export function AdminProvider({ children }) {
   const [adminData, setAdminData] = useState(null);

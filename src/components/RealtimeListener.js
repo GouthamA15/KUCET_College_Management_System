@@ -7,17 +7,28 @@ import { StudentContext } from '@/context/StudentContext';
 import { ClerkContext } from '@/context/ClerkContext';
 import { showLocalNotification } from '@/lib/notification-utils';
 
+// Singleton Supabase instance
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+let supabase = null;
+if (typeof window !== 'undefined' && supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false }
+  });
+}
+
 export default function RealtimeListener() {
   const { studentData } = useContext(StudentContext) || {};
   const { clerkData } = useContext(ClerkContext) || {};
   
-  // Use refs to store the latest identity to avoid stale closure in notification logic
   const studentDataRef = useRef(studentData);
   const clerkDataRef = useRef(clerkData);
+  const retryCountRef = useRef(0);
+  const maxRetries = 5;
   
   const [status, setStatus] = useState('connecting');
   const [debugInfo, setDebugInfo] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     studentDataRef.current = studentData;
@@ -30,7 +41,6 @@ export default function RealtimeListener() {
 
     console.log('📡 [Supabase Event]', event, payload);
 
-    // 1. TIMETABLE UPDATES
     if (event === 'TIMETABLE_CHANGED') {
       if (sData?.branch === payload.branch) {
         toast.success('Your timetable has been updated!', { duration: 5000, id: 'timetable-update' });
@@ -38,7 +48,6 @@ export default function RealtimeListener() {
       }
     }
 
-    // 2. ATTENDANCE SESSIONS
     if (event === 'SESSION_STARTED') {
       if (sData?.branch === payload.branch) {
         toast('🚀 New Attendance Session Started!', { icon: '📝', duration: 10000, id: payload.sessionId });
@@ -46,14 +55,11 @@ export default function RealtimeListener() {
       }
     }
 
-    // 3. CERTIFICATE & PROFILE REQUESTS
     if (event === 'REQUEST_CREATED' || event === 'REQUEST_UPDATED') {
-      // Logic for Clerk notifications (New requests for them to approve)
       if (cData && payload.clerkType === cData.role) {
          toast(`New request: ${payload.certificate_type}`, { icon: '🔔' });
          showLocalNotification('New Request', `A new ${payload.certificate_type} needs approval.`, { type: 'CLERK_REQ' });
       }
-      // Logic for Student notifications (Status updates on their requests)
       if (sData && payload.student_id === sData.id) {
          toast(`Request status updated: ${payload.certificate_type}`, { icon: '📄' });
          showLocalNotification('Request Update', `Your ${payload.certificate_type} status has been updated.`, { type: 'STUDENT_REQ' });
@@ -62,65 +68,81 @@ export default function RealtimeListener() {
   }, []);
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabase) return;
 
-    if (!url || !key) {
-      console.error('❌ [Realtime] Missing Supabase Keys in Browser!');
-      setStatus('error');
-      setDebugInfo('MISSING_KEYS');
-      return;
-    }
+    let mounted = true;
+    let channel = null;
 
-    console.log('🔌 [Realtime] Connecting to:', url);
-    const supabase = createClient(url, key, {
-      realtime: {
-        params: {
-          eventsPerSecond: 10,
-        },
-      },
-    });
+    const subscribe = () => {
+      if (!mounted) return;
+      
+      console.log('🔌 [Realtime] Connecting to channel...');
+      channel = supabase.channel('kucet-updates');
 
-    const channel = supabase.channel('kucet-updates', {
-      config: {
-        broadcast: { ack: true },
-      }
-    });
+      channel
+        .on('broadcast', { event: '*' }, ({ event, payload }) => {
+          if (mounted) handleNotification(event, payload);
+        })
+        .subscribe((currentStatus, err) => {
+          if (!mounted) return;
+          
+          console.log('📶 [Realtime Status]:', currentStatus);
+          setDebugInfo(currentStatus);
+          
+          if (currentStatus === 'SUBSCRIBED') {
+            setStatus('connected');
+            retryCountRef.current = 0; // Reset on success
+          } else if (currentStatus === 'CHANNEL_ERROR') {
+            setStatus('error');
+            if (err) console.error('❌ [Realtime Error]:', err);
+            
+            // Limit retries to prevent flooding
+            if (retryCountRef.current < maxRetries) {
+              retryCountRef.current++;
+              const delay = Math.pow(2, retryCountRef.current) * 1000;
+              console.warn(`🔄 [Realtime] Channel error. Retrying in ${delay}ms... (Attempt ${retryCountRef.current}/${maxRetries})`);
+              setTimeout(() => {
+                if (mounted) {
+                  supabase.removeChannel(channel);
+                  subscribe();
+                }
+              }, delay);
+            } else {
+              console.error('🚫 [Realtime] Max retries reached. Real-time updates disabled. Check Supabase Dashboard.');
+              setDebugInfo('MAX_RETRIES_REACHED');
+            }
+          } else if (currentStatus === 'TIMED_OUT') {
+             setStatus('connecting');
+          }
+        });
+    };
 
-    channel
-      .on('broadcast', { event: '*' }, ({ event, payload }) => {
-        handleNotification(event, payload);
-      })
-      .subscribe(async (status) => {
-        console.log('📶 [Realtime Status]:', status);
-        setDebugInfo(status);
-        
-        if (status === 'SUBSCRIBED') {
-          setStatus('connected');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setStatus('connecting');
-          // Auto-retry after 5 seconds if timed out or errored
-          const timer = setTimeout(() => setRetryCount(c => c + 1), 5000);
-          return () => clearTimeout(timer);
-        }
-      });
+    subscribe();
 
     return () => {
-      console.log('🔌 [Realtime] Cleaning up connection');
-      supabase.removeChannel(channel);
+      mounted = false;
+      console.log('🔌 [Realtime] Cleaning up channel');
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [handleNotification, retryCount]);
+  }, [handleNotification]);
 
-  // Visual status indicator (minimal)
   return (
     <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none flex flex-col items-end gap-2">
       <div className="flex items-center gap-2">
         <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter border shadow-sm transition-all duration-500 backdrop-blur-xs ${
           status === 'connected' 
             ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
-            : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
+            : status === 'error' || status === 'missing-keys'
+              ? 'bg-red-500/10 text-red-500 border-red-500/20'
+              : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
         }`}>
-          <div className={`w-1 h-1 rounded-full ${status === 'connected' ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' : 'bg-amber-500'}`}></div>
+          <div className={`w-1 h-1 rounded-full ${
+            status === 'connected' 
+              ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' 
+              : status === 'error' || status === 'missing-keys'
+                ? 'bg-red-500'
+                : 'bg-amber-500'
+          }`}></div>
           {status}
         </div>
         

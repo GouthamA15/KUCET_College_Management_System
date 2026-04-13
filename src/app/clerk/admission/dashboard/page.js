@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useClerk } from '@/context/ClerkContext';
 import ClerkStudentManagement from '@/components/ClerkStudentManagement';
@@ -10,8 +11,20 @@ import toast from 'react-hot-toast';
 function ClerkDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { clerkData: clerk, loading: isLoading } = useClerk();
+  const { 
+    clerkData: clerk, 
+    loading: isLoading, 
+    pendingProfileRequests, 
+    pendingCertificateRequests,
+    isLoadingRequests
+  } = useClerk();
   const [openModule, setOpenModule] = useState(null);
+
+  const firstName = clerk?.name?.split(' ')[0] || 'Clerk';
+  const employeeLabel = clerk?.employee_id || (clerk?.role ? clerk.role.toUpperCase() : 'ADMISSION');
+  const profilePendingCount = Array.isArray(pendingProfileRequests) ? pendingProfileRequests.length : 0;
+  const certificatePendingCount = Array.isArray(pendingCertificateRequests) ? pendingCertificateRequests.length : 0;
+  const totalPending = profilePendingCount + certificatePendingCount;
 
   useEffect(() => {
     const v = searchParams.get('view');
@@ -38,10 +51,13 @@ function ClerkDashboardContent() {
     }
   }, [clerk, isLoading]);
 
-  if (isLoading) {
+  if (isLoading && !clerk) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-600">Loading admission dashboard...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-slate-100 border-t-[#0b3578] rounded-full animate-spin"></div>
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Loading Dashboard</span>
+        </div>
       </div>
     );
   }
@@ -51,81 +67,207 @@ function ClerkDashboardContent() {
     return null; 
   }
   
+  const actionCards = [
+    {
+      key: 'student',
+      label: 'Student Management',
+      description: 'Onboard, edit, and validate student records.',
+      icon: '🎓',
+      tone: 'bg-indigo-50 text-indigo-700',
+      accent: 'border-t-indigo-400',
+      onClick: () => setOpenModule('student')
+    },
+    {
+      key: 'certificates',
+      label: 'Certificates',
+      description: 'Clear certificate and ID requests quickly.',
+      icon: '📜',
+      tone: 'bg-emerald-50 text-emerald-700',
+      accent: 'border-t-emerald-400',
+      onClick: () => setOpenModule('certificates'),
+      badge: certificatePendingCount
+    },
+    {
+      key: 'requests',
+      label: 'Admission Requests',
+      description: 'Review new intake applications.',
+      icon: '📩',
+      tone: 'bg-purple-50 text-purple-700',
+      accent: 'border-t-purple-400',
+      onClick: () => router.push('/clerk/admission/requests')
+    },
+    {
+      key: 'finalize',
+      label: 'Finalize Admissions',
+      description: 'Lock roll numbers for verified students.',
+      icon: '🆔',
+      tone: 'bg-blue-50 text-blue-700',
+      accent: 'border-t-blue-400',
+      onClick: () => router.push('/clerk/admission/finalize')
+    },
+    {
+      key: 'updates',
+      label: 'Update Requests',
+      description: 'Approve profile change requests.',
+      icon: '✍️',
+      tone: 'bg-orange-50 text-orange-700',
+      accent: 'border-t-orange-400',
+      onClick: () => router.push('/clerk/admission/student-requests'),
+      badge: profilePendingCount
+    }
+  ];
+
   return (
-    <div className="p-4 md:p-8">
-      <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Admission Clerk Dashboard</h1>
+    <div className="max-w-7xl mx-auto space-y-12 pb-20 px-4 animate-fadeIn font-sans antialiased text-slate-600">
+      <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 gap-5">
+        <div className="space-y-1">
+          <p className="text-[#0b3578] text-[10px] font-bold uppercase tracking-[0.22em] opacity-90">Admission Command</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-800">Welcome, {firstName}</h1>
+          <div className="flex items-center gap-3 mt-2 text-slate-600">
+            <span className="text-[12px] font-semibold bg-slate-50 border border-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">{employeeLabel}</span>
+            <span className="text-slate-200">|</span>
+            <span className="text-xs font-medium uppercase tracking-tight">Admission Clerk</span>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <span className="text-[9px] font-bold uppercase tracking-widest bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+              Queue {totalPending}
+            </span>
+            <span className="text-[9px] font-bold uppercase tracking-widest bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+              Profiles {profilePendingCount}
+            </span>
+            <span className="text-[9px] font-bold uppercase tracking-widest bg-rose-100 text-rose-800 px-2 py-1 rounded-full">
+              Certificates {certificatePendingCount}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => router.push('/clerk/admission/requests')}
+          className="px-6 py-2.5 bg-[#0b3578] text-white text-[12px] font-black uppercase tracking-widest rounded-md shadow-lg shadow-[#0b3578]/20 hover:scale-105 transition-all"
+        >
+          Open Intake Queue
+        </button>
+      </header>
 
       {!openModule && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-          <div onClick={() => setOpenModule('student')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-indigo-50 rounded flex items-center justify-center">🎓</div>
-              <div>
-                <h3 className="font-semibold">Student Management</h3>
-                <p className="text-sm text-gray-600">Add, fetch and edit students.</p>
-              </div>
+        <>
+          <section className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Queue Pulse</h2>
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                {isLoadingRequests ? 'Updating queue' : 'Live status'}
+              </span>
             </div>
-          </div>
 
-          <div onClick={() => setOpenModule('certificates')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-green-50 rounded flex items-center justify-center">📜</div>
-              <div>
-                <h3 className="font-semibold">Certificates</h3>
-                <p className="text-sm text-gray-600">View and process student certificate requests.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Queue</p>
+                <p className="text-3xl font-semibold text-slate-800 mt-3">{totalPending}</p>
+                <p className="text-[10px] text-slate-400 mt-3 uppercase tracking-wider">
+                  {totalPending > 0 ? 'Action required' : 'Queue clear'}
+                </p>
               </div>
-            </div>
-          </div>
 
-          <div onClick={() => router.push('/clerk/admission/requests')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col border-t-4 border-purple-500">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-purple-50 rounded flex items-center justify-center">📩</div>
-              <div>
-                <h3 className="font-semibold">Admission Requests</h3>
-                <p className="text-sm text-gray-600">Verify new student applications.</p>
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 border-l-4 border-l-amber-400 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Profile Updates</p>
+                <p className="text-3xl font-semibold text-slate-800 mt-3">{profilePendingCount}</p>
+                <p className="text-[10px] text-slate-400 mt-3 uppercase tracking-wider">
+                  {profilePendingCount > 0 ? 'Awaiting review' : 'No pending edits'}
+                </p>
               </div>
-            </div>
-          </div>
 
-          <div onClick={() => router.push('/clerk/admission/finalize')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col border-t-4 border-blue-500">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-blue-50 rounded flex items-center justify-center">🆔</div>
-              <div>
-                <h3 className="font-semibold">Finalize Admissions</h3>
-                <p className="text-sm text-gray-600">Assign roll numbers.</p>
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 border-l-4 border-l-rose-400 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Certificate Queue</p>
+                <p className="text-3xl font-semibold text-slate-800 mt-3">{certificatePendingCount}</p>
+                <p className="text-[10px] text-slate-400 mt-3 uppercase tracking-wider">
+                  {certificatePendingCount > 0 ? 'Pending approvals' : 'No requests'}
+                </p>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div onClick={() => router.push('/clerk/admission/student-requests')} role="button" tabIndex={0} className="cursor-pointer bg-white p-4 rounded-lg shadow hover:shadow-lg transition flex flex-col">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-orange-50 rounded flex items-center justify-center">✍️</div>
-              <div>
-                <h3 className="font-semibold">Update Requests</h3>
-                <p className="text-sm text-gray-600">Approve profile updates.</p>
-              </div>
+          <section className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Workstreams</h2>
+              <button
+                type="button"
+                onClick={() => router.push('/clerk/admission/student-requests')}
+                className="text-[10px] font-semibold text-[#0b3578] hover:underline uppercase tracking-wider"
+              >
+                View profile queue
+              </button>
             </div>
-          </div>
-        </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              {actionCards.map((card) => (
+                <button
+                  key={card.key}
+                  type="button"
+                  onClick={card.onClick}
+                  aria-label={`Open ${card.label}`}
+                  className={`text-left bg-white p-6 rounded-2xl border border-slate-200 border-t-4 ${card.accent} shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all group`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg ${card.tone}`}>{card.icon}</div>
+                    {card.badge > 0 && (
+                      <span className="text-[9px] font-bold text-blue-800 bg-blue-100 px-2 py-1 rounded-full uppercase tracking-widest">
+                        {card.badge} Pending
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-4 space-y-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="text-base font-semibold text-slate-900 tracking-tight group-hover:text-[#0b3578] transition-colors">
+                        {card.label}
+                      </h3>
+                      <span className="text-[10px] font-bold text-[#0b3578] uppercase tracking-widest group-hover:underline">
+                        Open →
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">{card.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        </>
       )}
 
-      {openModule==='student' && (
-        <div className="mt-6">
-          <button onClick={()=>setOpenModule(null)} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
-          <div>
-            <ClerkStudentManagement />
-            <StudentHistoryCard currentClerkId={clerk?.id} />
+      {openModule && (
+        <section className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Active Module</p>
+              <h2 className="text-xl font-bold text-slate-800 mt-1">
+                {openModule === 'student' ? 'Student Management' : 'Certificate Requests'}
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                {openModule === 'student' 
+                  ? 'Manage student records and review recent edits.'
+                  : 'Approve or reject certificate requests submitted by students.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpenModule(null)}
+              className="text-[10px] font-semibold text-[#0b3578] uppercase tracking-wider hover:underline"
+            >
+              Back to Dashboard
+            </button>
           </div>
-        </div>
-      )}
 
-      {openModule==='certificates' && (
-        <div className="mt-6">
-          <button onClick={()=>setOpenModule(null)} className="text-sm text-indigo-600 mb-3">← Back to Dashboard</button>
-          <CertificateDashboard clerkType="admission" />
-        </div>
+          {openModule === 'student' && (
+            <div className="space-y-6">
+              <ClerkStudentManagement />
+              <StudentHistoryCard currentClerkId={clerk?.id} />
+            </div>
+          )}
+
+          {openModule === 'certificates' && (
+            <CertificateDashboard clerkType="admission" />
+          )}
+        </section>
       )}
-      
     </div>
   );
 }

@@ -53,19 +53,19 @@ export default function StudentHomePage() {
     <div className="max-w-7xl mx-auto space-y-12 pb-20 px-4 animate-fadeIn font-sans antialiased text-slate-600">
       
       {/* 1. Refined Identity Header */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 pb-10 gap-6">
+      <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 gap-5">
         <div className="space-y-1">
-          <p className="text-[#0b3578] text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">Academic Dashboard</p>
+          <p className="text-[#0b3578] text-[10px] font-bold uppercase tracking-[0.2em] opacity-90">Academic Dashboard</p>
           <h1 className="text-3xl font-bold tracking-tight text-slate-800">
             Welcome, {student.name.split(' ')[0]}
           </h1>
-          <div className="flex items-center gap-3 mt-2 text-slate-400">
-            <span className="text-[10px] font-semibold bg-slate-50 border border-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">{student.roll_no}</span>
+          <div className="flex items-center gap-3 mt-2 text-slate-600">
+            <span className="text-[12px] font-semibold bg-slate-50 border border-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">{student.roll_no}</span>
             <span className="text-slate-200">|</span>
             <span className="text-xs font-medium uppercase tracking-tight">{branch} • {semesterLabel}</span>
           </div>
         </div>
-        <Link href="/student/profile" className="px-6 py-2.5 bg-[#0b3578] text-white text-[10px]  font-black uppercase tracking-widest rounded-xl shadow-lg shadow-[#0b3578]/20 hover:scale-105 transition-all">Manage Profile</Link>
+        <Link href="/student/profile" className="px-6 py-2.5 bg-[#0b3578] text-white text-[12px]  font-black uppercase tracking-widest rounded-md shadow-lg shadow-[#0b3578]/20 hover:scale-105 transition-all">Open Profile</Link>
       </header>
 
       {/* 2. Action Center */}

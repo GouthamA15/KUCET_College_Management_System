@@ -167,7 +167,7 @@ export default function ProfileActivityBar({ activity, student }) {
   }
 
   return (
-    <div className="w-full flex justify-center px-6 pt-4">
+    <div className="w-full flex justify-center">
       <div className="w-full max-w-6xl space-y-3">
         {/* 1️⃣ Submit Hard Copies */}
         {showScholarshipHardcopy && (

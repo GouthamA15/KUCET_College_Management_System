@@ -1,7 +1,10 @@
-'use client';
+"use client";
 import Image from 'next/image';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { useAssets } from '@/context/AssetContext';
+import { usePathname } from 'next/navigation';
+import { useContext, useEffect, useRef } from 'react';
+import { StudentContext } from '@/context/StudentContext';
 
 export default function Header() {
   const { getAsset } = useAssets();
@@ -11,8 +14,37 @@ export default function Header() {
     alert('Phone number copied to clipboard!');
   };
 
+  const pathname = usePathname();
+  // Try to read student context without throwing if provider is absent
+  const ctx = useContext(StudentContext);
+  const studentData = ctx ? ctx.studentData : null;
+
+  // Mobile header should only show on the root entry page when user is not logged in
+  const showMobileHeader = pathname === '/' && !studentData;
+
+  const headerRef = useRef(null);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const setVar = () => {
+      try {
+        const h = Math.ceil(el.getBoundingClientRect().height);
+        document.documentElement.style.setProperty('--site-header-height', `${h}px`);
+      } catch (e) {}
+    };
+    setVar();
+    const ro = new ResizeObserver(setVar);
+    ro.observe(el);
+    window.addEventListener('resize', setVar);
+    return () => {
+      try { ro.disconnect(); } catch (e) {}
+      window.removeEventListener('resize', setVar);
+    };
+  }, []);
+
   return (
-    <header className="hidden md:block bg-gradient-to-r from-blue-50 to-white py-5 px-4 md:px-6 shadow-md w-full pt-[calc(1.25rem+env(safe-area-inset-top))] md:pt-5">
+    <header ref={headerRef} className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-blue-50 to-white py-4 px-4 md:px-6 w-full pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4 border-b border-slate-200">
       {/* Desktop View */}
       <div className="hidden md:flex items-center justify-between h-full">
         
@@ -103,8 +135,9 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile View */}
-      <div className="md:hidden">
+      {/* Mobile View: render only on entry root when user is not logged in */}
+      {showMobileHeader && (
+        <div className="md:hidden">
         {/* Top Row - Logos */}
         <div className="flex items-center justify-center gap-2 mb-1.5">
           <div className="bg-blue-100 p-1 rounded-lg">
@@ -165,7 +198,8 @@ export default function Header() {
             ☎️ {COLLEGE_CONFIG.contact}
           </p>
         </div>
-      </div>
+        </div>
+      )}
     </header>
   );
 }

@@ -52,73 +52,114 @@ export default function FacultyDashboardOverview() {
       title: 'My Subjects',
       description: 'Mark attendance and internal marks for your assigned courses.',
       icon: '📚',
-      color: 'bg-blue-600',
+      kicker: 'Teaching',
+      accentBg: 'bg-indigo-50',
+      titleClass: 'text-indigo-900',
+      badgeClass: 'text-indigo-600 bg-indigo-50',
+      linkClass: 'text-indigo-600 group-hover:text-indigo-700',
     },
     {
       id: 'interests',
       title: 'Subject Interests',
       description: 'Express interest in teaching subjects for upcoming semesters.',
       icon: '💡',
-      color: 'bg-purple-600',
+      kicker: 'Planning',
+      accentBg: 'bg-amber-50',
+      titleClass: 'text-amber-900',
+      badgeClass: 'text-amber-700 bg-amber-50',
+      linkClass: 'text-amber-600 group-hover:text-amber-700',
     },
     {
       id: 'classList',
       title: 'Class Lists',
       description: 'View and export student lists for your classes.',
       icon: '👥',
-      color: 'bg-teal-600',
+      kicker: 'Roster',
+      accentBg: 'bg-emerald-50',
+      titleClass: 'text-emerald-900',
+      badgeClass: 'text-emerald-700 bg-emerald-50',
+      linkClass: 'text-emerald-600 group-hover:text-emerald-700',
     },
   ];
+
+  const sectionMeta = {
+    subjects: {
+      title: 'My Assigned Subjects',
+      description: 'Select a subject to manage attendance or internal marks.',
+    },
+    attendance: {
+      title: 'Attendance Sheet',
+      description: 'Record and review attendance for the selected subject.',
+    },
+    marks: {
+      title: 'Internal Assessment',
+      description: 'Enter or update mid and assignment marks for the selected subject.',
+    },
+    interests: {
+      title: 'Subject Interests',
+      description: 'Track and submit your teaching preferences for upcoming terms.',
+    },
+    classList: {
+      title: 'Class Lists',
+      description: 'Download and review rosters for your assigned classes.',
+    },
+  };
+
+  const activeMeta = sectionMeta[activeSection] || sectionMeta.subjects;
 
   return (
     <>
       <FacultyActivityBar />
-      <div className="max-w-7xl mx-auto w-full mt-4 pb-12 px-4">
-        <div className="border-b-2 border-[#0b3578] mb-6 pb-2">
-          <h1 className="text-xl font-bold text-slate-800 uppercase tracking-wide">Faculty Administration Portal</h1>
-          <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest mt-1">Official Academic Management Console</p>
+      <div className="max-w-7xl mx-auto w-full mt-6 pb-12 px-4">
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold">Faculty Administration Portal</h1>
+          <p className="text-gray-600">Manage attendance, marks, and class operations from a single console.</p>
         </div>
         
         {clerk?.is_hod && !activeSection && (
-          <div className="mb-8">
+          <div className="mb-8 bg-white border-2 border-indigo-50 rounded-2xl p-4 md:p-6 shadow-sm">
             <HODConsole />
           </div>
         )}
 
         {!activeSection && (
-          <div className="mb-8">
+          <div className="mb-8 bg-white border-2 border-indigo-50 rounded-2xl p-4 md:p-6 shadow-sm">
             <PersonalSchedule />
           </div>
         )}
 
         {!activeSection ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {cards.map((card) => (
               <button
                 key={card.id}
                 onClick={() => setActiveSection(card.id)}
-                className="flex flex-col text-left bg-white border border-slate-200 shadow-sm hover:border-[#0b3578] transition-colors group"
+                className="border-2 rounded-2xl p-5 transition-all duration-300 relative group overflow-hidden text-left bg-white border-indigo-50 hover:shadow-xl hover:border-indigo-200"
               >
-                <div className={`${card.color.replace('bg-', 'text-')} p-4 border-b border-slate-100 flex items-center justify-between`}>
-                  <span className="text-2xl opacity-80">{card.icon}</span>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-[#0b3578]">Access Module →</div>
-                </div>
-                <div className="p-5">
-                  <h3 className="text-sm font-bold text-slate-800 mb-2 uppercase tracking-tight">{card.title}</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed font-normal">{card.description}</p>
+                <div className={`absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500 ${card.accentBg}`}></div>
+                <div className="relative">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-2xl">{card.icon}</span>
+                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest ${card.badgeClass}`}>Module</span>
+                  </div>
+                  <div className={`font-black text-xl leading-tight mt-3 mb-1 ${card.titleClass}`}>{card.title}</div>
+                  <div className="text-xs font-mono font-bold mb-2 uppercase tracking-widest text-gray-400">{card.kicker}</div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{card.description}</p>
+                  <div className={`mt-4 text-[10px] font-bold uppercase tracking-widest ${card.linkClass}`}>Open Module →</div>
                 </div>
               </button>
             ))}
           </div>
         ) : (
-          <div className="bg-white border border-slate-200 shadow-md p-4 md:p-8">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 border-b border-slate-100 pb-4 gap-4">
-              <h2 className="text-lg font-bold text-slate-800 tracking-tight uppercase">
-                {activeSection === 'subjects' ? 'My Assigned Subjects' : cards.find(c => c.id === activeSection)?.title}
-              </h2>
+          <div className="bg-white border-2 border-indigo-50 rounded-2xl p-4 md:p-8 shadow-sm">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-6 border-b border-gray-200 pb-4 gap-4">
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{activeMeta.title}</h2>
+                <p className="text-sm text-gray-600 mt-1">{activeMeta.description}</p>
+              </div>
               <button
                 onClick={handleBackToDashboard}
-                className="text-[10px] font-bold text-[#0b3578] hover:underline flex items-center gap-2 uppercase tracking-widest border border-[#0b3578]/20 px-3 py-1.5 bg-blue-50/50 w-fit"
+                className="text-[10px] font-bold text-indigo-700 hover:text-indigo-800 flex items-center gap-2 uppercase tracking-widest border border-indigo-200 px-3 py-1.5 bg-indigo-50/60 rounded-full w-fit"
               >
                 &larr; Return to Dashboard
               </button>

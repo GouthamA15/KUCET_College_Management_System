@@ -27,6 +27,18 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            window.onerror = function(message, source, lineno, colno, error) {
+              if (source && (source.includes('share-modal.js') || source.includes('extension'))) {
+                return true; // Suppress external errors
+              }
+              return false;
+            };
+          `
+        }} />
+      </head>
       <body className="antialiased" suppressHydrationWarning>
         <CapacitorHandler />
         <RealtimeListener />

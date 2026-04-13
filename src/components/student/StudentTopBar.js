@@ -6,11 +6,14 @@ import useProfileActivity from '@/components/student/hooks/useProfileActivity';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAssets } from '@/context/AssetContext';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function StudentTopBar({ onMenuClick }) {
   const { studentData } = useStudent();
   const student = studentData?.student;
   const { getAsset } = useAssets();
+  const router = useRouter();
+  const pathname = usePathname();
   
   const activity = useProfileActivity();
   const { latestRequest, dismissCount, dismiss } = activity;
@@ -22,12 +25,16 @@ export default function StudentTopBar({ onMenuClick }) {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const desktopDropdownRef = useRef(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileDropdownRef = useRef(null);
 
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (desktopDropdownRef.current && desktopDropdownRef.current.contains(event.target)) return;
+      if (profileDropdownRef.current && profileDropdownRef.current.contains(event.target)) return;
       setNotifOpen(false);
+      setProfileMenuOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -169,20 +176,13 @@ export default function StudentTopBar({ onMenuClick }) {
           )}
         </div>
 
-        {/* Profile Section - Direct Link */}
-        <Link 
-          href="/student/profile" 
-          className="flex items-center gap-3 pl-3 lg:pl-4 border-l border-slate-200 transition-colors py-1 rounded-lg hover:bg-slate-50 group"
-        >
-          <div className="text-right max-w-[120px] sm:max-w-[200px]">
-            <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-tight break-words line-clamp-2 group-hover:text-[#0b3578] transition-colors">
-              {student?.name || 'Loading...'}
-            </p>
-            <p className="text-[8px] sm:text-[10px] text-slate-400 mt-1 uppercase tracking-tighter">
-              {student?.roll_no || '---'}
-            </p>
-          </div>
-          <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full overflow-hidden bg-slate-200 relative border border-slate-100 shadow-sm flex-shrink-0 ring-offset-2 group-hover:ring-2 ring-blue-100 transition-all">
+        {/* Profile Section - Avatar with dropdown (mobile) */}
+        <div className="flex items-center gap-3 pl-3 lg:pl-4 border-l border-slate-200 relative" ref={profileDropdownRef}>
+          <button
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            className="w-8 h-8 lg:w-9 lg:h-9 rounded-full overflow-hidden bg-slate-200 relative border border-slate-100 shadow-sm flex-shrink-0 ring-offset-2 hover:ring-2 ring-blue-100 transition-all flex items-center justify-center focus:outline-none"
+            aria-label="Open profile menu"
+          >
             {student?.pfp ? (
               <Image 
                 src={student.pfp} 
@@ -196,8 +196,40 @@ export default function StudentTopBar({ onMenuClick }) {
                 {student?.name?.charAt(0) || 'S'}
               </div>
             )}
-          </div>
-        </Link>
+          </button>
+
+          {profileMenuOpen && (
+            <div className="absolute right-0 top-full mt-3 w-44 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-[70] animate-fadeIn">
+              <button
+                onClick={() => { setProfileMenuOpen(false); router.push('/student/profile'); }}
+                className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${pathname.startsWith('/student/profile') ? 'bg-slate-100 text-[#0b3578]' : 'text-slate-700 hover:bg-slate-50'}`}
+              >
+                <span className="inline-flex w-4 h-4 items-center justify-center text-slate-400">👤</span>
+                <span>Profile</span>
+              </button>
+              <button
+                onClick={() => { setProfileMenuOpen(false); router.push('/student/settings/security'); }}
+                className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${pathname.startsWith('/student/settings') ? 'bg-slate-100 text-[#0b3578]' : 'text-slate-700 hover:bg-slate-50'}`}
+              >
+                <span className="inline-flex w-4 h-4 items-center justify-center text-slate-400">⚙️</span>
+                <span>Settings</span>
+              </button>
+              <button
+                onClick={async () => {
+                  setProfileMenuOpen(false);
+                  try { await fetch('/api/student/logout', { method: 'POST' }); } catch (e) {}
+                  try { localStorage.removeItem('logged_in_student'); } catch (e) {}
+                  try { sessionStorage.clear(); } catch (e) {}
+                  window.location.replace('/');
+                }}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <span className="inline-flex w-4 h-4 items-center justify-center">🚪</span>
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -9,15 +9,14 @@ import logger from '@/lib/logger';
 
 export async function POST(request) {
   try {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';       
     const rateCheck = await checkRateLimit(`login_admin:${ip}`, 5, 900); // 5 attempts per 15 min
-    
+
     if (!rateCheck.success) {
       return apiError('Too many login attempts. Please try again later.', 429);
     }
 
     const { email, password, rememberMe } = await request.json();
-
     if (!email || !password) {
       return apiError('Email and password are required', 400);
     }
