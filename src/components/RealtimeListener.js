@@ -91,7 +91,8 @@ export default function RealtimeListener() {
     }
 
     const initRealtime = () => {
-      if (channelRef.current) return;
+      // Don't initialize if already have a channel or a retry is pending
+      if (channelRef.current || retryTimeoutRef.current) return;
 
       console.log('🔌 [Realtime] Initializing Channel...');
       
@@ -117,15 +118,18 @@ export default function RealtimeListener() {
             }
           } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             setStatus('connecting');
-            // Clean up existing channel to allow re-initialization
-            if (channelRef.current) {
-              supabase.removeChannel(channelRef.current);
-              channelRef.current = null;
+            
+            // Clean up existing channel safely to allow re-initialization
+            // Crucial: Set ref to null BEFORE removing to prevent recursive loops if removeChannel triggers status callback
+            const existingChannel = channelRef.current;
+            channelRef.current = null;
+            if (existingChannel) {
+              supabase.removeChannel(existingChannel);
             }
             
-            // Auto-retry with backoff
+            // Auto-retry with backoff (async only)
             if (!retryTimeoutRef.current) {
-              console.log('🔄 [Realtime] Scheduling retry...');
+              console.log('🔄 [Realtime] Scheduling retry in 5s...');
               retryTimeoutRef.current = setTimeout(() => {
                 retryTimeoutRef.current = null;
                 initRealtime();
