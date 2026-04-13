@@ -96,9 +96,27 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Sub-Role Pattern:** HODs are elevated Faculty members with authority over a specific branch.
 - **Departmental Authority:** HODs manage timetables, faculty load, and syllabus for their branch.
 
+### **I. Service Layer (Business Logic Modularization)**
+- **Architecture:** Transitioning complex logic from API routes (`src/app/api`) to a dedicated Service Layer (`src/services`).
+- **Standard:** Services are static classes (e.g., `StudentService`, `FacultyService`) that handle database transactions, complex queries, and business rules.
+- **Benefits:**
+    - **Reusability:** Share logic between different API routes or server-side actions.
+    - **Testability:** Decouples business rules from the Next.js request/response lifecycle.
+    - **Readability:** API routes remain "thin," focusing only on authorization and request parsing.
+
 ---
 
 ## 4. Database Schema
+...
+#### **Session 91: Service Layer Implementation & Business Logic Modularization (April 13, 2026)**
+- **Service Layer Architecture:**
+    - **Initialization:** Created the `src/services` directory to house centralized business logic, decoupling it from Next.js API routes.
+    - **StudentService:** Extracted student filtering and multi-table transactional creation logic into `StudentService.js`.
+    - **FacultyService:** Modularized faculty workload metrics and academic year resolution into `FacultyService.js`.
+- **API Refactoring:**
+    - **Clerk Students:** Refactored `/api/clerk/students` to use `StudentService`, simplifying request handling and improving error granularity.
+    - **Faculty Load:** Refactored `/api/clerk/hod/faculty-load` to use `FacultyService`, moving complex SQL `sql` expressions and subqueries out of the route handler.
+- **Maintenance Standards:** Established the "Thin Route, Fat Service" pattern for all future backend development to ensure long-term maintainability and testability.
 
 ### **1. Core Identity & Authentication**
 - `students`: Core records (`roll_no`, `email`, `password_hash`).
