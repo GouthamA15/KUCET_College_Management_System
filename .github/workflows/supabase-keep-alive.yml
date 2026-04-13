@@ -1,0 +1,20 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight UTC (approx 5:30 AM IST)
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+
+jobs:
+  keep_alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Project
+        run: |
+          curl -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/" \
+          -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
+        # This simulates a database request, which prevents Supabase from pausing the project due to inactivity.
+
+      - name: Log Status
+        run: echo "Supabase keep-alive ping completed at $(date)"
