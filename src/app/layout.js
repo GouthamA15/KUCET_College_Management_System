@@ -33,14 +33,6 @@ export default function RootLayout({ children }) {
         <AssetProvider>
           <AuthProvider>
             <Toaster position="top-center" reverseOrder={false} />
-            <style>{`
-              /* Keep the desktop sidebar truly static (Tailwind class order can make relative win over fixed). */
-              @media (min-width: 1024px) {
-                aside.hidden.lg\\:flex.bg-\\[\\#0A3D91\\].rounded-r-2xl {
-                  position: fixed !important;
-                }
-              }
-            `}</style>
             {children}
           </AuthProvider>
         </AssetProvider>

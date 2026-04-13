@@ -143,7 +143,7 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
         width: expanded ? `${expandedWidthPx}px` : '4rem',
         transition: 'width 250ms ease'
       }}
-      className="hidden lg:flex fixed left-0 z-40 bg-[#0A3D91] backdrop-blur-md border border-[#0a2f6b]/70 rounded-r-2xl overflow-hidden relative"
+      className="hidden lg:flex fixed left-0 z-40 bg-[#0A3D91] backdrop-blur-md border border-[#0a2f6b]/70 rounded-r-2xl overflow-hidden"
       aria-hidden={false}
     >
       <div className="flex flex-col h-full text-slate-100">

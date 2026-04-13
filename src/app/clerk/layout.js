@@ -23,7 +23,7 @@ export default function ClerkLayout({ children }) {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:pt-[var(--site-header-height,72px)]">
+        <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:pt-[var(--site-header-height,72px)] lg:ml-16">
 
           {/* Global header only on desktop */}
           <div className="hidden lg:block">
