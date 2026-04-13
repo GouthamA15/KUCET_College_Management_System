@@ -7,6 +7,24 @@ import { StudentContext } from '@/context/StudentContext';
 import { ClerkContext } from '@/context/ClerkContext';
 import { showLocalNotification } from '@/lib/notification-utils';
 
+// Create a single Supabase instance outside the component to avoid "Multiple GoTrueClient instances" warning.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+let supabase = null;
+if (typeof window !== 'undefined' && supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false, // Prevents GoTrueClient from trying to manage auth in this context
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+  });
+}
+
 export default function RealtimeListener() {
   const { studentData } = useContext(StudentContext) || {};
   const { clerkData } = useContext(ClerkContext) || {};
@@ -62,25 +80,17 @@ export default function RealtimeListener() {
   }, []);
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!url || !key) {
-      console.error('❌ [Realtime] Missing Supabase Keys in Browser!');
-      setStatus('error');
-      setDebugInfo('MISSING_KEYS');
+    if (!supabase) {
+      if (!supabaseUrl || !supabaseKey) {
+        console.error('❌ [Realtime] Missing Supabase Keys in Browser!');
+        setStatus('error');
+        setDebugInfo('MISSING_KEYS');
+      }
       return;
     }
 
-    console.log('🔌 [Realtime] Connecting to:', url);
-    const supabase = createClient(url, key, {
-      realtime: {
-        params: {
-          eventsPerSecond: 10,
-        },
-      },
-    });
-
+    console.log('🔌 [Realtime] Initializing Channel...');
+    
     const channel = supabase.channel('kucet-updates', {
       config: {
         broadcast: { ack: true },
@@ -106,7 +116,7 @@ export default function RealtimeListener() {
       });
 
     return () => {
-      console.log('🔌 [Realtime] Cleaning up connection');
+      console.log('🔌 [Realtime] Cleaning up channel');
       supabase.removeChannel(channel);
     };
   }, [handleNotification, retryCount]);
