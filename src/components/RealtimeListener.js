@@ -7,21 +7,14 @@ import { StudentContext } from '@/context/StudentContext';
 import { ClerkContext } from '@/context/ClerkContext';
 import { showLocalNotification } from '@/lib/notification-utils';
 
-// Create a single Supabase instance outside the component to avoid "Multiple GoTrueClient instances" warning.
+// Singleton Supabase instance
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 let supabase = null;
 if (typeof window !== 'undefined' && supabaseUrl && supabaseKey) {
   supabase = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false, 
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 10,
-      },
-    },
+    auth: { persistSession: false }
   });
 }
 
@@ -73,32 +66,40 @@ export default function RealtimeListener() {
   }, []);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      if (typeof window !== 'undefined') {
+        console.warn('⚠️ [Realtime] Supabase not initialized. Keys might be missing.');
+        setStatus('missing-keys');
+      }
+      return;
+    }
 
     let mounted = true;
     
     console.log('🔌 [Realtime] Connecting to channel...');
-    const channel = supabase.channel('kucet-updates', {
-      config: {
-        broadcast: { ack: true },
-      }
-    });
+    
+    // Simplest possible channel configuration to avoid protocol errors
+    const channel = supabase.channel('kucet-updates');
 
     channel
       .on('broadcast', { event: '*' }, ({ event, payload }) => {
         if (mounted) handleNotification(event, payload);
       })
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         if (!mounted) return;
         
         console.log('📶 [Realtime Status]:', status);
-        setDebugInfo(status);
+        if (err) console.error('❌ [Realtime Error]:', err);
+        
+        setDebugInfo(status === 'CHANNEL_ERROR' && err ? `${status}: ${err.message}` : status);
         
         if (status === 'SUBSCRIBED') {
           setStatus('connected');
+        } else if (status === 'CHANNEL_ERROR') {
+          setStatus('error');
+          // If the project is paused or Realtime is disabled, this will fire.
+          console.warn('📝 Note: If this persists, ensure Supabase Realtime is enabled for this project.');
         } else {
-          // Supabase handles reconnections internally. 
-          // We just update the UI status.
           setStatus('connecting');
         }
       });
@@ -116,9 +117,17 @@ export default function RealtimeListener() {
         <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter border shadow-sm transition-all duration-500 backdrop-blur-xs ${
           status === 'connected' 
             ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
-            : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
+            : status === 'error' || status === 'missing-keys'
+              ? 'bg-red-500/10 text-red-500 border-red-500/20'
+              : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
         }`}>
-          <div className={`w-1 h-1 rounded-full ${status === 'connected' ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' : 'bg-amber-500'}`}></div>
+          <div className={`w-1 h-1 rounded-full ${
+            status === 'connected' 
+              ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' 
+              : status === 'error' || status === 'missing-keys'
+                ? 'bg-red-500'
+                : 'bg-amber-500'
+          }`}></div>
           {status}
         </div>
         
