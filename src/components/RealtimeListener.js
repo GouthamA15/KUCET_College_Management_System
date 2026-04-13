@@ -24,6 +24,8 @@ export default function RealtimeListener() {
   
   const studentDataRef = useRef(studentData);
   const clerkDataRef = useRef(clerkData);
+  const retryCountRef = useRef(0);
+  const maxRetries = 5;
   
   const [status, setStatus] = useState('connecting');
   const [debugInfo, setDebugInfo] = useState('');
@@ -66,48 +68,61 @@ export default function RealtimeListener() {
   }, []);
 
   useEffect(() => {
-    if (!supabase) {
-      if (typeof window !== 'undefined') {
-        console.warn('⚠️ [Realtime] Supabase not initialized. Keys might be missing.');
-        setStatus('missing-keys');
-      }
-      return;
-    }
+    if (!supabase) return;
 
     let mounted = true;
-    
-    console.log('🔌 [Realtime] Connecting to channel...');
-    
-    // Simplest possible channel configuration to avoid protocol errors
-    const channel = supabase.channel('kucet-updates');
+    let channel = null;
 
-    channel
-      .on('broadcast', { event: '*' }, ({ event, payload }) => {
-        if (mounted) handleNotification(event, payload);
-      })
-      .subscribe((status, err) => {
-        if (!mounted) return;
-        
-        console.log('📶 [Realtime Status]:', status);
-        if (err) console.error('❌ [Realtime Error]:', err);
-        
-        setDebugInfo(status === 'CHANNEL_ERROR' && err ? `${status}: ${err.message}` : status);
-        
-        if (status === 'SUBSCRIBED') {
-          setStatus('connected');
-        } else if (status === 'CHANNEL_ERROR') {
-          setStatus('error');
-          // If the project is paused or Realtime is disabled, this will fire.
-          console.warn('📝 Note: If this persists, ensure Supabase Realtime is enabled for this project.');
-        } else {
-          setStatus('connecting');
-        }
-      });
+    const subscribe = () => {
+      if (!mounted) return;
+      
+      console.log('🔌 [Realtime] Connecting to channel...');
+      channel = supabase.channel('kucet-updates');
+
+      channel
+        .on('broadcast', { event: '*' }, ({ event, payload }) => {
+          if (mounted) handleNotification(event, payload);
+        })
+        .subscribe((currentStatus, err) => {
+          if (!mounted) return;
+          
+          console.log('📶 [Realtime Status]:', currentStatus);
+          setDebugInfo(currentStatus);
+          
+          if (currentStatus === 'SUBSCRIBED') {
+            setStatus('connected');
+            retryCountRef.current = 0; // Reset on success
+          } else if (currentStatus === 'CHANNEL_ERROR') {
+            setStatus('error');
+            if (err) console.error('❌ [Realtime Error]:', err);
+            
+            // Limit retries to prevent flooding
+            if (retryCountRef.current < maxRetries) {
+              retryCountRef.current++;
+              const delay = Math.pow(2, retryCountRef.current) * 1000;
+              console.warn(`🔄 [Realtime] Channel error. Retrying in ${delay}ms... (Attempt ${retryCountRef.current}/${maxRetries})`);
+              setTimeout(() => {
+                if (mounted) {
+                  supabase.removeChannel(channel);
+                  subscribe();
+                }
+              }, delay);
+            } else {
+              console.error('🚫 [Realtime] Max retries reached. Real-time updates disabled. Check Supabase Dashboard.');
+              setDebugInfo('MAX_RETRIES_REACHED');
+            }
+          } else if (currentStatus === 'TIMED_OUT') {
+             setStatus('connecting');
+          }
+        });
+    };
+
+    subscribe();
 
     return () => {
       mounted = false;
       console.log('🔌 [Realtime] Cleaning up channel');
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [handleNotification]);
 
