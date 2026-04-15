@@ -188,7 +188,7 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
           const LabelBlock = (
             <div
               className={`ml-1 truncate text-[13px] font-semibold leading-tight tracking-tight transform transition-all duration-200 ${
-                expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 pointer-events-none'
+                expanded ? 'max-w-[220px] opacity-100 translate-x-0' : 'max-w-0 opacity-0 -translate-x-2 pointer-events-none'
               } ${active ? 'text-white' : 'text-slate-200'} group-hover:text-white`}
             >
               {displayLabel}
@@ -204,7 +204,7 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
                   type="button"
                   onClick={() => setDesktopExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
                   className={`group w-full flex items-center gap-3 py-2 rounded-xl ${
-                    expanded ? 'justify-between px-2' : 'justify-center px-0'
+                    expanded ? 'justify-between px-2' : 'justify-start px-2'
                   } ${
                     open || active ? 'bg-white/10' : 'hover:bg-white/5'
                   } transition-colors`}
