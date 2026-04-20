@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import useProfileActivity from '@/components/student/hooks/useProfileActivity';
+import useActivityDismissal from '@/components/student/hooks/useActivityDismissal';
 
 export default function DashboardActionCenter({ student }) {
   const activity = useProfileActivity();
@@ -12,6 +13,8 @@ export default function DashboardActionCenter({ student }) {
     scholarshipApplicationReceived,
     scholarshipApplicationsOpen
   } = activity;
+
+  const scholarshipReceivedDismissal = useActivityDismissal('scholarship_received');
 
   const isScholarshipEligible = student?.fee_reimbursement === 'YES';
   const showScholarshipThumb = isScholarshipEligible && !!scholarshipThumbUpdate?.active;
@@ -37,7 +40,7 @@ export default function DashboardActionCenter({ student }) {
     !showSecurityWarning &&
     !showScholarshipThumb &&
     !showScholarshipHardcopy &&
-    !showScholarshipApplicationReceived &&
+    !(showScholarshipApplicationReceived && !scholarshipReceivedDismissal.dismissed) &&
     !showScholarshipApplicationsOpen
   ) {
     return null;
@@ -92,15 +95,40 @@ export default function DashboardActionCenter({ student }) {
         )}
 
         {/* 3. Scholarship Application Received */}
-        {showScholarshipApplicationReceived && (
-          <div className="border border-green-200 bg-green-50 text-green-800 rounded-xl p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <span className="text-lg">✅</span>
-              <div className="text-sm">
-                <div className="font-bold">Scholarship Application Received</div>
-                <div className="text-xs mt-1 opacity-80">
-                  Documents submitted successfully. Awaiting government verification updates.
+        {showScholarshipApplicationReceived && !scholarshipReceivedDismissal.dismissed && (
+          <div
+            className={
+              'overflow-hidden transition-[max-height,opacity] duration-200 ease-out ' +
+              (scholarshipReceivedDismissal.closing ? 'mt-0! max-h-0 opacity-0' : 'max-h-64 opacity-100')
+            }
+          >
+            <div className="border border-green-200 bg-green-50 text-green-800 rounded-xl p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">✅</span>
+                  <div className="text-sm">
+                    <div className="font-bold">Scholarship Application Received</div>
+                    <div className="text-xs mt-1 opacity-80">
+                      Documents submitted successfully. Awaiting government verification updates.
+                    </div>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  aria-label="Dismiss"
+                  onClick={scholarshipReceivedDismissal.dismiss}
+                  className="shrink-0 -mt-1 -mr-1 rounded-md p-1 text-green-700/70 hover:text-green-900 hover:bg-green-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+                    <path
+                      d="M6 6l12 12M18 6L6 18"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>

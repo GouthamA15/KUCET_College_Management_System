@@ -55,26 +55,30 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
     <aside 
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`fixed left-0 top-0 bottom-0 bg-[#0b3578] flex flex-col z-[60] transition-all duration-300 ease-in-out shadow-2xl overflow-hidden 
+      className={`fixed left-0 bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff] flex flex-col z-60 transition-all duration-300 ease-in-out shadow-sm overflow-hidden rounded-tr-2xl rounded-br-2xl border border-slate-200/70 
         ${isMobileOpen ? 'w-64 translate-x-0' : '-translate-x-full lg:translate-x-0'} 
         ${isExpanded ? 'lg:w-60' : 'lg:w-16'}
       `}
+      style={{
+        top: 'calc(var(--site-header-height, 72px) + 12px)',
+        maxHeight: 'calc(100vh - var(--site-header-height, 72px) - 24px)',
+      }}
     >
       {/* Header Section */}
-      <div className="h-20 flex items-center px-4 gap-3 border-b border-white/5 relative overflow-hidden group">
-        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      <div className="h-20 flex items-center px-4 gap-3 border-b border-slate-200/70 relative overflow-hidden group">
+        <div className="absolute inset-0 bg-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
         
         {/* Admin Avatar / Brand */}
-        <div className="w-10 h-10 rounded-xl bg-white/10 flex-shrink-0 flex items-center justify-center border border-white/10 shadow-inner">
-           <span className="text-white font-bold text-xs">A</span>
+        <div className="w-10 h-10 rounded-xl bg-blue-600/10 shrink-0 flex items-center justify-center border border-blue-200/60 shadow-inner">
+           <span className="text-blue-900 font-bold text-xs">A</span>
         </div>
 
         {/* Brand Text */}
         <div className={`flex flex-col min-w-0 transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
-           <span className="text-white font-bold text-sm tracking-tight">
+            <span className="text-slate-900 font-bold text-sm tracking-tight">
               ADMIN PANEL
            </span>
-           <span className="text-blue-200/40 text-[9px] font-black uppercase tracking-widest mt-0.5">
+            <span className="text-blue-800/50 text-[9px] font-black uppercase tracking-widest mt-0.5">
               CENTRAL CONTROL
            </span>
         </div>
@@ -83,7 +87,7 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
         {isMobileOpen && (
           <button 
             onClick={() => setIsMobileOpen(false)}
-            className="lg:hidden ml-auto text-blue-100/60 hover:text-white"
+            className="lg:hidden ml-auto text-slate-500 hover:text-slate-900"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -104,11 +108,11 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
               onClick={() => setIsMobileOpen(false)}
               className={`flex items-center rounded-xl transition-all duration-200 group relative overflow-hidden h-12 ${
                 isActive 
-                  ? 'bg-white/10 text-white font-semibold' 
-                  : 'text-blue-100/60 hover:bg-white/5 hover:text-white'
+                  ? 'bg-white/70 text-slate-900 font-semibold' 
+                  : 'text-slate-600 hover:bg-white/45 hover:text-slate-900'
               }`}
             >
-              <div className={`w-10 flex-shrink-0 flex items-center justify-center ml-0.5 transition-colors ${isActive ? 'text-white' : 'text-blue-100/40 group-hover:text-white'}`}>
+              <div className={`w-10 shrink-0 flex items-center justify-center ml-0.5 transition-colors ${isActive ? 'text-blue-900' : 'text-slate-500 group-hover:text-blue-900'}`}>
                 {item.icon}
               </div>
               <span className={`text-sm whitespace-nowrap ml-3 transition-all duration-300 ${
@@ -117,7 +121,7 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
                 {item.label}
               </span>
               {isActive && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-l-full shadow-[0_0_10px_white]"></div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-600/45 rounded-l-full"></div>
               )}
             </Link>
           );
@@ -125,12 +129,12 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
       </nav>
 
       {/* Footer / Logout */}
-      <div className="p-3 border-t border-white/5">
+      <div className="p-3 border-t border-slate-200/70">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center rounded-xl transition-all duration-200 group relative overflow-hidden h-12 text-red-100/60 hover:bg-red-500/10 hover:text-red-300"
+          className="w-full flex items-center rounded-xl transition-all duration-200 group relative overflow-hidden h-12 text-red-700/80 hover:bg-red-50 hover:text-red-700"
         >
-          <div className="w-10 flex-shrink-0 flex items-center justify-center ml-0.5">
+          <div className="w-10 shrink-0 flex items-center justify-center ml-0.5">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
