@@ -162,6 +162,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### April 2026
 
+#### **Session 94: Certificate Asset Integrity & Path Resolution Fix (April 20, 2026)**
+- **Certificate Asset Visibility Fix:**
+    - **Path Resolution:** Fixed a critical bug in `src/app/api/student/requests/download/[request_id]/route.js` where local image assets (logos, signatures, stamps) failed to load on Windows/local environments due to incorrect absolute path resolution.
+    - **Cross-Platform Compatibility:** Re-engineered the `getBase64Image` utility to use `process.cwd()` and `path.join` for reliable local file access within the `public` directory, while maintaining support for remote Cloudinary fetches.
+    - **Asset Integrity:** Ensured the institutional university logo (`ku-logo.png`) and administrative signatures are correctly embedded into generated PDF certificates for all student download requests.
+
+---
+
 #### **Session 93: UI Refinement & Sidebar Architecture Overhaul (April 15-20, 2026)**
 - **Sidebar & Navigation:**
     - **Sidebar Refactor:** Conducted a comprehensive refactor of `Sidebar.js`, increasing maintainability and performance. Preserved the legacy implementation as `Sidebar_legacy.js` for architectural reference during the transition.
@@ -231,7 +239,7 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Remember Me Reliability:** Updated `issueAuthCookie` utilities to directly apply 30-day expiration for both JWTs and browser cookies when the "Remember Me" option is selected.
 - **Performance & Asset Optimization:**
     - **Static Asset Restoration:** Re-introduced the physical `/public/assets" folder with high-frequency UI assets (logos, branding, dev photos).
-    - **CDN Logic Refinement:** Updated `getAssetUrl` in `src/lib/assets.js` to prioritize local `/public" folder delivery (sub-100ms) for verified static assets, falling back to Cloudinary only for dynamic or sensitive resources.
+    - **CDN Logic Refinement:** Updated `getAssetUrl` in `src/lib/assets.js" to prioritize local `/public" folder delivery (sub-100ms) for verified static assets, falling back to Cloudinary only for dynamic or sensitive resources.
 - **HOD Console & Timetable Governance:**
     - **Destructive Actions:** Implemented "Clear Semester" and "Wipe Departmental Timetable" tools in the HOD Console with strict confirmation dialogs to allow rapid schedule resets.
     - **Institutional Registry:** Enhanced the timetable faculty selection modal to search across the entire institutional faculty registry, displaying home branch information for guest lecturers.
