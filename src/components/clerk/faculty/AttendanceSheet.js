@@ -56,6 +56,19 @@ const SessionControlPanel = () => {
     dateValidation
   } = useFacultyAttendance();
 
+  const verifiedList = (students || []).filter((s) => verifiedStudentIds?.has?.(s.id));
+
+  const handleConfirmAll = () => {
+    (students || []).forEach((s) => {
+      if (verifiedStudentIds?.has?.(s.id)) {
+        setAttendanceStatus(s.id, 'PRESENT');
+      } else if (s.status === null) {
+        setAttendanceStatus(s.id, 'ABSENT');
+      }
+    });
+    toast.success('Marked verified students as PRESENT and others as ABSENT.');
+  };
+
   return (
     <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-xl mb-6 shadow-sm">
       <div className="flex flex-col lg:flex-row justify-between gap-6">
