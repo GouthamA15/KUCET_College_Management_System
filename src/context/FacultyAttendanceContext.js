@@ -525,6 +525,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     statusLoading,
     submitting,
     students,
+    handleManualRefresh,
     handleSaveAttendance,
     handleDeleteAttendance,
     handleCalendarSelect,

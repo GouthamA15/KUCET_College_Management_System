@@ -1,11 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useStudent } from '@/context/StudentContext';
 import useProfileActivity from '@/components/student/hooks/useProfileActivity';
 import useActivityDismissal from '@/components/student/hooks/useActivityDismissal';
+import AttendanceVerificationActivity from '@/components/student/AttendanceVerificationActivity';
 
 export default function DashboardActionCenter({ student }) {
+  const { academicPerformance } = useStudent();
   const activity = useProfileActivity();
   const {
     scholarshipThumbUpdate,
@@ -13,6 +16,47 @@ export default function DashboardActionCenter({ student }) {
     scholarshipApplicationReceived,
     scholarshipApplicationsOpen
   } = activity;
+
+  const [attendanceSessions, setAttendanceSessions] = useState([]);
+
+  const fetchAttendanceSessions = useCallback(async () => {
+    try {
+      const assignmentIds = (academicPerformance || []).map((s) => s.assignment_id).filter(Boolean);
+      if (!assignmentIds.length) {
+        setAttendanceSessions([]);
+        return;
+      }
+
+      const res = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds.join(',')}`);
+      const json = await res.json();
+      if (res.ok) {
+        setAttendanceSessions(json.data || []);
+      }
+    } catch (e) {
+      console.error('DashboardActionCenter Attendance Sessions Fetch Error:', e);
+    }
+  }, [academicPerformance]);
+
+  useEffect(() => {
+    fetchAttendanceSessions();
+  }, [fetchAttendanceSessions]);
+
+  useEffect(() => {
+    const channel = new BroadcastChannel('kucet_sse_sync');
+    channel.onmessage = (event) => {
+      const data = event.data;
+      if (data && (data.type === 'SESSION_STARTED' || data.type === 'SESSION_ENDED')) {
+        fetchAttendanceSessions();
+      }
+    };
+    return () => channel.close();
+  }, [fetchAttendanceSessions]);
+
+  const handleSessionVerified = (assignmentId) => {
+    setAttendanceSessions((prev) => prev.filter((s) => s.assignment_id !== assignmentId));
+  };
+
+  const hasAttendanceSessions = attendanceSessions.length > 0;
 
   const scholarshipReceivedDismissal = useActivityDismissal('scholarship_received');
 
@@ -37,6 +81,7 @@ export default function DashboardActionCenter({ student }) {
   };
 
   if (
+    !hasAttendanceSessions &&
     !showSecurityWarning &&
     !showScholarshipThumb &&
     !showScholarshipHardcopy &&
@@ -53,6 +98,11 @@ export default function DashboardActionCenter({ student }) {
       </div>
 
       <div className="space-y-3">
+        {/* 0. Attendance Verification */}
+        {hasAttendanceSessions && (
+          <AttendanceVerificationActivity sessions={attendanceSessions} onSessionVerified={handleSessionVerified} />
+        )}
+
         {/* 1. Scholarship Hard Copies */}
         {showScholarshipHardcopy && (
           <div className="border border-indigo-200 bg-indigo-50 text-indigo-800 rounded-xl p-4 shadow-sm">
