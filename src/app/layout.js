@@ -39,7 +39,7 @@ export default function RootLayout({ children }) {
           `
         }} />
       </head>
-      <body className="antialiased" suppressHydrationWarning>
+      <body className="antialiased bg-institutional" suppressHydrationWarning>
         <CapacitorHandler />
         <RealtimeListener />
         <AssetProvider>

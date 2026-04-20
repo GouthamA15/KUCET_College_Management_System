@@ -76,7 +76,7 @@ export default function StudentHomePage() {
         {/* Main Section */}
         <div className="lg:col-span-8 space-y-14">
           
-          {/* Financial Info */}
+          {/* Financial Info
           <section className="space-y-6">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Financial Overview</h2>
@@ -107,7 +107,7 @@ export default function StudentHomePage() {
                 </div>
               </div>
             </div>
-          </section>
+          </section> */}
 
           {/* Course Records - High Density List */}
           <section className="space-y-6">
@@ -157,7 +157,7 @@ export default function StudentHomePage() {
         {/* Sidebar */}
         <div className="lg:col-span-4 space-y-12">
           
-          {/* Bulletins - Minimalist Timeline */}
+          {/* Bulletins - Minimalist Timeline
           <section className="space-y-8">
              <div className="flex items-center justify-between px-1">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Campus Bulletins</h3>
@@ -177,7 +177,7 @@ export default function StudentHomePage() {
                   </div>
                 ))}
              </div>
-          </section>
+          </section> */}
 
           {/* Quick Hub - Softer Colors */}
           <section className="p-8 rounded-2xl bg-[#f8faff] border border-blue-50 shadow-sm space-y-6">

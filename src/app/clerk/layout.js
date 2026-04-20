@@ -12,18 +12,19 @@ export default function ClerkLayout({ children }) {
 
   return (
     <ClerkProvider>
-      <div className="min-h-screen bg-[#f8fafc] flex font-sans">
+      <div className="min-h-screen flex flex-col font-sans">
+        <div className="flex-1 flex">
         
         {/* Sidebar - Always present, handles its own desktop/mobile visibility */}
         <Sidebar role="clerk" isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen} />
 
         {/* Mobile Top Bar (Search & Profile) - Fixed on Mobile */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-[#f8fafc]/80 backdrop-blur-xl border-b border-slate-100/50 shadow-sm w-full pt-[env(safe-area-inset-top)]">
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-linear-to-r from-blue-50/90 to-white/90 border-b border-slate-100/50 shadow-sm w-full pt-[env(safe-area-inset-top)]">
           <ClerkTopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300 lg:pt-[var(--site-header-height,72px)] lg:ml-16">
+        <div className="flex-1 flex flex-col min-h-0 relative overflow-x-hidden transition-all duration-300 lg:pt-(--site-header-height,72px) lg:ml-16">
 
           {/* Global header only on desktop */}
           <div className="hidden lg:block">
@@ -37,8 +38,6 @@ export default function ClerkLayout({ children }) {
           <main className="flex-1 p-4 lg:p-8 pt-2">
             {children}
           </main>
-
-          <Footer />
         </div>
 
         {/* Mobile Overlay (below sidebar, above content) */}
@@ -48,6 +47,9 @@ export default function ClerkLayout({ children }) {
             onClick={() => setIsMobileMenuOpen(false)}
           />
         )}
+        </div>
+
+        <Footer />
       </div>
     </ClerkProvider>
   );

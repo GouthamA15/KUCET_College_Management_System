@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import Header from "@/app/components/Header/Header";
 import Navbar from "@/app/components/Navbar/Navbar";
-import Footer from "@/components/Footer";
 import { COLLEGE_CONFIG } from "@/lib/college-config";
 import { validateRollNo, branchCodes } from "@/lib/rollNumber";
 
@@ -190,7 +189,6 @@ const FinalizeAdmissionPage = () => {
                 )}
             </div>
             </main>
-            <Footer />
         </div>
     );
 };

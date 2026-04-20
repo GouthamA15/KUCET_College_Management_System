@@ -13,6 +13,25 @@ body {
   padding: 0;
 }
 
+/* Institutional background (performance-first): pure CSS gradients, low repaint cost */
+.bg-institutional {
+  background-color: #ffffff;
+  background-image:
+    /* Subtle institutional texture overlay (widely spaced, thin lines) */
+    repeating-linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.035) 0px,
+      rgba(0, 0, 0, 0.035) 1px,
+      transparent 1px,
+      transparent 28px
+    ),
+    /* Soft blue haze at the top corners (very light) */
+    radial-gradient(820px 420px at 12% 6%, rgba(13, 71, 161, 0.06), transparent 62%),
+    radial-gradient(760px 400px at 92% 10%, rgba(21, 101, 192, 0.045), transparent 60%),
+    /* Base: top-to-bottom institutional gradient (top blue -> neutral -> near-white) */
+    linear-gradient(to bottom, #eaf2ff 0%, #f8fafc 44%, #ffffff 100%);
+}
+
 /* Custom animations */
 @keyframes slideDown {
   from {
@@ -140,6 +159,29 @@ body {
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.75);
+}
+
+/* Premium thin scrollbar (visible on hover/expanded sidebar) */
+.scrollbar-premium {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.65) transparent;
+}
+
+.scrollbar-premium::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-premium::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-premium::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184 / 0.55);
+  border-radius: 9999px;
+}
+
+.scrollbar-premium::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139 / 0.75);
 }
 
 /* Form input styling */
