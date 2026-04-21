@@ -141,8 +141,10 @@ export async function GET(request, context) {
                     const arrayBuffer = await response.arrayBuffer();
                     imageBuffer = Buffer.from(arrayBuffer);
                 } else {
-                    if (!fs.existsSync(imagePath)) return null;
-                    imageBuffer = fs.readFileSync(imagePath);
+                    const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+                    const fullPath = path.join(process.cwd(), 'public', cleanPath);
+                    if (!fs.existsSync(fullPath)) return null;
+                    imageBuffer = fs.readFileSync(fullPath);
                 }
                 if (!imageBuffer || imageBuffer.length < 4) return null;
 
