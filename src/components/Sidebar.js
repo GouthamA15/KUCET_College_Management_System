@@ -323,7 +323,7 @@ export default function Sidebar({
         'relative',
         'rounded-tr-2xl rounded-br-2xl overflow-hidden',
         'border border-slate-200/70',
-        'bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff]',
+        'bg-linear-to-b from-[#ffffff] via-white to-[#d1e2f8]',
         'shadow-sm'
       )}
       style={{
