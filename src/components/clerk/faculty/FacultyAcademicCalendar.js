@@ -27,8 +27,16 @@ const DAY_TYPE_STYLES = {
 };
 
 function formatMonthYear(year, month) {
-  const date = new Date(year, month - 1, 1);
-  return date.toLocaleString("default", { month: "long", year: "numeric" });
+  try {
+    const date = new Date(Date.UTC(year, month - 1, 1));
+    return new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
+      month: "long",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return `${year}-${String(month).padStart(2, "0")}`;
+  }
 }
 
 function compareYearMonth(aYear, aMonth, bYear, bMonth) {
@@ -402,9 +410,17 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
               ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60"
               : `${style.bg} ${style.border} ${style.text} cursor-pointer`;
 
-            const weekday = new Date(currentYear, currentMonth - 1, dayNum).toLocaleDateString("en-US", {
-              weekday: "long",
-            });
+            const weekday = (() => {
+              try {
+                const date = new Date(Date.UTC(currentYear, currentMonth - 1, dayNum));
+                return new Intl.DateTimeFormat("en-US", {
+                  timeZone: "Asia/Kolkata",
+                  weekday: "long",
+                }).format(date);
+              } catch {
+                return "";
+              }
+            })();
 
             return (
               <button

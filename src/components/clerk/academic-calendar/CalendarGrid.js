@@ -39,6 +39,29 @@ const CalendarGrid = ({ academicYear, semester }) => {
     const [semesterStartDate, setSemesterStartDate] = useState(null);
     const [semesterEndDate, setSemesterEndDate] = useState(null);
 
+    const makeUtcDate = (year, monthIndex, day) => new Date(Date.UTC(year, monthIndex, day));
+    const formatMonthYear = (year, monthIndex) => {
+        try {
+            return new Intl.DateTimeFormat('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                month: 'long',
+                year: 'numeric',
+            }).format(makeUtcDate(year, monthIndex, 1));
+        } catch {
+            return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+        }
+    };
+    const formatWeekday = (year, monthIndex, day) => {
+        try {
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: 'Asia/Kolkata',
+                weekday: 'long',
+            }).format(makeUtcDate(year, monthIndex, day));
+        } catch {
+            return '';
+        }
+    };
+
     const fetchCalendarData = useCallback(async () => {
         if (!academicYear || !semester) return;
         setLoading(true);
@@ -166,7 +189,7 @@ const CalendarGrid = ({ academicYear, semester }) => {
                 </h2>
                 <div className="flex items-center gap-1">
                     <button onClick={() => changeMonth(-1)} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 border border-gray-300">◀</button>
-                    <h3 className="text-base font-bold text-center w-40">{new Date(currentYear, currentMonth - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+                    <h3 className="text-base font-bold text-center w-40">{formatMonthYear(currentYear, currentMonth - 1)}</h3>
                     <button onClick={() => changeMonth(1)} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 border border-gray-300">▶</button>
                 </div>
             </div>
@@ -190,7 +213,7 @@ const CalendarGrid = ({ academicYear, semester }) => {
                         {daysInMonthArray.map(dayNum => {
                              const dayData = calendarData[dayNum] || { day_type: 'WORKING' };
                              let { bg, text } = dayTypeColors[dayData.day_type];
-                             const dateStr = new Date(currentYear, currentMonth - 1, dayNum).toLocaleDateString('en-US', { weekday: 'long' });
+                                const dateStr = formatWeekday(currentYear, currentMonth - 1, dayNum);
                              const dayString = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
                              const isToday = dayString === todayString;
 

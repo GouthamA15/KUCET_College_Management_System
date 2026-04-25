@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
@@ -285,81 +285,70 @@ export default function Sidebar({
   const [mobileExpanded, setMobileExpanded] = useState({});
   const [desktopExpanded, setDesktopExpanded] = useState({});
 
-  // Desktop scroll indicator
-  const desktopScrollRef = useRef(null);
-  const [hasOverflow, setHasOverflow] = useState(false);
-  const [atScrollTop, setAtScrollTop] = useState(true);
-  const [atScrollBottom, setAtScrollBottom] = useState(false);
-
-  useEffect(() => {
-    const el = desktopScrollRef.current;
-    if (!el) return;
-
-    const handleScroll = () => {
-      const has = el.scrollHeight > el.clientHeight + 1;
-      setHasOverflow(has);
-      const atTop = el.scrollTop <= 1;
-      setAtScrollTop(atTop);
-      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-      setAtScrollBottom(atBottom);
-    };
-
-    handleScroll();
-    el.addEventListener('scroll', handleScroll);
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, [menu.length, expanded]);
-
-  const DESKTOP_COLLAPSED_W = 64; // px (matches layouts using lg:ml-16)
+  const DESKTOP_COLLAPSED_W = 69; // px (matches layouts using lg:ml-16)
   const DESKTOP_EXPANDED_W = 264; // px
-  const DESKTOP_FOOTER_H = 68; // px (logout block + border/padding)
   const DESKTOP_TOP = 'calc(var(--site-header-height, 72px) + 12px)';
-  const DESKTOP_MAX_HEIGHT = 'calc(100vh - var(--site-header-height, 72px) - 24px)';
-  const DESKTOP_SCROLL_MAX_HEIGHT = `calc(100vh - var(--site-header-height, 72px) - 24px - ${DESKTOP_FOOTER_H}px)`;
+  const DESKTOP_MAX_HEIGHT = 'calc(100dvh - var(--site-header-height, 72px) - 24px)';
+
+  // Publish desktop sidebar width to the app shell so main content can "push" instead of being overlaid.
+  // Desktop-only consumption happens via `lg:ml-(--desktop-sidebar-offset,64px)` in layouts.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const root = document.documentElement;
+    const width = expanded ? `${DESKTOP_EXPANDED_W}px` : `${DESKTOP_COLLAPSED_W}px`;
+    root.style.setProperty('--desktop-sidebar-offset', width);
+
+    return () => {
+      // Keep the layout safe if the Sidebar unmounts.
+      root.style.removeProperty('--desktop-sidebar-offset');
+    };
+  }, [expanded]);
 
   const DesktopNav = (
     <aside
       className={cn(
         'hidden lg:flex fixed left-0 z-30',
-        'relative',
+        'flex-col',
         'rounded-tr-2xl rounded-br-2xl overflow-hidden',
-        'border border-slate-200/70',
-        'bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff]',
+        'border border-white/10',
+        'bg-[#002a5c]',
         'shadow-sm'
       )}
       style={{
         top: DESKTOP_TOP,
         maxHeight: DESKTOP_MAX_HEIGHT,
         width: expanded ? `${DESKTOP_EXPANDED_W}px` : `${DESKTOP_COLLAPSED_W}px`,
-        transition: 'width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)'
+        height: '75dvh',
+        transition: 'width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)',
       }}
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
     >
       {/* subtle depth overlay */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-x-0 top-0 h-20 bg-linear-to-b from-blue-50/80 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-blue-50/60 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-20 bg-linear-to-b from-white/10 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/10 to-transparent" />
       </div>
 
-      <div className="relative flex flex-col w-full">
+      <div
+        className={cn(
+          'relative flex flex-col w-full min-h-0 flex-1',
+          // Expanded: add a softer glass surface over the blue base.
+          // Collapsed: keep the rich base visible.
+          expanded ? 'bg-white/6' : 'bg-transparent'
+        )}
+      >
         <div
-          ref={desktopScrollRef}
           className={cn(
+            'flex-1 min-h-0',
             'overflow-y-auto overflow-x-hidden',
             expanded ? 'scrollbar-premium' : 'scrollbar-hide',
             'px-2 py-3 pr-2.5 pb-2',
-            'relative'
+            'relative',
+            expanded ? 'bg-linear-to-b from-white/10 via-white/6 to-transparent' : ''
           )}
-          style={{ maxHeight: DESKTOP_SCROLL_MAX_HEIGHT }}
         >
-          {/* scroll fade masks (expanded only) */}
-          {expanded && hasOverflow && !atScrollTop && (
-            <div className="pointer-events-none absolute top-0 left-0 right-0 h-6 bg-linear-to-b from-[#f8fbff] to-transparent" />
-          )}
-          {expanded && hasOverflow && !atScrollBottom && (
-            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-[#eef5ff] to-transparent" />
-          )}
-
           <nav className="space-y-1">
             {menu.map((item, idx) => {
               const displayLabel = getDisplayLabel({ effectiveRole, label: item.label });
@@ -377,8 +366,9 @@ export default function Sidebar({
                 'group w-full rounded-xl transition-colors',
                 'h-11',
                 'relative',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/70',
-                active ? 'bg-white/70' : 'hover:bg-white/45'
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30',
+                // No row-wide hover fill (icon-only hover).
+                active ? 'bg-white/6 ring-1 ring-white/10' : 'bg-transparent'
               );
 
               const iconBlock = (
@@ -387,8 +377,8 @@ export default function Sidebar({
                     className={cn(
                       'h-10 w-10 rounded-xl flex items-center justify-center transition-colors',
                       active
-                        ? 'bg-linear-to-br from-blue-600/18 via-blue-500/10 to-blue-400/6 text-blue-900 ring-1 ring-blue-200/70 shadow-sm'
-                        : 'bg-white/65 text-slate-700 group-hover:bg-blue-600/10 group-hover:text-blue-900 ring-1 ring-slate-200/60'
+                        ? 'bg-white/22 text-white ring-1 ring-white/25 shadow-sm'
+                        : 'bg-white/10 text-white/90 ring-1 ring-white/12 group-hover:bg-white/16 group-hover:ring-white/20 group-hover:shadow-sm'
                     )}
                   >
                     <Icon size={20} />
@@ -399,12 +389,13 @@ export default function Sidebar({
               const labelBlock = (
                 <div
                   className={cn(
-                    'text-[13px] font-semibold leading-none tracking-tight truncate',
+                    'text-[13px] leading-none tracking-tight truncate',
                     'transition-all duration-200',
                     expanded
                       ? 'opacity-100 translate-x-0 max-w-48'
                       : 'opacity-0 -translate-x-1 max-w-0 pointer-events-none',
-                    active ? 'text-slate-900' : 'text-slate-700 group-hover:text-slate-900'
+                    // Keep text stable on hover; high-contrast white typography.
+                    active ? 'text-white font-semibold' : 'text-white/85 font-medium'
                   )}
                 >
                   {displayLabel}
@@ -435,7 +426,8 @@ export default function Sidebar({
                         <div
                           className={cn(
                             'h-9 w-9 rounded-xl flex items-center justify-center',
-                            'bg-white/60 text-slate-700 group-hover:bg-blue-600/10 group-hover:text-blue-800',
+                            // Keep chevron subtle + stable (no hover emphasis).
+                            'bg-white/8 text-white/80 ring-1 ring-white/10',
                             open ? 'rotate-90' : 'rotate-0',
                             'transition-transform duration-200'
                           )}
@@ -446,15 +438,15 @@ export default function Sidebar({
                     </button>
 
                     {expanded && open && (
-                      <div className="mt-1 ml-11 pl-3 border-l border-blue-100/80 space-y-1">
+                      <div className="mt-1 ml-11 pl-3 border-l border-white/12 space-y-1">
                         {item.children.map((c, ci) => {
                           const childIsActive = c.route && isActiveRoute({ pathname, route: c.route, exact: false });
                           const childClass = cn(
                             'block w-full text-left rounded-lg px-2.5 py-2',
                             'text-[13px] font-medium transition-colors',
                             childIsActive
-                              ? 'bg-blue-100/60 text-blue-900'
-                              : 'text-slate-600 hover:bg-blue-50 hover:text-blue-900'
+                              ? 'bg-white/16 text-white ring-1 ring-white/12'
+                              : 'text-white/75 hover:bg-white/10 hover:text-white'
                           );
 
                           if (c.action) {
@@ -551,23 +543,10 @@ export default function Sidebar({
               );
             })}
           </nav>
-
-          {!expanded && hasOverflow && (
-            <div
-              className={cn(
-                'pointer-events-none sticky bottom-1 flex justify-center transition-opacity duration-200',
-                atScrollBottom ? 'opacity-0' : 'opacity-80'
-              )}
-            >
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600/10 text-blue-800">
-                <Icons.chevron size={16} direction="down" />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Logout (bottom, outside scroll) */}
-        <div className="border-t border-slate-200/70 px-2 py-2">
+        <div className="border-t border-white/12 px-2 py-2">
           <button
             type="button"
             onClick={() =>
@@ -582,14 +561,21 @@ export default function Sidebar({
             }
             className={cn(
               'group w-full rounded-xl transition-colors',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70',
-              'hover:bg-red-50/70'
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-red-200/40',
+              // No row-wide hover fill (icon-only hover).
+              'bg-transparent'
             )}
             title={!expanded ? 'Logout' : undefined}
           >
             <div className="flex items-center gap-2 px-1.5 py-1.5">
               <div className="shrink-0" style={{ width: 44, minWidth: 44 }}>
-                <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center', 'bg-red-500/10 text-red-600 group-hover:bg-red-500/15')}>
+                <div
+                  className={cn(
+                    'h-10 w-10 rounded-xl flex items-center justify-center transition-colors',
+                    'bg-red-500/14 text-red-100 ring-1 ring-red-200/25',
+                    'group-hover:bg-red-500/18 group-hover:ring-red-200/35 group-hover:shadow-sm'
+                  )}
+                >
                   <Icons.logout size={20} />
                 </div>
               </div>
@@ -597,7 +583,7 @@ export default function Sidebar({
                 className={cn(
                   'text-[13px] font-semibold leading-none transition-all duration-200',
                   expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1 pointer-events-none max-w-0',
-                  'text-red-700'
+                  'text-red-100/90'
                 )}
               >
                 Logout

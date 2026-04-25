@@ -17,19 +17,21 @@ body {
 .bg-institutional {
   background-color: #ffffff;
   background-image:
-    /* Subtle institutional texture overlay (widely spaced, thin lines) */
-    repeating-linear-gradient(
-      45deg,
-      rgba(0, 0, 0, 0.035) 0px,
-      rgba(0, 0, 0, 0.035) 1px,
-      transparent 1px,
-      transparent 28px
-    ),
-    /* Soft blue haze at the top corners (very light) */
-    radial-gradient(820px 420px at 12% 6%, rgba(13, 71, 161, 0.06), transparent 62%),
-    radial-gradient(760px 400px at 92% 10%, rgba(21, 101, 192, 0.045), transparent 60%),
-    /* Base: top-to-bottom institutional gradient (top blue -> neutral -> near-white) */
-    linear-gradient(to bottom, #eaf2ff 0%, #f8fafc 44%, #ffffff 100%);
+    /* HERO ZONE (Welcome + Priority Actions): soft elevated surface band */
+    radial-gradient(1400px 520px at 36% 6%, rgba(234, 242, 255, 0.92) 0%, rgba(234, 242, 255, 0) 66%),
+    radial-gradient(980px 420px at 10% 4%, rgba(238, 245, 255, 0.85) 0%, rgba(238, 245, 255, 0) 62%),
+
+    /* RIGHT PANEL SUPPORT ZONE: subtle vertical rail tint on wide screens */
+    linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0) 58%, rgba(238, 245, 255, 0.55) 100%),
+
+    /* ACADEMIC RECORDS / MID CONTENT FOUNDATION: grounded reading layer */
+    radial-gradient(1200px 760px at 42% 56%, rgba(245, 249, 255, 0.9) 0%, rgba(245, 249, 255, 0) 70%),
+
+    /* FOOTER TRANSITION: subtle cool fade to avoid hard cutoff */
+    linear-gradient(to bottom, rgba(255, 255, 255, 0) 70%, rgba(11, 53, 120, 0.03) 100%),
+
+    /* BASE CANVAS */
+    linear-gradient(to bottom, #f8fbff 0%, #ffffff 48%, #ffffff 100%);
 }
 
 /* Custom animations */

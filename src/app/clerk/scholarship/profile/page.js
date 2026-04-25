@@ -10,12 +10,12 @@ import ProfileTabs from '@/components/profile/ProfileTabs';
 import ProfileInfoList from '@/components/profile/ProfileInfoList';
 import ProfileCardShell from '@/components/profile/ProfileCardShell';
 
-export default function FacultyProfilePage() {
+export default function ScholarshipClerkProfilePage() {
   const { clerkData: clerk, loading: isLoading } = useClerk();
   const [activeTab, setActiveTab] = useState('personal');
 
   useEffect(() => {
-    if (!isLoading && clerk && clerk.role !== 'faculty') {
+    if (!isLoading && clerk && clerk.role !== 'scholarship') {
       toast.error('Access Denied');
     }
   }, [clerk, isLoading]);
@@ -43,9 +43,8 @@ export default function FacultyProfilePage() {
 
   if (!clerk) return null;
 
-  const name = clerk?.name || 'Faculty';
-  const primaryId = clerk?.employee_id || 'FACULTY';
-  const title = clerk?.is_hod ? 'HOD Office' : 'Faculty';
+  const name = clerk?.name || 'Scholarship Clerk';
+  const primaryId = clerk?.employee_id || (clerk?.role ? String(clerk.role).toUpperCase() : 'SCHOLARSHIP');
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn">
@@ -64,10 +63,10 @@ export default function FacultyProfilePage() {
           right={
             <>
               <ProfileStatusBar
-                title={title}
+                title="Scholarship Office"
                 lines={[
-                  { label: 'Designation', value: clerk?.is_hod ? 'Head of Department' : 'Faculty' },
-                  { label: 'Department', value: clerk?.branch || '-' },
+                  { label: 'Designation', value: 'Scholarship Clerk' },
+                  { label: 'Responsibilities', value: 'Verification • Requests • Sanction Workflow' },
                 ]}
               />
               <ProfileTabs
