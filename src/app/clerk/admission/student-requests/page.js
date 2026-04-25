@@ -20,6 +20,29 @@ function StudentRequestsContent() {
 
   const [viewingImage, setViewingImage] = useState(null);
 
+  const formatIstDateTimeUpper = (value) => {
+    if (!value) return '';
+    try {
+      return new Intl.DateTimeFormat('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      })
+        .format(new Date(value))
+        .toUpperCase();
+    } catch {
+      try {
+        return new Date(value).toISOString().replace('T', ' ').slice(0, 16).toUpperCase();
+      } catch {
+        return '';
+      }
+    }
+  };
+
   useEffect(() => {
     if (!isLoading && clerk && clerk.role === 'admission') {
       fetchRequests();
@@ -126,7 +149,7 @@ function StudentRequestsContent() {
                   <div className="text-[10px] text-blue-200 font-bold tracking-widest uppercase mt-0.5">Roll No: {req.roll_no} — Application #{req.id}</div>
                 </div>
                 <div className="bg-blue-900/50 px-4 py-1.5 border border-blue-700/50 rounded-sm">
-                  <span className="text-[10px] font-black uppercase tracking-widest">Submission: {new Date(req.created_at).toLocaleString().toUpperCase()}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Submission: {formatIstDateTimeUpper(req.created_at)}</span>
                 </div>
               </div>
 
