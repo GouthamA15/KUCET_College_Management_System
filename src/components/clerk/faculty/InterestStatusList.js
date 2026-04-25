@@ -6,6 +6,24 @@ export default function InterestStatusList() {
   const [interests, setInterests] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const formatIstDate = (value) => {
+    if (!value) return '';
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date(value));
+    } catch {
+      try {
+        return new Date(value).toISOString().slice(0, 10);
+      } catch {
+        return '';
+      }
+    }
+  };
+
   const fetchInterests = async () => {
     setLoading(true);
     try {
@@ -64,7 +82,7 @@ export default function InterestStatusList() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(interest.created_at).toLocaleDateString()}
+                    {formatIstDate(interest.created_at)}
                   </td>
                 </tr>
               ))}

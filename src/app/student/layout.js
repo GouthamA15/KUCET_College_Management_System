@@ -28,7 +28,7 @@ export default function StudentLayout({ children }) {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-h-0 relative overflow-x-hidden transition-all duration-300 lg:pt-(--site-header-height,72px) lg:ml-16">
+          <div className="flex-1 flex flex-col min-h-0 relative overflow-x-hidden lg:pt-(--site-header-height,72px) lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
 
             {/* Global header only on desktop */}
             <div className="hidden lg:block">

@@ -2,15 +2,25 @@
 import React from 'react';
 import { formatDate } from '@/lib/date';
 
+import ProfileInfoList from '@/components/profile/ProfileInfoList';
+
 export default function PersonalInfoTab({ student }) {
-  return (
-    <div className="space-y-3 text-[16px]">
-      <div><span className="font-semibold">Father Name:</span> <span className="ml-2">{student.personal_details?.father_name ?? '-'}</span></div>
-      <div><span className="font-semibold">Mother Name:</span> <span className="ml-2">{student.personal_details?.mother_name ?? '-'}</span></div>
-      <div><span className="font-semibold">Date of Birth:</span> <span className="ml-2">{student.date_of_birth ? formatDate(student.date_of_birth).replaceAll('-', '/') : '-'}</span></div>
-      <div><span className="font-semibold">Phone:</span> <span className="ml-2">{student.mobile ?? '-'}</span></div>
-      <div><span className="font-semibold">Address:</span> <span className="ml-2">{student.personal_details?.address ?? student.address ?? '-'}</span></div>
-      <div><span className="font-semibold">Email:</span> <span className="ml-2">{student.email || '-'}</span></div>
-    </div>
-  );
+  const items = [
+    { key: 'father_name', label: 'Father Name', value: student.personal_details?.father_name ?? '-' },
+    { key: 'mother_name', label: 'Mother Name', value: student.personal_details?.mother_name ?? '-' },
+    {
+      key: 'dob',
+      label: 'Date of Birth',
+      value: student.date_of_birth ? formatDate(student.date_of_birth).replaceAll('-', '/') : '-',
+    },
+    { key: 'phone', label: 'Phone', value: student.mobile ?? '-' },
+    {
+      key: 'address',
+      label: 'Address',
+      value: student.personal_details?.address ?? student.address ?? '-',
+    },
+    { key: 'email', label: 'Email', value: student.email || '-' },
+  ];
+
+  return <ProfileInfoList items={items} />;
 }

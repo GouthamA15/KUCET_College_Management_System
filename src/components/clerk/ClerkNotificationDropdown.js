@@ -28,6 +28,25 @@ export default function ClerkNotificationDropdown({ onOpenChange }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const formatIstDate = (value) => {
+    if (!value) return '';
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date(value));
+    } catch {
+      // Fallback: stable ISO date
+      try {
+        return new Date(value).toISOString().slice(0, 10);
+      } catch {
+        return '';
+      }
+    }
+  };
+
   const notifications = [];
 
   // Add profile requests
@@ -36,7 +55,7 @@ export default function ClerkNotificationDropdown({ onOpenChange }) {
       id: `profile-${req.request_id}`,
       title: 'Profile Update Request',
       desc: `${req.name} (${req.roll_no}) requested a profile update.`,
-      time: new Date(req.created_at).toLocaleDateString(),
+      time: formatIstDate(req.created_at),
       link: '/clerk/admission/student-requests',
       type: 'info'
     });
@@ -48,7 +67,7 @@ export default function ClerkNotificationDropdown({ onOpenChange }) {
       id: `cert-${req.request_id}`,
       title: req.certificate_type || 'Certificate Request',
       desc: `${req.student_name} (${req.roll_number}) requested a ${req.certificate_type}.`,
-      time: new Date(req.created_at).toLocaleDateString(),
+      time: formatIstDate(req.created_at),
       link: (clerkData?.role === 'admission' 
         ? '/clerk/admission/dashboard?view=requests' 
         : '/clerk/scholarship/dashboard?view=requests'),
