@@ -23,6 +23,13 @@ export default function EditProfilePage() {
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
   const [profileDataLoaded, setProfileDataLoaded] = useState(false);
   
+  // OTP State
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+
   const [pfpDataUrl, setPfpDataUrl] = useState(null);
   const [currentPfp, setCurrentPfp] = useState(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState(null);
@@ -55,6 +62,7 @@ export default function EditProfilePage() {
         if (data.details) {
           setFormData(data.details);
           setOriginalData(JSON.parse(JSON.stringify(data.details)));
+          setEmailVerified(false); // Reset verified state on fresh fetch
         }
       }
     } catch (err) {
@@ -76,6 +84,66 @@ export default function EditProfilePage() {
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [photoMenuOpen]);
+
+  // OTP Functions
+  const sendOtp = async () => {
+    const newEmail = formData.student.email;
+    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+        toast.error('Enter a valid email address first.');
+        return;
+    }
+    
+    setVerifying(true);
+    const tid = toast.loading('Transmitting OTP to new address...');
+    try {
+        const res = await fetch('/api/student/send-update-email-otp', {
+            method: 'POST',
+            body: JSON.stringify({ rollno: formData.student.roll_no, email: newEmail })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Failed to send OTP');
+        
+        setOtpEmail(newEmail);
+        setShowOtpModal(true);
+        toast.success('Verification code dispatched.', { id: tid });
+    } catch (e) {
+        toast.error(e.message, { id: tid });
+    } finally {
+        setVerifying(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (otp.length !== 6) {
+        toast.error('Verification code must be 6 digits.');
+        return;
+    }
+    setVerifying(true);
+    const tid = toast.loading('Validating credentials...');
+    try {
+        const res = await fetch('/api/student/verify-update-email-otp', {
+            method: 'POST',
+            body: JSON.stringify({ rollno: formData.student.roll_no, email: otpEmail, otp })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Invalid code');
+
+        setEmailVerified(true);
+        setShowOtpModal(false);
+        setOtp('');
+        toast.success('Institutional email verified successfully.', { id: tid });
+        
+        // Update original data so email is no longer considered "changed" for proof requirements
+        setOriginalData(prev => ({
+            ...prev,
+            student: { ...prev.student, email: otpEmail }
+        }));
+    } catch (e) {
+        toast.error(e.message, { id: tid });
+    } finally {
+        setVerifying(false);
+    }
+  };
 
   const getChangedData = () => {
     if (!originalData) return null;
@@ -118,13 +186,15 @@ export default function EditProfilePage() {
 
     // Input Validations
     if (changedData) {
+        // Email Verification Check
+        if (changedData.email && !emailVerified) {
+            toast.error('Please verify your new email address via OTP first.');
+            return;
+        }
+
         // Mobile & Email
         if (changedData.mobile && !/^\d{10}$/.test(changedData.mobile)) {
             toast.error('Mobile number must be exactly 10 digits.');
-            return;
-        }
-        if (changedData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(changedData.email)) {
-            toast.error('Please enter a valid email address.');
             return;
         }
 
@@ -167,8 +237,16 @@ export default function EditProfilePage() {
         }
     }
 
-    if (changedData && !proofDataUrl) {
-        toast.error('Verification proof is mandatory for data updates.');
+    // Determine if proof is needed
+    // Email and Mobile are exempt from document proof requirement
+    let needsProof = false;
+    if (changedData) {
+        const sensitiveFields = Object.keys(changedData).filter(k => k !== 'email' && k !== 'mobile');
+        if (sensitiveFields.length > 0) needsProof = true;
+    }
+
+    if (needsProof && !proofDataUrl) {
+        toast.error('Verification proof is mandatory for these data updates.');
         return;
     }
 
@@ -247,6 +325,14 @@ export default function EditProfilePage() {
   }
 
   const changedData = getChangedData();
+
+  // Determine if proof is needed
+  // Email and Mobile are exempt from document proof requirement
+  let needsProof = false;
+  if (changedData) {
+      const sensitiveFields = Object.keys(changedData).filter(k => k !== 'email' && k !== 'mobile');
+      if (sensitiveFields.length > 0) needsProof = true;
+  }
 
   return (
     <div className="w-full max-w-6xl mx-auto">
@@ -338,22 +424,48 @@ export default function EditProfilePage() {
                     <input value={formData.student.name || ''} disabled className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-400 cursor-not-allowed uppercase" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registered Mobile</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registered Mobile (Direct Update)</label>
                     <input 
                       value={formData.student.mobile || ''} 
                       onChange={(e) => updateField('student', 'mobile', e.target.value)}
                       maxLength={10}
+                      placeholder="ENTER 10 DIGIT MOBILE"
                       className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.student.mobile !== originalData?.student.mobile ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
                     />
+                    {formData.student.mobile !== originalData?.student.mobile && (
+                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tighter italic">Proof not required for mobile update</span>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Primary Email Address</label>
-                    <input 
-                      value={formData.student.email || ''} 
-                      onChange={(e) => updateField('student', 'email', e.target.value)}
-                      maxLength={100}
-                      className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.student.email !== originalData?.student.email ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
-                    />
+                    <div className="relative group">
+                      <input 
+                        value={formData.student.email || ''} 
+                        onChange={(e) => {
+                            updateField('student', 'email', e.target.value);
+                            setEmailVerified(false);
+                        }}
+                        maxLength={100}
+                        disabled={emailVerified}
+                        placeholder="ENTER INSTITUTIONAL EMAIL"
+                        className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all pr-24 ${emailVerified ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : formData.student.email !== originalData?.student.email ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
+                      />
+                      {formData.student.email !== originalData?.student.email && !emailVerified && (
+                        <button 
+                          onClick={sendOtp}
+                          disabled={verifying}
+                          className="absolute right-2 top-1.5 bottom-1.5 px-3 bg-[#0b3578] text-white text-[9px] font-black uppercase tracking-widest hover:bg-blue-900 transition-colors disabled:opacity-50"
+                        >
+                          {verifying ? '...' : 'Verify Email'}
+                        </button>
+                      )}
+                      {emailVerified && (
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Verified</span>
+                          <span className="text-emerald-500 text-xs">✓</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </section>
@@ -374,7 +486,7 @@ export default function EditProfilePage() {
                     { label: 'Place of Birth', field: 'place_of_birth', maxLength: 100 },
                     { label: 'Father Occupation', field: 'father_occupation', maxLength: 100 },
                     { label: 'Guardian Mobile', field: 'guardian_mobile', maxLength: 10 },
-                    { label: 'Annual Income', field: 'annual_income', maxLength: 15 },
+                    { label: 'Annual Income', field: 'annual_income', type: 'select', options: COLLEGE_CONFIG.incomeRanges },
                     { label: 'Aadhaar Card No', field: 'aadhaar_no', maxLength: 12 },
                     { label: 'Allotted Category', field: 'seat_allotted_category' },
                     { label: 'Blood Group', field: 'blood_group', type: 'select', options: COLLEGE_CONFIG.bloodGroups }
@@ -479,9 +591,14 @@ export default function EditProfilePage() {
                   <input ref={proofInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFileSelect(e.target.files[0], 'proof')} />
                   
                   <div className="flex-1 space-y-4">
-                    {changedData && !proofDataUrl && (
+                    {needsProof && !proofDataUrl && (
                       <div className="px-4 py-2 bg-rose-100 border border-rose-200 text-rose-700 text-[9px] font-black uppercase tracking-widest leading-none">
                         Error: Substantiating evidence is required for data modifications.
+                      </div>
+                    )}
+                    {!needsProof && changedData && (
+                      <div className="px-4 py-2 bg-emerald-100 border border-emerald-200 text-emerald-700 text-[9px] font-black uppercase tracking-widest leading-none">
+                        Note: Document proof is not required for email or mobile updates.
                       </div>
                     )}
                     <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
@@ -511,6 +628,52 @@ export default function EditProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* OTP Modal */}
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-sm shadow-2xl border border-slate-300 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-[#0b3578] p-4 text-white">
+              <h3 className="text-xs font-black uppercase tracking-widest">Institutional Email Verification</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 border border-blue-100 p-4">
+                <p className="text-[10px] text-blue-800 leading-relaxed font-bold uppercase tracking-wide">
+                  A 6-digit verification code has been dispatched to:
+                </p>
+                <p className="text-sm font-black text-[#0b3578] mt-1 break-all">{otpEmail}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enter One-Time Password (OTP)</label>
+                <input 
+                  type="text"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  className="w-full border-2 border-slate-200 px-4 py-4 text-2xl font-black text-center tracking-[1em] outline-none focus:border-[#0b3578] transition-colors"
+                  placeholder="000000"
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 italic">Please check your inbox (and spam folder) for the code. Valid for 10 minutes.</p>
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setShowOtpModal(false)}
+                  className="flex-1 px-4 py-3 border border-slate-300 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  disabled={otp.length !== 6 || verifying}
+                  onClick={verifyOtp}
+                  className="flex-1 px-4 py-3 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {verifying ? 'Validating...' : 'Verify & Continue'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
