@@ -302,19 +302,17 @@ const AdmissionPage = () => {
 
                         <div className="space-y-1">
                             <label className={labelClasses}>20. Annual Income <span className="text-red-500">*</span></label>
-                            <input 
+                            <select 
                                 required 
-                                type="text" 
-                                inputMode="numeric"
-                                value={annualIncomeDisplay} 
-                                onChange={e => {
-                                    const raw = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                    setForm({...form, annual_income: raw});
-                                    setAnnualIncomeDisplay(formatIndianNumber(raw));
-                                }} 
-                                className={inputClasses} 
-                                placeholder="ANNUAL INCOME"
-                            />
+                                value={form.annual_income} 
+                                onChange={e => setForm({...form, annual_income: e.target.value})} 
+                                className={inputClasses}
+                            >
+                                <option value="">SELECT ANNUAL INCOME RANGE</option>
+                                {COLLEGE_CONFIG.incomeRanges.map(range => (
+                                    <option key={range} value={range}>{range}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="space-y-1">
