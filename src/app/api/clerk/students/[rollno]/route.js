@@ -15,6 +15,7 @@ import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { computeAcademicYear } from '@/app/lib/academicYear';
 import { getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
 import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
+import { studentUpdateSchema } from '@/lib/validations/student';
 
 export async function GET(req, context) {
   const user = await getAuthUser('clerk');
@@ -99,20 +100,28 @@ export async function PUT(req, context) {
   try {
     const params = await context.params;
     const { rollno } = params;
-    const body = await req.json();
-    const { name, gender, mobile, email, date_of_birth } = body;
-
     if (!rollno) return apiError('Roll number is required', 400);
 
-    const updateData = {
-        name: name !== undefined ? (name === '' ? null : name) : undefined,
-        gender: gender !== undefined ? (gender === '' ? null : gender) : undefined,
-        email: email !== undefined ? (email === '' ? null : email) : undefined,
-        date_of_birth: date_of_birth !== undefined ? (date_of_birth === '' ? null : new Date(date_of_birth)) : undefined
-    };
+    const body = await req.json();
+    
+    // 1. Validate Input using Zod
+    const validation = studentUpdateSchema.safeParse(body);
+    if (!validation.success) {
+      const details = validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+      return apiError('Validation failed', 400, details);
+    }
+
+    const data = validation.data;
+    const { name, gender, mobile, email, date_of_birth } = data;
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (gender !== undefined) updateData.gender = gender;
+    if (email !== undefined) updateData.email = email;
+    if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth ? new Date(date_of_birth) : null;
 
     if (mobile !== undefined) {
-        if (mobile === '' || mobile === null) {
+        if (!mobile) {
             updateData.mobile = null;
             updateData.mobile_hash = null;
         } else {
