@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { validateRollNo, branchCodes } from '@/lib/rollNumber';
+import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 /**
  * Zod schema for creating a new student record.
@@ -48,6 +49,12 @@ export const studentCreateSchema = z.object({
   religion: z.string().trim().max(100).optional().or(z.literal('')),
   sub_caste: z.string().trim().max(100).optional().or(z.literal('')),
   category: z.string().trim().max(50).optional().or(z.literal('')),
+  annual_income: z.string()
+    .refine((val) => !val || COLLEGE_CONFIG.incomeRanges.includes(val), {
+      message: "Invalid annual income range",
+    })
+    .optional()
+    .or(z.literal('')),
   address: z.string().trim().max(1000).optional().or(z.literal('')),
   qualifying_exam: z.enum(['EAMCET', 'ECET', 'PGECET', 'Other']).optional().or(z.literal('')),
 });

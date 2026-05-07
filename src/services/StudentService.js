@@ -44,7 +44,7 @@ export class StudentService {
     const {
       admission_no, roll_no, name, date_of_birth, gender, mobile, email,
       father_name, mother_name, religion, sub_caste, category, address,
-      qualifying_exam, aadhaar_no
+      qualifying_exam, aadhaar_no, annual_income
     } = data;
 
     if (!roll_no || !name) {
@@ -74,6 +74,7 @@ export class StudentService {
         religion,
         sub_caste,
         category,
+        annual_income,
         aadhaar_no: aadhaar_no ? encrypt(aadhaar_no) : null,
         aadhaar_hash: aadhaar_no ? hashForIndex(aadhaar_no) : null,
         address
