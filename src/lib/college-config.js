@@ -22,4 +22,14 @@ export const COLLEGE_CONFIG = {
   genders: ['Male', 'Female'],
   categories: ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'],
   bloodGroups: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Not available'],
+  incomeRanges: [
+    'Below 1,00,000',
+    '1,00,001 - 2,00,000',
+    '3,00,001 - 4,00,000',
+    '4,00,001 - 5,00,000',
+    '5,00,001 - 6,00,000',
+    '6,00,001 - 7,00,000',
+    '7,00,001 - 8,00,000',
+    'Above 8,00,001'
+  ],
 };
