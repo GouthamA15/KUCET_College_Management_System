@@ -10,7 +10,7 @@ import ProfileTabs from '@/components/profile/ProfileTabs';
 import ProfileInfoList from '@/components/profile/ProfileInfoList';
 import ProfileCardShell from '@/components/profile/ProfileCardShell';
 
-export default function ScholarshipClerkProfilePage() {
+export default function ScholarshipProfilePage() {
   const { clerkData: clerk, loading: isLoading } = useClerk();
   const [activeTab, setActiveTab] = useState('personal');
 
@@ -23,10 +23,11 @@ export default function ScholarshipClerkProfilePage() {
   const personalItems = useMemo(() => {
     return [
       { key: 'email', label: 'Email', value: clerk?.email || '-' },
+      { key: 'mobile', label: 'Mobile', value: clerk?.mobile || '-' },
       { key: 'employee_id', label: 'Employee ID', value: clerk?.employee_id || '-' },
       { key: 'role', label: 'Role', value: clerk?.role ? String(clerk.role).toUpperCase() : '-' },
       { key: 'branch', label: 'Branch', value: clerk?.branch || '-' },
-      { key: 'hod', label: 'HOD', value: clerk?.is_hod ? 'Yes' : 'No' },
+      { key: 'address', label: 'Address', value: clerk?.address || '-' },
     ];
   }, [clerk]);
 
@@ -54,7 +55,7 @@ export default function ScholarshipClerkProfilePage() {
             <ProfileHeaderCard
               name={name}
               primaryId={primaryId}
-              photoUrl={null}
+              photoUrl={clerk?.pfp}
               editHref="/clerk/settings/edit-profile"
               editTitle="Modify Records"
               fallback="initials"

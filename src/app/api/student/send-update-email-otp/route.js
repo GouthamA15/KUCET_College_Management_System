@@ -46,9 +46,9 @@ export async function POST(req) {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
       try {
-        await db.delete(otpCodes).where(eq(otpCodes.roll_no, rollno));
+        await db.delete(otpCodes).where(eq(otpCodes.identifier, rollno));
         await db.insert(otpCodes).values({
-          roll_no: rollno,
+          identifier: rollno,
           otp_code: otp,
           expires_at: expiresAt
         });

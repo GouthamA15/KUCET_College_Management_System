@@ -28,7 +28,7 @@ export async function PUT(request, { params }) {
     if (!status) return apiError('Status is required', 400);
     
     status = String(status).toUpperCase();
-    if (!['APPROVED', 'REJECTED', 'PENDING'].includes(status)) return apiError('Invalid status', 400);
+    if (!['APPROVED', 'REJECTED'].includes(status)) return apiError('Invalid status', 400);
 
     try {
         const rows = await db.select({
@@ -45,6 +45,9 @@ export async function PUT(request, { params }) {
 
         if (rows.length === 0) return apiError('Request not found', 404);
         const requestToUpdate = rows[0];
+        if (requestToUpdate.status !== 'PENDING') {
+            return apiError('This request has already been processed', 409);
+        }
 
         const allowedTypes = clerkToTypes[clerk.role] || [];
         if (!allowedTypes.includes(requestToUpdate.certificate_type)) return apiError('Forbidden', 403);
@@ -76,7 +79,10 @@ export async function PUT(request, { params }) {
 
         const [result] = await db.update(studentRequests)
             .set(updateData)
-            .where(eq(studentRequests.request_id, requestIdNum));
+            .where(and(
+                eq(studentRequests.request_id, requestIdNum),
+                eq(studentRequests.status, 'PENDING')
+            ));
 
         if (result.affectedRows === 1) {
             // Audit Log
@@ -102,7 +108,7 @@ export async function PUT(request, { params }) {
             } catch (e) {}
             return apiResponse({ success: true });
         } else {
-            return apiError('Failed to update request', 500);
+            return apiError('This request has already been processed', 409);
         }
     } catch (error) {
         logger.error("Error updating request:", error);

@@ -49,6 +49,11 @@ export const clerks = mysqlTable('clerks', {
   employee_id: varchar('employee_id', { length: 255 }),
   password_hash: varchar('password_hash', { length: 255 }).notNull(),
   role: varchar('role', { length: 50 }).default('scholarship').notNull(),
+  mobile: varchar('mobile', { length: 255 }), // Encrypted
+  mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Blind Index
+  pfp: text('pfp'),
+  signature: text('signature'),
+  address: text('address'),
   is_active: boolean('is_active').default(true).notNull(),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
@@ -368,12 +373,12 @@ export const certificateVerificationsArchive = mysqlTable('certificate_verificat
 
 export const otpCodes = mysqlTable('otp_codes', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  roll_no: varchar('roll_no', { length: 255 }).notNull(),
+  identifier: varchar('identifier', { length: 255 }).notNull(),
   otp_code: varchar('otp_code', { length: 6 }).notNull(),
   created_at: timestamp('created_at').defaultNow(),
   expires_at: timestamp('expires_at').notNull(),
 }, (table) => ({
-  rollNoIdx: index('idx_otp_roll_no').on(table.roll_no),
+  identifierIdx: index('idx_otp_identifier').on(table.identifier),
 }));
 
 export const passwordResetTokens = mysqlTable('password_reset_tokens', {

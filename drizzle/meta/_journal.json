@@ -15,6 +15,13 @@
       "when": 1775211097266,
       "tag": "0001_curved_iron_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1778142387996,
+      "tag": "0002_flowery_harpoon",
+      "breakpoints": true
     }
   ]
 }

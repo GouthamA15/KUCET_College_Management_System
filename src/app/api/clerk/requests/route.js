@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students } from '@/db/schema';
-import { eq, and, inArray, sql, desc, asc } from 'drizzle-orm';
+import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
@@ -108,7 +108,7 @@ export async function GET(request) {
       .from(studentRequests)
       .innerJoin(students, eq(studentRequests.student_id, students.id))
       .where(and(...activeConditions))
-      .orderBy(asc(studentRequests.created_at));
+      .orderBy(desc(studentRequests.created_at));
 
       return apiResponse({ records: rows });
     }

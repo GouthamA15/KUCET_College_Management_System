@@ -2,16 +2,17 @@
 
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { useClerk } from '@/context/ClerkContext';
+import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
 import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
+import StudentAcademicSummaryCard from '@/components/clerk/scholarship/StudentAcademicSummaryCard';
 import YearRecordsList from '@/components/clerk/scholarship/YearRecordsList';
 import AddEditRecordModal from '@/components/clerk/scholarship/AddEditRecordModal';
 import ScholarshipMetricsCards from '@/components/clerk/scholarship/ScholarshipMetricsCards';
 import ScholarshipSearchCard from '@/components/clerk/scholarship/ScholarshipSearchCard';
 import ScholarshipWindowCard from '@/components/clerk/scholarship/ScholarshipWindowCard';
-import ScholarshipToolsSection from '@/components/clerk/scholarship/ScholarshipToolsSection';
 import { useScholarshipDashboard } from '@/context/ScholarshipDashboardContext';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber';
@@ -20,6 +21,7 @@ import { formatDate } from '@/lib/date';
 
 function ScholarshipDashboardContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { clerkData: clerk, loading: isClerkLoading } = useClerk();
   const { state, setField, resetStudent, setState } = useScholarshipDashboard();
   const {
@@ -57,6 +59,27 @@ function ScholarshipDashboardContent() {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [view, setView] = useState('dashboard');
+
+  const firstName = clerk?.name?.split(' ')[0] || 'Clerk';
+  const employeeId = clerk?.employee_id || (clerk?.role ? String(clerk.role).toUpperCase() : 'SCHOLARSHIP');
+  const roleLabel = 'Scholarship Clerk';
+
+  const openProfile = () => {
+    try {
+      router.push('/clerk/scholarship/profile');
+    } catch {
+      // ignore
+    }
+  };
+
+  const backToDashboard = () => {
+    setView('dashboard');
+    try {
+      router.push('/clerk/scholarship/dashboard');
+    } catch {
+      // ignore
+    }
+  };
 
   // URL Parameter Handling: switch view and auto-scroll
   useEffect(() => {
@@ -531,93 +554,164 @@ function ScholarshipDashboardContent() {
   }
 
 
-  if (isClerkLoading) {
+  if (isClerkLoading && !clerk) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-600">Loading scholarship dashboard...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-slate-100 border-t-[#0b3578] rounded-full animate-spin"></div>
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Loading Dashboard</span>
+        </div>
       </div>
     );
   }
 
+  if (!clerk) return null;
+
   return (
-    <div className="max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
-      <h1
-        id="scholarship-dashboard-top"
-        className="text-2xl md:text-3xl font-semibold text-gray-800 mb-4"
-      >
-        Scholarship Clerk Dashboard
-      </h1>
+    <div className="max-w-7xl mx-auto space-y-12 pb-20 px-4 animate-fadeIn font-sans antialiased text-slate-600">
+      <header id="scholarship-dashboard-top" className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 gap-5">
+        <div className="space-y-1">
+          <p className="text-[#0b3578] text-[10px] font-bold uppercase tracking-[0.22em] opacity-90">Scholarship Operations</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-800">Welcome, {firstName}</h1>
+          <div className="flex items-center gap-3 mt-2 text-slate-600">
+            <span className="text-[12px] font-semibold bg-slate-50 border border-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">{employeeId}</span>
+            <span className="text-slate-200">|</span>
+            <span className="text-xs font-medium uppercase tracking-tight">{roleLabel}</span>
+          </div>
+        </div>
+
+        {view === 'certificates' ? (
+          <button
+            type="button"
+            onClick={backToDashboard}
+            className="px-6 py-2.5 bg-white text-slate-700 text-[12px] font-black uppercase tracking-widest rounded-md border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+          >
+            Back to Dashboard
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={openProfile}
+            className="px-6 py-2.5 bg-[#0b3578] text-white text-[12px] font-black uppercase tracking-widest rounded-md shadow-lg shadow-[#0b3578]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+          >
+            Open Profile
+          </button>
+        )}
+      </header>
 
       {view === 'certificates' ? (
-        <div>
-          <button
-            onClick={() => setView('dashboard')}
-            className="text-sm text-indigo-600 mb-3"
-          >
-            ← Back to Dashboard
-          </button>
-          <CertificateDashboard clerkType="scholarship" />
-        </div>
+        <section id="certificate-section" className="space-y-6">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Certificate Queue</h2>
+            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Operational module</span>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-3 sm:p-6">
+            <CertificateDashboard clerkType="scholarship" />
+          </div>
+        </section>
       ) : (
         <>
-          {/* Metrics section */}
-          <ScholarshipMetricsCards refreshToken={metricsRefreshToken} />
-
-          {/* Primary search action */}
-          <ScholarshipSearchCard
-            searchMode={searchMode}
-            setSearchMode={setSearchMode}
-            roll={roll}
-            setRoll={setRoll}
-            applicationNoInput={applicationNoInput}
-            setApplicationNoInput={setApplicationNoInput}
-            nameInput={nameInput}
-            setNameInput={setNameInput}
-            rollError={rollError}
-            setRollError={setRollError}
-            MAX_ROLL={MAX_ROLL}
-            loading={loading}
-            onSubmit={fetchStudent}
-            nameResults={nameResults}
-            onSelectStudentFromName={handleSelectStudentFromName}
-          />
-
-          {student && (
-            <div className="mt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={handleClearDashboard}
-                className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Clear
-              </button>
+          <section className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Queue Pulse</h2>
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Live status</span>
             </div>
-          )}
+            <ScholarshipMetricsCards refreshToken={metricsRefreshToken} />
+          </section>
 
-          {/* Student details & year-wise records */}
+          <section className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Primary Operations</h2>
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Search • window • queue</span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-7">
+                <ScholarshipSearchCard
+                  searchMode={searchMode}
+                  setSearchMode={setSearchMode}
+                  roll={roll}
+                  setRoll={setRoll}
+                  applicationNoInput={applicationNoInput}
+                  setApplicationNoInput={setApplicationNoInput}
+                  nameInput={nameInput}
+                  setNameInput={setNameInput}
+                  rollError={rollError}
+                  setRollError={setRollError}
+                  MAX_ROLL={MAX_ROLL}
+                  loading={loading}
+                  onSubmit={fetchStudent}
+                  nameResults={nameResults}
+                  onSelectStudentFromName={handleSelectStudentFromName}
+                />
+              </div>
+
+              <div className="lg:col-span-5 space-y-6">
+                <ScholarshipWindowCard
+                  onWindowUpdated={() => {
+                    setMetricsRefreshToken((t) => t + 1);
+                    if (typeof window !== 'undefined') {
+                      const el = document.getElementById('scholarship-dashboard-top');
+                      if (el && typeof el.scrollIntoView === 'function') {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      } else {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+
           {student && (
-            <section className="space-y-6 mt-4">
-              <StudentInfoCard
-                student={student}
-                onImageClick={(src) => {
-                  setImagePreviewSrc(src);
-                  setImagePreviewOpen(true);
-                }}
-              />
+            <section className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 px-1">
+                <div className="space-y-1">
+                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Student Workspace</h2>
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Active student loaded • {student.roll_no}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearDashboard}
+                  className="px-4 py-2 bg-white text-slate-700 text-[11px] font-bold uppercase tracking-widest rounded-md border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0b3578]"
+                >
+                  Clear Workspace
+                </button>
+              </div>
 
-              <YearRecordsList
-                yearList={yearList}
-                summariesByYear={summariesByYear}
-                expandedByYear={expandedByYear}
-                onToggleExpand={(yy) =>
-                  setExpandedByYear((prev) => ({ ...prev, [yy]: !prev[yy] }))
-                }
-                onOpenModal={(yy) => openAddModal(yy)}
-                computeRecordState={computeRecordState}
-                feeSummary={feeSummary}
-                student={student}
-                toDmy={toDmy}
-              />
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-5 space-y-6">
+                  <StudentInfoCard
+                    student={student}
+                    onImageClick={(src) => {
+                      setImagePreviewSrc(src);
+                      setImagePreviewOpen(true);
+                    }}
+                  />
+                  <StudentAcademicSummaryCard student={student} />
+                </div>
+
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Year Timeline Records</h3>
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Expand for fee & proceedings</span>
+                  </div>
+                  <YearRecordsList
+                    yearList={yearList}
+                    summariesByYear={summariesByYear}
+                    expandedByYear={expandedByYear}
+                    onToggleExpand={(yy) =>
+                      setExpandedByYear((prev) => ({ ...prev, [yy]: !prev[yy] }))
+                    }
+                    onOpenModal={(yy) => openAddModal(yy)}
+                    computeRecordState={computeRecordState}
+                    feeSummary={feeSummary}
+                    student={student}
+                    toDmy={toDmy}
+                  />
+                </div>
+              </div>
 
               <AddEditRecordModal
                 open={modalOpen}
@@ -662,26 +756,6 @@ function ScholarshipDashboardContent() {
               />
             </section>
           )}
-
-          {/* Scholarship submission window management */}
-          <ScholarshipWindowCard
-            onWindowUpdated={() => {
-              setMetricsRefreshToken((t) => t + 1);
-              if (typeof window !== 'undefined') {
-                const el = document.getElementById('scholarship-dashboard-top');
-                if (el && typeof el.scrollIntoView === 'function') {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                } else {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-              }
-            }}
-          />
-
-          {/* Secondary tools */}
-          <ScholarshipToolsSection
-            onOpenCertificates={() => setView('certificates')}
-          />
         </>
       )}
       <ImagePreviewModal src={imagePreviewSrc} alt="Profile preview" open={imagePreviewOpen} onClose={() => setImagePreviewOpen(false)} />

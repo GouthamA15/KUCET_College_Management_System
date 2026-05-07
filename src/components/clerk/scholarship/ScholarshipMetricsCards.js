@@ -29,55 +29,61 @@ export default function ScholarshipMetricsCards({ refreshToken = 0 }) {
     return () => { isMounted = false; };
   }, [refreshToken]);
 
+  const windowStatus = metrics?.windowStatus || 'CLOSED';
+  const isWindowOpen = String(windowStatus).toUpperCase() === 'OPEN';
+
   const items = [
     {
       key: 'pendingHardCopies',
       label: 'Pending Hard Copies',
       value: metrics?.pendingHardCopies ?? '--',
       suffix: 'Students',
+      accent: 'border-l-amber-400',
     },
     {
       key: 'pendingThumbs',
       label: 'Pending Thumb Updates',
       value: metrics?.pendingThumbs ?? '--',
       suffix: 'Students',
+      accent: 'border-l-orange-400',
     },
     {
       key: 'totalRecords',
       label: 'Total Scholarship Records',
       value: metrics?.totalRecords ?? '--',
       suffix: 'Records',
+      accent: 'border-l-slate-300',
     },
     {
       key: 'windowStatus',
       label: 'Submission Window Status',
-      value: metrics?.windowStatus || 'CLOSED',
+      value: windowStatus,
       suffix: metrics?.windowEndDate ? `Until ${metrics.windowEndDate}` : null,
+      accent: isWindowOpen ? 'border-l-emerald-400' : 'border-l-rose-400',
+      valueTone: isWindowOpen ? 'text-emerald-700' : 'text-rose-700',
     },
   ];
 
   return (
-    <section className="mb-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {items.map((item) => (
-          <div
-            key={item.key}
-            className="rounded-xl border border-indigo-100 shadow-sm bg-white p-5 flex flex-col justify-between min-h-[96px]"
-          >
-            <div className="text-sm text-gray-500 mb-1">{item.label}</div>
-            <div className="text-2xl font-bold text-indigo-700">
-              {loading ? (
-                <span className="inline-block h-6 w-16 bg-indigo-50 rounded animate-pulse" />
-              ) : (
-                item.value
-              )}
-            </div>
-            {item.suffix && !loading && (
-              <div className="mt-1 text-xs text-gray-500">{item.suffix}</div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {items.map((item) => (
+        <div
+          key={item.key}
+          className={`bg-white p-6 rounded-2xl border border-slate-200 border-l-4 ${item.accent} shadow-[0_2px_10px_rgba(0,0,0,0.02)]`}
+        >
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{item.label}</p>
+          <div className={`text-3xl font-semibold mt-3 tracking-tight ${item.valueTone || 'text-slate-800'}`}>
+            {loading ? (
+              <span className="inline-block h-7 w-20 bg-slate-50 rounded animate-pulse" />
+            ) : (
+              item.value
             )}
           </div>
-        ))}
-      </div>
-    </section>
+          {item.suffix && !loading && (
+            <p className="text-[10px] text-slate-400 mt-3 uppercase tracking-wider">{item.suffix}</p>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

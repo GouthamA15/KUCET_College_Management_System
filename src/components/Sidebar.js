@@ -311,8 +311,8 @@ export default function Sidebar({
         'hidden lg:flex fixed left-0 z-30',
         'flex-col',
         'rounded-tr-2xl rounded-br-2xl overflow-hidden',
-        'border border-white/10',
-        'bg-[#002a5c]',
+        'border border-slate-200/70',
+        'bg-linear-to-b from-blue-200/70 via-white to-blue-200/70',
         'shadow-sm'
       )}
       style={{
@@ -327,8 +327,15 @@ export default function Sidebar({
     >
       {/* subtle depth overlay */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-x-0 top-0 h-20 bg-linear-to-b from-white/10 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/10 to-transparent" />
+        <div
+          className={cn(
+            'absolute inset-x-0 top-0 h-20',
+            expanded
+              ? 'bg-linear-to-b from-blue-300/45 via-blue-200/20 to-transparent'
+              : 'bg-linear-to-b from-white/60 to-transparent'
+          )}
+        />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-blue-200/35 to-transparent" />
       </div>
 
       <div
@@ -336,7 +343,7 @@ export default function Sidebar({
           'relative flex flex-col w-full min-h-0 flex-1',
           // Expanded: add a softer glass surface over the blue base.
           // Collapsed: keep the rich base visible.
-          expanded ? 'bg-white/6' : 'bg-transparent'
+          expanded ? 'bg-linear-to-b from-blue-100/45 via-white/60 to-white/35' : 'bg-transparent'
         )}
       >
         <div
@@ -346,7 +353,7 @@ export default function Sidebar({
             expanded ? 'scrollbar-premium' : 'scrollbar-hide',
             'px-2 py-3 pr-2.5 pb-2',
             'relative',
-            expanded ? 'bg-linear-to-b from-white/10 via-white/6 to-transparent' : ''
+            expanded ? 'bg-linear-to-b from-blue-100/25 via-white/20 to-transparent' : ''
           )}
         >
           <nav className="space-y-1">
@@ -366,9 +373,9 @@ export default function Sidebar({
                 'group w-full rounded-xl transition-colors',
                 'h-11',
                 'relative',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60',
                 // No row-wide hover fill (icon-only hover).
-                active ? 'bg-white/6 ring-1 ring-white/10' : 'bg-transparent'
+                active ? 'bg-blue-50/80 ring-1 ring-blue-200/70' : 'bg-transparent'
               );
 
               const iconBlock = (
@@ -377,8 +384,8 @@ export default function Sidebar({
                     className={cn(
                       'h-10 w-10 rounded-xl flex items-center justify-center transition-colors',
                       active
-                        ? 'bg-white/22 text-white ring-1 ring-white/25 shadow-sm'
-                        : 'bg-white/10 text-white/90 ring-1 ring-white/12 group-hover:bg-white/16 group-hover:ring-white/20 group-hover:shadow-sm'
+                        ? 'bg-blue-100 text-[#0b3578] ring-1 ring-blue-200/70 shadow-sm'
+                        : 'bg-transparent text-slate-700 ring-0 shadow-none group-hover:bg-blue-50 group-hover:ring-1 group-hover:ring-blue-200/60 group-hover:shadow-sm'
                     )}
                   >
                     <Icon size={20} />
@@ -395,7 +402,7 @@ export default function Sidebar({
                       ? 'opacity-100 translate-x-0 max-w-48'
                       : 'opacity-0 -translate-x-1 max-w-0 pointer-events-none',
                     // Keep text stable on hover; high-contrast white typography.
-                    active ? 'text-white font-semibold' : 'text-white/85 font-medium'
+                    active ? 'text-[#0b3578] font-semibold' : 'text-slate-700 font-medium'
                   )}
                 >
                   {displayLabel}
@@ -427,7 +434,7 @@ export default function Sidebar({
                           className={cn(
                             'h-9 w-9 rounded-xl flex items-center justify-center',
                             // Keep chevron subtle + stable (no hover emphasis).
-                            'bg-white/8 text-white/80 ring-1 ring-white/10',
+                            'bg-transparent text-slate-600 ring-0 group-hover:bg-slate-50 group-hover:ring-1 group-hover:ring-slate-200',
                             open ? 'rotate-90' : 'rotate-0',
                             'transition-transform duration-200'
                           )}
@@ -438,15 +445,15 @@ export default function Sidebar({
                     </button>
 
                     {expanded && open && (
-                      <div className="mt-1 ml-11 pl-3 border-l border-white/12 space-y-1">
+                      <div className="mt-1 ml-11 pl-3 border-l border-slate-200 space-y-1">
                         {item.children.map((c, ci) => {
                           const childIsActive = c.route && isActiveRoute({ pathname, route: c.route, exact: false });
                           const childClass = cn(
                             'block w-full text-left rounded-lg px-2.5 py-2',
                             'text-[13px] font-medium transition-colors',
                             childIsActive
-                              ? 'bg-white/16 text-white ring-1 ring-white/12'
-                              : 'text-white/75 hover:bg-white/10 hover:text-white'
+                              ? 'bg-blue-50d text-[#0b3578] ring-1 ring-blue-200/60'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                           );
 
                           if (c.action) {
@@ -546,7 +553,7 @@ export default function Sidebar({
         </div>
 
         {/* Logout (bottom, outside scroll) */}
-        <div className="border-t border-white/12 px-2 py-2">
+        <div className="border-t border-slate-200/70 px-2 py-2">
           <button
             type="button"
             onClick={() =>
@@ -561,7 +568,7 @@ export default function Sidebar({
             }
             className={cn(
               'group w-full rounded-xl transition-colors',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-red-200/40',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300/40',
               // No row-wide hover fill (icon-only hover).
               'bg-transparent'
             )}
@@ -572,8 +579,8 @@ export default function Sidebar({
                 <div
                   className={cn(
                     'h-10 w-10 rounded-xl flex items-center justify-center transition-colors',
-                    'bg-red-500/14 text-red-100 ring-1 ring-red-200/25',
-                    'group-hover:bg-red-500/18 group-hover:ring-red-200/35 group-hover:shadow-sm'
+                    'bg-transparent text-red-700 ring-0 shadow-none',
+                    'group-hover:bg-red-50 group-hover:ring-1 group-hover:ring-red-200/60 group-hover:shadow-sm'
                   )}
                 >
                   <Icons.logout size={20} />
@@ -583,7 +590,7 @@ export default function Sidebar({
                 className={cn(
                   'text-[13px] font-semibold leading-none transition-all duration-200',
                   expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1 pointer-events-none max-w-0',
-                  'text-red-100/90'
+                  'text-red-700'
                 )}
               >
                 Logout

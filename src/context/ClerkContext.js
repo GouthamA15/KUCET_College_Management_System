@@ -191,7 +191,7 @@ export function ClerkProvider({ children }) {
       setClerkData,
       loading,
       error,
-      refreshClerk: fetchClerk,
+      refreshClerkData: fetchClerk,
       facultyAssignments,
       facultyInterests,
       isLoadingFaculty,
