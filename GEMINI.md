@@ -193,6 +193,25 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Data Integrity:**
     - Hardened the `onSave` logic in staff settings to prevent the submission of unverified email changes while maintaining support for other profile modifications (PFP, signature, mobile).
 
+#### **Session 97: Attendance Refinement, API Hardening & Infrastructure Monitoring (May 7, 2026)**
+- **Attendance System Refinement:**
+    - Enabled persistent attendance PIN entry globally on the student dashboard. Modified `StudentActivityBar` to ensure the verification card is visible across all pages when a session is active.
+    - Cleaned up `DashboardActionCenter` by removing redundant attendance fetching logic, centralizing the experience in the global activity bar.
+- **API Hardening & Validation:**
+    - Implemented a centralized validation layer using **Zod**. Created schemas in `src/lib/validations/student.js` to strictly enforce institutional standards for student records.
+    - Integrated Zod validation into student creation and update API routes, providing granular `400 Bad Request` feedback for malformed inputs.
+- **Data Privacy & Security:**
+    - Hardened the `StudentService` with institutional-grade **field-level encryption (AES-256-GCM)** for mobile and Aadhaar numbers.
+    - Developed **Blind Indexing** (HMAC-SHA256) for encrypted fields to enable secure, high-performance database searches without exposing plain-text sensitive data.
+- **System Observability & Monitoring:**
+    - Developed a robust **Deployment Health Check API** (`/api/public/system/health`) that verifies live connectivity to TiDB, Upstash Redis, and institutional email gateways.
+    - Integrated comprehensive audit logging for student management actions, ensuring all record modifications are timestamped and attributed to the responsible staff member.
+- **UI & Data Standardization:**
+    - Standardized **Annual Income** as a range-based dropdown across the public admission form, administrative student creation modal, and bulk import tool.
+    - Updated the database schema (`annual_income` to `varchar(50)`) and Drizzle metadata to support descriptive range values.
+- **Bug Resolution:**
+    - Resolved a critical `ReferenceError: needsProof is not defined` in the student record modification portal, ensuring document upload requirements are correctly calculated during the render cycle.
+
 ---
 
 ### April 2026
