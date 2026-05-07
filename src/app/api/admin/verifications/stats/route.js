@@ -62,5 +62,6 @@ export async function GET(request) {
 
     } catch (error) {
         logger.error({ err: error }, "[VERIFY_STATS_ERROR]");
-        return apiError("Internal Server Error", 500);    }
+        return apiError("Internal Server Error", 500);
+    }
 }

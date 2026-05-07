@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { otpCodes } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { getStudentEmail } from '@/lib/student-utils';
@@ -19,11 +20,16 @@ function generateSecureOtp() {
 
 export async function POST(request) {
   try {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`send_otp:${ip}`, 5, 900); // 5 attempts per 15 min
+    // Extract client IP from rightmost entry of X-Forwarded-For or use NextRequest.ip
+    const xForwardedFor = request.headers.get('x-forwarded-for');
+    const clientIp = xForwardedFor ? xForwardedFor.split(',').pop().trim() : request.ip || `req-${crypto.randomBytes(8).toString('hex')}`;
+    const rateCheck = await checkRateLimit(`send_otp:${clientIp}`, 5, 900); // 5 attempts per 15 min
     
     if (!rateCheck.success) {
-      return apiError('Too many OTP requests. Please try again later.', 429);
+      return NextResponse.json(
+        { error: 'Too many OTP requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
     }
 
     const body = await request.json();
@@ -34,6 +40,15 @@ export async function POST(request) {
     const identifier = rollNo || email;
     
     if (!identifier) return apiError('Identifier (Roll number or Email) is required', 400);
+
+    // Add identifier-based rate limiting to prevent account enumeration
+    const identifierRateCheck = await checkRateLimit(`send_otp_id:${identifier}`, 5, 900); // 5 attempts per 15 min
+    if (!identifierRateCheck.success) {
+      return NextResponse.json(
+        { error: 'Too many OTP requests for this account. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
 
     let targetEmail = email;
     if (rollNo && !email) {

@@ -177,13 +177,19 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ---
 
-#### **Session 97: Email Verification Refactor & Profile UI Streamlining (May 7, 2026)**
+#### **Session 97: Email Verification Refactor, Profile UI Streamlining & Security Hardening (May 7, 2026)**
 - **Staff Email Verification:**
     - Refactored the "Edit Profile" workflow for all institutional staff roles. The system now requires OTP verification of the **new institutional email address** instead of the currently registered one, ensuring the validity of new account credentials before they are committed.
     - Introduced a dedicated "Change Email" state to prevent accidental modifications and provide a clear, multi-stage verification handshake.
 - **Institutional Directory Cleanup:**
     - Removed the "Institutional Directory" search section from the Admission, Scholarship, and Faculty profile pages to streamline the user interface and focus on role-specific record management.
     - Deleted the unused `ClerkSearch` component and the corresponding `/api/clerk/search` API route to reduce codebase bloat and maintenance overhead.
+- **Input Constraints & Validation:**
+    - Implemented rigorous input validation for both Clerk and Student profile editing. Added regex-based name sanitization (letters/spaces only), enforced 10-digit mobile and 12-digit Aadhaar formats, and applied `maxLength` constraints to prevent database overflow.
+- **Security & Edge Case Hardening:**
+    - **Authentication Guard:** Secured the previously public `/api/bugs` and `/api/send-student-email` endpoints, restricting access to authenticated institutional users.
+    - **Spam Prevention:** Integrated IP-based rate limiting for the OTP generation endpoint to prevent email spam and quota exhaustion.
+    - **Observability:** Standardized error handling by replacing unstructured `console.error` calls in HOD and Admin API routes with the application's structured `logger`.
 - **Data Integrity:**
     - Hardened the `onSave` logic in staff settings to prevent the submission of unverified email changes while maintaining support for other profile modifications (PFP, signature, mobile).
 

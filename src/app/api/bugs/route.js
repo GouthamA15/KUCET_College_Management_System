@@ -7,9 +7,13 @@ import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function GET() {
   try {
+    const user = await getAuthUser();
+    if (!user) {
+      return apiError('Unauthorized to view bug reports', 401);
+    }
     const admin = await getAuthUser('admin');
     if (!admin) {
-      return apiError('Unauthorized to view bug reports', 401);
+      return apiError('Forbidden: insufficient permissions', 403);
     }
 
     const reports = await db.query.bugReports.findMany({

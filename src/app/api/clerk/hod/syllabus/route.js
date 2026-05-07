@@ -57,8 +57,8 @@ export async function GET(req) {
 
     return apiResponse({ data });
   } catch (error) {
-    logger.error({ err: error, user: user?.email, branch: user?.branch }, 'Syllabus API Error');
-    return apiError('Internal Server Error', 500, error.message);
+    logger.error({ err: error, user: user?.id, branch: user?.branch }, 'Syllabus API Error');
+    return apiError('Internal Server Error', 500);
   }
 }
 
