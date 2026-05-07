@@ -109,70 +109,74 @@ export default function ScholarshipWindowCard({ onWindowUpdated }) {
   const disabled = saving || loading;
 
   return (
-    <section className="mt-6">
-      <div className="rounded-xl border border-indigo-100 shadow-sm bg-white p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-800">Scholarship Submission Window</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Configure the active period for accepting scholarship applications.
-            </p>
-          </div>
-          <div className="text-sm font-semibold">
-            <span className="mr-2 text-gray-500">Status:</span>
-            <span className={status === 'OPEN' ? 'text-green-700' : 'text-red-600'}>
-              {status}
-            </span>
-          </div>
+    <section className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Submission Window</p>
+          <h3 className="text-base font-semibold text-slate-900 tracking-tight">Scholarship Window Management</h3>
+          <p className="text-xs text-slate-600">Configure the active period for accepting scholarship applications.</p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm text-gray-500 mb-1">Start Date</label>
-            <input
-              type="date"
-              value={startDate || ''}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              disabled={disabled}
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-500 mb-1">End Date</label>
-            <input
-              type="date"
-              value={endDate || ''}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              disabled={disabled}
-            />
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</span>
+          <span
+            className={
+              `text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border ` +
+              (status === 'OPEN'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : 'bg-rose-50 text-rose-800 border-rose-200')
+            }
+          >
+            {status}
+          </span>
         </div>
+      </div>
 
-        {hasWindow && (
-          <div className="mb-4 text-xs text-gray-500">
-            Current window: {formatDate(startDate)}  {formatDate(endDate)}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={handleSave}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+        <div>
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Start Date</label>
+          <input
+            type="date"
+            value={startDate || ''}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 focus:border-[#0b3578]/30"
             disabled={disabled}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md disabled:opacity-60"
-          >
-            {saving ? 'Saving...' : 'Save Window'}
-          </button>
-          <button
-            type="button"
-            onClick={handleExtend}
-            disabled={disabled || !hasWindow}
-            className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md disabled:opacity-60"
-          >
-            Extend Deadline (+7 days)
-          </button>
+          />
         </div>
+        <div>
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">End Date</label>
+          <input
+            type="date"
+            value={endDate || ''}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 focus:border-[#0b3578]/30"
+            disabled={disabled}
+          />
+        </div>
+      </div>
+
+      {hasWindow && (
+        <div className="mt-4 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+          Current window: {formatDate(startDate)} — {formatDate(endDate)}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-3 mt-5">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={disabled}
+          className="px-4 py-2.5 bg-[#0b3578] text-white text-[11px] font-black uppercase tracking-widest rounded-md shadow-lg shadow-[#0b3578]/15 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:hover:translate-y-0"
+        >
+          {saving ? 'Saving…' : 'Save Window'}
+        </button>
+        <button
+          type="button"
+          onClick={handleExtend}
+          disabled={disabled || !hasWindow}
+          className="px-4 py-2.5 bg-white text-slate-700 text-[11px] font-bold uppercase tracking-widest rounded-md border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:hover:translate-y-0"
+        >
+          Extend (+7 days)
+        </button>
       </div>
     </section>
   );
