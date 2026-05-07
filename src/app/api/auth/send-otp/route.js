@@ -6,6 +6,7 @@ import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { getStudentEmail } from '@/lib/student-utils';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 function generateSecureOtp() {
   const length = 6;
@@ -18,6 +19,13 @@ function generateSecureOtp() {
 
 export async function POST(request) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
+    const rateCheck = await checkRateLimit(`send_otp:${ip}`, 5, 900); // 5 attempts per 15 min
+    
+    if (!rateCheck.success) {
+      return apiError('Too many OTP requests. Please try again later.', 429);
+    }
+
     const body = await request.json();
     const rollNo = body.rollNo || body.rollno;
     const email = body.email;
@@ -45,7 +53,6 @@ export async function POST(request) {
         expires_at: expiresAt
       });
     } catch (dbError) {
-      console.error('DB ERROR DETAILS:', dbError);
       logger.error('Error storing OTP:', dbError);
       return apiError(`Failed to store OTP: ${dbError.message}`, 500);
     }

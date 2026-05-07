@@ -1,5 +1,5 @@
 import logger from '@/lib/logger';
-import { apiResponse, apiError } from '@/lib/api-utils';
+import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { db } from '@/db';
 import { students } from '@/db/schema';
@@ -7,6 +7,16 @@ import { eq } from 'drizzle-orm';
 
 export async function POST(request) {
   try {
+    // Security: Only institutional staff (clerks or admins) can send system emails
+    let user = await getAuthUser('clerk');
+    if (!user) {
+      user = await getAuthUser('admin');
+    }
+
+    if (!user) {
+      return apiError('Unauthorized. Only institutional staff can send emails.', 401);
+    }
+
     const { rollNo, subject, html, title, infoRows } = await request.json();
 
     if (!rollNo || !subject || !html) {

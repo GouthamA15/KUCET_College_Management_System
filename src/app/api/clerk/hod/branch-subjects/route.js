@@ -34,7 +34,6 @@ export async function GET(req) {
     return apiResponse({ data: subjects || [] });
   } catch (error) {
     logger.error({ err: error, user: user?.email, branch: user?.branch }, 'Branch Subjects API Error');
-    console.error('[DEBUG] Branch Subjects Error:', error.message);
     return apiError('Internal Server Error', 500, error.message);
   }
 }

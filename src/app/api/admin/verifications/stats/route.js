@@ -2,6 +2,7 @@ import { db } from '@/db';
 import { certificateVerifications, studentRequests, students } from '@/db/schema';
 import { eq, sql, desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import logger from '@/lib/logger';
 
 export async function GET(request) {
     try {
@@ -60,7 +61,6 @@ export async function GET(request) {
         });
 
     } catch (error) {
-        console.error("[VERIFY_STATS_ERROR]", error);
-        return apiError("Internal Server Error", 500);
-    }
+        logger.error({ err: error }, "[VERIFY_STATS_ERROR]");
+        return apiError("Internal Server Error", 500);    }
 }

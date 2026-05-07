@@ -57,8 +57,7 @@ export async function GET(req) {
 
     return apiResponse({ data });
   } catch (error) {
-    logger.error({ err: error, user: user?.email, branch: user?.branch }, 'HOD Syllabus GET Error');
-    console.error('[DEBUG] Syllabus Error:', error.message);
+    logger.error({ err: error, user: user?.email, branch: user?.branch }, 'Syllabus API Error');
     return apiError('Internal Server Error', 500, error.message);
   }
 }

@@ -2,11 +2,16 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { bugReports } from '@/db/schema';
 import { desc } from 'drizzle-orm';
-import { apiError, apiResponse } from '@/lib/api-utils';
+import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function GET() {
   try {
+    const admin = await getAuthUser('admin');
+    if (!admin) {
+      return apiError('Unauthorized to view bug reports', 401);
+    }
+
     const reports = await db.query.bugReports.findMany({
       orderBy: [desc(bugReports.created_at)]
     });
@@ -19,6 +24,11 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    const user = await getAuthUser(); // Allows any authenticated user (student, clerk, admin)
+    if (!user) {
+      return apiError('Unauthorized to submit bug reports', 401);
+    }
+
     const body = await req.json();
     const { description, screenshot } = body;
 
