@@ -12,7 +12,7 @@ export async function POST(req) {
 
   try {
     const body = await req.json();
-    const { name, email, mobile, pfp, signature } = body;
+    const { name, email, mobile, pfp, signature, address } = body;
 
     const currentClerk = await db.query.clerks.findFirst({
       where: eq(clerks.id, user.clerkId)
@@ -24,6 +24,7 @@ export async function POST(req) {
 
     if (name) updateData.name = name;
     if (email) updateData.email = email;
+    if (address !== undefined) updateData.address = address;
     
     if (mobile) {
       updateData.mobile = encrypt(mobile);

@@ -116,6 +116,57 @@ export default function EditProfilePage() {
         return;
     }
 
+    // Input Validations
+    if (changedData) {
+        // Mobile & Email
+        if (changedData.mobile && !/^\d{10}$/.test(changedData.mobile)) {
+            toast.error('Mobile number must be exactly 10 digits.');
+            return;
+        }
+        if (changedData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(changedData.email)) {
+            toast.error('Please enter a valid email address.');
+            return;
+        }
+
+        // Personal Details
+        const nameRegex = /^[a-zA-Z\s]*$/;
+        if (changedData.father_name) {
+            if (!nameRegex.test(changedData.father_name)) { toast.error('Father name can only contain letters.'); return; }
+            if (changedData.father_name.length > 50) { toast.error('Father name too long.'); return; }
+        }
+        if (changedData.mother_name) {
+            if (!nameRegex.test(changedData.mother_name)) { toast.error('Mother name can only contain letters.'); return; }
+            if (changedData.mother_name.length > 50) { toast.error('Mother name too long.'); return; }
+        }
+        if (changedData.aadhaar_no && !/^\d{12}$/.test(changedData.aadhaar_no)) {
+            toast.error('Aadhaar number must be exactly 12 digits.');
+            return;
+        }
+        if (changedData.guardian_mobile && !/^\d{10}$/.test(changedData.guardian_mobile)) {
+            toast.error('Guardian mobile must be 10 digits.');
+            return;
+        }
+        if (changedData.address && changedData.address.length > 255) {
+            toast.error('Address too long (max 255 chars).');
+            return;
+        }
+        if (changedData.identification_marks && changedData.identification_marks.length > 200) {
+            toast.error('Identification marks too long (max 200 chars).');
+            return;
+        }
+
+        // Academic Details
+        const marksRegex = /^\d{1,3}(\.\d{1,2})?$/;
+        if (changedData.ssc_marks && (!marksRegex.test(changedData.ssc_marks) || parseFloat(changedData.ssc_marks) > 100)) {
+            toast.error('Invalid SSC Score (max 100%).');
+            return;
+        }
+        if (changedData.inter_marks && (!marksRegex.test(changedData.inter_marks) || parseFloat(changedData.inter_marks) > 100)) {
+            toast.error('Invalid Inter Score (max 100%).');
+            return;
+        }
+    }
+
     if (changedData && !proofDataUrl) {
         toast.error('Verification proof is mandatory for data updates.');
         return;
@@ -291,6 +342,7 @@ export default function EditProfilePage() {
                     <input 
                       value={formData.student.mobile || ''} 
                       onChange={(e) => updateField('student', 'mobile', e.target.value)}
+                      maxLength={10}
                       className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.student.mobile !== originalData?.student.mobile ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
                     />
                   </div>
@@ -299,6 +351,7 @@ export default function EditProfilePage() {
                     <input 
                       value={formData.student.email || ''} 
                       onChange={(e) => updateField('student', 'email', e.target.value)}
+                      maxLength={100}
                       className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.student.email !== originalData?.student.email ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
                     />
                   </div>
@@ -310,19 +363,19 @@ export default function EditProfilePage() {
                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2 mb-6">Personal Demographic Records</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
-                    { label: 'Father Name', field: 'father_name' },
-                    { label: 'Mother Name', field: 'mother_name' },
-                    { label: 'Nationality', field: 'nationality' },
-                    { label: 'Religion', field: 'religion' },
+                    { label: 'Father Name', field: 'father_name', maxLength: 50 },
+                    { label: 'Mother Name', field: 'mother_name', maxLength: 50 },
+                    { label: 'Nationality', field: 'nationality', maxLength: 30 },
+                    { label: 'Religion', field: 'religion', maxLength: 20 },
                     { label: 'Category', field: 'category', type: 'select', options: COLLEGE_CONFIG.categories },
-                    { label: 'Sub Caste', field: 'sub_caste' },
+                    { label: 'Sub Caste', field: 'sub_caste', maxLength: 50 },
                     { label: 'Area Status', field: 'area_status', type: 'select', options: ['Local', 'Non-Local'] },
-                    { label: 'Mother Tongue', field: 'mother_tongue' },
-                    { label: 'Place of Birth', field: 'place_of_birth' },
-                    { label: 'Father Occupation', field: 'father_occupation' },
-                    { label: 'Guardian Mobile', field: 'guardian_mobile' },
-                    { label: 'Annual Income', field: 'annual_income' },
-                    { label: 'Aadhaar Card No', field: 'aadhaar_no' },
+                    { label: 'Mother Tongue', field: 'mother_tongue', maxLength: 30 },
+                    { label: 'Place of Birth', field: 'place_of_birth', maxLength: 100 },
+                    { label: 'Father Occupation', field: 'father_occupation', maxLength: 100 },
+                    { label: 'Guardian Mobile', field: 'guardian_mobile', maxLength: 10 },
+                    { label: 'Annual Income', field: 'annual_income', maxLength: 15 },
+                    { label: 'Aadhaar Card No', field: 'aadhaar_no', maxLength: 12 },
                     { label: 'Allotted Category', field: 'seat_allotted_category' },
                     { label: 'Blood Group', field: 'blood_group', type: 'select', options: COLLEGE_CONFIG.bloodGroups }
                   ].map((item) => (
@@ -341,6 +394,7 @@ export default function EditProfilePage() {
                         <input 
                           value={formData.personal[item.field] || ''}
                           onChange={(e) => updateField('personal', item.field, e.target.value)}
+                          maxLength={item.maxLength}
                           className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal[item.field] !== originalData?.personal[item.field] ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
                         />
                       )}
@@ -352,6 +406,7 @@ export default function EditProfilePage() {
                       value={formData.personal.address || ''}
                       onChange={(e) => updateField('personal', 'address', e.target.value)}
                       rows={3}
+                      maxLength={255}
                       className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.address !== originalData?.personal.address ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
                     />
                   </div>
@@ -361,6 +416,7 @@ export default function EditProfilePage() {
                       value={formData.personal.identification_marks || ''}
                       onChange={(e) => updateField('personal', 'identification_marks', e.target.value)}
                       rows={2}
+                      maxLength={200}
                       className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.identification_marks !== originalData?.personal.identification_marks ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
                     />
                   </div>
@@ -372,17 +428,18 @@ export default function EditProfilePage() {
                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2 mb-6">Prior Academic Background</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
-                    { label: 'Qualifying Exam', field: 'qualifying_exam' },
-                    { label: 'Medium of Instruction', field: 'medium_of_instruction' },
-                    { label: 'State/National Rank', field: 'ranks' },
-                    { label: 'SSC Score (%)', field: 'ssc_marks' },
-                    { label: 'Inter/Diploma Score (%)', field: 'inter_marks' }
+                    { label: 'Qualifying Exam', field: 'qualifying_exam', maxLength: 50 },
+                    { label: 'Medium of Instruction', field: 'medium_of_instruction', maxLength: 30 },
+                    { label: 'State/National Rank', field: 'ranks', maxLength: 20 },
+                    { label: 'SSC Score (%)', field: 'ssc_marks', maxLength: 5 },
+                    { label: 'Inter/Diploma Score (%)', field: 'inter_marks', maxLength: 5 }
                   ].map((item) => (
                     <div key={item.field} className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</label>
                       <input 
                         value={formData.academic[item.field] || ''}
                         onChange={(e) => updateField('academic', item.field, e.target.value)}
+                        maxLength={item.maxLength}
                         className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.academic[item.field] !== originalData?.academic[item.field] ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
                       />
                     </div>

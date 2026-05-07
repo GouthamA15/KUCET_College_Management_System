@@ -53,6 +53,7 @@ export const clerks = mysqlTable('clerks', {
   mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Blind Index
   pfp: text('pfp'),
   signature: text('signature'),
+  address: text('address'),
   is_active: boolean('is_active').default(true).notNull(),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),

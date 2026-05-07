@@ -19,7 +19,8 @@ export async function GET(req) {
       branch: clerks.branch,
       mobile: clerks.mobile,
       pfp: clerks.pfp,
-      signature: clerks.signature
+      signature: clerks.signature,
+      address: clerks.address
     })
     .from(clerks)
     .where(eq(clerks.id, user.clerkId))
