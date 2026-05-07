@@ -77,7 +77,7 @@ export const principal = mysqlTable('principal', {
 
 export const studentPersonalDetails = mysqlTable('student_personal_details', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  student_id: int('student_id'),
+  student_id: int('student_id').notNull(),
   father_name: varchar('father_name', { length: 255 }),
   mother_name: varchar('mother_name', { length: 255 }),
   nationality: varchar('nationality', { length: 100 }),
@@ -103,7 +103,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
 
 export const studentAcademicBackground = mysqlTable('student_academic_background', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  student_id: int('student_id'),
+  student_id: int('student_id').notNull(),
   qualifying_exam: varchar('qualifying_exam', { length: 50 }),
   previous_college_details: text('previous_college_details'),
   medium_of_instruction: varchar('medium_of_instruction', { length: 50 }),

@@ -33,7 +33,7 @@ export async function POST(req) {
       rawData = await req.json();
     } catch (parseError) {
       if (parseError instanceof SyntaxError) {
-        return apiError('Malformed JSON body', 400, parseError.message);
+        return apiError('Malformed JSON body', 400);
       }
       throw parseError;
     }
@@ -52,14 +52,25 @@ export async function POST(req) {
     
     const studentId = await StudentService.createStudent(validation.data, clerkId);
     
-    // Audit log for student creation
+    // Normalize client IP for audit logging
+    let clientIp = req.ip || 'unknown';
+    if (!clientIp || clientIp === 'unknown') {
+      const xForwardedFor = req.headers.get('x-forwarded-for');
+      if (xForwardedFor) {
+        const ips = xForwardedFor.split(',').map(ip => ip.trim());
+        const firstIp = ips[0];
+        if (firstIp && firstIp.length > 0) {
+          clientIp = firstIp;
+        }
+      }
+    }
+    
+    // Audit log for student creation (excludes PII)
     const userAgent = req.headers.get('user-agent') || '';
-    const clientIp = req.ip || req.headers.get('x-forwarded-for') || 'unknown';
     logger.info({
       action: 'student_created',
       clerkId,
       studentId,
-      email: validation.data.email,
       rollNo: validation.data.roll_no,
       clientIp,
       userAgent: userAgent.substring(0, 255)

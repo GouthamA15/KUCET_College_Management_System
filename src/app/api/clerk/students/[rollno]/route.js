@@ -102,7 +102,15 @@ export async function PUT(req, context) {
     const { rollno } = params;
     if (!rollno) return apiError('Roll number is required', 400);
 
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      if (parseError instanceof SyntaxError) {
+        return apiError('Invalid JSON in request body', 400);
+      }
+      throw parseError;
+    }
     
     // 1. Validate Input using Zod
     const validation = studentUpdateSchema.safeParse(body);

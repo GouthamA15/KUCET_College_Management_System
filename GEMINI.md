@@ -200,8 +200,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Pre-Commit Quality Gates:**
     - Integrated **Husky** and **lint-staged** into the development workflow.
     - Configured a pre-commit hook to automatically execute `eslint --fix` on modified files, guaranteeing that only clean, well-formatted code is committed to the repository.
+- **Serverless Database Hardening:**
+    - Refactored `src/lib/db.js` with a serverless-optimized connection pool. Reduced `idleTimeout` and `connectionLimit` to prevent "Too Many Connections" errors during high-traffic Vercel spikes.
+- **Encryption Key Rotation & Module Resolution:**
+    - Developed and executed `src/db/rotate-keys.js`, a transactional administrative utility for rotating AES-256-GCM encryption keys across all sensitive student records (Mobile, Aadhaar).
+    - Fixed a critical module resolution issue in standalone database scripts by transitioning from path aliases to relative paths, enabling reliable CLI execution via `tsx`.
+    - Hardened `src/lib/db.js` to correctly enforce environment variable overrides from `.env.local`, ensuring local encryption keys take precedence over defaults.
 - **Infrastructure Maintenance:**
-    - Updated `package.json` with dedicated maintenance scripts (`db:prune`, `prepare`) and upgraded core devDependencies to support quality gate automation.
+    - Updated `package.json` with dedicated maintenance scripts (`db:prune`, `db:rotate-keys`, `prepare`) and upgraded core devDependencies to support quality gate automation.
 
 ---
 

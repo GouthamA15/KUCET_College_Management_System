@@ -89,7 +89,7 @@ export async function POST(req) {
         mother_tongue: mother_tongue || null,
         place_of_birth: place_of_birth || null,
         father_occupation: father_occupation || null,
-        annual_income: annual_income || null,
+        annual_income: annual_income == null ? null : String(annual_income).trim() || null,
         guardian_mobile: guardian_mobile ? encrypt(guardian_mobile) : null,
         aadhaar_no: aadhaarToSave ? encrypt(aadhaarToSave) : null,
         aadhaar_hash: aadhaarToSave ? hashForIndex(aadhaarToSave) : null,

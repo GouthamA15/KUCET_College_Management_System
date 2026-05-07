@@ -98,7 +98,8 @@ export default function EditProfilePage() {
     try {
         const res = await fetch('/api/student/send-update-email-otp', {
             method: 'POST',
-            body: JSON.stringify({ rollno: formData.student.roll_no, email: newEmail })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: newEmail })
         });
         const d = await res.json();
         if (!res.ok) throw new Error(d.error || 'Failed to send OTP');
@@ -123,7 +124,8 @@ export default function EditProfilePage() {
     try {
         const res = await fetch('/api/student/verify-update-email-otp', {
             method: 'POST',
-            body: JSON.stringify({ rollno: formData.student.roll_no, email: otpEmail, otp })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: otpEmail, otp })
         });
         const d = await res.json();
         if (!res.ok) throw new Error(d.error || 'Invalid code');
@@ -133,11 +135,8 @@ export default function EditProfilePage() {
         setOtp('');
         toast.success('Institutional email verified successfully.', { id: tid });
         
-        // Update original data so email is no longer considered "changed" for proof requirements
-        setOriginalData(prev => ({
-            ...prev,
-            student: { ...prev.student, email: otpEmail }
-        }));
+        // Note: Do NOT update originalData here - only update it after successful save
+        // Keep verified email in transient state for validation
     } catch (e) {
         toast.error(e.message, { id: tid });
     } finally {

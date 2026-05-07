@@ -158,9 +158,14 @@ const validateRow = (rowData, excelRowNumber) => {
   // 12. Annual Income (Warning for invalid)
   const annualIncome = String(rowData['annual_income'] || '').trim();
   const incomeRanges = Array.isArray(COLLEGE_CONFIG.incomeRanges) ? COLLEGE_CONFIG.incomeRanges : [];
-  if (annualIncome && !incomeRanges.includes(annualIncome)) {
-    rowWarnings['annual_income'] = `Invalid Income Range. Should be one of ${incomeRanges.join(', ') || 'N/A'}.`;
-    validationErrors.push({ row: excelRowNumber, field: 'Annual Income', message: `Invalid Annual Income Range: ${annualIncome}`, isWarning: true });
+  
+  if (annualIncome && incomeRanges.length > 0) {
+    // Normalize both sides to strings for comparison
+    const normalizedIncomeRanges = incomeRanges.map(r => String(r).trim());
+    if (!normalizedIncomeRanges.includes(annualIncome)) {
+      rowWarnings['annual_income'] = `Invalid Income Range. Should be one of ${incomeRanges.join(', ') || 'N/A'}.`;
+      validationErrors.push({ row: excelRowNumber, field: 'Annual Income', message: `Invalid Annual Income Range: ${annualIncome}`, isWarning: true });
+    }
   }
   
   // 13. Rank (Warning for invalid)

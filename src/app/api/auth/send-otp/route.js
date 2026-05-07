@@ -20,30 +20,6 @@ function generateSecureOtp() {
 
 export async function POST(request) {
   try {
-    // Prefer request.ip (TCP-derived) over X-Forwarded-For to prevent spoofing
-    let clientIp = request.ip;
-    if (!clientIp) {
-      // Fallback to leftmost entry of X-Forwarded-For if available, or generate safe fallback
-      const xForwardedFor = request.headers.get('x-forwarded-for');
-      if (xForwardedFor) {
-        const ips = xForwardedFor.split(',').map(ip => ip.trim());
-        // Validate IP format before using
-        const validIp = ips.find(ip => /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip));
-        clientIp = validIp || `req-${crypto.randomBytes(8).toString('hex')}`;
-      } else {
-        clientIp = `req-${crypto.randomBytes(8).toString('hex')}`;
-      }
-    }
-    const rateCheck = await checkRateLimit(`send_otp:${clientIp}`, 5, 900); // 5 attempts per 15 min
-    
-    if (!rateCheck.success) {
-      const retryAfter = rateCheck.remaining || 900;
-      return NextResponse.json(
-        { error: 'Too many OTP requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
-      );
-    }
-
     const body = await request.json();
     const rollNo = body.rollNo || body.rollno;
     const email = body.email;
@@ -53,12 +29,38 @@ export async function POST(request) {
     
     if (!identifier) return apiError('Identifier (Roll number or Email) is required', 400);
 
-    // Add identifier-based rate limiting to prevent account enumeration
+    // Resolve client IP with proper validation
+    let clientIp = request.ip;
+    if (!clientIp) {
+      const xForwardedFor = request.headers.get('x-forwarded-for');
+      if (xForwardedFor) {
+        const ips = xForwardedFor.split(',').map(ip => ip.trim());
+        // Use only the leftmost entry and validate it
+        const firstIp = ips[0];
+        // Check for both IPv4 and IPv6 using simple patterns
+        const isValidIp = /^[\da-fA-F.:]+$/.test(firstIp) && firstIp.length > 0;
+        clientIp = isValidIp ? firstIp : (`req-${crypto.randomBytes(8).toString('hex')}`);
+      } else {
+        clientIp = `req-${crypto.randomBytes(8).toString('hex')}`;
+      }
+    }
+
+    // Check identifier-based rate limit FIRST to avoid charging IP counter when identifier is blocked
     const identifierRateCheck = await checkRateLimit(`send_otp_id:${identifier}`, 5, 900); // 5 attempts per 15 min
     if (!identifierRateCheck.success) {
-      const retryAfter = identifierRateCheck.remaining || 900;
+      const retryAfter = identifierRateCheck.resetIn || identifierRateCheck.ttl || identifierRateCheck.reset || 900;
       return NextResponse.json(
         { error: 'Too many OTP requests for this account. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+      );
+    }
+
+    // Then check IP-based rate limit
+    const rateCheck = await checkRateLimit(`send_otp:${clientIp}`, 5, 900); // 5 attempts per 15 min
+    if (!rateCheck.success) {
+      const retryAfter = rateCheck.resetIn || rateCheck.ttl || rateCheck.reset || 900;
+      return NextResponse.json(
+        { error: 'Too many OTP requests. Please try again later.' },
         { status: 429, headers: { 'Retry-After': String(retryAfter) } }
       );
     }
