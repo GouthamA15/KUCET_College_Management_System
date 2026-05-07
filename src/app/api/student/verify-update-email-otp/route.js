@@ -24,7 +24,7 @@ export async function POST(req) {
       }
 
       const otpData = await db.query.otpCodes.findFirst({
-        where: and(eq(otpCodes.roll_no, rollno), eq(otpCodes.otp_code, otp))
+        where: and(eq(otpCodes.identifier, rollno), eq(otpCodes.otp_code, otp))
       });
 
       if (!otpData) {

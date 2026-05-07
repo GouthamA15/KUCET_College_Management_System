@@ -6,11 +6,17 @@ import { apiResponse, apiError } from '@/lib/api-utils';
 
 export async function POST(request) {
   try {
-    const { rollNo, submittedOtp } = await request.json();
-    if (!rollNo || !submittedOtp) return apiError('Roll number and OTP are required', 400);
+    const body = await request.json();
+    const rollNo = body.rollNo || body.rollno;
+    const email = body.email;
+    const submittedOtp = body.submittedOtp || body.otp;
+    
+    const identifier = rollNo || email;
+
+    if (!identifier || !submittedOtp) return apiError('Identifier and OTP are required', 400);
 
     const storedOtpRecord = await db.query.otpCodes.findFirst({
-      where: eq(otpCodes.roll_no, rollNo)
+      where: eq(otpCodes.identifier, identifier)
     });
 
     if (!storedOtpRecord) return apiError('Invalid or expired OTP.', 400);

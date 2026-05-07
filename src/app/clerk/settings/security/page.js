@@ -5,7 +5,7 @@ import { useClerk } from '@/context/ClerkContext';
 import toast from 'react-hot-toast';
 
 export default function ClerkSecurityPage() {
-  const { clerkData, loading, refreshClerk } = useClerk();
+  const { clerkData, loading, refreshClerkData } = useClerk();
   const clerk = clerkData;
 
   // Password section state
