@@ -58,7 +58,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         email: fetchedStudent.email || null,
         address: pd.address || fetchedStudent.address || null,
         father_occupation: pd.father_occupation || null,
-        annual_income: sanitizeDigits(pd.annual_income || '', 12) || null
+        annual_income: pd.annual_income || null
       };
       setEditValues(initialEdit);
       setOriginalEditValues(JSON.parse(JSON.stringify(initialEdit)));
@@ -83,7 +83,6 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         identification_marks: pd.identification_marks || null
       };
       setPersonalFull(initialPersonal);
-      setAnnualIncomeDisplay(formatIndianNumber(initialPersonal.annual_income || ''));
       setOriginalPersonalFull(JSON.parse(JSON.stringify(initialPersonal)));
 
       const initialAcademics = Array.isArray(fetchedStudent.academics) ? fetchedStudent.academics : [];
@@ -334,25 +333,16 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 <input placeholder="Mother Tongue" value={personalFull.mother_tongue || ''} onChange={e=>setPersonalFull({...personalFull, mother_tongue:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Place of Birth" value={personalFull.place_of_birth || ''} onChange={e=>setPersonalFull({...personalFull, place_of_birth:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Father Occupation" value={personalFull.father_occupation || ''} onChange={e=>setPersonalFull({...personalFull, father_occupation:e.target.value})} className="p-2 border rounded" />
-                <input
-                  placeholder="Annual Income"
-                  value={annualIncomeDisplay}
-                  onChange={(e) => {
-                    const raw = String(e.target.value || '').replace(/\D/g, '').slice(0, String(MAX_ANNUAL_INCOME).length);
-                    const num = raw ? Number(raw) : '';
-                    if (num !== '' && num > MAX_ANNUAL_INCOME) {
-                      setPersonalFull(prev => ({ ...prev, annual_income: String(MAX_ANNUAL_INCOME) }));
-                      setAnnualIncomeDisplay(formatIndianNumber(String(MAX_ANNUAL_INCOME)));
-                    } else {
-                      setPersonalFull(prev => ({ ...prev, annual_income: raw }));
-                      setAnnualIncomeDisplay(formatIndianNumber(raw));
-                    }
-                  }}
-                  type="text"
+                <select 
+                  value={personalFull.annual_income || ''} 
+                  onChange={e=>setPersonalFull({...personalFull, annual_income:e.target.value})} 
                   className="p-2 border rounded"
-                  inputMode="numeric"
-                  onPaste={(e) => { const pasted=(e.clipboardData||window.clipboardData).getData('text'); const digits=pasted.replace(/\D/g,'').slice(0, String(MAX_ANNUAL_INCOME).length); setPersonalFull(prev=>({...prev, annual_income: digits})); setAnnualIncomeDisplay(formatIndianNumber(digits)); e.preventDefault(); }}
-                />
+                >
+                  <option value="">Select Annual Income</option>
+                  {COLLEGE_CONFIG.incomeRanges.map(range => (
+                    <option key={range} value={range}>{range}</option>
+                  ))}
+                </select>
                 <div className="flex items-center">
                   <span className="px-3 py-2 border border-r-0 bg-gray-100 text-sm text-gray-500 font-medium">+91</span>
                   <input
