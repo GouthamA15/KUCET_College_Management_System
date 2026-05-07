@@ -16,7 +16,10 @@ export async function GET(req) {
       role: clerks.role,
       employee_id: clerks.employee_id,
       is_hod: clerks.is_hod,
-      branch: clerks.branch
+      branch: clerks.branch,
+      mobile: clerks.mobile,
+      pfp: clerks.pfp,
+      signature: clerks.signature
     })
     .from(clerks)
     .where(eq(clerks.id, user.clerkId))
@@ -24,6 +27,21 @@ export async function GET(req) {
 
     if (rows.length === 0) return apiError('Clerk not found', 404);
     const clerk = rows[0];
+
+    // Decrypt mobile if exists
+    const { decrypt } = await import('@/lib/encryption');
+    if (clerk.mobile) clerk.mobile = decrypt(clerk.mobile);
+
+    // Helper to handle both URLs and legacy Buffer data
+    const imageHelper = (val) => {
+      if (!val) return null;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
+      return val;
+    };
+
+    clerk.pfp = imageHelper(clerk.pfp);
+    clerk.signature = imageHelper(clerk.signature);
 
     const semRows = await db.select({ academic_year: semesters.academic_year })
       .from(semesters)

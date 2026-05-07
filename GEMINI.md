@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** April 20, 2026
+**Last Updated:** May 7, 2026
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -158,9 +158,27 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ---
 
-## 6. Recent Activity Log (Feb-Apr 2026)
+## 6. Recent Activity Log (Feb-May 2026)
 
 ### April 2026
+
+#### **Session 95: Profile Architecture Overhaul & Agent Intelligence (April 21-26, 2026)**
+- **Unified Profile System:**
+    - Developed a standardized, component-based profile architecture for all institutional roles. Created `ProfileCardShell`, `ProfileHeaderCard`, and `ProfileStatusBar` to ensure visual consistency across Student, Admission, Scholarship, and Faculty portals.
+    - Implemented dedicated profile pages for Admission (`/clerk/admission/profile`), Scholarship (`/clerk/scholarship/profile`), and Faculty (`/clerk/faculty/profile`), enabling staff to manage their professional identity and departmental credentials.
+- **Student Record Integrity:**
+    - Integrated an "Immutability Guard" for student modification requests, preventing unauthorized edits to sensitive academic data while maintaining a transparent audit trail.
+    - Refactored student personal and academic tabs to utilize the new shared profile components, reducing code duplication and improving rendering performance.
+- **AI Agent Orchestration:**
+    - Authored `AGENTS.md` to document the specialized AI agent workflows and integration patterns within the CMS ecosystem.
+    - Introduced MCP-based code-review graphs to optimize token usage and improve the accuracy of automated codebase analysis.
+- **UI & Navigation:**
+    - Conducted a significant refactor of `Sidebar.js`, optimizing menu configurations and improving the responsiveness of the navigation rail.
+    - Enhanced the `ClerkNotificationDropdown` to provide more granular updates for departmental requests and calendar events.
+- **Visual Polish:**
+    - Updated `globals.css` with a refined main background screen and sidebar transitions for a more modern institutional feel.
+
+---
 
 #### **Session 94: Certificate Asset Integrity & Path Resolution Fix (April 20, 2026)**
 - **Certificate Asset Visibility Fix:**

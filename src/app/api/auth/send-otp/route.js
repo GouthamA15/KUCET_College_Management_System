@@ -18,38 +18,49 @@ function generateSecureOtp() {
 
 export async function POST(request) {
   try {
-    const { rollNo } = await request.json();
-    if (!rollNo) return apiError('Roll number is required', 400);
+    const body = await request.json();
+    const rollNo = body.rollNo || body.rollno;
+    const email = body.email;
+    const purpose = body.purpose;
+    
+    const identifier = rollNo || email;
+    
+    if (!identifier) return apiError('Identifier (Roll number or Email) is required', 400);
 
-    const studentEmail = await getStudentEmail(rollNo);
-    if (!studentEmail) return apiError('Student email not found.', 404);
+    let targetEmail = email;
+    if (rollNo && !email) {
+      targetEmail = await getStudentEmail(rollNo);
+    }
+    
+    if (!targetEmail) return apiError('Destination email not found.', 404);
 
     const otp = generateSecureOtp();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     try {
-      await db.delete(otpCodes).where(eq(otpCodes.roll_no, rollNo));
+      await db.delete(otpCodes).where(eq(otpCodes.identifier, identifier));
       await db.insert(otpCodes).values({
-        roll_no: rollNo,
+        identifier: identifier,
         otp_code: otp,
         expires_at: expiresAt
       });
     } catch (dbError) {
+      console.error('DB ERROR DETAILS:', dbError);
       logger.error('Error storing OTP:', dbError);
-      return apiError('Failed to store OTP.', 500);
+      return apiError(`Failed to store OTP: ${dbError.message}`, 500);
     }
 
     const subject = 'KUCET One-Time Password (OTP)';
-    const title = 'OTP for Email Verification';
+    const title = purpose || 'OTP for Verification';
     const bodyHtml = `
-      <p>Dear Student,</p>
+      <p>Dear User,</p>
       <p>Please use the One-Time Password (OTP) provided below to complete your verification.</p>
       <p style="margin-top: 12px; font-weight: 600; font-size: 18px;">OTP: ${otp}</p>
       <p>This OTP is valid for the next 5 minutes. Do not share this code with anyone.</p>
     `;
 
     const emailResult = await sendInstitutionalEmail({
-      to: studentEmail,
+      to: targetEmail,
       subject,
       title,
       bodyHtml
@@ -58,8 +69,8 @@ export async function POST(request) {
     if (emailResult.success) {
       return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });
     } else {
-      await db.delete(otpCodes).where(eq(otpCodes.roll_no, rollNo));
-      return apiError('Please try again after 15 minutes.', 500);
+      await db.delete(otpCodes).where(eq(otpCodes.identifier, identifier));
+      return apiError('Failed to send email. Please try again.', 500);
     }
   } catch (error) {
     logger.error('Error in send-otp API:', error);
