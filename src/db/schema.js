@@ -89,7 +89,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
   place_of_birth: varchar('place_of_birth', { length: 255 }),
   father_occupation: varchar('father_occupation', { length: 255 }),
   guardian_mobile: varchar('guardian_mobile', { length: 255 }), // Encrypted
-  annual_income: int('annual_income'),
+  annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Blind Index
   address: text('address'),
@@ -144,7 +144,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   blood_group: varchar('blood_group', { length: 10 }),
   place_of_birth: varchar('place_of_birth', { length: 255 }),
   father_occupation: varchar('father_occupation', { length: 255 }),
-  annual_income: int('annual_income'),
+  annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Index
   fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO', 'GOV']),
