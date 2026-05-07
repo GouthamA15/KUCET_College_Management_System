@@ -193,7 +193,19 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Data Integrity:**
     - Hardened the `onSave` logic in staff settings to prevent the submission of unverified email changes while maintaining support for other profile modifications (PFP, signature, mobile).
 
-#### **Session 97: Attendance Refinement, API Hardening & Infrastructure Monitoring (May 7, 2026)**
+#### **Session 98: Operational Hardening & Quality Gates (May 7, 2026)**
+- **Automated Database Pruning:**
+    - Developed `src/db/prune-tokens.js` to perform automated garbage collection of expired OTPs, password reset tokens, and refresh tokens.
+    - Integrated the pruning script into the daily GitHub Action workflow, ensuring consistent database performance and preventing long-term bloat.
+- **Pre-Commit Quality Gates:**
+    - Integrated **Husky** and **lint-staged** into the development workflow.
+    - Configured a pre-commit hook to automatically execute `eslint --fix` on modified files, guaranteeing that only clean, well-formatted code is committed to the repository.
+- **Infrastructure Maintenance:**
+    - Updated `package.json` with dedicated maintenance scripts (`db:prune`, `prepare`) and upgraded core devDependencies to support quality gate automation.
+
+---
+
+#### **Session 99: Attendance Refinement, API Hardening & Infrastructure Monitoring (May 7, 2026)**
 - **Attendance System Refinement:**
     - Enabled persistent attendance PIN entry globally on the student dashboard. Modified `StudentActivityBar` to ensure the verification card is visible across all pages when a session is active.
     - Cleaned up `DashboardActionCenter` by removing redundant attendance fetching logic, centralizing the experience in the global activity bar.
