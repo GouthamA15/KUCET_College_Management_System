@@ -245,7 +245,7 @@ export default function AddNewStudent() {
               className="p-2 border rounded"
             >
               <option value="">Select Annual Income</option>
-              {COLLEGE_CONFIG.incomeRanges.map(range => (
+              {Array.isArray(COLLEGE_CONFIG.incomeRanges) && COLLEGE_CONFIG.incomeRanges.map(range => (
                 <option key={range} value={range}>{range}</option>
               ))}
             </select>

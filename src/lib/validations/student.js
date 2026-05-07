@@ -39,11 +39,17 @@ export const studentCreateSchema = z.object({
     .max(100)
     .optional()
     .or(z.literal('')),
-  date_of_birth: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-    .optional()
-    .or(z.literal('')),
-  gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'Male', 'Female', 'Other']).optional(),
+  date_of_birth: z.preprocess(
+    (input) => input === '' ? input : new Date(input),
+    z.union([
+      z.literal(''),
+      z.date().refine((d) => !Number.isNaN(d.getTime()), "Invalid date")
+    ])
+  ).optional(),
+  gender: z.preprocess(
+    (v) => typeof v === 'string' ? v.toUpperCase() : v,
+    z.enum(['MALE', 'FEMALE', 'OTHER']).optional()
+  ),
   father_name: z.string().trim().max(255).optional().or(z.literal('')),
   mother_name: z.string().trim().max(255).optional().or(z.literal('')),
   religion: z.string().trim().max(100).optional().or(z.literal('')),

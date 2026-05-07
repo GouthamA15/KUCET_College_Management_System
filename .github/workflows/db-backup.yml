@@ -38,6 +38,7 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
 
       - name: Run Database Pruning (Garbage Collection)
+        if: always()
         run: npm run db:prune
         env:
           DB_HOST: ${{ secrets.DB_HOST }}

@@ -339,9 +339,14 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   className="p-2 border rounded"
                 >
                   <option value="">Select Annual Income</option>
-                  {COLLEGE_CONFIG.incomeRanges.map(range => (
+                  {Array.isArray(COLLEGE_CONFIG.incomeRanges) && COLLEGE_CONFIG.incomeRanges.map(range => (
                     <option key={range} value={range}>{range}</option>
                   ))}
+                  {personalFull.annual_income && Array.isArray(COLLEGE_CONFIG.incomeRanges) && !COLLEGE_CONFIG.incomeRanges.includes(personalFull.annual_income) && (
+                    <option key={personalFull.annual_income} value={personalFull.annual_income} className="text-gray-500">
+                      {personalFull.annual_income} (legacy)
+                    </option>
+                  )}
                 </select>
                 <div className="flex items-center">
                   <span className="px-3 py-2 border border-r-0 bg-gray-100 text-sm text-gray-500 font-medium">+91</span>

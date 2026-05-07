@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 7, 2026 (Session 97)
+**Last Updated:** May 7, 2026 (Session 98)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)

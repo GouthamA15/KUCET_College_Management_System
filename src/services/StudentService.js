@@ -59,8 +59,8 @@ export class StudentService {
         name,
         date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
         gender,
-        mobile: encrypt(mobile),
-        mobile_hash: hashForIndex(mobile),
+        mobile: mobile ? encrypt(mobile) : null,
+        mobile_hash: mobile ? hashForIndex(mobile) : null,
         email,
         added_by_clerk_id: clerkId
       });

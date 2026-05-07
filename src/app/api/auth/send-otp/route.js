@@ -20,15 +20,27 @@ function generateSecureOtp() {
 
 export async function POST(request) {
   try {
-    // Extract client IP from rightmost entry of X-Forwarded-For or use NextRequest.ip
-    const xForwardedFor = request.headers.get('x-forwarded-for');
-    const clientIp = xForwardedFor ? xForwardedFor.split(',').pop().trim() : request.ip || `req-${crypto.randomBytes(8).toString('hex')}`;
+    // Prefer request.ip (TCP-derived) over X-Forwarded-For to prevent spoofing
+    let clientIp = request.ip;
+    if (!clientIp) {
+      // Fallback to leftmost entry of X-Forwarded-For if available, or generate safe fallback
+      const xForwardedFor = request.headers.get('x-forwarded-for');
+      if (xForwardedFor) {
+        const ips = xForwardedFor.split(',').map(ip => ip.trim());
+        // Validate IP format before using
+        const validIp = ips.find(ip => /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip));
+        clientIp = validIp || `req-${crypto.randomBytes(8).toString('hex')}`;
+      } else {
+        clientIp = `req-${crypto.randomBytes(8).toString('hex')}`;
+      }
+    }
     const rateCheck = await checkRateLimit(`send_otp:${clientIp}`, 5, 900); // 5 attempts per 15 min
     
     if (!rateCheck.success) {
+      const retryAfter = rateCheck.remaining || 900;
       return NextResponse.json(
         { error: 'Too many OTP requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': '60' } }
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
       );
     }
 
@@ -44,9 +56,10 @@ export async function POST(request) {
     // Add identifier-based rate limiting to prevent account enumeration
     const identifierRateCheck = await checkRateLimit(`send_otp_id:${identifier}`, 5, 900); // 5 attempts per 15 min
     if (!identifierRateCheck.success) {
+      const retryAfter = identifierRateCheck.remaining || 900;
       return NextResponse.json(
         { error: 'Too many OTP requests for this account. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': '60' } }
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
       );
     }
 

@@ -4,6 +4,7 @@ import { bugReports } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { uploadToCloudinary } from '@/lib/cloudinary';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function GET() {
   try {
@@ -28,6 +29,13 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    // IP-based rate limiting before auth check
+    const clientIp = req.ip || req.headers.get('x-forwarded-for') || 'unknown';
+    const rateCheck = await checkRateLimit(`bugs:${clientIp}`, 5, 3600); // 5 reports per hour
+    if (!rateCheck.success) {
+      return apiError('Too many bug reports. Please try again later.', 429);
+    }
+
     const user = await getAuthUser(); // Allows any authenticated user (student, clerk, admin)
     if (!user) {
       return apiError('Unauthorized to submit bug reports', 401);
