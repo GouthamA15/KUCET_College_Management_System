@@ -157,9 +157,9 @@ const validateRow = (rowData, excelRowNumber) => {
 
   // 12. Annual Income (Warning for invalid)
   const annualIncome = String(rowData['annual_income'] || '').trim();
-  if (annualIncome && !DECIMAL_REGEX.test(annualIncome)) {
-    rowWarnings['annual_income'] = 'Annual Income should be a number.';
-    validationErrors.push({ row: excelRowNumber, field: 'Annual Income', message: `Invalid Annual Income: ${annualIncome}`, isWarning: true });
+  if (annualIncome && !COLLEGE_CONFIG.incomeRanges.includes(annualIncome)) {
+    rowWarnings['annual_income'] = `Invalid Income Range. Should be one of ${COLLEGE_CONFIG.incomeRanges.join(', ')}.`;
+    validationErrors.push({ row: excelRowNumber, field: 'Annual Income', message: `Invalid Annual Income Range: ${annualIncome}`, isWarning: true });
   }
   
   // 13. Rank (Warning for invalid)
