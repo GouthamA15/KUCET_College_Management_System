@@ -5,10 +5,7 @@ import { useAssets } from '@/context/AssetContext';
 
 export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
   const { getAsset } = useAssets();
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(max-width: 767px)').matches;
-  });
+  const [isMobile, setIsMobile] = useState(false);
   const [paymentMode, setPaymentMode] = useState('qr'); // 'qr' | 'upi'
 
   useEffect(() => {

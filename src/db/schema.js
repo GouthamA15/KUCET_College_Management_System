@@ -1,6 +1,6 @@
 import { 
   mysqlTable, varchar, int, boolean, datetime, text, decimal, json, timestamp, 
-  mysqlEnum, tinyint, float, bigint, index, date
+  mysqlEnum, tinyint, float, bigint, index, uniqueIndex, date
 } from 'drizzle-orm/mysql-core';
 
 // --- 1. COLLEGE CONFIGURATION ---
@@ -77,7 +77,7 @@ export const principal = mysqlTable('principal', {
 
 export const studentPersonalDetails = mysqlTable('student_personal_details', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  student_id: int('student_id'),
+  student_id: int('student_id').notNull(),
   father_name: varchar('father_name', { length: 255 }),
   mother_name: varchar('mother_name', { length: 255 }),
   nationality: varchar('nationality', { length: 100 }),
@@ -89,7 +89,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
   place_of_birth: varchar('place_of_birth', { length: 255 }),
   father_occupation: varchar('father_occupation', { length: 255 }),
   guardian_mobile: varchar('guardian_mobile', { length: 255 }), // Encrypted
-  annual_income: int('annual_income'),
+  annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Blind Index
   address: text('address'),
@@ -103,7 +103,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
 
 export const studentAcademicBackground = mysqlTable('student_academic_background', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  student_id: int('student_id'),
+  student_id: int('student_id').notNull(),
   qualifying_exam: varchar('qualifying_exam', { length: 50 }),
   previous_college_details: text('previous_college_details'),
   medium_of_instruction: varchar('medium_of_instruction', { length: 50 }),
@@ -144,7 +144,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   blood_group: varchar('blood_group', { length: 10 }),
   place_of_birth: varchar('place_of_birth', { length: 255 }),
   father_occupation: varchar('father_occupation', { length: 255 }),
-  annual_income: int('annual_income'),
+  annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Index
   fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO', 'GOV']),
@@ -193,6 +193,7 @@ export const studentMarks = mysqlTable('student_marks', {
   id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id').notNull(),
   assignment_id: int('assignment_id').notNull(),
+  is_published: boolean('is_published').default(true).notNull(),
   mid1_marks: decimal('mid1_marks', { precision: 5, scale: 2 }),
   mid2_marks: decimal('mid2_marks', { precision: 5, scale: 2 }),
   assignment_marks: decimal('assignment_marks', { precision: 5, scale: 2 }),
@@ -203,6 +204,7 @@ export const studentMarks = mysqlTable('student_marks', {
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
   studentAssignmentIdx: index('idx_marks_student_assignment').on(table.student_id, table.assignment_id),
+  studentAssignmentUniq: uniqueIndex('uq_marks_student_assignment').on(table.student_id, table.assignment_id),
 }));
 
 // --- 4. DEPARTMENTAL & SCHEDULING ---

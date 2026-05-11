@@ -64,7 +64,6 @@ export async function GET(req) {
     });
   } catch (error) {
     logger.error({ err: error, user: user?.email, branch: user?.branch }, 'Attendance Analytics API Error');
-    console.error('[DEBUG] Attendance Analytics Error:', error.message);
     return apiError('Internal Server Error', 500, error.message);
   }
 }

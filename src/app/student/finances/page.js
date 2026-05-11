@@ -6,6 +6,7 @@ import { getBranchFromRoll } from '@/lib/rollNumber';
 import FinancialSummaryTable from '@/components/student/FinancialSummaryTable';
 import FinancialSummaryCardsMobile from '@/components/student/FinancialSummaryCardsMobile';
 import useFinancialRows from '@/components/student/useFinancialRows';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function StudentFinancesPage() {
   const { studentData, loading: contextLoading } = useStudent();
@@ -19,12 +20,11 @@ export default function StudentFinancesPage() {
 
   if (contextLoading && !student) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-8 h-8 border-2 border-slate-200 border-t-[#0b3578] rounded-full animate-spin"></div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Financial Records</span>
-        </div>
-      </div>
+      <LoadingSpinner
+        label="Loading Financial Records"
+        spinnerClassName="w-8 h-8 border-2 border-slate-200 border-t-[#0b3578] rounded-full animate-spin"
+        labelClassName="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+      />
     );
   }
 

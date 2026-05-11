@@ -2,52 +2,21 @@
 import Image from 'next/image';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { useAssets } from '@/context/AssetContext';
-import { usePathname } from 'next/navigation';
-import { useContext, useEffect, useRef } from 'react';
-import { StudentContext } from '@/context/StudentContext';
 
-export default function Header() {
+export default function Header({ fixed = true }) {
   const { getAsset } = useAssets();
-  
+
   const handlePhoneClick = () => {
     navigator.clipboard.writeText(COLLEGE_CONFIG.contact);
     alert('Phone number copied to clipboard!');
   };
 
-  const pathname = usePathname();
-  // Try to read student context without throwing if provider is absent
-  const ctx = useContext(StudentContext);
-  const studentData = ctx ? ctx.studentData : null;
-
-  // Mobile header should only show on the root entry page when user is not logged in
-  const showMobileHeader = pathname === '/' && !studentData;
-
-  const headerRef = useRef(null);
-
-  useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    const setVar = () => {
-      try {
-        const h = Math.ceil(el.getBoundingClientRect().height);
-        document.documentElement.style.setProperty('--site-header-height', `${h}px`);
-      } catch (e) {}
-    };
-    setVar();
-    const ro = new ResizeObserver(setVar);
-    ro.observe(el);
-    window.addEventListener('resize', setVar);
-    return () => {
-      try { ro.disconnect(); } catch (e) {}
-      window.removeEventListener('resize', setVar);
-    };
-  }, []);
+  const positionClass = fixed ? 'fixed top-0 left-0 right-0 z-40' : 'relative z-20';
 
   return (
-    <header ref={headerRef} className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-blue-50 to-white py-4 px-4 md:px-6 w-full pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4 border-b border-slate-200">
-      {/* Desktop View */}
-      <div className="hidden md:flex items-center justify-between h-full">
-        
+    <header className={`hidden md:block ${positionClass} bg-gradient-to-r from-blue-50 to-white py-4 px-4 md:px-6 w-full pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4 border-b border-slate-200 transition-colors duration-200`}>
+      <div className="flex items-center justify-between h-full">
+
         {/* Left Section with Logos */}
         <div className="flex items-center gap-2">
           <div className="bg-blue-100 p-1 rounded-lg">
@@ -59,7 +28,7 @@ export default function Header() {
               priority
             />
           </div>
-          
+
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
               src={getAsset('/assets/ku-logo.png')} 
@@ -69,7 +38,7 @@ export default function Header() {
               priority
             />
           </div>
-          
+
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
               src={getAsset('/assets/kakatiya-kala-thoranam.png')} 
@@ -93,7 +62,7 @@ export default function Header() {
             {COLLEGE_CONFIG.location} - {COLLEGE_CONFIG.pincode}
           </p>
         </div>
-        
+
         {/* Right Side Block */}
         <div className="flex items-start gap-2 h-full">
           <div className="bg-blue-100 p-1 rounded-lg">
@@ -105,7 +74,7 @@ export default function Header() {
               priority
             />
           </div>
-          
+
           <div className="bg-blue-100 p-1 rounded-lg">
             <Image 
               src={getAsset('/assets/ku-college-logo.png')} 
@@ -115,14 +84,14 @@ export default function Header() {
               priority
             />
           </div>
-          
+
           <div className="flex flex-col justify-center h-full py-0.5">
             <div className="text-[11px] lg:text-[12px] text-[#333] leading-tight">
               <p className="m-0"><b>PGECET:</b> {COLLEGE_CONFIG.entranceCodes.pgecet}</p>
               <p className="m-0"><b>EAPCET:</b> {COLLEGE_CONFIG.entranceCodes.eapcet}</p>
               <p className="m-0"><b>ECET:</b> {COLLEGE_CONFIG.entranceCodes.ecet}</p>
             </div>
-            
+
             {/* Contact Number */}
             <p 
               onClick={handlePhoneClick}
@@ -134,72 +103,6 @@ export default function Header() {
           </div>
         </div>
       </div>
-
-      {/* Mobile View: render only on entry root when user is not logged in */}
-      {showMobileHeader && (
-        <div className="md:hidden">
-        {/* Top Row - Logos */}
-        <div className="flex items-center justify-center gap-2 mb-1.5">
-          <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
-              src={getAsset('/assets/Naac_A+.png')} 
-              alt="NAAC Logo" 
-              width={40} height={40}
-              className="h-8 w-auto object-contain"
-              priority
-            />
-          </div>
-          <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
-              src={getAsset('/assets/ku-logo.png')} 
-              alt="KU Logo" 
-              width={40} height={40}
-              className="h-8 w-auto object-contain"
-            />
-          </div>
-          <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
-              src={getAsset('/assets/ku-college-logo.png')} 
-              alt="College Logo" 
-              width={40} height={40}
-              className="h-8 w-auto object-contain"
-              priority
-            />
-          </div>
-        </div>
-
-        {/* Title Block */}
-        <div className="text-center mb-1.5">
-          <h2 className="text-sm font-bold text-[#0d47a1] m-0 leading-tight uppercase">
-            {COLLEGE_CONFIG.name}
-          </h2>
-          <h3 className="text-xs font-semibold text-[#1565c0] mt-0.5 mb-0 uppercase">
-            KAKATIYA UNIVERSITY
-          </h3>
-          <p className="text-[10px] text-[#444] mt-0 mb-0">
-            {COLLEGE_CONFIG.location} - {COLLEGE_CONFIG.pincode}
-          </p>
-        </div>
-
-        {/* Contact & Codes Row */}
-        <div className="flex items-center justify-between text-[10px] border-t border-blue-100 pt-1 mt-1">
-          <div className="text-[#333]">
-            <span><b>PGECET:</b> {COLLEGE_CONFIG.entranceCodes.pgecet}</span>
-            <span className="mx-1">|</span>
-            <span><b>EAPCET:</b> {COLLEGE_CONFIG.entranceCodes.eapcet}</span>
-            <span className="mx-1">|</span>
-            <span><b>ECET:</b> {COLLEGE_CONFIG.entranceCodes.ecet}</span>
-          </div>
-          <p 
-            onClick={handlePhoneClick}
-            className="text-[#e91e63] font-bold cursor-pointer m-0"
-            title="Click to copy phone number"
-          >
-            ☎️ {COLLEGE_CONFIG.contact}
-          </p>
-        </div>
-        </div>
-      )}
     </header>
   );
 }

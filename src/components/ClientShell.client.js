@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import LoginPanel from '@/components/LoginPanel';
 import SearchParamToast from '@/components/SearchParamToast.client';
 
-export default function ClientShell({ serverError }) {
+export default function ClientShell({ serverError, stickyNavbar = true }) {
   const [activePanel, setActivePanel] = useState(null);
 
   useEffect(() => {
@@ -23,6 +23,7 @@ export default function ClientShell({ serverError }) {
       <Navbar 
         activePanel={activePanel} 
         setActivePanel={setActivePanel} 
+        sticky={stickyNavbar}
       />
       
       <LoginPanel activePanel={activePanel} onClose={() => setActivePanel(null)} />

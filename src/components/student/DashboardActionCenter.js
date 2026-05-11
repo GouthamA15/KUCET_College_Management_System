@@ -1,14 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useStudent } from '@/context/StudentContext';
 import useProfileActivity from '@/components/student/hooks/useProfileActivity';
 import useActivityDismissal from '@/components/student/hooks/useActivityDismissal';
-import AttendanceVerificationActivity from '@/components/student/AttendanceVerificationActivity';
 
 export default function DashboardActionCenter({ student }) {
-  const { academicPerformance } = useStudent();
   const activity = useProfileActivity();
   const {
     scholarshipThumbUpdate,
@@ -38,7 +35,10 @@ export default function DashboardActionCenter({ student }) {
   }, [academicPerformance]);
 
   useEffect(() => {
-    fetchAttendanceSessions();
+    const timer = setTimeout(() => {
+      fetchAttendanceSessions();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchAttendanceSessions]);
 
   useEffect(() => {
@@ -81,7 +81,6 @@ export default function DashboardActionCenter({ student }) {
   };
 
   if (
-    !hasAttendanceSessions &&
     !showSecurityWarning &&
     !showScholarshipThumb &&
     !showScholarshipHardcopy &&
@@ -98,11 +97,6 @@ export default function DashboardActionCenter({ student }) {
       </div>
 
       <div className="space-y-3">
-        {/* 0. Attendance Verification */}
-        {hasAttendanceSessions && (
-          <AttendanceVerificationActivity sessions={attendanceSessions} onSessionVerified={handleSessionVerified} />
-        )}
-
         {/* 1. Scholarship Hard Copies */}
         {showScholarshipHardcopy && (
           <div className="border border-indigo-200 bg-indigo-50 text-indigo-800 rounded-xl p-4 shadow-sm">

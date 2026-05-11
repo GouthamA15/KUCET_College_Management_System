@@ -13,9 +13,7 @@ export default function Hero() {
 
   useEffect(() => {
     const timer = setTimeout(() => setImageLoaded(true), 100);
-    if (typeof window !== 'undefined') {
-      setIsNative(Capacitor.isNativePlatform());
-    }
+    setIsNative(Capacitor.isNativePlatform());
     return () => clearTimeout(timer);
   }, []);
 

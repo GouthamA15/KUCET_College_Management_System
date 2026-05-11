@@ -26,7 +26,7 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 const STUDENT_AUTH_TOKEN = __ENV.VALID_TOKEN || 'YOUR_MOCK_JWT_TOKEN_HERE';
 
-export default function () {
+export default function loadTestAttendance() {
   const url = `${BASE_URL}/api/student/attendance/verify`;
   
   // Simulation Payload

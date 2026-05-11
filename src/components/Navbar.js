@@ -9,8 +9,9 @@ import ChangePasswordModal from './ChangePasswordModal';
 import NotificationDropdown from './NotificationDropdown';
 import ClerkNotificationDropdown from './clerk/ClerkNotificationDropdown';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
+import { logoutByRole } from '@/lib/logout';
 
-export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false }) {
+export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false, sticky = true }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -91,46 +92,8 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
 
   const performAction = async (action) => {
     if (action === 'logout') {
-      // Prefer explicit onLogout handler for student role (preserve original behavior)
-      if (effectiveRole === 'student') {
-        if (typeof onLogout === 'function') {
-          try {
-            await onLogout();
-            return;
-          } catch (e) {
-            // fall through to student logout endpoint
-          }
-        }
-
-        // Call the student logout endpoint, clear client state and redirect
-        try {
-          await fetch('/api/student/logout', { method: 'POST' });
-        } catch (e) {
-          // ignore network errors; still clear client state
-        }
-        try { localStorage.removeItem('logged_in_student'); } catch {};
-        try { sessionStorage.clear(); } catch {};
-        window.location.replace('/');
-        return;
-      }
-
-      // Clerk (including admission/scholarship variants) and Faculty logout endpoint
-      if (
-        effectiveRole === 'clerk' ||
-        effectiveRole === 'clerkAdmission' ||
-        effectiveRole === 'clerkScholarship' ||
-        effectiveRole === 'faculty'
-      ) {
-        await fetch('/api/clerk/logout', { method: 'POST' });
-        window.location.replace('/');
-        return;
-      }
-
-      // Default: call auth logout then redirect
-      try {
-        await fetch('/api/auth/logout', { method: 'POST' });
-      } catch (e) {}
-      window.location.replace('/');
+      await logoutByRole({ role: effectiveRole, onLogout });
+      return;
     }
     if (action === 'change-password') {
       setShowChangePasswordModal(true);
@@ -166,7 +129,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
 
   return (
     <>
-      <nav className={`bg-[#0b3578] shadow-lg sticky z-50 pt-[env(safe-area-inset-top)]`} style={{ top: 'var(--site-header-height, 72px)' }}>
+      <nav className={`bg-[#0b3578] shadow-lg ${sticky ? 'sticky z-50' : 'relative z-20'} pt-[env(safe-area-inset-top)]`} style={sticky ? { top: 'var(--site-header-height, 72px)' } : undefined}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-13">
             <div className="flex-shrink-0 flex items-center gap-4">

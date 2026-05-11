@@ -7,7 +7,7 @@ import {
   branchConfig, 
   collegeInfo as collegeInfoTable 
 } from '@/db/schema';
-import { eq, and, asc, sql, or, like } from 'drizzle-orm';
+import { eq, and, asc, desc, or, like, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
 import { branchCodes } from '@/lib/rollNumber';
@@ -89,6 +89,10 @@ export async function GET(request) {
       id: studentsTable.id,
       roll_no: studentsTable.roll_no,
       name: studentsTable.name,
+      is_published: studentMarks.is_published,
+      _marks_row_id: studentMarks.id,
+      _marks_created_at: studentMarks.created_at,
+      _marks_updated_at: studentMarks.updated_at,
       mid1_marks: studentMarks.mid1_marks,
       mid2_marks: studentMarks.mid2_marks,
       assignment_marks: studentMarks.assignment_marks,
@@ -104,6 +108,30 @@ export async function GET(request) {
     .where(or(...studentConditions))
     .orderBy(asc(studentsTable.roll_no));
 
+    // If historical duplicates exist in student_marks, the join can yield duplicate student rows.
+    // Deduplicate by student id, keeping the newest marks row.
+    const pickNewest = (a, b) => {
+      const aTime = a._marks_updated_at || a._marks_created_at || null;
+      const bTime = b._marks_updated_at || b._marks_created_at || null;
+      const aMs = aTime ? new Date(aTime).getTime() : 0;
+      const bMs = bTime ? new Date(bTime).getTime() : 0;
+      if (aMs !== bMs) return bMs > aMs ? b : a;
+      const aId = a._marks_row_id || 0;
+      const bId = b._marks_row_id || 0;
+      return bId > aId ? b : a;
+    };
+
+    const dedupedByStudent = new Map();
+    for (const row of students) {
+      const existing = dedupedByStudent.get(row.id);
+      dedupedByStudent.set(row.id, existing ? pickNewest(existing, row) : row);
+    }
+
+    const cleanedStudents = Array.from(dedupedByStudent.values()).map((s) => {
+      const { _marks_row_id, _marks_created_at, _marks_updated_at, ...rest } = s;
+      return rest;
+    });
+
     // Fetch HOD recommendation
     const configRows = await db.select({ mid_max: branchConfig.mid_max })
       .from(branchConfig)
@@ -116,7 +144,7 @@ export async function GET(request) {
     const recommendedMidMax = configRows[0]?.mid_max || null;
 
     return apiResponse({ 
-      data: students, 
+      data: cleanedStudents, 
       mid_max: midMax, 
       recommended_mid_max: recommendedMidMax,
       subject_type: isLab ? 'lab' : 'theory',
@@ -136,7 +164,10 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { assignment_id, marks_data, mid_max } = body;
+    const { assignment_id, marks_data, mid_max, publish } = body;
+
+    // Backward compatible: historically POST meant "publish/save".
+    const publishFlag = publish === undefined ? true : Boolean(publish);
 
     if (!assignment_id || !Array.isArray(marks_data) || marks_data.length === 0) {
       return apiError('Missing or empty marks data', 400);
@@ -186,6 +217,19 @@ export async function POST(request) {
       return apiError('Semester has ended. Marks locked.', 403);
     }
 
+    // Once any row is published for this subject, lock edits to avoid inconsistent history.
+    const publishedRows = await db.select({ id: studentMarks.id })
+      .from(studentMarks)
+      .where(and(
+        eq(studentMarks.assignment_id, targetAssignmentId),
+        eq(studentMarks.is_published, true)
+      ))
+      .limit(1);
+
+    if (publishedRows.length > 0) {
+      return apiError('Marks already published and locked.', 403);
+    }
+
     await db.transaction(async (tx) => {
       if (mid_max !== undefined) {
         await tx.update(facultySubjectAssignments)
@@ -193,41 +237,79 @@ export async function POST(request) {
           .where(eq(facultySubjectAssignments.id, targetAssignmentId));
       }
 
-      const values = marks_data.map(item => {
-        if (isLab) {
-          return {
-            student_id: item.student_id,
-            assignment_id: targetAssignmentId,
-            lab_theory_marks: item.lab_theory_marks ?? null,
-            lab_execution_marks: item.lab_execution_marks ?? null,
-            lab_record_marks: item.lab_record_marks ?? null
-          };
-        } else {
-          return {
-            student_id: item.student_id,
-            assignment_id: targetAssignmentId,
-            mid1_marks: item.mid1_marks ?? null,
-            mid2_marks: item.mid2_marks ?? null,
-            assignment_marks: item.assignment_marks ?? null
-          };
+      // Deduplicate payload by student_id (last write wins) to avoid accidental double updates.
+      const latestByStudent = new Map();
+      for (const item of marks_data) {
+        if (!item?.student_id) continue;
+        latestByStudent.set(item.student_id, item);
+      }
+
+      const studentIds = Array.from(latestByStudent.keys());
+      if (studentIds.length === 0) return;
+
+      // Fetch existing rows (including duplicates if any) and pick the latest per student.
+      const existingRows = await tx.select({
+        id: studentMarks.id,
+        student_id: studentMarks.student_id,
+        is_published: studentMarks.is_published,
+        created_at: studentMarks.created_at,
+        updated_at: studentMarks.updated_at,
+      })
+      .from(studentMarks)
+      .where(and(
+        eq(studentMarks.assignment_id, targetAssignmentId),
+        inArray(studentMarks.student_id, studentIds)
+      ))
+      .orderBy(asc(studentMarks.student_id), desc(studentMarks.updated_at), desc(studentMarks.created_at), desc(studentMarks.id));
+
+      const latestExistingByStudent = new Map();
+      for (const row of existingRows) {
+        if (!latestExistingByStudent.has(row.student_id)) {
+          latestExistingByStudent.set(row.student_id, row);
         }
-      });
+      }
 
-      const updateSet = isLab 
-        ? {
-            lab_theory_marks: sql`VALUES(lab_theory_marks)`,
-            lab_execution_marks: sql`VALUES(lab_execution_marks)`,
-            lab_record_marks: sql`VALUES(lab_record_marks)`
-          }
-        : {
-            mid1_marks: sql`VALUES(mid1_marks)`,
-            mid2_marks: sql`VALUES(mid2_marks)`,
-            assignment_marks: sql`VALUES(assignment_marks)`
-          };
+      const rowsToInsert = [];
+      const updates = [];
 
-      await tx.insert(studentMarks)
-        .values(values)
-        .onDuplicateKeyUpdate({ set: updateSet });
+      for (const studentId of studentIds) {
+        const item = latestByStudent.get(studentId);
+        const existing = latestExistingByStudent.get(studentId);
+
+        const markFields = isLab
+          ? {
+              lab_theory_marks: item.lab_theory_marks ?? null,
+              lab_execution_marks: item.lab_execution_marks ?? null,
+              lab_record_marks: item.lab_record_marks ?? null,
+              is_published: publishFlag,
+            }
+          : {
+              mid1_marks: item.mid1_marks ?? null,
+              mid2_marks: item.mid2_marks ?? null,
+              assignment_marks: item.assignment_marks ?? null,
+              is_published: publishFlag,
+            };
+
+        if (existing?.id) {
+          updates.push({ id: existing.id, set: markFields });
+        } else {
+          rowsToInsert.push({
+            student_id: studentId,
+            assignment_id: targetAssignmentId,
+            ...markFields,
+          });
+        }
+      }
+
+      if (rowsToInsert.length > 0) {
+        await tx.insert(studentMarks).values(rowsToInsert);
+      }
+
+      for (const u of updates) {
+        await tx.update(studentMarks)
+          .set(u.set)
+          .where(eq(studentMarks.id, u.id));
+      }
     });
 
     // Audit Log

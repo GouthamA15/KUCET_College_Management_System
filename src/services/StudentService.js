@@ -5,6 +5,7 @@ import {
   studentAcademicBackground 
 } from '@/db/schema';
 import { eq, or, like } from 'drizzle-orm';
+import { encrypt, hashForIndex } from '@/lib/encryption';
 
 /**
  * Service for Student-related business logic
@@ -43,7 +44,7 @@ export class StudentService {
     const {
       admission_no, roll_no, name, date_of_birth, gender, mobile, email,
       father_name, mother_name, religion, sub_caste, category, address,
-      qualifying_exam
+      qualifying_exam, aadhaar_no, annual_income
     } = data;
 
     if (!roll_no || !name) {
@@ -51,20 +52,21 @@ export class StudentService {
     }
 
     const result = await db.transaction(async (tx) => {
-      // 1. Insert into core students table
+      // 1. Insert into core students table with encrypted mobile
       const [res] = await tx.insert(studentsTable).values({
         admission_no,
         roll_no,
         name,
         date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
         gender,
-        mobile,
+        mobile: mobile ? encrypt(mobile) : null,
+        mobile_hash: mobile ? hashForIndex(mobile) : null,
         email,
         added_by_clerk_id: clerkId
       });
       const studentId = res.insertId;
 
-      // 2. Insert into personal details
+      // 2. Insert into personal details with encrypted Aadhaar
       await tx.insert(studentPersonalDetails).values({
         student_id: studentId,
         father_name,
@@ -72,6 +74,9 @@ export class StudentService {
         religion,
         sub_caste,
         category,
+        annual_income,
+        aadhaar_no: aadhaar_no ? encrypt(aadhaar_no) : null,
+        aadhaar_hash: aadhaar_no ? hashForIndex(aadhaar_no) : null,
         address
       });
 

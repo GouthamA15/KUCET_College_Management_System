@@ -8,6 +8,7 @@ import { calculateYearAndSemester } from '@/lib/academic-utils';
 import useFinancialRows from '@/components/student/useFinancialRows';
 import DashboardActionCenter from '@/components/student/DashboardActionCenter';
 import Header from '@/components/Header';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const formatCurrency = (amount) => {
   if (amount == null || Number.isNaN(Number(amount))) return '₹ 0';
@@ -36,14 +37,7 @@ export default function StudentHomePage() {
   const currentPending = currentYearRow ? Number(currentYearRow.pending_fee || 0) : 0;
 
   if (contextLoading && !student) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-6 h-6 border-2 border-slate-100 border-t-[#0b3578] rounded-full animate-spin"></div>
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Loading Records</span>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner label="Loading Records" />;
   }
 
   if (!student) return null;
@@ -84,7 +78,7 @@ export default function StudentHomePage() {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] group hover:border-[#0b3578]/10 transition-all">
+              <div className="bg-surface p-8 rounded-2xl border border-institutional shadow-[0_2px_10px_rgba(0,0,0,0.02)] group hover:border-[#0b3578]/10 transition-all">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Total Settled</p>
                 <div className="flex items-baseline gap-1">
                    <p className="text-3xl font-semibold text-slate-800 tracking-tight">{formatCurrency(totalSettled)}</p>
@@ -95,7 +89,7 @@ export default function StudentHomePage() {
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] group hover:border-[#0b3578]/10 transition-all">
+              <div className="bg-surface p-8 rounded-2xl border border-institutional shadow-[0_2px_10px_rgba(0,0,0,0.02)] group hover:border-[#0b3578]/10 transition-all">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center justify-between">
                    Pending Balance
                    <span className="text-[9px] font-medium bg-slate-50 text-slate-400 px-1.5 py-0.5 rounded border border-slate-100">{academicYear}</span>
@@ -116,7 +110,7 @@ export default function StudentHomePage() {
                 <Link href="/student/academics" className="text-[10px] font-semibold text-[#0b3578] hover:underline uppercase tracking-wider">Full Progress</Link>
              </div>
 
-             <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+             <div className="bg-surface border border-institutional rounded-2xl overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
                 {academicPerformance && academicPerformance.length > 0 ? (
                   <div className="divide-y divide-slate-50">
                     {academicPerformance.slice(0, 5).map((sub, i) => (

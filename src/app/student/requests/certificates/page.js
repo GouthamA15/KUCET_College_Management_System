@@ -11,6 +11,7 @@ import RequestHistoryDesktop from '../../../../components/student/requests/Reque
 import RequestHistoryMobile from '../../../../components/student/requests/RequestHistoryMobile';
 import RejectDetailsModal from '../../../../components/student/requests/RejectDetailsModal';
 import { isCapacitor, downloadToDevice } from '@/lib/capacitor-utils';
+import { smoothScrollToId } from '@/lib/scroll-utils';
 
 // Page-level UPI VPA (source of truth for UPI ID)
 const UPI_VPA = 'kuengineeringcollege@sbi';
@@ -157,10 +158,7 @@ export default function CertificateRequestsPage() {
     setSelectedCertificate(req.certificate_type);
     closeRejectModal();
     // Scroll to form
-    if (typeof document !== 'undefined') {
-      const el = document.getElementById('certificate-type');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    smoothScrollToId('certificate-type', { behavior: 'smooth', block: 'center' });
   };
 
   const handleSubmit = async ({ transactionId, paymentScreenshot, finalPurpose, fromDate, toDate }) => {

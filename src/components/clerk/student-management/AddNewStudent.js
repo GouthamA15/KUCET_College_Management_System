@@ -7,6 +7,7 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { smoothScrollToTop } from '@/lib/scroll-utils';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
   <input
@@ -142,7 +143,7 @@ export default function AddNewStudent() {
       toast.success('Student added successfully', { id: toastId });
       setSavedRollLocked(true);
       setShowAddForm(false);
-      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+      smoothScrollToTop({ behavior: 'smooth' });
       setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', email:''});
       setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '', guardian_mobile: '' });
       // reset fee_reimbursement
@@ -239,41 +240,16 @@ export default function AddNewStudent() {
             <input placeholder="Mother Tongue" value={personal.mother_tongue} onChange={e=>setPersonal({...personal, mother_tongue:e.target.value})} className="p-2 border rounded" />
             <input placeholder="Place of Birth" value={personal.place_of_birth} onChange={e=>setPersonal({...personal, place_of_birth:e.target.value})} className="p-2 border rounded" />
             <input placeholder="Father Occupation" value={personal.father_occupation} onChange={e=>setPersonal({...personal, father_occupation:e.target.value})} className="p-2 border rounded" />
-            <input
-              placeholder="Annual Income"
-              value={annualIncomeDisplay}
-              onChange={(e) => {
-                const raw = String(e.target.value || '').replace(/\D/g, '').slice(0, String(MAX_ANNUAL_INCOME).length);
-                const num = raw ? Number(raw) : '';
-                if (num !== '' && num > MAX_ANNUAL_INCOME) {
-                  setIncomeError(`Maximum allowed is ${MAX_ANNUAL_INCOME}`);
-                  setPersonal(prev => ({ ...prev, annual_income: String(MAX_ANNUAL_INCOME) }));
-                  setAnnualIncomeDisplay(formatIndianNumber(String(MAX_ANNUAL_INCOME)));
-                } else {
-                  setIncomeError('');
-                  setPersonal(prev => ({ ...prev, annual_income: raw }));
-                  setAnnualIncomeDisplay(formatIndianNumber(raw));
-                }
-              }}
-              type="text"
+            <select 
+              value={personal.annual_income} 
+              onChange={e => setPersonal({...personal, annual_income: e.target.value})} 
               className="p-2 border rounded"
-              inputMode="numeric"
-              onPaste={(e) => {
-                const pasted = (e.clipboardData || window.clipboardData).getData('text');
-                const digits = pasted.replace(/\D/g, '').slice(0, String(MAX_ANNUAL_INCOME).length);
-                const num = digits ? Number(digits) : '';
-                if (num !== '' && num > MAX_ANNUAL_INCOME) {
-                  setIncomeError(`Maximum allowed is ${MAX_ANNUAL_INCOME}`);
-                  setPersonal(prev => ({ ...prev, annual_income: String(MAX_ANNUAL_INCOME) }));
-                  setAnnualIncomeDisplay(formatIndianNumber(String(MAX_ANNUAL_INCOME)));
-                } else {
-                  setIncomeError('');
-                  setPersonal(prev => ({ ...prev, annual_income: digits }));
-                  setAnnualIncomeDisplay(formatIndianNumber(digits));
-                }
-                e.preventDefault();
-              }}
-            />
+            >
+              <option value="">Select Annual Income</option>
+              {Array.isArray(COLLEGE_CONFIG.incomeRanges) && COLLEGE_CONFIG.incomeRanges.map(range => (
+                <option key={range} value={range}>{range}</option>
+              ))}
+            </select>
             <div className="flex items-center">
               <span className="px-3 py-2 border border-r-0 bg-gray-100 text-sm text-gray-500 font-medium">+91</span>
               <input

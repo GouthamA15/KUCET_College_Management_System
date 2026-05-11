@@ -68,7 +68,7 @@ export function dismissActivity(activityId, { animationMs = 180 } = {}) {
 
 export default function useActivityDismissal(activityId, { animationMs = 180 } = {}) {
   const id = String(activityId || '');
-  const [dismissed, setDismissed] = useState(() => (id ? isActivityDismissed(id) : false));
+  const [dismissed, setDismissed] = useState(false);
   const [closing, setClosing] = useState(false);
 
   const refresh = useCallback(() => {
@@ -77,7 +77,10 @@ export default function useActivityDismissal(activityId, { animationMs = 180 } =
   }, [id]);
 
   useEffect(() => {
-    refresh();
+    const timer = setTimeout(() => {
+      refresh();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [refresh]);
 
   useEffect(() => {

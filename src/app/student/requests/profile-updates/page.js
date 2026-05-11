@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import Image from 'next/image';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const FallbackImage = ({ src, alt, width, height, className, type = 'photo' }) => {
   const [error, setError] = useState(false);
@@ -62,10 +63,12 @@ export default function ProfileUpdatesPage() {
 
   if (contextLoading || loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-[#0b3578] border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-slate-500 font-bold uppercase tracking-widest text-[10px]">Retrieving Audit Logs...</p>
-      </div>
+      <LoadingSpinner
+        label="Retrieving Audit Logs..."
+        containerClassName="flex flex-col items-center justify-center min-h-[60vh]"
+        spinnerClassName="w-10 h-10 border-4 border-[#0b3578] border-t-transparent rounded-full animate-spin"
+        labelClassName="mt-4 text-slate-500 font-bold uppercase tracking-widest text-[10px]"
+      />
     );
   }
 

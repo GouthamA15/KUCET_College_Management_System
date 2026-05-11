@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { ClerkContext } from '@/context/ClerkContext';
 import { StudentContext } from '@/context/StudentContext';
+import { logoutByRole } from '@/lib/logout';
 
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -186,46 +187,7 @@ async function performAction({ action, effectiveRole, onLogout, router, setActiv
   if (!action) return;
 
   if (action === 'logout') {
-    if (effectiveRole === 'student') {
-      if (typeof onLogout === 'function') {
-        try {
-          await onLogout();
-          return;
-        } catch (e) {
-          // fall through to student logout endpoint
-        }
-      }
-
-      try {
-        await fetch('/api/student/logout', { method: 'POST' });
-      } catch (e) {
-        // ignore network errors; still clear client state
-      }
-      try {
-        localStorage.removeItem('logged_in_student');
-      } catch {}
-      try {
-        sessionStorage.clear();
-      } catch {}
-      window.location.replace('/');
-      return;
-    }
-
-    if (
-      effectiveRole === 'clerk' ||
-      effectiveRole === 'clerkAdmission' ||
-      effectiveRole === 'clerkScholarship' ||
-      effectiveRole === 'faculty'
-    ) {
-      await fetch('/api/clerk/logout', { method: 'POST' });
-      window.location.replace('/');
-      return;
-    }
-
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (e) {}
-    window.location.replace('/');
+    await logoutByRole({ role: effectiveRole, onLogout });
     return;
   }
 
@@ -287,8 +249,8 @@ export default function Sidebar({
 
   const DESKTOP_COLLAPSED_W = 69; // px (matches layouts using lg:ml-16)
   const DESKTOP_EXPANDED_W = 264; // px
-  const DESKTOP_TOP = 'calc(var(--site-header-height, 72px) + 12px)';
-  const DESKTOP_MAX_HEIGHT = 'calc(100dvh - var(--site-header-height, 72px) - 24px)';
+  const DESKTOP_TOP = 'calc(50% + 48px)';
+  const DESKTOP_MAX_HEIGHT = '78dvh';
 
   // Publish desktop sidebar width to the app shell so main content can "push" instead of being overlaid.
   // Desktop-only consumption happens via `lg:ml-(--desktop-sidebar-offset,64px)` in layouts.
@@ -313,13 +275,14 @@ export default function Sidebar({
         'rounded-tr-2xl rounded-br-2xl overflow-hidden',
         'border border-slate-200/70',
         'bg-linear-to-b from-blue-200/70 via-white to-blue-200/70',
-        'shadow-sm'
+        'shadow-sm backdrop-blur-md'
       )}
       style={{
         top: DESKTOP_TOP,
         maxHeight: DESKTOP_MAX_HEIGHT,
         width: expanded ? `${DESKTOP_EXPANDED_W}px` : `${DESKTOP_COLLAPSED_W}px`,
         height: '75dvh',
+        transform: 'translateY(-50%)',
         transition: 'width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)',
       }}
       onMouseEnter={() => setExpanded(true)}
@@ -452,7 +415,7 @@ export default function Sidebar({
                             'block w-full text-left rounded-lg px-2.5 py-2',
                             'text-[13px] font-medium transition-colors',
                             childIsActive
-                              ? 'bg-blue-50d text-[#0b3578] ring-1 ring-blue-200/60'
+                              ? 'bg-blue-50 text-[#0b3578] ring-1 ring-blue-200/60'
                               : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                           );
 
@@ -613,9 +576,9 @@ export default function Sidebar({
       style={{ top: 0, height: '100vh' }}
       aria-hidden={!isMobileOpen}
     >
-      <div className="w-72 h-full bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff] border-r border-slate-200">
+      <div className="w-72 h-full bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff] border-r border-slate-200 backdrop-blur-md">
         <div className="p-4 flex items-center justify-between">
-          <div className="text-lg font-bold text-slate-800">Menu</div>
+          <div className="text-lg font-bold text-slate-800 font-institutional">Menu</div>
           <button onClick={() => setIsMobileOpen(false)} className="p-2 text-slate-700" aria-label="Close menu">
             <span className="text-xl leading-none">×</span>
           </button>

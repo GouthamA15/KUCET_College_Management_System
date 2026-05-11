@@ -17,6 +17,9 @@ import { useScholarshipDashboard } from '@/context/ScholarshipDashboardContext';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber';
 import { formatDate } from '@/lib/date';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { smoothScrollToId } from '@/lib/scroll-utils';
+import { logoutScholarshipDashboard } from '@/lib/logout';
 
 
 function ScholarshipDashboardContent() {
@@ -91,10 +94,7 @@ function ScholarshipDashboardContent() {
       
       if (scroll === '1') {
         const timer = setTimeout(() => {
-          const el = document.getElementById('certificate-section');
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+          smoothScrollToId('certificate-section', { behavior: 'smooth', block: 'start' });
         }, 800);
         return () => clearTimeout(timer);
       }
@@ -166,14 +166,7 @@ function ScholarshipDashboardContent() {
     setHardcopySubmitted(false);
 
     // Scroll back to the top of the dashboard for clarity
-    if (typeof window !== 'undefined') {
-      const el = document.getElementById('scholarship-dashboard-top');
-      if (el && typeof el.scrollIntoView === 'function') {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }
+    smoothScrollToId('scholarship-dashboard-top', { behavior: 'smooth', block: 'start' });
   };
 
   
@@ -191,10 +184,7 @@ function ScholarshipDashboardContent() {
   // UI must not parse roll number; rely only on backend fields
 
   const handleLogout = () => {
-    document.cookie = 'clerk_auth=; Max-Age=0; path=/;';
-    document.cookie = 'clerk_logged_in=; Max-Age=0; path=/;';
-    sessionStorage.removeItem('clerk_authenticated');
-    window.location.replace('/');
+    logoutScholarshipDashboard();
   };
 
   const localResetStudent = () => {
@@ -555,14 +545,7 @@ function ScholarshipDashboardContent() {
 
 
   if (isClerkLoading && !clerk) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-6 h-6 border-2 border-slate-100 border-t-[#0b3578] rounded-full animate-spin"></div>
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Loading Dashboard</span>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner label="Loading Dashboard" />;
   }
 
   if (!clerk) return null;
@@ -650,14 +633,7 @@ function ScholarshipDashboardContent() {
                 <ScholarshipWindowCard
                   onWindowUpdated={() => {
                     setMetricsRefreshToken((t) => t + 1);
-                    if (typeof window !== 'undefined') {
-                      const el = document.getElementById('scholarship-dashboard-top');
-                      if (el && typeof el.scrollIntoView === 'function') {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      } else {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }
-                    }
+                    smoothScrollToId('scholarship-dashboard-top', { behavior: 'smooth', block: 'start' });
                   }}
                 />
               </div>
@@ -765,7 +741,7 @@ function ScholarshipDashboardContent() {
 
 export default function ScholarshipDashboard() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] p-6 text-slate-500 font-bold uppercase tracking-widest text-xs">Loading Scholarship Dashboard...</div>}>
+    <Suspense fallback={<LoadingSpinner label="Loading Scholarship Dashboard..." />}>
       <ScholarshipDashboardContent />
     </Suspense>
   );

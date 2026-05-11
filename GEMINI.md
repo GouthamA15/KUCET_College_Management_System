@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 7, 2026 (Session 96)
+**Last Updated:** May 7, 2026 (Session 98)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -162,32 +162,17 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### May 2026
 
-#### **Session 96: Staff Profile Sovereignty & Verification Infrastructure (May 7, 2026)**
-- **Staff Edit Profile:**
-    - Implemented comprehensive "Edit Profile" functionality for all institutional staff roles (Admission, Scholarship, Faculty, HOD). Staff can now independently manage their professional portrait, digital signature, and contact information.
-- **Database Schema Hardening:**
-    - Expanded the `clerks` table to include `mobile`, `mobile_hash`, `pfp`, and `signature`.
-    - Integrated institutional-grade AES-256-GCM encryption for staff mobile numbers and implemented blind indexing for secure, high-performance lookups.
-- **OTP System Generalization:**
-    - Refactored the entire OTP infrastructure (database schema and API routes) to be identity-agnostic. The system now supports both student roll numbers and staff email addresses as primary identifiers.
-- **Secure Email Change Workflow:**
-    - Developed a multi-stage verification handshake for institutional email updates. Staff must now pass an OTP challenge via their current registered address before unlocking the ability to modify their account credentials.
-- **Local Dev Resilience (Email Fail-Safe):**
-    - Integrated a robust "Local Dev Mode" for the email engine. If the Brevo API fails due to network-specific IP restrictions or configuration issues, the system intelligently logs the OTP to the terminal and returns a successful response to the frontend, ensuring uninterrupted local development.
-
----
-
-#### **Session 97: Email Verification Refactor & Profile UI Streamlining (May 7, 2026)**
-- **Staff Email Verification:**
-    - Refactored the "Edit Profile" workflow for all institutional staff roles. The system now requires OTP verification of the **new institutional email address** instead of the currently registered one, ensuring the validity of new account credentials before they are committed.
-    - Introduced a dedicated "Change Email" state to prevent accidental modifications and provide a clear, multi-stage verification handshake.
-- **Institutional Directory Cleanup:**
-    - Removed the "Institutional Directory" search section from the Admission, Scholarship, and Faculty profile pages to streamline the user interface and focus on role-specific record management.
-    - Deleted the unused `ClerkSearch` component and the corresponding `/api/clerk/search` API route to reduce codebase bloat and maintenance overhead.
-- **Data Integrity:**
-    - Hardened the `onSave` logic in staff settings to prevent the submission of unverified email changes while maintaining support for other profile modifications (PFP, signature, mobile).
-
----
+#### **Session 96: Admission Clerk Navigation Refactor & Workspace Standardization (May 9, 2026)**
+- **Architecture & Navigation:**
+    - **Overview-First Dashboard:** Refactored the Admission Clerk dashboard (`/clerk/admission/dashboard`) into a lightweight, metric-oriented overview. Removed inline operational modules in favor of direct route navigation.
+    - **Dedicated Workspaces:** Established permanent, dedicated pages for Student Management (`/clerk/admission/student-management`) and Admission Finalization (`/clerk/admission/finalize`), improving navigation stability and component lifecycle management.
+    - **Centralized Requests Center:** Developed a unified Request Operations Center at `/clerk/admission/requests` featuring a tabbed interface. This hub centralizes Admission Intake, Certificate Requests, and Student Profile Modifications into a single institutional command unit.
+- **Component Engineering:**
+    - **Modular Request Panels:** Extracted complex request-handling logic from page-level files into reusable components (`AdmissionRequestsPanel`, `CertificateRequestsPanel`, `StudentUpdateRequestsPanel`).
+    - **Navigation Synchronization:** Integrated `RequestTabs` with URL search parameters to support deep-linking and state persistence across page refreshes.
+- **UI & Institutional Branding:**
+    - **Government-Admin Style:** Standardized the Admission module's visual language with sharp borders (`rounded-sm`), high-density data grids, and a professional Slate + Indigo color palette, aligning with official institutional portal standards.
+    - **Operational Labels:** Implemented high-contrast, uppercase operational labeling and "Registry Command" headers to enhance clarity for administrative staff.
 
 ### April 2026
 

@@ -7,7 +7,80 @@ import { StudentContext } from '@/context/StudentContext';
 import { ClerkContext } from '@/context/ClerkContext';
 import { showLocalNotification } from '@/lib/notification-utils';
 
-export default function RealtimeListener() {
+let sharedSupabaseClient = null;
+let sharedChannel = null;
+let sharedStatus = 'connecting';
+const statusSubscribers = new Set();
+const eventSubscribers = new Set();
+
+function notifyStatus(status) {
+  sharedStatus = status;
+  statusSubscribers.forEach((subscriber) => {
+    try {
+      subscriber(status);
+    } catch (error) {
+      console.error('Realtime status subscriber error', error);
+    }
+  });
+}
+
+function notifyEvent(event) {
+  eventSubscribers.forEach((subscriber) => {
+    try {
+      subscriber(event);
+    } catch (error) {
+      console.error('Realtime event subscriber error', error);
+    }
+  });
+}
+
+function getSharedSupabaseClient() {
+  if (sharedSupabaseClient) return sharedSupabaseClient;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key || typeof window === 'undefined') return null;
+
+  sharedSupabaseClient = createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+  });
+
+  return sharedSupabaseClient;
+}
+
+function ensureRealtimeChannel() {
+  if (sharedChannel) return;
+  const supabase = getSharedSupabaseClient();
+  if (!supabase) {
+    notifyStatus('error');
+    return;
+  }
+
+  sharedChannel = supabase.channel('kucet-updates', {
+    config: {
+      broadcast: { ack: true },
+    },
+  });
+
+  sharedChannel
+    .on('broadcast', { event: '*' }, ({ event, payload }) => {
+      notifyEvent({ type: event, payload });
+    })
+    .subscribe((status) => {
+      notifyStatus(status === 'SUBSCRIBED' ? 'connected' : status);
+    });
+}
+
+export default function RealtimeListener({ onUpdate, showIndicator = false, enableNotifications = false }) {
   const { studentData } = useContext(StudentContext) || {};
   const { clerkData } = useContext(ClerkContext) || {};
   
@@ -15,9 +88,8 @@ export default function RealtimeListener() {
   const studentDataRef = useRef(studentData);
   const clerkDataRef = useRef(clerkData);
   
-  const [status, setStatus] = useState('connecting');
+  const [status, setStatus] = useState(sharedStatus);
   const [debugInfo, setDebugInfo] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     studentDataRef.current = studentData;
@@ -62,54 +134,31 @@ export default function RealtimeListener() {
   }, []);
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!url || !key) {
-      console.error('❌ [Realtime] Missing Supabase Keys in Browser!');
-      setStatus('error');
-      setDebugInfo('MISSING_KEYS');
-      return;
-    }
-
-    console.log('🔌 [Realtime] Connecting to:', url);
-    const supabase = createClient(url, key, {
-      realtime: {
-        params: {
-          eventsPerSecond: 10,
-        },
-      },
-    });
-
-    const channel = supabase.channel('kucet-updates', {
-      config: {
-        broadcast: { ack: true },
+    const statusHandler = (nextStatus) => {
+      setStatus(nextStatus);
+      setDebugInfo(nextStatus);
+    };
+    const eventHandler = ({ type, payload }) => {
+      if (typeof onUpdate === 'function') {
+        onUpdate({ type, payload });
       }
-    });
+      if (enableNotifications) {
+        handleNotification(type, payload || {});
+      }
+    };
 
-    channel
-      .on('broadcast', { event: '*' }, ({ event, payload }) => {
-        handleNotification(event, payload);
-      })
-      .subscribe(async (status) => {
-        console.log('📶 [Realtime Status]:', status);
-        setDebugInfo(status);
-        
-        if (status === 'SUBSCRIBED') {
-          setStatus('connected');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setStatus('connecting');
-          // Auto-retry after 5 seconds if timed out or errored
-          const timer = setTimeout(() => setRetryCount(c => c + 1), 5000);
-          return () => clearTimeout(timer);
-        }
-      });
+    statusSubscribers.add(statusHandler);
+    eventSubscribers.add(eventHandler);
+    statusHandler(sharedStatus);
+    ensureRealtimeChannel();
 
     return () => {
-      console.log('🔌 [Realtime] Cleaning up connection');
-      supabase.removeChannel(channel);
+      statusSubscribers.delete(statusHandler);
+      eventSubscribers.delete(eventHandler);
     };
-  }, [handleNotification, retryCount]);
+  }, [enableNotifications, handleNotification, onUpdate]);
+
+  if (!showIndicator) return null;
 
   // Visual status indicator (minimal)
   return (

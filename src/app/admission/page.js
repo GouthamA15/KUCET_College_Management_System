@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { getEffectiveAcademicYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import Header from '@/components/Header';
+import { smoothScrollToTop } from '@/lib/scroll-utils';
 
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
@@ -114,7 +115,7 @@ const AdmissionPage = () => {
             if (!res.ok) throw new Error(data.error || 'Submission failed.');
             toast.success('Application Submitted Successfully!', { id: toastId });
             setSubmitted(true);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            smoothScrollToTop({ behavior: 'smooth' });
         } catch (error) {
             toast.error(error.message, { id: toastId });
         } finally {
@@ -302,19 +303,17 @@ const AdmissionPage = () => {
 
                         <div className="space-y-1">
                             <label className={labelClasses}>20. Annual Income <span className="text-red-500">*</span></label>
-                            <input 
+                            <select 
                                 required 
-                                type="text" 
-                                inputMode="numeric"
-                                value={annualIncomeDisplay} 
-                                onChange={e => {
-                                    const raw = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                    setForm({...form, annual_income: raw});
-                                    setAnnualIncomeDisplay(formatIndianNumber(raw));
-                                }} 
-                                className={inputClasses} 
-                                placeholder="ANNUAL INCOME"
-                            />
+                                value={form.annual_income} 
+                                onChange={e => setForm({...form, annual_income: e.target.value})} 
+                                className={inputClasses}
+                            >
+                                <option value="">SELECT ANNUAL INCOME RANGE</option>
+                                {COLLEGE_CONFIG.incomeRanges.map(range => (
+                                    <option key={range} value={range}>{range}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="space-y-1">

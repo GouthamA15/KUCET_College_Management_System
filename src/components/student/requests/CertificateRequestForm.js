@@ -91,19 +91,23 @@ export default function CertificateRequestForm({
   };
 
   useEffect(() => {
-    // Reset form state when certificate type changes
-    setTransactionId('');
-    setPaymentScreenshot(null);
-    if (paymentPreviewUrl) {
-      try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
-      setPaymentPreviewUrl(null);
-    }
-    setPurposeOption('Select');
-    setCustomPurpose('');
-    setFromDate('');
-    setToDate('');
-    setPurposeError('');
-    setDateError('');
+    const timer = setTimeout(() => {
+      // Reset form state when certificate type changes
+      setTransactionId('');
+      setPaymentScreenshot(null);
+      if (paymentPreviewUrl) {
+        try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
+        setPaymentPreviewUrl(null);
+      }
+      setPurposeOption('Select');
+      setCustomPurpose('');
+      setFromDate('');
+      setToDate('');
+      setPurposeError('');
+      setDateError('');
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [selectedCertificate]);
 
   const handleSubmit = async (e) => {
