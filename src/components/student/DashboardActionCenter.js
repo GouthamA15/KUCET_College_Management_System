@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import useProfileActivity from '@/components/student/hooks/useProfileActivity';
 import useActivityDismissal from '@/components/student/hooks/useActivityDismissal';
+import { useStudent } from '@/context/StudentContext';
 
 export default function DashboardActionCenter({ student }) {
   const activity = useProfileActivity();
+  const { academicPerformance } = useStudent();
   const {
     scholarshipThumbUpdate,
     scholarshipHardcopyPending,
