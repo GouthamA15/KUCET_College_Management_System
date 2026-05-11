@@ -17,7 +17,8 @@ export default function ClerkEditProfilePage() {
     mobile: '',
     employee_id: '',
     role: '',
-    branch: ''
+    branch: '',
+    address: ''
   });
   
   const [originalData, setOriginalData] = useState(null);
@@ -27,6 +28,7 @@ export default function ClerkEditProfilePage() {
   const [loading, setLoading] = useState(true);
 
   // Email Verification Workflow States
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [otpCode, setOtpCode] = useState('');
@@ -44,7 +46,8 @@ export default function ClerkEditProfilePage() {
         mobile: clerk.mobile || '',
         employee_id: clerk.employee_id || '',
         role: clerk.role || '',
-        branch: clerk.branch || ''
+        branch: clerk.branch || '',
+        address: clerk.address || ''
       };
       setFormData(data);
       setOriginalData(JSON.parse(JSON.stringify(data)));
@@ -72,19 +75,28 @@ export default function ClerkEditProfilePage() {
   };
 
   const handleRequestEmailChange = async () => {
+    if (!formData.email || !formData.email.includes('@')) {
+      toast.error('Please enter a valid institutional email.');
+      return;
+    }
+    if (formData.email === originalData.email) {
+      toast.error('This is already your registered email.');
+      return;
+    }
+
     setSendingOtp(true);
     try {
       const res = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          email: originalData.email,
-          purpose: 'Verification for Email Change'
+          email: formData.email,
+          purpose: 'Verification for New Email'
         })
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success('OTP sent to current email address.');
+        toast.success(`OTP sent to ${formData.email}`);
         setShowOtpInput(true);
       } else {
         toast.error(data.error || 'Failed to send OTP');
@@ -107,15 +119,16 @@ export default function ClerkEditProfilePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          email: originalData.email,
+          email: formData.email,
           submittedOtp: otpCode
         })
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success('Identity verified. You can now update your email.');
+        toast.success('New email verified successfully.');
         setEmailVerified(true);
         setShowOtpInput(false);
+        setIsEditingEmail(false);
       } else {
         toast.error(data.error || 'Invalid OTP');
       }
@@ -129,16 +142,55 @@ export default function ClerkEditProfilePage() {
   const hasChanges = () => {
     if (!originalData) return false;
     if (pfpDataUrl || signatureDataUrl) return true;
+    
+    const emailChanged = formData.email !== originalData.email;
+    
     return (
       formData.name !== originalData.name ||
-      (emailVerified && formData.email !== originalData.email) ||
-      formData.mobile !== originalData.mobile
+      (emailVerified && emailChanged) ||
+      formData.mobile !== originalData.mobile ||
+      formData.address !== originalData.address
     );
   };
 
   const onSave = async () => {
     if (!hasChanges()) {
+      // If email is changed but not verified, show a specific error
+      if (formData.email !== originalData.email && !emailVerified) {
+        toast.error('Please verify your new email address before saving.');
+        return;
+      }
       toast.error('No modifications detected.');
+      return;
+    }
+
+    // Additional check for unverified email change if other changes exist
+    if (formData.email !== originalData.email && !emailVerified) {
+      toast.error('Please verify your new email address or revert it.');
+      return;
+    }
+
+    // Input Validations
+    if (formData.name.trim().length < 3) {
+      toast.error('Name must be at least 3 characters long.');
+      return;
+    }
+    if (formData.name.length > 50) {
+      toast.error('Name cannot exceed 50 characters.');
+      return;
+    }
+    if (!/^[a-zA-Z\s]*$/.test(formData.name)) {
+      toast.error('Name can only contain letters and spaces.');
+      return;
+    }
+
+    if (formData.mobile.length !== 10) {
+      toast.error('Mobile number must be exactly 10 digits.');
+      return;
+    }
+
+    if (formData.address.length > 255) {
+      toast.error('Address cannot exceed 255 characters.');
       return;
     }
 
@@ -150,6 +202,7 @@ export default function ClerkEditProfilePage() {
       if (formData.name !== originalData.name) payload.name = formData.name;
       if (emailVerified && formData.email !== originalData.email) payload.email = formData.email;
       if (formData.mobile !== originalData.mobile) payload.mobile = formData.mobile;
+      if (formData.address !== originalData.address) payload.address = formData.address;
       if (pfpDataUrl) payload.pfp = pfpDataUrl;
       if (signatureDataUrl) payload.signature = signatureDataUrl;
 
@@ -166,6 +219,7 @@ export default function ClerkEditProfilePage() {
       setPfpDataUrl(null);
       setSignatureDataUrl(null);
       setEmailVerified(false); // Reset after save
+      setIsEditingEmail(false);
       await refreshClerkData();
     } catch (e) {
       toast.error(e.message || 'System error occurred.', { id: toastId });
@@ -270,6 +324,7 @@ export default function ClerkEditProfilePage() {
                     <input 
                       value={formData.name} 
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      maxLength={50}
                       className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.name !== originalData?.name ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200 hover:border-slate-300'}`}
                     />
                   </div>
@@ -277,9 +332,13 @@ export default function ClerkEditProfilePage() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee Contact Number</label>
                     <input 
                       value={formData.mobile} 
-                      onChange={(e) => setFormData({...formData, mobile: e.target.value})}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setFormData({...formData, mobile: val});
+                      }}
+                      maxLength={10}
                       className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.mobile !== originalData?.mobile ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200 hover:border-slate-300'}`}
-                      placeholder="Enter mobile number"
+                      placeholder="10-digit mobile number"
                     />
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
@@ -288,30 +347,53 @@ export default function ClerkEditProfilePage() {
                       <div className="flex-1 relative">
                         <input 
                           value={formData.email} 
-                          disabled={!emailVerified}
-                          onChange={(e) => setFormData({...formData, email: e.target.value})}
+                          disabled={!isEditingEmail && !emailVerified}
+                          onChange={(e) => {
+                            setFormData({...formData, email: e.target.value});
+                            if (emailVerified) setEmailVerified(false);
+                          }}
                           className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${
                             emailVerified 
-                              ? (formData.email !== originalData?.email ? 'border-amber-400 bg-amber-50/30' : 'border-blue-400 bg-blue-50/10') 
-                              : 'bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed'
+                              ? 'border-green-400 bg-green-50/10' 
+                              : (isEditingEmail ? 'border-amber-400 bg-amber-50/30' : 'bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed')
                           }`}
                         />
                         {emailVerified && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                            <span className="text-[8px] font-black text-green-600 uppercase tracking-tighter">Unlocked</span>
+                            <span className="text-[8px] font-black text-green-600 uppercase tracking-tighter">Verified</span>
                           </div>
                         )}
                       </div>
 
-                      {!emailVerified && !showOtpInput && (
+                      {!isEditingEmail && !emailVerified && (
                         <button 
-                          onClick={handleRequestEmailChange}
-                          disabled={sendingOtp}
-                          className="px-6 py-3 bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50"
+                          onClick={() => setIsEditingEmail(true)}
+                          className="px-6 py-3 bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
                         >
-                          {sendingOtp ? 'Sending...' : 'Verify to Change'}
+                          Change Email
                         </button>
+                      )}
+
+                      {isEditingEmail && !showOtpInput && (
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={handleRequestEmailChange}
+                            disabled={sendingOtp || formData.email === originalData?.email}
+                            className="px-6 py-3 bg-[#0b3578] text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-900 transition-all disabled:opacity-50"
+                          >
+                            {sendingOtp ? 'Sending...' : 'Verify New Email'}
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setIsEditingEmail(false);
+                              setFormData({...formData, email: originalData.email});
+                            }}
+                            className="px-4 py-3 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       )}
 
                       {showOtpInput && (
@@ -340,9 +422,22 @@ export default function ClerkEditProfilePage() {
                     </div>
                     <p className="mt-2 text-[9px] text-slate-400 font-medium italic">
                       {emailVerified 
-                        ? "* Identity confirmed. You may now input your new institutional email address."
-                        : "* For security, changing your email requires OTP verification via your current registered address."}
+                        ? "* New email address has been verified and is ready to be recorded."
+                        : (isEditingEmail 
+                            ? "* Please enter your new institutional email and verify it via OTP."
+                            : "* Changing your institutional email requires verification of the new address.")}
                     </p>
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permanent Address</label>
+                    <textarea 
+                      value={formData.address} 
+                      onChange={(e) => setFormData({...formData, address: e.target.value})}
+                      rows={3}
+                      maxLength={255}
+                      className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.address !== originalData?.address ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200 hover:border-slate-300'}`}
+                      placeholder="Enter permanent residential address"
+                    />
                   </div>
                 </div>
               </section>

@@ -53,6 +53,7 @@ export const clerks = mysqlTable('clerks', {
   mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Blind Index
   pfp: text('pfp'),
   signature: text('signature'),
+  address: text('address'),
   is_active: boolean('is_active').default(true).notNull(),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
@@ -76,7 +77,7 @@ export const principal = mysqlTable('principal', {
 
 export const studentPersonalDetails = mysqlTable('student_personal_details', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  student_id: int('student_id'),
+  student_id: int('student_id').notNull(),
   father_name: varchar('father_name', { length: 255 }),
   mother_name: varchar('mother_name', { length: 255 }),
   nationality: varchar('nationality', { length: 100 }),
@@ -88,7 +89,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
   place_of_birth: varchar('place_of_birth', { length: 255 }),
   father_occupation: varchar('father_occupation', { length: 255 }),
   guardian_mobile: varchar('guardian_mobile', { length: 255 }), // Encrypted
-  annual_income: int('annual_income'),
+  annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Blind Index
   address: text('address'),
@@ -102,7 +103,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
 
 export const studentAcademicBackground = mysqlTable('student_academic_background', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  student_id: int('student_id'),
+  student_id: int('student_id').notNull(),
   qualifying_exam: varchar('qualifying_exam', { length: 50 }),
   previous_college_details: text('previous_college_details'),
   medium_of_instruction: varchar('medium_of_instruction', { length: 50 }),
@@ -143,7 +144,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   blood_group: varchar('blood_group', { length: 10 }),
   place_of_birth: varchar('place_of_birth', { length: 255 }),
   father_occupation: varchar('father_occupation', { length: 255 }),
-  annual_income: int('annual_income'),
+  annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Index
   fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO', 'GOV']),

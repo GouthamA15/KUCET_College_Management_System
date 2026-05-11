@@ -36,3 +36,14 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
+
+      - name: Run Database Pruning (Garbage Collection)
+        if: success()
+        run: npm run db:prune
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_SSL: 'true'

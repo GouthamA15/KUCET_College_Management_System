@@ -3,9 +3,11 @@ import { db } from '@/db';
 import { otpCodes } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { getStudentEmail } from '@/lib/student-utils';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 function generateSecureOtp() {
   const length = 6;
@@ -27,6 +29,42 @@ export async function POST(request) {
     
     if (!identifier) return apiError('Identifier (Roll number or Email) is required', 400);
 
+    // Resolve client IP with proper validation
+    let clientIp = request.ip;
+    if (!clientIp) {
+      const xForwardedFor = request.headers.get('x-forwarded-for');
+      if (xForwardedFor) {
+        const ips = xForwardedFor.split(',').map(ip => ip.trim());
+        // Use only the leftmost entry and validate it
+        const firstIp = ips[0];
+        // Check for both IPv4 and IPv6 using simple patterns
+        const isValidIp = /^[\da-fA-F.:]+$/.test(firstIp) && firstIp.length > 0;
+        clientIp = isValidIp ? firstIp : (`req-${crypto.randomBytes(8).toString('hex')}`);
+      } else {
+        clientIp = `req-${crypto.randomBytes(8).toString('hex')}`;
+      }
+    }
+
+    // Check identifier-based rate limit FIRST to avoid charging IP counter when identifier is blocked
+    const identifierRateCheck = await checkRateLimit(`send_otp_id:${identifier}`, 5, 900); // 5 attempts per 15 min
+    if (!identifierRateCheck.success) {
+      const retryAfter = identifierRateCheck.resetIn || identifierRateCheck.ttl || identifierRateCheck.reset || 900;
+      return NextResponse.json(
+        { error: 'Too many OTP requests for this account. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+      );
+    }
+
+    // Then check IP-based rate limit
+    const rateCheck = await checkRateLimit(`send_otp:${clientIp}`, 5, 900); // 5 attempts per 15 min
+    if (!rateCheck.success) {
+      const retryAfter = rateCheck.resetIn || rateCheck.ttl || rateCheck.reset || 900;
+      return NextResponse.json(
+        { error: 'Too many OTP requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+      );
+    }
+
     let targetEmail = email;
     if (rollNo && !email) {
       targetEmail = await getStudentEmail(rollNo);
@@ -45,7 +83,6 @@ export async function POST(request) {
         expires_at: expiresAt
       });
     } catch (dbError) {
-      console.error('DB ERROR DETAILS:', dbError);
       logger.error('Error storing OTP:', dbError);
       return apiError(`Failed to store OTP: ${dbError.message}`, 500);
     }

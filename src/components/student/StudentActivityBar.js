@@ -109,7 +109,6 @@ export default function StudentActivityBar() {
 
   const hasAttendance = attendanceSessions.length > 0;
   const isProfilePage = pathname === '/student/profile';
-  const isDashboardHome = pathname === '/student';
   const showBar = activeActivity || (hasAttendance && !isProfilePage);
 
   if (loading && !showBar) return null;
@@ -158,7 +157,7 @@ export default function StudentActivityBar() {
       )}
 
       {/* 2. Secure Attendance Extension (Hidden on Profile Page to avoid duplication) */}
-      {hasAttendance && !isProfilePage && !isDashboardHome && (
+      {hasAttendance && !isProfilePage && (
         <div className="bg-white border-b border-gray-200 p-4">
           <div className="max-w-7xl mx-auto">
              <AttendanceVerificationActivity 
