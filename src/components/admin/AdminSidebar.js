@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { logoutByRole } from '@/lib/logout';
 
 const icons = {
   dashboard: (
@@ -45,8 +46,7 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
   const [isHovered, setIsHovered] = useState(false);
 
   const handleLogout = async () => {
-    await fetch('/api/admin/logout', { method: 'POST' });
-    window.location.replace('/');
+    await logoutByRole({ role: 'admin' });
   };
 
   const isExpanded = isHovered || isMobileOpen;

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import RecordStatusBadge from './RecordStatusBadge';
 import FeeSummaryView from './FeeSummaryView';
 import ScholarshipProceedingsView from './ScholarshipProceedingsView';
+import { smoothScrollToElement } from '@/lib/scroll-utils';
 
 export default function YearRecordCard({
   year,
@@ -49,12 +50,8 @@ export default function YearRecordCard({
   const hardcopyLabel = (hardcopy === 1 || hardcopy === true) ? 'Submitted' : (hardcopy === 0 || hardcopy === false) ? 'Pending' : '-';
 
   useEffect(() => {
-    if (isExpanded && cardRef.current && typeof window !== 'undefined') {
-      try {
-        cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } catch {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+    if (isExpanded) {
+      smoothScrollToElement(cardRef.current, { behavior: 'smooth', block: 'start' });
     }
   }, [isExpanded]);
 

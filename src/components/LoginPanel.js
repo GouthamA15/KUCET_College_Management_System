@@ -373,7 +373,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password
                       <span className="block text-xs text-gray-500 font-normal mt-0.5">
-                        First time user ? Use your DOB in the format : DD-MM-YYYY(ex: "31-12-2000") as password
+                        First time user ? Use your DOB in the format : DD-MM-YYYY(ex: &quot;31-12-2000&quot;) as password
                       </span>
                     </label>
                     <div className="relative">

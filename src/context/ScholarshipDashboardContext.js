@@ -33,7 +33,10 @@ export function ScholarshipDashboardProvider({ children }) {
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
-        setState((prev) => ({ ...prev, ...parsed }));
+        const timer = setTimeout(() => {
+          setState((prev) => ({ ...prev, ...parsed }));
+        }, 0);
+        return () => clearTimeout(timer);
       }
     } catch {
       // ignore hydration errors

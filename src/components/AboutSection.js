@@ -8,6 +8,9 @@ export default function AboutSection() {
   const [highlightsVisible, setHighlightsVisible] = useState(false);
   const sectionRef = useRef(null);
   const highlightsRef = useRef(null);
+  const aboutParagraphOne = `${COLLEGE_CONFIG.name} (${COLLEGE_CONFIG.shortName}) is a premier engineering institution affiliated with Kakatiya University, ${COLLEGE_CONFIG.location}. Established with a vision to provide quality technical education, ${COLLEGE_CONFIG.shortName} has been at the forefront of producing skilled engineers and technologists who contribute significantly to the nation's technological advancement. The college is accredited with NAAC A+ grade, reflecting its commitment to academic excellence and quality education.`;
+  const aboutParagraphTwo = `Located in the historic city of ${COLLEGE_CONFIG.location}, Telangana, ${COLLEGE_CONFIG.shortName} offers undergraduate and postgraduate programs in various engineering disciplines including Computer Science, Electronics and Communication, Mechanical, Civil, and Electrical Engineering. The institution is recognized for its state-of-the-art infrastructure, well-equipped laboratories, experienced faculty, and vibrant campus life. With admission codes ${COLLEGE_CONFIG.entranceCodes.eapcet} for EAPCET, ${COLLEGE_CONFIG.entranceCodes.pgecet} for PGECET, and ${COLLEGE_CONFIG.entranceCodes.ecet} for ECET, the college attracts talented students from across the state.`;
+  const aboutParagraphThree = `${COLLEGE_CONFIG.shortName} emphasizes holistic development through a balanced curriculum that combines theoretical knowledge with practical skills. The college fosters research and innovation through various initiatives, industry partnerships, and collaborative projects. With a strong placement record and alumni network spread across leading organizations globally, ${COLLEGE_CONFIG.shortName} continues to uphold its legacy of excellence in engineering education and remains committed to shaping future leaders in technology and innovation.`;
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -49,36 +52,19 @@ export default function AboutSection() {
           <p className={`text-base md:text-lg transition-all duration-700 ease-out delay-100 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'
           }`}>
-            {COLLEGE_CONFIG.name} ({COLLEGE_CONFIG.shortName}) is a premier engineering institution 
-            affiliated with Kakatiya University, {COLLEGE_CONFIG.location}. Established with a vision to provide 
-            quality technical education, {COLLEGE_CONFIG.shortName} has been at the forefront of producing skilled 
-            engineers and technologists who contribute significantly to the nation&rsquo;s technological 
-            advancement. The college is accredited with NAAC A+ grade, reflecting its commitment 
-            to academic excellence and quality education.
+            {aboutParagraphOne}
           </p>
 
           <p className={`text-base md:text-lg transition-all duration-700 ease-out delay-200 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'
           }`}>
-            Located in the historic city of {COLLEGE_CONFIG.location}, Telangana, {COLLEGE_CONFIG.shortName} offers undergraduate and 
-            postgraduate programs in various engineering disciplines including Computer Science, 
-            Electronics and Communication, Mechanical, Civil, and Electrical Engineering. The 
-            institution is recognized for its state-of-the-art infrastructure, well-equipped 
-            laboratories, experienced faculty, and vibrant campus life. With admission codes 
-            {COLLEGE_CONFIG.entranceCodes.eapcet} for EAPCET, {COLLEGE_CONFIG.entranceCodes.pgecet} for PGECET, and {COLLEGE_CONFIG.entranceCodes.ecet} for ECET, the college attracts talented 
-            students from across the state.
+            {aboutParagraphTwo}
           </p>
 
           <p className={`text-base md:text-lg transition-all duration-700 ease-out delay-300 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'
           }`}>
-            {COLLEGE_CONFIG.shortName} emphasizes holistic development through a balanced curriculum that combines 
-            theoretical knowledge with practical skills. The college fosters research and 
-            innovation through various initiatives, industry partnerships, and collaborative 
-            projects. With a strong placement record and alumni network spread across leading 
-            organizations globally, {COLLEGE_CONFIG.shortName} continues to uphold its legacy of excellence in 
-            engineering education and remains committed to shaping future leaders in technology 
-            and innovation.
+            {aboutParagraphThree}
           </p>
         </div>
 

@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { ClerkProvider } from '@/context/ClerkContext';
 import Sidebar from '@/components/Sidebar';
-import ClerkTopBar from '@/components/clerk/ClerkTopBar';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
+import HeaderMobileView from '@/components/Header-MobileView';
+import MobileTopbar from '@/components/MobileTopbar';
 
 export default function ClerkLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -18,26 +19,27 @@ export default function ClerkLayout({ children }) {
         {/* Sidebar - Always present, handles its own desktop/mobile visibility */}
         <Sidebar role="clerk" isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen} />
 
-        {/* Mobile Top Bar (Search & Profile) - Fixed on Mobile */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-linear-to-r from-blue-50/90 to-white/90 border-b border-slate-100/50 shadow-sm w-full pt-[env(safe-area-inset-top)]">
-          <ClerkTopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        </div>
-
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-0 relative overflow-x-hidden lg:pt-(--site-header-height,72px) lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
+        <div className="flex-1 flex flex-col min-h-0 relative lg:pt-(--site-header-height,72px) lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
 
-          {/* Global header only on desktop */}
-          <div className="hidden lg:block">
-            <Header />
+          {/* Institutional Mobile Header (non-sticky) */}
+          <HeaderMobileView />
+
+          {/* Compact Sticky Mobile Topbar */}
+          <MobileTopbar onMenuClick={() => setIsMobileMenuOpen(true)} />
+
+          {/* Content Wrapper (keep overflow rules away from sticky topbar) */}
+          <div className="flex-1 flex flex-col min-h-0 relative overflow-x-hidden">
+            {/* Global header only on desktop */}
+            <div className="hidden lg:block">
+              <Header />
+            </div>
+            
+            {/* Page Content */}
+            <main className="flex-1 p-4 lg:p-8 pt-2">
+              {children}
+            </main>
           </div>
-          
-          {/* Mobile Spacer */}
-          <div className="lg:hidden h-[calc(4rem+env(safe-area-inset-top))]"></div>
-
-          {/* Page Content */}
-          <main className="flex-1 p-4 lg:p-8 pt-2">
-            {children}
-          </main>
         </div>
 
         {/* Mobile Overlay (below sidebar, above content) */}

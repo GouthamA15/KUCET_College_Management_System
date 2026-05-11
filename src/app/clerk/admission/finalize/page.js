@@ -1,12 +1,13 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import toast from "react-hot-toast";
-import Header from "@/app/components/Header/Header";
-import Navbar from "@/app/components/Navbar/Navbar";
+import { useRouter } from 'next/navigation';
 import { COLLEGE_CONFIG } from "@/lib/college-config";
-import { validateRollNo, branchCodes } from "@/lib/rollNumber";
+import { validateRollNo } from "@/lib/rollNumber";
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
-const FinalizeAdmissionPage = () => {
+function FinalizeAdmissionContent() {
+    const router = useRouter();
     const [drafts, setDrafts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedBranch, setSelectedBranch] = useState('CSE');
@@ -82,100 +83,121 @@ const FinalizeAdmissionPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header />
-            <Navbar role={"clerkAdmission"} />
+        <div className="max-w-7xl mx-auto space-y-10 pb-20 px-4 md:px-8 animate-fadeIn font-sans antialiased text-slate-600">
+            <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 gap-5 pb-4">
+                <div className="space-y-1">
+                    <p className="text-[#0b3578] text-[10px] font-bold uppercase tracking-[0.25em] opacity-90">Registry Command</p>
+                    <h1 className="text-3xl font-black tracking-tight text-slate-800 uppercase">Finalize Admissions</h1>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                        Institutional Roll Number Assignment
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => router.push('/clerk/admission/dashboard')}
+                        className="px-6 py-2 border-2 border-slate-200 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-slate-50 transition-all shadow-sm"
+                    >
+                        ← Return to Dashboard
+                    </button>
+                </div>
+            </header>
 
-            <main className="flex-1 p-4 sm:p-6 lg:p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 border border-slate-200 rounded-sm shadow-sm">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Finalize Student Admissions</h1>
-                    <p className="text-sm text-gray-500 mt-1">Assign roll numbers to verified student application drafts.</p>
+                  <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Workspace Filter</h2>
+                  <p className="text-[10px] text-slate-500 font-medium uppercase mt-1 tracking-wider">Select target branch and intake examination</p>
                 </div>
                 
-                <div className="w-full md:w-auto flex flex-col md:flex-row gap-2 bg-white p-1 rounded-lg shadow-sm border border-gray-200">
-                    <select 
-                        value={selectedExam} 
-                        onChange={e => setSelectedExam(e.target.value)} 
-                        className="p-2 bg-transparent text-sm font-bold text-gray-700 focus:outline-none border-b md:border-b-0 md:border-r border-gray-100 min-w-32"
-                    >
-                        <option value="EAMCET">EAMCET</option>
-                        <option value="ECET">ECET</option>
-                    </select>
-                    <select 
-                        value={selectedBranch} 
-                        onChange={e => setSelectedBranch(e.target.value)} 
-                        className="p-2 bg-transparent text-sm font-bold text-gray-700 focus:outline-none min-w-32"
-                    >
-                        {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name}</option>)}
-                    </select>
+                <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1 sm:w-40">
+                      <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Intake Exam</label>
+                      <select 
+                          value={selectedExam} 
+                          onChange={e => setSelectedExam(e.target.value)} 
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-black text-[#0b3578] uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-sm transition-all"
+                      >
+                          <option value="EAMCET">EAMCET</option>
+                          <option value="ECET">ECET</option>
+                      </select>
+                    </div>
+                    <div className="flex-1 sm:w-60">
+                      <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Target Branch</label>
+                      <select 
+                          value={selectedBranch} 
+                          onChange={e => setSelectedBranch(e.target.value)} 
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-black text-[#0b3578] uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-sm transition-all"
+                      >
+                          {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name.toUpperCase()}</option>)}
+                      </select>
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden min-h-[400px]">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-                        <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full mb-3"></div>
-                        <p className="font-medium tracking-tight">Loading {selectedExam} drafts for {selectedBranch}...</p>
+                    <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                        <div className="animate-spin h-6 w-6 border-2 border-[#0b3578] border-t-transparent rounded-full mb-4"></div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest">Accessing {selectedExam} Queue...</p>
                     </div>
                 ) : drafts.length === 0 ? (
-                    <div className="text-center py-16 text-gray-500">
-                        <div className="text-4xl mb-4">📂</div>
-                        <p className="text-lg font-medium text-gray-900">No {selectedExam} drafts for {selectedBranch}</p>
-                        <p className="text-sm mt-1 max-w-xs mx-auto">Verify new applications in the &quot;Admission Requests&quot; module to see them here.</p>
+                    <div className="text-center py-24 text-slate-400">
+                      <span className="text-5xl block mb-6 opacity-20">📂</span>
+                      <h3 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">No {selectedExam} drafts found</h3>
+                      <p className="text-[10px] font-medium text-slate-500 mt-2 uppercase tracking-tighter max-w-xs mx-auto">Verify new applications in the Requests Center to populate this registry.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-50 text-gray-600 text-[10px] uppercase tracking-widest border-b font-black">
+                        <table className="min-w-full text-left border-collapse text-[11px]">
+                            <thead className="bg-slate-50 text-slate-500 font-black uppercase tracking-wider border-b border-slate-200">
                                 <tr>
-                                    <th className="p-4 w-12">#</th>
-                                    <th className="p-4">Student Name</th>
-                                    <th className="p-4">Father&apos;s Name</th>
-                                    <th className="p-4">Exam Rank</th>
-                                    <th className="p-4 w-64">Assign Roll Number</th>
-                                    <th className="p-4 text-right">Action</th>
+                                    <th className="px-6 py-5 w-16 border-r border-slate-200">ID</th>
+                                    <th className="px-6 py-5 border-r border-slate-200">Applicant Identity</th>
+                                    <th className="px-6 py-5 border-r border-slate-200">Guardian Record</th>
+                                    <th className="px-6 py-5 border-r border-slate-200">Merit Rank</th>
+                                    <th className="px-6 py-5 w-72 border-r border-slate-200">Institutional Roll Number</th>
+                                    <th className="px-6 py-5 text-right uppercase tracking-widest">Operational Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100 text-sm">
+                            <tbody className="divide-y divide-slate-100 text-sm">
                                 {drafts.map((draft, index) => {
                                     const validation = getRollValidation(rollNumbers[draft.id], draft);
                                     const hasValue = !!rollNumbers[draft.id];
 
                                     return (
-                                        <tr key={draft.id} className="hover:bg-indigo-50/30 transition-colors group">
-                                            <td className="p-4 text-gray-400 font-mono">{index + 1}</td>
-                                            <td className="p-4 font-bold text-gray-900 uppercase">{draft.name}</td>
-                                            <td className="p-4 text-gray-600 font-medium">{draft.father_name}</td>
-                                            <td className="p-4">
-                                                <span className="bg-white border border-gray-200 px-2 py-1 rounded text-xs font-bold shadow-sm">
-                                                    #{draft.exam_rank}
+                                        <tr key={draft.id} className="hover:bg-slate-50 transition-colors group">
+                                            <td className="px-6 py-4 text-slate-400 font-bold border-r border-slate-100">{index + 1}</td>
+                                            <td className="px-6 py-4 font-black text-slate-800 uppercase border-r border-slate-100 tracking-tight">{draft.name}</td>
+                                            <td className="px-6 py-4 text-slate-500 font-bold border-r border-slate-100 uppercase text-[10px] tracking-tight">{draft.father_name}</td>
+                                            <td className="px-6 py-4 border-r border-slate-100">
+                                                <span className="bg-blue-50 text-[#0b3578] border border-blue-100 px-3 py-1 rounded-sm text-[10px] font-black shadow-sm">
+                                                    RANK {draft.exam_rank}
                                                 </span>
                                             </td>
-                                            <td className="p-4 align-top">
-                                                <div className="flex flex-col gap-1">
+                                            <td className="px-6 py-4 border-r border-slate-100">
+                                                <div className="space-y-1.5">
                                                     <input 
                                                         type="text"
                                                         placeholder={draft.entrance_exam === 'ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
                                                         value={rollNumbers[draft.id] || ''}
                                                         onChange={e => handleRollNumberChange(draft.id, e.target.value)}
-                                                        className={`block w-full px-3 py-2 border-2 rounded-md text-sm font-bold tracking-widest focus:outline-none transition-colors ${
-                                                            !hasValue ? 'border-gray-200' :
-                                                            validation.isValid ? 'border-green-200 focus:border-green-500' : 'border-red-200 focus:border-red-500'
+                                                        className={`block w-full px-3 py-2 border-2 text-xs font-black tracking-widest focus:outline-none transition-all rounded-sm uppercase ${
+                                                            !hasValue ? 'border-slate-100 bg-slate-50' :
+                                                            validation.isValid ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
                                                         }`}
                                                     />
                                                     {hasValue && !validation.isValid && (
-                                                        <div className="text-[11px] text-red-600 font-black uppercase tracking-tight animate-pulse px-1">
+                                                        <div className="text-[9px] text-rose-600 font-black uppercase tracking-tight px-1 flex items-center gap-1">
                                                             ⚠️ {validation.error}
                                                         </div>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="p-4 text-right">
+                                            <td className="px-6 py-4 text-right">
                                                 <button 
                                                     onClick={() => handleFinalize(draft.id)} 
                                                     disabled={!validation.isValid || finalizingId === draft.id} 
-                                                    className="bg-indigo-600 text-white px-6 py-2 rounded-md font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-md hover:shadow-indigo-200 disabled:opacity-50 transition-all active:scale-95"
+                                                    className="w-full bg-[#0b3578] text-white px-5 py-2 rounded-sm font-black text-[10px] uppercase tracking-widest hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
                                                 >
                                                     {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
                                                 </button>
@@ -188,9 +210,14 @@ const FinalizeAdmissionPage = () => {
                     </div>
                 )}
             </div>
-            </main>
         </div>
     );
-};
+}
 
-export default FinalizeAdmissionPage;
+export default function FinalizeAdmissionPage() {
+    return (
+        <Suspense fallback={<LoadingSpinner label="Initializing Finalization Registry..." />}>
+            <FinalizeAdmissionContent />
+        </Suspense>
+    );
+}

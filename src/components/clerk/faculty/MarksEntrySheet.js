@@ -6,9 +6,11 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [midMax, setMidMax] = useState(20);
   const [recommendedMidMax, setRecommendedMidMax] = useState(null);
   const [subjectType, setSubjectType] = useState('theory'); // 'theory' | 'lab'
+  const [marksMode, setMarksMode] = useState('overview'); // 'overview' | 'mid1' | 'mid2' | 'assignment'
   const [isMobile, setIsMobile] = useState(false);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [rollColWidth, setRollColWidth] = useState(0);
@@ -28,12 +30,14 @@ export default function MarksEntrySheet({ assignment, onBack }) {
       const isLab = detectedType === 'lab';
       const studentsWithMarks = payload.map(s => ({
         ...s,
-        mid1_marks: isLab ? (s.lab_execution_marks || '') : (s.mid1_marks || ''),
-        mid2_marks: isLab ? (s.lab_theory_marks || '') : (s.mid2_marks || ''),       
-        assignment_marks: isLab ? (s.lab_record_marks || '') : (s.assignment_marks || ''),
+        is_published: Boolean(s.is_published),
+        mid1_marks: isLab ? (s.lab_execution_marks ?? '') : (s.mid1_marks ?? ''),
+        mid2_marks: isLab ? (s.lab_theory_marks ?? '') : (s.mid2_marks ?? ''),       
+        assignment_marks: isLab ? (s.lab_record_marks ?? '') : (s.assignment_marks ?? ''),
       }));
       
       setStudents(studentsWithMarks);
+      setDirty(false);
       if (data.mid_max) setMidMax(data.mid_max);
       if (data.recommended_mid_max) setRecommendedMidMax(data.recommended_mid_max);
       setSubjectType(detectedType);
@@ -44,11 +48,13 @@ export default function MarksEntrySheet({ assignment, onBack }) {
     }
   }, [assignment.id]);
 
-  const hasExistingMarks = students.some(s => 
-    (s.mid1_marks !== '' && s.mid1_marks !== null) || 
-    (s.mid2_marks !== '' && s.mid2_marks !== null) || 
-    (s.assignment_marks !== '' && s.assignment_marks !== null && s.assignment_marks !== 0)
+  const hasAnyMarks = students.some(s => 
+    (s.mid1_marks !== '' && s.mid1_marks !== null && s.mid1_marks !== undefined) || 
+    (s.mid2_marks !== '' && s.mid2_marks !== null && s.mid2_marks !== undefined) || 
+    (s.assignment_marks !== '' && s.assignment_marks !== null && s.assignment_marks !== undefined)
   );
+
+  const isPublishedLocked = students.some(s => Boolean(s.is_published));
 
   useEffect(() => {
     fetchStudents();
@@ -75,41 +81,85 @@ export default function MarksEntrySheet({ assignment, onBack }) {
     setScrollLeft(event.target.scrollLeft || 0);
   };
 
-  const handleMarkChange = (studentId, field, value) => {
-    let numericValue = parseFloat(value);
-    let max;
+  const getFieldMax = (field) => {
     if (subjectType === 'lab') {
-      if (field === 'mid1_marks') max = 10;
-      else if (field === 'mid2_marks') max = 10;
-      else if (field === 'assignment_marks') max = 5;
-    } else {
-      if (field === 'assignment_marks') {
-        max = midMax === 25 ? 5 : 10;
-      } else {
-        max = midMax;
-      }
+      if (field === 'mid1_marks') return 10;
+      if (field === 'mid2_marks') return 10;
+      return 5;
+    }
+    if (field === 'assignment_marks') return midMax === 25 ? 5 : 10;
+    return midMax;
+  };
+
+  const toNumberOrNull = (value) => {
+    if (value === '' || value === null || value === undefined) return null;
+    const n = typeof value === 'number' ? value : parseFloat(String(value));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const computeTotal = (student) => {
+    const m1 = toNumberOrNull(student.mid1_marks);
+    const m2 = toNumberOrNull(student.mid2_marks);
+    const a = toNumberOrNull(student.assignment_marks);
+
+    const hasAny = m1 !== null || m2 !== null || a !== null;
+    if (!hasAny) return null;
+
+    if (subjectType === 'lab') {
+      return (m1 ?? 0) + (m2 ?? 0) + (a ?? 0);
     }
 
-    if (!isNaN(numericValue)) {
-      if (numericValue < 0) numericValue = 0;
-      if (numericValue > max) numericValue = max;
-      value = numericValue;
+    const best = Math.max(m1 ?? 0, m2 ?? 0);
+    return best + (a ?? 0);
+  };
+
+  const handleMarkChange = (studentId, field, value) => {
+    if (value === '') {
+      setDirty(true);
+      setStudents((prev) => prev.map(s => 
+        s.id === studentId ? { ...s, [field]: '' } : s
+      ));
+      return;
     }
 
-    setStudents(students.map(s => 
-      s.id === studentId ? { ...s, [field]: value } : s
+    let numericValue = parseFloat(value);
+    if (!Number.isFinite(numericValue)) return;
+
+    // Prevent decimal abuse: allow up to 2 decimals.
+    numericValue = Math.round(numericValue * 100) / 100;
+
+    const max = getFieldMax(field);
+    if (numericValue < 0) numericValue = 0;
+    if (numericValue > max) numericValue = max;
+
+    setDirty(true);
+    setStudents((prev) => prev.map(s => 
+      s.id === studentId ? { ...s, [field]: numericValue } : s
     ));
   };
 
-  const handleSaveMarks = async () => {
+  const handleSave = async (publish) => {
+    if (!assignment.is_active) return;
+    if (isPublishedLocked) {
+      toast.error('Marks already published and locked.');
+      return;
+    }
+
+    if (publish) {
+      const ok = confirm('Publish marks now? This will lock editing for this subject.');
+      if (!ok) return;
+    }
+
     for (const s of students) {
-      let m1Max, m2Max, aMax;
-      if (subjectType === 'lab') {
-        m1Max = 10; m2Max = 10; aMax = 5;
-      } else {
-        m1Max = midMax; m2Max = midMax; aMax = (midMax === 25 ? 5 : 10);
-      }
-      if (s.mid1_marks > m1Max || s.mid2_marks > m2Max || s.assignment_marks > aMax) {
+      const m1 = toNumberOrNull(s.mid1_marks);
+      const m2 = toNumberOrNull(s.mid2_marks);
+      const a = toNumberOrNull(s.assignment_marks);
+
+      const m1Max = getFieldMax('mid1_marks');
+      const m2Max = getFieldMax('mid2_marks');
+      const aMax = getFieldMax('assignment_marks');
+
+      if ((m1 !== null && (m1 < 0 || m1 > m1Max)) || (m2 !== null && (m2 < 0 || m2 > m2Max)) || (a !== null && (a < 0 || a > aMax))) {
         toast.error(`Invalid marks detected for ${s.roll_no}. Please correct them.`);
         return;
       }
@@ -123,6 +173,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
         body: JSON.stringify({
           assignment_id: assignment.id,
           mid_max: midMax,
+          publish,
           marks_data: students.map(s => {
             if (subjectType === 'lab') {
               return {
@@ -141,11 +192,11 @@ export default function MarksEntrySheet({ assignment, onBack }) {
           })
         })
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to save marks');
-      }
-      toast.success('Marks saved successfully');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save marks');
+
+      toast.success(publish ? 'Marks published and locked.' : 'Draft saved successfully.');
+      await fetchStudents();
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -157,95 +208,153 @@ export default function MarksEntrySheet({ assignment, onBack }) {
 
   const labels = subjectType === 'lab' 
     ? { m1: 'Execution', m2: 'Writing', a: 'Record', m1m: 10, m2m: 10, am: 5, total: 25 }
-    : { m1: 'Mid-I', m2: 'Mid-II', a: 'Assignment', m1m: midMax, m2m: midMax, am: (midMax === 25 ? 5 : 10), total: 30 };
+    : { m1: 'Mid-1', m2: 'Mid-2', a: 'Assignment', m1m: midMax, m2m: midMax, am: (midMax === 25 ? 5 : 10), total: 30 };
+
+  const modeMeta = {
+    overview: { label: 'Overview', field: 'all', max: labels.total },
+    mid1: { label: labels.m1, field: 'mid1_marks', max: labels.m1m },
+    mid2: { label: labels.m2, field: 'mid2_marks', max: labels.m2m },
+    assignment: { label: labels.a, field: 'assignment_marks', max: labels.am },
+  };
+
+  const activeMode = modeMeta[marksMode] || modeMeta.overview;
+
+  const handleBack = () => {
+    if (dirty && !confirm('You have unsaved changes. Go back without saving?')) return;
+    onBack();
+  };
 
   return (
-    <div className="border border-gray-300 rounded-xl bg-white p-6 mt-6 shadow-sm">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
-        <div>
-          <button onClick={onBack} className="text-xs font-bold text-[#0b3578] uppercase tracking-widest hover:underline mb-3 block">&larr; Back to Subjects</button>
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-black text-gray-900">{assignment.subject_name}</h2>
-            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border-2 ${subjectType === 'lab' ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-indigo-50 border-indigo-100 text-indigo-700'}`}>{subjectType === 'lab' ? 'Lab' : 'Theory'}</span>
+    <div className="border border-slate-300 rounded-sm bg-white p-3 mt-4 shadow-sm">
+      {/* Compact Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 border-b border-slate-100 pb-3">
+        <div className="flex flex-col gap-1">
+          <button onClick={handleBack} className="text-[10px] font-bold text-slate-500 uppercase tracking-wider hover:text-indigo-600 flex items-center gap-1">
+            <span className="text-sm">←</span> BACK TO SUBJECTS
+          </button>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-800 leading-tight">{assignment.subject_name}</h2>
+            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border ${subjectType === 'lab' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>{subjectType === 'lab' ? 'LAB' : 'THEORY'}</span>
+            {isPublishedLocked ? (
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-rose-50 border-rose-200 text-rose-700">PUBLISHED</span>
+            ) : hasAnyMarks ? (
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm border bg-slate-50 border-slate-200 text-slate-500">DRAFT</span>
+            ) : null}
           </div>
-          <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-tighter">{assignment.branch} &bull; Semester {assignment.semester} &bull; {assignment.academic_year}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+            {assignment.branch} • SEM {assignment.semester} • {assignment.academic_year}
+          </p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-4">
-          {assignment.is_active && subjectType === 'theory' && (
-            hasExistingMarks ? (
-              <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-2 border-gray-100 rounded-xl text-gray-500">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
-                <span className="text-[11px] font-black uppercase tracking-widest">Format locked ({midMax} + {midMax === 25 ? 5 : 10})</span>
-              </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Mode Switching (Government Style) */}
+          <div className="flex border border-slate-200 rounded-sm overflow-hidden">
+            {Object.keys(modeMeta).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMarksMode(m)}
+                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors border-r last:border-r-0 border-slate-200 ${marksMode === m ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+              >
+                {modeMeta[m].label}
+              </button>
+            ))}
+          </div>
+
+          {/* Action Buttons (Compact Utility) */}
+          {assignment.is_active ? (
+            isPublishedLocked ? (
+              <div className="bg-rose-50 text-rose-700 px-3 py-1.5 rounded-sm text-[9px] font-bold uppercase border border-rose-200">LOCKED</div>
             ) : (
-              <div className="bg-gray-50 p-1.5 rounded-2xl flex items-center border-2 border-gray-100 gap-1">
-                <span className="text-[10px] font-black text-gray-400 px-3 uppercase tracking-widest">Pattern</span>
-                <button 
-                  onClick={() => setMidMax(20)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex flex-col items-center ${midMax === 20 ? 'bg-white text-[#0b3578] shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleSave(false)}
+                  disabled={submitting}
+                  className="bg-white text-slate-700 px-3 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-wider border border-slate-300 hover:bg-slate-50 disabled:opacity-50"
                 >
-                  <span>20 + 10</span>
-                  {recommendedMidMax === 20 && <span className="text-[8px] text-blue-600 animate-pulse">RECOMMENDED</span>}
+                  {submitting ? '...' : 'SAVE DRAFT'}
                 </button>
-                <button 
-                  onClick={() => setMidMax(25)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex flex-col items-center ${midMax === 25 ? 'bg-white text-[#0b3578] shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+                <button
+                  onClick={() => handleSave(true)}
+                  disabled={submitting}
+                  className="bg-indigo-600 text-white px-3 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  <span>25 + 5</span>
-                  {recommendedMidMax === 25 && <span className="text-[8px] text-blue-600 animate-pulse">RECOMMENDED</span>}
+                  {submitting ? '...' : 'PUBLISH'}
                 </button>
               </div>
             )
-          )}
-
-          {assignment.is_active ? (
-            <button
-              onClick={handleSaveMarks}
-              disabled={submitting}
-              className="bg-[#0b3578] text-white px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-900 transition-all shadow-lg shadow-blue-100 disabled:opacity-50"
-            >
-              {submitting ? 'Saving...' : 'Publish Marks'}
-            </button>
           ) : (
-            <div className="bg-red-50 text-red-600 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 border-red-100">Semester Finalized</div>
+            <div className="bg-slate-100 text-slate-500 px-3 py-1.5 rounded-sm text-[9px] font-bold uppercase border border-slate-200">FINALIZED</div>
           )}
         </div>
       </div>
 
-      <div ref={scrollContainerRef} onScroll={isMobile ? handleScroll : undefined} className="overflow-x-auto rounded-2xl border-2 border-gray-50 shadow-inner">
-        <table className="w-full text-sm border-collapse">
+      <div ref={scrollContainerRef} onScroll={isMobile ? handleScroll : undefined} className="overflow-x-auto border border-slate-200">
+        <table className="w-full text-xs border-collapse">
           <thead>
-            <tr className="bg-gray-50/80 border-b-2 border-gray-100">
-              <th ref={rollHeaderRef} className={`p-4 text-center text-[11px] font-black text-gray-400 uppercase tracking-widest ${isMobile ? 'sticky left-0 z-10 bg-gray-50 border-r-2 border-gray-100' : ''}`}>Roll No</th>
-              <th className="p-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Student Name</th>
-              <th className="p-4 text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">{labels.m1} ({labels.m1m})</th>
-              <th className="p-4 text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">{labels.m2} ({labels.m2m})</th>
-              <th className="p-4 text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">{labels.a} ({labels.am})</th>
-              <th className="p-4 text-center text-[11px] font-black text-[#0b3578] uppercase tracking-widest bg-blue-50/30 border-l-2 border-gray-100">Total ({labels.total})</th>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th ref={rollHeaderRef} className={`px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 ${isMobile ? 'sticky left-0 z-10 bg-slate-50' : ''}`}>Roll No</th>
+              <th className="px-2 py-2 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">Student Name</th>
+              
+              {marksMode === 'overview' ? (
+                <>
+                  <th className="px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 hidden md:table-cell">{labels.m1}</th>
+                  <th className="px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 hidden md:table-cell">{labels.m2}</th>
+                  <th className="px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 hidden md:table-cell">{labels.a}</th>
+                  <th className="px-2 py-2 text-center text-[10px] font-bold text-indigo-700 uppercase tracking-wider bg-indigo-50/50 hidden md:table-cell">Total</th>
+                  {/* Mobile Overview: Show only Total if in Overview? Prompt says: "MOBILE MUST SHOW ONLY: Roll Number, Student Name, Active Mode Marks." */}
+                  {/* "OVERVIEW MODE | Roll No | Student | M1 | M2 | ASG | Total |" on Desktop */}
+                  {/* On Mobile Overview, let's show Total as the "Active Marks" */}
+                  <th className="px-2 py-2 text-center text-[10px] font-bold text-indigo-700 uppercase tracking-wider md:hidden">Total</th>
+                </>
+              ) : (
+                <th className="px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">{activeMode.label} ({activeMode.max})</th>
+              )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-slate-100">
             {students.map((student) => {
-              const m1 = student.mid1_marks !== '' ? parseFloat(student.mid1_marks) : null;
-              const m2 = student.mid2_marks !== '' ? parseFloat(student.mid2_marks) : null;
-              const assgn = student.assignment_marks !== '' ? parseFloat(student.assignment_marks) : 0;
-              let internalTotal = (subjectType === 'lab') ? ((m1 ?? 0) + (m2 ?? 0) + (assgn ?? 0)) : ((m1 !== null || m2 !== null) ? (Math.max(m1 ?? 0, m2 ?? 0) + assgn) : null);
+              const internalTotal = computeTotal(student);
               const fullRoll = student.roll_no || '';
               const showCompact = isMobile && scrollLeft > rollColWidth;
               const shortRoll = fullRoll.endsWith('L') ? fullRoll.slice(-3) : fullRoll.slice(-2);
+              const disabled = !assignment.is_active || isPublishedLocked;
 
               return (
-                <tr key={student.id} className="hover:bg-blue-50/20 transition-colors group">
-                  <td className={`p-4 font-mono font-bold text-center ${isMobile ? 'sticky left-0 z-10 bg-white group-hover:bg-blue-50/50 border-r-2 border-gray-100' : ''}`}>
+                <tr key={student.id} className="hover:bg-slate-50 transition-colors group">
+                  <td className={`px-2 py-1.5 font-mono font-bold text-center border-r border-slate-100 ${isMobile ? 'sticky left-0 z-10 bg-white group-hover:bg-slate-50' : ''}`}>
                     <span className={`inline-block transition-all ${isMobile && showCompact ? 'opacity-0 scale-50' : 'opacity-100 scale-100'}`}>{fullRoll}</span>
                     {isMobile && <span className={`absolute inset-0 flex items-center justify-center transition-all ${showCompact ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}>{shortRoll}</span>}
                   </td>
-                  <td className="p-4 text-xs font-bold text-gray-600 uppercase tracking-tight">{student.name}</td>
-                  <td className="p-4 text-center"><input type="number" min="0" max={labels.m1m} step="0.5" value={student.mid1_marks} onChange={(e) => handleMarkChange(student.id, 'mid1_marks', e.target.value)} className="w-20 px-3 py-2 bg-gray-50 border-none rounded-xl text-center text-xs font-black text-gray-700 focus:ring-2 ring-blue-500 outline-none disabled:opacity-30" disabled={!assignment.is_active} /></td>
-                  <td className="p-4 text-center"><input type="number" min="0" max={labels.m2m} step="0.5" value={student.mid2_marks} onChange={(e) => handleMarkChange(student.id, 'mid2_marks', e.target.value)} className="w-20 px-3 py-2 bg-gray-50 border-none rounded-xl text-center text-xs font-black text-gray-700 focus:ring-2 ring-blue-500 outline-none disabled:opacity-30" disabled={!assignment.is_active} /></td>
-                  <td className="p-4 text-center"><input type="number" min="0" max={labels.am} step="0.5" value={student.assignment_marks} onChange={(e) => handleMarkChange(student.id, 'assignment_marks', e.target.value)} className="w-20 px-3 py-2 bg-gray-50 border-none rounded-xl text-center text-xs font-black text-gray-700 focus:ring-2 ring-blue-500 outline-none disabled:opacity-30" disabled={!assignment.is_active} /></td>
-                  <td className="p-4 text-center bg-blue-50/10"><span className={`font-mono text-base font-black ${internalTotal === null ? 'text-gray-200' : 'text-[#0b3578]'}`}>{internalTotal !== null ? internalTotal.toFixed(1) : '--'}</span></td>
+                  <td className="px-2 py-1.5 border-r border-slate-100">
+                    <div className="text-[11px] font-bold text-slate-700 uppercase whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] md:max-w-none" title={student.name}>
+                      {student.name}
+                    </div>
+                  </td>
+                  
+                  {marksMode === 'overview' ? (
+                    <>
+                      <td className="px-2 py-1.5 text-center font-mono text-slate-600 border-r border-slate-100 hidden md:table-cell">{student.mid1_marks === '' ? '-' : student.mid1_marks}</td>
+                      <td className="px-2 py-1.5 text-center font-mono text-slate-600 border-r border-slate-100 hidden md:table-cell">{student.mid2_marks === '' ? '-' : student.mid2_marks}</td>
+                      <td className="px-2 py-1.5 text-center font-mono text-slate-600 border-r border-slate-100 hidden md:table-cell">{student.assignment_marks === '' ? '-' : student.assignment_marks}</td>
+                      <td className="px-2 py-1.5 text-center font-mono font-bold text-indigo-700 bg-indigo-50/20 hidden md:table-cell">{internalTotal !== null ? internalTotal.toFixed(1) : '-'}</td>
+                      <td className="px-2 py-1.5 text-center font-mono font-bold text-indigo-700 md:hidden">{internalTotal !== null ? internalTotal.toFixed(1) : '-'}</td>
+                    </>
+                  ) : (
+                    <td className="px-2 py-1.5 text-center">
+                      <input
+                        type="number"
+                        min="0"
+                        max={activeMode.max}
+                        step="0.5"
+                        value={student[activeMode.field]}
+                        onChange={(e) => handleMarkChange(student.id, activeMode.field, e.target.value)}
+                        className="w-full max-w-[80px] px-1 py-1 bg-slate-50 border border-slate-200 rounded-sm text-center text-[11px] font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none disabled:opacity-50"
+                        disabled={disabled}
+                        inputMode="decimal"
+                      />
+                    </td>
+                  )}
                 </tr>
               );
             })}

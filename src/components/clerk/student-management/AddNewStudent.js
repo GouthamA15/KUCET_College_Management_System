@@ -7,6 +7,7 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { smoothScrollToTop } from '@/lib/scroll-utils';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
   <input
@@ -142,7 +143,7 @@ export default function AddNewStudent() {
       toast.success('Student added successfully', { id: toastId });
       setSavedRollLocked(true);
       setShowAddForm(false);
-      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+      smoothScrollToTop({ behavior: 'smooth' });
       setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', email:''});
       setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '', guardian_mobile: '' });
       // reset fee_reimbursement

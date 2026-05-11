@@ -35,6 +35,7 @@ export const NAV_MENU_CONFIG = {
   clerkAdmission: [
     { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
     { label: 'PROFILE', route: '/clerk/admission/profile' },
+    { label: 'STUDENT RECORDS', route: '/clerk/admission/student-management' },
     { label: 'REQUESTS', route: '/clerk/admission/requests' },
     { label: 'FINALIZE', route: '/clerk/admission/finalize' },
     { label: 'DEPARTMENTS', route: '/clerk/departments' },

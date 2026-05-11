@@ -1,37 +1,63 @@
 @import "tailwindcss";
 
+@theme {
+  --color-surface: var(--bg-surface);
+  --color-body: var(--bg-body);
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-border-institutional: var(--border-muted);
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* Semantic Variables - Light Mode */
+  --bg-surface: #ffffff;
+  --bg-body: #f8fbff;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-muted: #e2e8f0;
+  --sidebar-bg: linear-gradient(to bottom, #f8fbff, #ffffff, #eef5ff);
+  --sidebar-border: #e2e8f0;
+  --header-bg: linear-gradient(to right, #eff6ff, #ffffff);
+  --header-border: #e2e8f0;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --table-header-bg: #f8fafc;
+  --accent-blue: #0b3578;
 }
 
 body {
-  background: #ffffff;
-  color: #171717;
+  background-color: var(--bg-body);
+  color: var(--text-primary);
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
   padding: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Institutional background (performance-first): pure CSS gradients, low repaint cost */
 .bg-institutional {
-  background-color: #ffffff;
+  background-color: var(--bg-body);
   background-image:
-    /* HERO ZONE (Welcome + Priority Actions): soft elevated surface band */
-    radial-gradient(1400px 520px at 36% 6%, rgba(234, 242, 255, 0.92) 0%, rgba(234, 242, 255, 0) 66%),
-    radial-gradient(980px 420px at 10% 4%, rgba(238, 245, 255, 0.85) 0%, rgba(238, 245, 255, 0) 62%),
+    /* HERO ZONE (Welcome + Priority Actions) */
+    radial-gradient(1400px 520px at 36% 6%, var(--bg-gradient-1, rgba(234, 242, 255, 0.92)) 0%, transparent 66%),
+    radial-gradient(980px 420px at 10% 4%, var(--bg-gradient-2, rgba(238, 245, 255, 0.85)) 0%, transparent 62%),
 
-    /* RIGHT PANEL SUPPORT ZONE: subtle vertical rail tint on wide screens */
-    linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0) 58%, rgba(238, 245, 255, 0.55) 100%),
+    /* RIGHT PANEL SUPPORT ZONE */
+    linear-gradient(to right, transparent 0%, transparent 58%, var(--bg-gradient-3, rgba(238, 245, 255, 0.55)) 100%),
 
-    /* ACADEMIC RECORDS / MID CONTENT FOUNDATION: grounded reading layer */
-    radial-gradient(1200px 760px at 42% 56%, rgba(245, 249, 255, 0.9) 0%, rgba(245, 249, 255, 0) 70%),
+    /* ACADEMIC RECORDS / MID CONTENT FOUNDATION */
+    radial-gradient(1200px 760px at 42% 56%, var(--bg-gradient-4, rgba(245, 249, 255, 0.9)) 0%, transparent 70%),
 
-    /* FOOTER TRANSITION: subtle cool fade to avoid hard cutoff */
-    linear-gradient(to bottom, rgba(255, 255, 255, 0) 70%, rgba(11, 53, 120, 0.03) 100%),
+    /* FOOTER TRANSITION */
+    linear-gradient(to bottom, transparent 70%, var(--bg-footer-glow, rgba(11, 53, 120, 0.03)) 100%),
 
     /* BASE CANVAS */
-    linear-gradient(to bottom, #f8fbff 0%, #ffffff 48%, #ffffff 100%);
+    linear-gradient(to bottom, var(--bg-body) 0%, var(--bg-surface) 48%, var(--bg-surface) 100%);
 }
 
 /* Custom animations */

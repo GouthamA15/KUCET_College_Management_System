@@ -38,7 +38,10 @@ export default function DashboardActionCenter({ student }) {
   }, [academicPerformance]);
 
   useEffect(() => {
-    fetchAttendanceSessions();
+    const timer = setTimeout(() => {
+      fetchAttendanceSessions();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchAttendanceSessions]);
 
   useEffect(() => {

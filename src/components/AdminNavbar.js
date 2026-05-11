@@ -2,32 +2,13 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { logoutByRole } from '@/lib/logout';
 
 export default function AdminNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    try {
-      // Call logout API to clear cookies server-side
-      const response = await fetch('/api/admin/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        // Clear any client-side storage
-        // Redirect to home via server-only navigation
-        window.location.replace('/');
-      } else {
-        console.error('Logout failed');
-        // Force redirect anyway
-        window.location.replace('/');
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Force redirect even if API call fails
-      window.location.replace('/');
-    }
+    await logoutByRole({ role: 'admin' });
   };
 
   return (

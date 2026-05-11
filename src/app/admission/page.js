@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { getEffectiveAcademicYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import Header from '@/components/Header';
+import { smoothScrollToTop } from '@/lib/scroll-utils';
 
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
@@ -114,7 +115,7 @@ const AdmissionPage = () => {
             if (!res.ok) throw new Error(data.error || 'Submission failed.');
             toast.success('Application Submitted Successfully!', { id: toastId });
             setSubmitted(true);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            smoothScrollToTop({ behavior: 'smooth' });
         } catch (error) {
             toast.error(error.message, { id: toastId });
         } finally {

@@ -1,6 +1,6 @@
 import { 
   mysqlTable, varchar, int, boolean, datetime, text, decimal, json, timestamp, 
-  mysqlEnum, tinyint, float, bigint, index, date
+  mysqlEnum, tinyint, float, bigint, index, uniqueIndex, date
 } from 'drizzle-orm/mysql-core';
 
 // --- 1. COLLEGE CONFIGURATION ---
@@ -192,6 +192,7 @@ export const studentMarks = mysqlTable('student_marks', {
   id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id').notNull(),
   assignment_id: int('assignment_id').notNull(),
+  is_published: boolean('is_published').default(true).notNull(),
   mid1_marks: decimal('mid1_marks', { precision: 5, scale: 2 }),
   mid2_marks: decimal('mid2_marks', { precision: 5, scale: 2 }),
   assignment_marks: decimal('assignment_marks', { precision: 5, scale: 2 }),
@@ -202,6 +203,7 @@ export const studentMarks = mysqlTable('student_marks', {
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
   studentAssignmentIdx: index('idx_marks_student_assignment').on(table.student_id, table.assignment_id),
+  studentAssignmentUniq: uniqueIndex('uq_marks_student_assignment').on(table.student_id, table.assignment_id),
 }));
 
 // --- 4. DEPARTMENTAL & SCHEDULING ---

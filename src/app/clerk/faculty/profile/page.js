@@ -9,6 +9,7 @@ import ProfileStatusBar from '@/components/profile/ProfileStatusBar';
 import ProfileTabs from '@/components/profile/ProfileTabs';
 import ProfileInfoList from '@/components/profile/ProfileInfoList';
 import ProfileCardShell from '@/components/profile/ProfileCardShell';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function FacultyProfilePage() {
   const { clerkData: clerk, loading: isLoading } = useClerk();
@@ -31,14 +32,7 @@ export default function FacultyProfilePage() {
   }, [clerk]);
 
   if (isLoading && !clerk) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-6 h-6 border-2 border-slate-100 border-t-[#0b3578] rounded-full animate-spin"></div>
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Loading Profile</span>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner label="Loading Profile" />;
   }
 
   if (!clerk) return null;

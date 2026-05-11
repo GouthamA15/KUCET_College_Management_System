@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { smoothScrollToElement } from '@/lib/scroll-utils';
 
 export default function ScrollHandler() {
   const searchParams = useSearchParams();
@@ -19,7 +20,7 @@ export default function ScrollHandler() {
       if (typeof document === 'undefined') return false;
       const el = document.getElementById('request-history-section');
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        smoothScrollToElement(el, { behavior: 'smooth', block: 'start' });
         el.classList.add('bg-indigo-50', 'transition-colors', 'duration-1000', 'rounded-lg');
         setTimeout(() => el.classList.remove('bg-indigo-50', 'transition-colors', 'duration-1000', 'rounded-lg'), 1000);
         hasScrolled.current = true;

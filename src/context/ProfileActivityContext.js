@@ -18,27 +18,19 @@ export function ProfileActivityProvider({ children }) {
   const [scholarshipHardcopyPending, setScholarshipHardcopyPending] = useState({ active: false });
   const [scholarshipApplicationReceived, setScholarshipApplicationReceived] = useState({ active: false });
   const [scholarshipApplicationsOpen, setScholarshipApplicationsOpen] = useState({ active: false });
-  const [dismissCount, setDismissCount] = useState(() => {
+  const [dismissCount, setDismissCount] = useState(0);
+  const [seenRequestId, setSeenRequestId] = useState(null);
+  const [seenStatus, setSeenStatus] = useState(null);
+
+  useEffect(() => {
     try {
-      return Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0');
-    } catch {
-      return 0;
+      setDismissCount(Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0'));
+      setSeenRequestId(localStorage.getItem(STORAGE_SEEN_ID_KEY) || null);
+      setSeenStatus(localStorage.getItem(STORAGE_SEEN_STATUS_KEY) || null);
+    } catch (error) {
+      console.error('Profile activity storage hydrate error:', error);
     }
-  });
-  const [seenRequestId, setSeenRequestId] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_SEEN_ID_KEY) || null;
-    } catch {
-      return null;
-    }
-  });
-  const [seenStatus, setSeenStatus] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_SEEN_STATUS_KEY) || null;
-    } catch {
-      return null;
-    }
-  });
+  }, []);
 
   // Latest certificate request (fetch once per rollno)
   useEffect(() => {

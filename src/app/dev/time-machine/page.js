@@ -10,11 +10,11 @@ export default function TimeMachine() {
   // Hydration fix: Initialize with empty/null and load from browser in useEffect
   const [mockDate, setMockDate] = useState('');
   const [currentDisplay, setCurrentDisplay] = useState('SYNCING...');
-  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
     if (!isTesting) return;
+
+    let mockDateTimer;
 
     // Load initial mock date from cookie
     const match = document.cookie.match(/dev_mock_date=([^;]+)/);
@@ -26,7 +26,9 @@ export default function TimeMachine() {
         const day = String(d.getDate()).padStart(2, '0');
         const hours = String(d.getHours()).padStart(2, '0');
         const minutes = String(d.getMinutes()).padStart(2, '0');
-        setMockDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+        mockDateTimer = setTimeout(() => {
+          setMockDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+        }, 0);
       } catch (e) {
         console.error("Failed to parse mock date cookie", e);
       }
@@ -49,7 +51,10 @@ export default function TimeMachine() {
 
     updateDisplay();
     const interval = setInterval(updateDisplay, 1000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (mockDateTimer) clearTimeout(mockDateTimer);
+    };
   }, [isTesting]);
 
   if (!isTesting) {
@@ -101,7 +106,7 @@ export default function TimeMachine() {
         <div className="bg-white/5 p-6 rounded-3xl mb-8 border border-white/5 backdrop-blur-md">
           <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-2">Application Perceived Time</label>
           <div className="text-2xl font-black text-white tracking-tight leading-none tabular-nums">
-            {isMounted ? currentDisplay : 'SYNCING...'}
+            {currentDisplay}
           </div>
         </div>
 

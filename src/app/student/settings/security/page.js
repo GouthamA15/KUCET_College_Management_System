@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useStudent } from '@/context/StudentContext';
+import { smoothScrollToTop } from '@/lib/scroll-utils';
 
 export default function SecurityPrivacyPage() {
   const { studentData, loading, refreshData } = useStudent();
@@ -161,9 +162,7 @@ export default function SecurityPrivacyPage() {
         setPwExpanded(false);
         setNewPassword(''); setConfirmPassword(''); setCurrentPassword('');
         setToastMessage('Password set successfully');
-        try {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } catch {}
+        smoothScrollToTop({ behavior: 'smooth' });
         setTimeout(() => setToastMessage(''), 3000);
       } else {
         setPwMessage(data?.error || 'Failed to update password');

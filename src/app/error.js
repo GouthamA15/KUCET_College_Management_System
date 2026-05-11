@@ -32,7 +32,7 @@ export default function Error({ error, reset }) {
           <h1 className="text-4xl font-black text-rose-600 tracking-tighter">Oops!</h1>
           <h2 className="mt-2 text-2xl font-bold text-gray-900">Something went wrong</h2>
           <p className="mt-4 text-gray-600">
-            We've encountered an unexpected error. Our team has been notified.
+            We&apos;ve encountered an unexpected error. Our team has been notified.
           </p>
           <div className="mt-4 p-3 bg-gray-100 rounded text-left overflow-auto max-h-32 w-full">
             <code className="text-xs text-gray-500 font-mono break-all">

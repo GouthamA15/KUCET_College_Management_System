@@ -1,0 +1,124 @@
+// Centralized logout helpers (client-side only)
+
+async function safePost(url) {
+  if (!url) return;
+  try {
+    await fetch(url, { method: 'POST', credentials: 'include' });
+  } catch {
+    // Ignore network errors; client-side cleanup + redirect still proceeds.
+  }
+}
+
+function clearCookie(name) {
+  try {
+    document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; path=/;`;
+  } catch {
+    // ignore
+  }
+}
+
+function safeSessionClear() {
+  try {
+    sessionStorage.clear();
+  } catch {
+    // ignore
+  }
+}
+
+function safeSessionRemoveItem(key) {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
+function safeLocalRemoveItem(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
+function redirectTo(url = '/') {
+  window.location.replace(url);
+}
+
+async function logoutAndRedirect({
+  endpoint,
+  localStorageKeys = [],
+  clearSessionStorage = false,
+  sessionStorageKeys = [],
+  cookies = [],
+  redirect = '/',
+} = {}) {
+  await safePost(endpoint);
+
+  for (const key of localStorageKeys) safeLocalRemoveItem(key);
+
+  if (clearSessionStorage) {
+    safeSessionClear();
+  } else {
+    for (const key of sessionStorageKeys) safeSessionRemoveItem(key);
+  }
+
+  for (const cookieName of cookies) clearCookie(cookieName);
+
+  redirectTo(redirect);
+}
+
+/**
+ * Role-based logout helper.
+ *
+ * Preserves existing behavior:
+ * - Student: tries optional `onLogout()` first; if it succeeds, returns early.
+ * - Student default: POST /api/student/logout, clear storage, redirect.
+ * - Clerk/faculty: POST /api/clerk/logout then redirect.
+ * - Admin: POST /api/admin/logout then redirect.
+ * - Fallback: POST /api/auth/logout then redirect.
+ */
+export async function logoutByRole({ role = 'guest', onLogout, redirect = '/' } = {}) {
+  if (role === 'student') {
+    if (typeof onLogout === 'function') {
+      try {
+        await onLogout();
+        return;
+      } catch {
+        // fall through
+      }
+    }
+
+    await logoutAndRedirect({
+      endpoint: '/api/student/logout',
+      localStorageKeys: ['logged_in_student'],
+      clearSessionStorage: true,
+      redirect,
+    });
+    return;
+  }
+
+  if (role === 'admin') {
+    await logoutAndRedirect({ endpoint: '/api/admin/logout', redirect });
+    return;
+  }
+
+  if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship' || role === 'faculty') {
+    await logoutAndRedirect({ endpoint: '/api/clerk/logout', redirect });
+    return;
+  }
+
+  await logoutAndRedirect({ endpoint: '/api/auth/logout', redirect });
+}
+
+/**
+ * Scholarship dashboard uses cookie/session flags instead of the shared logout endpoint.
+ * This helper preserves that behavior.
+ */
+export function logoutScholarshipDashboard({ redirect = '/' } = {}) {
+  void logoutAndRedirect({
+    cookies: ['clerk_auth', 'clerk_logged_in'],
+    sessionStorageKeys: ['clerk_authenticated'],
+    redirect,
+  });
+}

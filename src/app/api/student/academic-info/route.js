@@ -69,6 +69,11 @@ export async function GET(request) {
         lab_execution_marks: studentMarks.lab_execution_marks,
         lab_record_marks: studentMarks.lab_record_marks,
 
+        // Used only for backend-side dedupe when historical duplicates exist
+        _marks_row_id: studentMarks.id,
+        _marks_created_at: studentMarks.created_at,
+        _marks_updated_at: studentMarks.updated_at,
+
         // Attendance
         total_classes: countDistinct(studentAttendance.id),
         attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') THEN ${studentAttendance.id} END)`
@@ -78,7 +83,8 @@ export async function GET(request) {
       .leftJoin(canonicalAssignments, eq(canonicalAssignments.subject_code, syllabusStructure.subject_code))
       .leftJoin(studentMarks, and(
         eq(studentMarks.student_id, studentId),
-        eq(studentMarks.assignment_id, canonicalAssignments.canonical_id)
+        eq(studentMarks.assignment_id, canonicalAssignments.canonical_id),
+        eq(studentMarks.is_published, true)
       ))
       .leftJoin(facultySubjectAssignments, and(
         eq(facultySubjectAssignments.subject_code, syllabusStructure.subject_code),
@@ -104,11 +110,50 @@ export async function GET(request) {
         studentMarks.id
       );
 
+    // If student_marks already contains duplicates, the JOIN can yield repeated subject rows.
+    // Deduplicate by subject_code, keeping the newest marks row (and preferring rows with marks).
+    const pickBetter = (a, b) => {
+      const countMarks = (row) => {
+        const fields = [
+          row.mid1_marks,
+          row.mid2_marks,
+          row.assignment_marks,
+          row.lab_theory_marks,
+          row.lab_execution_marks,
+          row.lab_record_marks,
+        ];
+        return fields.reduce((acc, v) => acc + (v === null || v === undefined ? 0 : 1), 0);
+      };
+
+      const aMarks = countMarks(a);
+      const bMarks = countMarks(b);
+      if (aMarks !== bMarks) return bMarks > aMarks ? b : a;
+
+      const aTime = a._marks_updated_at || a._marks_created_at || null;
+      const bTime = b._marks_updated_at || b._marks_created_at || null;
+      const aMs = aTime ? new Date(aTime).getTime() : 0;
+      const bMs = bTime ? new Date(bTime).getTime() : 0;
+      if (aMs !== bMs) return bMs > aMs ? b : a;
+
+      const aId = a._marks_row_id || 0;
+      const bId = b._marks_row_id || 0;
+      return bId > aId ? b : a;
+    };
+
+    const dedupedBySubject = new Map();
+    for (const row of subjects) {
+      const key = row.subject_code;
+      const existing = dedupedBySubject.get(key);
+      dedupedBySubject.set(key, existing ? pickBetter(existing, row) : row);
+    }
+
+    const cleaned = Array.from(dedupedBySubject.values()).map(s => {
+      const { _marks_row_id, _marks_created_at, _marks_updated_at, ...rest } = s;
+      return { ...rest, mid_max: rest.mid_max || 20 };
+    });
+
     return apiResponse({ 
-      data: subjects.map(s => ({
-        ...s,
-        mid_max: s.mid_max || 20 
-      })),
+      data: cleaned,
       semester,
       academicYear
     });

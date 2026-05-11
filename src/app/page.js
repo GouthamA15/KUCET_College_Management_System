@@ -1,6 +1,7 @@
 import Hero from '@/components/Hero';
 import AboutSection from '@/components/AboutSection';
 import Header from '@/components/Header';
+import HeaderMobileView from '@/components/Header-MobileView';
 import Footer from '@/app/components/Footer/Footer';
 import ClientShell from '@/components/ClientShell.client';
 
@@ -23,14 +24,15 @@ export default async function Home({ searchParams }) {
         </a>
       )}
 
-      {/* Header at the very top */}
-      <Header />
+      {/* Institutional Header */}
+      <Header fixed={false} />
+      <HeaderMobileView />
 
       {/* Client-side shell: navbar (sticky), login panels and toasts */}
-      <ClientShell serverError={error} />
+      <ClientShell serverError={error} stickyNavbar={false} />
 
       {/* Main server-rendered content. */}
-      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 flex flex-col min-h-screen mt-25">
+      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 flex flex-col min-h-screen">
         <div className="grow">
           <Hero />
           <AboutSection />

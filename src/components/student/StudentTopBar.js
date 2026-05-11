@@ -7,6 +7,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAssets } from '@/context/AssetContext';
 import { usePathname, useRouter } from 'next/navigation';
+import { logoutByRole } from '@/lib/logout';
+import { getPortalTitle } from '@/lib/path-utils';
 
 export default function StudentTopBar({ onMenuClick }) {
   const { studentData } = useStudent();
@@ -25,16 +27,12 @@ export default function StudentTopBar({ onMenuClick }) {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const desktopDropdownRef = useRef(null);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const profileDropdownRef = useRef(null);
 
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (desktopDropdownRef.current && desktopDropdownRef.current.contains(event.target)) return;
-      if (profileDropdownRef.current && profileDropdownRef.current.contains(event.target)) return;
       setNotifOpen(false);
-      setProfileMenuOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -66,12 +64,12 @@ export default function StudentTopBar({ onMenuClick }) {
   };
 
   return (
-    <header className="h-16 lg:h-20 flex items-center px-4 lg:px-8 bg-transparent relative">
+    <header className="h-14 lg:h-20 flex items-center px-4 lg:px-8 bg-transparent relative">
       {/* Left: Mobile Menu Toggle */}
       <div className="flex-1 flex items-center justify-start">
         <button 
           onClick={onMenuClick}
-          className="lg:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+          className="lg:hidden p-2 text-white/70 hover:text-white rounded-lg transition-colors"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -79,21 +77,8 @@ export default function StudentTopBar({ onMenuClick }) {
         </button>
       </div>
 
-      {/* Middle: College Logo (Mobile view) */}
-      <div className="lg:hidden flex-1 flex items-center justify-center">
-        <div className="bg-blue-50 p-1.5 rounded-xl border border-blue-100/50 shadow-sm">
-          <Image 
-            src={getAsset('/assets/ku-college-logo.png')} 
-            alt="College Logo" 
-            width={40} height={40}
-            className="h-9 w-auto object-contain"
-            priority
-          />
-        </div>
-      </div>
-
-      {/* Right Side: Notifications & Profile */}
-      <div className="flex-1 flex items-center justify-end gap-2 lg:gap-5">
+      {/* Right Side: Notifications & Portal Title */}
+      <div className="flex-1 flex items-center justify-end gap-3 lg:gap-5">
         
         {/* Desktop Bell - Hidden on Mobile */}
         <div className="relative hidden lg:block" ref={desktopDropdownRef}>
@@ -109,7 +94,7 @@ export default function StudentTopBar({ onMenuClick }) {
             )}
           </button>
 
-          {/* Desktop Dropdown */}
+          {/* Desktop Dropdown remains unchanged for desktop layout consistency */}
           {notifOpen && (
             <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[70] animate-fadeIn">
               <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
@@ -176,59 +161,11 @@ export default function StudentTopBar({ onMenuClick }) {
           )}
         </div>
 
-        {/* Profile Section - Avatar with dropdown (mobile) */}
-        <div className="flex items-center gap-3 pl-3 lg:pl-4 border-l border-slate-200 relative" ref={profileDropdownRef}>
-          <button
-            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className="w-8 h-8 lg:w-9 lg:h-9 rounded-full overflow-hidden bg-slate-200 relative border border-slate-100 shadow-sm flex-shrink-0 ring-offset-2 hover:ring-2 ring-blue-100 transition-all flex items-center justify-center focus:outline-none"
-            aria-label="Open profile menu"
-          >
-            {student?.pfp ? (
-              <Image 
-                src={student.pfp} 
-                alt="Profile" 
-                fill 
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-[#0b3578] text-white text-xs font-bold uppercase">
-                {student?.name?.charAt(0) || 'S'}
-              </div>
-            )}
-          </button>
-
-          {profileMenuOpen && (
-            <div className="absolute right-0 top-full mt-3 w-44 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-[70] animate-fadeIn">
-              <button
-                onClick={() => { setProfileMenuOpen(false); router.push('/student/profile'); }}
-                className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${pathname.startsWith('/student/profile') ? 'bg-slate-100 text-[#0b3578]' : 'text-slate-700 hover:bg-slate-50'}`}
-              >
-                <span className="inline-flex w-4 h-4 items-center justify-center text-slate-400">👤</span>
-                <span>Profile</span>
-              </button>
-              <button
-                onClick={() => { setProfileMenuOpen(false); router.push('/student/settings/security'); }}
-                className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${pathname.startsWith('/student/settings') ? 'bg-slate-100 text-[#0b3578]' : 'text-slate-700 hover:bg-slate-50'}`}
-              >
-                <span className="inline-flex w-4 h-4 items-center justify-center text-slate-400">⚙️</span>
-                <span>Settings</span>
-              </button>
-              <button
-                onClick={async () => {
-                  setProfileMenuOpen(false);
-                  try { await fetch('/api/student/logout', { method: 'POST' }); } catch (e) {}
-                  try { localStorage.removeItem('logged_in_student'); } catch (e) {}
-                  try { sessionStorage.clear(); } catch (e) {}
-                  window.location.replace('/');
-                }}
-                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <span className="inline-flex w-4 h-4 items-center justify-center">🚪</span>
-                <span>Logout</span>
-              </button>
-            </div>
-          )}
+        {/* Portal Title for Mobile */}
+        <div className="lg:hidden pr-2">
+          <span className="text-[11px] font-bold text-white/90 tracking-widest uppercase">
+            {getPortalTitle(pathname)}
+          </span>
         </div>
       </div>
     </header>
