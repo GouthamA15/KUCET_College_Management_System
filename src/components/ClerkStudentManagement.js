@@ -4,6 +4,7 @@ import BulkImportStudents from '@/components/BulkImportStudents';
 import AddNewStudent from './clerk/student-management/AddNewStudent';
 import FetchStudent from './clerk/student-management/FetchStudent';
 import ViewEditStudent from './clerk/student-management/ViewEditStudent';
+import ExportStudents from './clerk/student-management/ExportStudents';
 
 export default function ClerkStudentManagement() {
   const [activeAction, setActiveAction] = useState(null);
@@ -29,12 +30,14 @@ export default function ClerkStudentManagement() {
       <div className="flex flex-col md:flex-row md:space-x-2 space-y-3 md:space-y-0 mb-4">
         <button onClick={() => setActiveAction(prev => (prev === 'add' ? null : 'add'))} className={`w-full md:w-auto text-center px-3 py-3 rounded ${activeAction === 'add' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer whitespace-nowrap`}>Add New Student</button>
         <button onClick={() => setActiveAction(prev => (prev === 'import' ? null : 'import'))} className={`w-full md:w-auto text-center px-3 py-3 rounded ${activeAction === 'import' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer whitespace-nowrap`}>Import From Excel</button>
+        <button onClick={() => setActiveAction(prev => (prev === 'export' ? null : 'export'))} className={`w-full md:w-auto text-center px-3 py-3 rounded ${activeAction === 'export' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer whitespace-nowrap`}>Export to Excel (Migration)</button>
         <button onClick={() => setActiveAction(prev => (prev === 'fetch' ? null : 'fetch'))} className={`w-full md:w-auto text-center px-3 py-3 rounded ${activeAction === 'fetch' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} cursor-pointer whitespace-nowrap`}>Fetch Student</button>
         <button onClick={() => { if (fetchedStudent) setActiveAction(prev => (prev === 'view' ? null : 'view')); }} disabled={!fetchedStudent} className={`w-full md:w-auto text-center px-3 py-3 rounded ${activeAction === 'view' ? 'bg-indigo-600 text-white' : 'bg-gray-100'} ${!fetchedStudent ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} whitespace-nowrap`}>View / Edit Student</button>
       </div>
 
       {activeAction === 'add' && <AddNewStudent />}
       {activeAction === 'import' && <BulkImportStudents onReset={() => {}} onImportSuccess={() => {}} />}
+      {activeAction === 'export' && <ExportStudents />}
       {activeAction === 'fetch' && <FetchStudent 
                                       setActiveAction={setActiveAction} 
                                       setFetchedStudent={setFetchedStudent} 

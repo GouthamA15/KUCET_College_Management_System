@@ -2,10 +2,12 @@ import { db } from '@/db';
 import { 
   students as studentsTable, 
   studentPersonalDetails, 
-  studentAcademicBackground 
+  studentAcademicBackground,
+  studentImages,
+  studentSignatures
 } from '@/db/schema';
-import { eq, or, like } from 'drizzle-orm';
-import { encrypt, hashForIndex } from '@/lib/encryption';
+import { eq, or, like, and } from 'drizzle-orm';
+import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
 
 /**
  * Service for Student-related business logic
@@ -32,6 +34,81 @@ export class StudentService {
         like(studentsTable.roll_no, regularRollPattern),
         like(studentsTable.roll_no, lateralRollPattern)
       ));
+  }
+
+  /**
+   * Fetch full student details for data migration/export
+   * @param {string} year Academic year
+   * @param {string} branch Branch code (numerical)
+   * @returns {Promise<Array>} List of joined student records
+   */
+  static async getFullStudentDataForExport(year, branch) {
+    if (!year || !branch) {
+      throw new Error('Year and branch are required');
+    }
+
+    // Extract the last 2 digits of the START year (e.g., '23' from '2023-24' or '2023-2027')
+    const startYear = year.split('-')[0];
+    const yearShort = startYear.slice(-2);
+    
+    const regularRollPattern = `${yearShort}567T${branch}%`;
+    const lateralRollPattern = `${yearShort}567${branch}%L`;
+
+    const results = await db.select({
+      // 1. Core
+      admission_no: studentsTable.admission_no,
+      roll_no: studentsTable.roll_no,
+      name: studentsTable.name,
+      email: studentsTable.email,
+      mobile: studentsTable.mobile,
+      gender: studentsTable.gender,
+      dob: studentsTable.date_of_birth,
+      fee_reimbursement: studentsTable.fee_reimbursement,
+      // 2. Personal
+      father_name: studentPersonalDetails.father_name,
+      mother_name: studentPersonalDetails.mother_name,
+      nationality: studentPersonalDetails.nationality,
+      religion: studentPersonalDetails.religion,
+      category: studentPersonalDetails.category,
+      sub_caste: studentPersonalDetails.sub_caste,
+      mother_tongue: studentPersonalDetails.mother_tongue,
+      place_of_birth: studentPersonalDetails.place_of_birth,
+      area_status: studentPersonalDetails.area_status,
+      father_occupation: studentPersonalDetails.father_occupation,
+      identification_marks: studentPersonalDetails.identification_marks,
+      annual_income: studentPersonalDetails.annual_income,
+      aadhaar_no: studentPersonalDetails.aadhaar_no,
+      guardian_mobile: studentPersonalDetails.guardian_mobile,
+      permanent_address: studentPersonalDetails.address,
+      seat_allotted_category: studentPersonalDetails.seat_allotted_category,
+      blood_group: studentPersonalDetails.blood_group,
+      // 3. Academic
+      qualifying_exam: studentAcademicBackground.qualifying_exam,
+      ssc_marks: studentAcademicBackground.ssc_marks,
+      inter_marks: studentAcademicBackground.inter_marks,
+      entrance_exam_rank: studentAcademicBackground.ranks,
+      previous_college: studentAcademicBackground.previous_college_details,
+      // 4. Assets
+      photo: studentImages.pfp,
+      signature: studentSignatures.signature
+    })
+    .from(studentsTable)
+    .leftJoin(studentPersonalDetails, eq(studentsTable.id, studentPersonalDetails.student_id))
+    .leftJoin(studentAcademicBackground, eq(studentsTable.id, studentAcademicBackground.student_id))
+    .leftJoin(studentImages, eq(studentsTable.id, studentImages.student_id))
+    .leftJoin(studentSignatures, eq(studentsTable.id, studentSignatures.student_id))
+    .where(or(
+      like(studentsTable.roll_no, regularRollPattern),
+      like(studentsTable.roll_no, lateralRollPattern)
+    ));
+
+    // Decrypt sensitive fields
+    return results.map(row => ({
+      ...row,
+      mobile: decrypt(row.mobile),
+      aadhaar_no: decrypt(row.aadhaar_no),
+      guardian_mobile: decrypt(row.guardian_mobile)
+    }));
   }
 
   /**
