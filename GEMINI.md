@@ -293,6 +293,7 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **`esbuild` & `postcss` (Moderate):** Hardened the build pipeline against XSS and server spoofing by enforcing `esbuild@^0.25.0` and `postcss@^8.5.14` across `drizzle-kit`, `tsx`, and `tailwindcss`.
 - **System Integrity:**
     - Re-verified database generation (`drizzle-kit`) and unit testing (`vitest`) workflows to ensure the aggressive security overrides did not introduce regressions or break the institutional architecture.
+    - **Test Environment Isolation:** Resolved a critical conflict where the Playwright test runner incorrectly attempted to execute Vitest unit tests. Hardened `playwright.config.js` with explicit `testMatch` and `testIgnore` rules to strictly separate E2E and Unit testing domains.
 
 ### April 2026
 
