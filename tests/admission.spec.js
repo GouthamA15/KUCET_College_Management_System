@@ -56,7 +56,7 @@ test.describe('Student Admission Flow', () => {
     await page.fill('input[placeholder="TOTAL MARKS / CGPA"]', '950');
     await page.fill('input[placeholder="MARKS OBTAINED"]', '900');
     
-    await page.fill('input[placeholder="ANNUAL INCOME"]', '100000');
+    await page.selectOption('select:has(option:text("SELECT ANNUAL INCOME RANGE"))', 'Up to 1,00,000');
     await page.fill('input[placeholder="XXXX XXXX XXXX"]', '1234 5678 9012');
     
     // Mobile numbers

@@ -99,7 +99,7 @@ const AdmissionPage = () => {
         const payload = {
             ...form,
             aadhaar_no: form.aadhaar_no.replace(/\s/g, ''),
-            annual_income: form.annual_income.toString().replace(/,/g, ''),
+            annual_income: form.annual_income,
             admission_year: admissionYear,
             pfp: files.pfp,
             signature: files.signature,
