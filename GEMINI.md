@@ -26,13 +26,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Fee Management:** Year-wise fee tracking with payment history and scholarship impact
 - **Academic Calendar:** Institutional calendar with holidays and working day management
 - **Database-Driven Syllabus:** Transitioned from hardcoded JS files to a normalized MySQL schema for curriculum management.
+- **Web-First Architecture:** Transitioned from a Capacitor-based native mobile app to a pure Web/PWA architecture.
 
 ---
 
 ## 2. Technical Stack
 - **Frontend:** Next.js 16.1.6, React 19.2.4, Tailwind CSS 4
 - **Backend:** Next.js API Routes (App Router), Node.js
-- **Mobile (Native):** Capacitor 7 (Android) with GPS-based geolocation and local notifications.
+- **Mobile (Web):** Progressive Web App (PWA) with offline support and push notifications.
 - **Database:** TiDB Cloud (MySQL-compatible Serverless), accessed via `mysql2/promise` with SSL/TLS enforcement. Integrated with **Drizzle ORM** for type-safe querying and versioned migrations.
 - **Authentication:** JWT-based (HTTP-only cookies) using `jose` for edge-runtime compatibility. Includes native Google OAuth support via `next-auth` and `google-auth-library`.
 - **Real-Time:** Supabase Realtime (WebSockets) for lightweight server-to-client broadcasting, with Redis Pub/Sub (`ioredis`) for distributed SSE.
@@ -339,6 +340,17 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Deleted obsolete mobile utilities: `capacitor-utils.js`, `notification-utils.js`, and the `update-mobile-app.js` maintenance script.
 - **Architectural Shift:**
     - Transitioned the project to a pure web/PWA architecture, with native mobile development moved to a separate local workflow to reduce core repository bloat.
+
+#### **Session 108: Capacitor Cleanup & Web-First Hardening (May 12, 2026)**
+- **Codebase Sanitization:**
+    - Systematically removed all remaining Capacitor imports and logic across the codebase (`Hero.js`, `LoginPanel.js`, `CertificateRequestsPage`, `ProfileActivityBar`).
+    - Resolved `Module not found` errors caused by legacy imports of `@capacitor/core`, `@capgo/capacitor-social-login`, and deleted utility files (`capacitor-utils.js`, `notification-utils.js`).
+- **Authentication Simplification:**
+    - Refactored the `LoginPanel` to utilize browser-based Google OAuth exclusively, eliminating redundant native social login handlers.
+- **Download Workflow Standardization:**
+    - Standardized certificate download logic to use native browser Blob handling, ensuring consistent behavior across all devices in the new pure-web architecture.
+- **Documentation Update:**
+    - Synchronized the technical stack documentation to reflect the transition from a native mobile focus to a high-performance Progressive Web App (PWA).
 
 ### April 2026
 

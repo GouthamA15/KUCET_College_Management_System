@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 import { signIn } from "next-auth/react";
-import { SocialLogin } from '@capgo/capacitor-social-login';
 
 export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   const MAX_ROLL = 10;
@@ -32,24 +31,6 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
   // activeRole: 'student' | 'employee' (derived from activePanel)
   const activeRole = activePanel === 'student' ? 'student' : 'employee';
 
-  useEffect(() => {
-    // Initialize Google Auth only on native platforms
-    const initNativeAuth = async () => {
-      if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform()) {
-        try {
-          await SocialLogin.initialize({
-            google: {
-              webClientId: "420881800284-cnmbp5lldqrq7bb67p00uhhgbaudrolq.apps.googleusercontent.com",
-            }
-          });
-          console.log('Native Social Login Initialized');
-        } catch (err) {
-          console.error('Failed to initialize native social login:', err);
-        }
-      }
-    };
-    initNativeAuth();
-  }, []);
   const [fpRollno, setFpRollno] = useState('');
   const [fpIsLoading, setFpIsLoading] = useState(false);
   const [fpIsCheckingStatus, setFpIsCheckingStatus] = useState(false);
@@ -535,47 +516,8 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                 {mode === 'login' ? (
                 <div>
                   <button
-                    onClick={async () => {
-                      const isNativeApp = typeof window !== 'undefined' && 
-                        window.Capacitor && 
-                        (window.Capacitor.getPlatform() === 'android' || window.Capacitor.getPlatform() === 'ios');
-                      
-                      if (isNativeApp) {
-                        try {
-                          const result = await SocialLogin.login({
-                            provider: 'google',
-                            options: {
-                              clientId: "420881800284-cnmbp5lldqrq7bb67p00uhhgbaudrolq.apps.googleusercontent.com",
-                            }
-                          });
-
-                          const idToken = result.result.idToken;
-
-                          if (!idToken) {
-                            throw new Error('No ID token received from Google');
-                          }
-
-                          const res = await fetch('/api/auth/native-google', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ idToken })
-                          });
-
-                          if (res.ok) {
-                            window.location.replace('/');
-                          } else {
-                            const errorData = await res.json();
-                            toast.error(errorData.message || 'Native Google login failed');
-                          }
-                        } catch (err) {
-                          console.error('Native Google Error:', err);
-                          if (err.message !== 'CHANCELED' && !err.message?.includes('cancel')) {
-                            toast.error('Native Google Sign-in failed');
-                          }
-                        }
-                        return;
-                      }
-                      // Browser fallback
+                    onClick={() => {
+                      // Browser Google login
                       const base = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '');
                       const callbackUrl = base ? `${base}/api/auth/google-complete` : '/api/auth/google-complete';
                       return signIn('google', { callbackUrl });

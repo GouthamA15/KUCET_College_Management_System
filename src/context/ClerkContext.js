@@ -16,9 +16,12 @@ export function ClerkProvider({ children }) {
   const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
   const [pendingProfileRequests, setPendingProfileRequests] = useState([]);
   const [pendingCertificateRequests, setPendingCertificateRequests] = useState([]);
+  const [admissionDrafts, setAdmissionDrafts] = useState([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [hodBranchData, setHodBranchData] = useState(null);
   const [isLoadingHOD, setIsLoadingHOD] = useState(false);
+  const [studentHistory, setStudentHistory] = useState({ records: [], myCount: 0, allCount: 0 });
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -140,20 +143,58 @@ export function ClerkProvider({ children }) {
     }
   }, []);
 
+  const fetchAdmissionDrafts = useCallback(async () => {
+    setIsLoadingRequests(true);
+    try {
+      const res = await fetch('/api/clerk/admission/drafts?status=DRAFT');
+      const data = await res.json();
+      if (res.ok) {
+        setAdmissionDrafts(data.data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch admission drafts', e);
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  }, []);
+
+  const fetchStudentHistory = useCallback(async (scope = 'my') => {
+    setIsLoadingHistory(true);
+    try {
+      const res = await fetch(`/api/clerk/student-history?scope=${scope}`);
+      if (res.ok) {
+        const json = await res.json();
+        setStudentHistory({
+          records: json.records || [],
+          myCount: json.myCount || 0,
+          allCount: json.allCount || 0
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch student history', e);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, []);
+
   const refreshAllRequests = useCallback(async (role) => {
     const promises = [];
     if (role === 'admission') {
       promises.push(fetchPendingProfileRequests());
       promises.push(fetchPendingCertificateRequests('admission'));
+      promises.push(fetchAdmissionDrafts());
+      promises.push(fetchStudentHistory('my'));
     } else if (role === 'scholarship') {
       promises.push(fetchPendingCertificateRequests('scholarship'));
     }
     await Promise.all(promises);
-  }, [fetchPendingProfileRequests, fetchPendingCertificateRequests]);
+  }, [fetchPendingProfileRequests, fetchPendingCertificateRequests, fetchAdmissionDrafts, fetchStudentHistory]);
 
   useEffect(() => {
     const init = async () => {
-      setLoading(true);
+      // Only set loading if we don't have clerk data yet
+      if (!clerkData) setLoading(true);
+
       const clerk = await fetchClerk();
       const promises = [fetchCollegeInfo()];
       if (clerk?.role === 'faculty') {
@@ -165,6 +206,8 @@ export function ClerkProvider({ children }) {
       if (clerk?.role === 'admission') {
         promises.push(fetchPendingProfileRequests());
         promises.push(fetchPendingCertificateRequests('admission'));
+        promises.push(fetchAdmissionDrafts());
+        promises.push(fetchStudentHistory('my'));
       }
       if (clerk?.role === 'scholarship') {
         promises.push(fetchPendingCertificateRequests('scholarship'));
@@ -173,7 +216,8 @@ export function ClerkProvider({ children }) {
       setLoading(false);
     };
     init();
-  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests, fetchPendingCertificateRequests, fetchHODData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests, fetchPendingCertificateRequests, fetchAdmissionDrafts, fetchHODData, fetchStudentHistory]);
 
   const handleRealtimeUpdate = useCallback((data) => {
     if (clerkData?.is_hod && data.payload.branch === clerkData.branch) {
@@ -198,13 +242,18 @@ export function ClerkProvider({ children }) {
       refreshFaculty: fetchFacultyData,
       pendingProfileRequests,
       pendingCertificateRequests,
+      admissionDrafts,
       isLoadingRequests,
       refreshProfileRequests: fetchPendingProfileRequests,
       refreshCertificateRequests: fetchPendingCertificateRequests,
+      refreshAdmissionDrafts: fetchAdmissionDrafts,
       refreshAllRequests,
       hodBranchData,
       isLoadingHOD,
-      refreshHOD: fetchHODData
+      refreshHOD: fetchHODData,
+      studentHistory,
+      isLoadingHistory,
+      refreshStudentHistory: fetchStudentHistory
     }}>
       <RealtimeListener onUpdate={handleRealtimeUpdate} />
       {children}

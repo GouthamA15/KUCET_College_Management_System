@@ -89,7 +89,7 @@ export function AdminProvider({ children }) {
   }, []);
 
   const refreshAll = useCallback(async () => {
-    setLoading(true);
+    if (!adminData) setLoading(true);
     await Promise.all([
       fetchAdminMe(),
       fetchClerks(),
@@ -98,9 +98,10 @@ export function AdminProvider({ children }) {
       fetchFacultyInterests()
     ]);
     setLoading(false);
-  }, [fetchAdminMe, fetchClerks, fetchStudentStats, fetchCollegeInfo, fetchFacultyInterests]);
+  }, [fetchAdminMe, fetchClerks, fetchStudentStats, fetchCollegeInfo, fetchFacultyInterests, adminData]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

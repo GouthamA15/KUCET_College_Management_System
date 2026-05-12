@@ -106,12 +106,13 @@ export function StudentProvider({ children }) {
 
   useEffect(() => {
     const init = async () => {
-      setLoading(true);
+      // Only show global loading if we don't have student data yet
+      if (!studentData) setLoading(true);
       await refreshData();
       setLoading(false);
     };
     init();
-  }, [refreshData]);
+  }, [refreshData, studentData]);
 
   const resetCertificateRequests = () => {
     setCertificateRequests(null);
