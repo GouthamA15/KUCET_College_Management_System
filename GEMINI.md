@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 12, 2026 (Session 101)
+**Last Updated:** May 12, 2026 (Session 104)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -281,6 +281,18 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **CI Integration:**
     - Updated `package.json` with dedicated testing targets: `test:unit` and `test:coverage`.
     - Integrated unit testing as a mandatory pre-deployment gate, ensuring high reliability for institutional data processing.
+
+---
+
+#### **Session 104: Comprehensive Backend Security Hardening (May 12, 2026)**
+- **Vulnerability Resolution:**
+    - Conducted a full npm security audit, identifying and resolving **15 vulnerabilities** (including 2 Critical and 5 High severity risks) across nested backend and build dependencies.
+- **NPM Overrides Strategy:**
+    - **`mysql2` (Critical):** Mitigated Remote Code Execution (RCE) and Prototype Pollution risks originating from the `mysqldump` utility by enforcing `mysql2@^3.16.0` globally via package overrides.
+    - **`serialize-javascript` (High):** Resolved RCE and DoS vulnerabilities in Next.js PWA build tools by enforcing `serialize-javascript@^7.0.5`.
+    - **`esbuild` & `postcss` (Moderate):** Hardened the build pipeline against XSS and server spoofing by enforcing `esbuild@^0.25.0` and `postcss@^8.5.14` across `drizzle-kit`, `tsx`, and `tailwindcss`.
+- **System Integrity:**
+    - Re-verified database generation (`drizzle-kit`) and unit testing (`vitest`) workflows to ensure the aggressive security overrides did not introduce regressions or break the institutional architecture.
 
 ### April 2026
 
