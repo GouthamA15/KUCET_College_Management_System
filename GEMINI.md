@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 7, 2026 (Session 98)
+**Last Updated:** May 12, 2026 (Session 101)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -162,7 +162,77 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### May 2026
 
-#### **Session 96: Admission Clerk Navigation Refactor & Workspace Standardization (May 9, 2026)**
+#### **Session 96: Staff Profile Sovereignty & Verification Infrastructure (May 7, 2026)**
+- **Staff Edit Profile:**
+    - Implemented comprehensive "Edit Profile" functionality for all institutional staff roles (Admission, Scholarship, Faculty, HOD). Staff can now independently manage their professional portrait, digital signature, and contact information.
+- **Database Schema Hardening:**
+    - Expanded the `clerks` table to include `mobile`, `mobile_hash`, `pfp`, and `signature`.
+    - Integrated institutional-grade AES-256-GCM encryption for staff mobile numbers and implemented blind indexing for secure, high-performance lookups.
+- **OTP System Generalization:**
+    - Refactored the entire OTP infrastructure (database schema and API routes) to be identity-agnostic. The system now supports both student roll numbers and staff email addresses as primary identifiers.
+- **Secure Email Change Workflow:**
+    - Developed a multi-stage verification handshake for institutional email updates. Staff must now pass an OTP challenge via their current registered address before unlocking the ability to modify their account credentials.
+- **Local Dev Resilience (Email Fail-Safe):**
+    - Integrated a robust "Local Dev Mode" for the email engine. If the Brevo API fails due to network-specific IP restrictions or configuration issues, the system intelligently logs the OTP to the terminal and returns a successful response to the frontend, ensuring uninterrupted local development.
+
+---
+
+#### **Session 97: Email Verification Refactor, Profile UI Streamlining & Security Hardening (May 7, 2026)**
+- **Staff Email Verification:**
+    - Refactored the "Edit Profile" workflow for all institutional staff roles. The system now requires OTP verification of the **new institutional email address** instead of the currently registered one, ensuring the validity of new account credentials before they are committed.
+    - Introduced a dedicated "Change Email" state to prevent accidental modifications and provide a clear, multi-stage verification handshake.
+- **Institutional Directory Cleanup:**
+    - Removed the "Institutional Directory" search section from the Admission, Scholarship, and Faculty profile pages to streamline the user interface and focus on role-specific record management.
+    - Deleted the unused `ClerkSearch` component and the corresponding `/api/clerk/search` API route to reduce codebase bloat and maintenance overhead.
+- **Input Constraints & Validation:**
+    - Implemented rigorous input validation for both Clerk and Student profile editing. Added regex-based name sanitization (letters/spaces only), enforced 10-digit mobile and 12-digit Aadhaar formats, and applied `maxLength` constraints to prevent database overflow.
+- **Security & Edge Case Hardening:**
+    - **Authentication Guard:** Secured the previously public `/api/bugs` and `/api/send-student-email` endpoints, restricting access to authenticated institutional users.
+    - **Spam Prevention:** Integrated IP-based rate limiting for the OTP generation endpoint to prevent email spam and quota exhaustion.
+    - **Observability:** Standardized error handling by replacing unstructured `console.error` calls in HOD and Admin API routes with the application's structured `logger`.
+- **Data Integrity:**
+    - Hardened the `onSave` logic in staff settings to prevent the submission of unverified email changes while maintaining support for other profile modifications (PFP, signature, mobile).
+
+#### **Session 98: Operational Hardening & Quality Gates (May 7, 2026)**
+- **Automated Database Pruning:**
+    - Developed `src/db/prune-tokens.js` to perform automated garbage collection of expired OTPs, password reset tokens, and refresh tokens.
+    - Integrated the pruning script into the daily GitHub Action workflow, ensuring consistent database performance and preventing long-term bloat.
+- **Pre-Commit Quality Gates:**
+    - Integrated **Husky** and **lint-staged** into the development workflow.
+    - Configured a pre-commit hook to automatically execute `eslint --fix` on modified files, guaranteeing that only clean, well-formatted code is committed to the repository.
+- **Serverless Database Hardening:**
+    - Refactored `src/lib/db.js` with a serverless-optimized connection pool. Reduced `idleTimeout` and `connectionLimit` to prevent "Too Many Connections" errors during high-traffic Vercel spikes.
+- **Encryption Key Rotation & Module Resolution:**
+    - Developed and executed `src/db/rotate-keys.js`, a transactional administrative utility for rotating AES-256-GCM encryption keys across all sensitive student records (Mobile, Aadhaar).
+    - Fixed a critical module resolution issue in standalone database scripts by transitioning from path aliases to relative paths, enabling reliable CLI execution via `tsx`.
+    - Hardened `src/lib/db.js` to correctly enforce environment variable overrides from `.env.local`, ensuring local encryption keys take precedence over defaults.
+- **Infrastructure Maintenance:**
+    - Updated `package.json` with dedicated maintenance scripts (`db:prune`, `db:rotate-keys`, `prepare`) and upgraded core devDependencies to support quality gate automation.
+
+---
+
+#### **Session 99: Attendance Refinement, API Hardening & Infrastructure Monitoring (May 7, 2026)**
+- **Attendance System Refinement:**
+    - Enabled persistent attendance PIN entry globally on the student dashboard. Modified `StudentActivityBar` to ensure the verification card is visible across all pages when a session is active.
+    - Cleaned up `DashboardActionCenter` by removing redundant attendance fetching logic, centralizing the experience in the global activity bar.
+- **API Hardening & Validation:**
+    - Implemented a centralized validation layer using **Zod**. Created schemas in `src/lib/validations/student.js` to strictly enforce institutional standards for student records.
+    - Integrated Zod validation into student creation and update API routes, providing granular `400 Bad Request` feedback for malformed inputs.
+- **Data Privacy & Security:**
+    - Hardened the `StudentService` with institutional-grade **field-level encryption (AES-256-GCM)** for mobile and Aadhaar numbers.
+    - Developed **Blind Indexing** (HMAC-SHA256) for encrypted fields to enable secure, high-performance database searches without exposing plain-text sensitive data.
+- **System Observability & Monitoring:**
+    - Developed a robust **Deployment Health Check API** (`/api/public/system/health`) that verifies live connectivity to TiDB, Upstash Redis, and institutional email gateways.
+    - Integrated comprehensive audit logging for student management actions, ensuring all record modifications are timestamped and attributed to the responsible staff member.
+- **UI & Data Standardization:**
+    - Standardized **Annual Income** as a range-based dropdown across the public admission form, administrative student creation modal, and bulk import tool.
+    - Updated the database schema (`annual_income` to `varchar(50)`) and Drizzle metadata to support descriptive range values.
+- **Bug Resolution:**
+    - Resolved a critical `ReferenceError: needsProof is not defined` in the student record modification portal, ensuring document upload requirements are correctly calculated during the render cycle.
+
+---
+
+#### **Session 100: Admission Clerk Navigation Refactor & Workspace Standardization (May 9, 2026)**
 - **Architecture & Navigation:**
     - **Overview-First Dashboard:** Refactored the Admission Clerk dashboard (`/clerk/admission/dashboard`) into a lightweight, metric-oriented overview. Removed inline operational modules in favor of direct route navigation.
     - **Dedicated Workspaces:** Established permanent, dedicated pages for Student Management (`/clerk/admission/student-management`) and Admission Finalization (`/clerk/admission/finalize`), improving navigation stability and component lifecycle management.
@@ -173,6 +243,29 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **UI & Institutional Branding:**
     - **Government-Admin Style:** Standardized the Admission module's visual language with sharp borders (`rounded-sm`), high-density data grids, and a professional Slate + Indigo color palette, aligning with official institutional portal standards.
     - **Operational Labels:** Implemented high-contrast, uppercase operational labeling and "Registry Command" headers to enhance clarity for administrative staff.
+
+---
+
+#### **Session 101: Mobile Dashboard Infrastructure & Faculty Marksheet Excellence (May 12, 2026)**
+- **Mobile Infrastructure & Responsive UI:**
+    - **Standalone Mobile Header:** Developed `Header-MobileView.js` and `MobileTopbar.js` to provide a dedicated, high-performance navigation experience for mobile users.
+    - **Dashboard Header Synchronization:** Implemented a unified header system for all mobile dashboards, ensuring consistent branding and functional parity across device types.
+    - **Universal Loading Experience:** Created a standardized `LoadingSpinner` component to provide visual feedback during high-latency data operations.
+- **Faculty Marks Management:**
+    - **Marksheet Performance & UI:** Significantly overhauled the `MarksEntrySheet` and the corresponding API route. Improved data entry efficiency with better keyboard navigation and real-time validation for internal marks.
+    - **Transactional Integrity:** Hardened the marks update API to ensure atomicity during bulk submissions, preventing data corruption during network interruptions.
+- **Architecture & Performance:**
+    - **Stateful Scrolling:** Implemented `scroll-utils.js` to manage complex scroll behaviors in high-density data tables and long-form dashboards.
+    - **Logout Standardization:** Developed a centralized `logout.js` utility to ensure clean session termination and state purging across all application roles.
+    - **Global Styles:** Refined `globals.css` with improved layout constraints and typography for institutional data grids.
+
+---
+
+#### **Session 102: Playwright E2E Testing Hardening (May 12, 2026)**
+- **Test Infrastructure Stability:**
+    - **Admission Flow Optimization:** Updated `tests/admission.spec.js` to correctly interact with the newly implemented range-based `select` element for Annual Income, resolving test timeouts and aligning the test with the updated UI.
+    - **Data Processing Refinement:** Removed legacy comma-stripping logic from the `annual_income` field payload in `src/app/admission/page.js` to ensure the admission form correctly processes descriptive income ranges according to the institutional configuration (`COLLEGE_CONFIG`).
+    - **Session Emulation Hardening:** Fixed a middleware redirection issue in `tests/attendance.spec.js` by explicitly injecting the `student_logged_in` companion cookie and enforcing precise URL scoping for injected mock authentication tokens.
 
 ### April 2026
 

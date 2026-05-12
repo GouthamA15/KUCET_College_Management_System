@@ -29,13 +29,19 @@ test.describe('Attendance Marking Flow', () => {
       .setExpirationTime('15m')
       .sign(secret);
 
-    // Set the cookie to bypass middleware redirect
-    await page.context().addCookies([{
-      name: 'student_auth',
-      value: token,
-      domain: 'localhost',
-      path: '/',
-    }]);
+    // Set the auth cookie AND the required companion cookie to bypass redirects
+    await page.context().addCookies([
+      {
+        name: 'student_auth',
+        value: token,
+        url: 'http://localhost:3000',
+      },
+      {
+        name: 'student_logged_in',
+        value: 'true',
+        url: 'http://localhost:3000',
+      }
+    ]);
     
     // Mock authentication and student data APIs
     await page.route('/api/student/me', async (route) => {
