@@ -327,6 +327,19 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Integrated real-time status indicators ("Scanning Registry...") and count-based summaries for the fetched data.
     - Automated file naming convention to include Branch and Batch Range for better organizational traceability.
 
+---
+
+#### **Session 107: Mobile Application Decoupling (May 12, 2026)**
+- **Capacitor Removal:**
+    - Systematically uninstalled all Capacitor-related dependencies (`@capacitor/core`, `@capacitor/android`, `@capacitor/cli`, etc.) and third-party plugins.
+    - Deleted the `android` native project folder and `capacitor.config.ts` to streamline the web-first repository.
+- **Codebase Sanitization:**
+    - Removed `CapacitorHandler.client.js` and decoupled mobile-specific logic from the `RootLayout`.
+    - Sanitized `RealtimeListener.js` by removing calls to native push notifications via `showLocalNotification`.
+    - Deleted obsolete mobile utilities: `capacitor-utils.js`, `notification-utils.js`, and the `update-mobile-app.js` maintenance script.
+- **Architectural Shift:**
+    - Transitioned the project to a pure web/PWA architecture, with native mobile development moved to a separate local workflow to reduce core repository bloat.
+
 ### April 2026
 
 #### **Session 95: Profile Architecture Overhaul & Agent Intelligence (April 21-26, 2026)**

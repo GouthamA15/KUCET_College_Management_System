@@ -5,7 +5,6 @@ import { createClient } from '@supabase/supabase-js';
 import toast from 'react-hot-toast';
 import { StudentContext } from '@/context/StudentContext';
 import { ClerkContext } from '@/context/ClerkContext';
-import { showLocalNotification } from '@/lib/notification-utils';
 
 let sharedSupabaseClient = null;
 let sharedChannel = null;
@@ -106,7 +105,6 @@ export default function RealtimeListener({ onUpdate, showIndicator = false, enab
     if (event === 'TIMETABLE_CHANGED') {
       if (sData?.branch === payload.branch) {
         toast.success('Your timetable has been updated!', { duration: 5000, id: 'timetable-update' });
-        showLocalNotification('Timetable Updated', 'Your departmental timetable has been changed.', { type: 'TIMETABLE' });
       }
     }
 
@@ -114,7 +112,6 @@ export default function RealtimeListener({ onUpdate, showIndicator = false, enab
     if (event === 'SESSION_STARTED') {
       if (sData?.branch === payload.branch) {
         toast('🚀 New Attendance Session Started!', { icon: '📝', duration: 10000, id: payload.sessionId });
-        showLocalNotification('Class Started', `Attendance is active for ${payload.subject_code}`, { type: 'SESSION', sessionId: payload.sessionId });
       }
     }
 
@@ -123,12 +120,10 @@ export default function RealtimeListener({ onUpdate, showIndicator = false, enab
       // Logic for Clerk notifications (New requests for them to approve)
       if (cData && payload.clerkType === cData.role) {
          toast(`New request: ${payload.certificate_type}`, { icon: '🔔' });
-         showLocalNotification('New Request', `A new ${payload.certificate_type} needs approval.`, { type: 'CLERK_REQ' });
       }
       // Logic for Student notifications (Status updates on their requests)
       if (sData && payload.student_id === sData.id) {
          toast(`Request status updated: ${payload.certificate_type}`, { icon: '📄' });
-         showLocalNotification('Request Update', `Your ${payload.certificate_type} status has been updated.`, { type: 'STUDENT_REQ' });
       }
     }
   }, []);
