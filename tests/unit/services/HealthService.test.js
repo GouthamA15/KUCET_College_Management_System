@@ -9,6 +9,13 @@ vi.mock('@/db', () => ({
   },
 }));
 
+vi.mock('@/lib/logger', () => ({
+  default: {
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 vi.mock('@upstash/redis', () => {
   return {
     Redis: class {
@@ -96,10 +103,14 @@ describe('HealthService', () => {
       expect(status).toBe('degraded');
     });
 
-    it('should warn for unknown status', () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it('should warn for unknown status', async () => {
+      const logger = (await import('@/lib/logger')).default;
       HealthService.determineStatus('unknown');
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'unknown' }),
+        'Unknown health status'
+      );
     });
   });
 

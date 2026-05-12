@@ -68,7 +68,7 @@ export class HealthService {
     const maxSeverity = Math.max(...statuses.map(s => {
       const severity = severityMap[s];
       if (severity === undefined) {
-        console.warn(`Unknown health status: ${s}`);
+        logger.warn({ status: s }, 'Unknown health status');
       }
       return severity || 0;
     }));

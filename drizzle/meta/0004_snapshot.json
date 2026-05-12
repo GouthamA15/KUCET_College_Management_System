@@ -309,7 +309,7 @@
           "columns": [
             "session_token"
           ],
-          "isUnique": false
+          "isUnique": true
         }
       },
       "foreignKeys": {},
@@ -321,7 +321,14 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "attendance_sessions_session_token_unique": {
+          "name": "attendance_sessions_session_token_unique",
+          "columns": [
+            "session_token"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "audit_logs": {
@@ -1075,7 +1082,20 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "clerks_email_unique": {
+          "name": "clerks_email_unique",
+          "columns": [
+            "email"
+          ]
+        },
+        "clerks_employee_id_unique": {
+          "name": "clerks_employee_id_unique",
+          "columns": [
+            "employee_id"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "college_info": {
@@ -1504,7 +1524,14 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "password_reset_tokens_token_hash_unique": {
+          "name": "password_reset_tokens_token_hash_unique",
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "principal": {
@@ -1558,7 +1585,14 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "principal_email_unique": {
+          "name": "principal_email_unique",
+          "columns": [
+            "email"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "rate_limits": {
@@ -1695,7 +1729,14 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "refresh_tokens_token_hash_unique": {
+          "name": "refresh_tokens_token_hash_unique",
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "scholarship_sanctions": {
@@ -3468,7 +3509,26 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "students_email_unique": {
+          "name": "students_email_unique",
+          "columns": [
+            "email"
+          ]
+        },
+        "students_admission_no_unique": {
+          "name": "students_admission_no_unique",
+          "columns": [
+            "admission_no"
+          ]
+        },
+        "students_roll_no_unique": {
+          "name": "students_roll_no_unique",
+          "columns": [
+            "roll_no"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "syllabus_structure": {

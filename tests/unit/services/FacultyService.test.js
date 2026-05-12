@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FacultyService } from '@/services/FacultyService';
 import { db } from '@/db';
-import { semesters, clerks } from '@/db/schema';
 
 // Mock dependencies
 vi.mock('@/db', () => ({
