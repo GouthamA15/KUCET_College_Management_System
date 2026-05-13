@@ -22,7 +22,10 @@ export default function FacultyInterestsManager() {
   };
 
   useEffect(() => {
-    fetchInterests();
+    const id = setTimeout(() => {
+      fetchInterests();
+    }, 0);
+    return () => clearTimeout(id);
   }, []);
 
   const handleAction = async (interestId, status) => {

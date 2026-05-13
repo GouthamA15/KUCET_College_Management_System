@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 
 export default function SyllabusManager({ branch }) {
@@ -23,7 +23,7 @@ export default function SyllabusManager({ branch }) {
     }
   };
 
-  const fetchSyllabus = async () => {
+  const fetchSyllabus = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/clerk/hod/syllabus?semester=${selectedSem}`);
@@ -34,11 +34,14 @@ export default function SyllabusManager({ branch }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSem]);
 
   useEffect(() => {
-    fetchSyllabus();
-  }, [selectedSem]);
+    const id = setTimeout(() => {
+      fetchSyllabus();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [fetchSyllabus]);
 
   const handleDeleteSubject = async (code) => {
     if (!confirm('Are you sure you want to remove this subject from your branch syllabus?')) return;

@@ -56,8 +56,12 @@ export const studentCreateSchema = z.object({
   sub_caste: z.string().trim().max(100).optional().or(z.literal('')),
   category: z.string().trim().max(50).optional().or(z.literal('')),
   annual_income: z.string()
-    .refine((val) => !val || COLLEGE_CONFIG.incomeRanges.includes(val), {
-      message: "Invalid annual income range",
+    .refine((val) => {
+      if (!val) return true;
+      const num = parseInt(val.replace(/,/g, ''));
+      return !isNaN(num) && num <= 2000000;
+    }, {
+      message: "Annual income must be a valid number up to 20,00,000",
     })
     .optional()
     .or(z.literal('')),

@@ -17,14 +17,18 @@ export default function useProfileEdit(studentData = null, refreshData = () => {
   const profileImage = useProfileImage(studentData?.student?.pfp || null);
 
   useEffect(() => {
-    if (studentData) {
-      setMobile(studentData.student.mobile || '');
-      setEmail(studentData.student.email || '');
-      setAddress(studentData.student.personal_details?.address || '');
-      setOriginalMobile(studentData.student.mobile || '');
-      setOriginalEmail(studentData.student.email || '');
-      setOriginalAddress(studentData.student.personal_details?.address || '');
-    }
+    const id = setTimeout(() => {
+      if (studentData) {
+        setMobile(studentData.student.mobile || '');
+        setEmail(studentData.student.email || '');
+        setAddress(studentData.student.personal_details?.address || '');
+        setOriginalMobile(studentData.student.mobile || '');
+        setOriginalEmail(studentData.student.email || '');
+        setOriginalAddress(studentData.student.personal_details?.address || '');
+      }
+    }, 0);
+
+    return () => clearTimeout(id);
   }, [studentData]);
 
   const sanitizeDigits = (val, maxLen = 12) => {

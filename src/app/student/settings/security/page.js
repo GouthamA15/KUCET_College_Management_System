@@ -37,8 +37,12 @@ export default function SecurityPrivacyPage() {
 
   useEffect(() => {
     if (student) {
-      setEmailInput(student.email || '');
+      const id = setTimeout(() => {
+        setEmailInput(student.email || '');
+      }, 0);
+      return () => clearTimeout(id);
     }
+    return undefined;
   }, [student]);
 
   // Email validation helper: valid format and must end with .com
@@ -70,14 +74,20 @@ export default function SecurityPrivacyPage() {
 
   // Keep email validation state in sync
   useEffect(() => {
-    const { valid, msg } = validateEmail(emailInput);
-    setEmailValid(valid);
-    setEmailError(msg);
+    const id = setTimeout(() => {
+      const { valid, msg } = validateEmail(emailInput);
+      setEmailValid(valid);
+      setEmailError(msg);
+    }, 0);
+    return () => clearTimeout(id);
   }, [emailInput]);
 
   // Update password strength when newPassword changes
   useEffect(() => {
-    setPwStrength(measureStrength(newPassword));
+    const id = setTimeout(() => {
+      setPwStrength(measureStrength(newPassword));
+    }, 0);
+    return () => clearTimeout(id);
   }, [newPassword]);
 
   const isEmailMissing = !student?.email;

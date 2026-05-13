@@ -48,31 +48,35 @@ export default function AcademicCalendarPage() {
             s => s.academic_year === academicYear && s.semester == semester
         );
 
-        if (selected) {
-            // Format YYYY-MM-DD from DB if they contain time
-            setGenStartDate(selected.start_date.split('T')[0]);
-            setGenEndDate(selected.end_date.split('T')[0]);
+        const id = setTimeout(() => {
+            if (selected) {
+                // Format YYYY-MM-DD from DB if they contain time
+                setGenStartDate(selected.start_date.split('T')[0]);
+                setGenEndDate(selected.end_date.split('T')[0]);
 
-            let weekendPattern = [];
-            if (typeof selected.weekend_pattern === 'string') {
-                weekendPattern = JSON.parse(selected.weekend_pattern || '[]');
-            } else if (Array.isArray(selected.weekend_pattern)) {
-                weekendPattern = selected.weekend_pattern;
-            }
-            
-            const newWeekendDays = { SUNDAY: false, MONDAY: false, TUESDAY: false, WEDNESDAY: false, THURSDAY: false, FRIDAY: false, SATURDAY: false };
-            for(const day of weekendPattern) {
-                if(day in newWeekendDays) {
-                    newWeekendDays[day] = true;
+                let weekendPattern = [];
+                if (typeof selected.weekend_pattern === 'string') {
+                    weekendPattern = JSON.parse(selected.weekend_pattern || '[]');
+                } else if (Array.isArray(selected.weekend_pattern)) {
+                    weekendPattern = selected.weekend_pattern;
                 }
+
+                const newWeekendDays = { SUNDAY: false, MONDAY: false, TUESDAY: false, WEDNESDAY: false, THURSDAY: false, FRIDAY: false, SATURDAY: false };
+                for (const day of weekendPattern) {
+                    if (day in newWeekendDays) {
+                        newWeekendDays[day] = true;
+                    }
+                }
+                setWeekendDays(newWeekendDays);
+            } else {
+                // Reset if no data found for the selection
+                setGenStartDate('');
+                setGenEndDate('');
+                setWeekendDays({ SUNDAY: true, MONDAY: false, TUESDAY: false, WEDNESDAY: false, THURSDAY: false, FRIDAY: false, SATURDAY: false });
             }
-            setWeekendDays(newWeekendDays);
-        } else {
-            // Reset if no data found for the selection
-            setGenStartDate('');
-            setGenEndDate('');
-            setWeekendDays({ SUNDAY: true, MONDAY: false, TUESDAY: false, WEDNESDAY: false, THURSDAY: false, FRIDAY: false, SATURDAY: false });
-        }
+        }, 0);
+
+        return () => clearTimeout(id);
     }, [academicYear, semester, allSemesters]);
 
     const handleLoadCalendar = () => {

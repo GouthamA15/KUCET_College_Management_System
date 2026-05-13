@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from 'react';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx-js-style';
 import { branchCodes } from '@/lib/rollNumber';
@@ -237,7 +238,7 @@ const ExportStudents = () => {
                     <td className="px-6 py-4">
                       {student.photo ? (
                         <div className="w-8 h-8 rounded-full border-2 border-indigo-100 overflow-hidden bg-slate-100">
-                           <img src={student.photo} className="w-full h-full object-cover" alt="S" />
+                           <Image src={student.photo} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized />
                         </div>
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400">NA</div>
@@ -246,7 +247,7 @@ const ExportStudents = () => {
                     <td className="px-6 py-4">
                       {student.signature ? (
                         <div className="h-6 w-16 bg-slate-50 border border-slate-100 p-1 flex items-center justify-center">
-                           <img src={student.signature} className="h-full object-contain" alt="SIG" />
+                           <Image src={student.signature} width={64} height={24} className="h-full object-contain" alt="SIG" unoptimized />
                         </div>
                       ) : (
                         <span className="text-[10px] text-slate-400 italic">None</span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 
 export default function BranchAnalytics({ branch }) {
@@ -8,7 +8,7 @@ export default function BranchAnalytics({ branch }) {
   const [loading, setLoading] = useState(true);
   const [selectedSem, setSelectedSem] = useState(6);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/clerk/hod/attendance-analytics?semester=${selectedSem}`);
@@ -21,11 +21,14 @@ export default function BranchAnalytics({ branch }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSem]);
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [selectedSem]);
+    const id = setTimeout(() => {
+      fetchAnalytics();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [fetchAnalytics]);
 
   return (
     <div className="animate-in fade-in duration-500">

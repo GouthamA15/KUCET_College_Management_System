@@ -38,13 +38,7 @@ export default function ProfileUpdatesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (studentData) {
-      fetchRequests();
-    }
-  }, [studentData]);
-
-  async function fetchRequests() {
+  const fetchRequests = async () => {
     try {
       const res = await fetch('/api/student/requests/profile');
       if (res.ok) {
@@ -59,7 +53,16 @@ export default function ProfileUpdatesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (studentData) {
+        fetchRequests();
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [studentData]);
 
   if (contextLoading || loading) {
     return (

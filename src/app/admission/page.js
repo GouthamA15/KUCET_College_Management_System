@@ -6,6 +6,7 @@ import { getEffectiveAcademicYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import Header from '@/components/Header';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
+import { formatIndianNumber } from '@/lib/financial-utils';
 
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
@@ -46,26 +47,21 @@ const AdmissionPage = () => {
     const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
 
     useEffect(() => {
-        const year = getEffectiveAcademicYear();
-        if (form.entrance_exam === 'EAMCET') {
-            setAdmissionYear(`${year}-${year + 4}`);
-        } else if (form.entrance_exam === 'ECET') {
-            setAdmissionYear(`${year}-${year + 3}`);
-        }
+        const id = setTimeout(() => {
+            const year = getEffectiveAcademicYear();
+            if (form.entrance_exam === 'EAMCET') {
+                setAdmissionYear(`${year}-${year + 4}`);
+            } else if (form.entrance_exam === 'ECET') {
+                setAdmissionYear(`${year}-${year + 3}`);
+            }
+        }, 0);
+
+        return () => clearTimeout(id);
     }, [form.entrance_exam]);
 
     const formatAadhaar = (val) => {
         const digits = val.replace(/\D/g, '').slice(0, 12);
         return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
-    };
-
-    const formatIndianNumber = (digits) => {
-        if (!digits) return '';
-        const s = String(digits).replace(/\D/g, '');
-        if (s.length <= 3) return s;
-        const last3 = s.slice(-3);
-        const rest = s.slice(0, -3);
-        return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
     };
 
     const handleFileChange = (e, type) => {
@@ -303,17 +299,17 @@ const AdmissionPage = () => {
 
                         <div className="space-y-1">
                             <label className={labelClasses}>20. Annual Income <span className="text-red-500">*</span></label>
-                            <select 
+                            <input 
                                 required 
                                 value={form.annual_income} 
-                                onChange={e => setForm({...form, annual_income: e.target.value})} 
+                                onChange={e => {
+                                    const raw = e.target.value.replace(/\D/g, '');
+                                    if (raw && parseInt(raw) > 2000000) return;
+                                    setForm({...form, annual_income: formatIndianNumber(raw)});
+                                }} 
                                 className={inputClasses}
-                            >
-                                <option value="">SELECT ANNUAL INCOME RANGE</option>
-                                {COLLEGE_CONFIG.incomeRanges.map(range => (
-                                    <option key={range} value={range}>{range}</option>
-                                ))}
-                            </select>
+                                placeholder="ANNUAL INCOME"
+                            />
                         </div>
 
                         <div className="space-y-1">

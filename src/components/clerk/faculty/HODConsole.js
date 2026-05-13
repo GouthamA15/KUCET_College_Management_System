@@ -48,7 +48,10 @@ export default function HODConsole() {
   // Update localized timetable when semester changes or global data refreshes
   useEffect(() => {
     if (activeSubTab === 'timetable') {
-      fetchSemesterTimetable(selectedSem);
+      const id = setTimeout(() => {
+        fetchSemesterTimetable(selectedSem);
+      }, 0);
+      return () => clearTimeout(id);
     }
   }, [selectedSem, activeSubTab, fetchSemesterTimetable]);
 
@@ -70,7 +73,7 @@ export default function HODConsole() {
       });
   }, [hodBranchData?.allSubjects, selectedSem]);
 
-  const collegeFaculty = hodBranchData?.faculty || [];
+  const collegeFaculty = useMemo(() => hodBranchData?.faculty || [], [hodBranchData?.faculty]);
   const officialAssignments = hodBranchData?.officialAssignments || [];
   
   const departmentalFaculty = useMemo(() => {

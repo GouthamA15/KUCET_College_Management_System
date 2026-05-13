@@ -22,9 +22,12 @@ export default function usePasswordSetup(rollno) {
   }, [rollno]);
 
   useEffect(() => { 
-    if (rollno) {
-      checkPasswordStatus();
-    }
+    const id = setTimeout(() => {
+      if (rollno) {
+        checkPasswordStatus();
+      }
+    }, 0);
+    return () => clearTimeout(id);
   }, [rollno, checkPasswordStatus]);
 
   const handlePasswordSave = async () => {

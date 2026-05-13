@@ -88,17 +88,26 @@ function ScholarshipDashboardContent() {
   useEffect(() => {
     const v = searchParams.get('view');
     const scroll = searchParams.get('scroll');
-    
+
+    let viewTimer;
+    let scrollTimer;
+
     if (v === 'requests' || v === 'certificates') {
-      setView('certificates');
-      
+      viewTimer = setTimeout(() => {
+        setView('certificates');
+      }, 0);
+
       if (scroll === '1') {
-        const timer = setTimeout(() => {
+        scrollTimer = setTimeout(() => {
           smoothScrollToId('certificate-section', { behavior: 'smooth', block: 'start' });
         }, 800);
-        return () => clearTimeout(timer);
       }
     }
+
+    return () => {
+      if (viewTimer) clearTimeout(viewTimer);
+      if (scrollTimer) clearTimeout(scrollTimer);
+    };
   }, [searchParams]);
 
   const [metricsRefreshToken, setMetricsRefreshToken] = useState(0);

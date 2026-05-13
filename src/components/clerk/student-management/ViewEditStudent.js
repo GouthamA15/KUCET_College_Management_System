@@ -8,6 +8,7 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { formatIndianNumber } from '@/lib/financial-utils';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
     <input
@@ -36,97 +37,101 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
   const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
   const [imageLoading, setImageLoading] = useState(true);
 
-  useEffect(() => {
-      if (fetchedStudent?.pfp) {
-          setImageLoading(true);
-      }
-  }, [fetchedStudent]);
-
-  useEffect(() => {
-    if (fetchedStudent) {
-      const pd = fetchedStudent.personal_details || {};
-      const initialEdit = {
-        admission_no: fetchedStudent.admission_no || null,
-        roll_no: fetchedStudent.roll_no || null,
-        fee_reimbursement: fetchedStudent.fee_reimbursement || null,
-        name: fetchedStudent.name || null,
-        date_of_birth: formatDate(fetchedStudent.date_of_birth) || null,
-        gender: fetchedStudent.gender || 'Male',
-        admission_type: getAdmissionTypeFromRoll(fetchedStudent.roll_no) || null,
-        course: getBranchFromRoll(fetchedStudent.roll_no) || null,
-        mobile: sanitizeDigits(fetchedStudent.mobile || '' , 10) || null,
-        email: fetchedStudent.email || null,
-        address: pd.address || fetchedStudent.address || null,
-        father_occupation: pd.father_occupation || null,
-        annual_income: pd.annual_income || null
-      };
-      setEditValues(initialEdit);
-      setOriginalEditValues(JSON.parse(JSON.stringify(initialEdit)));
-
-      const initialPersonal = {
-        father_name: pd.father_name || fetchedStudent.father_name || null,
-        mother_name: pd.mother_name || null,
-        nationality: pd.nationality || null,
-        religion: pd.religion || null,
-        category: pd.category || fetchedStudent.category || 'OC',
-        sub_caste: pd.sub_caste || null,
-        area_status: pd.area_status || 'Local',
-        mother_tongue: pd.mother_tongue || null,
-        place_of_birth: pd.place_of_birth || null,
-        father_occupation: pd.father_occupation || null,
-        annual_income: pd.annual_income || null,
-        guardian_mobile: pd.guardian_mobile || null,
-        aadhaar_no: pd.aadhaar_no || null,
-        blood_group: pd.blood_group || null,
-        address: pd.address || fetchedStudent.address || null,
-        seat_allotted_category: pd.seat_allotted_category || null,
-        identification_marks: pd.identification_marks || null
-      };
-      setPersonalFull(initialPersonal);
-      setOriginalPersonalFull(JSON.parse(JSON.stringify(initialPersonal)));
-
-      const initialAcademics = Array.isArray(fetchedStudent.academics) ? fetchedStudent.academics : [];
-      let currentQualifyingExam = initialAcademics.length > 0 ? initialAcademics[0].qualifying_exam : '';
-      let currentRanks = initialAcademics.length > 0 ? initialAcademics[0].ranks : '';
-      let currentSscMarks = initialAcademics.length > 0 ? initialAcademics[0].ssc_marks : '';
-      let currentInterMarks = initialAcademics.length > 0 ? initialAcademics[0].inter_marks : '';
-
-      if (!currentQualifyingExam) {
-        currentQualifyingExam = getEntranceExamQualified(fetchedStudent.roll_no) || 'EAMCET';
-      }
-      if (initialAcademics.length === 0) {
-        initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks });
-      } else {
-        initialAcademics[0] = { ...initialAcademics[0], qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks };
-      }
-      setAcademicsList(initialAcademics);
-      setOriginalAcademicsList(JSON.parse(JSON.stringify(initialAcademics)));
-
-      setFeesList(Array.isArray(fetchedStudent.fees) ? fetchedStudent.fees : []);
-      setFeeDetails(fetchedStudent.student_fee_details || null);
-    }
-  }, [fetchedStudent]);
-
   const sanitizeDigits = (input, maxLen = 10) => {
     if (input == null) return '';
     const s = String(input).replace(/\D/g, '');
     return s.slice(0, maxLen);
   };
+
+  useEffect(() => {
+    if (fetchedStudent?.pfp) {
+      const id = setTimeout(() => setImageLoading(true), 0);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [fetchedStudent?.pfp]);
+
+  useEffect(() => {
+    if (!fetchedStudent) return undefined;
+
+    const pd = fetchedStudent.personal_details || {};
+    const initialEdit = {
+      admission_no: fetchedStudent.admission_no || null,
+      roll_no: fetchedStudent.roll_no || null,
+      fee_reimbursement: fetchedStudent.fee_reimbursement || null,
+      name: fetchedStudent.name || null,
+      date_of_birth: formatDate(fetchedStudent.date_of_birth) || null,
+      gender: fetchedStudent.gender || 'Male',
+      admission_type: getAdmissionTypeFromRoll(fetchedStudent.roll_no) || null,
+      course: getBranchFromRoll(fetchedStudent.roll_no) || null,
+      mobile: sanitizeDigits(fetchedStudent.mobile || '' , 10) || null,
+      email: fetchedStudent.email || null,
+      address: pd.address || fetchedStudent.address || null,
+      father_occupation: pd.father_occupation || null,
+      annual_income: pd.annual_income || null
+    };
+
+    const initialPersonal = {
+      father_name: pd.father_name || fetchedStudent.father_name || null,
+      mother_name: pd.mother_name || null,
+      nationality: pd.nationality || null,
+      religion: pd.religion || null,
+      category: pd.category || fetchedStudent.category || 'OC',
+      sub_caste: pd.sub_caste || null,
+      area_status: pd.area_status || 'Local',
+      mother_tongue: pd.mother_tongue || null,
+      place_of_birth: pd.place_of_birth || null,
+      father_occupation: pd.father_occupation || null,
+      annual_income: pd.annual_income || null,
+      guardian_mobile: pd.guardian_mobile || null,
+      aadhaar_no: pd.aadhaar_no || null,
+      blood_group: pd.blood_group || null,
+      address: pd.address || fetchedStudent.address || null,
+      seat_allotted_category: pd.seat_allotted_category || null,
+      identification_marks: pd.identification_marks || null
+    };
+
+    // Copy arrays so we never mutate props.
+    const initialAcademics = Array.isArray(fetchedStudent.academics) ? [...fetchedStudent.academics] : [];
+    let currentQualifyingExam = initialAcademics.length > 0 ? initialAcademics[0].qualifying_exam : '';
+    let currentRanks = initialAcademics.length > 0 ? initialAcademics[0].ranks : '';
+    let currentSscMarks = initialAcademics.length > 0 ? initialAcademics[0].ssc_marks : '';
+    let currentInterMarks = initialAcademics.length > 0 ? initialAcademics[0].inter_marks : '';
+
+    if (!currentQualifyingExam) {
+      currentQualifyingExam = getEntranceExamQualified(fetchedStudent.roll_no) || 'EAMCET';
+    }
+    if (initialAcademics.length === 0) {
+      initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks });
+    } else {
+      initialAcademics[0] = { ...initialAcademics[0], qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks };
+    }
+
+    const feesCopy = Array.isArray(fetchedStudent.fees) ? [...fetchedStudent.fees] : [];
+    const feeDet = fetchedStudent.student_fee_details || null;
+
+    const id = setTimeout(() => {
+      setEditValues(initialEdit);
+      setOriginalEditValues(JSON.parse(JSON.stringify(initialEdit)));
+
+      setPersonalFull(initialPersonal);
+      setOriginalPersonalFull(JSON.parse(JSON.stringify(initialPersonal)));
+
+      setAcademicsList(initialAcademics);
+      setOriginalAcademicsList(JSON.parse(JSON.stringify(initialAcademics)));
+
+      setFeesList(feesCopy);
+      setFeeDetails(feeDet);
+    }, 0);
+
+    return () => clearTimeout(id);
+  }, [fetchedStudent]);
   
   const formatAadhaar = (val) => {
     if (val == null) return '';
     const digits = String(val).replace(/\D/g, '').slice(0, 12);
     if (!digits) return '';
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
-  };
-
-  const formatIndianNumber = (digits) => {
-    if (!digits) return '';
-    const s = String(digits).replace(/\D/g, '');
-    if (s.length <= 3) return s;
-    const last3 = s.slice(-3);
-    const rest = s.slice(0, -3);
-    return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
   };
 
   const handleSaveEdits = async () => {
@@ -153,7 +158,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         mother_tongue: personalFull.mother_tongue,
         place_of_birth: personalFull.place_of_birth,
         father_occupation: personalFull.father_occupation,
-        annual_income: personalFull.annual_income,
+        annual_income: personalFull.annual_income ? personalFull.annual_income.toString().replace(/,/g, '') : null,
         guardian_mobile: personalFull.guardian_mobile,
         aadhaar_no: personalFull.aadhaar_no,
         address: personalFull.address,
@@ -333,21 +338,16 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 <input placeholder="Mother Tongue" value={personalFull.mother_tongue || ''} onChange={e=>setPersonalFull({...personalFull, mother_tongue:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Place of Birth" value={personalFull.place_of_birth || ''} onChange={e=>setPersonalFull({...personalFull, place_of_birth:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Father Occupation" value={personalFull.father_occupation || ''} onChange={e=>setPersonalFull({...personalFull, father_occupation:e.target.value})} className="p-2 border rounded" />
-                <select 
+                <input 
+                  placeholder="Annual Income"
                   value={personalFull.annual_income || ''} 
-                  onChange={e=>setPersonalFull({...personalFull, annual_income:e.target.value})} 
+                  onChange={e => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    if (raw && parseInt(raw) > 2000000) return;
+                    setPersonalFull({...personalFull, annual_income: formatIndianNumber(raw)});
+                  }} 
                   className="p-2 border rounded"
-                >
-                  <option value="">Select Annual Income</option>
-                  {Array.isArray(COLLEGE_CONFIG.incomeRanges) && COLLEGE_CONFIG.incomeRanges.map(range => (
-                    <option key={range} value={range}>{range}</option>
-                  ))}
-                  {personalFull.annual_income && Array.isArray(COLLEGE_CONFIG.incomeRanges) && !COLLEGE_CONFIG.incomeRanges.includes(personalFull.annual_income) && (
-                    <option key={personalFull.annual_income} value={personalFull.annual_income} className="text-gray-500">
-                      {personalFull.annual_income} (legacy)
-                    </option>
-                  )}
-                </select>
+                />
                 <div className="flex items-center">
                   <span className="px-3 py-2 border border-r-0 bg-gray-100 text-sm text-gray-500 font-medium">+91</span>
                   <input

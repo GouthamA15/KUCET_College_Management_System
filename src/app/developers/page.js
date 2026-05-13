@@ -18,11 +18,7 @@ export default function DevelopersPage() {
   const [bugReports, setBugReports] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    fetchBugReports();
-  }, []);
-
-  const fetchBugReports = async () => {
+  async function fetchBugReports() {
     try {
       const res = await fetch('/api/bugs');
       if (res.ok) {
@@ -32,7 +28,14 @@ export default function DevelopersPage() {
     } catch (error) {
       console.error('Failed to fetch bug reports:', error);
     }
-  };
+  }
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      fetchBugReports();
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];

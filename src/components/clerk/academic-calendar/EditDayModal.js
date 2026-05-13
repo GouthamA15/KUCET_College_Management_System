@@ -8,8 +8,11 @@ const EditDayModal = ({ day, data, academicYear, semester, onClose, onSave }) =>
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        setDayType(data?.day_type || 'WORKING');
-        setHolidayName(data?.holiday_name || '');
+        const id = setTimeout(() => {
+            setDayType(data?.day_type || 'WORKING');
+            setHolidayName(data?.holiday_name || '');
+        }, 0);
+        return () => clearTimeout(id);
     }, [data]);
 
     const handleSubmit = async (e) => {

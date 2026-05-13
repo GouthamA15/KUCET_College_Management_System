@@ -34,7 +34,10 @@ export default function PersonalSchedule() {
   }, []);
 
   useEffect(() => {
-    fetchMySchedule();
+    const id = setTimeout(() => {
+      fetchMySchedule();
+    }, 0);
+    return () => clearTimeout(id);
   }, [fetchMySchedule]);
 
   const handleRealtimeUpdate = (data) => {

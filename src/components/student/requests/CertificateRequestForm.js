@@ -108,7 +108,7 @@ export default function CertificateRequestForm({
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [selectedCertificate]);
+  }, [selectedCertificate, paymentPreviewUrl]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
