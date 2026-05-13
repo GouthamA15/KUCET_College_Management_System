@@ -7,15 +7,16 @@ import toast from 'react-hot-toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const StudentUpdateRequestsPanel = () => {
-  const { clerkData: clerk, loading: isLoading } = useClerk();
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { clerkData: clerk, loading: isContextLoading, pendingProfileRequests, isLoadingRequests, refreshProfileRequests } = useClerk();
   
   const [rejectingRequest, setRejectingRequest] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
 
   const [viewingImage, setViewingImage] = useState(null);
+
+  const requests = pendingProfileRequests || [];
+  const loading = isLoadingRequests && requests.length === 0;
 
   const formatIstDateTimeUpper = (value) => {
     if (!value) return '';
@@ -41,27 +42,10 @@ const StudentUpdateRequestsPanel = () => {
   };
 
   useEffect(() => {
-    if (!isLoading && clerk && clerk.role === 'admission') {
-      fetchRequests();
+    if (!isContextLoading && clerk && clerk.role === 'admission' && requests.length === 0) {
+      refreshProfileRequests();
     }
-  }, [clerk, isLoading]);
-
-  const fetchRequests = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/clerk/admission/student-requests');
-      const data = await res.json();
-      if (res.ok) {
-        setRequests(data.data || []);
-      } else {
-        toast.error(data.error || 'Access to records office failed');
-      }
-    } catch (err) {
-      toast.error('System synchronization error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [clerk, isContextLoading, requests.length, refreshProfileRequests]);
 
   const handleAction = async (requestId, action, reason = null) => {
     setProcessing(true);
@@ -80,7 +64,7 @@ const StudentUpdateRequestsPanel = () => {
         toast.success(`Application ${action === 'approve' ? 'validated and applied' : 'rejected'} successfully`, { id: toastId });
         setRejectingRequest(null);
         setRejectionReason('');
-        fetchRequests();
+        refreshProfileRequests();
       } else {
         const data = await res.json();
         toast.error(data.error || 'Database operation failed', { id: toastId });
@@ -96,7 +80,7 @@ const StudentUpdateRequestsPanel = () => {
     return str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
-  if (isLoading || loading) {
+  if (isContextLoading || (loading && requests.length === 0)) {
     return (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <div className="animate-spin h-6 w-6 border-2 border-[#0b3578] border-t-transparent rounded-full mb-4"></div>

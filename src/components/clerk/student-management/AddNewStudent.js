@@ -8,6 +8,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { validateRollNo, getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
+import { formatIndianNumber } from '@/lib/financial-utils';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
   <input
@@ -38,28 +39,32 @@ export default function AddNewStudent() {
   const [isTotalMarksAutofilled, setIsTotalMarksAutofilled] = useState(false);
 
   useEffect(() => {
-    if (basic.roll_no) {
-      // Enforce roll length client-side
-      const trimmed = String(basic.roll_no || '').toUpperCase().slice(0, MAX_ROLL);
-      if (trimmed !== basic.roll_no) setBasic(prev=>({ ...prev, roll_no: trimmed }));
-      const { isValid } = validateRollNo(basic.roll_no);
-      if (basic.roll_no.length === MAX_ROLL && isValid) {
-        setRollNoError('');
-      } else if (basic.roll_no.length === MAX_ROLL && !isValid) {
-        setRollNoError('Invalid Roll Number format.');
-      } else {
-        setRollNoError(`Roll Number must be exactly ${MAX_ROLL} characters long`);
-      }
-      const entranceExam = getEntranceExamQualified(basic.roll_no);
-      let newQualifyingExam = entranceExam || 'EAMCET';
+    const id = setTimeout(() => {
+      if (basic.roll_no) {
+        // Enforce roll length client-side
+        const trimmed = String(basic.roll_no || '').toUpperCase().slice(0, MAX_ROLL);
+        if (trimmed !== basic.roll_no) setBasic(prev => ({ ...prev, roll_no: trimmed }));
+        const { isValid } = validateRollNo(basic.roll_no);
+        if (basic.roll_no.length === MAX_ROLL && isValid) {
+          setRollNoError('');
+        } else if (basic.roll_no.length === MAX_ROLL && !isValid) {
+          setRollNoError('Invalid Roll Number format.');
+        } else {
+          setRollNoError(`Roll Number must be exactly ${MAX_ROLL} characters long`);
+        }
+        const entranceExam = getEntranceExamQualified(basic.roll_no);
+        const newQualifyingExam = entranceExam || 'EAMCET';
 
-      setAcademic(prev => ({ ...prev, qualifying_exam: newQualifyingExam, ranks: '' })); // Initialize ranks to empty
-      setIsTotalMarksAutofilled(false); // Ranks is not autofilled based on exam
-    } else {
-      setRollNoError('');
-      setAcademic(prev => ({ ...prev, qualifying_exam: 'EAMCET', ranks: '' })); // Reset to default if rollNo is empty
-      setIsTotalMarksAutofilled(false);
-    }
+        setAcademic(prev => ({ ...prev, qualifying_exam: newQualifyingExam, ranks: '' })); // Initialize ranks to empty
+        setIsTotalMarksAutofilled(false); // Ranks is not autofilled based on exam
+      } else {
+        setRollNoError('');
+        setAcademic(prev => ({ ...prev, qualifying_exam: 'EAMCET', ranks: '' })); // Reset to default if rollNo is empty
+        setIsTotalMarksAutofilled(false);
+      }
+    }, 0);
+
+    return () => clearTimeout(id);
   }, [basic.roll_no]);
 
   const addRequiredFilled = () => {
@@ -71,15 +76,6 @@ export default function AddNewStudent() {
     const digits = String(val).replace(/\D/g, '').slice(0, 12);
     if (!digits) return '';
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
-  };
-
-  const formatIndianNumber = (digits) => {
-    if (!digits) return '';
-    const s = String(digits).replace(/\D/g, '');
-    if (s.length <= 3) return s;
-    const last3 = s.slice(-3);
-    const rest = s.slice(0, -3);
-    return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
   };
 
   const handleFileChange = (e, type) => {
@@ -126,7 +122,7 @@ export default function AddNewStudent() {
         qualifying_exam: academic.qualifying_exam || null,
         mother_tongue: personal.mother_tongue || null,
         father_occupation: personal.father_occupation || null,
-        annual_income: personal.annual_income || null,
+        annual_income: personal.annual_income ? personal.annual_income.toString().replace(/,/g, '') : null,
         guardian_mobile: personal.guardian_mobile || null,
         student_aadhar_no: personal.aadhaar_no || null,
         ranks: academic.ranks ? Number(academic.ranks) : null,
@@ -240,16 +236,16 @@ export default function AddNewStudent() {
             <input placeholder="Mother Tongue" value={personal.mother_tongue} onChange={e=>setPersonal({...personal, mother_tongue:e.target.value})} className="p-2 border rounded" />
             <input placeholder="Place of Birth" value={personal.place_of_birth} onChange={e=>setPersonal({...personal, place_of_birth:e.target.value})} className="p-2 border rounded" />
             <input placeholder="Father Occupation" value={personal.father_occupation} onChange={e=>setPersonal({...personal, father_occupation:e.target.value})} className="p-2 border rounded" />
-            <select 
+            <input 
+              placeholder="Annual Income"
               value={personal.annual_income} 
-              onChange={e => setPersonal({...personal, annual_income: e.target.value})} 
+              onChange={e => {
+                const raw = e.target.value.replace(/\D/g, '');
+                if (raw && parseInt(raw) > 2000000) return;
+                setPersonal({...personal, annual_income: formatIndianNumber(raw)});
+              }} 
               className="p-2 border rounded"
-            >
-              <option value="">Select Annual Income</option>
-              {Array.isArray(COLLEGE_CONFIG.incomeRanges) && COLLEGE_CONFIG.incomeRanges.map(range => (
-                <option key={range} value={range}>{range}</option>
-              ))}
-            </select>
+            />
             <div className="flex items-center">
               <span className="px-3 py-2 border border-r-0 bg-gray-100 text-sm text-gray-500 font-medium">+91</span>
               <input

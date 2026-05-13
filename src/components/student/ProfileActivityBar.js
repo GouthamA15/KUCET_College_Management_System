@@ -3,7 +3,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import AttendanceVerificationActivity from './AttendanceVerificationActivity';
-import { isCapacitor, downloadToDevice } from '@/lib/capacitor-utils';
 import useActivityDismissal from '@/components/student/hooks/useActivityDismissal';
 
 export default function ProfileActivityBar({ activity, student }) {
@@ -65,7 +64,10 @@ export default function ProfileActivityBar({ activity, student }) {
   }, [student]);
 
   useEffect(() => {
-    fetchSessions();
+    const timer = setTimeout(() => {
+      fetchSessions();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchSessions]);
 
   useEffect(() => {
@@ -103,19 +105,14 @@ export default function ProfileActivityBar({ activity, student }) {
       
       const filename = `${type}-${id}.pdf`;
 
-      if (isCapacitor()) {
-        await downloadToDevice(blob, filename, 'application/pdf');
-        toast.success('Certificate downloaded successfully!');
-      } else {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (e) {
       console.error('Download error:', e);
     }

@@ -29,7 +29,9 @@ export default function FacultyActivityBar() {
 
   useEffect(() => {
     isUnmountedRef.current = false;
-    fetchActivity();
+    const id = setTimeout(() => {
+      fetchActivity();
+    }, 0);
     
     // Check for period transitions every 30 seconds
     const interval = setInterval(() => {
@@ -52,6 +54,7 @@ export default function FacultyActivityBar() {
     
     return () => {
       isUnmountedRef.current = true;
+      clearTimeout(id);
       clearInterval(interval);
       clearInterval(backupInterval);
     };

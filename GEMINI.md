@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 12, 2026 (Session 101)
+**Last Updated:** May 12, 2026 (Session 105)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -26,13 +26,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Fee Management:** Year-wise fee tracking with payment history and scholarship impact
 - **Academic Calendar:** Institutional calendar with holidays and working day management
 - **Database-Driven Syllabus:** Transitioned from hardcoded JS files to a normalized MySQL schema for curriculum management.
+- **Web-First Architecture:** Transitioned from a Capacitor-based native mobile app to a pure Web/PWA architecture.
 
 ---
 
 ## 2. Technical Stack
 - **Frontend:** Next.js 16.1.6, React 19.2.4, Tailwind CSS 4
 - **Backend:** Next.js API Routes (App Router), Node.js
-- **Mobile (Native):** Capacitor 7 (Android) with GPS-based geolocation and local notifications.
+- **Mobile (Web):** Progressive Web App (PWA) with offline support and push notifications.
 - **Database:** TiDB Cloud (MySQL-compatible Serverless), accessed via `mysql2/promise` with SSL/TLS enforcement. Integrated with **Drizzle ORM** for type-safe querying and versioned migrations.
 - **Authentication:** JWT-based (HTTP-only cookies) using `jose` for edge-runtime compatibility. Includes native Google OAuth support via `next-auth` and `google-auth-library`.
 - **Real-Time:** Supabase Realtime (WebSockets) for lightweight server-to-client broadcasting, with Redis Pub/Sub (`ioredis`) for distributed SSE.
@@ -266,6 +267,90 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Admission Flow Optimization:** Updated `tests/admission.spec.js` to correctly interact with the newly implemented range-based `select` element for Annual Income, resolving test timeouts and aligning the test with the updated UI.
     - **Data Processing Refinement:** Removed legacy comma-stripping logic from the `annual_income` field payload in `src/app/admission/page.js` to ensure the admission form correctly processes descriptive income ranges according to the institutional configuration (`COLLEGE_CONFIG`).
     - **Session Emulation Hardening:** Fixed a middleware redirection issue in `tests/attendance.spec.js` by explicitly injecting the `student_logged_in` companion cookie and enforcing precise URL scoping for injected mock authentication tokens.
+
+---
+
+#### **Session 103: Service Layer Testing Excellence & Stress Readiness (May 12, 2026)**
+- **Unit Testing Infrastructure:**
+    - Integrated **Vitest** and **V8 Coverage** into the institutional development stack.
+    - Achieved **89%+ branch coverage** across `src/services`, establishing a rigorous quality gate for core business logic (Student, Faculty, and Health services).
+    - Developed a standardized mocking pattern for **Drizzle ORM** and external integrations (Redis, Email), enabling rapid and isolated service-level verification.
+- **Stress Testing Strategy:**
+    - Finalized the **k6 "Morning Rush" Load Test** script (`load-test-attendance.js`).
+    - Engineered simulation payloads to mimic 500 concurrent students marking attendance with GPS-based verification within a 2-minute window.
+    - Established performance thresholds: **P(95) < 500ms** and **Error Rate < 1%** for all mission-critical attendance endpoints.
+- **CI Integration:**
+    - Updated `package.json` with dedicated testing targets: `test:unit` and `test:coverage`.
+    - Integrated unit testing as a mandatory pre-deployment gate, ensuring high reliability for institutional data processing.
+
+---
+
+#### **Session 104: Comprehensive Backend Security Hardening (May 12, 2026)**
+- **Vulnerability Resolution:**
+    - Conducted a full npm security audit, identifying and resolving **15 vulnerabilities** (including 2 Critical and 5 High severity risks) across nested backend and build dependencies.
+- **NPM Overrides Strategy:**
+    - **`mysql2` (Critical):** Mitigated Remote Code Execution (RCE) and Prototype Pollution risks originating from the `mysqldump` utility by enforcing `mysql2@^3.16.0` globally via package overrides.
+    - **`serialize-javascript` (High):** Resolved RCE and DoS vulnerabilities in Next.js PWA build tools by enforcing `serialize-javascript@^7.0.5`.
+    - **`esbuild` & `postcss` (Moderate):** Hardened the build pipeline against XSS and server spoofing by enforcing `esbuild@^0.25.0` and `postcss@^8.5.14` across `drizzle-kit`, `tsx`, and `tailwindcss`.
+- **System Integrity:**
+    - Re-verified database generation (`drizzle-kit`) and unit testing (`vitest`) workflows to ensure the aggressive security overrides did not introduce regressions or break the institutional architecture.
+    - **Test Environment Isolation:** Resolved a critical conflict where the Playwright test runner incorrectly attempted to execute Vitest unit tests. Hardened `playwright.config.js` with explicit `testMatch` and `testIgnore` rules to strictly separate E2E and Unit testing domains.
+
+---
+
+#### **Session 105: Student Data Migration & Excel Export Infrastructure (May 12, 2026)**
+- **Migration Bridge Architecture:**
+    - Developed a comprehensive data extraction system to bridge the KUCET CMS with external University Management Databases (UMD). 
+- **Service Layer Intelligence:**
+    - Enhanced `StudentService` with `getFullStudentDataForExport`, implementing complex multi-table joins across `students`, `personal_details`, `academic_background`, `student_images`, and `student_signatures`.
+    - Integrated on-the-fly decryption for sensitive fields (Mobile, Aadhaar) during the export lifecycle to ensure the migration file contains actionable plain-text data for the target system.
+- **API & Security:**
+    - Engineered the `/api/clerk/admission/export-students` endpoint, restricted to authenticated Admission Clerks, supporting granular filtering by Branch and Admission Batch.
+    - **Bug Fix:** Resolved a `401 Unauthorized` error in the export API caused by an incorrect `getAuthUser` parameter signature.
+- **Professional Excel Generation:**
+    - Implemented `ExportStudents.js` using `xlsx-js-style`. The system now generates high-density, professional Excel workbooks with:
+        - **30+ Institutional Fields:** Covering every detail from the admission form.
+        - **Asset Traceability:** Secure Cloudinary URLs for Profile Photos and Digital Signatures, enabling remote ingestion by university systems.
+        - **Registry Styling:** Automated column sizing and institutional Indigo-themed header formatting.
+- **UI Integration:**
+    - Seamlessly integrated the "Export to Excel (Migration)" utility into the primary Student Management dashboard.
+
+---
+
+#### **Session 106: Migration Workflow Refinement (May 12, 2026)**
+- **Batch Range Logic:**
+    - Refactored the Admission Batch selection to display 4-year degree ranges (e.g., "Batch 2023 - 2027") for better administrative clarity.
+    - Enhanced `StudentService` to robustly match roll numbers by extracting the start year from both academic-year and batch-range strings.
+- **Pre-Export Data Preview:**
+    - Implemented a "Fetch Before Download" workflow in the migration module.
+    - Added a high-density preview table that displays core student details (Name, Roll, Aadhaar, Mobile) and asset thumbnails (Photo/Signature) to allow clerks to verify registry integrity before generating the master migration file.
+- **UX & Feedback:**
+    - Integrated real-time status indicators ("Scanning Registry...") and count-based summaries for the fetched data.
+    - Automated file naming convention to include Branch and Batch Range for better organizational traceability.
+
+---
+
+#### **Session 107: Mobile Application Decoupling (May 12, 2026)**
+- **Capacitor Removal:**
+    - Systematically uninstalled all Capacitor-related dependencies (`@capacitor/core`, `@capacitor/android`, `@capacitor/cli`, etc.) and third-party plugins.
+    - Deleted the `android` native project folder and `capacitor.config.ts` to streamline the web-first repository.
+- **Codebase Sanitization:**
+    - Removed `CapacitorHandler.client.js` and decoupled mobile-specific logic from the `RootLayout`.
+    - Sanitized `RealtimeListener.js` by removing calls to native push notifications via `showLocalNotification`.
+    - Deleted obsolete mobile utilities: `capacitor-utils.js`, `notification-utils.js`, and the `update-mobile-app.js` maintenance script.
+- **Architectural Shift:**
+    - Transitioned the project to a pure web/PWA architecture, with native mobile development moved to a separate local workflow to reduce core repository bloat.
+
+#### **Session 108: Capacitor Cleanup & Web-First Hardening (May 12, 2026)**
+- **Codebase Sanitization:**
+    - Systematically removed all remaining Capacitor imports and logic across the codebase (`Hero.js`, `LoginPanel.js`, `CertificateRequestsPage`, `ProfileActivityBar`).
+    - Resolved `Module not found` errors caused by legacy imports of `@capacitor/core`, `@capgo/capacitor-social-login`, and deleted utility files (`capacitor-utils.js`, `notification-utils.js`).
+- **Authentication Simplification:**
+    - Refactored the `LoginPanel` to utilize browser-based Google OAuth exclusively, eliminating redundant native social login handlers.
+- **Download Workflow Standardization:**
+    - Standardized certificate download logic to use native browser Blob handling, ensuring consistent behavior across all devices in the new pure-web architecture.
+- **Documentation Update:**
+    - Synchronized the technical stack documentation to reflect the transition from a native mobile focus to a high-performance Progressive Web App (PWA).
 
 ### April 2026
 

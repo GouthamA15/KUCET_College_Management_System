@@ -91,7 +91,12 @@ function AcademicsInner({ studentData, collegeInfo }) {
     }
   };
 
-  useEffect(() => { fetchAcademicInfo(false); }, [fetchAcademicInfo]);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      fetchAcademicInfo(false);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [fetchAcademicInfo]);
 
   // removed unused helpers: getPercentageColor, overallAttendance
   // resolve syllabus URL via helper that uses rollNumber utilities

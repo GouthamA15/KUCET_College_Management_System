@@ -1,12 +1,43 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
 export default function AttendanceVerificationActivity({ sessions, onSessionVerified }) {
   const [pinByAssignment, setPinByAssignment] = useState({});
   const [submittingId, setSubmittingId] = useState(null);
   const [statusByAssignment, setStatusByAssignment] = useState({});
+  const [deviceId, setDeviceId] = useState(null);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try {
+        const existing = localStorage.getItem('kucet_device_uuid');
+        if (existing) {
+          setDeviceId(existing);
+          return;
+        }
+
+        if (typeof crypto === 'undefined' || typeof crypto.getRandomValues !== 'function') {
+          // Extremely old browser fallback; keeps app functional even without a strong ID.
+          const fallback = 'kucet_device_no_crypto';
+          localStorage.setItem('kucet_device_uuid', fallback);
+          setDeviceId(fallback);
+          return;
+        }
+
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        const created = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem('kucet_device_uuid', created);
+        setDeviceId(created);
+      } catch (error) {
+        // ignore (localStorage can throw in some private modes)
+      }
+    }, 0);
+
+    return () => clearTimeout(id);
+  }, []);
 
   if (!sessions || sessions.length === 0) return null;
 
@@ -41,10 +72,11 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
         return;
       }
 
-      let deviceId = localStorage.getItem('kucet_device_uuid');
-      if (!deviceId) {
-        deviceId = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        localStorage.setItem('kucet_device_uuid', deviceId);
+      const resolvedDeviceId = deviceId || localStorage.getItem('kucet_device_uuid');
+      if (!resolvedDeviceId) {
+        toast.error('Device ID not ready. Please retry.');
+        setSubmittingId(null);
+        return;
       }
 
       const pos = await new Promise((resolve, reject) => {
@@ -66,7 +98,7 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
           latitude,
           longitude,
           accuracy,
-          device_id: deviceId,
+          device_id: resolvedDeviceId,
         }),
       });
 

@@ -135,23 +135,31 @@ export default function FacultyAcademicCalendar({ assignment, selectedDate, onSe
   }, [academicYear, academicTerm, currentMonth, currentYear]);
 
   useEffect(() => {
-    // If academicTerm is not provided by the assignment, avoid leaving the
-    // component stuck in loading state. Show nothing and skip fetches.
-    if (!academicYear || !academicTerm) {
-      setLoading(false);
-      return;
-    }
+    const id = setTimeout(() => {
+      // If academicTerm is not provided by the assignment, avoid leaving the
+      // component stuck in loading state. Show nothing and skip fetches.
+      if (!academicYear || !academicTerm) {
+        setLoading(false);
+        return;
+      }
 
-    fetchSemesterWindow();
+      fetchSemesterWindow();
+    }, 0);
+
+    return () => clearTimeout(id);
   }, [fetchSemesterWindow, academicYear, academicTerm]);
 
   useEffect(() => {
-    if (!academicYear || !academicTerm) {
-      setLoading(false);
-      return;
-    }
+    const id = setTimeout(() => {
+      if (!academicYear || !academicTerm) {
+        setLoading(false);
+        return;
+      }
 
-    fetchCalendar();
+      fetchCalendar();
+    }, 0);
+
+    return () => clearTimeout(id);
   }, [fetchCalendar, academicYear, academicTerm]);
 
   const isWithinSemester = (dateStr) => {

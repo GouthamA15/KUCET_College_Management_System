@@ -10,7 +10,6 @@ import CertificateRequestForm from '../../../../components/student/requests/Cert
 import RequestHistoryDesktop from '../../../../components/student/requests/RequestHistoryDesktop';
 import RequestHistoryMobile from '../../../../components/student/requests/RequestHistoryMobile';
 import RejectDetailsModal from '../../../../components/student/requests/RejectDetailsModal';
-import { isCapacitor, downloadToDevice } from '@/lib/capacitor-utils';
 import { smoothScrollToId } from '@/lib/scroll-utils';
 
 // Page-level UPI VPA (source of truth for UPI ID)
@@ -78,15 +77,26 @@ export default function CertificateRequestsPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 767px)');
-    setIsMobile(mq.matches);
+    
+    // Initial sync - deferred to avoid synchronous setState in effect
+    const timeoutId = setTimeout(() => {
+      setIsMobile(mq.matches);
+    }, 0);
+
     const handler = (e) => setIsMobile(e.matches);
     
     if (mq.addEventListener) {
       mq.addEventListener('change', handler);
-      return () => mq.removeEventListener('change', handler);
+      return () => {
+        clearTimeout(timeoutId);
+        mq.removeEventListener('change', handler);
+      };
     } else {
       mq.addListener(handler);
-      return () => mq.removeListener(handler);
+      return () => {
+        clearTimeout(timeoutId);
+        mq.removeListener(handler);
+      };
     }
   }, []);
 
@@ -121,19 +131,14 @@ export default function CertificateRequestsPage() {
         }
       }
 
-      if (isCapacitor()) {
-        await downloadToDevice(blob, filename, 'application/pdf');
-        toast.success('Certificate downloaded successfully!');
-      } else {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename || `Certificate_${req.roll_number || 'certificate'}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || `Certificate_${req.roll_number || 'certificate'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Download error', error);
       setDownloadErrors(prev => ({ ...prev, [req.request_id]: 'Failed to generate certificate. Try again.' }));

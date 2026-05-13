@@ -21,7 +21,10 @@ export default function AssignedSubjectsList({ onSelectAssignment = () => {}, sh
   };
 
   useEffect(() => {
-    fetchAssignments();
+    const id = setTimeout(() => {
+      fetchAssignments();
+    }, 0);
+    return () => clearTimeout(id);
   }, []);
 
   if (loading) return <div className="text-center py-4">Loading assignments...</div>;

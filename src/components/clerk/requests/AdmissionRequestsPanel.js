@@ -3,13 +3,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { useClerk } from '@/context/ClerkContext';
 
 // Only Blood Group uses dropdown options; other fields are plain inputs
 const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
 const AdmissionRequestsPanel = () => {
-    const [drafts, setDrafts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { admissionDrafts, isLoadingRequests, refreshAdmissionDrafts } = useClerk();
     const [selectedDraftId, setSelectedDraftId] = useState(null);
     const [detail, setDetail] = useState(null);
     const [fetchingDetail, setFetchingDetail] = useState(false);
@@ -23,19 +23,8 @@ const AdmissionRequestsPanel = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditData] = useState({});
 
-    const fetchDrafts = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await fetch('/api/clerk/admission/drafts?status=DRAFT');
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to fetch drafts.');
-            setDrafts(data.data);
-        } catch (error) {
-            toast.error(error.message);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const drafts = admissionDrafts || [];
+    const loading = isLoadingRequests && drafts.length === 0;
 
     const fetchDetail = useCallback(async (id) => {
         setFetchingDetail(true);
@@ -82,7 +71,7 @@ const AdmissionRequestsPanel = () => {
             setSelectedDraftId(null);
             setRejectionMode(false);
             setRejectionReason('');
-            fetchDrafts();
+            refreshAdmissionDrafts();
         } catch (error) {
             toast.error(error.message, { id: toastId });
         } finally {
@@ -120,7 +109,7 @@ const AdmissionRequestsPanel = () => {
             setSelectedDraftId(null);
             setIsEditing(false);
             setEditData({});
-            fetchDrafts();
+            refreshAdmissionDrafts();
         } catch (error) {
             toast.error(error.message);
         } finally {
@@ -144,7 +133,7 @@ const AdmissionRequestsPanel = () => {
             // Refresh detail view
             setDetail({ ...editForm });
             setIsEditing(false);
-            fetchDrafts();
+            refreshAdmissionDrafts();
         } catch (err) {
             toast.error(err.message);
         } finally {
@@ -153,8 +142,10 @@ const AdmissionRequestsPanel = () => {
     };
 
     useEffect(() => {
-        fetchDrafts();
-    }, [fetchDrafts]);
+        if (admissionDrafts.length === 0) {
+            refreshAdmissionDrafts();
+        }
+    }, [admissionDrafts.length, refreshAdmissionDrafts]);
 
     // Stable field change handler to avoid recreating functions per render
     const handleFieldChange = useCallback((name, value) => {

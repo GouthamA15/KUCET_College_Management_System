@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { usePathname } from 'next/navigation';
+import { useClerk } from "@/context/ClerkContext";
 // Filters moved into a contextual popover; removed full-width CertificateFilters component
 import CertificateWorkspaceCard from "./CertificateWorkspaceCard";
 // Date-based history removed — replaced with scope-based history UI
@@ -11,6 +12,7 @@ import FiltersPopover from "./FiltersPopover";
 import FiltersButton from "./FiltersButton";
 
 export default function CertificateDashboard({ clerkType }) {
+  const { pendingCertificateRequests, isLoadingRequests, refreshCertificateRequests } = useClerk();
   const [workspaceMode, setWorkspaceMode] = useState("active"); // "active" | "history"
   const [selectedDate, setSelectedDate] = useState(null); // string | null
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -36,22 +38,43 @@ export default function CertificateDashboard({ clerkType }) {
   const handleChangeMode = (next) => {
     setWorkspaceMode(next);
     if (next === "active") {
-      // Clear selected date when switching back to active
-      // ensure history scope remains but clear selectedDate
       setSelectedDate(null);
     }
   };
 
+  // Derived records to avoid sync setState in effect
+  const displayRecords = useMemo(() => {
+    if (workspaceMode === 'active' && appliedFilters.certificateType.length === 0 && appliedFilters.status.length === 0) {
+      return (pendingCertificateRequests || []).map(r => ({ 
+        ...r, 
+        date: r.created_at ? String(r.created_at).split('T')[0] : r.date 
+      }));
+    }
+    return records;
+  }, [workspaceMode, appliedFilters, pendingCertificateRequests, records]);
+
   // Fetch records whenever mode/date/clerkType changes
   const fetchRecords = useCallback(async () => {
+    // If it's active mode and no filters, the useMemo displayRecords handles it.
+    // However, we still might need to trigger a background refresh if context is empty.
+    if (workspaceMode === 'active' && appliedFilters.certificateType.length === 0 && appliedFilters.status.length === 0) {
+       if (pendingCertificateRequests.length === 0) {
+           refreshCertificateRequests(clerkType);
+       }
+       return;
+    }
+
     setLoadingRecords(true);
+    if (workspaceMode === 'history') {
+      setRecords([]); // clear old records while loading history
+    }
+
     try {
       const params = new URLSearchParams();
       params.set('workspace', workspaceMode);
       if (workspaceMode === 'history') params.set('scope', historyScope);
       if (clerkType) params.set('clerkType', clerkType);
-      // Apply active filters to records fetch
-      // appliedFilters values are arrays — append each as repeated params
+      
       if (Array.isArray(appliedFilters.certificateType) && appliedFilters.certificateType.length > 0) {
         appliedFilters.certificateType.forEach(v => params.append('certificateType', v));
       }
@@ -61,10 +84,9 @@ export default function CertificateDashboard({ clerkType }) {
       const res = await fetch(`/api/clerk/requests?${params.toString()}`, { credentials: 'same-origin' });
       if (!res.ok) throw new Error('Failed to fetch requests');
       const data = await res.json();
-      // If history workspace, API returns { records, myHistoryCount, allHistoryCount }
+      
       if (workspaceMode === 'history') {
         const recs = Array.isArray(data?.records) ? data.records : [];
-        // Normalize to include a `date` field (YYYY-MM-DD) for grouping
         const normalized = recs.map(r => ({
           ...r,
           date: r.completed_at ? String(r.completed_at).split('T')[0] : (r.date ? String(r.date) : null),
@@ -82,19 +104,13 @@ export default function CertificateDashboard({ clerkType }) {
     } finally {
       setLoadingRecords(false);
     }
-  }, [workspaceMode, historyScope, clerkType, appliedFilters]);
-
-  // Date-based history removed; scope-based history uses backend counts
+  }, [workspaceMode, historyScope, clerkType, appliedFilters, pendingCertificateRequests, refreshCertificateRequests]);
 
   // Effects
   useEffect(() => {
-    // When switching history scope, immediately show isolated loading and clear stale records
-    if (workspaceMode === 'history') {
-      setLoadingRecords(true);
-      setRecords([]);
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRecords();
-  }, [workspaceMode, historyScope, clerkType, appliedFilters, fetchRecords]);
+  }, [fetchRecords]);
 
   // Click-away and Escape handling for Filters popover
   useEffect(() => {
@@ -134,6 +150,7 @@ export default function CertificateDashboard({ clerkType }) {
 
   // Close popover on route change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (showFilters) setShowFilters(false);
   }, [pathname, showFilters]);
 
@@ -253,7 +270,7 @@ export default function CertificateDashboard({ clerkType }) {
                   </div>
                 </div>
               </section>
-              <CertificateRecordsView records={records} onViewDetails={handleViewDetails} loading={loadingRecords} />
+              <CertificateRecordsView records={displayRecords} onViewDetails={handleViewDetails} loading={loadingRecords} />
             </>
           )}
 
@@ -288,7 +305,7 @@ export default function CertificateDashboard({ clerkType }) {
                   </div>
                 </div>
               </section>
-              <CertificateRecordsView records={records} onViewDetails={handleViewDetails} groupByDate={true} loading={loadingRecords} />
+              <CertificateRecordsView records={displayRecords} onViewDetails={handleViewDetails} groupByDate={true} loading={loadingRecords} />
             </>
           )}
         </div>

@@ -36,7 +36,10 @@ export default function ClerkSecurityPage() {
 
   // Update password strength when newPassword changes
   useEffect(() => {
-    setPwStrength(measureStrength(newPassword));
+    const id = setTimeout(() => {
+      setPwStrength(measureStrength(newPassword));
+    }, 0);
+    return () => clearTimeout(id);
   }, [newPassword]);
 
   const canSaveNewPw = newPassword.length >= 8 && newPassword === confirmPassword && currentPassword.length > 0;

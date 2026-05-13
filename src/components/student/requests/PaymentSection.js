@@ -5,13 +5,23 @@ import { useAssets } from '@/context/AssetContext';
 
 export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
   const { getAsset } = useAssets();
+  const mobileQuery = '(max-width: 767px)';
   const [isMobile, setIsMobile] = useState(false);
   const [paymentMode, setPaymentMode] = useState('qr'); // 'qr' | 'upi'
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(max-width: 767px)');
-    const handler = (e) => setIsMobile(e.matches);
+    const mq = window.matchMedia(mobileQuery);
+    const syncViewportMode = (matches) => {
+      setIsMobile(matches);
+      setPaymentMode(matches ? 'upi' : 'qr');
+    };
+
+    syncViewportMode(mq.matches);
+
+    const handler = (e) => {
+      syncViewportMode(e.matches);
+    };
 
     if (mq.addEventListener) {
       mq.addEventListener('change', handler);
@@ -24,15 +34,6 @@ export default function PaymentSection({ fee, selectedCertificate, upiVPA }) {
 
   const requiresPayment = fee > 0;
   const upiAvailable = !!upiVPA && requiresPayment;
-
-  useEffect(() => {
-    if (!requiresPayment) return;
-    if (isMobile) {
-      setPaymentMode('upi');
-    } else {
-      setPaymentMode('qr');
-    }
-  }, [isMobile, requiresPayment]);
 
   const upiLink = upiAvailable && requiresPayment
     ? `upi://pay?pa=${encodeURIComponent(upiVPA)}&pn=${encodeURIComponent('PRINCIPAL KU COLLEGE OF ENGIN')}&am=${encodeURIComponent(String(fee))}&cu=INR&tn=${encodeURIComponent(selectedCertificate)}`

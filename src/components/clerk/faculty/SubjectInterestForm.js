@@ -39,18 +39,22 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
 
   // Set default academic year (current)
   useEffect(() => {
-    const now = getNowSync();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    let yearStr = '';
-    if (currentMonth >= 6) {
-      yearStr = `${currentYear}-${(currentYear + 1).toString().slice(-2)}`;
-    } else {
-      yearStr = `${currentYear - 1}-${currentYear.toString().slice(-2)}`;
-    }
-    setAcademicYear(yearStr);
-    fetchExistingInterests();
-    fetchCollegeInfo();
+    const id = setTimeout(() => {
+      const now = getNowSync();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      let yearStr = '';
+      if (currentMonth >= 6) {
+        yearStr = `${currentYear}-${(currentYear + 1).toString().slice(-2)}`;
+      } else {
+        yearStr = `${currentYear - 1}-${currentYear.toString().slice(-2)}`;
+      }
+      setAcademicYear(yearStr);
+      fetchExistingInterests();
+      fetchCollegeInfo();
+    }, 0);
+
+    return () => clearTimeout(id);
   }, []);
 
   const isSemesterAllowed = (sem) => {
@@ -95,7 +99,10 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
   }, [selectedBranch, selectedSemester, academicYear]);
 
   useEffect(() => {
-    fetchSyllabus();
+    const id = setTimeout(() => {
+      fetchSyllabus();
+    }, 0);
+    return () => clearTimeout(id);
   }, [fetchSyllabus]);
 
   const handleSubmitInterest = async (subject) => {

@@ -3,27 +3,15 @@
 import { useEffect, useState } from 'react';
 import NextImage from 'next/image';
 import { useAssets } from '@/context/AssetContext';
-import { Capacitor } from '@capacitor/core';
-import { showLocalNotification } from '@/lib/notification-utils';
 
 export default function Hero() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const { getAsset } = useAssets();
-  const [isNative, setIsNative] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setImageLoaded(true), 100);
-    setIsNative(Capacitor.isNativePlatform());
     return () => clearTimeout(timer);
   }, []);
-
-  const handleTestNotification = async () => {
-    await showLocalNotification(
-      'Test Notification 🔔',
-      'If you see this, the KUCET notification pipeline is working perfectly!',
-      { type: 'test' }
-    );
-  };
 
   return (
     <section className="relative w-full">
@@ -50,19 +38,6 @@ export default function Hero() {
             </p>
           </div>
         </div>
-
-        {/* Diagnostic Test Button - Only on Native */}
-        {isNative && (
-          <div className="absolute top-4 right-4 z-50">
-            <button
-              onClick={handleTestNotification}
-              className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-[10px] font-bold px-3 py-2 rounded-full border border-white/40 shadow-xl transition-all active:scale-95 flex items-center gap-2"
-            >
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              TEST APP NOTIFICATIONS
-            </button>
-          </div>
-        )}
       </div>
     </section>
   );

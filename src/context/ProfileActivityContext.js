@@ -23,13 +23,17 @@ export function ProfileActivityProvider({ children }) {
   const [seenStatus, setSeenStatus] = useState(null);
 
   useEffect(() => {
-    try {
-      setDismissCount(Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0'));
-      setSeenRequestId(localStorage.getItem(STORAGE_SEEN_ID_KEY) || null);
-      setSeenStatus(localStorage.getItem(STORAGE_SEEN_STATUS_KEY) || null);
-    } catch (error) {
-      console.error('Profile activity storage hydrate error:', error);
-    }
+    const id = setTimeout(() => {
+      try {
+        setDismissCount(Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0'));
+        setSeenRequestId(localStorage.getItem(STORAGE_SEEN_ID_KEY) || null);
+        setSeenStatus(localStorage.getItem(STORAGE_SEEN_STATUS_KEY) || null);
+      } catch (error) {
+        console.error('Profile activity storage hydrate error:', error);
+      }
+    }, 0);
+
+    return () => clearTimeout(id);
   }, []);
 
   // Latest certificate request (fetch once per rollno)
@@ -37,9 +41,12 @@ export function ProfileActivityProvider({ children }) {
     let mounted = true;
 
     if (!rollno) {
-      setLatestRequest(null);
+      const id = setTimeout(() => {
+        setLatestRequest(null);
+      }, 0);
       return () => {
         mounted = false;
+        clearTimeout(id);
       };
     }
 

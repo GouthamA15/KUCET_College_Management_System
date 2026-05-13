@@ -2,7 +2,6 @@ import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 import AuthProvider from "./components/AuthProvider";
 import { AssetProvider } from "@/context/AssetContext";
-import CapacitorHandler from "@/components/CapacitorHandler.client";
 import RealtimeListener from "@/components/RealtimeListener";
 
 export const metadata = {
@@ -28,7 +27,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased bg-institutional min-h-screen">
-        <CapacitorHandler />
         <RealtimeListener showIndicator enableNotifications />
         <AssetProvider>
           <AuthProvider>

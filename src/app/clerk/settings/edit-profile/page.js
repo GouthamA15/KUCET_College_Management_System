@@ -49,10 +49,14 @@ export default function ClerkEditProfilePage() {
         branch: clerk.branch || '',
         address: clerk.address || ''
       };
-      setFormData(data);
-      setOriginalData(JSON.parse(JSON.stringify(data)));
-      setLoading(false);
+      const id = setTimeout(() => {
+        setFormData(data);
+        setOriginalData(JSON.parse(JSON.stringify(data)));
+        setLoading(false);
+      }, 0);
+      return () => clearTimeout(id);
     }
+    return undefined;
   }, [clerk]);
 
   const onFileSelect = (file, type) => {
