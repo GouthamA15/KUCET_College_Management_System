@@ -92,7 +92,7 @@ function ScholarshipDashboardContent() {
     let viewTimer;
     let scrollTimer;
 
-    if (v === 'requests' || v === 'certificates') {
+    if (v === 'requests' || v === 'certificates' || v === 'verification') {
       viewTimer = setTimeout(() => {
         setView('certificates');
       }, 0);
