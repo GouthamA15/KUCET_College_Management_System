@@ -51,7 +51,11 @@ function FinalizeAdmissionContent() {
     }, [selectedBranch, selectedExam]);
 
     useEffect(() => {
-        fetchVerifiedDrafts();
+        const id = setTimeout(() => {
+            fetchVerifiedDrafts();
+        }, 0);
+
+        return () => clearTimeout(id);
     }, [fetchVerifiedDrafts]);
 
     const handleRollNumberChange = (draftId, value) => {

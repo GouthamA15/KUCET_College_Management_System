@@ -218,32 +218,40 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
   // load base students once per assignment
   useEffect(() => {
-    setSelectedDate(null);
-    setSelectedSession(1);
-    setAttendanceStatusMap({});
-    setAbsentCountMap({}); // FIX: Reset stage tracker on assignment change
-    setExistingSessionsForSelectedDate([]);
-    setDayInfo(null);
-    setDateValidation({
-      isValid: false,
-      message: 'Select a WORKING day from the academic calendar.',
-    });
-    setAttendanceCache({});
-    setActiveSession(null);
+    const id = setTimeout(() => {
+      setSelectedDate(null);
+      setSelectedSession(1);
+      setAttendanceStatusMap({});
+      setAbsentCountMap({}); // FIX: Reset stage tracker on assignment change
+      setExistingSessionsForSelectedDate([]);
+      setDayInfo(null);
+      setDateValidation({
+        isValid: false,
+        message: 'Select a WORKING day from the academic calendar.',
+      });
+      setAttendanceCache({});
+      setActiveSession(null);
 
-    fetchBaseStudents();
-    fetchActiveSession();
+      fetchBaseStudents();
+      fetchActiveSession();
+    }, 0);
+
+    return () => clearTimeout(id);
   }, [assignment, fetchBaseStudents, fetchActiveSession]);
 
   // on date or session change, only fetch attendance status
   useEffect(() => {
-    if (selectedDate) {
-      fetchAttendanceStatus();
-    } else {
-      setAttendanceStatusMap({});
-      setAbsentCountMap({}); // FIX: Reset stage tracker on date/session change to ensure fresh cycle
-      setExistingSessionsForSelectedDate([]);
-    }
+    const id = setTimeout(() => {
+      if (selectedDate) {
+        fetchAttendanceStatus();
+      } else {
+        setAttendanceStatusMap({});
+        setAbsentCountMap({}); // FIX: Reset stage tracker on date/session change to ensure fresh cycle
+        setExistingSessionsForSelectedDate([]);
+      }
+    }, 0);
+
+    return () => clearTimeout(id);
   }, [selectedDate, selectedSession, fetchAttendanceStatus]);
 
   const handleManualRefresh = useCallback(() => {

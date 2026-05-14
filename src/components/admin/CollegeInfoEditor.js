@@ -13,10 +13,6 @@ export default function CollegeInfoEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchCollegeInfo();
-  }, []);
-
   const fetchCollegeInfo = async () => {
     try {
       const res = await fetch('/api/public/college-info');
@@ -38,6 +34,13 @@ export default function CollegeInfoEditor() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      fetchCollegeInfo();
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);

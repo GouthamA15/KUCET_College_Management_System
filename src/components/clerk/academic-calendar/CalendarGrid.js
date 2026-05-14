@@ -102,7 +102,10 @@ const CalendarGrid = ({ academicYear, semester }) => {
     }, [academicYear, semester, currentMonth, currentYear]);
 
     useEffect(() => {
-        fetchCalendarData();
+        const id = setTimeout(() => {
+            fetchCalendarData();
+        }, 0);
+        return () => clearTimeout(id);
     }, [fetchCalendarData]);
 
     const handleDayClick = (dayNum) => {

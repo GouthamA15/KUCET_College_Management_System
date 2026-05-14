@@ -39,7 +39,10 @@ export default function InterestStatusList() {
   };
 
   useEffect(() => {
-    fetchInterests();
+    const id = setTimeout(() => {
+      fetchInterests();
+    }, 0);
+    return () => clearTimeout(id);
   }, []);
 
   if (loading) return <div className="text-center py-4">Loading your interests...</div>;

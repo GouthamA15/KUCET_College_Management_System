@@ -36,7 +36,10 @@ export default function ClassTimetable() {
   }, []);
 
   useEffect(() => {
-    fetchTimetable();
+    const id = setTimeout(() => {
+      fetchTimetable();
+    }, 0);
+    return () => clearTimeout(id);
   }, [fetchTimetable]);
 
   const handleRealtimeUpdate = (data) => {

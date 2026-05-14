@@ -57,7 +57,10 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   const isPublishedLocked = students.some(s => Boolean(s.is_published));
 
   useEffect(() => {
-    fetchStudents();
+    const id = setTimeout(() => {
+      fetchStudents();
+    }, 0);
+    return () => clearTimeout(id);
   }, [fetchStudents]);
 
   useEffect(() => {
@@ -66,15 +69,24 @@ export default function MarksEntrySheet({ assignment, onBack }) {
         setIsMobile(window.innerWidth < 768);
       }
     };
-    updateIsMobile();
+    const id = setTimeout(() => {
+      updateIsMobile();
+    }, 0);
     window.addEventListener('resize', updateIsMobile);
-    return () => window.removeEventListener('resize', updateIsMobile);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener('resize', updateIsMobile);
+    };
   }, []);
 
   useEffect(() => {
-    if (rollHeaderRef.current) {
-      setRollColWidth(rollHeaderRef.current.offsetWidth || 0);
-    }
+    const id = setTimeout(() => {
+      if (rollHeaderRef.current) {
+        setRollColWidth(rollHeaderRef.current.offsetWidth || 0);
+      }
+    }, 0);
+
+    return () => clearTimeout(id);
   }, [students.length]);
 
   const handleScroll = (event) => {

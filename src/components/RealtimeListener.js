@@ -156,24 +156,24 @@ export default function RealtimeListener({ onUpdate, showIndicator = false, enab
   if (!showIndicator) return null;
 
   // Visual status indicator (minimal)
-  return (
-    <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none flex flex-col items-end gap-2">
-      <div className="flex items-center gap-2">
-        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter border shadow-sm transition-all duration-500 backdrop-blur-xs ${
-          status === 'connected' 
-            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
-            : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
-        }`}>
-          <div className={`w-1 h-1 rounded-full ${status === 'connected' ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' : 'bg-amber-500'}`}></div>
-          {status}
-        </div>
+  // return (
+  //   <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none flex flex-col items-end gap-2">
+  //     <div className="flex items-center gap-2">
+  //       <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter border shadow-sm transition-all duration-500 backdrop-blur-xs ${
+  //         status === 'connected' 
+  //           ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+  //           : 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
+  //       }`}>
+  //         <div className={`w-1 h-1 rounded-full ${status === 'connected' ? 'bg-emerald-500 shadow-[0_0_5px_#10b981]' : 'bg-amber-500'}`}></div>
+  //         {status}
+  //       </div>
         
-        {debugInfo && (
-          <div className="bg-slate-900/80 text-white/50 text-[7px] px-1.5 py-0.5 rounded backdrop-blur-xs uppercase tracking-widest font-bold border border-white/5">
-            {debugInfo}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  //       {debugInfo && (
+  //         <div className="bg-slate-900/80 text-white/50 text-[7px] px-1.5 py-0.5 rounded backdrop-blur-xs uppercase tracking-widest font-bold border border-white/5">
+  //           {debugInfo}
+  //         </div>
+  //       )}
+  //     </div>
+  //   </div>
+  // );
 }

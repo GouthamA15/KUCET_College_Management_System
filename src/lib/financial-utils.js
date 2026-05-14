@@ -36,11 +36,20 @@ export function calculateFinancialSummary(data, course, feeReimbursement) {
   const status = pending_fee === 0 ? 'COMPLETED' : 'PENDING';
 
   return {
-    total_fee,
-    govt_paid,
-    student_paid,
-    total_paid,
-    pending_fee,
-    status
+  total_fee,
+  govt_paid,
+  student_paid,
+  total_paid,
+  pending_fee,
+  status
   };
-}
+  }
+
+  export const formatIndianNumber = (digits) => {
+  if (!digits) return '';
+  const s = String(digits).replace(/\D/g, '');
+  if (s.length <= 3) return s;
+  const last3 = s.slice(-3);
+  const rest = s.slice(0, -3);
+  return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
+  };

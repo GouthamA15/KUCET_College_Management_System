@@ -105,13 +105,24 @@ export function StudentProvider({ children }) {
   }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance]);
 
   useEffect(() => {
-    const init = async () => {
-      // Only show global loading if we don't have student data yet
-      if (!studentData) setLoading(true);
-      await refreshData();
-      setLoading(false);
+    // Avoid a refresh loop: refreshData() sets studentData,
+    // so we only initialize when there is no cached data.
+    if (studentData) return;
+
+    let cancelled = false;
+    const id = setTimeout(() => {
+      const init = async () => {
+        setLoading(true);
+        await refreshData();
+        if (!cancelled) setLoading(false);
+      };
+      init();
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
     };
-    init();
   }, [refreshData, studentData]);
 
   const resetCertificateRequests = () => {

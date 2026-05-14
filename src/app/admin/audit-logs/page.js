@@ -39,7 +39,10 @@ export default function AuditLogsPage() {
   }, [limit, offset, filters]);
 
   useEffect(() => {
-    fetchLogs();
+    const id = setTimeout(() => {
+      fetchLogs();
+    }, 0);
+    return () => clearTimeout(id);
   }, [fetchLogs]);
 
   const handleFilterChange = (e) => {
