@@ -4,8 +4,8 @@ import Navbar from '@/components/Navbar';
 import LoginPanel from '@/components/LoginPanel';
 import SearchParamToast from '@/components/SearchParamToast.client';
 
-export default function ClientShell({ serverError, stickyNavbar = true }) {
-  const [activePanel, setActivePanel] = useState(null);
+export default function ClientShell({ serverError, stickyNavbar = true, initialPanel = null }) {
+  const [activePanel, setActivePanel] = useState(initialPanel);
 
   useEffect(() => {
     const el = document.getElementById('main-content');

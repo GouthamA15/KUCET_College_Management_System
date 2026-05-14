@@ -8,6 +8,7 @@ import ClientShell from '@/components/ClientShell.client';
 export default async function Home({ searchParams }) {
   const sp = await searchParams;
   const error = Array.isArray(sp?.error) ? sp.error[0] : sp?.error ?? null;
+  const login = sp?.login === 'true' ? 'clerk' : null;
 
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
 
@@ -29,7 +30,7 @@ export default async function Home({ searchParams }) {
       <HeaderMobileView />
 
       {/* Client-side shell: navbar (sticky), login panels and toasts */}
-      <ClientShell serverError={error} stickyNavbar={false} />
+      <ClientShell serverError={error} stickyNavbar={false} initialPanel={login} />
 
       {/* Main server-rendered content. */}
       <div id="main-content" className="transition-all duration-500 ease-out opacity-100 flex flex-col min-h-screen">
