@@ -1,0 +1,69 @@
+
+
+1/1
+
+Next.js 16.2.6
+Turbopack
+Runtime ReferenceError
+
+
+
+useMemo is not defined
+Call Stack
+15
+
+Hide 12 ignore-listed frame(s)
+CertificateDashboard
+file:///D:/User/Desktop/CMS/.next/dev/static/chunks/src_0o~rfcf._.js (2149:28)
+Object.react_stack_bottom_frame
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (28241:20)
+renderWithHooks
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (7925:22)
+updateFunctionComponent
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (10442:19)
+beginWork
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (12112:18)
+runWithFiberInDEV
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (986:30)
+performUnitOfWork
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (18988:22)
+workLoopSync
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (18816:41)
+renderRootSync
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (18797:11)
+performWorkOnRoot
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (17902:35)
+performWorkOnRootViaSchedulerTask
+node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js (20471:7)
+MessagePort.performWorkUntilDeadline
+node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js (45:48)
+ScholarshipDashboardContent
+file:///D:/User/Desktop/CMS/.next/dev/static/chunks/src_0o~rfcf._.js (8259:237)
+ScholarshipDashboard
+file:///D:/User/Desktop/CMS/.next/dev/static/chunks/src_0o~rfcf._.js (8645:225)
+ClientPageRoot
+node_modules/next/src/client/components/client-page.tsx (70:12)
+1
+2
+
+Uncaught TypeError: Cannot read properties of null (reading 'addEventListener')
+    at share-modal.js:1:135Understand this error
+forward-logs-shared.ts:95 [HMR] connected
+faculties:1 Error while trying to use the following icon from the Manifest: https://res.cloudinary.com/dmivf099p/image/upload/f_auto,q_auto/v1742457123/kucet/public/assets/icon-192x192.png (Download error or resource isn't a valid image)Understand this warning
+faculties:1  Failed to load resource: the server responded with a status of 404 (Not Found)Understand this error
+## Error Type
+Runtime ReferenceError
+
+## Error Message
+fetchDrafts is not defined
+
+
+    at AdmissionRequestsPanel (file://D:/User/Desktop/CMS/.next/dev/static/chunks/src_02sg3l1._.js:362:34)
+    at RequestsCenterContent (file://D:/User/Desktop/CMS/.next/dev/static/chunks/src_02sg3l1._.js:6509:247)
+    at RequestsCenterPage (file://D:/User/Desktop/CMS/.next/dev/static/chunks/src_02sg3l1._.js:6630:225)
+
+Next.js version: 16.2.6 (Turbopack)
+
+
+
+Verification page isn't getting redirect in Scholarship dashboard after clicking on verification page in sidebar 
