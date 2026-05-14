@@ -53,6 +53,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'DASHBOARD', route: '/clerk/scholarship/dashboard' },
     { label: 'PROFILE', route: '/clerk/scholarship/profile' },
     { label: 'REQUESTS', route: '/clerk/scholarship/dashboard?view=requests&scroll=1' },
+    { label: 'VERIFICATION', route: '/verify' },
     { label: 'DEPARTMENTS', route: '/clerk/departments' },
     { label: 'TIME TABLE', route: '/clerk/timetable' },
     { label: 'FACULTIES', route: '/clerk/faculties' },
