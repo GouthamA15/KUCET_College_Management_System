@@ -30,16 +30,19 @@ test.describe('Attendance Marking Flow', () => {
       .sign(secret);
 
     // Set the auth cookie AND the required companion cookie to bypass redirects
+    await page.goto('/');
     await page.context().addCookies([
       {
         name: 'student_auth',
         value: token,
-        url: 'http://localhost:3000',
+        domain: 'localhost',
+        path: '/',
       },
       {
         name: 'student_logged_in',
         value: 'true',
-        url: 'http://localhost:3000',
+        domain: 'localhost',
+        path: '/',
       }
     ]);
     
@@ -97,8 +100,8 @@ test.describe('Attendance Marking Flow', () => {
     // Mock image 404s to avoid noise
     await page.route('**/*.{png,jpg,jpeg,svg}', route => route.fulfill({ status: 200, body: '' }));
 
-    // Go to student portal
-    await page.goto('/student');
+// Go to student portal and wait for it to load
+await page.goto('/', { waitUntil: 'networkidle' });
 
     // Verify successful login (no redirect back to /)
     await expect(page).toHaveURL(/\/student/);

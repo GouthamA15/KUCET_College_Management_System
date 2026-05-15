@@ -140,9 +140,9 @@ export async function proxy(request) {
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
     if (studentPayload) {
-      const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
-      const target = isVerified ? '/student' : '/student/profile';
-      return NextResponse.redirect(new URL(target, request.url), 303);
+      // Always redirect to the main student dashboard first.
+      // The client-side StudentProvider will handle routing to /profile if needed.
+      return NextResponse.redirect(new URL('/student', request.url), 303);
     }
     return response;
   }

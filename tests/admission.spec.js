@@ -34,54 +34,54 @@ test.describe('Student Admission Flow', () => {
     });
 
     await page.goto('/admission');
+    await expect(page.getByRole('heading', { name: /B.TECH/ })).toBeVisible();
 
     // Fill personal information
-    await page.fill('input[placeholder="FULL NAME"]', 'TEST STUDENT');
-    await page.fill('input[placeholder="FATHER\'S FULL NAME"]', 'TEST FATHER');
-    await page.fill('input[placeholder="MOTHER\'S FULL NAME"]', 'TEST MOTHER');
+    await page.getByLabel('1. Name of the Student (as per memo)').fill('TEST STUDENT');
+    await page.getByLabel("2. Father's Name (as per memo)").fill('TEST FATHER');
+    await page.getByLabel("3. Mother's Name (as per memo)").fill('TEST MOTHER');
     
     // Selection
-    await page.selectOption('select >> nth=0', 'EAMCET');
-    await page.selectOption('select >> nth=1', 'CSE');
+    await page.getByLabel('4. Entrance Exam & Branch').first().selectOption('EAMCET');
+    await page.getByLabel('Branch', { exact: true }).selectOption({ label: 'CSE' });
     
-    await page.fill('input[placeholder="ENTRANCE RANK"]', '1234');
-    await page.fill('input[placeholder="SUB CASTE"]', 'TEST CASTE');
-    await page.fill('input[placeholder="e.g. OC_GEN_UR"]', 'OC_GEN_UR');
+    await page.getByLabel('5. ECET / EAMCET Rank Details').fill('1234');
+    await page.getByLabel('8. Sub Caste').fill('TEST CASTE');
+    await page.getByLabel('9. Seat Allotted Category').fill('OC_GEN_UR');
     
     // Date of Birth
-    await page.fill('input[type="date"]', '2005-01-01');
+    await page.getByLabel('10. Date of Birth').fill('2005-01-01');
     
-    await page.fill('input[placeholder="RELIGION"]', 'HINDU');
-    await page.fill('input[placeholder="MOTHER TONGUE"]', 'TELUGU');
-    await page.fill('input[placeholder="TOTAL MARKS / CGPA"]', '950');
-    await page.fill('input[placeholder="MARKS OBTAINED"]', '900');
+    await page.getByLabel('13. Religion').fill('HINDU');
+    await page.getByLabel('14. Mother Tongue').fill('TELUGU');
+    await page.getByLabel('16. SSC / 10th Marks').fill('950');
+    await page.getByLabel('17. Intermediate (for EAMCET) / Diploma (for ECET) Marks').fill('900');
     
     // Nationality
-    await page.locator('div:has(label:text("12. Nationality")) input').fill('INDIAN');
+    await page.getByLabel('12. Nationality').fill('INDIAN');
     
     // Annual Income (Now back to input with formatting)
-    await page.fill('input[placeholder="ANNUAL INCOME"]', '100000');
+    await page.getByLabel('20. Annual Income').selectOption('Less than 1,00,000');
 
-    await page.fill('input[placeholder="XXXX XXXX XXXX"]', '1234 5678 9012');
+    await page.getByLabel('21. Student Aadhaar Number').fill('1234 5678 9012');
     
     // Mobile numbers
-    const studentMobiles = await page.$$('input[pattern="[0-9]{10}"]');
-    await studentMobiles[0].fill('9876543210');
-    await studentMobiles[1].fill('9876543211');
+    await page.getByLabel('22. Student Mobile Number').fill('9876543210');
+    await page.getByLabel('23. Father / Guardian Mobile Number').fill('9876543211');
     
-    await page.fill('input[type="email"]', `teststudent_${Date.now()}@example.com`);
-    await page.fill('textarea', '123 Test Street, College Road, City');
+    await page.getByLabel('24. Mail ID of the Student').fill(`teststudent_${Date.now()}@example.com`);
+    await page.getByLabel('27. Permanent Address').fill('123 Test Street, College Road, City');
 
     // Upload files
-    const fileInputs = await page.$$('input[type="file"]');
-    await fileInputs[0].setInputFiles(mockImagePath); // PFP
-    await fileInputs[1].setInputFiles(mockImagePath); // Signature
+    const fileInputs = await page.locator('input[type="file"]');
+    await fileInputs.first().setInputFiles(mockImagePath); // PFP
+    await fileInputs.last().setInputFiles(mockImagePath); // Signature
 
     // Wait for internal state update (FileReader)
     await page.waitForTimeout(500);
 
     // Submit the form
-    await page.click('button:has-text("Submit Admission Form")');
+    await page.getByRole('button', { name: 'Submit Application' }).click();
 
     // Wait for success message (use accessible role-based selectors)
     await expect(
