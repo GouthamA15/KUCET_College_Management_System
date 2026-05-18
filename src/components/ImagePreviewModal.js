@@ -37,7 +37,7 @@ export default function ImagePreviewModal({ src, alt = '', open, onClose }) {
       tabIndex={-1}
       aria-modal="true"
       role="dialog"
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-[9998] flex items-center justify-center"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose && onClose();
       }}

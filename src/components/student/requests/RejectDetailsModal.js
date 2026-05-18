@@ -1,5 +1,7 @@
 "use client";
 
+import { createPortal } from 'react-dom';
+
 export default function RejectDetailsModal({ isOpen, request, onClose }) {
   if (!isOpen || !request) return null;
   // Format created_at as DD-MM-YYYY
@@ -15,8 +17,9 @@ export default function RejectDetailsModal({ isOpen, request, onClose }) {
   } catch (e) {
     // keep '-' on error
   }
-  return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+
+  const modal = (
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div role="dialog" aria-modal="true" aria-labelledby="reject-modal-title" className="bg-white max-w-[650px] w-full mx-4 sm:mx-auto rounded-sm shadow-md p-6">
         <h3 id="reject-modal-title" className="text-lg font-semibold text-gray-800 mb-3 tracking-wide">Request Rejection Details</h3>
         <div className="text-sm text-gray-700 mb-4 space-y-3">
@@ -36,4 +39,6 @@ export default function RejectDetailsModal({ isOpen, request, onClose }) {
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }

@@ -14,6 +14,7 @@ function FinalizeAdmissionContent() {
     const [selectedExam, setSelectedExam] = useState('EAMCET');
     const [rollNumbers, setRollNumbers] = useState({});
     const [finalizingId, setFinalizingId] = useState(null);
+    const [generating, setGenerating] = useState(false);
 
     // Derived validation for a specific roll number
     const getRollValidation = (rollNo, draft) => {
@@ -86,6 +87,51 @@ function FinalizeAdmissionContent() {
         }
     };
 
+    const handleGenerateRollNumbers = async () => {
+        if (drafts.length === 0) return;
+
+        const first = drafts[0];
+        const startYearRaw = String(first.admission_year || '').split('-')[0];
+        const joiningYear = parseInt(startYearRaw, 10);
+        if (!Number.isInteger(joiningYear)) {
+            toast.error('Could not determine joining year from admission batch');
+            return;
+        }
+
+        setGenerating(true);
+        const toastId = toast.loading('Generating roll numbers...');
+        try {
+            const res = await fetch('/api/admissions/generate-roll-number', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    branch: selectedBranch,
+                    examType: selectedExam,
+                    joiningYear,
+                    count: drafts.length,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to generate roll numbers.');
+
+            const list = data.rollNumbers || (data.rollNumber ? [data.rollNumber] : []);
+            if (list.length !== drafts.length) {
+                throw new Error('Roll generation returned unexpected count');
+            }
+
+            const nextMap = {};
+            drafts.forEach((d, idx) => {
+                nextMap[d.id] = String(list[idx]).toUpperCase();
+            });
+            setRollNumbers(nextMap);
+            toast.success('Roll numbers generated.', { id: toastId });
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+        } finally {
+            setGenerating(false);
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto space-y-10 pb-20 px-4 md:px-8 animate-fadeIn font-sans antialiased text-slate-600">
             <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 gap-5 pb-4">
@@ -134,6 +180,16 @@ function FinalizeAdmissionContent() {
                       >
                           {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name.toUpperCase()}</option>)}
                       </select>
+                    </div>
+                    <div className="flex-1 sm:w-56 sm:self-end">
+                        <button
+                            type="button"
+                            onClick={handleGenerateRollNumbers}
+                            disabled={loading || generating || drafts.length === 0}
+                            className="w-full px-6 py-2 border-2 border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
+                        >
+                            {generating ? 'Generating...' : 'Generate Roll Numbers'}
+                        </button>
                     </div>
                 </div>
             </div>
