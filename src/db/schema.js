@@ -37,6 +37,7 @@ export const students = mysqlTable('students', {
   student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED']).default('ACTIVE'),
 }, (table) => ({
   rollNoIdx: index('idx_roll_no').on(table.roll_no),
+  rollNoUniq: uniqueIndex('uq_students_roll_no').on(table.roll_no),
   mobileHashIdx: index('idx_students_mobile_hash').on(table.mobile_hash),
   emailIdx: index('idx_students_email').on(table.email),
   createdAtIdx: index('idx_students_created_at').on(table.created_at),
