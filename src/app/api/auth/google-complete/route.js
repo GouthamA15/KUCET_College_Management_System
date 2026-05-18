@@ -6,6 +6,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { db } from '@/db';
 import { clerks } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { isDeveloper } from '@/lib/developers';
 
 function resolveBaseRedirect(request) {
   const forwardedHost = request.headers.get('x-forwarded-host');
@@ -52,7 +53,12 @@ export async function GET(request) {
   }
 
   if (!session?.user?.email) {
-    return NextResponse.redirect(baseRedirect, 303);
+    return NextResponse.redirect(new URL('/?error=NoEmail', baseRedirect), 303);
+  }
+
+  // Developer login: redirect to developers page without app auth cookies
+  if (isDeveloper(session.user.email)) {
+    return NextResponse.redirect(new URL('/developers', baseRedirect), 303);
   }
 
   const clerk = await db.query.clerks.findFirst({

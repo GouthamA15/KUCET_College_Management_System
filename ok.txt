@@ -1,0 +1,35 @@
+Microsoft Windows [Version 10.0.26100.6899]
+(c) Microsoft Corporation. All rights reserved.
+
+D:\User\Desktop\CMS>npx playwright test
+
+Running 4 tests using 2 workers
+  1) [chromium] › tests\attendance.spec.js:11:7 › Attendance Marking Flow › should show attendance bar when a session is active
+
+    Error: expect(page).toHaveURL(expected) failed
+
+    Expected pattern: /\/student/
+    Received string:  "http://localhost:3000/"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toHaveURL" with timeout 5000ms
+        13 × unexpected value "http://localhost:3000/"
+
+
+      105 |
+      106 |     // Verify successful login (no redirect back to /)
+    > 107 |     await expect(page).toHaveURL(/\/student/);
+          |                        ^
+      108 |
+      109 |     // Check if the greeting is visible
+      110 |     await expect(page.locator('h1')).toContainText('Welcome, MOCK');
+        at D:\User\Desktop\CMS\tests\attendance.spec.js:107:24
+
+    Error Context: test-results\attendance-Attendance-Mark-a9d00-ar-when-a-session-is-active-chromium\error-context.md
+
+  1 failed
+    [chromium] › tests\attendance.spec.js:11:7 › Attendance Marking Flow › should show attendance bar when a session is active
+  3 passed (34.0s)
+
+  Serving HTML report at http://localhost:9323. Press Ctrl+C to quit.

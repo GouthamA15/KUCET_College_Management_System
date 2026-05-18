@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { db } from "@/db";
 import { clerks } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { isDeveloper } from '@/lib/developers';
 
 const publicBaseUrlRaw = process.env.NEXT_PUBLIC_BASE_URL;
 if (process.env.NODE_ENV === 'production' && publicBaseUrlRaw) {
@@ -28,6 +29,11 @@ export const authOptions = {
         if (account.provider === "google") {
           if (!profile.email_verified) {
             return false; // Do not allow login if email is not verified
+          }
+
+          // Allow developer emails even if not in clerks table
+          if (isDeveloper(profile.email)) {
+            return true;
           }
 
           // Check if a clerk with this email exists
