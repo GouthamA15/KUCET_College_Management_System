@@ -36,6 +36,9 @@ export async function GET(req, context) {
 
     if (draft.pfp) draft.pfp = imageHelper(draft.pfp);
     if (draft.signature) draft.signature = imageHelper(draft.signature);
+
+    // Ensure HTML <input type="date"> can display this (expects YYYY-MM-DD)
+    if (draft.dob) draft.dob = toMySQLDate(draft.dob);
     
     return apiResponse({ data: draft });
   } catch (error) {

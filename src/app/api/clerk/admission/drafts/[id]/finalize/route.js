@@ -8,8 +8,9 @@ import {
   studentSignatures, 
   studentAdmissionDrafts 
 } from '@/db/schema';
-import { eq, or, sql } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
+import { validateRollNo } from '@/lib/rollNumber';
 
 export async function POST(req, context) {
   const user = await getAuthUser('clerk');
@@ -21,9 +22,15 @@ export async function POST(req, context) {
     const params = await context.params;
     const id = parseInt(params.id);
     const { roll_no } = await req.json();
+    const rollNo = String(roll_no || '').trim().toUpperCase();
 
-    if (!roll_no) {
+    if (!rollNo) {
       return apiError('Roll number is required', 400);
+    }
+
+    const parsed = validateRollNo(rollNo);
+    if (!parsed.isValid) {
+      return apiError('Invalid roll number format', 400);
     }
 
     const result = await db.transaction(async (tx) => {
@@ -41,11 +48,20 @@ export async function POST(req, context) {
         throw new Error('DRAFT_NOT_VERIFIED');
       }
 
+      // Enforce branch + admission type consistency with the draft
+      if (String(parsed.branch).toUpperCase() !== String(draft.branch).toUpperCase()) {
+        throw new Error('ROLL_BRANCH_MISMATCH');
+      }
+      const expectedType = String(draft.entrance_exam).toUpperCase() === 'ECET' ? 'Lateral' : 'Regular';
+      if (String(parsed.admissionType) !== expectedType) {
+        throw new Error('ROLL_TYPE_MISMATCH');
+      }
+
       // 2. Check if roll_no or email already exists
       const existing = await tx.select({ id: studentsTable.id })
         .from(studentsTable)
         .where(or(
-          eq(studentsTable.roll_no, roll_no),
+          eq(studentsTable.roll_no, rollNo),
           eq(studentsTable.email, draft.email)
         ))
         .limit(1);
@@ -57,7 +73,7 @@ export async function POST(req, context) {
       // 3. Insert into students table
       const [studentResult] = await tx.insert(studentsTable).values({
         admission_no: null,
-        roll_no: roll_no,
+        roll_no: rollNo,
         name: draft.name,
         date_of_birth: draft.dob,
         gender: draft.gender,
@@ -124,7 +140,7 @@ export async function POST(req, context) {
       action: 'FINALIZE_ADMISSION',
       targetId: result.studentId,
       targetType: 'student',
-      payload_after: { draft_id: id, roll_no: roll_no }
+      payload_after: { draft_id: id, roll_no: rollNo }
     });
 
     return apiResponse({ success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' });
@@ -133,6 +149,8 @@ export async function POST(req, context) {
     if (error.message === 'DRAFT_NOT_FOUND') return apiError('Draft not found', 404);
     if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);
     if (error.message === 'STUDENT_EXISTS') return apiError('A student with this Roll No or Email already exists.', 409);
+    if (error.message === 'ROLL_BRANCH_MISMATCH') return apiError('Roll number branch does not match the draft branch.', 400);
+    if (error.message === 'ROLL_TYPE_MISMATCH') return apiError('Roll number admission type does not match the draft entrance exam.', 400);
     
     logger.error(error, 'Finalization error');
     return apiError('Failed to finalize admission.', 500);

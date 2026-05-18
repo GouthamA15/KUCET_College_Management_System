@@ -25,6 +25,7 @@ export async function GET(req) {
       name: studentAdmissionDrafts.name,
       father_name: studentAdmissionDrafts.father_name,
       exam_rank: studentAdmissionDrafts.exam_rank,
+      admission_year: studentAdmissionDrafts.admission_year,
       entrance_exam: studentAdmissionDrafts.entrance_exam,
       branch: studentAdmissionDrafts.branch,
       created_at: studentAdmissionDrafts.created_at
