@@ -27,7 +27,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased bg-institutional min-h-screen">
-        <RealtimeListener showIndicator enableNotifications />
+        <RealtimeListener enableNotifications />
         <AssetProvider>
           <AuthProvider>
             <Toaster position="top-center" reverseOrder={false} />

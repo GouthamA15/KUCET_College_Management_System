@@ -96,7 +96,7 @@ const StudentUpdateRequestsPanel = () => {
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Profile Modification Queue</h2>
           <p className="text-[10px] text-slate-500 font-medium uppercase mt-1 tracking-wider">Verify and authorize student-initiated data modifications</p>
         </div>
-        <button onClick={fetchRequests} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all rounded-sm shadow-sm">
+        <button onClick={refreshProfileRequests} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all rounded-sm shadow-sm">
             <span className={`${loading ? 'animate-spin' : ''}`}>↻</span> Sync
         </button>
       </div>
@@ -204,7 +204,7 @@ const StudentUpdateRequestsPanel = () => {
                                                     <span className="font-bold text-slate-400 uppercase tracking-tighter opacity-70 italic">{req.current_values?.[field] || 'Null'}</span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center border-l border-slate-100">
-                                                    <span className="font-black text-[#0b3578] bg-blue-50 px-4 py-1.5 border border-blue-100 rounded-sm uppercase tracking-tight shadow-sm inline-block min-w-[120px]">
+                                                    <span className="font-black text-[#0b3578] bg-blue-50 px-4 py-1.5 border border-blue-100 rounded-sm uppercase tracking-tight shadow-sm inline-block min-w-30">
                                                       {value || 'Null'}
                                                     </span>
                                                 </td>
@@ -226,7 +226,7 @@ const StudentUpdateRequestsPanel = () => {
                                 <div className="space-y-5">
                                     <button 
                                         onClick={() => setViewingImage(req.proof_url)}
-                                        className="w-full aspect-[4/3] bg-white border-2 border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:border-blue-300 transition-all group relative rounded-sm"
+                                        className="w-full aspect-4/3 bg-white border-2 border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:border-blue-300 transition-all group relative rounded-sm"
                                     >
                                         <Image src={req.proof_url} alt="Proof" fill unoptimized className="object-contain" />
                                         <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -271,7 +271,7 @@ const StudentUpdateRequestsPanel = () => {
       {/* Audit Image Preview Modal */}
       {viewingImage && (
         <div 
-            className="fixed inset-0 z-[200] bg-slate-900/95 flex items-center justify-center p-6 md:p-12 cursor-zoom-out animate-fadeIn"
+            className="fixed inset-0 z-200 bg-slate-900/95 flex items-center justify-center p-6 md:p-12 cursor-zoom-out animate-fadeIn"
             onClick={() => setViewingImage(null)}
         >
             <div className="relative w-full h-full flex flex-col items-center justify-center">
@@ -290,7 +290,7 @@ const StudentUpdateRequestsPanel = () => {
 
       {/* Rejection Memo Modal */}
       {rejectingRequest && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/70 p-6 backdrop-blur-md animate-fadeIn">
+        <div className="fixed inset-0 z-150 flex items-center justify-center bg-slate-900/70 p-6 backdrop-blur-md animate-fadeIn">
           <div className="bg-white rounded-sm shadow-2xl max-w-md w-full border border-slate-300 overflow-hidden animate-fadeInUp">
             <div className="bg-[#0b3578] px-8 py-5 text-white">
                 <h2 className="text-lg font-black uppercase tracking-tight">Administrative Rejection Memo</h2>

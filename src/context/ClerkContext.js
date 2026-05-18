@@ -18,6 +18,7 @@ export function ClerkProvider({ children }) {
   const [pendingCertificateRequests, setPendingCertificateRequests] = useState([]);
   const [admissionDrafts, setAdmissionDrafts] = useState([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [areRequestsBootstrapping, setAreRequestsBootstrapping] = useState(true);
   const [hodBranchData, setHodBranchData] = useState(null);
   const [isLoadingHOD, setIsLoadingHOD] = useState(false);
   const [studentHistory, setStudentHistory] = useState({ records: [], myCount: 0, allCount: 0 });
@@ -194,26 +195,31 @@ export function ClerkProvider({ children }) {
     const init = async () => {
       // Only set loading if we don't have clerk data yet
       if (!clerkData) setLoading(true);
+      setAreRequestsBootstrapping(true);
 
-      const clerk = await fetchClerk();
-      const promises = [fetchCollegeInfo()];
-      if (clerk?.role === 'faculty') {
-        promises.push(fetchFacultyData());
-        if (clerk?.is_hod) {
-          promises.push(fetchHODData());
+      try {
+        const clerk = await fetchClerk();
+        const promises = [fetchCollegeInfo()];
+        if (clerk?.role === 'faculty') {
+          promises.push(fetchFacultyData());
+          if (clerk?.is_hod) {
+            promises.push(fetchHODData());
+          }
         }
+        if (clerk?.role === 'admission') {
+          promises.push(fetchPendingProfileRequests());
+          promises.push(fetchPendingCertificateRequests('admission'));
+          promises.push(fetchAdmissionDrafts());
+          promises.push(fetchStudentHistory('my'));
+        }
+        if (clerk?.role === 'scholarship') {
+          promises.push(fetchPendingCertificateRequests('scholarship'));
+        }
+        await Promise.all(promises);
+      } finally {
+        setLoading(false);
+        setAreRequestsBootstrapping(false);
       }
-      if (clerk?.role === 'admission') {
-        promises.push(fetchPendingProfileRequests());
-        promises.push(fetchPendingCertificateRequests('admission'));
-        promises.push(fetchAdmissionDrafts());
-        promises.push(fetchStudentHistory('my'));
-      }
-      if (clerk?.role === 'scholarship') {
-        promises.push(fetchPendingCertificateRequests('scholarship'));
-      }
-      await Promise.all(promises);
-      setLoading(false);
     };
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -244,6 +250,7 @@ export function ClerkProvider({ children }) {
       pendingCertificateRequests,
       admissionDrafts,
       isLoadingRequests,
+      areRequestsBootstrapping,
       refreshProfileRequests: fetchPendingProfileRequests,
       refreshCertificateRequests: fetchPendingCertificateRequests,
       refreshAdmissionDrafts: fetchAdmissionDrafts,

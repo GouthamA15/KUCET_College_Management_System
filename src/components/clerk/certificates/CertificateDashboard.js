@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { usePathname } from 'next/navigation';
 import { useClerk } from "@/context/ClerkContext";
 // Filters moved into a contextual popover; removed full-width CertificateFilters component
@@ -12,7 +12,7 @@ import FiltersPopover from "./FiltersPopover";
 import FiltersButton from "./FiltersButton";
 
 export default function CertificateDashboard({ clerkType }) {
-  const { pendingCertificateRequests, isLoadingRequests, refreshCertificateRequests } = useClerk();
+  const { pendingCertificateRequests, isLoadingRequests } = useClerk();
   const [workspaceMode, setWorkspaceMode] = useState("active"); // "active" | "history"
   const [selectedDate, setSelectedDate] = useState(null); // string | null
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -55,12 +55,7 @@ export default function CertificateDashboard({ clerkType }) {
 
   // Fetch records whenever mode/date/clerkType changes
   const fetchRecords = useCallback(async () => {
-    // If it's active mode and no filters, the useMemo displayRecords handles it.
-    // However, we still might need to trigger a background refresh if context is empty.
     if (workspaceMode === 'active' && appliedFilters.certificateType.length === 0 && appliedFilters.status.length === 0) {
-       if (pendingCertificateRequests.length === 0) {
-           refreshCertificateRequests(clerkType);
-       }
        return;
     }
 
@@ -104,7 +99,7 @@ export default function CertificateDashboard({ clerkType }) {
     } finally {
       setLoadingRecords(false);
     }
-  }, [workspaceMode, historyScope, clerkType, appliedFilters, pendingCertificateRequests, refreshCertificateRequests]);
+  }, [workspaceMode, historyScope, clerkType, appliedFilters]);
 
   // Effects
   useEffect(() => {

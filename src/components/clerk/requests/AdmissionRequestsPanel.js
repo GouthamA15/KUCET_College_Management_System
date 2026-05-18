@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
@@ -141,12 +141,6 @@ const AdmissionRequestsPanel = () => {
         }
     };
 
-    useEffect(() => {
-        if (admissionDrafts.length === 0) {
-            refreshAdmissionDrafts();
-        }
-    }, [admissionDrafts.length, refreshAdmissionDrafts]);
-
     // Stable field change handler to avoid recreating functions per render
     const handleFieldChange = useCallback((name, value) => {
         setEditData(prev => ({ ...prev, [name]: value }));
@@ -159,7 +153,7 @@ const AdmissionRequestsPanel = () => {
                   <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Admission Queue</h2>
                   <p className="text-[10px] text-slate-500 font-medium uppercase mt-1 tracking-wider">Review new intake applications</p>
                 </div>
-                <button onClick={fetchDrafts} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all rounded-sm shadow-sm">
+                                <button onClick={refreshAdmissionDrafts} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all rounded-sm shadow-sm">
                     <span className={`${loading ? 'animate-spin' : ''}`}>↻</span> Sync
                 </button>
             </div>
@@ -591,7 +585,7 @@ function AdmissionModal({
     setRejectionReason,
 }) {
     return (
-        <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-stretch justify-center p-4">
+        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-sm flex items-stretch justify-center p-4">
             <div className="bg-slate-50 border border-slate-300 w-full max-w-6xl h-full flex flex-col shadow-2xl rounded-sm animate-fadeInUp">
                 {/* Header */}
                 <div className="px-8 py-5 border-b border-slate-200 bg-white flex items-center justify-between">
@@ -615,9 +609,11 @@ function AdmissionModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 border-2 border-slate-200 bg-white text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 transition-all rounded-sm shadow-sm"
+                            className="inline-flex items-center justify-center w-10 h-10 border-2 border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all rounded-sm shadow-sm"
+                            aria-label="Close admission review modal"
+                            title="Close"
                         >
-                            Dismiss
+                            <span className="text-lg leading-none font-black">×</span>
                         </button>
                     </div>
                 </div>
