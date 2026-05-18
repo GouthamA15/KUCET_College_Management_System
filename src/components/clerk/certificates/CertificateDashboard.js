@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { usePathname } from 'next/navigation';
 import { useClerk } from "@/context/ClerkContext";
 // Filters moved into a contextual popover; removed full-width CertificateFilters component

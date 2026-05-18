@@ -2,6 +2,7 @@ import logger from '@/lib/logger';
 import { apiResponse, apiError } from "@/lib/api-utils";
 import { v2 as cloudinary } from "cloudinary";
 import { sendInstitutionalEmail } from "@/lib/email";
+import { DEVELOPER_EMAILS } from "@/lib/developers";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -15,12 +16,8 @@ cloudinary.config({
  * Automated check for Cloudinary storage limits.
  */
 export async function GET(request) {
-  // Hardcoded list of developer emails
-  const developerEmails = [
-    "sunnysunnit@gmail.com",
-    "testersybau67@gmail.com",
-    "uzair.mdf@gmail.com"
-  ];
+  // Developer emails from shared config
+  const developerEmails = DEVELOPER_EMAILS;
 
   const ALERT_THRESHOLD_GB = 20;
 

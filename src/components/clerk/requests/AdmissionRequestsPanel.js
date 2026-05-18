@@ -159,8 +159,8 @@ const AdmissionRequestsPanel = () => {
                   <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Admission Queue</h2>
                   <p className="text-[10px] text-slate-500 font-medium uppercase mt-1 tracking-wider">Review new intake applications</p>
                 </div>
-                <button onClick={fetchDrafts} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all rounded-sm shadow-sm">
-                    <span className={`${loading ? 'animate-spin' : ''}`}>↻</span> Sync
+                <button onClick={refreshAdmissionDrafts} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all rounded-sm shadow-sm">
+                    <span className={`${isLoadingRequests ? 'animate-spin' : ''}`}>↻</span> Sync
                 </button>
             </div>
 

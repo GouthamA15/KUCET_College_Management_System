@@ -184,137 +184,233 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>1. Name of the Student (as per memo) <span className="text-red-500">*</span></label>
-                            <input required maxLength="50" value={form.name} onChange={e => setForm({...form, name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="FULL NAME" />
+                            <label htmlFor="student-name" className={labelClasses}>1. Name of the Student (as per memo) <span className="text-red-500">*</span></label>
+                            <input id="student-name" required maxLength="50" value={form.name} onChange={e => setForm({...form, name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="FULL NAME" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>2. Father&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
-                            <input required maxLength="50" value={form.father_name} onChange={e => setForm({...form, father_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="FATHER&apos;S FULL NAME" />
+                            <label htmlFor="father-name" className={labelClasses}>2. Father&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
+                            <input id="father-name" required maxLength="50" value={form.father_name} onChange={e => setForm({...form, father_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="FATHER&apos;S FULL NAME" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>3. Mother&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
-                            <input required maxLength="50" value={form.mother_name} onChange={e => setForm({...form, mother_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER&apos;S FULL NAME" />
+                            <label htmlFor="mother-name" className={labelClasses}>3. Mother&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
+                            <input id="mother-name" required maxLength="50" value={form.mother_name} onChange={e => setForm({...form, mother_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER&apos;S FULL NAME" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>4. Entrance Exam & Branch <span className="text-red-500">*</span></label>
+                            <label id="exam-branch-label" className={labelClasses}>4. Entrance Exam & Branch <span className="text-red-500">*</span></label>
                             <div className="grid grid-cols-2 gap-2">
-                                <select required value={form.entrance_exam} onChange={e => setForm({...form, entrance_exam: e.target.value})} className={inputClasses}>
+                                <select required value={form.entrance_exam} onChange={e => setForm({...form, entrance_exam: e.target.value})} className={inputClasses} aria-labelledby="exam-branch-label">
                                     <option value="EAMCET">EAMCET</option>
                                     <option value="ECET">ECET</option>
                                 </select>
-                                <select required value={form.branch} onChange={e => setForm({...form, branch: e.target.value})} className={inputClasses}>
+                                <select required value={form.branch} onChange={e => setForm({...form, branch: e.target.value})} className={inputClasses} aria-label="Branch">
                                     {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name}</option>)}
                                 </select>
                             </div>
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>5. ECET / EAMCET Rank Details <span className="text-red-500">*</span></label>
-                            <input required type="number" min="1" max="200000" value={form.exam_rank} onChange={e => setForm({...form, exam_rank: e.target.value})} className={inputClasses} placeholder="ENTRANCE RANK" />
+                            <label htmlFor="exam-rank" className={labelClasses}>5. ECET / EAMCET Rank Details <span className="text-red-500">*</span></label>
+                            <input id="exam-rank" required type="number" min="1" max="200000" value={form.exam_rank} onChange={e => setForm({...form, exam_rank: e.target.value})} className={inputClasses} placeholder="ENTRANCE RANK" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>6. Area</label>
-                            <select value={form.area_status} onChange={e => setForm({...form, area_status: e.target.value})} className={inputClasses}>
+                            <label htmlFor="area-status" className={labelClasses}>6. Area</label>
+                            <select id="area-status" value={form.area_status} onChange={e => setForm({...form, area_status: e.target.value})} className={inputClasses}>
                                 <option value="Local">Local</option>
                                 <option value="Non Local">Non Local</option>
                             </select>
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>7. Category <span className="text-red-500">*</span></label>
-                            <select required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={inputClasses}>
+                            <label htmlFor="category" className={labelClasses}>7. Category <span className="text-red-500">*</span></label>
+                            <select id="category" required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={inputClasses}>
                                 {COLLEGE_CONFIG.categories.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>8. Sub Caste <span className="text-red-500">*</span></label>
-                            <input required maxLength="50" value={form.sub_caste} onChange={e => setForm({...form, sub_caste: e.target.value.toUpperCase()})} className={inputClasses} placeholder="SUB CASTE" />
+                            <label htmlFor="sub-caste" className={labelClasses}>8. Sub Caste <span className="text-red-500">*</span></label>
+                            <input id="sub-caste" required maxLength="50" value={form.sub_caste} onChange={e => setForm({...form, sub_caste: e.target.value.toUpperCase()})} className={inputClasses} placeholder="SUB CASTE" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>9. Seat Allotted Category <span className="text-red-500">*</span></label>
-                            <input required maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
+                            <label htmlFor="seat-allotted" className={labelClasses}>9. Seat Allotted Category <span className="text-red-500">*</span></label>
+                            <input id="seat-allotted" required maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>10. Date of Birth <span className="text-red-500">*</span></label>
-                            <input required type="date" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} className={inputClasses} />
+                            <label htmlFor="dob" className={labelClasses}>10. Date of Birth <span className="text-red-500">*</span></label>
+                            <input id="dob" required type="date" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} className={inputClasses} />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>11. Gender <span className="text-red-500">*</span></label>
-                            <select required value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className={inputClasses}>
+                            <label htmlFor="gender" className={labelClasses}>11. Gender <span className="text-red-500">*</span></label>
+                            <select id="gender" required value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className={inputClasses}>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
                             </select>
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>12. Nationality <span className="text-red-500">*</span></label>
-                            <input required maxLength="30" value={form.nationality} onChange={e => setForm({...form, nationality: e.target.value.toUpperCase()})} className={inputClasses} />
+                            <label htmlFor="nationality" className={labelClasses}>12. Nationality <span className="text-red-500">*</span></label>
+                            <input id="nationality" required maxLength="30" value={form.nationality} onChange={e => setForm({...form, nationality: e.target.value.toUpperCase()})} className={inputClasses} />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>13. Religion <span className="text-red-500">*</span></label>
-                            <input required maxLength="30" value={form.religion} onChange={e => setForm({...form, religion: e.target.value.toUpperCase()})} className={inputClasses} placeholder="RELIGION" />
+                            <label htmlFor="religion" className={labelClasses}>13. Religion <span className="text-red-500">*</span></label>
+                            <input id="religion" required maxLength="30" value={form.religion} onChange={e => setForm({...form, religion: e.target.value.toUpperCase()})} className={inputClasses} placeholder="RELIGION" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>14. Mother Tongue <span className="text-red-500">*</span></label>
-                            <input required maxLength="30" value={form.mother_tongue} onChange={e => setForm({...form, mother_tongue: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER TONGUE" />
+                            <label htmlFor="mother-tongue" className={labelClasses}>14. Mother Tongue <span className="text-red-500">*</span></label>
+                            <input id="mother-tongue" required maxLength="30" value={form.mother_tongue} onChange={e => setForm({...form, mother_tongue: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER TONGUE" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>15. Blood Group</label>
-                            <select value={form.blood_group} onChange={e => setForm({...form, blood_group: e.target.value})} className={inputClasses}>
+                            <label htmlFor="blood-group" className={labelClasses}>15. Blood Group</label>
+                            <select id="blood-group" value={form.blood_group} onChange={e => setForm({...form, blood_group: e.target.value})} className={inputClasses}>
                                 <option value="">Select Blood Group</option>
                                 {COLLEGE_CONFIG.bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
                             </select>
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>16. SSC / 10th Marks <span className="text-red-500">*</span></label>
-                            <input required type="number" min="0" value={form.ssc_marks} onChange={e => setForm({...form, ssc_marks: e.target.value})} className={inputClasses} placeholder="TOTAL MARKS / CGPA" />
+                            <label htmlFor="ssc-marks" className={labelClasses}>16. SSC / 10th Marks <span className="text-red-500">*</span></label>
+                            <input id="ssc-marks" required type="number" min="0" value={form.ssc_marks} onChange={e => setForm({...form, ssc_marks: e.target.value})} className={inputClasses} placeholder="TOTAL MARKS / CGPA" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="father-name" className={labelClasses}>2. Father&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
+                            <input id="father-name" required maxLength="50" value={form.father_name} onChange={e => setForm({...form, father_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="FATHER&apos;S FULL NAME" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="mother-name" className={labelClasses}>3. Mother&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
+                            <input id="mother-name" required maxLength="50" value={form.mother_name} onChange={e => setForm({...form, mother_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER&apos;S FULL NAME" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label id="exam-branch-label" className={labelClasses}>4. Entrance Exam & Branch <span className="text-red-500">*</span></label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <select required value={form.entrance_exam} onChange={e => setForm({...form, entrance_exam: e.target.value})} className={inputClasses} aria-labelledby="exam-branch-label">
+                                    <option value="EAMCET">EAMCET</option>
+                                    <option value="ECET">ECET</option>
+                                </select>
+                                <select required value={form.branch} onChange={e => setForm({...form, branch: e.target.value})} className={inputClasses} aria-labelledby="exam-branch-label">
+                                    {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="exam-rank" className={labelClasses}>5. ECET / EAMCET Rank Details <span className="text-red-500">*</span></label>
+                            <input id="exam-rank" required type="number" min="1" max="200000" value={form.exam_rank} onChange={e => setForm({...form, exam_rank: e.target.value})} className={inputClasses} placeholder="ENTRANCE RANK" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="area-status" className={labelClasses}>6. Area</label>
+                            <select id="area-status" value={form.area_status} onChange={e => setForm({...form, area_status: e.target.value})} className={inputClasses}>
+                                <option value="Local">Local</option>
+                                <option value="Non Local">Non Local</option>
+                            </select>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="category" className={labelClasses}>7. Category <span className="text-red-500">*</span></label>
+                            <select id="category" required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={inputClasses}>
+                                {COLLEGE_CONFIG.categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="sub-caste" className={labelClasses}>8. Sub Caste <span className="text-red-500">*</span></label>
+                            <input id="sub-caste" required maxLength="50" value={form.sub_caste} onChange={e => setForm({...form, sub_caste: e.target.value.toUpperCase()})} className={inputClasses} placeholder="SUB CASTE" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="seat-allotted" className={labelClasses}>9. Seat Allotted Category <span className="text-red-500">*</span></label>
+                            <input id="seat-allotted" required maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="dob" className={labelClasses}>10. Date of Birth <span className="text-red-500">*</span></label>
+                            <input id="dob" required type="date" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} className={inputClasses} />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="gender" className={labelClasses}>11. Gender <span className="text-red-500">*</span></label>
+                            <select id="gender" required value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className={inputClasses}>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="nationality" className={labelClasses}>12. Nationality <span className="text-red-500">*</span></label>
+                            <input id="nationality" required maxLength="30" value={form.nationality} onChange={e => setForm({...form, nationality: e.target.value.toUpperCase()})} className={inputClasses} />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="religion" className={labelClasses}>13. Religion <span className="text-red-500">*</span></label>
+                            <input id="religion" required maxLength="30" value={form.religion} onChange={e => setForm({...form, religion: e.target.value.toUpperCase()})} className={inputClasses} placeholder="RELIGION" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="mother-tongue" className={labelClasses}>14. Mother Tongue <span className="text-red-500">*</span></label>
+                            <input id="mother-tongue" required maxLength="30" value={form.mother_tongue} onChange={e => setForm({...form, mother_tongue: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER TONGUE" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="blood-group" className={labelClasses}>15. Blood Group</label>
+                            <select id="blood-group" value={form.blood_group} onChange={e => setForm({...form, blood_group: e.target.value})} className={inputClasses}>
+                                <option value="">Select Blood Group</option>
+                                {COLLEGE_CONFIG.bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="ssc-marks" className={labelClasses}>16. SSC / 10th Marks <span className="text-red-500">*</span></label>
+                            <input id="ssc-marks" required type="number" min="0" value={form.ssc_marks} onChange={e => setForm({...form, ssc_marks: e.target.value})} className={inputClasses} placeholder="TOTAL MARKS / CGPA" />
                         </div>
 
                         <div className="space-y-1 md:col-span-2">
-                            <label className={labelClasses}>17. Intermediate (for EAMCET) / Diploma (for ECET) Marks <span className="text-red-500">*</span></label>
-                            <input required type="number" min="0" value={form.inter_diploma_marks} onChange={e => setForm({...form, inter_diploma_marks: e.target.value})} className={inputClasses} placeholder="MARKS OBTAINED" />
+                            <label htmlFor="inter-marks" className={labelClasses}>17. Intermediate (for EAMCET) / Diploma (for ECET) Marks <span className="text-red-500">*</span></label>
+                            <input id="inter-marks" required type="number" min="0" value={form.inter_diploma_marks} onChange={e => setForm({...form, inter_diploma_marks: e.target.value})} className={inputClasses} placeholder="MARKS OBTAINED" />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>18. Place of Birth</label>
-                            <input maxLength="50" value={form.place_of_birth} onChange={e => setForm({...form, place_of_birth: e.target.value.toUpperCase()})} className={inputClasses} />
+                            <label htmlFor="place-of-birth" className={labelClasses}>18. Place of Birth</label>
+                            <input id="place-of-birth" maxLength="50" value={form.place_of_birth} onChange={e => setForm({...form, place_of_birth: e.target.value.toUpperCase()})} className={inputClasses} />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>19. Father&apos;s Occupation</label>
-                            <input maxLength="50" value={form.father_occupation} onChange={e => setForm({...form, father_occupation: e.target.value.toUpperCase()})} className={inputClasses} />
+                            <label htmlFor="father-occupation" className={labelClasses}>19. Father&apos;s Occupation</label>
+                            <input id="father-occupation" maxLength="50" value={form.father_occupation} onChange={e => setForm({...form, father_occupation: e.target.value.toUpperCase()})} className={inputClasses} />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>20. Annual Income <span className="text-red-500">*</span></label>
-                            <input 
+                            <label htmlFor="annual-income" className={labelClasses}>20. Annual Income <span className="text-red-500">*</span></label>
+                            <select 
+                                id="annual-income"
                                 required 
                                 value={form.annual_income} 
-                                onChange={e => {
-                                    const raw = e.target.value.replace(/\D/g, '');
-                                    if (raw && parseInt(raw) > 2000000) return;
-                                    setForm({...form, annual_income: formatIndianNumber(raw)});
-                                }} 
+                                onChange={e => setForm({...form, annual_income: e.target.value})}
                                 className={inputClasses}
-                                placeholder="ANNUAL INCOME"
-                            />
+                            >
+                                <option value="">Select Annual Income</option>
+                                {COLLEGE_CONFIG.annualIncomes.map(income => (
+                                    <option key={income} value={income}>{income}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>21. Student Aadhaar Number <span className="text-red-500">*</span></label>
+                            <label htmlFor="aadhaar" className={labelClasses}>21. Student Aadhaar Number <span className="text-red-500">*</span></label>
                             <input 
+                                id="aadhaar"
                                 required 
                                 pattern="[0-9]{4}\s[0-9]{4}\s[0-9]{4}" 
                                 title="Enter a valid 12-digit Aadhaar number" 
@@ -327,23 +423,23 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>22. Student Mobile Number <span className="text-red-500">*</span></label>
-                            <input required pattern="[0-9]{10}" title="Enter a valid 10-digit mobile number" value={form.student_mobile} onChange={e => setForm({...form, student_mobile: e.target.value})} maxLength={10} className={inputClasses} />
+                            <label htmlFor="student-mobile" className={labelClasses}>22. Student Mobile Number <span className="text-red-500">*</span></label>
+                            <input id="student-mobile" required pattern="[0-9]{10}" title="Enter a valid 10-digit mobile number" value={form.student_mobile} onChange={e => setForm({...form, student_mobile: e.target.value})} maxLength={10} className={inputClasses} />
                         </div>
 
                         <div className="space-y-1">
-                            <label className={labelClasses}>23. Father / Guardian Mobile Number <span className="text-red-500">*</span></label>
-                            <input required pattern="[0-9]{10}" title="Enter a valid 10-digit mobile number" value={form.guardian_mobile} onChange={e => setForm({...form, guardian_mobile: e.target.value})} maxLength={10} className={inputClasses} />
+                            <label htmlFor="guardian-mobile" className={labelClasses}>23. Father / Guardian Mobile Number <span className="text-red-500">*</span></label>
+                            <input id="guardian-mobile" required pattern="[0-9]{10}" title="Enter a valid 10-digit mobile number" value={form.guardian_mobile} onChange={e => setForm({...form, guardian_mobile: e.target.value})} maxLength={10} className={inputClasses} />
                         </div>
 
                         <div className="space-y-1 md:col-span-2">
-                            <label className={labelClasses}>24. Mail ID of the Student <span className="text-red-500">*</span></label>
-                            <input type="email" required maxLength="50" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className={inputClasses} placeholder="example@email.com" />
+                            <label htmlFor="email" className={labelClasses}>24. Mail ID of the Student <span className="text-red-500">*</span></label>
+                            <input id="email" type="email" required maxLength="50" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className={inputClasses} placeholder="example@email.com" />
                         </div>
 
                         <div className="space-y-1 md:col-span-2">
-                            <label className={labelClasses}>25. Whether you come under Fee-Reimbursement Category</label>
-                            <select value={form.fee_reimbursement} onChange={e => setForm({...form, fee_reimbursement: e.target.value})} className={inputClasses}>
+                            <label htmlFor="fee-reimbursement" className={labelClasses}>25. Whether you come under Fee-Reimbursement Category</label>
+                            <select id="fee-reimbursement" value={form.fee_reimbursement} onChange={e => setForm({...form, fee_reimbursement: e.target.value})} className={inputClasses}>
                                 <option value="NO">NO</option>
                                 <option value="YES">YES</option>
                                 <option value="GOV">GOV</option>
@@ -377,16 +473,18 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="md:col-span-2">
-                            <label className={labelClasses}>27. Permanent Address <span className="text-red-500">*</span></label>
-                            <textarea required rows={4} maxLength="255" value={form.permanent_address} onChange={e => setForm({...form, permanent_address: e.target.value})} className={inputClasses} placeholder="Enter full permanent residential address..."></textarea>
+                            <label htmlFor="permanent-address" className={labelClasses}>27. Permanent Address <span className="text-red-500">*</span></label>
+                            <textarea id="permanent-address" required rows={4} maxLength="255" value={form.permanent_address} onChange={e => setForm({...form, permanent_address: e.target.value})} className={inputClasses} placeholder="Enter full permanent residential address..."></textarea>
                         </div>
+
+                        
                     </div>
 
-                    <div className="pt-10 flex flex-col items-center gap-4">
-                        <button type="submit" disabled={loading} className="w-full md:w-1/2 bg-indigo-700 text-white font-black py-4 rounded-sm shadow-xl hover:bg-indigo-800 disabled:opacity-50 transition-all uppercase tracking-widest text-lg">
-                            {loading ? 'Submitting Application...' : 'Submit Admission Form'}
+                    {/* Final Actions */}
+                    <div className="pt-8 flex justify-end border-t border-gray-200">
+<button type="submit" disabled={loading} className="bg-indigo-700 text-white font-bold py-3 px-8 rounded-md hover:bg-indigo-800 disabled:bg-gray-400 transition-all text-lg shadow-lg">
+                            {loading ? 'Submitting...' : 'Submit Application'}
                         </button>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase">Note: Ensure all information is correct as per your academic documents.</p>
                     </div>
                 </form>
             </div>
@@ -396,3 +494,5 @@ const AdmissionPage = () => {
 };
 
 export default AdmissionPage;
+
+
