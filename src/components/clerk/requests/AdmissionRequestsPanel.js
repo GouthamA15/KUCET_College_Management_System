@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
@@ -584,8 +585,8 @@ function AdmissionModal({
     rejectionReason,
     setRejectionReason,
 }) {
-    return (
-        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-sm flex items-stretch justify-center p-4">
+    const modal = (
+        <div className="fixed inset-0 z-[9998] bg-slate-900/60 backdrop-blur-sm flex items-stretch justify-center p-4">
             <div className="bg-slate-50 border border-slate-300 w-full max-w-6xl h-full flex flex-col shadow-2xl rounded-sm animate-fadeInUp">
                 {/* Header */}
                 <div className="px-8 py-5 border-b border-slate-200 bg-white flex items-center justify-between">
@@ -704,6 +705,8 @@ function AdmissionModal({
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 }
 
 export default AdmissionRequestsPanel;

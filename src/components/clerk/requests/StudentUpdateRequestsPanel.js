@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
@@ -269,65 +270,71 @@ const StudentUpdateRequestsPanel = () => {
       )}
 
       {/* Audit Image Preview Modal */}
-      {viewingImage && (
-        <div 
-            className="fixed inset-0 z-200 bg-slate-900/95 flex items-center justify-center p-6 md:p-12 cursor-zoom-out animate-fadeIn"
+        {viewingImage && createPortal(
+        (
+          <div 
+            className="fixed inset-0 z-[200] bg-slate-900/95 flex items-center justify-center p-6 md:p-12 cursor-zoom-out animate-fadeIn"
             onClick={() => setViewingImage(null)}
-        >
+          >
             <div className="relative w-full h-full flex flex-col items-center justify-center">
-                <div className="absolute top-0 right-0 p-8">
-                    <button className="text-white text-3xl font-light hover:scale-110 transition-transform uppercase tracking-widest flex items-center gap-3">
-                       <span className="text-xs font-black tracking-[0.3em]">DISMISS AUDIT</span> ×
-                    </button>
-                </div>
-                <div className="relative max-w-6xl max-h-[85vh] w-full h-full flex items-center justify-center border-8 border-slate-800 shadow-2xl bg-white rounded-sm overflow-hidden">
-                    <Image src={viewingImage} alt="Audit Preview" fill unoptimized className="object-contain" />
-                </div>
-                <div className="mt-8 text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] animate-pulse">Digital Forensic Environment • High-Resolution View</div>
-            </div>
-        </div>
-      )}
-
-      {/* Rejection Memo Modal */}
-      {rejectingRequest && (
-        <div className="fixed inset-0 z-150 flex items-center justify-center bg-slate-900/70 p-6 backdrop-blur-md animate-fadeIn">
-          <div className="bg-white rounded-sm shadow-2xl max-w-md w-full border border-slate-300 overflow-hidden animate-fadeInUp">
-            <div className="bg-[#0b3578] px-8 py-5 text-white">
-                <h2 className="text-lg font-black uppercase tracking-tight">Administrative Rejection Memo</h2>
-            </div>
-            
-            <div className="p-8">
-                <p className="text-[11px] text-slate-500 mb-6 font-bold leading-relaxed uppercase tracking-wider">
-                  Specify formal rationale for rejection of record modification application for student <span className="text-blue-700 underline underline-offset-4 font-black">{rejectingRequest.name}</span>.
-                </p>
-                
-                <textarea 
-                  autoFocus
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  className="w-full border-2 border-slate-100 bg-slate-50 rounded-sm p-5 text-xs font-bold focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300 shadow-inner resize-none"
-                  rows={5}
-                  placeholder="e.g. Identification evidence illegible, Record mismatch, Insufficient substantiation..."
-                />
-                
-                <div className="mt-10 flex gap-4">
-                  <button 
-                    onClick={() => { setRejectingRequest(null); setRejectionReason(''); }}
-                    className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 rounded-sm hover:bg-slate-100 transition-colors border-2 border-slate-100 shadow-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    disabled={processing || !rejectionReason.trim()}
-                    onClick={() => handleAction(rejectingRequest.id, 'reject', rejectionReason)}
-                    className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-white bg-rose-700 rounded-sm hover:bg-rose-800 disabled:opacity-50 transition-all shadow-lg shadow-rose-100 active:scale-95"
-                  >
-                    Issue Rejection
-                  </button>
-                </div>
+              <div className="absolute top-0 right-0 p-8">
+                <button className="text-white text-3xl font-light hover:scale-110 transition-transform uppercase tracking-widest flex items-center gap-3">
+                 <span className="text-xs font-black tracking-[0.3em]">DISMISS AUDIT</span> ×
+                </button>
+              </div>
+              <div className="relative max-w-6xl max-h-[85vh] w-full h-full flex items-center justify-center border-8 border-slate-800 shadow-2xl bg-white rounded-sm overflow-hidden">
+                <Image src={viewingImage} alt="Audit Preview" fill unoptimized className="object-contain" />
+              </div>
+              <div className="mt-8 text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] animate-pulse">Digital Forensic Environment • High-Resolution View</div>
             </div>
           </div>
-        </div>
+        ),
+        document.body
+        )}
+
+      {/* Rejection Memo Modal */}
+      {rejectingRequest && createPortal(
+        (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/70 p-6 backdrop-blur-md animate-fadeIn">
+            <div className="bg-white rounded-sm shadow-2xl max-w-md w-full border border-slate-300 overflow-hidden animate-fadeInUp">
+              <div className="bg-[#0b3578] px-8 py-5 text-white">
+                  <h2 className="text-lg font-black uppercase tracking-tight">Administrative Rejection Memo</h2>
+              </div>
+              
+              <div className="p-8">
+                  <p className="text-[11px] text-slate-500 mb-6 font-bold leading-relaxed uppercase tracking-wider">
+                    Specify formal rationale for rejection of record modification application for student <span className="text-blue-700 underline underline-offset-4 font-black">{rejectingRequest.name}</span>.
+                  </p>
+                  
+                  <textarea 
+                    autoFocus
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full border-2 border-slate-100 bg-slate-50 rounded-sm p-5 text-xs font-bold focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300 shadow-inner resize-none"
+                    rows={5}
+                    placeholder="e.g. Identification evidence illegible, Record mismatch, Insufficient substantiation..."
+                  />
+                  
+                  <div className="mt-10 flex gap-4">
+                    <button 
+                      onClick={() => { setRejectingRequest(null); setRejectionReason(''); }}
+                      className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 rounded-sm hover:bg-slate-100 transition-colors border-2 border-slate-100 shadow-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      disabled={processing || !rejectionReason.trim()}
+                      onClick={() => handleAction(rejectingRequest.id, 'reject', rejectionReason)}
+                      className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-white bg-rose-700 rounded-sm hover:bg-rose-800 disabled:opacity-50 transition-all shadow-lg shadow-rose-100 active:scale-95"
+                    >
+                      Issue Rejection
+                    </button>
+                  </div>
+              </div>
+            </div>
+          </div>
+        ),
+        document.body
       )}
     </div>
   );
