@@ -106,6 +106,8 @@ Each role sees only what they are allowed to see and edit.
 ## 📸 Screenshots
 - ### Home Page:
     ![Home Page](screenshots/home.png)
+- ### Profile Module:
+    ![Profile Module](screenshots/profile-module.png)
 - ### Student Dashboard:
     ![Student Dashboard](screenshots/student-dashboard.png)
 - ### Administrative Clerk Dashboard:
