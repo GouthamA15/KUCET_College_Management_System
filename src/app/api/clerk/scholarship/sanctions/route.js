@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { scholarshipSanctions, students as studentsTable, scholarshipWindows } from '@/db/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, or, desc, sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { sendInstitutionalEmail } from '@/lib/email';
@@ -27,7 +27,16 @@ export async function POST(req) {
     if (!roll_no) return apiError('Missing roll_no', 400);
     if (!academic_year || !academic_year.match(/^\d{4}-\d{2}$/)) return apiError('Invalid academic_year', 400);
     if (!application_no) return apiError('Missing application_no', 400);
-    if (String(application_no).length > 12) return apiError('application_no must be at most 12 digits', 400);
+
+    // Strict Format Validation: Must be purely numeric and between 6 to 15 digits
+    const cleanAppStr = String(application_no).trim();
+    if (!/^\d+$/.test(cleanAppStr)) {
+      return apiError('application_no must be a numeric string', 400);
+    }
+    if (cleanAppStr.length < 6 || cleanAppStr.length > 15) {
+      return apiError('application_no must be between 6 and 15 digits', 400);
+    }
+
     if (sanctioned_amount !== null && !(sanctioned_amount > 0)) return apiError('Invalid sanctioned_amount', 400);
     if (sanctioned_amount !== null && !proceeding_no) return apiError('Missing proceeding_no for provided amount', 400);
     if (sanctioned_amount !== null && !sanction_date) return apiError('Invalid sanction_date', 400);
@@ -69,6 +78,7 @@ export async function POST(req) {
 
     const providedProceeding = proceeding_no && String(proceeding_no).trim() !== '' ? String(proceeding_no).trim() : null;
     const providedApp = application_no && String(application_no).trim() !== '' ? String(application_no).trim() : null;
+    
     const providedThumbFlag = body.thumb_update_available ? 1 : 0;
     const providedThumbStatus = body.thumb_status ? String(body.thumb_status) : null;
     const thumbIsPending = typeof providedThumbStatus === 'string'
@@ -140,7 +150,7 @@ export async function POST(req) {
       }
     }
 
-    // MANDATORY SYNC STEP
+    // MANDATORY SYNC STEP: Update flags for this specific year
     await db.update(scholarshipSanctions)
       .set({ 
         hardcopy_submitted: providedHardcopyFlag, 
@@ -151,6 +161,19 @@ export async function POST(req) {
         eq(scholarshipSanctions.student_id, student.id),
         eq(scholarshipSanctions.academic_year, academic_year)
       ));
+
+    // AUTOMATED PROPAGATION: If application_no is provided, propagate it to all other years for this student
+    if (providedApp) {
+      await db.update(scholarshipSanctions)
+        .set({ application_no: providedApp })
+        .where(and(
+          eq(scholarshipSanctions.student_id, student.id),
+          or(
+            sql`${scholarshipSanctions.application_no} IS NULL`,
+            eq(scholarshipSanctions.application_no, '')
+          )
+        ));
+    }
 
     const currentApp = providedApp || (existing.find(r => r.application_no)?.application_no) || null;
 

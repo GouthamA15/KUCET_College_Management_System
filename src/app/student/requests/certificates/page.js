@@ -211,6 +211,7 @@ export default function CertificateRequestsPage() {
         title="Certificate Requests"
         left={
           <CertificateRequestForm
+            key={selectedCertificate}
             certificateOptions={certificateOptions}
             selectedCertificate={selectedCertificate}
             setSelectedCertificate={setSelectedCertificate}

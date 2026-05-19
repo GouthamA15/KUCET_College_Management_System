@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 14, 2026 (Session 110)
+**Last Updated:** May 19, 2026 (Session 114)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -378,6 +378,85 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Refined `financial-utils.js` and `student.js` validations to enforce stricter institutional standards for annual income formatting and roll-number parsing.
 - **Infrastructure Maintenance:**
     - Updated `package-lock.json` with resolved dependency trees and security-hardened sub-dependencies.
+
+---
+
+#### **Session 111: Quality Assurance & Registry Stabilization (May 15, 2026)**
+- **System Hardening:**
+    - Performed a project-wide ESLint cleanup to ensure code quality and consistency across all institutional modules.
+- **Bug Resolution:**
+    - Resolved critical issues where `fetchDrafts` was undefined in the admission module and fixed PWA icon resolution errors in the build pipeline.
+- **Navigation & UX:**
+    - Restored the institutional Verification navigation link and stabilized role-specific menu redirects for improved staff workflow.
+- **Documentation:**
+    - Updated `AGENTS.md` with high-signal facts and community board integration details to enhance agentic collaboration.
+
+---
+
+#### **Session 112: Automated Admissions & Registry Hardening (May 18-19, 2026)**
+- **Auto Roll Number Generation:**
+    - Implemented a sophisticated generation engine (`autoGenerateRollNumber.js`) that automatically assigns student roll numbers based on institutional patterns (Year + College Code + Exam Type + Branch Code + Serial). 
+    - Added a supporting API route (`/api/admissions/generate-roll-number`) to enable one-click assignment during the admission finalization process.
+- **Database Integrity:**
+    - Hardened the `students` table in `src/db/schema.js` with a `uniqueIndex` on `roll_no`, providing a critical layer of protection against duplicate records and registry collisions.
+- **UI/UX Refinement:**
+    - Stabilized the "View/Edit Student" modules by resolving "out-of-flow" layout issues and ensuring consistent date formats in admission drafts.
+- **Scholarship Search & Data Redundancy Refinement:**
+    - Modified the scholarship application lookup API (`/api/clerk/scholarship/application/[application_no]`) to support searching by full application numbers with **Strict Numeric Validation**.
+    - Updated the save-side API (`/api/clerk/scholarship/sanctions`) to **store application numbers in full**, ensuring no truncation or normalization of year prefixes occurs, while enforcing **Regex-Based Validation** (6-15 digits).
+    - Added **Automated Propagation**: entering an application number for one year now automatically propagates the full ID to all other academic years for the same student that are currently missing it.
+- **Clerk Workspace:**
+    - Refined Clerk-facing pages and resolved core navigation shell conflicts to improve administrative efficiency.
+- **Project Maintenance:**
+    - Updated `README.md` to reflect the latest project status and system capabilities.
+
+#### **Session 113: Certificate Request UX Hardening & ESLint Resolution (May 19, 2026)**
+- **Certificate Request Upload Fix:**
+    - Resolved a critical bug in `CertificateRequestForm.js` where form state was being prematurely reset during the screenshot upload process.
+    - **Architecture Optimization:** Transitioned from manual `useEffect`-based state resets to the idiomatic **React `key` prop pattern**. By applying `key={selectedCertificate}` in the parent layout, the form now robustly resets its internal state upon certificate selection without triggering cascading renders.
+- **ESLint & Performance Hardening:**
+    - Resolved the `react-hooks/set-state-in-effect` error, aligning the certificate module with React 19 best practices and unblocking the institutional CI/CD pipeline.
+    - Refined the `paymentPreviewUrl` cleanup logic to prevent memory leaks while maintaining a responsive "Instant Preview" experience for students.
+- **Navigation Resilience:**
+    - Stabilized the certificate request workspace, ensuring students can seamlessly upload payment proofs and submit requests across both mobile and desktop viewports.
+- **Scholarship Search Context Refinement:**
+    - Modified the scholarship application lookup (`/api/clerk/scholarship/application/[application_no]`) to display **only the specific academic year records** that match the searched application number.
+    - Removed the automatically generated multi-year grid to provide a more focused, context-specific search result.
+    - Maintained **Strict Numeric Validation** for all application number searches.
+
+#### **Session 114: Profile Synchronization & Data Integrity Hardening (May 19, 2026)**
+- **Profile Modification Sync Fix:**
+    - Resolved a critical issue where student profile modification requests, although approved by the clerk, failed to update the underlying student records.
+    - **Robust Record Migration:** Refactored the approval API (`/api/clerk/admission/student-requests`) to utilize a "Find or Create" pattern for `studentPersonalDetails` and `studentAcademicBackground`. This ensures that even if a student record was incomplete, approval now guarantees a consistent and updated registry entry.
+    - **Expanded Audit Coverage:** Integrated automatic synchronization for `name` and `date_of_birth` within the core `students` table upon modification approval.
+- **Scholarship Application Integrity:**
+    - Hardened the scholarship sanction engine to prevent the truncation of application numbers. Ensured that full-length numeric identifiers are correctly preserved during database insertion and multi-year propagation.
+- **Security & Blind Indexing:**
+    - Verified and maintained institutional-grade encryption (AES-256-GCM) and blind indexing (HMAC-SHA256) for all sensitive modifications (Mobile, Aadhaar), ensuring data privacy remains intact during administrative record updates.
+
+#### **Session 115: Departmental Intelligence & ID Card Workflow (May 19, 2026)**
+- **ID Card Reissue Workflow:**
+    - Implemented a complete end-to-end workflow for student ID card reissues. Students can now request reissues via their dashboard with payment proof (150/- fee).
+    - Developed the clerk-facing approval interface, enabling Admission Clerks to verify payments and approve reissue requests.
+- **Departmental Overview & Materials:**
+    - Developed a comprehensive Departments Overview page for clerks, providing a high-level view of institutional branch configurations.
+    - Implemented mock UI for Faculty Academic Materials, establishing the foundation for a centralized repository of departmental resources.
+- **Registry & Clean-up:**
+    - Refined the institutional branch registry: added **Computer Science and Design (CSD)** and removed the obsolete Mining department.
+    - Sanitized the codebase by removing unused components (`ComingSoon`, `auth lib placeholder`) and improving navigation placeholders for non-faculty users.
+
+#### **Session 116: Digital ID Card Excellence & Security Restoration (May 19, 2026)**
+- **Digital ID Card Redesign:**
+    - Conducted a significant overhaul of the `IDCardPDF` template to achieve visual parity with the physical institutional ID card.
+    - **Layout Precision:** Implemented a strictly calibrated absolute positioning system to prevent element overlap. Added a red-bordered information grid, a magenta "IDENTITY CARD" ribbon, and institutional blue/red accent stripes.
+    - **Branding Integrity:** Integrated the engineering-specific college logo within a white circular container on a blue background. Updated the template to display the Principal's name (**T.M. Reddy**) and used the 4-year batch range for academic identification.
+- **API & Asset Hardening:**
+    - Refactored the certificate download API to support on-the-fly asset overrides for ID cards, ensuring the correct logos and signatures are embedded.
+    - Resolved accessibility warnings in the PDF generation engine by standardizing image `alt` metadata.
+- **Bug Resolution:**
+    - Fixed a critical **403 Forbidden** error in the clerk request details API by synchronizing allowed certificate types for the Admission role.
+- **UX Optimization:**
+    - Refined the ID card layout based on user feedback, removing distracting accent rhombuses to provide a cleaner, more professional institutional appearance.
 
 ### April 2026
 

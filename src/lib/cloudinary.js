@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
+import logger from './logger';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -62,7 +63,8 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    fileToUpload = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+    const mimeType = file.type || 'image/jpeg';
+    fileToUpload = `data:${mimeType};base64,${buffer.toString('base64')}`;
   }
   // Handle Buffers
   else if (Buffer.isBuffer(file)) {
@@ -81,11 +83,19 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
 
   try {
     const result = await cloudinary.uploader.upload(fileToUpload, options);
+    if (!result || !result.secure_url) {
+      throw new Error('Cloudinary upload returned an empty response.');
+    }
     // Return optimized URL by default
     return getOptimizedUrl(result.secure_url);
   } catch (error) {
-    console.error('Cloudinary Upload Error:', error);
-    throw new Error('Failed to upload image to cloud storage.');
+    logger.error('Cloudinary Upload Error:', {
+      message: error.message,
+      stack: error.stack,
+      folder,
+      publicId
+    });
+    throw new Error(`Failed to upload image to cloud storage: ${error.message}`);
   }
 }
 

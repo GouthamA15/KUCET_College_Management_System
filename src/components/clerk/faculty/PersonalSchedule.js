@@ -114,23 +114,23 @@ export default function PersonalSchedule() {
                     const isActivity = !!activity;
 
                     return (
-                      <td key={`${day}-${p}`} className={`p-3 border-b border-slate-100 text-center transition-colors ${slot ? (isActivity ? 'bg-amber-50/10' : 'bg-white') : 'bg-slate-50/20'}`}>
+                      <td key={`${day}-${p}`} className={`p-3 border-b border-r border-slate-200 text-center transition-colors ${slot ? (isActivity ? 'bg-amber-50/20' : 'bg-slate-50/30') : 'bg-slate-50/30'}`}>
                         {slot ? (
-                          <div className="flex flex-col gap-1">
-                            <div className={`font-bold text-[10px] uppercase leading-tight line-clamp-2 ${isActivity ? 'text-amber-700' : 'text-[#0b3578]'}`}>
+                          <div className={`flex flex-col gap-1 border rounded-sm px-2.5 py-2 shadow-sm ${isActivity ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+                            <div className={`font-bold text-[10px] uppercase leading-tight line-clamp-2 ${isActivity ? 'text-amber-800' : 'text-[#0b3578]'}`}>
                               {activity ? activity.name : (slot.display_name || slot.subject_code)}
                             </div>
                             <div className="flex flex-col gap-0.5">
-                               <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
-                                 {slot.branch} &bull; S{slot.semester}
-                               </div>
-                               {slot.room_no && (
-                                 <div className="text-[8px] font-bold text-emerald-600 tracking-widest uppercase">Room {slot.room_no}</div>
-                               )}
+                              <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">
+                                {slot.branch} &bull; S{slot.semester}
+                              </div>
+                              {slot.room_no && (
+                                <div className="text-[8px] font-bold text-emerald-700 tracking-widest uppercase">Room {slot.room_no}</div>
+                              )}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-[8px] font-bold text-slate-200 uppercase tracking-widest italic opacity-50">Free</span>
+                          <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest italic opacity-70">Free</span>
                         )}
                       </td>
                     );

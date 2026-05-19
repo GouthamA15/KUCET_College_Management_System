@@ -6,8 +6,14 @@ import {
   scholarshipSanctions, 
   studentFeePayments 
 } from '@/db/schema';
-import { eq, and, asc, sql } from 'drizzle-orm';
-import { getBranchFromRoll, getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { eq, and, asc, sql, or, like } from 'drizzle-orm';
+import { 
+  getBranchFromRoll, 
+  getAcademicYear, 
+  getResolvedCurrentAcademicYear,
+  getAdmissionTypeFromRoll,
+  getAcademicYearForStudyYear
+} from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
@@ -20,6 +26,11 @@ export async function GET(req, ctx) {
     const params = await ctx.params;
     const { application_no } = params;
     if (!application_no) return apiError('Missing application_no parameter', 400);
+
+    // Validation: Must be numeric
+    if (!/^\d+$/.test(application_no)) {
+      return apiError('application_no must be numeric', 400);
+    }
 
     // Find sanction rows that match the application number
     const sanctionRows = await db.select({ 
@@ -57,12 +68,13 @@ export async function GET(req, ctx) {
     const course = getBranchFromRoll(student.roll_no);
     const admission_year = getAcademicYear(student.roll_no);
     const current_year = getResolvedCurrentAcademicYear(student.roll_no, null, now);
+    const admissionType = getAdmissionTypeFromRoll(student.roll_no);
 
     // For each academic_year belonging to this application, build a summary
-    const uniqueYears = Array.from(new Set(sanctionRows.map(r => r.academic_year))).filter(Boolean);
+    const allYears = Array.from(new Set(sanctionRows.map(r => r.academic_year))).filter(Boolean).sort();
     const year_records = {};
 
-    for (const year of uniqueYears) {
+    for (const year of allYears) {
       // sanctions for this student/year
       const sanctions = await db.query.scholarshipSanctions.findMany({
         where: and(

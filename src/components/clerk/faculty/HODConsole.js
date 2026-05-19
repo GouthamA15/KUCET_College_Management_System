@@ -14,7 +14,7 @@ const INSTITUTIONAL_ACTIVITIES = [
   { code: 'LIB', name: 'Library Period' }
 ];
 
-export default function HODConsole() {
+export default function HODConsole({ workstreams = null, onSelectWorkstream = null, onActiveSubTabChange = null }) {
   const { clerkData, hodBranchData, refreshHOD, isLoadingHOD } = useClerk();
   const [activeSubTab, setActiveSubTab] = useState('workload');
   const [editingSlot, setEditingSlot] = useState(null);
@@ -54,6 +54,12 @@ export default function HODConsole() {
       return () => clearTimeout(id);
     }
   }, [selectedSem, activeSubTab, fetchSemesterTimetable]);
+
+  useEffect(() => {
+    if (typeof onActiveSubTabChange === 'function') {
+      onActiveSubTabChange(activeSubTab);
+    }
+  }, [activeSubTab, onActiveSubTabChange]);
 
   // Handle modal open
   const openSlotEditor = (day, period, slot) => {
@@ -221,7 +227,7 @@ export default function HODConsole() {
             { id: 'analytics', label: 'Data Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
             { id: 'config', label: 'Department Config', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
           ].map(tab => ( activeSubTab === tab.id ? (
-            <button key={tab.id} className="flex items-center gap-2 px-4 py-2 bg-white text-[#0b3578] font-bold border-t-2 border-amber-400 whitespace-nowrap text-[10px] uppercase tracking-widest transition-all">
+            <button key={tab.id} className={`flex items-center gap-2 px-4 py-2 bg-white text-[#0b3578] font-bold border-t-2 border-amber-400 whitespace-nowrap ${tab.id === 'allocation' ? 'text-[11px]' : 'text-[10px]'} uppercase tracking-widest transition-all`}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
               {tab.label}
             </button>
@@ -242,7 +248,55 @@ export default function HODConsole() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            {activeSubTab === 'workload' && <WorkloadView data={departmentalFaculty} branch={clerkData.branch} />}
+            {activeSubTab === 'workload' && (
+              <div className="space-y-10">
+                <WorkloadView data={departmentalFaculty} branch={clerkData.branch} />
+
+                {Array.isArray(workstreams) && workstreams.length > 0 && typeof onSelectWorkstream === 'function' ? (
+                  <section className="space-y-6">
+                    <div className="flex items-center justify-between px-1">
+                      <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Workstreams</h2>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select an operational module</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {workstreams.map((mod) => (
+                        <button
+                          key={mod.id}
+                          type="button"
+                          onClick={() => onSelectWorkstream(mod.id)}
+                          className={`text-left bg-white p-6 rounded-sm border border-slate-200 border-t-4 ${mod.accent} shadow-sm hover:shadow-md transition-all group relative overflow-hidden h-44 flex flex-col justify-between`}
+                        >
+                          <div className="flex items-start justify-between relative z-10">
+                            <div
+                              className={`w-12 h-12 rounded-sm flex items-center justify-center text-xl ${mod.tone} shadow-sm border border-black/5`}
+                            >
+                              {mod.icon}
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Module</span>
+                          </div>
+
+                          <div className="mt-4 space-y-1 relative z-10">
+                            <h3 className="text-base font-black text-slate-800 tracking-tight uppercase group-hover:text-[#0b3578] transition-colors">
+                              {mod.title}
+                            </h3>
+                            <p className="text-[11px] font-medium text-slate-500 leading-relaxed uppercase tracking-tight opacity-80">
+                              {mod.description}
+                            </p>
+                          </div>
+
+                          <div className="absolute bottom-4 right-6 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0">
+                            <span className="text-[10px] font-black text-[#0b3578] uppercase tracking-widest flex items-center gap-1">
+                              Launch <span className="text-sm">→</span>
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+              </div>
+            )}
             {activeSubTab === 'timetable' && (
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 p-4 border border-slate-200 gap-4">
@@ -303,8 +357,8 @@ export default function HODConsole() {
 
       {/* Slot Editor Modal */}
       {editingSlot && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-300 shadow-2xl w-full max-w-md animate-in zoom-in-95 min-h-[550px] flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[110] flex items-center justify-center px-4 py-10 overflow-y-auto">
+          <div className="bg-white border border-slate-300 shadow-2xl w-full max-w-md animate-in zoom-in-95 max-h-[calc(100vh-5rem)] min-h-[420px] sm:min-h-[520px] flex flex-col">
             <div className="bg-[#0b3578] p-5 text-white flex justify-between items-center border-b border-white/10">
               <div>
                 <h3 className="font-bold text-sm uppercase tracking-wider">Update Academic Schedule</h3>
@@ -532,22 +586,22 @@ function TimetableManager({ data, onEditSlot }) {
                     <td 
                       key={`${day}-${p}`} 
                       onClick={() => onEditSlot(day, p, slot)}
-                      className={`border-b border-slate-100 p-3 text-center transition-all cursor-pointer relative hover:bg-white hover:z-10 hover:shadow-xl group/cell ${slot ? (isActivity ? 'bg-amber-50/10' : 'bg-white') : 'bg-slate-50/5'}`}
+                      className={`border-b border-r border-slate-200 p-3 text-center transition-all cursor-pointer relative hover:bg-white hover:z-10 hover:shadow-xl group/cell ${slot ? (isActivity ? 'bg-amber-50/20' : 'bg-slate-50/30') : 'bg-slate-50/30'}`}
                     >
                       {slot ? (
-                        <div className="animate-in fade-in zoom-in-95 duration-300">
-                          <div className={`font-bold text-[10px] mb-1 line-clamp-2 uppercase tracking-tight leading-tight ${isActivity ? 'text-amber-700' : 'text-[#0b3578]'}`}>
+                        <div className={`animate-in fade-in zoom-in-95 duration-300 border rounded-sm px-2.5 py-2 shadow-sm ${isActivity ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+                          <div className={`font-bold text-[10px] mb-1 line-clamp-2 uppercase tracking-tight leading-tight ${isActivity ? 'text-amber-800' : 'text-[#0b3578]'}`}>
                             {isActivity ? INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code)?.name : (slot.subject_name || slot.subject_code)}
                           </div>
-                          <div className="text-[9px] text-slate-400 font-bold mb-2 line-clamp-1 opacity-80">{slot.faculty_name || (isActivity ? 'N/A' : 'NOT ASSIGNED')}</div>
+                          <div className="text-[9px] text-slate-500 font-bold mb-2 line-clamp-1 opacity-90">{slot.faculty_name || (isActivity ? 'N/A' : 'NOT ASSIGNED')}</div>
                           <div className="flex items-center justify-center gap-1.5">
-                            <span className="text-[8px] bg-slate-50 text-slate-500 px-2 py-0.5 border border-slate-200 font-bold uppercase tracking-widest">
+                            <span className={`text-[8px] px-2 py-0.5 border font-bold uppercase tracking-widest ${isActivity ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                               {slot.room_no || 'TBD'}
                             </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center gap-1.5 opacity-10 group-hover/cell:opacity-100 transition-all py-2">
+                        <div className="flex flex-col items-center justify-center gap-1.5 opacity-70 group-hover/cell:opacity-100 transition-all py-2">
                           <div className="text-[#0b3578] font-bold uppercase tracking-widest text-[7px]">Available</div>
                           <div className="w-6 h-6 border border-dashed border-[#0b3578] flex items-center justify-center text-[#0b3578] group-hover/cell:bg-[#0b3578] group-hover/cell:text-white">+</div>
                         </div>

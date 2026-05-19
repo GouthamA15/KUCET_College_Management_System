@@ -45,46 +45,57 @@ export default function InterestStatusList() {
     return () => clearTimeout(id);
   }, []);
 
-  if (loading) return <div className="text-center py-4">Loading your interests...</div>;
+  if (loading) {
+    return (
+      <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest">
+        Loading your interests…
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md mt-6 mb-6">
-      <h2 className="text-xl font-semibold mb-4">Your Expressed Interests Status</h2>
-      {interests.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+    <section className="bg-white border border-slate-200 rounded-sm shadow-sm overflow-hidden">
+      <div className="bg-slate-50 border-b border-slate-200 px-4 md:px-6 py-4">
+        <h2 className="text-base font-black text-slate-800 tracking-tight uppercase">Interest Status</h2>
+        <p className="text-[11px] font-medium text-slate-500 uppercase tracking-tight mt-1">All submitted interests and their approval state.</p>
+      </div>
+
+      <div className="p-4 md:p-6">
+        {interests.length > 0 ? (
+          <div className="overflow-x-auto border border-slate-200 rounded-sm">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch/Sem</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Academic Year</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applied On</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Subject</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Branch/Sem</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Academic Year</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Applied On</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-slate-200">
               {interests.map((interest) => (
-                <tr key={interest.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{interest.subject_name}</div>
-                    <div className="text-xs text-gray-500">{interest.subject_code}</div>
+                <tr key={interest.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-[11px] font-bold text-slate-800">{interest.subject_name}</div>
+                    <div className="text-[10px] text-slate-500 font-mono font-semibold">{interest.subject_code}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-600">
                     {interest.branch} | Sem {interest.semester}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-600">
                     {interest.academic_year}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      interest.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                      interest.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                      'bg-blue-100 text-blue-800'
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`inline-flex px-2.5 py-1 rounded-sm text-[9px] font-black uppercase tracking-widest border ${
+                      interest.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                      interest.status === 'REJECTED' ? 'bg-rose-50 text-rose-800 border-rose-200' :
+                      'bg-indigo-50 text-indigo-800 border-indigo-200'
                     }`}>
                       {interest.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-600">
                     {formatIstDate(interest.created_at)}
                   </td>
                 </tr>
@@ -93,8 +104,11 @@ export default function InterestStatusList() {
           </table>
         </div>
       ) : (
-        <div className="text-center py-4 text-gray-500">You haven&apos;t expressed interest in any subjects yet.</div>
-      )}
-    </div>
+          <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest">
+            You haven&apos;t expressed interest in any subjects yet.
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

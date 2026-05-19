@@ -15,6 +15,8 @@ import { getBranchFromRoll } from '@/lib/rollNumber';
 import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import { getNow } from '@/lib/clock';
 import { getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { decrypt } from '@/lib/encryption';
+import { studentImages } from '@/db/schema';
 
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
@@ -25,6 +27,7 @@ import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCert
 import IncomeTaxCertificatePDF from '@/pdf/templates/IncomeTaxCertificatePDF';
 import TransferCertificatePDF from '@/pdf/templates/TransferCertificatePDF';
 import NoObjectionCertificatePDF from '@/pdf/templates/NoObjectionCertificatePDF';
+import IDCardPDF from '@/pdf/templates/IDCardPDF';
 
 const certificateComponents = {
     'Bonafide Certificate': BonafideCertificatePDF,
@@ -35,6 +38,7 @@ const certificateComponents = {
     'Income Tax (IT) Certificate': IncomeTaxCertificatePDF,
     'Transfer Certificate (TC)': TransferCertificatePDF,
     'No Objection Certificate': NoObjectionCertificatePDF,
+    'ID Card Reissue': IDCardPDF,
 };
 
 export async function GET(request, context) {
@@ -76,8 +80,10 @@ export async function GET(request, context) {
         const studentInfo = await db.select({
             name: students.name,
             roll_no: students.roll_no,
+            mobile: students.mobile,
             father_name: studentPersonalDetails.father_name,
-            date_of_birth: students.date_of_birth
+            date_of_birth: students.date_of_birth,
+            address: studentPersonalDetails.address
         })
         .from(students)
         .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))
@@ -88,6 +94,8 @@ export async function GET(request, context) {
             return apiError('Student details not found', 404);
         }
         const student = studentInfo[0];
+        const mobile = decrypt(student.mobile) || 'N/A';
+        const address = student.address || 'N/A';
 
         // Fetch college info
         const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
@@ -161,6 +169,7 @@ export async function GET(request, context) {
         };
 
         const logoUrl = await getBase64Image(getAssetUrl('/assets/ku-logo.png'));
+        const collegeLogoUrl = await getBase64Image(getAssetUrl('/assets/ku-college-logo.png')) || logoUrl;
         const signatureUrl = await getBase64Image(getAssetUrl('/assets/principal-sign.png'));
         const stampUrl = await getBase64Image(getAssetUrl('/assets/ku-college-seal.png'));
         const stampSign = await getBase64Image(getAssetUrl('/assets/principal-sign-stamp.png')) || signatureUrl;
@@ -218,6 +227,15 @@ export async function GET(request, context) {
                 data.purpose = certRequest.purpose || '';
                 data.fromDate = formatDate(certRequest.from_date);
                 data.toDate = formatDate(certRequest.to_date);
+                break;
+            case 'ID Card Reissue':
+                const imgData = await db.query.studentImages.findFirst({
+                    where: eq(studentImages.student_id, auth.student_id)
+                });
+                data.pfpUrl = imgData?.pfp ? await getBase64Image(imgData.pfp) : null;
+                data.logoUrl = collegeLogoUrl;
+                data.address = address;
+                data.mobile = mobile;
                 break;
         }
 

@@ -9,6 +9,7 @@ const clerkToTypes = {
     admission: [
         'Bonafide Certificate', 'No Objection Certificate', 'Course Completion Certificate',
         'Transfer Certificate (TC)', 'Migration Certificate', 'Study Conduct Certificate',
+        'ID Card Reissue',
     ],
     scholarship: ['Income Tax (IT) Certificate', 'Custodian Certificate'],
 };
