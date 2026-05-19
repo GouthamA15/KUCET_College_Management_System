@@ -169,6 +169,7 @@ export async function GET(request, context) {
         };
 
         const logoUrl = await getBase64Image(getAssetUrl('/assets/ku-logo.png'));
+        const collegeLogoUrl = await getBase64Image(getAssetUrl('/assets/ku-college-logo.png')) || logoUrl;
         const signatureUrl = await getBase64Image(getAssetUrl('/assets/principal-sign.png'));
         const stampUrl = await getBase64Image(getAssetUrl('/assets/ku-college-seal.png'));
         const stampSign = await getBase64Image(getAssetUrl('/assets/principal-sign-stamp.png')) || signatureUrl;
@@ -232,6 +233,7 @@ export async function GET(request, context) {
                     where: eq(studentImages.student_id, auth.student_id)
                 });
                 data.pfpUrl = imgData?.pfp ? await getBase64Image(imgData.pfp) : null;
+                data.logoUrl = collegeLogoUrl;
                 data.address = address;
                 data.mobile = mobile;
                 break;

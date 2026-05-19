@@ -1,5 +1,5 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, Image, Font } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 
 const styles = StyleSheet.create({
   page: {
@@ -7,200 +7,226 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   cardContainer: {
-    width: 242, // Roughly 85mm
-    height: 385, // Roughly 135mm (Vertical ID card)
+    width: 242,
+    height: 385,
     margin: "auto",
-    border: "1pt solid #ccc",
+    border: "0.5pt solid #ccc",
     borderRadius: 8,
     position: "relative",
     overflow: "hidden",
     backgroundColor: "#fff",
   },
-  header: {
-    padding: 8,
-    flexDirection: "row",
+  // 1. Header Area
+  logoSection: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 70,
+    height: 85,
+    backgroundColor: "#0b3578",
+    borderBottomRightRadius: 20,
+    zIndex: 10,
     alignItems: "center",
-    borderBottom: "0.5pt solid #eee",
+    justifyContent: "center",
+  },
+  logoWhiteCircle: {
+    width: 50,
+    height: 50,
+    backgroundColor: "#fff",
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoImage: {
+    width: "85%",
+    height: "85%",
+  },
+  headerTextSection: {
+    position: "absolute",
+    top: 8,
+    left: 75,
+    right: 5,
     zIndex: 10,
   },
-  logo: {
-    width: 45,
-    height: 45,
-    marginRight: 6,
-  },
-  headerTextContainer: {
-    flex: 1,
-  },
   collegeCode: {
-    fontSize: 14,
+    fontSize: 20,
     fontWeight: "black",
     color: "#000",
+    letterSpacing: 0.5,
   },
   collegeName: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "bold",
     color: "#0b3578",
-    marginTop: 1,
+    marginTop: 0,
   },
   collegeAddress: {
-    fontSize: 6,
+    fontSize: 7,
     color: "#000",
     marginTop: 2,
     fontWeight: "bold",
   },
   tel: {
-    fontSize: 6,
+    fontSize: 7,
     color: "#000",
     fontWeight: "bold",
   },
-  titleBar: {
+  // 2. Ribbon Title
+  titleRibbon: {
+    position: "absolute",
+    top: 108,
+    right: 0,
+    width: 135,
+    height: 18,
     backgroundColor: "#e91e63",
-    paddingVertical: 3,
-    paddingHorizontal: 15,
-    alignSelf: "flex-end",
-    marginTop: 4,
+    zIndex: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     borderTopLeftRadius: 10,
     borderBottomLeftRadius: 10,
-    zIndex: 10,
   },
   titleText: {
     color: "#fff",
-    fontSize: 10,
-    fontWeight: "bold",
-    letterSpacing: 1,
+    fontSize: 11,
+    fontWeight: "black",
+    letterSpacing: 0.5,
   },
-  mainContent: {
-    flexDirection: "row",
-    padding: 8,
-    marginTop: 5,
-    zIndex: 10,
+  // 3. Photo and Info Grid
+  photoBox: {
+    position: "absolute",
+    top: 135,
+    left: 10,
+    width: 85,
+    height: 105,
+    border: "1.5pt solid #0b3578",
+    zIndex: 20,
   },
-  photoContainer: {
-    width: 75,
-    height: 95,
-    border: "1pt solid #0b3578",
-    overflow: "hidden",
-  },
-  photo: {
+  studentPhoto: {
     width: "100%",
     height: "100%",
     objectFit: "cover",
   },
-  infoContainer: {
+  infoGrid: {
+    position: "absolute",
+    top: 135,
+    left: 100,
+    width: 132,
+    height: 105,
+    border: "0.8pt solid #d32f2f",
+    zIndex: 20,
+  },
+  gridRow: {
     flex: 1,
-    paddingLeft: 10,
+    borderBottom: "0.8pt solid #d32f2f",
+    paddingHorizontal: 4,
     justifyContent: "center",
   },
-  infoRow: {
-    marginBottom: 4,
+  gridRowLast: {
+    flex: 1,
+    paddingHorizontal: 4,
+    justifyContent: "center",
   },
-  infoLabel: {
-    fontSize: 10,
+  gridLabel: {
+    fontSize: 9,
     fontWeight: "bold",
+    color: "#333",
+  },
+  gridValue: {
+    fontSize: 10.5,
+    fontWeight: "black",
     color: "#000",
   },
-  infoValue: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#000",
-  },
+  // 4. Name Section
   nameSection: {
-    paddingHorizontal: 8,
-    marginTop: 2,
-    zIndex: 10,
+    position: "absolute",
+    top: 250,
+    left: 0,
+    width: "100%",
+    paddingHorizontal: 10,
+    zIndex: 20,
   },
   studentName: {
-    fontSize: 13,
+    fontSize: 17,
     fontWeight: "black",
     color: "#d32f2f",
     textTransform: "uppercase",
+    textAlign: "left",
   },
-  secondaryInfo: {
-    paddingHorizontal: 8,
-    marginTop: 5,
-    zIndex: 10,
+  fatherSection: {
+    position: "absolute",
+    top: 275,
+    left: 0,
+    width: "100%",
+    paddingHorizontal: 10,
+    zIndex: 20,
   },
   fatherName: {
-    fontSize: 8,
+    fontSize: 10,
     color: "#000",
     fontWeight: "bold",
   },
-  footerSection: {
-    flexDirection: "row",
-    paddingHorizontal: 8,
-    marginTop: 10,
-    alignItems: "flex-end",
-    zIndex: 10,
-  },
-  qrContainer: {
+  // 5. QR and Signature
+  qrBox: {
+    position: "absolute",
+    top: 295,
+    left: 10,
     width: 60,
     height: 60,
+    border: "0.5pt solid #ddd",
+    padding: 1,
+    zIndex: 20,
   },
-  qrImage: {
-    width: "100%",
-    height: "100%",
-  },
-  signatureContainer: {
-    flex: 1,
-    alignItems: "flex-end",
-    paddingBottom: 5,
-  },
-  signatureImage: {
-    width: 60,
-    height: "auto",
-    marginBottom: -2,
-  },
-  signatureLabel: {
-    fontSize: 9,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  bottomAddress: {
-    marginTop: "auto",
-    padding: 8,
+  signatureArea: {
+    position: "absolute",
+    top: 295,
+    right: 10,
+    width: 100,
     alignItems: "center",
-    zIndex: 10,
+    zIndex: 20,
   },
-  addressText: {
-    fontSize: 7,
+  principalSignImg: {
+    width: 75,
+    height: "auto",
+    marginBottom: -5,
+  },
+  principalNameGreen: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#2e7d32",
+    marginBottom: 1,
+  },
+  principalLabel: {
+    fontSize: 11,
+    fontWeight: "black",
+    color: "#000",
+    borderTop: "1pt solid #000",
+    width: 70,
+    textAlign: "center",
+    paddingTop: 1,
+  },
+  // 6. Address Footer
+  addressFooter: {
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    width: "100%",
+    paddingHorizontal: 5,
+    alignItems: "center",
+    zIndex: 20,
+  },
+  addressLine: {
+    fontSize: 8.5,
     color: "#000",
     fontWeight: "bold",
     textAlign: "center",
+    lineHeight: 1.1,
   },
-  cellText: {
-    fontSize: 8,
+  cellLine: {
+    fontSize: 10,
     color: "#000",
-    fontWeight: "bold",
+    fontWeight: "black",
     marginTop: 2,
-  },
-  // Background accents
-  accentContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    bottom: 0,
-    width: 40,
-    zIndex: 1,
-  },
-  blueAccent: {
-    position: "absolute",
-    top: 45,
-    left: 0,
-    width: 30,
-    height: 100,
-    backgroundColor: "#0b3578",
-    transform: "skewX(-20deg)",
-    marginLeft: -10,
-  },
-  redAccent: {
-    position: "absolute",
-    top: 135,
-    left: 0,
-    width: 30,
-    height: 120,
-    backgroundColor: "#d32f2f",
-    transform: "skewX(-20deg)",
-    marginLeft: -10,
   }
 });
 
@@ -209,7 +235,7 @@ export default function IDCardPDF({
   fatherName,
   admissionNo,
   course,
-  academicYear,
+  batch,
   address,
   mobile,
   pfpUrl,
@@ -221,49 +247,47 @@ export default function IDCardPDF({
     <Document>
       <Page size={[242, 385]} style={styles.page}>
         <View style={styles.cardContainer}>
-          {/* Background Accents */}
-          <View style={styles.accentContainer}>
-             <View style={styles.blueAccent} />
-             <View style={styles.redAccent} />
-          </View>
-
-          {/* Header */}
-          <View style={styles.header}>
-            {logoUrl && <Image src={logoUrl} style={styles.logo} alt="College Logo" />}
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.collegeCode}>KUCE&T</Text>
-              <Text style={styles.collegeName}>KU COLLEGE OF ENGINEERING</Text>
-              <Text style={styles.collegeName}>& TECHNOLOGY</Text>
-              <Text style={styles.collegeAddress}>KAKATIYA UNIVERSITY CAMPUS</Text>
-              <Text style={styles.collegeAddress}>VIDYARANYAPURI, WARANGAL 506 009</Text>
-              <Text style={styles.tel}>Tel: 91- 870 - 2449191</Text>
+          {/* Logo Section */}
+          <View style={styles.logoSection}>
+            <View style={styles.logoWhiteCircle}>
+              {logoUrl && <Image src={logoUrl} style={styles.logoImage} alt="College Logo" />}
             </View>
           </View>
 
-          {/* Title Bar */}
-          <View style={styles.titleBar}>
+          {/* Header Text */}
+          <View style={styles.headerTextSection}>
+            <Text style={styles.collegeCode}>KUCE&T</Text>
+            <Text style={styles.collegeName}>KU COLLEGE OF ENGINEERING</Text>
+            <Text style={styles.collegeName}>& TECHNOLOGY</Text>
+            <Text style={styles.collegeAddress}>KAKATIYA UNIVERSITY CAMPUS</Text>
+            <Text style={styles.collegeAddress}>VIDYARANYAPURI, WARANGAL 506 009</Text>
+            <Text style={styles.tel}>Tel: 91- 870 - 2449191</Text>
+          </View>
+
+          {/* Ribbon */}
+          <View style={styles.titleRibbon}>
             <Text style={styles.titleText}>IDENTITY CARD</Text>
           </View>
 
-          {/* Main Content */}
-          <View style={styles.mainContent}>
-            <View style={styles.photoContainer}>
-              {pfpUrl ? (
-                <Image src={pfpUrl} style={styles.photo} alt="Student Photo" />
-              ) : (
-                <View style={{ backgroundColor: "#eee", flex: 1 }} />
-              )}
+          {/* Photo */}
+          <View style={styles.photoBox}>
+            {pfpUrl ? (
+              <Image src={pfpUrl} style={styles.studentPhoto} alt="Student Photo" />
+            ) : (
+              <View style={{ backgroundColor: "#eee", flex: 1 }} />
+            )}
+          </View>
+
+          {/* Info Grid */}
+          <View style={styles.infoGrid}>
+            <View style={styles.gridRow}>
+              <Text style={styles.gridValue}>B.Tech ({course})</Text>
             </View>
-            <View style={styles.infoContainer}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoValue}>B.Tech ({course})</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>H.T. No: <Text style={styles.infoValue}>{admissionNo}</Text></Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Academic Year: <Text style={styles.infoValue}>{academicYear}</Text></Text>
-              </View>
+            <View style={styles.gridRow}>
+              <Text style={styles.gridLabel}>H.T. No: <Text style={styles.gridValue}>{admissionNo}</Text></Text>
+            </View>
+            <View style={styles.gridRowLast}>
+              <Text style={styles.gridLabel}>Academic Year: <Text style={styles.gridValue}>{batch}</Text></Text>
             </View>
           </View>
 
@@ -272,26 +296,27 @@ export default function IDCardPDF({
             <Text style={styles.studentName}>{studentName}</Text>
           </View>
 
-          {/* Secondary Info */}
-          <View style={styles.secondaryInfo}>
+          {/* Father's Name */}
+          <View style={styles.fatherSection}>
             <Text style={styles.fatherName}>Father&apos;s Name: {fatherName.toUpperCase()}</Text>
           </View>
 
-          {/* Footer Section */}
-          <View style={styles.footerSection}>
-            <View style={styles.qrContainer}>
-              {qrUrl && <Image src={qrUrl} style={styles.qrImage} alt="Verification QR Code" />}
-            </View>
-            <View style={styles.signatureContainer}>
-              {signatureUrl && <Image src={signatureUrl} style={styles.signatureImage} alt="Principal Signature" />}
-              <Text style={styles.signatureLabel}>Principal</Text>
-            </View>
+          {/* QR Code */}
+          <View style={styles.qrBox}>
+            {qrUrl && <Image src={qrUrl} style={{ width: "100%", height: "100%" }} alt="Verification QR Code" />}
           </View>
 
-          {/* Bottom Address */}
-          <View style={styles.bottomAddress}>
-            <Text style={styles.addressText}>{address}</Text>
-            <Text style={styles.cellText}>Cell: {mobile}</Text>
+          {/* Signature Area */}
+          <View style={styles.signatureArea}>
+            {signatureUrl && <Image src={signatureUrl} style={styles.principalSignImg} alt="Principal Signature" />}
+            <Text style={styles.principalNameGreen}>T.M. Reddy</Text>
+            <Text style={styles.principalLabel}>Principal</Text>
+          </View>
+
+          {/* Footer Address */}
+          <View style={styles.addressFooter}>
+            <Text style={styles.addressLine}>{address}</Text>
+            <Text style={styles.cellLine}>Cell: {mobile}</Text>
           </View>
         </View>
       </Page>

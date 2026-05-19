@@ -434,6 +434,30 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Security & Blind Indexing:**
     - Verified and maintained institutional-grade encryption (AES-256-GCM) and blind indexing (HMAC-SHA256) for all sensitive modifications (Mobile, Aadhaar), ensuring data privacy remains intact during administrative record updates.
 
+#### **Session 115: Departmental Intelligence & ID Card Workflow (May 19, 2026)**
+- **ID Card Reissue Workflow:**
+    - Implemented a complete end-to-end workflow for student ID card reissues. Students can now request reissues via their dashboard with payment proof (150/- fee).
+    - Developed the clerk-facing approval interface, enabling Admission Clerks to verify payments and approve reissue requests.
+- **Departmental Overview & Materials:**
+    - Developed a comprehensive Departments Overview page for clerks, providing a high-level view of institutional branch configurations.
+    - Implemented mock UI for Faculty Academic Materials, establishing the foundation for a centralized repository of departmental resources.
+- **Registry & Clean-up:**
+    - Refined the institutional branch registry: added **Computer Science and Design (CSD)** and removed the obsolete Mining department.
+    - Sanitized the codebase by removing unused components (`ComingSoon`, `auth lib placeholder`) and improving navigation placeholders for non-faculty users.
+
+#### **Session 116: Digital ID Card Excellence & Security Restoration (May 19, 2026)**
+- **Digital ID Card Redesign:**
+    - Conducted a significant overhaul of the `IDCardPDF` template to achieve visual parity with the physical institutional ID card.
+    - **Layout Precision:** Implemented a strictly calibrated absolute positioning system to prevent element overlap. Added a red-bordered information grid, a magenta "IDENTITY CARD" ribbon, and institutional blue/red accent stripes.
+    - **Branding Integrity:** Integrated the engineering-specific college logo within a white circular container on a blue background. Updated the template to display the Principal's name (**T.M. Reddy**) and used the 4-year batch range for academic identification.
+- **API & Asset Hardening:**
+    - Refactored the certificate download API to support on-the-fly asset overrides for ID cards, ensuring the correct logos and signatures are embedded.
+    - Resolved accessibility warnings in the PDF generation engine by standardizing image `alt` metadata.
+- **Bug Resolution:**
+    - Fixed a critical **403 Forbidden** error in the clerk request details API by synchronizing allowed certificate types for the Admission role.
+- **UX Optimization:**
+    - Refined the ID card layout based on user feedback, removing distracting accent rhombuses to provide a cleaner, more professional institutional appearance.
+
 ### April 2026
 
 #### **Session 95: Profile Architecture Overhaul & Agent Intelligence (April 21-26, 2026)**
