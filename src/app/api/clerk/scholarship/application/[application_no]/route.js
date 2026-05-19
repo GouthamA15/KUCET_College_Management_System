@@ -7,7 +7,13 @@ import {
   studentFeePayments 
 } from '@/db/schema';
 import { eq, and, asc, sql, or, like } from 'drizzle-orm';
-import { getBranchFromRoll, getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { 
+  getBranchFromRoll, 
+  getAcademicYear, 
+  getResolvedCurrentAcademicYear,
+  getAdmissionTypeFromRoll,
+  getAcademicYearForStudyYear
+} from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
@@ -62,12 +68,25 @@ export async function GET(req, ctx) {
     const course = getBranchFromRoll(student.roll_no);
     const admission_year = getAcademicYear(student.roll_no);
     const current_year = getResolvedCurrentAcademicYear(student.roll_no, null, now);
+    const admissionType = getAdmissionTypeFromRoll(student.roll_no);
 
-    // For each academic_year belonging to this application, build a summary
-    const uniqueYears = Array.from(new Set(sanctionRows.map(r => r.academic_year))).filter(Boolean);
+    // Generate the full set of academic years based on course duration
+    // Regular students: show 1st, 2nd, 3rd, 4th year
+    // Lateral students: show 2nd, 3rd, 4th year
+    const expectedYears = [];
+    const startStudyYear = (admissionType && admissionType.toLowerCase() === 'lateral') ? 2 : 1;
+    for (let yr = startStudyYear; yr <= 4; yr++) {
+      const ay = getAcademicYearForStudyYear(student.roll_no, yr - (startStudyYear - 1));
+      if (ay) expectedYears.push(ay);
+    }
+
+    // Merge with any other years found in the database (safeguard)
+    const foundYears = sanctionRows.map(r => r.academic_year).filter(Boolean);
+    const allYears = Array.from(new Set([...expectedYears, ...foundYears])).sort();
+
     const year_records = {};
 
-    for (const year of uniqueYears) {
+    for (const year of allYears) {
       // sanctions for this student/year
       const sanctions = await db.query.scholarshipSanctions.findMany({
         where: and(
