@@ -87,7 +87,41 @@ export default function IDCardReissuePage() {
   }, []);
 
   const handleDownload = async (req) => {
-    toast.error('ID Cards are physical and cannot be downloaded online. Please collect from the office once approved.');
+    if (downloadingId) return;
+    if (req.status !== 'APPROVED') {
+      toast.error('ID Card can only be downloaded once approved.');
+      return;
+    }
+
+    setDownloadErrors(prev => ({ ...prev, [req.request_id]: null }));
+    setDownloadingId(req.request_id);
+    try {
+      const res = await fetch(`/api/student/requests/download/${req.request_id}`, { 
+        method: 'GET', 
+        credentials: 'same-origin', 
+        cache: 'no-store' 
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to generate ID card');
+      }
+      const blob = await res.blob();
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ID_Card_${req.roll_number || 'student'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('ID Card downloaded successfully!');
+    } catch (error) {
+      console.error('Download error', error);
+      setDownloadErrors(prev => ({ ...prev, [req.request_id]: 'Failed to generate ID card. Try again.' }));
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const openRejectModal = (req) => {
