@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 import { signIn } from "next-auth/react";
 
-export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
+export default function LoginPanel({ activePanel, onClose, onStudentLogin, variant = 'modal', dismissable = true }) {
   const MAX_ROLL = 10;
   const MIN_ROLL = 10;
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
@@ -282,18 +282,25 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
 
   if (!activePanel) return null;
 
+  const isModal = variant === 'modal';
+  const isEmbedded = !isModal;
+
   return (
-    <div 
-      id="login-panels" 
-      className="fixed top-0 left-0 w-full h-full z-[100] flex items-center justify-center p-4 lg:p-8 overflow-y-auto bg-slate-900/60 animate-fadeIn"
-      style={{ position: 'fixed', zIndex: 1000 }}
-      onClick={(e) => {
+    <div
+      id={isModal ? 'login-panels' : undefined}
+      className={isModal
+        ? 'fixed top-0 left-0 w-full h-full z-100 flex items-center justify-center p-4 lg:p-8 overflow-y-auto bg-slate-900/60 animate-fadeIn'
+        : 'w-full'}
+      style={isModal ? { position: 'fixed', zIndex: 1000 } : undefined}
+      onClick={isModal && dismissable ? (e) => {
         if (e.target.id === 'login-panels') onClose();
-      }}
+      } : undefined}
     >
-      <div className="w-full max-w-md relative animate-slideUp">
-        <div className="bg-gradient-to-b from-[#0b3578] to-[#1a4a8f] rounded-2xl shadow-2xl overflow-hidden border border-white/10">
-          <div className="py-8 lg:py-10 px-6 md:px-8">
+      <div className={isModal ? 'w-full max-w-md relative animate-slideUp' : 'w-full'}>
+        <div className={isModal
+          ? 'bg-linear-to-b from-[#0b3578] to-[#1a4a8f] rounded-2xl shadow-2xl overflow-hidden border border-white/10'
+          : 'bg-transparent border-0 shadow-none rounded-none'}>
+          <div className={isModal ? 'py-8 lg:py-10 px-6 md:px-8' : 'p-0'}>
           
           {/* Student Login Panel */}
           <div 
@@ -304,20 +311,26 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
             }`}
           >
             {activePanel === 'student' && (
-              <div className="bg-white rounded-xl border shadow-sm p-6 md:p-8">
-                <div className="text-center mb-6 space-y-1">
-                  <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 rounded mb-2">
-                    <svg className="w-6 h-6 text-[#0b3578]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className={isModal ? 'bg-white rounded-xl border shadow-sm p-6 md:p-8' : 'bg-white rounded-sm border border-slate-200 shadow-none p-4 sm:p-5'}>
+                <div className={isModal ? 'flex items-start justify-between gap-4 mb-6' : 'flex items-start justify-between gap-3 mb-4'}>
+                  <div>
+                    <h2 className={isModal ? 'text-2xl font-semibold text-[#0b3578]' : 'text-lg font-bold tracking-wide text-slate-900 uppercase'}>
+                      Student Login
+                    </h2>
+                    <p className={isModal ? 'text-gray-500 text-sm mt-1' : 'text-xs text-slate-600'}>
+                      Enter roll number and password.
+                    </p>
+                  </div>
+                  <div className={isModal ? 'inline-flex items-center justify-center w-12 h-12 bg-blue-50 rounded' : 'inline-flex items-center justify-center w-10 h-10 bg-blue-50 rounded-sm shrink-0'}>
+                    <svg className={isModal ? 'w-6 h-6 text-[#0b3578]' : 'w-5 h-5 text-[#0b3578]'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-semibold text-[#0b3578]">Student Login</h2>
-                  <p className="text-gray-500 text-sm mt-1">Access your academic portal</p>
                 </div>
                 {mode === 'login' ? (
-                <form onSubmit={handleStudentSubmit} className="space-y-5">
+                <form onSubmit={handleStudentSubmit} className={isEmbedded ? 'space-y-4' : 'space-y-5'}>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Roll Number
@@ -353,9 +366,15 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password
-                      <span className="block text-xs text-gray-500 font-normal mt-0.5">
-                        First time user ? Use your DOB in the format : DD-MM-YYYY(ex: &quot;31-12-2000&quot;) as password
-                      </span>
+                      {isEmbedded ? (
+                        <span className="block text-[11px] text-gray-500 font-normal mt-0.5">
+                          First-time login: use DOB (DD-MM-YYYY)
+                        </span>
+                      ) : (
+                        <span className="block text-xs text-gray-500 font-normal mt-0.5">
+                          First time user ? Use your DOB in the format : DD-MM-YYYY(ex: &quot;31-12-2000&quot;) as password
+                        </span>
+                      )}
                     </label>
                     <div className="relative">
                       <input
@@ -387,7 +406,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                         )}
                       </button>
                     </div>
-                    <div className="flex items-center justify-between mt-2">
+                    <div className={isEmbedded ? 'flex items-center justify-between mt-2' : 'flex items-center justify-between mt-2'}>
                         <div className="flex items-center">
                           <input
                             id="student-remember-me"
@@ -486,14 +505,14 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   </form>
                 )}
 
-                <p className="mt-6 text-center text-xs text-gray-600">
+                <p className={isModal ? 'mt-6 text-center text-xs text-gray-600' : 'mt-4 text-center text-[11px] text-gray-600 hidden sm:block'}>
                   Note : Login by DOB will work only for the students who haven&apos;t set their password yet
                 </p>
               </div>
             )}
           </div>
 
-          {/* Unified Employee Login Panel (Clerk/Admin) */}
+          {/* Unified Staff Login Panel (Clerk/Admin) */}
           <div 
             className={`transition-all duration-400 ease-out ${
               (activePanel === 'clerk' || activePanel === 'admin')
@@ -502,15 +521,21 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
             }`}
           >
             {(activePanel === 'clerk' || activePanel === 'admin') && (
-              <div className="bg-white rounded-xl border shadow-sm p-6 md:p-8">
-                <div className="text-center mb-6 space-y-1">
-                  <div className="inline-flex items-center justify-center w-12 h-12 bg-green-50 rounded mb-2">
-                    <svg className="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className={isModal ? 'bg-white rounded-xl border shadow-sm p-6 md:p-8' : 'bg-white rounded-sm border border-slate-200 shadow-none p-4 sm:p-5'}>
+                <div className={isModal ? 'flex items-start justify-between gap-4 mb-6' : 'flex items-start justify-between gap-3 mb-4'}>
+                  <div>
+                    <h2 className={isModal ? 'text-2xl font-semibold text-[#0b3578]' : 'text-lg font-bold tracking-wide text-slate-900 uppercase'}>
+                      Staff Login
+                    </h2>
+                    <p className={isModal ? 'text-gray-500 text-sm mt-1' : 'text-xs text-slate-600'}>
+                      Sign in with Google or password.
+                    </p>
+                  </div>
+                  <div className={isModal ? 'inline-flex items-center justify-center w-12 h-12 bg-green-50 rounded' : 'inline-flex items-center justify-center w-10 h-10 bg-green-50 rounded-sm shrink-0'}>
+                    <svg className={isModal ? 'w-6 h-6 text-green-700' : 'w-5 h-5 text-green-700'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-semibold text-[#0b3578]">Employee Login</h2>
-                  <p className="text-gray-500 text-sm mt-1">Institutional staff portal</p>
                 </div>
                 
                 {mode === 'login' ? (
@@ -522,7 +547,9 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       const callbackUrl = base ? `${base}/api/auth/google-complete` : '/api/auth/google-complete';
                       return signIn('google', { callbackUrl });
                     }}
-                    className="w-full flex items-center justify-center bg-white border border-gray-300 text-gray-700 py-2.5 rounded-md font-medium hover:bg-gray-50 transition-all duration-150 mb-4"
+                    className={isModal
+                      ? 'w-full flex items-center justify-center bg-white border border-gray-300 text-gray-700 py-2.5 rounded-md font-medium hover:bg-gray-50 transition-all duration-150 mb-4'
+                      : 'w-full flex items-center justify-center bg-white border border-gray-300 text-gray-700 py-2 rounded-sm font-medium hover:bg-gray-50 transition-all duration-150 mb-3 text-sm'}
                   >
                     <svg className="w-4 h-4 mr-2" viewBox="0 0 48 48" aria-hidden>
                       <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
@@ -533,7 +560,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                     Sign in with Google
                   </button>
 
-                  <div className="relative my-4">
+                  <div className={isModal ? 'relative my-4' : 'relative my-3'}>
                     <div className="absolute inset-0 flex items-center" aria-hidden="true">
                       <div className="w-full border-t border-gray-200"></div>
                     </div>
@@ -541,7 +568,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                       <span className="px-2 bg-white text-gray-500">Or</span>
                     </div>
                   </div>
-                <form onSubmit={handleEmployeeSubmit} className="space-y-5">
+                <form onSubmit={handleEmployeeSubmit} className={isEmbedded ? 'space-y-4' : 'space-y-5'}>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Email Address
@@ -677,7 +704,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
                   </form>
                 )}
 
-                <p className="text-center text-xs text-gray-500 mt-4">
+                <p className={isModal ? 'text-center text-xs text-gray-500 mt-4' : 'text-center text-[11px] text-gray-500 mt-3 hidden sm:block'}>
                   Authorized personnel only
                 </p>
               </div>
@@ -687,18 +714,20 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin }) {
           </div>
         </div>
         
-        {/* Close button */}
-        <button 
-          onClick={onClose}
-          className="block mx-auto mt-6 text-white/80 hover:text-white text-sm transition-colors duration-200 group"
-        >
-          <span className="flex items-center gap-2">
-            <svg className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Close Panel
-          </span>
-        </button>
+        {/* Close button (modal only) */}
+        {isModal && dismissable && (
+          <button 
+            onClick={onClose}
+            className="block mx-auto mt-6 text-white/80 hover:text-white text-sm transition-colors duration-200 group"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Close Panel
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

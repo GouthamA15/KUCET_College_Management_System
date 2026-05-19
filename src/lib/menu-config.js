@@ -1,5 +1,9 @@
 // Single source-of-truth menu configuration per role
 export const NAV_MENU_CONFIG = {
+  guest: [
+    { label: 'STUDENT LOGIN', action: 'open-panel-student' },
+    { label: 'STAFF LOGIN', action: 'open-panel-clerk' }
+  ],
   student: [
     { label: 'HOME', route: '/student' },
     { label: 'PROFILE', route: '/student/profile' },
