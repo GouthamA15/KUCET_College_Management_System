@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 14, 2026 (Session 110)
+**Last Updated:** May 19, 2026 (Session 112)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -378,6 +378,33 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Refined `financial-utils.js` and `student.js` validations to enforce stricter institutional standards for annual income formatting and roll-number parsing.
 - **Infrastructure Maintenance:**
     - Updated `package-lock.json` with resolved dependency trees and security-hardened sub-dependencies.
+
+---
+
+#### **Session 111: Quality Assurance & Registry Stabilization (May 15, 2026)**
+- **System Hardening:**
+    - Performed a project-wide ESLint cleanup to ensure code quality and consistency across all institutional modules.
+- **Bug Resolution:**
+    - Resolved critical issues where `fetchDrafts` was undefined in the admission module and fixed PWA icon resolution errors in the build pipeline.
+- **Navigation & UX:**
+    - Restored the institutional Verification navigation link and stabilized role-specific menu redirects for improved staff workflow.
+- **Documentation:**
+    - Updated `AGENTS.md` with high-signal facts and community board integration details to enhance agentic collaboration.
+
+---
+
+#### **Session 112: Automated Admissions & Registry Hardening (May 18-19, 2026)**
+- **Auto Roll Number Generation:**
+    - Implemented a sophisticated generation engine (`autoGenerateRollNumber.js`) that automatically assigns student roll numbers based on institutional patterns (Year + College Code + Exam Type + Branch Code + Serial). 
+    - Added a supporting API route (`/api/admissions/generate-roll-number`) to enable one-click assignment during the admission finalization process.
+- **Database Integrity:**
+    - Hardened the `students` table in `src/db/schema.js` with a `uniqueIndex` on `roll_no`, providing a critical layer of protection against duplicate records and registry collisions.
+- **UI/UX Refinement:**
+    - Stabilized the "View/Edit Student" modules by resolving "out-of-flow" layout issues and ensuring consistent date formats in admission drafts.
+- **Clerk Workspace:**
+    - Refined Clerk-facing pages and resolved core navigation shell conflicts to improve administrative efficiency.
+- **Project Maintenance:**
+    - Updated `README.md` to reflect the latest project status and system capabilities.
 
 ### April 2026
 

@@ -90,25 +90,14 @@ export default function CertificateRequestForm({
     }
   };
 
+  // Clean up preview URL when component unmounts or preview changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Reset form state when certificate type changes
-      setTransactionId('');
-      setPaymentScreenshot(null);
+    return () => {
       if (paymentPreviewUrl) {
         try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
-        setPaymentPreviewUrl(null);
       }
-      setPurposeOption('Select');
-      setCustomPurpose('');
-      setFromDate('');
-      setToDate('');
-      setPurposeError('');
-      setDateError('');
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, [selectedCertificate, paymentPreviewUrl]);
+    };
+  }, [paymentPreviewUrl]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
