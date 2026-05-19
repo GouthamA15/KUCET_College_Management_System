@@ -419,10 +419,10 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Refined the `paymentPreviewUrl` cleanup logic to prevent memory leaks while maintaining a responsive "Instant Preview" experience for students.
 - **Navigation Resilience:**
     - Stabilized the certificate request workspace, ensuring students can seamlessly upload payment proofs and submit requests across both mobile and desktop viewports.
-- **Scholarship Search Multi-Year Visibility:**
-    - Enhanced the scholarship application lookup (`/api/clerk/scholarship/application/[application_no]`) to display a complete institutional academic year grid.
-    - **Regular Students:** Now show placeholders and records for Years 1, 2, 3, and 4.
-    - **Lateral Entry Students:** Corrected to show only Years 2, 3, and 4, aligning with their official B.Tech course duration.
+- **Scholarship Search Context Refinement:**
+    - Modified the scholarship application lookup (`/api/clerk/scholarship/application/[application_no]`) to display **only the specific academic year records** that match the searched application number.
+    - Removed the automatically generated multi-year grid to provide a more focused, context-specific search result.
+    - Maintained **Strict Numeric Validation** for all application number searches.
 
 #### **Session 114: Profile Synchronization & Data Integrity Hardening (May 19, 2026)**
 - **Profile Modification Sync Fix:**

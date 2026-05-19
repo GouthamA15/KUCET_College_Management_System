@@ -70,20 +70,8 @@ export async function GET(req, ctx) {
     const current_year = getResolvedCurrentAcademicYear(student.roll_no, null, now);
     const admissionType = getAdmissionTypeFromRoll(student.roll_no);
 
-    // Generate the full set of academic years based on course duration
-    // Regular students: show 1st, 2nd, 3rd, 4th year
-    // Lateral students: show 2nd, 3rd, 4th year
-    const expectedYears = [];
-    const startStudyYear = (admissionType && admissionType.toLowerCase() === 'lateral') ? 2 : 1;
-    for (let yr = startStudyYear; yr <= 4; yr++) {
-      const ay = getAcademicYearForStudyYear(student.roll_no, yr - (startStudyYear - 1));
-      if (ay) expectedYears.push(ay);
-    }
-
-    // Merge with any other years found in the database (safeguard)
-    const foundYears = sanctionRows.map(r => r.academic_year).filter(Boolean);
-    const allYears = Array.from(new Set([...expectedYears, ...foundYears])).sort();
-
+    // For each academic_year belonging to this application, build a summary
+    const allYears = Array.from(new Set(sanctionRows.map(r => r.academic_year))).filter(Boolean).sort();
     const year_records = {};
 
     for (const year of allYears) {
