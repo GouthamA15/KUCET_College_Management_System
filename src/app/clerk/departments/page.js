@@ -7,12 +7,12 @@ export default function ClerkDepartmentsPage() {
 
   const departments = [
     { code: 'CSE', name: 'Computer Science and Engineering', icon: <Monitor className="w-8 h-8 text-blue-500" /> },
+    { code: 'CSD', name: 'Computer Science and Engineering (Data Science)', icon: <Cpu className="w-8 h-8 text-cyan-500" /> },
     { code: 'IT', name: 'Information Technology', icon: <Monitor className="w-8 h-8 text-indigo-500" /> },
     { code: 'ECE', name: 'Electronics and Communication', icon: <Zap className="w-8 h-8 text-yellow-500" /> },
     { code: 'EEE', name: 'Electrical and Electronics', icon: <Zap className="w-8 h-8 text-orange-500" /> },
     { code: 'MECH', name: 'Mechanical Engineering', icon: <PenTool className="w-8 h-8 text-slate-500" /> },
     { code: 'CIVIL', name: 'Civil Engineering', icon: <BookOpen className="w-8 h-8 text-emerald-500" /> },
-    { code: 'MINING', name: 'Mining Engineering', icon: <PenTool className="w-8 h-8 text-amber-600" /> },
   ];
 
   return (
