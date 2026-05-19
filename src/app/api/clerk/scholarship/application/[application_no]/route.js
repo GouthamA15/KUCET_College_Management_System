@@ -6,7 +6,7 @@ import {
   scholarshipSanctions, 
   studentFeePayments 
 } from '@/db/schema';
-import { eq, and, asc, sql } from 'drizzle-orm';
+import { eq, and, asc, sql, or, like } from 'drizzle-orm';
 import { getBranchFromRoll, getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
@@ -20,6 +20,11 @@ export async function GET(req, ctx) {
     const params = await ctx.params;
     const { application_no } = params;
     if (!application_no) return apiError('Missing application_no parameter', 400);
+
+    // Validation: Must be numeric
+    if (!/^\d+$/.test(application_no)) {
+      return apiError('application_no must be numeric', 400);
+    }
 
     // Find sanction rows that match the application number
     const sanctionRows = await db.select({ 

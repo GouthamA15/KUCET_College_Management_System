@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 19, 2026 (Session 112)
+**Last Updated:** May 19, 2026 (Session 113)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -401,10 +401,24 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Hardened the `students` table in `src/db/schema.js` with a `uniqueIndex` on `roll_no`, providing a critical layer of protection against duplicate records and registry collisions.
 - **UI/UX Refinement:**
     - Stabilized the "View/Edit Student" modules by resolving "out-of-flow" layout issues and ensuring consistent date formats in admission drafts.
+- **Scholarship Search & Data Redundancy Refinement:**
+    - Modified the scholarship application lookup API (`/api/clerk/scholarship/application/[application_no]`) to support searching by full application numbers with **Strict Numeric Validation**.
+    - Updated the save-side API (`/api/clerk/scholarship/sanctions`) to **store application numbers in full**, ensuring no truncation or normalization of year prefixes occurs, while enforcing **Regex-Based Validation** (6-15 digits).
+    - Added **Automated Propagation**: entering an application number for one year now automatically propagates the full ID to all other academic years for the same student that are currently missing it.
 - **Clerk Workspace:**
     - Refined Clerk-facing pages and resolved core navigation shell conflicts to improve administrative efficiency.
 - **Project Maintenance:**
     - Updated `README.md` to reflect the latest project status and system capabilities.
+
+#### **Session 113: Certificate Request UX Hardening & ESLint Resolution (May 19, 2026)**
+- **Certificate Request Upload Fix:**
+    - Resolved a critical bug in `CertificateRequestForm.js` where form state was being prematurely reset during the screenshot upload process.
+    - **Architecture Optimization:** Transitioned from manual `useEffect`-based state resets to the idiomatic **React `key` prop pattern**. By applying `key={selectedCertificate}` in the parent layout, the form now robustly resets its internal state upon certificate selection without triggering cascading renders.
+- **ESLint & Performance Hardening:**
+    - Resolved the `react-hooks/set-state-in-effect` error, aligning the certificate module with React 19 best practices and unblocking the institutional CI/CD pipeline.
+    - Refined the `paymentPreviewUrl` cleanup logic to prevent memory leaks while maintaining a responsive "Instant Preview" experience for students.
+- **Navigation Resilience:**
+    - Stabilized the certificate request workspace, ensuring students can seamlessly upload payment proofs and submit requests across both mobile and desktop viewports.
 
 ### April 2026
 
