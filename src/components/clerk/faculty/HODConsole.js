@@ -92,30 +92,31 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
       s => s.day_of_week === editingSlot.day && s.period_number === editingSlot.period - 1
     );
     if (!prevSlot) return toast.error('No data found in the previous period to copy.');
-    if (formRef.current) {
-      const form = formRef.current;
-      form.subject_code.value = prevSlot.subject_code || '';
-      form.faculty_id.value = prevSlot.faculty_id || '';
-      form.room_no.value = prevSlot.room_no || '';
-      setModalSelectedSubject(prevSlot.subject_code || '');
-      toast.success('Details copied from previous period');
-    }
+    if (!formRef.current) return;
+
+    const form = formRef.current;
+    form.subject_code.value = prevSlot.subject_code || '';
+    form.faculty_id.value = prevSlot.faculty_id || '';
+    form.room_no.value = prevSlot.room_no || '';
+    setModalSelectedSubject(prevSlot.subject_code || '');
+    toast.success('Details copied from previous period');
   };
 
   const handleSaveSlot = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const activeAY = clerkData?.academic_year || '2025-26';
 
     const payload = {
+      semester: selectedSem,
+      section: 'A',
       day_of_week: editingSlot.day,
       period_number: editingSlot.period,
       subject_code: formData.get('subject_code'),
       faculty_id: formData.get('faculty_id'),
       room_no: formData.get('room_no'),
-      semester: selectedSem,
-      academic_year: activeAY
+      academic_year: '2025-26'
     };
+
     if (!payload.subject_code) return toast.error('Please select a subject or activity');
     setIsSaving(true);
     try {
@@ -691,13 +692,13 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Authorization Form */}
         <div className="bg-slate-50 border border-slate-200 p-6 h-fit sticky top-6">
-          <h4 className="font-bold text-slate-700 mb-6 uppercase tracking-widest text-[9px] flex items-center gap-2">
+          <h4 className="font-bold text-slate-700 mb-6 uppercase tracking-widest text-[13px] flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-[#0b3578] rounded-full"></span>
             New Personnel Authorization
           </h4>
           <div className="space-y-5">
              <div>
-               <label className="text-[8px] font-bold text-slate-400 uppercase mb-1 block px-0.5 tracking-widest">Academic Semester</label>
+               <label className="text-[9.5px] font-bold text-slate-400 uppercase mb-1 block px-0.5 tracking-widest">Academic Semester</label>
                <select 
                  value={selectedSem}
                  onChange={(e) => setSelectedSem(parseInt(e.target.value))}
@@ -707,7 +708,7 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
                </select>
              </div>
              <div>
-               <label className="text-[8px] font-bold text-slate-400 uppercase mb-1 block px-0.5 tracking-widest">Target Subject Registry</label>
+               <label className="text-[9.5px] font-bold text-slate-400 uppercase mb-1 block px-0.5 tracking-widest">Target Subject Registry</label>
                <select 
                  value={selectedSub}
                  onChange={(e) => setSelectedSub(e.target.value)}
@@ -720,7 +721,7 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
                </select>
              </div>
              <div>
-               <label className="text-[8px] font-bold text-slate-400 uppercase mb-1 block px-0.5 tracking-widest">Registered Personnel</label>
+               <label className="text-[9.5px] font-bold text-slate-400 uppercase mb-1 block px-0.5 tracking-widest">Registered Personnel</label>
                <select 
                  value={selectedFac}
                  onChange={(e) => setSelectedFac(e.target.value)}
@@ -735,7 +736,7 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
              <button 
                onClick={handleAuthorize}
                disabled={isSaving}
-               className="w-full py-4 bg-[#0b3578] text-white font-bold uppercase tracking-widest text-[9px] hover:bg-blue-900 transition-all border border-[#0b3578] disabled:opacity-50 mt-4 shadow-sm"
+               className="w-full py-4 bg-[#0b3578] text-white font-bold uppercase tracking-widest text-[10.5px] hover:bg-blue-900 transition-all border border-[#0b3578] disabled:opacity-50 mt-4 shadow-sm"
              >
                {isSaving ? 'Synchronizing Authorization...' : 'Authorize Personnel Access'}
              </button>
@@ -745,8 +746,8 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
         {/* Existing Assignments List */}
         <div className="lg:col-span-2 space-y-6">
            <div className="flex justify-between items-center px-1">
-              <h4 className="font-bold text-slate-800 uppercase tracking-tight text-xs">Active Registry (Semester {selectedSem})</h4>
-              <span className="text-[8px] font-bold text-[#0b3578] bg-blue-50 px-3 py-1 border border-blue-100 uppercase tracking-widest">{filteredAssignments.length} Official Records</span>
+              <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">Active Registry (Semester {selectedSem})</h4>
+              <span className="text-[9px] font-bold text-[#0b3578] bg-blue-50 px-3 py-1 border border-blue-100 uppercase tracking-widest">{filteredAssignments.length} Official Records</span>
            </div>
 
            <div className="grid grid-cols-1 gap-3">
