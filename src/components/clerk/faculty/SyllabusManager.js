@@ -101,7 +101,7 @@ export default function SyllabusManager({ branch }) {
       <div className="grid grid-cols-1 gap-6">
         <button 
           onClick={() => setEditingSubject({})}
-          className="w-full py-3 border border-dashed border-slate-400 rounded-sm text-slate-800 font-bold uppercase tracking-[0.22em] text-[10px] hover:border-[#0b3578]/60 hover:text-[#0b3578] transition-colors group bg-slate-50"
+          className="w-full py-3 border border-white/25 rounded-sm text-white font-bold uppercase tracking-[0.22em] text-[10px] bg-[#0b3578] hover:bg-blue-900 transition-colors group shadow-lg shadow-blue-100"
         >
           <span className="group-hover:scale-110 inline-block transition-transform mr-2">+</span> Add New Subject to Semester {selectedSem}
         </button>

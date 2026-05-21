@@ -182,7 +182,7 @@ export default function FacultyDashboardOverview() {
               </section>
             ) : null}
 
-            {clerk?.is_hod && (activeHodTab === 'analytics' || activeHodTab === 'config' || activeHodTab === 'allocation') ? null : (
+            {clerk?.is_hod && (activeHodTab === 'analytics' || activeHodTab === 'config' || activeHodTab === 'allocation' || activeHodTab === 'workload' || activeHodTab === 'syllabus') ? null : (
               <PersonalSchedule />
             )}
           </>
