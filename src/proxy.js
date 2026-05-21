@@ -60,7 +60,7 @@ async function attemptSilentRefresh(userType, request) {
   }
 }
 
-export async function proxy(request) {
+export default async function proxy(request) {
   const { pathname } = request.nextUrl;
   const { cookies } = request;
 

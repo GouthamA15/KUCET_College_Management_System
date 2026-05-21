@@ -1,5 +1,23 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import withPWAInit from "@ducanh2912/next-pwa";
+import os from "os";
+
+// Dynamically get all local network IPs to automate allowedDevOrigins
+const getLocalExternalIPs = () => {
+  const interfaces = os.networkInterfaces();
+  const addresses = ['localhost:3000'];
+  for (const k in interfaces) {
+    for (const k2 in interfaces[k]) {
+      const address = interfaces[k][k2];
+      // family can be 'IPv4' or 4 depending on Node.js version
+      if ((address.family === 'IPv4' || address.family === 4) && !address.internal) {
+        addresses.push(address.address);
+        addresses.push(`${address.address}:3000`);
+      }
+    }
+  }
+  return addresses;
+};
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -19,6 +37,9 @@ const withPWA = withPWAInit({
 const nextConfig = {
   /* config options here */
   reactCompiler: true,
+  experimental: {
+    allowedDevOrigins: getLocalExternalIPs(),
+  },
   images: {
     remotePatterns: [
       {
@@ -40,7 +61,6 @@ const nextConfig = {
       form-action 'self';
       frame-ancestors 'none';
       connect-src 'self' res.cloudinary.com *.sentry.io *.supabase.co wss://*.supabase.co;
-      upgrade-insecure-requests;
     `.replace(/\s{2,}/g, ' ').trim();
 
     return [
