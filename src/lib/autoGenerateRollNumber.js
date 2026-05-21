@@ -85,24 +85,34 @@ function validateGeneratedRollNumber(rollNo, { expectedBranch, expectedExamType 
   return { isValid: true };
 }
 
-async function getNextSerialNumber(tx, { branch }) {
+async function getNextSerialNumber(tx, { branch, joiningYear, admissionSymbol }) {
   const branchCode = getBranchCodeFromName(branch);
   if (!branchCode) {
     throw new Error(`Unknown branch: ${branch}`);
   }
 
-  // Search ALL historical roll numbers for that branch (across years, EAMCET + ECET)
-  // Regular: __567TBB__
-  // Lateral: __567BB__L
-  const regularPattern = `__567T${branchCode}%`;
-  const lateralPattern = `__567${branchCode}%L`;
+  // Get two-digit year if joiningYear is provided, otherwise use wildcard
+  const yy = joiningYear ? twoDigitYear(joiningYear) : '__';
+
+  // Search historical roll numbers for that branch and year
+  // Regular: YY567TBB__
+  // Lateral: YY567BB__L
+  const regularPattern = `${yy}567T${branchCode}%`;
+  const lateralPattern = `${yy}567${branchCode}%L`;
+
+  // Select pattern based on admissionSymbol if provided
+  let pattern = null;
+  if (admissionSymbol === 'T') pattern = regularPattern;
+  else if (admissionSymbol === 'L') pattern = lateralPattern;
 
   const rows = await tx
     .select({ roll_no: studentsTable.roll_no })
     .from(studentsTable)
     .where(
       and(
-        or(like(studentsTable.roll_no, regularPattern), like(studentsTable.roll_no, lateralPattern))
+        pattern 
+          ? like(studentsTable.roll_no, pattern)
+          : or(like(studentsTable.roll_no, regularPattern), like(studentsTable.roll_no, lateralPattern))
       )
     );
 
@@ -123,7 +133,7 @@ async function getNextSerialNumber(tx, { branch }) {
 
   const nextSerial = maxSerial + 1;
   if (nextSerial > 99) {
-    throw new Error('Serial overflow: branch has reached 99 seats');
+    throw new Error(`Serial overflow: branch ${branch} for year ${joiningYear || 'any'} has reached 99 seats`);
   }
 
   return nextSerial;
@@ -134,7 +144,7 @@ async function generateInstitutionalRollNumber(tx, { branch, examType, joiningYe
   if (!branchCode) throw new Error(`Unknown branch: ${branch}`);
 
   const admissionSymbol = getAdmissionSymbol(examType);
-  const nextSerial = await getNextSerialNumber(tx, { branch });
+  const nextSerial = await getNextSerialNumber(tx, { branch, joiningYear });
 
   const rollNumber = buildRollNumber({
     joiningYear,

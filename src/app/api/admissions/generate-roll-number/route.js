@@ -35,7 +35,7 @@ export async function POST(req) {
       const admissionSymbol = getAdmissionSymbol(examType);
       const branchCode = getBranchCodeFromName(branch);
       if (!branchCode) throw new Error(`Unknown branch: ${branch}`);
-      const startSerial = await getNextSerialNumber(tx, { branch });
+      const startSerial = await getNextSerialNumber(tx, { branch, joiningYear, admissionSymbol });
 
       const rollNumbers = [];
       for (let i = 0; i < count; i++) {

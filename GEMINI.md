@@ -163,6 +163,19 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### May 2026
 
+#### **Session 118: Institutional Roll Number Generation Excellence (May 21, 2026)**
+- **Roll Number Generation Engine Hardening:**
+    - Resolved a critical bug in `getNextSerialNumber` where the system searched across all historical records for a branch, causing serial numbers to continue from previous batches instead of resetting per year.
+    - Implemented **Year-Specific Counting**: The generation engine now strictly filters by the 2-digit entry year, ensuring each new intake starts from serial `01`.
+    - Integrated **Type-Aware Counters**: Separated serial lookups for Regular (`T`) and Lateral (`L`) students, allowing independent numbering sequences within the same branch and year.
+- **Lateral Entry (ECET) Intelligence:**
+    - Automated the **One-Year Entry Offset** for Lateral students. The system now correctly detects ECET intake and increments the joining year by 1 (e.g., Batch 2024 -> Entry 2025 -> Roll Prefix `25`), aligning with the institutional batch-sync logic where Laterals join directly into the 2nd year.
+- **API & Registry Synchronization:**
+    - Updated the `/api/admissions/generate-roll-number` route and the Admission Finalization frontend to support multi-parameter generation (Branch, Exam, Year, Type).
+    - Verified that generated roll numbers strictly adhere to the patterns parsed by `src/lib/rollNumber.js`, ensuring system-wide compatibility for academic year and semester calculations.
+
+---
+
 #### **Session 117: Institutional UI Overhaul for Faculty & Production Readiness (May 21, 2026)**
 - **Faculty Dashboard Transformation:**
     - Re-engineered the Faculty Dashboard (`/clerk/faculty/dashboard/page.js`) into a high-density, centralized workstream interface. Eliminated floating cards in favor of a cohesive, institutional tab layout.

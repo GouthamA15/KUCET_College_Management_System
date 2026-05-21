@@ -92,7 +92,13 @@ function FinalizeAdmissionContent() {
 
         const first = drafts[0];
         const startYearRaw = String(first.admission_year || '').split('-')[0];
-        const joiningYear = parseInt(startYearRaw, 10);
+        let joiningYear = parseInt(startYearRaw, 10);
+        
+        // Lateral Entry (ECET) students join one year after the batch starts (e.g. Batch 2024 -> Joins 2025)
+        if (selectedExam === 'ECET') {
+            joiningYear += 1;
+        }
+
         if (!Number.isInteger(joiningYear)) {
             toast.error('Could not determine joining year from admission batch');
             return;
