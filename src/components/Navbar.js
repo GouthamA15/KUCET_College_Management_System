@@ -334,7 +334,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         onClose={() => setShowChangePasswordModal(false)}
         apiEndpoint={
             effectiveRole === 'student' ? '/api/auth/change-password/student' :
-            effectiveRole === 'clerk' ? '/api/auth/change-password/clerk' : ''
+            effectiveRole.startsWith('clerk') ? '/api/auth/change-password/clerk' : ''
           }
       />
     </>

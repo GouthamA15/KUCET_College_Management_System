@@ -163,6 +163,22 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### May 2026
 
+#### **Session 117: Institutional UI Overhaul for Faculty & Production Readiness (May 21, 2026)**
+- **Faculty Dashboard Transformation:**
+    - Re-engineered the Faculty Dashboard (`/clerk/faculty/dashboard/page.js`) into a high-density, centralized workstream interface. Eliminated floating cards in favor of a cohesive, institutional tab layout.
+    - Upgraded faculty-facing components (`HODConsole`, `SyllabusManager`, `SubjectInterestForm`, `ClassList`) to adhere to strict institutional styling, utilizing `#0b3578` branding, slate backgrounds, and sharp `rounded-sm` borders.
+- **Login Landing Redesign:**
+    - Extracted the login panel into a new `HomeLoginLanding.client.js` component, transitioning from a floating overlay to a structural, two-column responsive layout.
+    - Improved the user experience with formal administrative notices and clear institutional guidelines on the landing page.
+- **Navigation & Routing:**
+    - Updated `Navbar.js` and `menu-config.js` to intelligently handle guest state navigation via `?panel=student` and `?panel=clerk` search parameters.
+    - **Bug Fix:** Resolved a critical API resolution bug in `Navbar.js` where the `ChangePasswordModal` endpoint would fail (return `''`) for `clerkAdmission` and `clerkScholarship` roles by implementing a `.startsWith('clerk')` role matcher.
+- **Production Readiness & Scalability Strategy:**
+    - **Database Resilience:** Established mandatory **Point-in-Time Recovery (PITR)** requirement for production TiDB clusters to ensure sub-minute data recovery.
+    - **Observability Infrastructure:** Documented the requirement for **Distributed Tracing** (Datadog/New Relic) to monitor Service Layer performance during high-traffic "Morning Rush" periods.
+    - **Quality Gates:** Integrated **Automated Load Testing** (k6) as a mandatory pre-deployment gate for the `staging` to `main` workflow.
+    - **Infrastructure Scaling:** Verified that the current architecture (TiDB Serverless, Supabase Realtime, stateless JWTs) is optimized for horizontal scaling to support 5,000+ concurrent students.
+
 #### **Session 96: Staff Profile Sovereignty & Verification Infrastructure (May 7, 2026)**
 - **Staff Edit Profile:**
     - Implemented comprehensive "Edit Profile" functionality for all institutional staff roles (Admission, Scholarship, Faculty, HOD). Staff can now independently manage their professional portrait, digital signature, and contact information.

@@ -115,6 +115,18 @@ Ensure the schema is perfectly synced with the code:
 npm run db:migrate
 ```
 
+### C. Observability & Monitoring (The "Invisible Bug" Problem)
+
+#### 1. Distributed Tracing
+As the Service Layer grows, "where is it slow?" becomes a critical question.
+- **Requirement:** Integrate a tool like **Datadog**, **New Relic**, or **Sentry Performance**.
+- **Action:** This will provide a flame graph for every request, showing exactly which Drizzle query or API call is causing a bottleneck during high-traffic periods.
+
+#### 2. Automated Load Testing (Gatekeeper)
+The system includes a k6 load test suite (`load-test-attendance.js`).
+- **Requirement:** Run the **"Morning Rush"** load test simulation (500 concurrent users) against the **Staging Environment** before every major release to the `main` branch.
+- **Threshold:** P(95) response time must be **< 500ms** for the attendance marking flow to pass the production gate.
+
 ---
 
 ## 6. Privacy & Data Governance
