@@ -5,8 +5,8 @@ import toast from 'react-hot-toast';
 
 export default function FacultyAcademicMaterials() {
   const [materials, setMaterials] = useState([
-    { id: 1, title: 'Data Structures Syllabus', type: 'PDF', date: '2026-05-18', size: '2.4 MB' },
-    { id: 2, unit: 'Unit 1: Introduction to Algorithms', type: 'Link', date: '2026-05-15', link: 'https://example.com/unit1' }
+    { id: 1, title: 'Data Structures Reference', type: 'PDF', date: '2026-05-18', size: '2.4 MB' },
+    { id: 2, title: 'Algorithms Introduction Notes', type: 'Link', date: '2026-05-15', link: 'https://example.com/notes1' }
   ]);
 
   const [isUploading, setIsUploading] = useState(false);

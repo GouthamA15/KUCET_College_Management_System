@@ -280,16 +280,6 @@ export const syllabusStructure = mysqlTable('syllabus_structure', {
   subjectCodeIdx: index('subject_code').on(table.subject_code),
 }));
 
-export const syllabusUnits = mysqlTable('syllabus_units', {
-  id: int('id').autoincrement().primaryKey().notNull(),
-  subject_code: varchar('subject_code', { length: 50 }).notNull(),
-  unit_order: tinyint('unit_order').notNull(),
-  unit_name: varchar('unit_name', { length: 255 }).notNull(),
-  topics: json('topics').notNull(),
-}, (table) => ({
-  subjectIdx: index('idx_su_subject').on(table.subject_code),
-}));
-
 // --- 6. ASSETS & SIGNATURES ---
 
 export const studentImages = mysqlTable('student_images', {

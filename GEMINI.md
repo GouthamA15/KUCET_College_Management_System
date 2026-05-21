@@ -134,7 +134,6 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **5. Syllabus & Curriculum**
 - `syllabus_subjects`: Master course catalog.
 - `syllabus_structure`: Branch-semester course mappings.
-- `syllabus_units`: Unit titles and detailed topic arrays (JSON).
 
 ---
 
@@ -143,7 +142,6 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **A. Head of Department (HOD) Console**
 - **Timetable Matrix:** Semester-aware grid (S1-S8) with "Duplicate Previous" productivity tools.
 - **Workload Tracker:** Visual bar charts comparing faculty teaching intensity institution-wide.
-- **Syllabus Manager:** Recursive full-CRUD tool for subjects and units with safe JSON parsing.
 - **Branch Analytics:** Condonation risk detection (75% threshold) with student-specific risk metrics.
 
 ### **B. Proxy-Free Attendance System**
