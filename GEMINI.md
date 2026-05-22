@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 22, 2026 (Session 119)
+**Last Updated:** May 22, 2026 (Session 120)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -160,6 +160,27 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-May 2026)
 
 ### May 2026
+
+#### **Session 120: High-Performance VPS Architecture & Hybrid Storage Infrastructure (May 22, 2026)**
+- **VPS Migration Architecture:**
+    - Transitioned the real-time orchestration system from Supabase Broadcast to a **Dedicated local Socket.io/Redis** architecture. This enables sub-100ms broadcasting latency on dedicated VPS hardware.
+    - Implemented a **Hybrid Strategy** for real-time: the system automatically detects `REDIS_URL` and `NEXT_PUBLIC_SOCKET_URL` to prioritize local infrastructure, falling back to Supabase for Serverless/Cloud deployments.
+- **Secure Local Storage Proxy:**
+    - Developed a secure asset proxy route (`/api/assets/view/[filename]`) to serve student photos and signatures from a protected, non-public directory on the VPS (`/var/www/kucet-storage`).
+    - Integrated **Authenticated Asset Serving**: the proxy enforces strict session verification via `getAuthUser`, ensuring sensitive documents are never accessible via public URLs.
+- **Hybrid Storage Toggle:**
+    - Refactored `src/lib/assets.js` with a `NEXT_PUBLIC_STORAGE_TYPE` toggle. Admins can now switch between **Cloudinary** (Legacy/Cloud) and **Local** (VPS/Secure Proxy) via environment variables without code changes.
+- **Deployment Package Hardening:**
+    - **Nginx Excellence:** Fixed critical errors in the reverse proxy configuration, including the missing `limit_req_zone` definition for DDoS protection.
+    - **Backup Resilience:** Hardened the `nightly-backup.sh` script and documented the mandatory `.my.cnf` credential management for secure, automated MySQL dumps.
+    - **Master Guide:** Updated `MASTER_DEPLOYMENT_GUIDE.md` with a comprehensive **Phase 5** guide covering Git workflows, local `.env` setup, and VPS-specific toggles.
+- **Local Environment & Build Hardening:**
+    - **Dependency Synchronization:** Resolved `Module not found: socket.io-client` errors by updating `package.json` and standardizing the local `npm install` workflow.
+    - **Config Sanitization:** Removed invalid experimental keys from `next.config.mjs` and updated the **Content Security Policy (CSP)** to whitelist local and production WebSocket connections.
+    - **Env Robustness:** Hardened `src/lib/env.js` to automatically lowercase and trim `NODE_ENV`, preventing build failures caused by OS-level environment inconsistencies.
+- **Data Integrity:**
+    - Synchronized `.env.example` with the full suite of VPS-ready variables (Redis, Socket, Storage Path).
+    - Hardened the build pipeline by renaming conflicting `.env` files (e.g., `.env.local`, `.env.prod`) to `.bak`, ensuring a clean and predictable production build state.
 
 #### **Session 119: Enhanced Session Persistence & Authentication UX (May 22, 2026)**
 - **Session Duration Optimization:**
