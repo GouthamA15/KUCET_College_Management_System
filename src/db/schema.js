@@ -7,11 +7,22 @@ import {
 
 export const collegeInfo = mysqlTable('college_info', {
   id: int('id').autoincrement().primaryKey().notNull(),
+  name: varchar('name', { length: 255 }).default('KU COLLEGE OF ENGINEERING & TECHNOLOGY'),
+  short_name: varchar('short_name', { length: 50 }).default('KUCET'),
+  address: text('address'),
+  location: varchar('location', { length: 100 }).default('Warangal'),
+  pincode: varchar('pincode', { length: 10 }).default('506009'),
+  contact: varchar('contact', { length: 100 }).default('0870-2970125'),
+  entrance_codes: json('entrance_codes'), // stores { pgecet, eapcet, ecet }
+  branches: json('branches'), // stores array of { code, name }
+  categories: json('categories'), // array of strings
+  annual_incomes: json('annual_incomes'), // array of strings
   first_sem_start_month: tinyint('first_sem_start_month'),
   first_sem_start_day: tinyint('first_sem_start_day'),
   second_sem_start_month: tinyint('second_sem_start_month'),
   second_sem_start_day: tinyint('second_sem_start_day'),
-  updated_at: datetime('updated_at'),
+  maintenance_mode: boolean('maintenance_mode').default(false).notNull(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
 });
 
 // --- 2. CORE IDENTITY & AUTHENTICATION ---

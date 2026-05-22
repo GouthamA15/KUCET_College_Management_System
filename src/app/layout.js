@@ -2,6 +2,8 @@ import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 import AuthProvider from "./components/AuthProvider";
 import { AssetProvider } from "@/context/AssetContext";
+import { SystemConfigProvider } from "@/context/SystemConfigContext";
+import MaintenanceGuard from "@/components/MaintenanceGuard";
 import RealtimeListener from "@/components/RealtimeListener";
 
 export const metadata = {
@@ -28,12 +30,16 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="antialiased bg-institutional min-h-screen">
         <RealtimeListener enableNotifications />
-        <AssetProvider>
-          <AuthProvider>
-            <Toaster position="top-center" reverseOrder={false} />
-            {children}
-          </AuthProvider>
-        </AssetProvider>
+        <SystemConfigProvider>
+          <MaintenanceGuard>
+            <AssetProvider>
+              <AuthProvider>
+                <Toaster position="top-center" reverseOrder={false} />
+                {children}
+              </AuthProvider>
+            </AssetProvider>
+          </MaintenanceGuard>
+        </SystemConfigProvider>
       </body>
     </html>
   );

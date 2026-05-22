@@ -2,12 +2,14 @@
 import Image from 'next/image';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { useAssets } from '@/context/AssetContext';
+import { useSystemConfig } from '@/context/SystemConfigContext';
 
 export default function Header({ fixed = true }) {
   const { getAsset } = useAssets();
+  const { config } = useSystemConfig();
 
   const handlePhoneClick = () => {
-    navigator.clipboard.writeText(COLLEGE_CONFIG.contact);
+    navigator.clipboard.writeText(config.contact);
     alert('Phone number copied to clipboard!');
   };
 
@@ -53,13 +55,13 @@ export default function Header({ fixed = true }) {
         {/* Center Title Block */}
         <div className="text-center flex-1 px-2">
           <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-[#0d47a1] m-0 leading-none uppercase">
-            {COLLEGE_CONFIG.name}
+            {config.name}
           </h2>
           <h3 className="text-base md:text-lg lg:text-xl font-semibold text-[#1565c0] mt-0.5 mb-0 leading-tight uppercase">
             KAKATIYA UNIVERSITY
           </h3>
           <p className="text-xs md:text-sm text-[#444] mt-0 mb-0">
-            {COLLEGE_CONFIG.location} - {COLLEGE_CONFIG.pincode}
+            {config.location} - {config.pincode}
           </p>
         </div>
 
@@ -87,9 +89,9 @@ export default function Header({ fixed = true }) {
 
           <div className="flex flex-col justify-center h-full py-0.5">
             <div className="text-[11px] lg:text-[12px] text-[#333] leading-tight">
-              <p className="m-0"><b>PGECET:</b> {COLLEGE_CONFIG.entranceCodes.pgecet}</p>
-              <p className="m-0"><b>EAPCET:</b> {COLLEGE_CONFIG.entranceCodes.eapcet}</p>
-              <p className="m-0"><b>ECET:</b> {COLLEGE_CONFIG.entranceCodes.ecet}</p>
+              <p className="m-0"><b>PGECET:</b> {config.entranceCodes.pgecet}</p>
+              <p className="m-0"><b>EAPCET:</b> {config.entranceCodes.eapcet}</p>
+              <p className="m-0"><b>ECET:</b> {config.entranceCodes.ecet}</p>
             </div>
 
             {/* Contact Number */}
@@ -98,7 +100,7 @@ export default function Header({ fixed = true }) {
               className="text-[12px] text-[#e91e63] font-bold cursor-pointer hover:text-pink-700 transition-colors whitespace-nowrap mt-1 leading-none"
               title="Click to copy phone number"
             >
-              ☎️ {COLLEGE_CONFIG.contact}
+              ☎️ {config.contact}
             </p>
           </div>
         </div>

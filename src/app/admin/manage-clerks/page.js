@@ -82,9 +82,9 @@ export default function ManageClerksPage() {
   }
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="w-full max-w-6xl mx-auto bg-white border border-slate-200 shadow-sm p-8">
-        <h1 className="text-2xl font-bold text-[#0b3578] mb-6 uppercase tracking-tight">Manage Clerks</h1>
+    <div className="flex flex-col items-center p-2 sm:p-4">
+      <div className="w-full max-w-6xl mx-auto bg-white border border-slate-200 shadow-sm p-4 sm:p-6 lg:p-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-[#0b3578] mb-6 uppercase tracking-tight">Manage Clerks</h1>
         {clerks.length === 0 ? (
           <p className="text-slate-500 italic text-sm">No clerks found.</p>
         ) : (

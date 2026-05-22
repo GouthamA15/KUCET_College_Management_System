@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { logoutByRole } from '@/lib/logout';
@@ -57,13 +57,27 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
 
   const isExpanded = isHovered || isMobileOpen;
 
+  const DESKTOP_COLLAPSED_W = 64; 
+  const DESKTOP_EXPANDED_W = 240; 
+
+  // Publish desktop sidebar width to the app shell
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    const width = isExpanded ? `${DESKTOP_EXPANDED_W}px` : `${DESKTOP_COLLAPSED_W}px`;
+    root.style.setProperty('--desktop-sidebar-offset', width);
+    return () => {
+      root.style.removeProperty('--desktop-sidebar-offset');
+    };
+  }, [isExpanded]);
+
   return (
     <aside 
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`fixed left-0 bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff] flex flex-col z-60 transition-all duration-300 ease-in-out shadow-sm overflow-hidden rounded-tr-2xl rounded-br-2xl border border-slate-200/70 
         ${isMobileOpen ? 'w-64 translate-x-0' : '-translate-x-full lg:translate-x-0'} 
-        ${isExpanded ? 'lg:w-60' : 'lg:w-16'}
+        ${isExpanded ? 'lg:w-[240px]' : 'lg:w-16'}
       `}
       style={{
         top: 'calc(var(--site-header-height, 72px) + 12px)',

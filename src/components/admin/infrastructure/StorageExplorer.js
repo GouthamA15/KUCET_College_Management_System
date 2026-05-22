@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { formatDate } from '@/lib/date';
@@ -12,6 +12,7 @@ export default function StorageExplorer() {
   const [storageType, setStorageType] = useState('cloudinary');
   const [zipping, setZipping] = useState(false);
   const [searchTerm, setSearchParams] = useState('');
+  const [currentPath, setCurrentPath] = useState(''); // Empty string is root
 
   const fetchFiles = async () => {
     setLoading(true);
@@ -60,33 +61,103 @@ export default function StorageExplorer() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const filteredFiles = files.filter(f => 
-    f.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  /**
+   * DERIVED DATA: Compute the current view (Folders vs Files)
+   */
+  const viewData = useMemo(() => {
+    // If searching, show a flat list (Global Search mode)
+    if (searchTerm) {
+      return {
+        isSearch: true,
+        items: files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())),
+        folders: []
+      };
+    }
+
+    const folders = new Set();
+    const currentFiles = [];
+
+    files.forEach(f => {
+      const name = f.name;
+      
+      // If we're at root, and the path has segments
+      if (currentPath === '') {
+        if (name.includes('/')) {
+          folders.add(name.split('/')[0]);
+        } else {
+          currentFiles.push(f);
+        }
+      } 
+      // If we're in a folder (e.g., 'students')
+      else if (name.startsWith(currentPath + '/')) {
+        const relativePath = name.substring(currentPath.length + 1);
+        if (relativePath.includes('/')) {
+          folders.add(relativePath.split('/')[0]);
+        } else {
+          currentFiles.push(f);
+        }
+      }
+    });
+
+    return {
+      isSearch: false,
+      items: currentFiles,
+      folders: Array.from(folders).sort()
+    };
+  }, [files, currentPath, searchTerm]);
+
+  const breadcrumbs = useMemo(() => {
+    if (!currentPath) return [];
+    const segments = currentPath.split('/');
+    return segments.map((s, i) => ({
+      name: s,
+      path: segments.slice(0, i + 1).join('/')
+    }));
+  }, [currentPath]);
 
   return (
     <div className="space-y-8 animate-fadeIn">
       
       {/* Action Bar */}
       <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 border border-slate-200 shadow-sm rounded-sm gap-4">
-        <div>
+        <div className="w-full md:w-auto">
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
             Bucket Explorer
             <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[8px] font-black rounded-full border border-blue-100 uppercase tracking-tighter">
               {storageType} mode
             </span>
           </h3>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Institutional asset registry and bulk portability.</p>
+          
+          {/* Breadcrumbs */}
+          <div className="flex items-center gap-2 mt-2 overflow-x-auto no-scrollbar">
+            <button 
+              onClick={() => { setCurrentPath(''); setSearchParams(''); }}
+              className={`text-[9px] font-black uppercase tracking-widest ${currentPath === '' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              Root
+            </button>
+            {breadcrumbs.map((b, i) => (
+              <React.Fragment key={b.path}>
+                <span className="text-slate-300 text-[10px]">/</span>
+                <button 
+                  onClick={() => { setCurrentPath(b.path); setSearchParams(''); }}
+                  className={`text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${i === breadcrumbs.length - 1 ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  {b.name}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
         
         <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
             <input 
               type="text" 
-              placeholder="Search assets..." 
+              placeholder="Search all assets..." 
               value={searchTerm}
               onChange={(e) => setSearchParams(e.target.value)}
-              className="w-full h-11 bg-slate-50 border border-slate-200 px-4 text-[11px] font-bold outline-none focus:border-blue-500 transition-all uppercase tracking-wider"
+              className="w-full h-11 bg-slate-50 border border-slate-200 px-4 text-[11px] font-bold outline-none focus:border-blue-500 transition-all uppercase tracking-wider shadow-inner rounded-sm"
             />
           </div>
           <button
@@ -104,28 +175,31 @@ export default function StorageExplorer() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span>Download Full ZIP</span>
+                <span>Full Export</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Files Grid/Table */}
+      {/* Structured View Grid/Table */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
         <div className="bg-slate-50 px-8 py-4 border-b border-slate-200 flex justify-between items-center">
-           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Asset Registry ({filteredFiles.length} items)</span>
-           <button onClick={fetchFiles} className="text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest">Refresh Registry</button>
+           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+             {viewData.isSearch ? 'Search Results' : (currentPath || 'Root Directory')}
+             {!viewData.isSearch && <span className="ml-2 opacity-60">({viewData.folders.length} folders, {viewData.items.length} files)</span>}
+           </span>
+           <button onClick={fetchFiles} className="text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest">Refresh Sync</button>
         </div>
         
-        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+        <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-white z-10 shadow-sm">
-              <tr className="border-b border-slate-100">
-                <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Preview</th>
-                <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Asset Name / Path</th>
+            <thead>
+              <tr className="border-b border-slate-100 bg-white sticky top-0 z-10">
+                <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Asset Name</th>
                 <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Size</th>
-                <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
+                <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Created At</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -134,48 +208,80 @@ export default function StorageExplorer() {
                   <td colSpan="4" className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center gap-4">
                       <div className="w-10 h-10 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Indexing institutional bucket...</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Synchronizing cloud files...</span>
                     </div>
                   </td>
                 </tr>
-              ) : filteredFiles.length === 0 ? (
+              ) : (viewData.folders.length === 0 && viewData.items.length === 0) ? (
                 <tr>
-                  <td colSpan="4" className="px-8 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No assets matching your search.</td>
+                  <td colSpan="4" className="px-8 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">Directory is empty.</td>
                 </tr>
               ) : (
-                filteredFiles.map((f, i) => (
-                  <tr key={f.name + i} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-8 py-3">
-                       <div className="w-12 h-12 bg-slate-100 border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center relative group">
-                          {f.secure_url || storageType === 'local' ? (
-                            <Image 
-                              src={f.secure_url || getAssetUrl(f.name)} 
-                              alt="Asset" 
-                              width={48} 
-                              height={48} 
-                              unoptimized
-                              className="object-cover w-full h-full cursor-pointer hover:scale-110 transition-transform"
-                              onClick={() => window.open(f.secure_url || getAssetUrl(f.name), '_blank')}
-                            />
-                          ) : (
-                            <span className="text-[8px] font-black text-slate-400 uppercase">RAW</span>
-                          )}
-                       </div>
-                    </td>
-                    <td className="px-8 py-3">
-                      <div className="flex flex-col max-w-md">
-                        <span className="text-xs font-black text-slate-700 truncate" title={f.name}>{f.name}</span>
-                        <span className="text-[8px] font-mono text-slate-400 mt-1 uppercase">Format: {f.format || f.name.split('.').pop()}</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-3">
-                       <span className="text-xs font-bold text-slate-600">{formatBytes(f.size)}</span>
-                    </td>
-                    <td className="px-8 py-3">
-                       <span className="text-xs font-bold text-slate-500">{formatDate(f.created_at)}</span>
-                    </td>
-                  </tr>
-                ))
+                <>
+                  {/* FOLDERS FIRST */}
+                  {viewData.folders.map(folder => (
+                    <tr 
+                      key={folder} 
+                      onClick={() => setCurrentPath(currentPath ? `${currentPath}/${folder}` : folder)}
+                      className="group hover:bg-blue-50/50 cursor-pointer transition-colors"
+                    >
+                      <td className="px-8 py-4">
+                         <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-sm flex items-center justify-center text-amber-500 shadow-sm group-hover:bg-amber-100 transition-colors">
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                               <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                            </svg>
+                         </div>
+                      </td>
+                      <td className="px-8 py-4">
+                        <div className="flex flex-col">
+                           <span className="text-xs font-black text-slate-700 uppercase tracking-widest group-hover:text-blue-700">{folder}</span>
+                           <span className="text-[8px] font-bold text-slate-400 mt-0.5 uppercase tracking-tighter">Directory</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-4 text-slate-400 text-[10px] font-black">—</td>
+                      <td className="px-8 py-4 text-slate-400 text-[10px] font-black">—</td>
+                    </tr>
+                  ))}
+
+                  {/* FILES SECOND */}
+                  {viewData.items.map((f, i) => (
+                    <tr key={f.name + i} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-8 py-3">
+                         <div className="w-10 h-10 bg-white border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center relative shadow-sm">
+                            {f.secure_url || storageType === 'local' ? (
+                              <Image 
+                                src={f.secure_url || getAssetUrl(f.name)} 
+                                alt="Asset" 
+                                width={40} 
+                                height={40} 
+                                unoptimized
+                                className="object-cover w-full h-full cursor-zoom-in hover:scale-110 transition-transform"
+                                onClick={() => window.open(f.secure_url || getAssetUrl(f.name), '_blank')}
+                              />
+                            ) : (
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">BIN</span>
+                            )}
+                         </div>
+                      </td>
+                      <td className="px-8 py-3">
+                        <div className="flex flex-col max-w-md">
+                          <span className="text-xs font-black text-slate-700 truncate" title={f.name}>
+                            {viewData.isSearch ? f.name : f.name.split('/').pop()}
+                          </span>
+                          <span className="text-[8px] font-mono text-slate-400 mt-1 uppercase">
+                            {f.format || f.name.split('.').pop()} • {viewData.isSearch ? `Path: ${f.name}` : 'File'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-3">
+                         <span className="text-xs font-bold text-slate-600">{formatBytes(f.size)}</span>
+                      </td>
+                      <td className="px-8 py-3">
+                         <span className="text-xs font-bold text-slate-500 whitespace-nowrap">{formatDate(f.created_at)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </>
               )}
             </tbody>
           </table>
@@ -183,14 +289,20 @@ export default function StorageExplorer() {
       </div>
       
       {/* Storage Alert Note */}
-      <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-         <div className="flex gap-3">
-           <svg className="h-5 w-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-           </svg>
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-6 shadow-sm rounded-sm">
+         <div className="flex gap-4">
+           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 text-blue-600">
+             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+             </svg>
+           </div>
            <div className="space-y-1">
-             <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Data Sovereignty Note</p>
-             <p className="text-[11px] text-blue-700 leading-relaxed font-medium">The full ZIP download generates a point-in-time archive. For high-volume buckets, this may trigger temporary rate limiting on the storage provider.</p>
+             <p className="text-[11px] font-black text-blue-800 uppercase tracking-widest">Institutional Asset Sovereignty</p>
+             <p className="text-xs text-blue-700 leading-relaxed font-medium">
+               The explorer provides a visual interface to your institutional {storageType} bucket. 
+               The structure is derived from your database-standardized paths. 
+               Use the global search for cross-directory auditing.
+             </p>
            </div>
          </div>
       </div>

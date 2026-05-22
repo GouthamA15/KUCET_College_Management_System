@@ -161,27 +161,46 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### May 2026
 
-#### **Session 120: High-Performance VPS Architecture & Hybrid Storage Infrastructure (May 22, 2026)**
-- **VPS Migration Architecture:**
-    - Transitioned the real-time orchestration system from Supabase Broadcast to a **Dedicated local Socket.io/Redis** architecture. This enables sub-100ms broadcasting latency on dedicated VPS hardware.
-    - Implemented a **Hybrid Strategy** for real-time: the system automatically detects `REDIS_URL` and `NEXT_PUBLIC_SOCKET_URL` to prioritize local infrastructure, falling back to Supabase for Serverless/Cloud deployments.
-- **Secure Local Storage Proxy:**
-    - Developed a secure asset proxy route (`/api/assets/view/[filename]`) to serve student photos and signatures from a protected, non-public directory on the VPS (`/var/www/kucet-storage`).
-    - Integrated **Authenticated Asset Serving**: the proxy enforces strict session verification via `getAuthUser`, ensuring sensitive documents are never accessible via public URLs.
-- **Hybrid Storage Toggle:**
-    - Refactored `src/lib/assets.js` with a `NEXT_PUBLIC_STORAGE_TYPE` toggle. Admins can now switch between **Cloudinary** (Legacy/Cloud) and **Local** (VPS/Secure Proxy) via environment variables without code changes.
-- **Deployment Package Hardening:**
-    - **Nginx Excellence:** Fixed critical errors in the reverse proxy configuration, including the missing `limit_req_zone` definition for DDoS protection.
-    - **Backup Resilience:** Hardened the `nightly-backup.sh` script and documented the mandatory `.my.cnf` credential management for secure, automated MySQL dumps.
-    - **Master Guide:** Updated `MASTER_DEPLOYMENT_GUIDE.md` with a comprehensive **Phase 5** guide covering Git workflows, local `.env` setup, and VPS-specific toggles.
-- **Local Environment & Build Hardening:**
-    - **Dependency Synchronization:** Resolved `Module not found: socket.io-client` errors by updating `package.json` and standardizing the local `npm install` workflow.
-    - **Config Sanitization:** Removed invalid experimental keys from `next.config.mjs` and updated the **Content Security Policy (CSP)** to whitelist local and production WebSocket connections.
-    - **Env Robustness:** Hardened `src/lib/env.js` to automatically lowercase and trim `NODE_ENV`, preventing build failures caused by OS-level environment inconsistencies.
-- **Data Integrity & Migration Readiness:**
-    - Refactored `drizzle.config.js` and `src/db/migrate.js` to support conditional SSL. These scripts now automatically detect and support both Cloud (SSL) and Local VPS (Non-SSL) connections.
-    - Synchronized `.env.example` with the full suite of VPS-ready variables (Redis, Socket, Storage Path).
-    - Hardened the build pipeline by renaming conflicting `.env` files (e.g., `.env.local`, `.env.prod`) to `.bak`, ensuring a clean and predictable production build state.
+#### **Session 123: Hierarchical Asset Management & Export Optimization (May 22, 2026)**
+- **Hierarchical Storage Explorer (Windows Style):**
+    - Re-engineered the Storage Explorer into a professional **Hierarchical File Manager** featuring directory traversal, breadcrumb navigation, and amber folder icons.
+    - Implemented **Smart Folder Grouping**: The system now dynamically groups the flat asset list into interactive directories (e.g., `students/pfp`, `clerks/signatures`) based on logical database paths.
+    - Integrated **Global Search Mode**: The explorer now automatically switches to a flat "Global Scan" view during searches, enabling cross-directory auditing of institutional assets.
+- **Bulk Export Optimization (Bypassing Limits):**
+    - Refactored the ZIP generation API to use **Cloudinary Signed Download URLs**. This bypasses the synchronous 10MB creation limit and supports full-bucket portability for high-volume institutional data.
+    - Standardized the **Migration Excel Export** to include full, absolute URLs for photos and signatures, ensuring remote ingestion readiness for university databases.
+- **System Hardening & Bug Resolution:**
+    - Resolved critical **ReferenceErrors** in the Infrastructure page (`useState`) and Migration module (`getAssetUrl`).
+    - Standardized asset resolution across **Scholarship Cards**, **Student Info Tabs**, and the **Institutional About Section**.
+    - Finalized the **Maintenance Mode Orchestration**, ensuring the global guard is the top-level interceptor for all non-admin traffic.
+
+#### **Session 122: Dynamic Institutional Configuration & Maintenance Sovereignty (May 22, 2026)**
+- **Dynamic Settings Registry:**
+    - Transitioned institutional configuration (College Name, Contact, Entrance Codes) from static code (`college-config.js`) to a **Database-Driven Registry** in the `college_info` table.
+    - Implemented a specialized **Schema Patching & Seeding Workflow** to safely migrate hardcoded defaults into the live database.
+- **System Config Control Unit:**
+    - Developed a third tab in the Super Admin Infrastructure module for real-time management of college identity and localization.
+    - Integrated automatic audit logging for every institutional setting change, ensuring high accountability.
+- **Institutional Maintenance Mode:**
+    - Built a global **Maintenance Mode Toggle** that allows Super Admins to instantly put the portal into a read-only state.
+    - Implemented a professional, non-dismissible **Maintenance Overlay** in the `RootLayout` that intercepts traffic for all roles except Super Admins, ensuring system stability during critical updates.
+- **Global Config Orchestration:**
+    - Created the `SystemConfigProvider` and `useSystemConfig` hook to provide real-time settings synchronization throughout the frontend ecosystem.
+    - Hardened the **Global Header** and **About Section** to utilize dynamic values, ensuring a consistently accurate public identity.
+
+#### **Session 121: Flexible Storage Architecture & Infrastructure Sovereignty (May 22, 2026)**
+- **Agnostic Image Bucket Architecture:**
+    - Transitioned the institutional database from absolute Cloudinary URLs to **Standardized Relative Paths** (e.g., `kucet/students/pfp/...`). This enables switching between Cloudinary and Local/VPS storage without database modifications.
+    - Executed a comprehensive **Asset Migration Script** that secured 69 existing records, standardizing the registry for long-term infrastructure flexibility.
+- **Dynamic Asset Resolver Hardening:**
+    - Refactored `src/lib/assets.js` into a robust, defensive resolution engine. It now dynamically detects `NEXT_PUBLIC_STORAGE_TYPE` to route through either Cloudinary CDN (with `f_auto,q_auto` optimizations) or a secure root-relative local proxy.
+    - Implemented **Backward Compatibility Layers** to relativize legacy or external absolute URLs on-the-fly, ensuring zero broken images during the transition.
+- **Super Admin Infrastructure Control Unit:**
+    - Developed a high-privilege management module at `/admin/infrastructure` featuring dual-tabbed sovereignty (Backups & Storage).
+    - **Backup Manager:** Integrated real-time monitoring of cloud snapshots, manual SQL dump triggering, and a secure **Atomic Restore Console** with mandatory security string confirmation (`RESTORE_DATABASE`).
+- **System Resilience & Windows Compatibility:**
+    - Resolved `spawn npx ENOENT` errors by implementing cross-platform shell execution for administrative scripts, ensuring reliable performance on Windows/VPS environments.
+    - Hardened the `RealtimeListener` with a **Supabase Fallback**, ensuring system-wide notifications remain operational even if local Socket.io servers are unreachable in dev environments.
 
 #### **Session 119: Enhanced Session Persistence & Authentication UX (May 22, 2026)**
 - **Session Duration Optimization:**

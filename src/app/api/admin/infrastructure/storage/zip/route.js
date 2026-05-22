@@ -19,22 +19,23 @@ export async function GET(req) {
     const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'cloudinary';
 
     if (storageType === 'cloudinary') {
-      // Cloudinary has a built-in zip generator
-      // We generate a signed URL that expires in 1 hour
+      // Cloudinary has a built-in on-the-fly zip generator via signed URLs.
+      // This bypasses the synchronous create_archive limits (10MB) and doesn't create persistent files.
+      // We target the 'kucet' folder prefix.
       const zipUrl = cloudinary.utils.download_zip_url({
-        prefixes: 'kucet',
-        resource_type: 'image', // Need to handle raw separately? 
-        // Cloudinary zip API is limited. Let's use the archive generation if possible.
-      });
-      
-      // For images only above. To get everything, we need to use 'create_archive'
-      const result = await cloudinary.uploader.create_archive({
-        prefixes: 'kucet',
-        target_public_id: `kucet_full_export_${new Date().getTime()}`,
-        resource_type: 'image', // Still limited to one resource type in simple calls
+        prefixes: 'kucet/',
+        resource_type: 'image',
+        flatten_folders: false,
+        use_original_filename: true,
+        target_public_id: `kucet_full_export_${new Date().getTime()}`
       });
 
-      return NextResponse.redirect(result.secure_url);
+      if (!zipUrl) {
+        throw new Error('Failed to generate signed download URL');
+      }
+
+      // Redirect the admin's browser directly to the Cloudinary zip generator
+      return NextResponse.redirect(zipUrl);
     } else {
       // Local storage zipping 
       // This would require a library like archiver or adm-zip.

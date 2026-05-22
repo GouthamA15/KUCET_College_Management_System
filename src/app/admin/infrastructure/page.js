@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import BackupManager from '@/components/admin/infrastructure/BackupManager';
 import StorageExplorer from '@/components/admin/infrastructure/StorageExplorer';
+import ConfigManager from '@/components/admin/infrastructure/ConfigManager';
 
 export default function InfrastructurePage() {
-  const [activeTab, setActiveTab] = useState('backups');
+  const [activeTab, setActiveTab] = useState('config');
 
   return (
     <div className="min-h-screen bg-[#f8fbff] pb-20">
@@ -20,6 +21,16 @@ export default function InfrastructurePage() {
 
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-200 mb-8 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setActiveTab('config')}
+            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${
+              activeTab === 'config'
+                ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            System Configuration
+          </button>
           <button
             onClick={() => setActiveTab('backups')}
             className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${
@@ -44,11 +55,9 @@ export default function InfrastructurePage() {
 
         {/* Tab Content */}
         <div className="animate-fadeIn">
-          {activeTab === 'backups' ? (
-            <BackupManager />
-          ) : (
-            <StorageExplorer />
-          )}
+          {activeTab === 'config' && <ConfigManager />}
+          {activeTab === 'backups' && <BackupManager />}
+          {activeTab === 'storage' && <StorageExplorer />}
         </div>
       </div>
     </div>
