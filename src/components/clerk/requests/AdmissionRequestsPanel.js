@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
@@ -707,7 +707,7 @@ function AdmissionModal({
         </div>
     );
 
-    return createPortal(modal, document.body);
+    return typeof document !== 'undefined' ? createPortal(modal, document.body) : null;
 }
 
 export default AdmissionRequestsPanel;

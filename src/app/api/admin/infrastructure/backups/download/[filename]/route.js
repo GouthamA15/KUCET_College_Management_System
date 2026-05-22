@@ -19,6 +19,11 @@ export async function GET(req, context) {
     const { filename } = await context.params;
     if (!filename) return apiError('Filename is required.', 400);
 
+    // Validate filename: allow only alphanumerics, dots, dashes, underscores
+    if (!/^[A-Za-z0-9._-]+$/.test(filename)) {
+      return apiError('Invalid filename.', 400);
+    }
+
     // Backups are stored with public_id = filename in 'kucet/backups' folder
     const publicId = `kucet/backups/${filename}`;
     

@@ -11,7 +11,7 @@ export default function InfrastructurePage() {
   return (
     <div className="min-h-screen bg-[#f8fbff] pb-20">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-10">
         
         {/* Header Section */}
         <div className="mb-10">

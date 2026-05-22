@@ -18,7 +18,23 @@ if (SUPABASE_URL && SUPABASE_KEY) {
 }
 
 if (REDIS_URL) {
-  redis = new Redis(REDIS_URL);
+  try {
+    redis = new Redis(REDIS_URL);
+    redis.on('connect', () => {
+      logger.info('[REDIS_CONNECTED]');
+    });
+    redis.on('error', (err) => {
+      logger.error(err, '[REDIS_CONNECTION_ERROR]');
+    });
+    redis.on('end', () => {
+      logger.warn('[REDIS_CONNECTION_ENDED]');
+    });
+    redis.on('ready', () => {
+      logger.info('[REDIS_READY]');
+    });
+  } catch (err) {
+    logger.error(err, '[REDIS_INIT_FAILED]');
+  }
 }
 
 /**
@@ -49,6 +65,8 @@ export async function broadcastUpdate(type, payload = {}) {
   if (supabase) {
     try {
       const channel = supabase.channel('kucet-updates');
+      // Subscribe to the channel before sending
+      await channel.subscribe();
       await channel.send({
         type: 'broadcast',
         event: type,

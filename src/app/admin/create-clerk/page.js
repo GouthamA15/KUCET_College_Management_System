@@ -49,8 +49,8 @@ export default function CreateClerkPage() {
     };
   
     return (
-      <div className="flex flex-col items-center">
-        <div className="w-full max-w-md p-8 space-y-8 bg-white border border-slate-200 shadow-sm">
+      <div className="flex flex-col items-center p-2 sm:p-4">
+        <div className="w-full max-w-md p-4 sm:p-6 lg:p-8 space-y-8 bg-white border border-slate-200 shadow-sm">
           <div className="text-center space-y-2">
             <h2 className="text-xl font-bold text-[#0b3578] uppercase tracking-tight">Create Clerk Account</h2>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">New Employee Credentialing</p>

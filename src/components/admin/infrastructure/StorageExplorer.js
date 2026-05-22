@@ -11,7 +11,7 @@ export default function StorageExplorer() {
   const [loading, setLoading] = useState(true);
   const [storageType, setStorageType] = useState('cloudinary');
   const [zipping, setZipping] = useState(false);
-  const [searchTerm, setSearchParams] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPath, setCurrentPath] = useState(''); // Empty string is root
 
   const fetchFiles = async () => {

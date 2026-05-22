@@ -29,6 +29,7 @@ const nextConfig = {
     ],
   },
   async headers() {
+    const devConnectSrc = process.env.NODE_ENV !== 'production' ? ' localhost:4000 ws://localhost:4000' : '';
     const cspHeader = `
       default-src 'self';
       script-src 'self' 'unsafe-eval' 'unsafe-inline';
@@ -39,7 +40,7 @@ const nextConfig = {
       base-uri 'self';
       form-action 'self';
       frame-ancestors 'none';
-      connect-src 'self' res.cloudinary.com *.sentry.io *.supabase.co wss://*.supabase.co login.kucet.ac.in *.kucet.ac.in wss://*.kucet.ac.in localhost:4000 ws://localhost:4000;
+      connect-src 'self' res.cloudinary.com *.sentry.io *.supabase.co wss://*.supabase.co login.kucet.ac.in *.kucet.ac.in wss://*.kucet.ac.in${devConnectSrc};
     `.replace(/\s{2,}/g, ' ').trim();
 
     return [

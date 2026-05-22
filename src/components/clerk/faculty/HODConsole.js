@@ -114,7 +114,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
       subject_code: formData.get('subject_code'),
       faculty_id: formData.get('faculty_id'),
       room_no: formData.get('room_no'),
-      academic_year: '2025-26'
+      academic_year: clerkData?.academic_year || '2025-26'
     };
 
     if (!payload.subject_code) return toast.error('Please select a subject or activity');

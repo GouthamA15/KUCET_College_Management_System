@@ -40,8 +40,8 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false)
  */
 export async function issueStudentAuthCookie(response, student, rememberMe = false) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  // Normal login: 7 days, Remember Me: 30 days
-  const sessionDuration = rememberMe ? '30d' : '7d';
+  // Access token: 15 minutes. Refresh token: 7-30 days
+  const sessionDuration = '15m';
   const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
 
   const token = await new SignJWT({
@@ -85,8 +85,8 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
  */
 export async function issueClerkAuthCookie(response, clerk, rememberMe = false) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  // Normal login: 7 days, Remember Me: 30 days
-  const sessionDuration = rememberMe ? '30d' : '7d';
+  // Access token: 15 minutes. Refresh token: 7-30 days
+  const sessionDuration = '15m';
   const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
 
   const token = await new SignJWT({
@@ -137,8 +137,8 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false) 
  */
 export async function issueAdminAuthCookie(response, admin, rememberMe = false) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  // Normal login: 7 days, Remember Me: 30 days
-  const sessionDuration = rememberMe ? '30d' : '7d';
+  // Access token: 15 minutes. Refresh token: 7-30 days
+  const sessionDuration = '15m';
   const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
 
   const token = await new SignJWT({

@@ -271,7 +271,7 @@ const StudentUpdateRequestsPanel = () => {
       )}
 
       {/* Audit Image Preview Modal */}
-        {viewingImage && createPortal(
+        {viewingImage && typeof document !== 'undefined' && createPortal(
         (
           <div 
             className="fixed inset-0 z-[200] bg-slate-900/95 flex items-center justify-center p-6 md:p-12 cursor-zoom-out animate-fadeIn"
@@ -294,7 +294,7 @@ const StudentUpdateRequestsPanel = () => {
         )}
 
       {/* Rejection Memo Modal */}
-      {rejectingRequest && createPortal(
+      {rejectingRequest && typeof document !== 'undefined' && createPortal(
         (
           <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/70 p-6 backdrop-blur-md animate-fadeIn">
             <div className="bg-white rounded-sm shadow-2xl max-w-md w-full border border-slate-300 overflow-hidden animate-fadeInUp">

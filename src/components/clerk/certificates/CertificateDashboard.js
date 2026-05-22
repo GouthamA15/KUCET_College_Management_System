@@ -308,7 +308,7 @@ export default function CertificateDashboard({ clerkType }) {
       </div>
 
       {/* Modal/Dialog for request details */}
-      {isDialogOpen && createPortal(
+      {isDialogOpen && typeof document !== 'undefined' && createPortal(
         (
           <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
             <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col">
@@ -368,7 +368,7 @@ export default function CertificateDashboard({ clerkType }) {
       )}
 
       {/* Reject reason dialog */}
-      {rejectReasonOpen && createPortal(
+      {rejectReasonOpen && typeof document !== 'undefined' && createPortal(
         (
           <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col">

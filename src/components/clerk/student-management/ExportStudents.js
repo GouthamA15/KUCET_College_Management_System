@@ -64,12 +64,12 @@ const ExportStudents = () => {
   };
 
   const maskAadhaar = (value) => {
-    if (!value) return 'N/A';
+    if (!value || typeof value !== 'string' || value.length < 4) return 'N/A';
     return `XXXX-XXXX-${value.slice(-4)}`;
   };
 
   const maskMobile = (value) => {
-    if (!value) return 'N/A';
+    if (!value || typeof value !== 'string' || value.length < 5) return 'N/A';
     return `XXXXX${value.slice(-5)}`;
   };
 

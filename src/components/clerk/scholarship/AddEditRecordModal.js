@@ -195,5 +195,5 @@ export default function AddEditRecordModal({
     </div>
   );
 
-  return createPortal(modal, document.body);
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : null;
 }

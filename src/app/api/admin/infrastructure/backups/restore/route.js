@@ -19,8 +19,13 @@ export async function POST(req) {
     const user = await getAuthUser('admin');
     if (!user) return apiError('Unauthorized', 401);
 
-    const { filename, confirmPassword } = await req.json();
+    const { filename } = await req.json();
     if (!filename) return apiError('Filename is required.', 400);
+
+    // Validate filename: allow only alphanumerics, dots, dashes, underscores, .sql extension
+    if (!/^[A-Za-z0-9._-]+\.sql$/.test(filename)) {
+      return apiError('Invalid filename.', 400);
+    }
 
     // SECURITY: We could verify password again here if we had it hashed, 
     // but the getAuthUser already verified the session.
@@ -47,25 +52,31 @@ export async function POST(req) {
       const mysqlArgs = [
         `--host=${process.env.DB_HOST}`,
         `--user=${process.env.DB_USER}`,
-        `--password=${process.env.DB_PASSWORD}`,
         `--port=${process.env.DB_PORT || 3306}`,
         process.env.DB_DATABASE
       ];
 
+      // Pass password via environment variable instead of command line
+      const mysqlEnv = { ...process.env, MYSQL_PWD: process.env.DB_PASSWORD };
+
       // Handle SSL for TiDB Cloud if needed
       if (process.env.DB_SSL === 'true' || process.env.DB_HOST.includes('tidbcloud.com')) {
-         // This is complex for shell piping. We'll try to run it.
+        mysqlArgs.push('--ssl-mode=REQUIRED');
       }
 
       // We use spawn and pipe the file into stdin
       const mysqlProcess = spawn('mysql', mysqlArgs, {
         stdio: ['pipe', 'pipe', 'pipe'],
-        shell: true
+        env: mysqlEnv
       });
 
       mysqlProcess.on('error', (err) => {
         logger.error(`Failed to start mysql restore process: ${err.message}`);
-        resolve(apiError('Failed to initiate mysql restoration.', 500, err.message));
+        // Clean up on error
+        if (fs.existsSync(tempFilePath)) {
+          try { fs.unlinkSync(tempFilePath); } catch (e) {}
+        }
+        resolve(apiError('Failed to initiate mysql restoration.', 500));
       });
 
       const fileStream = fs.createReadStream(tempFilePath);
@@ -78,20 +89,23 @@ export async function POST(req) {
 
       mysqlProcess.on('close', (code) => {
         // Cleanup
-        if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+        if (fs.existsSync(tempFilePath)) {
+          try { fs.unlinkSync(tempFilePath); } catch (e) {}
+        }
+        fileStream.destroy();
 
         if (code === 0) {
           logger.info(`[RESTORE_SUCCESS] Database successfully restored from ${filename}`);
           resolve(apiResponse({ success: true, message: 'Database restoration successful.' }));
         } else {
           logger.error(`[RESTORE_FAILED] Database restore failed with code ${code}. Error: ${errorOutput}`);
-          resolve(apiError('Database restoration failed.', 500, errorOutput));
+          resolve(apiError('Database restoration failed.', 500));
         }
       });
     });
 
   } catch (error) {
     logger.error(error, 'Error during database restore');
-    return apiError('Internal Server Error', 500, error.message);
+    return apiError('Internal Server Error', 500);
   }
 }

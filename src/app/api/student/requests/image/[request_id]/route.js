@@ -69,13 +69,22 @@ export async function GET(req, context) {
       });
     } else if (resolvedUrl.startsWith('/api/assets/view/')) {
       // Local Asset (VPS/Secure Proxy)
-      const relativePath = resolvedUrl.replace('/api/assets/view/', '');
+      const relativePath = resolvedUrl.replace('/api/assets/view/', '').split('?')[0];
+      // Prevent directory traversal: reject '..' sequences and leading slashes
+      if (relativePath.includes('..') || relativePath.startsWith('/')) {
+        return new NextResponse('Forbidden', { status: 403 });
+      }
       const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
-      const filePath = path.join(STORAGE_PATH, relativePath);
+      const resolvedPath = path.resolve(STORAGE_PATH, relativePath);
+      // Verify resolved path is within storage directory
+      if (!resolvedPath.startsWith(STORAGE_PATH)) {
+        return new NextResponse('Forbidden', { status: 403 });
+      }
 
-      if (fs.existsSync(filePath)) {
-        const fileBuffer = fs.readFileSync(filePath);
-        const ext = path.extname(filePath).toLowerCase();
+      try {
+        await fs.promises.access(resolvedPath);
+        const fileBuffer = await fs.promises.readFile(resolvedPath);
+        const ext = path.extname(resolvedPath).toLowerCase();
         const contentType = ext === '.png' ? 'image/png' : (ext === '.webp' ? 'image/webp' : 'image/jpeg');
         
         return new NextResponse(fileBuffer, {
@@ -84,8 +93,10 @@ export async function GET(req, context) {
             'Cache-Control': 'public, max-age=3600',
           },
         });
+      } catch (err) {
+        logger.error({ err, tag: 'REQUEST_IMAGE_LOCAL_ERROR' }, 'Error reading local asset');
+        return new NextResponse('File not found', { status: 404 });
       }
-      return new NextResponse('Local file not found', { status: 404 });
     }
 
     // Treat as Buffer (old BLOB data) or fallback

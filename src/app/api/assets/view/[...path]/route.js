@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/api-utils';
+import logger from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
 
@@ -29,11 +30,9 @@ export async function GET(request, { params }) {
   }
 
   try {
-    if (!fs.existsSync(filePath)) {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 });
-    }
-
-    const fileBuffer = fs.readFileSync(filePath);
+    // Use async fs APIs
+    await fs.promises.access(filePath);
+    const fileBuffer = await fs.promises.readFile(filePath);
     const extension = path.extname(filename).toLowerCase();
     
     // Determine Content-Type
@@ -56,7 +55,10 @@ export async function GET(request, { params }) {
       },
     });
   } catch (error) {
-    console.error('[STORAGE_PROXY_ERROR]', error);
+    logger.error({ err: error, tag: 'STORAGE_PROXY_ERROR', filename }, 'Storage proxy error');
+    if (error.code === 'ENOENT') {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
