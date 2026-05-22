@@ -115,16 +115,16 @@ export default function YearRecordCard({
           <span className="text-[11px] font-semibold text-slate-700">{feeSummaryMerged?.student_paid ?? '-'}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thumb Update</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thumb Update Available</span>
           <span className="text-[11px] font-semibold text-slate-700">{summary?.thumb_update_available ? 'YES' : 'NO'}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hard Copies</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hardcopy Submitted</span>
           <span className="text-[11px] font-semibold text-slate-700">{hardcopyLabel}</span>
         </div>
         {summary?.thumb_update_available && (
           <div className="flex items-center justify-between gap-4 sm:col-span-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thumb Status</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thumb Verification Status</span>
             <span className="text-[11px] font-semibold text-slate-700">{String(summary?.thumb_status || 'Pending').toUpperCase()}</span>
           </div>
         )}

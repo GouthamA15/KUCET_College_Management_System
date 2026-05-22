@@ -20,7 +20,7 @@ export default function ClerkLayout({ children }) {
         <Sidebar role="clerk" isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen} />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-0 relative lg:pt-(--site-header-height,72px) lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
+        <div className="flex-1 flex flex-col min-h-0 relative lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
 
           {/* Institutional Mobile Header (non-sticky) */}
           <HeaderMobileView />
@@ -34,11 +34,13 @@ export default function ClerkLayout({ children }) {
             <div className="hidden lg:block">
               <Header />
             </div>
-            
-            {/* Page Content */}
-            <main className="flex-1 p-4 lg:p-8 pt-2">
-              {children}
-            </main>
+
+            {/* Page Content (single, consistent top spacing below header/topbar) */}
+            <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,112px)">
+              <main className="flex-1 p-4 lg:p-8 pt-0">
+                {children}
+              </main>
+            </div>
           </div>
         </div>
 

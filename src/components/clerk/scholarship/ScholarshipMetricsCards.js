@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { formatDate } from '@/lib/date';
 
 export default function ScholarshipMetricsCards({ refreshToken = 0 }) {
   const [metrics, setMetrics] = useState(null);
@@ -58,7 +59,7 @@ export default function ScholarshipMetricsCards({ refreshToken = 0 }) {
       key: 'windowStatus',
       label: 'Submission Window Status',
       value: windowStatus,
-      suffix: metrics?.windowEndDate ? `Until ${metrics.windowEndDate}` : null,
+      suffix: metrics?.windowEndDate ? `Until ${formatDate(metrics.windowEndDate)}` : null,
       accent: isWindowOpen ? 'border-l-emerald-400' : 'border-l-rose-400',
       valueTone: isWindowOpen ? 'text-emerald-700' : 'text-rose-700',
     },

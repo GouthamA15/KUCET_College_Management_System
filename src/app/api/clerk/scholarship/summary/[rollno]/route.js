@@ -75,6 +75,8 @@ export async function GET(req, ctx) {
       proceeding_no: r.proceeding_no,
       amount: Number(r.sanctioned_amount) || 0,
       date: r.sanction_date,
+      released_amount: Number(r.released_amount) || 0,
+      released_date: r.released_date,
     }));
 
     const application_no = sanctionsRows.map(r => r.application_no).find(v => v && String(v).trim() !== '') || null;
@@ -107,6 +109,9 @@ export async function GET(req, ctx) {
       transaction_ref: r.transaction_ref_no,
       amount: Number(r.amount) || 0,
       date: r.transaction_date,
+      payment_mode: r.payment_mode,
+      bank_name: r.bank_name,
+      created_at: r.created_at,
     }));
     const student_paid = student_payments.reduce((sum, p) => sum + p.amount, 0);
 

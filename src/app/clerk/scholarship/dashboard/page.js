@@ -10,6 +10,7 @@ import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
 import StudentAcademicSummaryCard from '@/components/clerk/scholarship/StudentAcademicSummaryCard';
 import YearRecordsList from '@/components/clerk/scholarship/YearRecordsList';
 import AddEditRecordModal from '@/components/clerk/scholarship/AddEditRecordModal';
+import AddEditRecordInstitutionalModal from '@/components/clerk/scholarship/AddEditRecordInstitutionalModal';
 import ScholarshipMetricsCards from '@/components/clerk/scholarship/ScholarshipMetricsCards';
 import ScholarshipSearchCard from '@/components/clerk/scholarship/ScholarshipSearchCard';
 import ScholarshipWindowCard from '@/components/clerk/scholarship/ScholarshipWindowCard';
@@ -117,15 +118,21 @@ function ScholarshipDashboardContent() {
   const [schAppNo, setSchAppNo] = useState('');
   const [schProceedingNo, setSchProceedingNo] = useState('');
   const [schAmount, setSchAmount] = useState('');
-  const [schDate, setSchDate] = useState('');
+  const [schDate, setSchDate] = useState(''); // This was being used for sanction_date in some places, let's normalize
+  const [schSanctionDate, setSchSanctionDate] = useState('');
+  const [releasedAmount, setReleasedAmount] = useState('');
+  const [releasedDate, setReleasedDate] = useState('');
   const [payAmount, setPayAmount] = useState('');
   const [payRef, setPayRef] = useState('');
   const [payDate, setPayDate] = useState('');
+  const [payMode, setPayMode] = useState('UPI');
+  const [bankName, setBankName] = useState('');
   const [saving, setSaving] = useState(false);
   const [appEditing, setAppEditing] = useState(false);
   const [thumbUpdateAvailable, setThumbUpdateAvailable] = useState(false);
   const [thumbStatus, setThumbStatus] = useState('Pending');
   const [hardcopySubmitted, setHardcopySubmitted] = useState(false);
+  const [selectedProceeding, setSelectedProceeding] = useState(null); // For edit mode
 
   // Helper to set form state from modal-like callers
   const setFormState = (k, v) => {
@@ -133,10 +140,14 @@ function ScholarshipDashboardContent() {
       schAppNo: setSchAppNo,
       schProceedingNo: setSchProceedingNo,
       schAmount: setSchAmount,
-      schDate: setSchDate,
+      schSanctionDate: setSchSanctionDate,
+      releasedAmount: setReleasedAmount,
+      releasedDate: setReleasedDate,
       payAmount: setPayAmount,
       payRef: setPayRef,
       payDate: setPayDate,
+      payMode: setPayMode,
+      bankName: setBankName,
       appEditing: setAppEditing,
       thumbUpdateAvailable: setThumbUpdateAvailable,
       thumbStatus: setThumbStatus,
@@ -164,15 +175,20 @@ function ScholarshipDashboardContent() {
     setSchAppNo('');
     setSchProceedingNo('');
     setSchAmount('');
-    setSchDate('');
+    setSchSanctionDate('');
+    setReleasedAmount('');
+    setReleasedDate('');
     setPayAmount('');
     setPayRef('');
     setPayDate('');
+    setPayMode('UPI');
+    setBankName('');
     setSaving(false);
     setAppEditing(false);
     setThumbUpdateAvailable(false);
     setThumbStatus('Pending');
     setHardcopySubmitted(false);
+    setSelectedProceeding(null);
 
     // Scroll back to the top of the dashboard for clarity
     smoothScrollToId('scholarship-dashboard-top', { behavior: 'smooth', block: 'start' });
@@ -384,21 +400,18 @@ function ScholarshipDashboardContent() {
       setSchAppNo(existingApp);
       setAppEditing(false);
     } catch { setSchAppNo(''); setAppEditing(false); }
-    // Prefill proceeding, amount, date if an existing proceeding is present
-    try {
-      const arr = Array.isArray(summariesByYear[year]?.scholarship_proceedings) ? summariesByYear[year].scholarship_proceedings : [];
-      const latest = arr.length > 0 ? arr[arr.length - 1] : null;
-      setSchProceedingNo(latest?.proceeding_no || '');
-      setSchAmount(latest?.amount ? String(latest.amount) : '');
-      setSchDate(latest?.date || '');
-    } catch {
-      setSchProceedingNo('');
-      setSchAmount('');
-      setSchDate('');
-    }
+    // Clear proceeding entry fields (Institutional workflow: new entry per row)
+    setSchProceedingNo('');
+    setSchAmount('');
+    setSchSanctionDate('');
+    setReleasedAmount('');
+    setReleasedDate('');
     setPayAmount('');
     setPayRef('');
     setPayDate('');
+    setPayMode('UPI');
+    setBankName('');
+    setSelectedProceeding(null);
     // Thumb fields - hydrate from stored summary and normalize values
     try {
       const summaryData = summariesByYear[year] || {};
@@ -436,81 +449,151 @@ function ScholarshipDashboardContent() {
     } catch {}
   }
 
-  async function handleSaveRecord() {
+  async function handleProceedingSave() {
     if (!student || !modalYear) return;
     setSaving(true);
-    const ops = [];
-    // Scholarship side
-    const isScholar = student?.fee_reimbursement === 'YES';
-    const isSfc = String(student?.fee_category).toUpperCase() === 'SFC';
-    const feeFieldsLocked = isScholar && !isSfc;
     try {
-      if (isScholar) {
-        // Scholarship creation: Application Number is the only mandatory field
-        // Proceeding Number remains OPTIONAL, but REQUIRED if a sanctioned amount is provided
-        const hasScholarInputs = schProceedingNo || schAmount || schDate || schAppNo;
-        if (hasScholarInputs) {
-          if (!schAppNo) throw new Error('Application Number is required');
-          const hasAmount = Number(schAmount) > 0;
-          if (hasAmount && !String(schProceedingNo || '').trim()) {
-            throw new Error('Proceeding Number is required to enter sanctioned amount');
-          }
-          const amt = hasAmount ? Number(schAmount) : null;
-          // include thumb and hardcopy fields
-          const sanctionBody = {
-            roll_no: student.roll_no,
-            academic_year: modalYear,
-            application_no: schAppNo || null,
-            proceeding_no: schProceedingNo || null,
-            sanctioned_amount: amt,
-            sanction_date: schDate || null,
-          };
-          if (thumbUpdateAvailable) {
-            sanctionBody.thumb_update_available = true;
-            sanctionBody.thumb_status = thumbStatus || 'Pending';
-          }
-          // always send hardcopy_submitted so backend can trigger/removes reminders correctly
-          sanctionBody.hardcopy_submitted = hardcopySubmitted ? 1 : 0;
-          // remember previous thumb state for email trigger
-          const prevThumb = !!(summariesByYear[modalYear]?.thumb_update_available);
-          ops.push(fetch('/api/clerk/scholarship/sanctions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sanctionBody)
-          }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.error || 'Failed to save sanction')))));
-          // after all ops complete we'll check prevThumb vs current
-        }
+      if (!schAppNo) throw new Error('Application Number is required');
+      const hasAmount = Number(schAmount) > 0;
+      if (hasAmount && !String(schProceedingNo || '').trim()) {
+        throw new Error('Proceeding Number is required to enter sanctioned amount');
+      }
+      if (hasAmount && !schSanctionDate) {
+        throw new Error('Sanction Date is required for entered amount');
+      }
+      const hasRelAmount = Number(releasedAmount) > 0;
+      if (hasRelAmount && !releasedDate) {
+        throw new Error('Released Date is required for entered amount');
       }
 
-      // Payment side
-      if (!feeFieldsLocked) {
-        const hasPaymentInputs = payAmount || payRef || payDate;
-        if (hasPaymentInputs) {
-          const pAmt = Number(payAmount);
-          if (!(pAmt > 0)) throw new Error('Student Paid Amount must be > 0');
-          if (!payRef) throw new Error('Transaction Ref is required');
-          if (!payDate) throw new Error('Transaction Date is required');
-          ops.push(fetch('/api/clerk/scholarship/payments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              roll_no: student.roll_no,
-              academic_year: modalYear,
-              transaction_ref: payRef,
-              amount: pAmt,
-              transaction_date: payDate,
-            })
-          }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.error || 'Failed to save payment')))));
-        }
+      const amt = hasAmount ? Number(schAmount) : null;
+      const sanctionBody = {
+        roll_no: student.roll_no,
+        academic_year: modalYear,
+        application_no: schAppNo || null,
+        proceeding_no: schProceedingNo || null,
+        sanctioned_amount: amt,
+        sanction_date: schSanctionDate || null,
+        released_amount: hasRelAmount ? Number(releasedAmount) : null,
+        released_date: releasedDate || null,
+        thumb_update_available: !!thumbUpdateAvailable,
+        thumb_status: thumbStatus || 'Pending',
+        hardcopy_submitted: hardcopySubmitted ? 1 : 0,
+      };
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEBUG] Proceeding Save Payload:', sanctionBody);
       }
 
-      if (ops.length === 0) {
-        throw new Error('No changes to save');
+      const res = await fetch('/api/clerk/scholarship/sanctions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sanctionBody)
+      });
+      const data = await res.json();
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEBUG] Proceeding Save Response:', { status: res.status, data });
       }
 
-      await Promise.all(ops);
-      toast.success('Record saved');
-      // Email notification is handled server-side in the sanctions API to avoid duplicates.
+      if (!res.ok) throw new Error(data.error || 'Failed to save sanction');
+      
+      toast.success('Proceeding recorded');
+      setSchProceedingNo('');
+      setSchAmount('');
+      setSchSanctionDate('');
+      setReleasedAmount('');
+      setReleasedDate('');
+      setSelectedProceeding(null);
+      await refetchYearSummary(student.roll_no, modalYear);
+    } catch (err) {
+      toast.error(err.message || 'Failed to save proceeding');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handlePaymentSave() {
+    if (!student || !modalYear) return;
+    setSaving(true);
+    try {
+      const pAmt = Number(payAmount);
+      if (!(pAmt > 0)) throw new Error('Student Paid Amount must be > 0');
+      if (!payRef) throw new Error('Transaction Ref is required');
+      if (!payDate) throw new Error('Transaction Date is required');
+
+      const paymentBody = {
+        roll_no: student.roll_no,
+        academic_year: modalYear,
+        transaction_ref: payRef,
+        amount: pAmt,
+        transaction_date: payDate,
+        payment_mode: payMode || 'UPI',
+        bank_name: bankName || null,
+      };
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEBUG] Payment Save Payload:', paymentBody);
+      }
+
+      const res = await fetch('/api/clerk/scholarship/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentBody)
+      });
+      const data = await res.json();
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEBUG] Payment Save Response:', { status: res.status, data });
+      }
+
+      if (!res.ok) throw new Error(data.error || 'Failed to save payment');
+
+      toast.success('Payment recorded');
+      setPayAmount('');
+      setPayRef('');
+      setPayDate('');
+      setPayMode('UPI');
+      setBankName('');
+      await refetchYearSummary(student.roll_no, modalYear);
+    } catch (err) {
+      toast.error(err.message || 'Failed to save payment');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleFinalUpdate() {
+    if (!student || !modalYear) return;
+    setSaving(true);
+    try {
+      const updateBody = {
+        roll_no: student.roll_no,
+        academic_year: modalYear,
+        application_no: schAppNo || null,
+        hardcopy_submitted: hardcopySubmitted ? 1 : 0,
+        thumb_update_available: !!thumbUpdateAvailable,
+        thumb_status: thumbStatus || 'Pending'
+      };
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEBUG] Final Update Payload:', updateBody);
+      }
+
+      const res = await fetch('/api/clerk/scholarship/sanctions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateBody)
+      });
+      const data = await res.json();
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEBUG] Final Update Response:', { status: res.status, data });
+      }
+
+      if (!res.ok) throw new Error(data.error || 'Failed to update registry');
+
+      toast.success('Registry record updated');
       setModalOpen(false);
       await refetchYearSummary(student.roll_no, modalYear);
     } catch (err) {
@@ -698,7 +781,7 @@ function ScholarshipDashboardContent() {
                 </div>
               </div>
 
-              <AddEditRecordModal
+              <AddEditRecordInstitutionalModal
                 open={modalOpen}
                 year={modalYear}
                 student={student}
@@ -707,24 +790,33 @@ function ScholarshipDashboardContent() {
                   schAppNo,
                   schProceedingNo,
                   schAmount,
-                  schDate,
+                  schSanctionDate,
+                  releasedAmount,
+                  releasedDate,
                   payAmount,
                   payRef,
                   payDate,
+                  payMode,
+                  bankName,
                   appEditing,
                   thumbUpdateAvailable,
                   thumbStatus,
                   hardcopySubmitted,
+                  selectedProceeding,
                 }}
                 setFormState={(k, v) => {
                   const setters = {
                     schAppNo: setSchAppNo,
                     schProceedingNo: setSchProceedingNo,
                     schAmount: setSchAmount,
-                    schDate: setSchDate,
+                    schSanctionDate: setSchSanctionDate,
+                    releasedAmount: setReleasedAmount,
+                    releasedDate: setReleasedDate,
                     payAmount: setPayAmount,
                     payRef: setPayRef,
                     payDate: setPayDate,
+                    payMode: setPayMode,
+                    bankName: setBankName,
                     appEditing: setAppEditing,
                     thumbUpdateAvailable: setThumbUpdateAvailable,
                     thumbStatus: setThumbStatus,
@@ -733,10 +825,28 @@ function ScholarshipDashboardContent() {
                   (setters[k] || (() => {}))(v);
                 }}
                 saving={saving}
-                onSave={handleSaveRecord}
+                onProceedingSave={handleProceedingSave}
+                onPaymentSave={handlePaymentSave}
+                onFinalUpdate={handleFinalUpdate}
                 onClose={() => setModalOpen(false)}
                 onDeletePayment={deletePayment}
                 onDeleteScholarship={deleteScholarship}
+                onSelectProceeding={(p) => {
+                   setSelectedProceeding(p);
+                   setSchProceedingNo(p.proceeding_no || '');
+                   setSchAmount(p.amount || '');
+                   setSchSanctionDate(p.date || '');
+                   setReleasedAmount(p.released_amount || '');
+                   setReleasedDate(p.released_date || '');
+                }}
+                onCancelEdit={() => {
+                   setSelectedProceeding(null);
+                   setSchProceedingNo('');
+                   setSchAmount('');
+                   setSchSanctionDate('');
+                   setReleasedAmount('');
+                   setReleasedDate('');
+                }}
                 toDmy={toDmy}
               />
             </section>
