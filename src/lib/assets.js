@@ -58,9 +58,16 @@ export function getAssetUrl(localPath) {
     return normalizedPath;
   }
 
-  // Fallback to Cloudinary for everything else (including sensitive seals/signatures)
   const cleanPath = normalizedPath.substring(1);
   const extension = cleanPath.split('.').pop().toLowerCase();
+
+  // Strategy: Local VPS Storage (Secure Proxy)
+  if (process.env.NEXT_PUBLIC_STORAGE_TYPE === 'local') {
+    // Return the secure proxy route
+    return `/api/assets/view/${cleanPath}`;
+  }
+
+  // Strategy: Cloudinary (Legacy Cloud Storage)
   let resourceType = 'image';
   
   if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {

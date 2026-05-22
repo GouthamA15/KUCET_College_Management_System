@@ -49,6 +49,9 @@
     "react-dom": "^19.2.4",
     "react-hot-toast": "^2.6.0",
     "read-excel-file": "^6.0.3",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "express": "^4.21.2",
     "xlsx-js-style": "^1.2.0",
     "zod": "^4.3.6"
   },

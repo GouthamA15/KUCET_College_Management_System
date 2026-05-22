@@ -29,9 +29,17 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().min(1, "CLOUDINARY_API_KEY is required"),
   CLOUDINARY_API_SECRET: z.string().min(1, "CLOUDINARY_API_SECRET is required"),
 
-  // Supabase (Real-time Messaging)
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url("NEXT_PUBLIC_SUPABASE_URL must be a valid URL"),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, "NEXT_PUBLIC_SUPABASE_ANON_KEY is required"),
+  // Supabase (Real-time Messaging - Optional for VPS)
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
+
+  // VPS Real-time (Socket.io)
+  NEXT_PUBLIC_SOCKET_URL: z.string().url().optional(),
+  REDIS_URL: z.string().optional(),
+
+  // Storage (Local VPS Storage)
+  NEXT_PUBLIC_STORAGE_TYPE: z.enum(['cloudinary', 'local']).default('cloudinary'),
+  LOCAL_STORAGE_PATH: z.string().optional(),
 
   // Public URLs
   NEXT_PUBLIC_BASE_URL: z.string().url("NEXT_PUBLIC_BASE_URL must be a valid URL"),
