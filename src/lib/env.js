@@ -3,7 +3,7 @@ import logger from './logger.js';
 
 const envSchema = z.object({
   // Node Environment
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  NODE_ENV: z.enum(['development', 'testing', 'production']).default('development'),
 
   // Database
   DB_HOST: z.string().min(1, "DB_HOST is required"),
@@ -56,7 +56,13 @@ const envSchema = z.object({
  */
 export function validateEnv() {
   try {
-    const parsed = envSchema.safeParse(process.env);
+    const envData = { ...process.env };
+    // Force NODE_ENV to lowercase and trim to handle potential OS/Environment inconsistencies
+    if (envData.NODE_ENV) {
+      envData.NODE_ENV = envData.NODE_ENV.toLowerCase().trim();
+    }
+
+    const parsed = envSchema.safeParse(envData);
 
     if (!parsed.success) {
       const { fieldErrors } = parsed.error.flatten();
@@ -64,7 +70,8 @@ export function validateEnv() {
         .map(([field, errors]) => `  - ${field}: ${errors.join(', ')}`)
         .join('\n');
 
-      console.error('\n❌ INVALID ENVIRONMENT VARIABLES:\n' + errorMessage + '\n');
+      console.error('\n❌ INVALID ENVIRONMENT VARIABLES:\n' + errorMessage);
+      console.error(`Received NODE_ENV: "${process.env.NODE_ENV}"\n`);
       
       // In production, we want to hard crash if env is invalid.
       if (process.env.NODE_ENV === 'production') {
