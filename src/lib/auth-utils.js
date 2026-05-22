@@ -11,7 +11,8 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false)
   const refreshToken = crypto.randomBytes(40).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
   
-  const durationDays = rememberMe ? 30 : 7;
+  // Normal login: 14 days, Remember Me: 30 days
+  const durationDays = rememberMe ? 30 : 14;
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + durationDays);
 
@@ -39,9 +40,9 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false)
  */
 export async function issueStudentAuthCookie(response, student, rememberMe = false) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  // Direct 30 days if rememberMe is true
-  const sessionDuration = rememberMe ? '30d' : '15m';
-  const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 15 * 60;
+  // Normal login: 7 days, Remember Me: 30 days
+  const sessionDuration = rememberMe ? '30d' : '7d';
+  const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
 
   const token = await new SignJWT({
     student_id: student.id || student.student_id,
@@ -84,9 +85,9 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
  */
 export async function issueClerkAuthCookie(response, clerk, rememberMe = false) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  // Direct 30 days if rememberMe is true
-  const sessionDuration = rememberMe ? '30d' : '15m';
-  const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 15 * 60;
+  // Normal login: 7 days, Remember Me: 30 days
+  const sessionDuration = rememberMe ? '30d' : '7d';
+  const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
 
   const token = await new SignJWT({
     id: clerk.id,
@@ -136,9 +137,9 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false) 
  */
 export async function issueAdminAuthCookie(response, admin, rememberMe = false) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  // Direct 30 days if rememberMe is true
-  const sessionDuration = rememberMe ? '30d' : '15m';
-  const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 15 * 60;
+  // Normal login: 7 days, Remember Me: 30 days
+  const sessionDuration = rememberMe ? '30d' : '7d';
+  const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
 
   const token = await new SignJWT({
     id: admin.id,

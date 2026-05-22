@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 19, 2026 (Session 114)
+**Last Updated:** May 22, 2026 (Session 119)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -160,6 +160,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-May 2026)
 
 ### May 2026
+
+#### **Session 119: Enhanced Session Persistence & Authentication UX (May 22, 2026)**
+- **Session Duration Optimization:**
+    - Increased the default session expiration for normal logins (without "Remember Me") to **7 days** (up from 15 minutes). This ensures students and staff remain logged in for at least a week of active or passive use.
+    - Extended the **Refresh Token** duration to **14 days** for normal logins, providing a secondary layer of persistence and enabling silent rotation across browser restarts.
+- **Auth Utility Hardening:**
+    - Updated `src/lib/auth-utils.js` to synchronize JWT `expirationTime` and browser `maxAge` parameters, preventing premature session termination due to cookie expiration.
+    - Maintained the **30-day "Remember Me"** tier for users requiring long-term persistence on trusted devices.
 
 #### **Session 118: Institutional Roll Number Generation Excellence (May 21, 2026)**
 - **Roll Number Generation Engine Hardening:**
