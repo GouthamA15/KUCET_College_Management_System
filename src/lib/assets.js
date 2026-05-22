@@ -99,7 +99,7 @@ export function getAssetUrl(path) {
     resourceType = 'raw';
   }
 
-  const finalPath = cleanPath.startsWith('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
+  const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
   return `https://res.cloudinary.com/${CLOUD_NAME}/${resourceType}/upload/f_auto,q_auto/${finalPath}`;
 }
 

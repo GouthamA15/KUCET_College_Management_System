@@ -102,12 +102,12 @@ export class StudentService {
       like(studentsTable.roll_no, lateralRollPattern)
     ));
 
-    // Decrypt sensitive fields
+    // Decrypt sensitive fields with null-safety checks
     return results.map(row => ({
       ...row,
-      mobile: decrypt(row.mobile),
-      aadhaar_no: decrypt(row.aadhaar_no),
-      guardian_mobile: decrypt(row.guardian_mobile)
+      mobile: row.mobile ? decrypt(row.mobile) : null,
+      aadhaar_no: row.aadhaar_no ? decrypt(row.aadhaar_no) : null,
+      guardian_mobile: row.guardian_mobile ? decrypt(row.guardian_mobile) : null
     }));
   }
 

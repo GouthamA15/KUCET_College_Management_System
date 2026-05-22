@@ -31,7 +31,11 @@ const ExportStudents = () => {
     setLoading(true);
     setPreviewData(null);
     try {
-      const response = await fetch(`/api/clerk/admission/export-students?branch=${branch}&year=${year}`);
+      const params = new URLSearchParams({
+        branch: branch,
+        year: year
+      });
+      const response = await fetch(`/api/clerk/admission/export-students?${params.toString()}`);
       const data = await response.json();
 
       if (!response.ok) throw new Error(data.error || 'Failed to fetch data');
@@ -44,8 +48,7 @@ const ExportStudents = () => {
       setPreviewData(data.students);
       toast.success(`Found ${data.students.length} student records.`);
     } catch (error) {
-      console.error('Fetch error:', error);
-      toast.error(error.message);
+      toast.error('Failed to fetch students');
     } finally {
       setLoading(false);
     }
@@ -58,6 +61,26 @@ const ExportStudents = () => {
     }
     exportToExcel(previewData, branch, year);
     toast.success(`Successfully exported ${previewData.length} student records.`);
+  };
+
+  const maskAadhaar = (value) => {
+    if (!value) return 'N/A';
+    return `XXXX-XXXX-${value.slice(-4)}`;
+  };
+
+  const maskMobile = (value) => {
+    if (!value) return 'N/A';
+    return `XXXXX${value.slice(-5)}`;
+  };
+
+  const isValidImageUrl = (url) => {
+    if (!url) return false;
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.includes('cloudinary.com');
+    } catch {
+      return false;
+    }
   };
 
   const exportToExcel = (students, branchCode, batch) => {
@@ -83,9 +106,9 @@ const ExportStudents = () => {
       'Place of Birth': s.place_of_birth,
       'Father Occupation': s.father_occupation,
       'Annual Income': s.annual_income,
-      'Aadhaar Number': s.aadhaar_no,
-      'Guardian Mobile': s.guardian_mobile,
-      'Permanent Address': s.permanent_address,
+      'Aadhaar Number': maskAadhaar(s.aadhaar_no),
+      'Guardian Mobile': maskMobile(s.guardian_mobile),
+      'Permanent Address': s.permanent_address ? s.permanent_address.split(',')[0] : 'N/A',
       'Identification Marks': s.identification_marks,
       'Seat Allotted Category': s.seat_allotted_category,
       'Blood Group': s.blood_group,
@@ -234,12 +257,12 @@ const ExportStudents = () => {
                   <tr key={`${student.roll_no}-${index}`} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 text-xs font-black text-slate-700">{student.roll_no}</td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-600">{student.name}</td>
-                    <td className="px-6 py-4 text-[11px] font-mono text-slate-500">{student.aadhaar_no}</td>
-                    <td className="px-6 py-4 text-[11px] font-mono text-slate-500">{student.mobile}</td>
+                    <td className="px-6 py-4 text-[11px] font-mono text-slate-500">{maskAadhaar(student.aadhaar_no)}</td>
+                    <td className="px-6 py-4 text-[11px] font-mono text-slate-500">{maskMobile(student.mobile)}</td>
                     <td className="px-6 py-4">
-                      {student.photo ? (
+                      {isValidImageUrl(getAssetUrl(student.photo)) ? (
                         <div className="w-8 h-8 rounded-full border-2 border-indigo-100 overflow-hidden bg-slate-100">
-                           <Image src={getAssetUrl(student.photo)} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized />
+                           <Image src={getAssetUrl(student.photo)} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized onError={() => {}} />
                         </div>
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400">NA</div>

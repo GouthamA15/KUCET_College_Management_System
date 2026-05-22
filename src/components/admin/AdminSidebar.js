@@ -30,6 +30,11 @@ const icons = {
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
     </svg>
+  ),
+  infrastructure: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+    </svg>
   )
 };
 
@@ -37,6 +42,7 @@ const menuItems = [
   { label: 'Dashboard', route: '/admin/dashboard', icon: icons.dashboard },
   { label: 'Manage Clerks', route: '/admin/manage-clerks', icon: icons.manageClerks },
   { label: 'Create Clerk', route: '/admin/create-clerk', icon: icons.createClerk },
+  { label: 'Infrastructure', route: '/admin/infrastructure', icon: icons.infrastructure },
   { label: 'Audit Trails', route: '/admin/audit-logs', icon: icons.auditLogs },
   { label: 'Verifications', route: '/admin/verifications', icon: icons.verifications },
 ];
