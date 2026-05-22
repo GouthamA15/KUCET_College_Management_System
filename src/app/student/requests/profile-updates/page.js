@@ -6,9 +6,11 @@ import { useStudent } from '@/context/StudentContext';
 import Image from 'next/image';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { getAssetUrl } from '@/lib/assets';
 
 const FallbackImage = ({ src, alt, width, height, className, type = 'photo' }) => {
   const [error, setError] = useState(false);
+  const resolvedSrc = getAssetUrl(src);
 
   if (error || !src) {
     return (
@@ -21,7 +23,7 @@ const FallbackImage = ({ src, alt, width, height, className, type = 'photo' }) =
 
   return (
     <Image 
-      src={src} 
+      src={resolvedSrc} 
       alt={alt} 
       width={width} 
       height={height} 

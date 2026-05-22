@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function ProfileHeaderCard({
   name,
@@ -13,6 +14,8 @@ export default function ProfileHeaderCard({
   fallback = 'placeholder',
 }) {
   const [imageLoading, setImageLoading] = useState(true);
+
+  const resolvedPhotoUrl = useMemo(() => getAssetUrl(photoUrl), [photoUrl]);
 
   const initials = useMemo(() => {
     const n = String(name || '').trim();
@@ -26,7 +29,7 @@ export default function ProfileHeaderCard({
   return (
     <div className="flex flex-col items-center md:items-start">
       <div className="w-40 h-40 rounded-full border-4 border-gray-300 overflow-hidden flex items-center justify-center bg-gray-100 relative">
-        {photoUrl ? (
+        {resolvedPhotoUrl ? (
           <>
             {imageLoading && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 space-y-2">
@@ -35,7 +38,7 @@ export default function ProfileHeaderCard({
               </div>
             )}
             <Image
-              src={photoUrl}
+              src={resolvedPhotoUrl}
               alt="Profile Photo"
               width={160}
               height={160}

@@ -59,7 +59,10 @@ function ensureSocketConnection() {
   });
 
   sharedSocket.on('connect_error', (err) => {
-    console.error('❌ [Socket.io] Connection Error', err);
+    // Only log if it's not a localhost connection failure (common in dev without server)
+    if (!socketUrl.includes('localhost')) {
+      console.warn('⚠️ [Realtime] Connection Error', err.message);
+    }
     notifyStatus('error');
   });
 
@@ -154,16 +157,29 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     eventSubscribers.add(eventHandler);
     
     // Initialize primary or secondary strategy
-    if (process.env.NEXT_PUBLIC_SOCKET_URL) {
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    
+    if (socketUrl) {
       ensureSocketConnection();
+      
+      // Secondary fallback logic: if socket is still connecting after 5 seconds, 
+      // check if we should enable Supabase as a backup.
+      // But avoid dual connections.
+      const fallbackTimer = setTimeout(() => {
+        if (sharedStatus !== 'connected' && sharedStatus !== 'error') {
+          console.log('⚠️ [Realtime] Socket.io taking too long, checking Supabase availability...');
+          ensureSupabaseChannel();
+        }
+      }, 5000);
+      
+      return () => {
+        clearTimeout(fallbackTimer);
+        statusSubscribers.delete(statusHandler);
+        eventSubscribers.delete(eventHandler);
+      };
     } else {
       ensureSupabaseChannel();
     }
-
-    return () => {
-      statusSubscribers.delete(statusHandler);
-      eventSubscribers.delete(eventHandler);
-    };
   }, [enableNotifications, handleNotification, onUpdate]);
 
   return null;

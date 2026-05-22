@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -43,8 +44,8 @@ export default function EditProfilePage() {
   const menuRef = useRef(null);
   const editBtnRef = useRef(null);
 
-  const displayedPhoto = pfpDataUrl || currentPfp || null;
-  const displayedSignature = signatureDataUrl || currentSignature;
+  const displayedPhoto = pfpDataUrl || getAssetUrl(currentPfp) || null;
+  const displayedSignature = signatureDataUrl || getAssetUrl(currentSignature);
 
   useEffect(() => {
     fetchProfileData();

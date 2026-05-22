@@ -6,6 +6,7 @@ import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { getAssetUrl } from '@/lib/assets';
 
 const StudentUpdateRequestsPanel = () => {
   const { clerkData: clerk, loading: isContextLoading, pendingProfileRequests, isLoadingRequests, refreshProfileRequests } = useClerk();
@@ -142,14 +143,14 @@ const StudentUpdateRequestsPanel = () => {
                                         <div className="text-center space-y-3 flex-1">
                                             <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">College Record</span>
                                             <div className="w-full aspect-square bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-inner">
-                                                {req.old_pfp ? <Image src={req.old_pfp} alt="Old" width={150} height={150} unoptimized className="object-cover w-full h-full" /> : <span className="text-[9px] text-slate-300 font-bold uppercase">No Record</span>}
+                                                {req.old_pfp ? <Image src={getAssetUrl(req.old_pfp)} alt="Old" width={150} height={150} unoptimized className="object-cover w-full h-full" /> : <span className="text-[9px] text-slate-300 font-bold uppercase">No Record</span>}
                                             </div>
                                         </div>
                                         <div className="text-slate-300 font-black text-xl">→</div>
                                         <div className="text-center space-y-3 flex-1">
                                             <span className="block text-[9px] font-black text-[#0b3578] uppercase tracking-widest">Proposed New</span>
                                             <button onClick={() => setViewingImage(req.new_pfp)} className="w-full aspect-square bg-white border-2 border-blue-200 flex items-center justify-center overflow-hidden hover:border-blue-500 transition-all cursor-zoom-in shadow-md">
-                                                <Image src={req.new_pfp} alt="New" width={150} height={150} unoptimized className="object-cover w-full h-full" />
+                                                <Image src={getAssetUrl(req.new_pfp)} alt="New" width={150} height={150} unoptimized className="object-cover w-full h-full" />
                                             </button>
                                         </div>
                                     </div>
@@ -165,14 +166,14 @@ const StudentUpdateRequestsPanel = () => {
                                         <div className="text-center space-y-3 flex-1">
                                             <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">College Record</span>
                                             <div className="w-full h-24 bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-inner">
-                                                {req.old_signature ? <Image src={req.old_signature} alt="Old" width={150} height={80} unoptimized className="object-contain" /> : <span className="text-[9px] text-slate-300 font-bold uppercase">No Record</span>}
+                                                {req.old_signature ? <Image src={getAssetUrl(req.old_signature)} alt="Old" width={150} height={80} unoptimized className="object-contain" /> : <span className="text-[9px] text-slate-300 font-bold uppercase">No Record</span>}
                                             </div>
                                         </div>
                                         <div className="text-slate-300 font-black text-xl">→</div>
                                         <div className="text-center space-y-3 flex-1">
                                             <span className="block text-[9px] font-black text-amber-600 uppercase tracking-widest">Proposed New</span>
                                             <button onClick={() => setViewingImage(req.new_signature)} className="w-full h-24 bg-white border-2 border-amber-200 flex items-center justify-center overflow-hidden hover:border-amber-500 transition-all cursor-zoom-in shadow-md">
-                                                <Image src={req.new_signature} alt="New" width={150} height={80} unoptimized className="object-contain" />
+                                                <Image src={getAssetUrl(req.new_signature)} alt="New" width={150} height={80} unoptimized className="object-contain" />
                                             </button>
                                         </div>
                                     </div>
@@ -229,7 +230,7 @@ const StudentUpdateRequestsPanel = () => {
                                         onClick={() => setViewingImage(req.proof_url)}
                                         className="w-full aspect-4/3 bg-white border-2 border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:border-blue-300 transition-all group relative rounded-sm"
                                     >
-                                        <Image src={req.proof_url} alt="Proof" fill unoptimized className="object-contain" />
+                                        <Image src={getAssetUrl(req.proof_url)} alt="Proof" fill unoptimized className="object-contain" />
                                         <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <span className="text-[10px] font-black text-white uppercase tracking-widest bg-slate-800 px-5 py-2 shadow-2xl rounded-sm">Audit Document</span>
                                         </div>
@@ -283,7 +284,7 @@ const StudentUpdateRequestsPanel = () => {
                 </button>
               </div>
               <div className="relative max-w-6xl max-h-[85vh] w-full h-full flex items-center justify-center border-8 border-slate-800 shadow-2xl bg-white rounded-sm overflow-hidden">
-                <Image src={viewingImage} alt="Audit Preview" fill unoptimized className="object-contain" />
+                <Image src={getAssetUrl(viewingImage)} alt="Audit Preview" fill unoptimized className="object-contain" />
               </div>
               <div className="mt-8 text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] animate-pulse">Digital Forensic Environment • High-Resolution View</div>
             </div>

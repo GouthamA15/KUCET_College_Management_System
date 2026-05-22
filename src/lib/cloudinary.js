@@ -9,13 +9,43 @@ cloudinary.config({
 });
 
 /**
+ * Relativizes a Cloudinary URL into a path that can be stored and later resolved.
+ * @param {string} url - The full Cloudinary secure URL
+ * @returns {string} - The relative path (e.g., 'kucet/students/pfp/abc.jpg')
+ */
+export function relativizeCloudinaryUrl(url) {
+  if (!url || !url.includes('cloudinary.com')) return url;
+
+  const parts = url.split('/upload/');
+  if (parts.length < 2) return url;
+
+  // Strip version (v12345678/) and transformations (f_auto,q_auto/)
+  let path = parts[1].replace(/^v\d+\//, ''); 
+  
+  // If the path still contains multiple segments and the first one isn't 'kucet', 
+  // it might be a transformation segment (e.g., f_auto,q_auto)
+  if (path.includes('/') && !path.startsWith('kucet/')) {
+    const segments = path.split('/');
+    if (segments[0].includes(',')) {
+      path = segments.slice(1).join('/');
+    }
+  }
+
+  return path;
+}
+
+/**
  * Transforms a raw Cloudinary URL to include optimization parameters (f_auto, q_auto)
  * @param {string} url - The original Cloudinary URL
  * @param {string} transformations - Additional transformations (e.g., 'w_500,h_500,c_fill')
  * @returns {string} - The optimized URL
  */
 export function getOptimizedUrl(url, transformations = '') {
-  if (!url || !url.includes('cloudinary.com')) return url;
+  if (!url) return url;
+
+  // If it's already a relative path, we don't apply optimizations here 
+  // as getAssetUrl will do it when resolving.
+  if (!url.includes('cloudinary.com')) return url;
 
   const parts = url.split('/upload/');
   if (parts.length < 2) return url;
@@ -37,7 +67,7 @@ export function getOptimizedUrl(url, transformations = '') {
  * @param {string|Buffer|File} file - Base64 string, Buffer, or browser File object
  * @param {string} folder - Cloudinary folder name
  * @param {string} publicId - Optional public ID
- * @returns {Promise<string>} - The secure URL of the uploaded image
+ * @returns {Promise<string>} - The relative path of the uploaded image
  */
 export async function uploadToCloudinary(file, folder, publicId = null) {
   if (!file) {
@@ -86,8 +116,10 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
     if (!result || !result.secure_url) {
       throw new Error('Cloudinary upload returned an empty response.');
     }
-    // Return optimized URL by default
-    return getOptimizedUrl(result.secure_url);
+    
+    // Return ONLY the relative path (including extension)
+    // Cloudinary's secure_url includes the extension by default.
+    return relativizeCloudinaryUrl(result.secure_url);
   } catch (error) {
     logger.error('Cloudinary Upload Error:', {
       message: error.message,
@@ -100,29 +132,18 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
 }
 
 /**
- * Deletes an image from Cloudinary given its URL
- * @param {string} url - The full Cloudinary secure URL
+ * Deletes an image from Cloudinary given its URL or relative path
+ * @param {string} pathOrUrl - The full URL or relative path
  */
-export async function deleteFromCloudinary(url) {
-  if (!url || !url.includes('cloudinary.com')) return;
+export async function deleteFromCloudinary(pathOrUrl) {
+  if (!pathOrUrl) return;
 
   try {
-    const parts = url.split('/upload/');
-    if (parts.length < 2) return;
+    const path = pathOrUrl.includes('cloudinary.com') 
+      ? relativizeCloudinaryUrl(pathOrUrl) 
+      : pathOrUrl;
 
-    // Remove any transformations and version string to get the path
-    const pathParts = parts[1].split('/');
-    // The public_id starts after the version (v123456789) if it exists, or directly if not.
-    // However, cloudinary.uploader.destroy expects the public_id including folder but excluding extension.
-    
-    // Easier way: Extract part between /upload/ and extension, remove version
-    let path = parts[1].replace(/^v\d+\//, ''); // Remove version if first
-    // If there were transformations (like f_auto,q_auto), they will be in the path too.
-    // Our getOptimizedUrl puts them right after /upload/
-    path = path.replace(/^[^/]+\//, (match) => {
-        return match.includes(',') ? '' : match; // Remove transformation segment if it has commas
-    });
-    
+    // Cloudinary uploader.destroy expects public_id (folder + name, NO extension)
     const publicId = path.substring(0, path.lastIndexOf('.'));
 
     const result = await cloudinary.uploader.destroy(publicId);

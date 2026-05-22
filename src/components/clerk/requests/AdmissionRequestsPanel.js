@@ -5,6 +5,7 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { useClerk } from '@/context/ClerkContext';
+import { getAssetUrl } from '@/lib/assets';
 
 // Only Blood Group uses dropdown options; other fields are plain inputs
 const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
@@ -344,7 +345,7 @@ function MediaSection({ detail, isEditing, onFieldChange }) {
                 <div className="w-full bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden" style={{ aspectRatio: '3 / 4' }}>
                     {detail.pfp ? (
                         <div className="w-full h-full relative">
-                            <Image src={detail.pfp} alt="Student Photo" fill className="object-cover" unoptimized />
+                            <Image src={getAssetUrl(detail.pfp)} alt="Student Photo" fill className="object-cover" unoptimized />
                         </div>
                     ) : (
                         <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">No Record Found</span>
@@ -369,7 +370,7 @@ function MediaSection({ detail, isEditing, onFieldChange }) {
                 <div className="w-full h-24 bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
                     {detail.signature ? (
                         <div className="w-full h-full relative p-2">
-                            <Image src={detail.signature} alt="Signature" fill className="object-contain" unoptimized />
+                            <Image src={getAssetUrl(detail.signature)} alt="Signature" fill className="object-contain" unoptimized />
                         </div>
                     ) : (
                         <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">No Record Found</span>

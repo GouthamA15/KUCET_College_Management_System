@@ -178,7 +178,8 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Dependency Synchronization:** Resolved `Module not found: socket.io-client` errors by updating `package.json` and standardizing the local `npm install` workflow.
     - **Config Sanitization:** Removed invalid experimental keys from `next.config.mjs` and updated the **Content Security Policy (CSP)** to whitelist local and production WebSocket connections.
     - **Env Robustness:** Hardened `src/lib/env.js` to automatically lowercase and trim `NODE_ENV`, preventing build failures caused by OS-level environment inconsistencies.
-- **Data Integrity:**
+- **Data Integrity & Migration Readiness:**
+    - Refactored `drizzle.config.js` and `src/db/migrate.js` to support conditional SSL. These scripts now automatically detect and support both Cloud (SSL) and Local VPS (Non-SSL) connections.
     - Synchronized `.env.example` with the full suite of VPS-ready variables (Redis, Socket, Storage Path).
     - Hardened the build pipeline by renaming conflicting `.env` files (e.g., `.env.local`, `.env.prod`) to `.bak`, ensuring a clean and predictable production build state.
 

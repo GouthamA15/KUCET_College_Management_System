@@ -9,12 +9,15 @@ import path from 'path';
  * Only accessible to authenticated students and staff.
  */
 export async function GET(request, { params }) {
-  const { filename } = await params;
+  const { path: pathSegments } = await params;
   const user = await getAuthUser(request);
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Join the path segments back into a string
+  const filename = pathSegments.join('/');
 
   // Define the base storage path (Defaults to VPS path, but can be overridden for local development)
   const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';

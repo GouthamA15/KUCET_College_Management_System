@@ -4,6 +4,9 @@ import { studentImages, students } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { getAuthUser, apiError } from '@/lib/api-utils';
+import { getAssetUrl } from '@/lib/assets';
+import fs from 'fs';
+import path from 'path';
 
 export async function GET(req, context) {
   try {
@@ -24,11 +27,13 @@ export async function GET(req, context) {
       return new NextResponse('Image not found', { status: 404 });
     }
 
-    const imageBufferOrUrl = rows[0].pfp;
+    const assetValue = rows[0].pfp;
+    const resolvedUrl = getAssetUrl(assetValue);
 
-    if (typeof imageBufferOrUrl === 'string' && imageBufferOrUrl.startsWith('http')) {
-      const imageRes = await fetch(imageBufferOrUrl);
-      if (!imageRes.ok) throw new Error('Cloudinary fetch failed');
+    if (resolvedUrl.startsWith('http')) {
+      // Remote Asset (Cloudinary)
+      const imageRes = await fetch(resolvedUrl);
+      if (!imageRes.ok) throw new Error(`Cloudinary fetch failed: ${imageRes.statusText}`);
       
       const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
       const buffer = await imageRes.arrayBuffer();
@@ -39,10 +44,29 @@ export async function GET(req, context) {
           'Cache-Control': 'public, max-age=86400, must-revalidate',
         },
       });
+    } else if (resolvedUrl.startsWith('/api/assets/view/')) {
+      // Local Asset (VPS/Secure Proxy)
+      const relativePath = resolvedUrl.replace('/api/assets/view/', '');
+      const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
+      const filePath = path.join(STORAGE_PATH, relativePath);
+
+      if (fs.existsSync(filePath)) {
+        const fileBuffer = fs.readFileSync(filePath);
+        const ext = path.extname(filePath).toLowerCase();
+        const contentType = ext === '.png' ? 'image/png' : (ext === '.webp' ? 'image/webp' : 'image/jpeg');
+        
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=3600',
+          },
+        });
+      }
+      return new NextResponse('Local file not found', { status: 404 });
     }
 
     // Treat as Buffer (old BLOB data)
-    return new NextResponse(imageBufferOrUrl, {
+    return new NextResponse(assetValue, {
       headers: {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'public, max-age=86400, must-revalidate', 

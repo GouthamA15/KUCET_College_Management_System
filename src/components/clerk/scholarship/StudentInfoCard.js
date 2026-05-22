@@ -1,11 +1,12 @@
 'use client';
 import { useState } from 'react';
 import Image from 'next/image';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function StudentInfoCard({ student, onImageClick }) {
   const [imageLoading, setImageLoading] = useState(true);
   if (!student) return null;
-  const p = student.pfp;
+  const p = getAssetUrl(student.pfp);
   const has = p && String(p).trim() !== '';
   const isData = has && String(p).startsWith('data:');
   const dataHasBody = !isData || (String(p).includes(',') && String(p).split(',')[1].trim() !== '');
