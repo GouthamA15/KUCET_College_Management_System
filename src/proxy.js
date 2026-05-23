@@ -69,7 +69,8 @@ export default async function proxy(request) {
   const studentAuth = cookies.get('student_auth');
   const jwtSecret = process.env.JWT_SECRET;
 
-  let response = NextResponse.next();
+  // We need to keep track of request headers to pass them to NextResponse.next()
+  const requestHeaders = new Headers(request.headers);
   let refreshTriggered = false;
 
   // 1. Verify Tokens
@@ -77,21 +78,29 @@ export default async function proxy(request) {
   let clerkRes = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : { payload: null };
   let studentRes = studentAuth ? await verify(studentAuth.value, jwtSecret) : { payload: null };
 
+  // Prepare the base response (which we might replace with a redirect)
+  let response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
   // 2. Handle Silent Refresh if expired
   if (!adminRes.payload && adminRes.expired) {
     const refreshRes = await attemptSilentRefresh('admin', request);
     if (refreshRes) {
-      // PROPER COOKIE PROPAGATION: Use getSetCookie() to get ALL cookies (auth + refresh + UI)
       const allCookies = refreshRes.headers.getSetCookie();
       if (allCookies.length > 0) {
         allCookies.forEach(cookieStr => {
           response.headers.append('set-cookie', cookieStr);
         });
 
-        // Parse token manually since standard Response doesn't have .cookies
         const tokenCookie = allCookies.find(c => c.startsWith('admin_auth='));
         const newToken = tokenCookie?.split(';')[0].split('=')[1];
-        if (newToken) adminRes = await verify(newToken, jwtSecret);
+        if (newToken) {
+          adminRes = await verify(newToken, jwtSecret);
+          requestHeaders.set('x-admin-auth', newToken);
+        }
         refreshTriggered = true;
       }
     }
@@ -108,7 +117,10 @@ export default async function proxy(request) {
 
         const tokenCookie = allCookies.find(c => c.startsWith('clerk_auth='));
         const newToken = tokenCookie?.split(';')[0].split('=')[1];
-        if (newToken) clerkRes = await verify(newToken, jwtSecret);
+        if (newToken) {
+          clerkRes = await verify(newToken, jwtSecret);
+          requestHeaders.set('x-clerk-auth', newToken);
+        }
         refreshTriggered = true;
       }
     }
@@ -125,10 +137,29 @@ export default async function proxy(request) {
 
         const tokenCookie = allCookies.find(c => c.startsWith('student_auth='));
         const newToken = tokenCookie?.split(';')[0].split('=')[1];
-        if (newToken) studentRes = await verify(newToken, jwtSecret);
+        if (newToken) {
+          studentRes = await verify(newToken, jwtSecret);
+          requestHeaders.set('x-student-auth', newToken);
+        }
         refreshTriggered = true;
       }
     }
+  }
+
+  // Re-create response if headers changed
+  if (refreshTriggered) {
+    const oldResponse = response;
+    response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+    // Copy set-cookie headers to the new response
+    oldResponse.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'set-cookie') {
+        response.headers.append(key, value);
+      }
+    });
   }
 
   const adminPayload = adminRes.payload;

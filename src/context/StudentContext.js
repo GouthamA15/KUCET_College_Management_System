@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import RealtimeListener from '@/components/RealtimeListener';
 import { getNowSync } from '@/lib/clock';
 
@@ -18,6 +18,8 @@ export function StudentProvider({ children }) {
   const [isLoadingAcademic, setIsLoadingAcademic] = useState(false);
   const [latestProfileRequest, setLatestProfileRequest] = useState(null);
   const [latestCertificateRequest, setLatestCertificateRequest] = useState(null);
+
+  const isInitializingRef = React.useRef(false);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {
@@ -108,9 +110,11 @@ export function StudentProvider({ children }) {
   useEffect(() => {
     // Avoid a refresh loop: refreshData() sets studentData,
     // so we only initialize when there is no cached data.
-    if (studentData) return;
+    if (studentData || isInitializingRef.current) return;
 
     let cancelled = false;
+    isInitializingRef.current = true;
+
     const id = setTimeout(() => {
       const init = async () => {
         setLoading(true);
@@ -122,6 +126,7 @@ export function StudentProvider({ children }) {
 
     return () => {
       cancelled = true;
+      isInitializingRef.current = false;
       clearTimeout(id);
     };
   }, [refreshData, studentData]);

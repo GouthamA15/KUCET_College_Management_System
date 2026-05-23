@@ -21,7 +21,7 @@ export function AcademicsProvider({ children, roll }) {
     }
   }, [roll]);
 
-  const saveCache = (payload) => {
+  const saveCache = React.useCallback((payload) => {
     if (!roll) return;
     try {
       const key = `academics_cache_${roll}`;
@@ -31,13 +31,13 @@ export function AcademicsProvider({ children, roll }) {
     } catch (e) {
       // ignore storage errors
     }
-  };
+  }, [roll]);
 
-  const clearCache = () => {
+  const clearCache = React.useCallback(() => {
     if (!roll) return;
     try { sessionStorage.removeItem(`academics_cache_${roll}`); } catch {}
     setCache(null);
-  };
+  }, [roll]);
 
   // Detect full page reloads (when available) so callers can decide to refetch
   const isReload = (() => {
