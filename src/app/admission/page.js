@@ -4,7 +4,6 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getEffectiveAcademicYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
-import Header from '@/components/Header';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
 import { formatIndianNumber } from '@/lib/financial-utils';
 
@@ -125,7 +124,6 @@ const AdmissionPage = () => {
     if (submitted) {
         return (
             <>
-            <Header />
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
                 <div className="max-w-md w-full bg-white rounded-xl shadow-2xl p-8 text-center border-t-8 border-green-500">
                     <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-4xl mb-6">✓</div>
@@ -140,7 +138,6 @@ const AdmissionPage = () => {
 
     return (
         <>
-        <Header />
         <div className="min-h-screen bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-5xl mx-auto bg-white shadow-2xl rounded-sm overflow-hidden border border-gray-300">
                 
