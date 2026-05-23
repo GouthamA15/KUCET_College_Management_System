@@ -88,8 +88,9 @@ export default async function proxy(request) {
           response.headers.append('set-cookie', cookieStr);
         });
 
-        // Use the built-in .cookies helper for reliable extraction
-        const newToken = refreshRes.cookies.get('admin_auth')?.value;
+        // Parse token manually since standard Response doesn't have .cookies
+        const tokenCookie = allCookies.find(c => c.startsWith('admin_auth='));
+        const newToken = tokenCookie?.split(';')[0].split('=')[1];
         if (newToken) adminRes = await verify(newToken, jwtSecret);
         refreshTriggered = true;
       }
@@ -105,7 +106,8 @@ export default async function proxy(request) {
           response.headers.append('set-cookie', cookieStr);
         });
 
-        const newToken = refreshRes.cookies.get('clerk_auth')?.value;
+        const tokenCookie = allCookies.find(c => c.startsWith('clerk_auth='));
+        const newToken = tokenCookie?.split(';')[0].split('=')[1];
         if (newToken) clerkRes = await verify(newToken, jwtSecret);
         refreshTriggered = true;
       }
@@ -121,7 +123,8 @@ export default async function proxy(request) {
           response.headers.append('set-cookie', cookieStr);
         });
 
-        const newToken = refreshRes.cookies.get('student_auth')?.value;
+        const tokenCookie = allCookies.find(c => c.startsWith('student_auth='));
+        const newToken = tokenCookie?.split(';')[0].split('=')[1];
         if (newToken) studentRes = await verify(newToken, jwtSecret);
         refreshTriggered = true;
       }
