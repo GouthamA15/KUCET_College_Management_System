@@ -47,8 +47,8 @@ export async function GET(req, context) {
     } else if (resolvedUrl.startsWith('/api/assets/view/')) {
       // Local Asset (VPS/Secure Proxy)
       const relativePath = resolvedUrl.replace('/api/assets/view/', '').split('?')[0];
-      // Prevent directory traversal
-      if (relativePath.includes('..')) {
+      // Prevent directory traversal: reject '..' sequences and leading slashes
+      if (relativePath.includes('..') || relativePath.startsWith('/')) {
         return new NextResponse('Forbidden', { status: 403 });
       }
       const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
