@@ -4,7 +4,6 @@ import AuthProvider from "./components/AuthProvider";
 import { AssetProvider } from "@/context/AssetContext";
 import { SystemConfigProvider } from "@/context/SystemConfigContext";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
-import RealtimeListener from "@/components/RealtimeListener";
 
 export const metadata = {
   title: "Login | KUCET",
@@ -29,7 +28,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased bg-institutional min-h-screen">
-        <RealtimeListener enableNotifications />
         <SystemConfigProvider>
           <MaintenanceGuard>
             <AssetProvider>

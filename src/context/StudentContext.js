@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import RealtimeListener from '@/components/RealtimeListener';
 import { getNowSync } from '@/lib/clock';
 
 export const StudentContext = createContext();
@@ -158,6 +159,7 @@ export function StudentProvider({ children }) {
         }
       }
     }}>
+      <RealtimeListener enableNotifications />
       {children}
     </StudentContext.Provider>
   );

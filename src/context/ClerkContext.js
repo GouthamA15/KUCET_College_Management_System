@@ -262,7 +262,7 @@ export function ClerkProvider({ children }) {
       isLoadingHistory,
       refreshStudentHistory: fetchStudentHistory
     }}>
-      <RealtimeListener onUpdate={handleRealtimeUpdate} />
+      <RealtimeListener onUpdate={handleRealtimeUpdate} enableNotifications />
       {children}
     </ClerkContext.Provider>
   );

@@ -42,11 +42,18 @@ function ensureSocketConnection() {
   const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
   if (!socketUrl || sharedSocket || typeof window === 'undefined') return;
 
-  console.log('🔌 [Socket.io] Connecting to', socketUrl);
+  const isLocal = socketUrl.includes('localhost') || socketUrl.includes('127.0.0.1');
+  const isDev = process.env.NODE_ENV === 'development';
+
+  if (!isLocal) {
+    console.log('🔌 [Socket.io] Connecting to', socketUrl);
+  }
+  
   sharedSocket = io(socketUrl, {
     transports: ['websocket'],
-    reconnectionAttempts: 5,
-    timeout: 10000
+    reconnectionAttempts: isDev ? 1 : 5, // Minimal attempts in dev
+    timeout: 3000,
+    autoConnect: true
   });
 
   sharedSocket.on('connect', () => {
@@ -59,9 +66,9 @@ function ensureSocketConnection() {
   });
 
   sharedSocket.on('connect_error', (err) => {
-    // Only log if it's not a localhost connection failure (common in dev without server)
-    if (!socketUrl.includes('localhost')) {
-      console.warn('⚠️ [Realtime] Connection Error', err.message);
+    // Suppress logs for local failures to keep console clean
+    if (!isLocal) {
+      console.warn('⚠️ [Realtime] Socket.io Error:', err.message);
     }
     notifyStatus('error');
   });
@@ -79,7 +86,10 @@ function getSharedSupabaseClient() {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key || typeof window === 'undefined' || sharedSocket) return null;
+  
+  // Allow Supabase if Socket.io is not connected
+  const isSocketActive = sharedSocket && sharedSocket.connected;
+  if (!url || !key || typeof window === 'undefined' || isSocketActive) return null;
 
   sharedSupabaseClient = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -90,7 +100,9 @@ function getSharedSupabaseClient() {
 
 function ensureSupabaseChannel() {
   const supabase = getSharedSupabaseClient();
-  if (!supabase || sharedSocket) return;
+  const isSocketActive = sharedSocket && (sharedSocket.connected || sharedStatus === 'connected');
+  
+  if (!supabase || isSocketActive) return;
 
   const channel = supabase.channel('kucet-updates', {
     config: { broadcast: { ack: true } },
@@ -101,7 +113,10 @@ function ensureSupabaseChannel() {
       notifyEvent({ type: event, payload });
     })
     .subscribe((status) => {
-      notifyStatus(status === 'SUBSCRIBED' ? 'connected' : status);
+      // Only set status if socket isn't already taking precedence
+      if (!sharedSocket || !sharedSocket.connected) {
+        notifyStatus(status === 'SUBSCRIBED' ? 'connected' : status);
+      }
     });
 }
 
@@ -158,8 +173,15 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     
     // Initialize primary or secondary strategy
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    const isLocal = socketUrl?.includes('localhost') || socketUrl?.includes('127.0.0.1');
+    const isDev = process.env.NODE_ENV === 'development';
+
+    // Strategy: Skip Socket.io on localhost in Dev if Supabase is available
+    // to avoid persistent connection failure errors in the console.
+    const hasSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+    const shouldSkipSocket = isDev && isLocal && hasSupabase;
     
-    if (socketUrl) {
+    if (socketUrl && !shouldSkipSocket) {
       ensureSocketConnection();
       
       // Secondary fallback logic: if socket is still connecting after 5 seconds, 
@@ -178,7 +200,15 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
         eventSubscribers.delete(eventHandler);
       };
     } else {
+      // In Dev/Local or if no Socket URL, go straight to Supabase
+      if (shouldSkipSocket) {
+        console.log('🚀 [Realtime] Dev Mode: Prioritizing Supabase over local Socket.io');
+      }
       ensureSupabaseChannel();
+      return () => {
+        statusSubscribers.delete(statusHandler);
+        eventSubscribers.delete(eventHandler);
+      };
     }
   }, [enableNotifications, handleNotification, onUpdate]);
 

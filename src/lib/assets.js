@@ -21,8 +21,6 @@ const STATIC_ASSETS = [
   '/assets/rudramadevi_statue.jpg',
   '/assets/college-campus.jpg',
   '/assets/default-avatar.svg',
-  '/assets/icon-192x192.png',
-  '/assets/icon-512x512.png',
   '/assets/Picture1.png',
   '/assets/DevPics/Dev1.mp4',
   '/assets/DevPics/Dev1.png',
@@ -41,9 +39,10 @@ const STATIC_ASSETS = [
 /**
  * Maps a local path or relative asset path to its full URL based on the storage type.
  * @param {string} path - The relative path (e.g., 'kucet/students/pfp/abc.jpg') or a local path.
+ * @param {string} transformations - Cloudinary transformations (default: 'f_auto,q_auto').
  * @returns {string} - The full URL.
  */
-export function getAssetUrl(path) {
+export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   if (!path) return '';
   
   const originalPath = path;
@@ -80,8 +79,8 @@ export function getAssetUrl(path) {
   const cleanPath = path.startsWith('/') ? path.substring(1) : path;
   const normalizedPath = `/${cleanPath}`;
 
-  // 6. Handle Static Assets
-  if (STATIC_ASSETS.includes(normalizedPath)) {
+  // 6. Handle Static Assets (Only if no custom transformations are requested)
+  if (STATIC_ASSETS.includes(normalizedPath) && transformations === 'f_auto,q_auto') {
     return normalizedPath;
   }
 
@@ -100,7 +99,7 @@ export function getAssetUrl(path) {
   }
 
   const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
-  return `https://res.cloudinary.com/${CLOUD_NAME}/${resourceType}/upload/f_auto,q_auto/${finalPath}`;
+  return `https://res.cloudinary.com/${CLOUD_NAME}/${resourceType}/upload/${transformations}/${finalPath}`;
 }
 
 export default getAssetUrl;
