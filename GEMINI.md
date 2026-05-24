@@ -188,6 +188,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **API Resilience:** Hardened Student Login, Admin Search, and Clerk Management APIs to normalize input parameters before executing database queries. This ensures a 100% database hit-rate regardless of how the user formats their input (e.g., "21be1a0501" vs " 21BE1A0501 ").
 - **Data Integrity Sovereignty:** Unified the normalization logic between frontend validation and backend persistence, eliminating "ghost records" caused by formatting mismatches.
 
+#### **Session 130: Supabase 'Zombie Connection' Recovery & Heartbeat (May 24, 2026)**
+- **Heartbeat Infrastructure:** Engineered a 30-second client-side heartbeat monitor within the `RealtimeListener` to combat "Zombie Connections" during mobile network transitions.
+- **Self-Ping Validation:** Leveraged Supabase's `broadcast: { self: true }` configuration to verify end-to-end channel integrity. The client now broadcasts periodic `PING` events and expects to receive them back as validation of an active pipe.
+- **Intelligent Re-Subscription:** Implemented a "Zombie Detector" that monitors the `lastActivity` timestamp. If no activity (including the client's own ping) is detected within a 35-second window, the system automatically executes a `force unsubscribe` followed by a `fresh subscribe`.
+- **Campus Mobility Excellence:** Guaranteed that "Live Activity" bars and real-time notifications remain accurate even when students switch from campus Wi-Fi to 4G during transit between departments.
+- **Resource Efficiency:** Minimized overhead by reusing the existing shared Supabase client and channel infrastructure for the heartbeat loop.
+
 #### **Session 125: GitHub Actions CI Fix (May 24, 2026)**
 - **CI/CD Reliability:** Resolved a "Bad credentials" error in `actions/setup-node@v4` during manifest resolution by migrating from the dynamic `lts/*` alias to a hardcoded `node-version: '20'`. This bypasses GitHub API rate limits and token validation issues for Node.js setup across CI and Playwright workflows.
 

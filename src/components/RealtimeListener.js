@@ -9,8 +9,11 @@ import { ClerkContext } from '@/context/ClerkContext';
 
 // Shared state for all instances of RealtimeListener
 let sharedSupabaseClient = null;
+let sharedSupabaseChannel = null;
 let sharedSocket = null;
 let sharedStatus = 'connecting';
+let lastActivity = Date.now();
+let heartbeatInterval = null;
 const statusSubscribers = new Set();
 const eventSubscribers = new Set();
 
@@ -98,24 +101,66 @@ function getSharedSupabaseClient() {
   return sharedSupabaseClient;
 }
 
+function startSupabaseHeartbeat() {
+  if (heartbeatInterval) return;
+  
+  heartbeatInterval = setInterval(() => {
+    if (!sharedSupabaseChannel) return;
+    
+    // 1. Send Ping to self and others to verify channel health
+    sharedSupabaseChannel.send({
+      type: 'broadcast',
+      event: 'PING',
+      payload: { timestamp: Date.now() }
+    }).catch(() => {});
+    
+    // 2. Check for Zombie State (No activity for 35s)
+    const silentPeriod = Date.now() - lastActivity;
+    if (silentPeriod > 35000) {
+      console.warn(`🧟 [Realtime] Zombie connection detected (${Math.round(silentPeriod/1000)}s silence). Forcing recovery...`);
+      recoverSupabaseConnection();
+    }
+  }, 30000);
+}
+
+function recoverSupabaseConnection() {
+  if (sharedSupabaseChannel) {
+    console.log('🔄 [Realtime] Re-subscribing to Supabase channel...');
+    sharedSupabaseChannel.unsubscribe();
+    sharedSupabaseChannel = null;
+  }
+  ensureSupabaseChannel();
+}
+
 function ensureSupabaseChannel() {
   const supabase = getSharedSupabaseClient();
   const isSocketActive = sharedSocket && (sharedSocket.connected || sharedStatus === 'connected');
   
-  if (!supabase || isSocketActive) return;
+  if (!supabase || isSocketActive || sharedSupabaseChannel) return;
 
-  const channel = supabase.channel('kucet-updates', {
-    config: { broadcast: { ack: true } },
+  sharedSupabaseChannel = supabase.channel('kucet-updates', {
+    config: { broadcast: { self: true } }, // self: true allows us to see our own pings back
   });
 
-  channel
+  sharedSupabaseChannel
     .on('broadcast', { event: '*' }, ({ event, payload }) => {
-      notifyEvent({ type: event, payload });
+      lastActivity = Date.now(); // Update on any activity
+      
+      // Ignore internal PINGs for UI updates
+      if (event !== 'PING') {
+        notifyEvent({ type: event, payload });
+      }
     })
     .subscribe((status) => {
       // Only set status if socket isn't already taking precedence
       if (!sharedSocket || !sharedSocket.connected) {
-        notifyStatus(status === 'SUBSCRIBED' ? 'connected' : status);
+        if (status === 'SUBSCRIBED') {
+          lastActivity = Date.now();
+          notifyStatus('connected');
+          startSupabaseHeartbeat();
+        } else {
+          notifyStatus(status);
+        }
       }
     });
 }
