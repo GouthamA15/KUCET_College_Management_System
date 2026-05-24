@@ -161,6 +161,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### May 2026
 
+#### **Session 125: GitHub Actions CI Fix (May 24, 2026)**
+- **CI/CD Reliability:** Resolved a "Bad credentials" error in `actions/setup-node@v4` during manifest resolution by migrating from the dynamic `lts/*` alias to a hardcoded `node-version: '20'`. This bypasses GitHub API rate limits and token validation issues for Node.js setup across CI and Playwright workflows.
+
+#### **Session 124: Architecture Refinement & Repeat Fix (May 23, 2026)**
+- **Context & State Management:** Refactored `AcademicsContext.js` and `StudentContext.js` to optimize rendering and state synchronization.
+- **API & Middleware Hardening:** Streamlined `src/lib/api-utils.js` and hardened `src/proxy.js` for more robust request handling and authorization.
+- **Student Dashboard:** Polished the student academics module (`academics/page.js`) for improved data fetching.
+
 #### **Session 123: Hierarchical Asset Management & Export Optimization (May 22, 2026)**
 - **Hierarchical Storage Explorer (Windows Style):**
     - Re-engineered the Storage Explorer into a professional **Hierarchical File Manager** featuring directory traversal, breadcrumb navigation, and amber folder icons.
