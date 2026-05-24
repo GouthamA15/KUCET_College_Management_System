@@ -167,6 +167,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Registry & UI Hardening:** Performed a surgical cleanup of the `AdmissionPage` component, identifying and removing a massive block of redundant duplicate JSX fields (Fields 2-16) that was causing DOM ID collisions and bloating the registry interface.
 - **Submission Integrity:** Ensured that local drafts are only purged upon successful server-side submission, maintaining a safety net throughout the entire admission pipeline.
 
+#### **Session 127: Atomic Concurrency Guards & Optimistic Locking (May 24, 2026)**
+- **Database Schema Hardening:** Integrated a `version` column into the `student_marks` and `branch_timetable` tables to support standard optimistic locking patterns.
+- **Faculty Service Excellence:** Extended `FacultyService` with atomic update methods (`updateMarkAtomic`, `updateTimetableAtomic`). These methods utilize Drizzle ORM to enforce version-based update guards, preventing "Last Write Wins" data loss scenarios.
+- **Marks Management Integrity:** Hardened the marks update API (`/api/clerk/faculty/marks`) with concurrency detection. The system now returns a `409 Conflict` status if multiple faculty members attempt to edit the same marksheet simultaneously, prompting the user to refresh their data.
+- **Timetable Orchestration Guard:** Implemented optimistic locking for departmental timetable slots. HODs are now protected from overwriting each other's schedule changes during peak planning periods.
+- **UX Consistency:** Standardized the GET responses for marks and timetables to include record versions, enabling the frontend to participate in the optimistic locking handshake.
+
 #### **Session 125: GitHub Actions CI Fix (May 24, 2026)**
 - **CI/CD Reliability:** Resolved a "Bad credentials" error in `actions/setup-node@v4` during manifest resolution by migrating from the dynamic `lts/*` alias to a hardcoded `node-version: '20'`. This bypasses GitHub API rate limits and token validation issues for Node.js setup across CI and Playwright workflows.
 

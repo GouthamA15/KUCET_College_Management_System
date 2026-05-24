@@ -214,6 +214,7 @@ export const studentMarks = mysqlTable('student_marks', {
   lab_record_marks: decimal('lab_record_marks', { precision: 5, scale: 2 }),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
+  version: int('version').default(1).notNull(),
 }, (table) => ({
   studentAssignmentIdx: index('idx_marks_student_assignment').on(table.student_id, table.assignment_id),
   studentAssignmentUniq: uniqueIndex('uq_marks_student_assignment').on(table.student_id, table.assignment_id),
@@ -248,6 +249,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   room_no: varchar('room_no', { length: 20 }),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
+  version: int('version').default(1).notNull(),
 }, (table) => ({
   timetableLookupIdx: index('idx_timetable_lookup').on(table.branch, table.semester, table.academic_year),
   dayPeriodIdx: index('idx_bt_day_period').on(table.day_of_week, table.period_number),
