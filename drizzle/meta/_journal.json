@@ -50,6 +50,13 @@
       "when": 1779467999512,
       "tag": "0006_nervous_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1779613610790,
+      "tag": "0007_oval_spot",
+      "breakpoints": true
     }
   ]
 }

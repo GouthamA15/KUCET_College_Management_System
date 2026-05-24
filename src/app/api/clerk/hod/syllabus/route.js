@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { syllabusSubjects, syllabusStructure } from '@/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { ValidationService } from '@/services/ValidationService';
 
 export async function GET(req) {
   let user;
@@ -82,6 +83,13 @@ export async function POST(req) {
 
     if (action === 'DELETE_SUBJECT') {
       const { subject_code } = subject;
+      
+      // Logic-level Dependency Check
+      const { canDelete, reason } = await ValidationService.checkSubjectBranchDependencies(subject_code, user.branch);
+      if (!canDelete) {
+        return apiError(reason, 400);
+      }
+
       // Only remove mapping for THIS branch
       await db.delete(syllabusStructure)
         .where(and(

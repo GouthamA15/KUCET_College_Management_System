@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { collegeInfo } from '@/db/schema';
 import { getAuthUser, apiError, apiResponse } from '@/lib/api-utils';
 import { eq } from 'drizzle-orm';
+import { ValidationService } from '@/services/ValidationService';
 
 export async function GET(req) {
   try {
@@ -25,6 +26,23 @@ export async function PATCH(req) {
     const updates = await req.json();
     
     const existing = await db.query.collegeInfo.findFirst();
+    
+    // Logic-level Dependency Check for Branch Removal
+    if (existing && updates.branches) {
+      const oldBranches = existing.branches || [];
+      const newBranches = updates.branches || [];
+      
+      // Find removed branches
+      const removedBranches = oldBranches.filter(b => !newBranches.includes(b));
+      
+      for (const branch of removedBranches) {
+        const { canDelete, reason } = await ValidationService.checkBranchDependencies(branch);
+        if (!canDelete) {
+          return apiError(reason, 400);
+        }
+      }
+    }
+
     if (!existing) {
       await db.insert(collegeInfo).values(updates);
     } else {
@@ -39,6 +57,7 @@ export async function PATCH(req) {
 
     return apiResponse({ success: true, message: 'Configuration updated successfully.' });
   } catch (error) {
+    if (error.status === 400) throw error; // Re-throw validation errors
     logger.error(error, 'Error updating institutional config');
     return apiError('Internal Server Error', 500);
   }

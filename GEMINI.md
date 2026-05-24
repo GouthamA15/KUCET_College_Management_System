@@ -174,6 +174,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Timetable Orchestration Guard:** Implemented optimistic locking for departmental timetable slots. HODs are now protected from overwriting each other's schedule changes during peak planning periods.
 - **UX Consistency:** Standardized the GET responses for marks and timetables to include record versions, enabling the frontend to participate in the optimistic locking handshake.
 
+#### **Session 128: Hard Stop Referential Integrity & Schema Sovereignty (May 24, 2026)**
+- **Schema Synchronization:** Successfully synchronized the live database with `src/db/schema.js` using versioned migrations (`db:generate`, `db:migrate`). This ensured all recent versioning columns and unique constraints are active in the production environment.
+- **Logic-Level Dependency Checkers:** Developed the `ValidationService` to provide institutional-grade referential integrity. This service performs exhaustive counts across Students, Staff, Marks, and Timetables before allowing deletion of core entities.
+- **Branch Removal Sovereignty:** Hardened the Super Admin Infrastructure API (`/api/admin/infrastructure/config`) to prevent the removal of branches that still have active students, staff, or academic records. Admins now receive descriptive error messages (e.g., "Cannot delete: 450 students still assigned") instead of raw database failures.
+- **Subject Mapping Integrity:** Integrated dependency checks into the HOD Syllabus workflow. The system now prevents the removal of subject mappings if student marks or timetable entries already exist for that subject within the branch.
+- **Institutional Stability:** Eliminated the risk of orphaned records and dashboard 500 errors caused by accidental deletion of foundational departmental data.
+
 #### **Session 125: GitHub Actions CI Fix (May 24, 2026)**
 - **CI/CD Reliability:** Resolved a "Bad credentials" error in `actions/setup-node@v4` during manifest resolution by migrating from the dynamic `lts/*` alias to a hardcoded `node-version: '20'`. This bypasses GitHub API rate limits and token validation issues for Node.js setup across CI and Playwright workflows.
 
