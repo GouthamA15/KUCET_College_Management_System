@@ -69,6 +69,11 @@ export default async function proxy(request) {
   const studentAuth = cookies.get('student_auth');
   const jwtSecret = process.env.JWT_SECRET;
 
+  // Reduce 401 noise: Only attempt refresh if companion cookies suggest a session exists
+  const hasAdminSession = cookies.get('admin_logged_in');
+  const hasClerkSession = cookies.get('clerk_logged_in');
+  const hasStudentSession = cookies.get('student_logged_in');
+
   // We need to keep track of request headers to pass them to NextResponse.next()
   const requestHeaders = new Headers(request.headers);
   let refreshTriggered = false;
@@ -85,8 +90,8 @@ export default async function proxy(request) {
     },
   });
 
-  // 2. Handle Silent Refresh if expired
-  if (!adminRes.payload && adminRes.expired) {
+  // 2. Handle Silent Refresh if expired (Only if session likely exists)
+  if (!adminRes.payload && adminRes.expired && hasAdminSession) {
     const refreshRes = await attemptSilentRefresh('admin', request);
     if (refreshRes) {
       const allCookies = refreshRes.headers.getSetCookie();
@@ -106,7 +111,7 @@ export default async function proxy(request) {
     }
   }
 
-  if (!clerkRes.payload && clerkRes.expired && !refreshTriggered) {
+  if (!clerkRes.payload && clerkRes.expired && !refreshTriggered && hasClerkSession) {
     const refreshRes = await attemptSilentRefresh('clerk', request);
     if (refreshRes) {
       const allCookies = refreshRes.headers.getSetCookie();
@@ -126,7 +131,7 @@ export default async function proxy(request) {
     }
   }
 
-  if (!studentRes.payload && studentRes.expired && !refreshTriggered) {
+  if (!studentRes.payload && studentRes.expired && !refreshTriggered && hasStudentSession) {
     const refreshRes = await attemptSilentRefresh('student', request);
     if (refreshRes) {
       const allCookies = refreshRes.headers.getSetCookie();
@@ -209,6 +214,6 @@ export default async function proxy(request) {
 
 export const config = {
   matcher: [
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|assets|screenshots).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|assets|screenshots).*)',
   ],
 };

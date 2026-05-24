@@ -47,6 +47,8 @@ export default function ProfileActivityBar({ activity, student }) {
     if (!student) return;
     try {
       const res = await fetch('/api/student/academic-info');
+      if (res.status === 401 || res.status === 403) return;
+      
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to fetch academic info');
       const subjects = json.data || [];
@@ -54,12 +56,14 @@ export default function ProfileActivityBar({ activity, student }) {
       if (!assignmentIds.length) return;
 
       const res2 = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds.join(',')}`);
+      if (res2.status === 401 || res2.status === 403) return;
+      
       const json2 = await res2.json();
       if (!res2.ok) throw new Error(json2.error || 'Failed to fetch active attendance sessions');
 
       setAttendanceSessions(json2.data || []);
     } catch (error) {
-      console.error('ProfileActivityBar Session Fetch Error:', error);
+      // Silent
     }
   }, [student]);
 

@@ -141,10 +141,11 @@ export default function AcademicTab() {
         try {
           const assignmentIds = subjects.map(s => s.assignment_id).join(',');
           const ar = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds}`);
+          if (ar.status === 401 || ar.status === 403) return;
           const jr = await ar.json();
           if (ar.ok) setActiveSessions(jr.data || []);
         } catch (e) {
-          console.error('Failed to fetch active sessions');
+          // Silent
         }
       } else {
         setActiveSessions([]);
