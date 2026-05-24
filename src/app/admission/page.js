@@ -45,6 +45,70 @@ const AdmissionPage = () => {
     const [submitted, setSubmitted] = useState(false);
     const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
 
+    // Persistence: Detect saved draft on mount
+    useEffect(() => {
+        const savedDraft = localStorage.getItem('admission_form_draft');
+        if (savedDraft) {
+            try {
+                const { form: savedForm, admissionYear: savedYear } = JSON.parse(savedDraft);
+                // Only prompt if the current form is essentially empty (to avoid annoying active users)
+                if (!form.name && savedForm.name) {
+                    toast((t) => (
+                        <div className="flex flex-col gap-2 p-1">
+                            <p className="text-sm font-bold text-indigo-900">Restore Unsaved Progress?</p>
+                            <p className="text-xs text-gray-600">We found an incomplete application from your previous session.</p>
+                            <div className="flex items-center gap-3 mt-1">
+                                <button 
+                                    onClick={() => {
+                                        setForm(savedForm);
+                                        if (savedYear) setAdmissionYear(savedYear);
+                                        toast.dismiss(t.id);
+                                        toast.success('Progress restored successfully!');
+                                    }}
+                                    className="bg-indigo-600 text-white px-4 py-1.5 rounded text-xs font-black uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-colors"
+                                >
+                                    Restore
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        localStorage.removeItem('admission_form_draft');
+                                        toast.dismiss(t.id);
+                                    }}
+                                    className="text-gray-400 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest transition-colors"
+                                >
+                                    Discard Draft
+                                </button>
+                            </div>
+                        </div>
+                    ), { 
+                        duration: 15000, 
+                        position: 'top-center',
+                        style: {
+                            border: '2px solid #e0e7ff',
+                            padding: '12px',
+                            color: '#1e1b4b',
+                            maxWidth: '350px'
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to parse saved draft", e);
+            }
+        }
+    }, []);
+
+    // Persistence: Debounced save to localStorage
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            // Only save if there's significant data and form isn't submitted
+            const hasData = form.name || form.father_name || form.student_mobile || form.email;
+            if (!submitted && hasData) {
+                localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear }));
+            }
+        }, 1500);
+        return () => clearTimeout(timeoutId);
+    }, [form, admissionYear, submitted]);
+
     useEffect(() => {
         const id = setTimeout(() => {
             const year = getEffectiveAcademicYear();
@@ -109,6 +173,7 @@ const AdmissionPage = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Submission failed.');
             toast.success('Application Submitted Successfully!', { id: toastId });
+            localStorage.removeItem('admission_form_draft');
             setSubmitted(true);
             smoothScrollToTop({ behavior: 'smooth' });
         } catch (error) {
@@ -203,100 +268,6 @@ const AdmissionPage = () => {
                                     <option value="ECET">ECET</option>
                                 </select>
                                 <select required value={form.branch} onChange={e => setForm({...form, branch: e.target.value})} className={inputClasses} aria-label="Branch">
-                                    {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name}</option>)}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="exam-rank" className={labelClasses}>5. ECET / EAMCET Rank Details <span className="text-red-500">*</span></label>
-                            <input id="exam-rank" required type="number" min="1" max="200000" value={form.exam_rank} onChange={e => setForm({...form, exam_rank: e.target.value})} className={inputClasses} placeholder="ENTRANCE RANK" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="area-status" className={labelClasses}>6. Area</label>
-                            <select id="area-status" value={form.area_status} onChange={e => setForm({...form, area_status: e.target.value})} className={inputClasses}>
-                                <option value="Local">Local</option>
-                                <option value="Non Local">Non Local</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="category" className={labelClasses}>7. Category <span className="text-red-500">*</span></label>
-                            <select id="category" required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={inputClasses}>
-                                {COLLEGE_CONFIG.categories.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="sub-caste" className={labelClasses}>8. Sub Caste <span className="text-red-500">*</span></label>
-                            <input id="sub-caste" required maxLength="50" value={form.sub_caste} onChange={e => setForm({...form, sub_caste: e.target.value.toUpperCase()})} className={inputClasses} placeholder="SUB CASTE" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="seat-allotted" className={labelClasses}>9. Seat Allotted Category <span className="text-red-500">*</span></label>
-                            <input id="seat-allotted" required maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="dob" className={labelClasses}>10. Date of Birth <span className="text-red-500">*</span></label>
-                            <input id="dob" required type="date" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} className={inputClasses} />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="gender" className={labelClasses}>11. Gender <span className="text-red-500">*</span></label>
-                            <select id="gender" required value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className={inputClasses}>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="nationality" className={labelClasses}>12. Nationality <span className="text-red-500">*</span></label>
-                            <input id="nationality" required maxLength="30" value={form.nationality} onChange={e => setForm({...form, nationality: e.target.value.toUpperCase()})} className={inputClasses} />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="religion" className={labelClasses}>13. Religion <span className="text-red-500">*</span></label>
-                            <input id="religion" required maxLength="30" value={form.religion} onChange={e => setForm({...form, religion: e.target.value.toUpperCase()})} className={inputClasses} placeholder="RELIGION" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="mother-tongue" className={labelClasses}>14. Mother Tongue <span className="text-red-500">*</span></label>
-                            <input id="mother-tongue" required maxLength="30" value={form.mother_tongue} onChange={e => setForm({...form, mother_tongue: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER TONGUE" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="blood-group" className={labelClasses}>15. Blood Group</label>
-                            <select id="blood-group" value={form.blood_group} onChange={e => setForm({...form, blood_group: e.target.value})} className={inputClasses}>
-                                <option value="">Select Blood Group</option>
-                                {COLLEGE_CONFIG.bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="ssc-marks" className={labelClasses}>16. SSC / 10th Marks <span className="text-red-500">*</span></label>
-                            <input id="ssc-marks" required type="number" min="0" value={form.ssc_marks} onChange={e => setForm({...form, ssc_marks: e.target.value})} className={inputClasses} placeholder="TOTAL MARKS / CGPA" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="father-name" className={labelClasses}>2. Father&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
-                            <input id="father-name" required maxLength="50" value={form.father_name} onChange={e => setForm({...form, father_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="FATHER&apos;S FULL NAME" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label htmlFor="mother-name" className={labelClasses}>3. Mother&apos;s Name (as per memo) <span className="text-red-500">*</span></label>
-                            <input id="mother-name" required maxLength="50" value={form.mother_name} onChange={e => setForm({...form, mother_name: e.target.value.toUpperCase()})} className={inputClasses} placeholder="MOTHER&apos;S FULL NAME" />
-                        </div>
-
-                        <div className="space-y-1">
-                            <label id="exam-branch-label" className={labelClasses}>4. Entrance Exam & Branch <span className="text-red-500">*</span></label>
-                            <div className="grid grid-cols-2 gap-2">
-                                <select required value={form.entrance_exam} onChange={e => setForm({...form, entrance_exam: e.target.value})} className={inputClasses} aria-labelledby="exam-branch-label">
-                                    <option value="EAMCET">EAMCET</option>
-                                    <option value="ECET">ECET</option>
-                                </select>
-                                <select required value={form.branch} onChange={e => setForm({...form, branch: e.target.value})} className={inputClasses} aria-labelledby="exam-branch-label">
                                     {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name}</option>)}
                                 </select>
                             </div>

@@ -161,6 +161,12 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### May 2026
 
+#### **Session 126: Admission Form Resilience & Logic Cleanup (May 24, 2026)**
+- **Draft Persistence (Ghost-Saving):** Implemented a "Resurrection" feature for the institutional admission form using `localStorage`. Progress is automatically saved every 1.5 seconds, allowing students to restore their application data in case of session timeouts or accidental browser closures.
+- **Intelligent Restoration UX:** Integrated a professional toast-based prompt that detects unsaved drafts on mount and offers a one-click "Restore" or "Discard" workflow.
+- **Registry & UI Hardening:** Performed a surgical cleanup of the `AdmissionPage` component, identifying and removing a massive block of redundant duplicate JSX fields (Fields 2-16) that was causing DOM ID collisions and bloating the registry interface.
+- **Submission Integrity:** Ensured that local drafts are only purged upon successful server-side submission, maintaining a safety net throughout the entire admission pipeline.
+
 #### **Session 125: GitHub Actions CI Fix (May 24, 2026)**
 - **CI/CD Reliability:** Resolved a "Bad credentials" error in `actions/setup-node@v4` during manifest resolution by migrating from the dynamic `lts/*` alias to a hardcoded `node-version: '20'`. This bypasses GitHub API rate limits and token validation issues for Node.js setup across CI and Playwright workflows.
 
