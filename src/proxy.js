@@ -36,26 +36,35 @@ async function handleUnauthorized(request) {
  */
 async function attemptSilentRefresh(userType, request) {
   try {
-    const baseUrl = request.nextUrl.origin;
+    const isDev = process.env.NODE_ENV === 'development';
     const cookieHeader = request.headers.get('cookie');
+
+    // FIX: In production (Render/Vercel), fetching the public HTTPS URL from within the server
+    // often fails with SSL errors (ERR_SSL_PACKET_LENGTH_TOO_LONG) because internal routing 
+    // hits the HTTP port while expecting HTTPS. We use the local address for loopback.
+    const baseUrl = isDev 
+      ? request.nextUrl.origin 
+      : `http://127.0.0.1:${process.env.PORT || 10000}`;
 
     const res = await fetch(`${baseUrl}/api/auth/refresh`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Cookie': cookieHeader || '' 
+        'Cookie': cookieHeader || '',
+        'Host': request.nextUrl.host // Maintain host header for routing integrity
       },
       body: JSON.stringify({ type: userType }),
     });
 
     if (res.ok) {
-      // The refresh API sets cookies on its response. 
-      // We need to extract them and pass them back to our proxy response.
       return res;
     }
     return null;
   } catch (err) {
-    console.error(`[EdgeRefreshError][${userType}]`, err);
+    // Only log real errors, suppress expected transient ones
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[EdgeRefreshError][${userType}]`, err);
+    }
     return null;
   }
 }
