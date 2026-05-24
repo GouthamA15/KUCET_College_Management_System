@@ -32,7 +32,7 @@ export async function POST(req) {
       fee_reimbursement, pfp, signature
     } = studentData;
 
-    const providedRoll = roll_no || studentData.rollno || null;
+    const providedRoll = String(roll_no || studentData.rollno || '').trim().toUpperCase();
     if (!providedRoll) return apiError('Roll number is required', 400);
 
     const { isValid } = validateRollNo(providedRoll);
@@ -52,6 +52,10 @@ export async function POST(req) {
       return apiError('Invalid fee_reimbursement value', 400);
     }
 
+    // Normalization
+    const normalizedMobile = mobile ? String(mobile).replace(/\D/g, '') : null;
+    const normalizedGuardianMobile = guardian_mobile ? String(guardian_mobile).replace(/\D/g, '') : null;
+
     const result = await db.transaction(async (tx) => {
       const existing = await tx.select({ id: studentsTable.id })
         .from(studentsTable)
@@ -66,8 +70,8 @@ export async function POST(req) {
         name: name || null,
         date_of_birth: toMySQLDate(date_of_birth) ? new Date(toMySQLDate(date_of_birth)) : null,
         gender: gender || null,
-        mobile: mobile ? encrypt(mobile) : null,
-        mobile_hash: mobile ? hashForIndex(mobile) : null,
+        mobile: normalizedMobile ? encrypt(normalizedMobile) : null,
+        mobile_hash: normalizedMobile ? hashForIndex(normalizedMobile) : null,
         email: email || null,
         added_by_clerk_id: clerkId,
         fee_reimbursement: feeReimbursementToSave === 'YES' ? 'YES' : 'NO'
@@ -90,7 +94,7 @@ export async function POST(req) {
         place_of_birth: place_of_birth || null,
         father_occupation: father_occupation || null,
         annual_income: annual_income == null ? null : String(annual_income).trim() || null,
-        guardian_mobile: guardian_mobile ? encrypt(guardian_mobile) : null,
+        guardian_mobile: normalizedGuardianMobile ? encrypt(normalizedGuardianMobile) : null,
         aadhaar_no: aadhaarToSave ? encrypt(aadhaarToSave) : null,
         aadhaar_hash: aadhaarToSave ? hashForIndex(aadhaarToSave) : null,
         address: address || null,

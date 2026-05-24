@@ -8,8 +8,7 @@ import { COLLEGE_CONFIG } from '@/lib/college-config';
  */
 export const studentCreateSchema = z.object({
   roll_no: z.string()
-    .trim()
-    .toUpperCase()
+    .transform((val) => val.trim().toUpperCase())
     .refine((val) => validateRollNo(val).isValid, {
       message: "Invalid KUCET roll number format (e.g., 22567T0901 or 225670901L)",
     }),
@@ -25,13 +24,11 @@ export const studentCreateSchema = z.object({
     .optional()
     .or(z.literal('')),
   mobile: z.string()
-    .trim()
-    .length(10, "Mobile number must be exactly 10 digits")
-    .regex(/^\d+$/, "Mobile number must contain only digits"),
+    .transform((val) => val.replace(/\D/g, ''))
+    .refine((val) => val.length === 10, "Mobile number must be exactly 10 digits"),
   aadhaar_no: z.string()
-    .trim()
-    .length(12, "Aadhaar number must be exactly 12 digits")
-    .regex(/^\d+$/, "Aadhaar number must contain only digits")
+    .transform((val) => val.replace(/\D/g, ''))
+    .refine((val) => val.length === 0 || val.length === 12, "Aadhaar number must be exactly 12 digits")
     .optional()
     .or(z.literal('')),
   admission_no: z.string()

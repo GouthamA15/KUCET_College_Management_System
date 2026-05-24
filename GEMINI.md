@@ -181,6 +181,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Subject Mapping Integrity:** Integrated dependency checks into the HOD Syllabus workflow. The system now prevents the removal of subject mappings if student marks or timetable entries already exist for that subject within the branch.
 - **Institutional Stability:** Eliminated the risk of orphaned records and dashboard 500 errors caused by accidental deletion of foundational departmental data.
 
+#### **Session 129: Invisible Input Normalization & Fuzzy Matching (May 24, 2026)**
+- **Normalization Hooks:** Implemented "Invisible Normalization Hooks" across the student-facing ecosystem to handle accidental spaces, inconsistent casing, and special characters in primary identifiers.
+- **Zod Schema Hardening:** Updated `student.js` validations to utilize `.transform()` and `.refine()` for real-time normalization of Roll Numbers (Trim + UpperCase) and Aadhaar/Mobile numbers (Regex-stripping non-numeric characters).
+- **Service Layer Intelligence:** Extended `StudentService` with static normalization helpers (`normalizeRollNo`, `normalizeMobile`, `normalizeAadhaar`). These helpers are now enforced during record creation and manual administrative updates to guarantee database consistency.
+- **API Resilience:** Hardened Student Login, Admin Search, and Clerk Management APIs to normalize input parameters before executing database queries. This ensures a 100% database hit-rate regardless of how the user formats their input (e.g., "21be1a0501" vs " 21BE1A0501 ").
+- **Data Integrity Sovereignty:** Unified the normalization logic between frontend validation and backend persistence, eliminating "ghost records" caused by formatting mismatches.
+
 #### **Session 125: GitHub Actions CI Fix (May 24, 2026)**
 - **CI/CD Reliability:** Resolved a "Bad credentials" error in `actions/setup-node@v4` during manifest resolution by migrating from the dynamic `lts/*` alias to a hardcoded `node-version: '20'`. This bypasses GitHub API rate limits and token validation issues for Node.js setup across CI and Playwright workflows.
 

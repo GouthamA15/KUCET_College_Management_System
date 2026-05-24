@@ -16,10 +16,13 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { rollno, dob, rememberMe } = body;
+    let { rollno, dob, rememberMe } = body;
     if (!rollno || !dob) {
       return apiError('Missing rollno or dob', 400);
     }
+
+    // Invisible Normalization Hook
+    rollno = String(rollno).trim().toUpperCase();
     
     const rows = await db.select({
       id: students.id,
