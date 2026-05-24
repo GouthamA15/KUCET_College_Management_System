@@ -40,9 +40,10 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false)
  */
 export async function issueStudentAuthCookie(response, student, rememberMe = false) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  // Access token: 15 minutes. Refresh token: 7-30 days
+  // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
-  const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
+  const durationDays = rememberMe ? 30 : 14;
+  const cookieMaxAge = durationDays * 24 * 60 * 60;
 
   const token = await new SignJWT({
     student_id: student.id || student.student_id,
@@ -65,7 +66,7 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
     path: '/',
   });
 
-  // Set companion cookies for UI
+  // Set companion cookies for UI (Must match refresh token duration)
   response.cookies.set('student_logged_in', 'true', {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
@@ -85,9 +86,10 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
  */
 export async function issueClerkAuthCookie(response, clerk, rememberMe = false) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  // Access token: 15 minutes. Refresh token: 7-30 days
+  // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
-  const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
+  const durationDays = rememberMe ? 30 : 14;
+  const cookieMaxAge = durationDays * 24 * 60 * 60;
 
   const token = await new SignJWT({
     id: clerk.id,
@@ -137,9 +139,10 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false) 
  */
 export async function issueAdminAuthCookie(response, admin, rememberMe = false) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  // Access token: 15 minutes. Refresh token: 7-30 days
+  // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
-  const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
+  const durationDays = rememberMe ? 30 : 14;
+  const cookieMaxAge = durationDays * 24 * 60 * 60;
 
   const token = await new SignJWT({
     id: admin.id,
@@ -155,6 +158,15 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false) 
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
+    maxAge: cookieMaxAge,
+    path: '/',
+  });
+
+  // Companion cookie
+  response.cookies.set('admin_logged_in', 'true', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
     maxAge: cookieMaxAge,
     path: '/',
   });

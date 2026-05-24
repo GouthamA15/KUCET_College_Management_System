@@ -17,7 +17,7 @@
     "db:studio": "drizzle-kit studio",
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "prepare": "if [ \"$NODE_ENV\" != \"production\" ]; then husky; fi"
+    "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') { try { require('child_process').execSync('husky', {stdio: 'inherit'}) } catch (e) {} }\""
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
