@@ -23,7 +23,7 @@ export default function StudentLayout({ children }) {
           <Sidebar role="student" isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen} />
 
           {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-h-0 relative lg:pt-(--site-header-height,72px) lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
+          <div className="flex-1 flex flex-col min-h-0 relative lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
 
             {/* Institutional Mobile Header (non-sticky) */}
             <HeaderMobileView />
@@ -37,16 +37,19 @@ export default function StudentLayout({ children }) {
               <div className="hidden lg:block">
                 <Header />
               </div>
-              
-              {/* Activity Bar */}
-              <div className="px-4 lg:px-8 mt-4">
-                <StudentActivityBar />
-              </div>
 
-              {/* Page Content */}
-              <main className="flex-1 p-4 lg:p-8 pt-2">
-                {children}
-              </main>
+              {/* Content stack (single, consistent top spacing below header/topbar) */}
+              <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,100px) ">
+                {/* Activity Bar */}
+                <div className="px-4 lg:px-8">
+                  <StudentActivityBar />
+                </div>
+
+                {/* Page Content */}
+                <main className="flex-1 p-4 lg:p-8 pt-0">
+                  {children}
+                </main>
+              </div>
             </div>
           </div>
 

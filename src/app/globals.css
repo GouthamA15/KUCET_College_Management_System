@@ -28,6 +28,28 @@
   --card-border: #e2e8f0;
   --table-header-bg: #f8fafc;
   --accent-blue: #0b3578;
+
+  /* Global vertical rhythm: consistent breathing space below header/topbar */
+  --app-content-top-gap: 20px; /* mobile: 16–24px target (using 20px) */
+  --app-fixed-header-offset: calc(var(--site-header-height, 72px) + var(--app-content-top-gap));
+}
+
+@media (min-width: 640px) {
+  :root {
+    --app-content-top-gap: 24px;
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --app-content-top-gap: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --app-content-top-gap: 10px;
+  }
 }
 
 body {

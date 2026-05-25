@@ -405,6 +405,8 @@ export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
   proceeding_no: varchar('proceeding_no', { length: 255 }),
   sanctioned_amount: decimal('sanctioned_amount', { precision: 10, scale: 2 }),
   sanction_date: date('sanction_date'),
+  released_amount: decimal('released_amount', { precision: 10, scale: 2 }),
+  released_date: date('released_date'),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
   thumb_update_available: boolean('thumb_update_available').default(false),

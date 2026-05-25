@@ -39,11 +39,13 @@ export default function AdminLayout({ children }) {
             <div className="hidden lg:block">
               <Header />
             </div>
-            
-            {/* Page Content */}
-            <main className="flex-1 p-4 lg:p-8 pt-6">
-              {children}
-            </main>
+
+            {/* Page Content (single, consistent top spacing below header/topbar) */}
+            <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,112px)">
+              <main className="flex-1 p-4 lg:p-8 pt-0">
+                {children}
+              </main>
+            </div>
           </div>
         </div>
 

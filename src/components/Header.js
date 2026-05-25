@@ -1,10 +1,49 @@
 "use client";
+import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { useAssets } from '@/context/AssetContext';
 
 export default function Header({ fixed = true }) {
   const { getAsset } = useAssets();
+  const headerRef = useRef(null);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+
+    const root = document.documentElement;
+
+    const updateHeight = () => {
+      try {
+        const h = Math.ceil(el.getBoundingClientRect().height);
+        if (h > 0) {
+          root.style.setProperty('--site-header-height', `${h}px`);
+        } else {
+          root.style.removeProperty('--site-header-height');
+        }
+      } catch (e) {
+        // noop
+      }
+    };
+
+    updateHeight();
+
+    let ro;
+    try {
+      ro = new ResizeObserver(updateHeight);
+      ro.observe(el);
+    } catch (e) {
+      // ResizeObserver not available (older browsers) — rely on resize fallback.
+    }
+
+    window.addEventListener('resize', updateHeight);
+
+    return () => {
+      try { ro?.disconnect(); } catch (e) {}
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, []);
 
   const handlePhoneClick = () => {
     navigator.clipboard.writeText(COLLEGE_CONFIG.contact);
@@ -14,7 +53,7 @@ export default function Header({ fixed = true }) {
   const positionClass = fixed ? 'fixed top-0 left-0 right-0 z-40' : 'relative z-20';
 
   return (
-    <header className={`hidden md:block ${positionClass} bg-gradient-to-r from-blue-50 to-white py-4 px-4 md:px-6 w-full pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4 border-b border-slate-200 transition-colors duration-200`}>
+    <header ref={headerRef} className={`hidden md:block ${positionClass} bg-gradient-to-r from-blue-50 to-white py-4 px-4 md:px-6 w-full pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4 border-b border-slate-200 transition-colors duration-200`}>
       <div className="flex items-center justify-between h-full">
 
         {/* Left Section with Logos */}
