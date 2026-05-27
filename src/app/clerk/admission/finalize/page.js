@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, Suspense } from "react";
 import toast from "react-hot-toast";
 import { useRouter } from 'next/navigation';
 import { COLLEGE_CONFIG } from "@/lib/college-config";
-import { validateRollNo } from "@/lib/rollNumber";
+import { validateRollNo, getIntakeYear } from "@/lib/rollNumber";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { AdmissionModal } from "@/components/clerk/requests/AdmissionModal";
 
@@ -13,6 +13,7 @@ function FinalizeAdmissionContent() {
     const [loading, setLoading] = useState(false);
     const [selectedBranch, setSelectedBranch] = useState('CSE');
     const [selectedExam, setSelectedExam] = useState('EAMCET');
+    const [joiningYear, setJoiningYear] = useState(getIntakeYear());
     const [rollNumbers, setRollNumbers] = useState({});
     const [finalizingId, setFinalizingId] = useState(null);
     const [generating, setGenerating] = useState(false);
@@ -160,20 +161,20 @@ function FinalizeAdmissionContent() {
 
     const handleGenerateRollNumbers = async () => {
         if (drafts.length === 0) return;
-        const first = drafts[0];
-        const admissionYearPattern = /^\d{4}(-\d{2,4})?$/;
-        if (!admissionYearPattern.test(first.admission_year)) {
-          toast.error('Invalid admission year format');
+        
+        let targetYear = parseInt(joiningYear, 10);
+        if (!Number.isInteger(targetYear) || targetYear < 2000 || targetYear > 2100) {
+          toast.error('Please specify a valid joining year (e.g. 2026)');
           return;
         }
-        const startYearRaw = String(first.admission_year || '').split('-')[0];
-        let joiningYear = parseInt(startYearRaw, 10);
-        if (!Number.isInteger(joiningYear) || joiningYear <= 0) {
-          toast.error('Could not determine joining year from admission batch');
-          return;
-        }
-        if (selectedExam === 'ECET') joiningYear += 1;
 
+        // For Lateral Entry (ECET), the roll number prefix usually corresponds to 
+        // the year they join college (which is 1 year after the regular batch start)
+        // However, the API expects the "joiningYear" which is then used as prefix.
+        // If we want prefix 26 for ECET, we send 2026.
+        // If the regulars of this batch joined in 2025 (prefix 25), then laterals joining in 2026 (prefix 26) 
+        // are part of the same "2025-2029" batch.
+        
         setGenerating(true);
         const toastId = toast.loading('Generating roll numbers...');
         try {
@@ -183,7 +184,7 @@ function FinalizeAdmissionContent() {
                 body: JSON.stringify({
                     branch: selectedBranch,
                     examType: selectedExam,
-                    joiningYear,
+                    joiningYear: targetYear,
                     count: drafts.length,
                 }),
             });
@@ -260,6 +261,16 @@ function FinalizeAdmissionContent() {
                       >
                           {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name.toUpperCase()}</option>)}
                       </select>
+                    </div>
+                    <div className="flex-1 sm:w-32">
+                      <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Entry Year</label>
+                      <input 
+                          type="number"
+                          value={joiningYear} 
+                          onChange={e => setJoiningYear(e.target.value)} 
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-black text-[#0b3578] uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-sm transition-all"
+                          placeholder="e.g. 2026"
+                      />
                     </div>
                     <div className="flex-1 sm:w-56 sm:self-end">
                         <button

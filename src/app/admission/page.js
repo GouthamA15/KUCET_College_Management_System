@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import { getEffectiveAcademicYear } from '@/lib/rollNumber';
+import { getIntakeYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
 import { formatIndianNumber } from '@/lib/financial-utils';
@@ -111,7 +111,7 @@ const AdmissionPage = () => {
 
     useEffect(() => {
         const id = setTimeout(() => {
-            const year = getEffectiveAcademicYear();
+            const year = getIntakeYear();
             if (form.entrance_exam === 'EAMCET') {
                 setAdmissionYear(`${year}-${year + 4}`);
             } else if (form.entrance_exam === 'ECET') {
