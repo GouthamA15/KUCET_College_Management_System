@@ -569,9 +569,6 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Verified and maintained institutional-grade encryption (AES-256-GCM) and blind indexing (HMAC-SHA256) for all sensitive modifications (Mobile, Aadhaar), ensuring data privacy remains intact during administrative record updates.
 
 #### **Session 115: Departmental Intelligence & ID Card Workflow (May 19, 2026)**
-- **ID Card Reissue Workflow:**
-    - Implemented a complete end-to-end workflow for student ID card reissues. Students can now request reissues via their dashboard with payment proof (150/- fee).
-    - Developed the clerk-facing approval interface, enabling Admission Clerks to verify payments and approve reissue requests.
 - **Departmental Overview & Materials:**
     - Developed a comprehensive Departments Overview page for clerks, providing a high-level view of institutional branch configurations.
     - Implemented mock UI for Faculty Academic Materials, establishing the foundation for a centralized repository of departmental resources.

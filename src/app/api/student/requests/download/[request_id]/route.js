@@ -27,7 +27,6 @@ import CourseCompletionCertificatePDF from '@/pdf/templates/CourseCompletionCert
 import IncomeTaxCertificatePDF from '@/pdf/templates/IncomeTaxCertificatePDF';
 import TransferCertificatePDF from '@/pdf/templates/TransferCertificatePDF';
 import NoObjectionCertificatePDF from '@/pdf/templates/NoObjectionCertificatePDF';
-import IDCardPDF from '@/pdf/templates/IDCardPDF';
 
 const certificateComponents = {
     'Bonafide Certificate': BonafideCertificatePDF,
@@ -38,7 +37,6 @@ const certificateComponents = {
     'Income Tax (IT) Certificate': IncomeTaxCertificatePDF,
     'Transfer Certificate (TC)': TransferCertificatePDF,
     'No Objection Certificate': NoObjectionCertificatePDF,
-    'ID Card Reissue': IDCardPDF,
 };
 
 export async function GET(request, context) {
@@ -227,15 +225,6 @@ export async function GET(request, context) {
                 data.purpose = certRequest.purpose || '';
                 data.fromDate = formatDate(certRequest.from_date);
                 data.toDate = formatDate(certRequest.to_date);
-                break;
-            case 'ID Card Reissue':
-                const imgData = await db.query.studentImages.findFirst({
-                    where: eq(studentImages.student_id, auth.student_id)
-                });
-                data.pfpUrl = imgData?.pfp ? await getBase64Image(imgData.pfp) : null;
-                data.logoUrl = collegeLogoUrl;
-                data.address = address;
-                data.mobile = mobile;
                 break;
         }
 
