@@ -33,7 +33,7 @@ export default function StudentFinancesPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-2 animate-fadeIn font-sans antialiased text-slate-900">
       <header className="border-b border-slate-200 pb-6">
-        <h1 className="text-3xl font-extrabold tracking-tight text-[#0b3578]">Finances</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#0b3578]">Fee Details</h1>
         <p className="text-sm font-medium text-slate-500 mt-1">Official fee payment history and scholarship records.</p>
       </header>
 
