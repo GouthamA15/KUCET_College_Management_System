@@ -273,6 +273,7 @@ export {
   getCurrentAcademicYear,
   getResolvedCurrentAcademicYear,
   getEffectiveAcademicYear,
+  getIntakeYear,
   getEntranceExamQualified,
   getBatchFromRoll,
   getCurrentSemester,
