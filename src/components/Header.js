@@ -8,6 +8,46 @@ import { useSystemConfig } from '@/context/SystemConfigContext';
 export default function Header({ fixed = true }) {
   const { getAsset } = useAssets();
   const { config } = useSystemConfig();
+  const headerRef = useRef(null);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+
+    const root = document.documentElement;
+
+    const updateHeight = () => {
+      try {
+        const h = Math.ceil(el.getBoundingClientRect().height);
+        if (h > 0) {
+          root.style.setProperty('--site-header-height', `${h}px`);
+          root.style.setProperty('--app-fixed-header-offset', `${h}px`);
+        } else {
+          root.style.removeProperty('--site-header-height');
+          root.style.removeProperty('--app-fixed-header-offset');
+        }
+      } catch (e) {
+        // noop
+      }
+    };
+
+    updateHeight();
+
+    let ro;
+    try {
+      ro = new ResizeObserver(updateHeight);
+      ro.observe(el);
+    } catch (e) {
+      // ResizeObserver not available (older browsers) — rely on resize fallback.
+    }
+
+    window.addEventListener('resize', updateHeight);
+
+    return () => {
+      try { ro?.disconnect(); } catch (e) {}
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, []);
 
   const handlePhoneClick = () => {
     navigator.clipboard.writeText(config.contact);

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getIntakeYear } from '@/lib/rollNumber';
@@ -45,6 +45,8 @@ const AdmissionPage = () => {
     const [submitted, setSubmitted] = useState(false);
     const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
 
+    const initialNameRef = useRef(form.name);
+
     // Persistence: Detect saved draft on mount
     useEffect(() => {
         const savedDraft = localStorage.getItem('admission_form_draft');
@@ -52,7 +54,7 @@ const AdmissionPage = () => {
             try {
                 const { form: savedForm, admissionYear: savedYear } = JSON.parse(savedDraft);
                 // Only prompt if the current form is essentially empty (to avoid annoying active users)
-                if (!form.name && savedForm.name) {
+                if (!initialNameRef.current && savedForm?.name) {
                     toast((t) => (
                         <div className="flex flex-col gap-2 p-1">
                             <p className="text-sm font-bold text-indigo-900">Restore Unsaved Progress?</p>
