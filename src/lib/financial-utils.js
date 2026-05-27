@@ -12,14 +12,66 @@ export function getYearlyTotalFee(course) {
 }
 
 /**
+ * Calculates the expected scholarship amount from the government based on TS ePASS rules (including GO Rt No. 63).
+ * @param {Object} student - Student details (requires fee_reimbursement, category, religion, ranks, seat_allotted_category)
+ * @param {number} totalFee - The yearly total fee for the student's branch (e.g., 70000)
+ * @returns {number} - The expected government scholarship amount (e.g., 35000 or 70000)
+ */
+export function getExpectedScholarship(student, totalFee) {
+  // 1. Mandatory Eligibility Check
+  if (student?.fee_reimbursement !== 'YES') return 0;
+  
+  // 2. Quota Check (Convener vs Management)
+  // Only Convener Quota (Category-A) is eligible. 
+  // Management (MQ/Category-B) or Spot admissions are NOT eligible for reimbursement.
+  const seatCategory = String(student?.seat_allotted_category || '').toUpperCase();
+  const isManagementOrSpot = seatCategory.includes('MQ') || seatCategory.includes('SPOT') || seatCategory.includes('MANAGEMENT') || seatCategory.includes('CAT-B');
+  
+  if (isManagementOrSpot) return 0;
+
+  // 3. Base Rule: If the branch fee is already at or below the base cap (35k), it's fully covered.
+  if (totalFee <= 35000) return totalFee;
+
+  const category = String(student?.category || student?.caste || '').toUpperCase();
+  const religion = String(student?.religion || '').toUpperCase();
+  
+  // 4. Rule for SC/ST/Minority (GO Rt No. 63)
+  // These categories get FULL fee reimbursement (RTF) regardless of their EAMCET/ECET rank.
+  if (['SC', 'ST'].includes(category)) return totalFee;
+  
+  const minorityReligions = ['MUSLIM', 'CHRISTIAN', 'SIKH', 'BUDDHIST', 'JAIN', 'PARSI'];
+  if (minorityReligions.includes(religion) || category === 'MINORITY') {
+    return totalFee;
+  }
+  
+  // 5. Government Junior College Exception
+  // BC/EBC/OC-EWS students who studied in Govt Junior Colleges usually get full reimbursement.
+  const prevCollege = String(student?.previous_college_details || '').toUpperCase();
+  const isGovtCollege = prevCollege.includes('GOVT') || prevCollege.includes('GOVERNMENT');
+  if (isGovtCollege) return totalFee;
+
+  // 6. Standard BC/EBC/OC-EWS Rank Condition
+  // Rank <= 10,000 = Full Fee Reimbursement
+  // Rank > 10,000 = Partial reimbursement capped at ₹35,000
+  const rank = Number(student?.ranks || student?.exam_rank || 999999);
+  if (rank > 0 && rank <= 10000) return totalFee;
+  
+  return 35000;
+}
+
+/**
  * Calculates financial summary for a student's academic year
  * @param {Object} data - Contains scholarship sanctions and fee payments
  * @param {string} course - Student's branch
- * @param {string} feeReimbursement - 'YES' or 'NO'
+ * @param {Object} student - Student personal details (for expected scholarship calculation)
  * @returns {Object} - Fee summary
  */
-export function calculateFinancialSummary(data, course, feeReimbursement) {
+export function calculateFinancialSummary(data, course, student = {}) {
   const total_fee = getYearlyTotalFee(course);
+  
+  // Check expected scholarship
+  const expected_govt = getExpectedScholarship(student, total_fee);
+  const expected_student_liability = Math.max(0, total_fee - expected_govt);
   
   const scholarship_proceedings = (data.scholarship || []).map(r => ({
     amount: Number(r.sanctioned_amount || r.amount_sanctioned) || 0,
@@ -36,14 +88,16 @@ export function calculateFinancialSummary(data, course, feeReimbursement) {
   const status = pending_fee === 0 ? 'COMPLETED' : 'PENDING';
 
   return {
-  total_fee,
-  govt_paid,
-  student_paid,
-  total_paid,
-  pending_fee,
-  status
+    total_fee,
+    govt_paid,
+    student_paid,
+    total_paid,
+    pending_fee,
+    expected_govt,
+    expected_student_liability,
+    status
   };
-  }
+}
 
   export const formatIndianNumber = (digits) => {
   if (!digits) return '';

@@ -323,7 +323,18 @@ const AdmissionPage = () => {
 
                         <div className="space-y-1">
                             <label htmlFor="religion" className={labelClasses}>13. Religion <span className="text-red-500">*</span></label>
-                            <input id="religion" required maxLength="30" value={form.religion} onChange={e => setForm({...form, religion: e.target.value.toUpperCase()})} className={inputClasses} placeholder="RELIGION" />
+                            <select 
+                                id="religion" 
+                                required 
+                                value={form.religion} 
+                                onChange={e => setForm({...form, religion: e.target.value.toUpperCase()})} 
+                                className={inputClasses}
+                            >
+                                <option value="">SELECT RELIGION</option>
+                                {COLLEGE_CONFIG.religions.map(r => (
+                                    <option key={r} value={r.toUpperCase()}>{r.toUpperCase()}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="space-y-1">

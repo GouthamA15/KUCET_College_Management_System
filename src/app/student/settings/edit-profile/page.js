@@ -478,7 +478,7 @@ export default function EditProfilePage() {
                     { label: 'Father Name', field: 'father_name', maxLength: 50 },
                     { label: 'Mother Name', field: 'mother_name', maxLength: 50 },
                     { label: 'Nationality', field: 'nationality', maxLength: 30 },
-                    { label: 'Religion', field: 'religion', maxLength: 20 },
+                    { label: 'Religion', field: 'religion', type: 'select', options: COLLEGE_CONFIG.religions },
                     { label: 'Category', field: 'category', type: 'select', options: COLLEGE_CONFIG.categories },
                     { label: 'Sub Caste', field: 'sub_caste', maxLength: 50 },
                     { label: 'Area Status', field: 'area_status', type: 'select', options: ['Local', 'Non-Local'] },
