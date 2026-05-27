@@ -166,6 +166,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Standardized Religion Registry:** Introduced a validated institutional religion registry (`COLLEGE_CONFIG.religions`). Transitioned the Religion field from free-text to a dropdown across the Public Admission Form, Clerk Student Management, and Profile Update portals to eliminate data entry errors.
 - **Admission Modal Componentization:** Refactored the heavy `AdmissionModal` from the Requests Center into a shared component (`AdmissionModal.js`). This enables a consistent auditing experience across different administrative workspaces.
 - **Finalization Workspace Hardening:** Enhanced the Admission Finalization page with "View/Edit" and "Issue Rejection" (Delete) capabilities for processed drafts. Clerks can now audit and correct applicant data directly from the roll-number assignment registry, ensuring 100% data integrity before final record creation.
+- **ECET Batch Continuity:** Implemented the institutional roll-number continuity rule for Lateral Entry (ECET). For Laterals joining in Year Y, the system now intelligently continues the serial sequence from Regular (EAMCET) students who joined in Year Y-1, ensuring serial numbers are merged correctly within the same academic batch (e.g., ECET 26...L continues from EAMCET 25...T).
 - **Test Alignment:** Updated Playwright E2E tests to accommodate the transition from text inputs to select dropdowns for religious identification.
 
 #### **Session 131: Production Build Resilience & API Sovereignty (May 24, 2026)**
