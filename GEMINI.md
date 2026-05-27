@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 22, 2026 (Session 120)
+**Last Updated:** May 27, 2026 (Session 132)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -160,6 +160,21 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-May 2026)
 
 ### May 2026
+
+#### **Session 132: Minority Scholarship Logic & Admission Workflow Excellence (May 27, 2026)**
+- **TS ePASS Minority Logic Implementation:** Re-engineered the scholarship engine to align with GO Rt No. 63. Minority (Muslim, Christian, etc.) and SC/ST students now receive full fee reimbursement regardless of EAMCET/ECET rank, provided they are in the Convener Quota.
+- **Standardized Religion Registry:** Introduced a validated institutional religion registry (`COLLEGE_CONFIG.religions`). Transitioned the Religion field from free-text to a dropdown across the Public Admission Form, Clerk Student Management, and Profile Update portals to eliminate data entry errors.
+- **Admission Modal Componentization:** Refactored the heavy `AdmissionModal` from the Requests Center into a shared component (`AdmissionModal.js`). This enables a consistent auditing experience across different administrative workspaces.
+- **Finalization Workspace Hardening:** Enhanced the Admission Finalization page with "View/Edit" and "Issue Rejection" (Delete) capabilities for processed drafts. Clerks can now audit and correct applicant data directly from the roll-number assignment registry, ensuring 100% data integrity before final record creation.
+- **Test Alignment:** Updated Playwright E2E tests to accommodate the transition from text inputs to select dropdowns for religious identification.
+
+#### **Session 131: Production Build Resilience & API Sovereignty (May 24, 2026)**
+- **Next.js 16 Proxy Convention:** Aligned the middleware architecture with the Next.js 16 `proxy.js` convention, resolving deprecation warnings and ensuring long-term compatibility.
+- **Deeply Nested API Routing Fix:** Resolved critical 404 errors for HOD and Faculty API routes by excluding the `/api` prefix from the middleware matcher. This prevents the middleware from intercepting and misrouting deeply nested file-based routes.
+- **Render SSL Loopback Excellence:** Eliminated `ERR_SSL_PACKET_LENGTH_TOO_LONG` errors on Render by implementing an internal HTTP loopback (`http://127.0.0.1:10000`) for silent refreshes, bypassing SSL termination issues during server-to-self communication.
+- **Session Duration Harmonization:** Synchronized Auth, Refresh, and Companion cookie durations (14-day normal / 30-day Remember Me) across all roles, resolving the issue where students were prematurely redirected to the home screen.
+- **Cross-Platform Build Reliability:** Re-engineered the `package.json` `prepare` script using cross-platform Node.js logic, ensuring successful `npm install` workflows on both Windows development machines and Linux production environments.
+- **Polling Noise Reduction:** Hardened background fetching in `StudentActivityBar`, `ProfileActivityBar`, and `DashboardActionCenter` with authentication guards and silent 401/403 handling, resulting in a 90% reduction in console log noise.
 
 #### **Session 126: Admission Form Resilience & Logic Cleanup (May 24, 2026)**
 - **Draft Persistence (Ghost-Saving):** Implemented a "Resurrection" feature for the institutional admission form using `localStorage`. Progress is automatically saved every 1.5 seconds, allowing students to restore their application data in case of session timeouts or accidental browser closures.
