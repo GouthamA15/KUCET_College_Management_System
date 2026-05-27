@@ -3,8 +3,9 @@ import React, { useState, useEffect, useCallback, Suspense } from "react";
 import toast from "react-hot-toast";
 import { useRouter } from 'next/navigation';
 import { COLLEGE_CONFIG } from "@/lib/college-config";
-import { validateRollNo } from "@/lib/rollNumber";
+import { validateRollNo, getIntakeYear } from "@/lib/rollNumber";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { AdmissionModal } from "@/components/clerk/requests/AdmissionModal";
 
 function FinalizeAdmissionContent() {
     const router = useRouter();
@@ -12,29 +13,20 @@ function FinalizeAdmissionContent() {
     const [loading, setLoading] = useState(false);
     const [selectedBranch, setSelectedBranch] = useState('CSE');
     const [selectedExam, setSelectedExam] = useState('EAMCET');
+    const [joiningYear, setJoiningYear] = useState(getIntakeYear());
     const [rollNumbers, setRollNumbers] = useState({});
     const [finalizingId, setFinalizingId] = useState(null);
     const [generating, setGenerating] = useState(false);
 
-    // Derived validation for a specific roll number
-    const getRollValidation = (rollNo, draft) => {
-        if (!rollNo) return { isValid: false };
-        const result = validateRollNo(rollNo);
-        if (!result.isValid) return { isValid: false, error: 'Invalid Format' };
-        
-        // Check if branch matches
-        if (result.branch !== draft.branch) {
-            return { isValid: false, error: `Branch Mismatch (Got ${result.branch})` };
-        }
-
-        // Check if admission type matches exam
-        const expectedType = draft.entrance_exam === 'ECET' ? 'Lateral' : 'Regular';
-        if (result.admissionType !== expectedType) {
-            return { isValid: false, error: `${draft.entrance_exam} must be ${expectedType}` };
-        }
-
-        return { isValid: true };
-    };
+    // Modal & Editing state
+    const [selectedDraftId, setSelectedDraftId] = useState(null);
+    const [detail, setDetail] = useState(null);
+    const [fetchingDetail, setFetchingDetail] = useState(false);
+    const [processing, setProcessing] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editForm, setEditData] = useState({});
+    const [rejectionMode, setRejectionMode] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
 
     const fetchVerifiedDrafts = useCallback(async () => {
         if (!selectedBranch || !selectedExam) return;
@@ -59,6 +51,86 @@ function FinalizeAdmissionContent() {
         return () => clearTimeout(id);
     }, [fetchVerifiedDrafts]);
 
+    const fetchDetail = useCallback(async (id) => {
+        setFetchingDetail(true);
+        setIsEditing(false);
+        setRejectionMode(false);
+        setRejectionReason('');
+        try {
+            const res = await fetch(`/api/clerk/admission/drafts/${id}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to fetch detail.');
+            setDetail(data.data);
+            setEditData(data.data);
+            setSelectedDraftId(id);
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setFetchingDetail(false);
+        }
+    }, []);
+
+    const handleSaveEdit = async () => {
+        setProcessing(true);
+        try {
+            const res = await fetch(`/api/clerk/admission/drafts/${detail.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editForm),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to update application.');
+            }
+            toast.success('Changes Saved Successfully');
+            setDetail({ ...editForm });
+            setIsEditing(false);
+            fetchVerifiedDrafts();
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleReject = async () => {
+        if (!detail) return;
+        if (!rejectionReason.trim()) {
+            toast.error('Please provide a reason for rejection.');
+            return;
+        }
+
+        setProcessing(true);
+        const toastId = toast.loading('Rejecting application...');
+        try {
+            const res = await fetch(`/api/clerk/admission/drafts/${detail.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    status: 'REJECTED', 
+                    rejection_reason: rejectionReason 
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Rejection failed.');
+
+            toast.success('Application Rejected Successfully', { id: toastId });
+            setDetail(null);
+            setSelectedDraftId(null);
+            setRejectionMode(false);
+            setRejectionReason('');
+            fetchVerifiedDrafts();
+        } catch (error) {
+            toast.error(error.message, { id: toastId });
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleFieldChange = useCallback((name, value) => {
+        setEditData(prev => ({ ...prev, [name]: value }));
+    }, []);
+
     const handleRollNumberChange = (draftId, value) => {
         setRollNumbers(prev => ({ ...prev, [draftId]: value.toUpperCase() }));
     };
@@ -79,7 +151,7 @@ function FinalizeAdmissionContent() {
             if (!res.ok) throw new Error(data.error || 'Finalization failed.');
             
             toast.success('Student Admitted Successfully!', { id: toastId });
-            fetchVerifiedDrafts(); // Refresh list
+            fetchVerifiedDrafts();
         } catch (error) {
             toast.error(error.message, { id: toastId });
         } finally {
@@ -89,21 +161,20 @@ function FinalizeAdmissionContent() {
 
     const handleGenerateRollNumbers = async () => {
         if (drafts.length === 0) return;
-
-        const first = drafts[0];
-        const startYearRaw = String(first.admission_year || '').split('-')[0];
-        let joiningYear = parseInt(startYearRaw, 10);
         
-        // Lateral Entry (ECET) students join one year after the batch starts (e.g. Batch 2024 -> Joins 2025)
-        if (selectedExam === 'ECET') {
-            joiningYear += 1;
+        let targetYear = parseInt(joiningYear, 10);
+        if (!Number.isInteger(targetYear) || targetYear < 2000 || targetYear > 2100) {
+          toast.error('Please specify a valid joining year (e.g. 2026)');
+          return;
         }
 
-        if (!Number.isInteger(joiningYear)) {
-            toast.error('Could not determine joining year from admission batch');
-            return;
-        }
-
+        // For Lateral Entry (ECET), the roll number prefix usually corresponds to 
+        // the year they join college (which is 1 year after the regular batch start)
+        // However, the API expects the "joiningYear" which is then used as prefix.
+        // If we want prefix 26 for ECET, we send 2026.
+        // If the regulars of this batch joined in 2025 (prefix 25), then laterals joining in 2026 (prefix 26) 
+        // are part of the same "2025-2029" batch.
+        
         setGenerating(true);
         const toastId = toast.loading('Generating roll numbers...');
         try {
@@ -113,22 +184,16 @@ function FinalizeAdmissionContent() {
                 body: JSON.stringify({
                     branch: selectedBranch,
                     examType: selectedExam,
-                    joiningYear,
+                    joiningYear: targetYear,
                     count: drafts.length,
                 }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to generate roll numbers.');
-
             const list = data.rollNumbers || (data.rollNumber ? [data.rollNumber] : []);
-            if (list.length !== drafts.length) {
-                throw new Error('Roll generation returned unexpected count');
-            }
-
+            if (list.length !== drafts.length) throw new Error('Roll generation returned unexpected count');
             const nextMap = {};
-            drafts.forEach((d, idx) => {
-                nextMap[d.id] = String(list[idx]).toUpperCase();
-            });
+            drafts.forEach((d, idx) => { nextMap[d.id] = String(list[idx]).toUpperCase(); });
             setRollNumbers(nextMap);
             toast.success('Roll numbers generated.', { id: toastId });
         } catch (error) {
@@ -136,6 +201,16 @@ function FinalizeAdmissionContent() {
         } finally {
             setGenerating(false);
         }
+    };
+
+    const getRollValidation = (rollNo, draft) => {
+        if (!rollNo) return { isValid: false };
+        const result = validateRollNo(rollNo);
+        if (!result.isValid) return { isValid: false, error: 'Invalid Format' };
+        if (result.branch !== draft.branch) return { isValid: false, error: `Branch Mismatch (Got ${result.branch})` };
+        const expectedType = draft.entrance_exam === 'ECET' ? 'Lateral' : 'Regular';
+        if (result.admissionType !== expectedType) return { isValid: false, error: `${draft.entrance_exam} must be ${expectedType}` };
+        return { isValid: true };
     };
 
     return (
@@ -187,6 +262,16 @@ function FinalizeAdmissionContent() {
                           {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name.toUpperCase()}</option>)}
                       </select>
                     </div>
+                    <div className="flex-1 sm:w-32">
+                      <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Entry Year</label>
+                      <input 
+                          type="number"
+                          value={joiningYear} 
+                          onChange={e => setJoiningYear(e.target.value)} 
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-black text-[#0b3578] uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-sm transition-all"
+                          placeholder="e.g. 2026"
+                      />
+                    </div>
                     <div className="flex-1 sm:w-56 sm:self-end">
                         <button
                             type="button"
@@ -219,7 +304,6 @@ function FinalizeAdmissionContent() {
                                 <tr>
                                     <th className="px-6 py-5 w-16 border-r border-slate-200">ID</th>
                                     <th className="px-6 py-5 border-r border-slate-200">Applicant Identity</th>
-                                    <th className="px-6 py-5 border-r border-slate-200">Guardian Record</th>
                                     <th className="px-6 py-5 border-r border-slate-200">Merit Rank</th>
                                     <th className="px-6 py-5 w-72 border-r border-slate-200">Institutional Roll Number</th>
                                     <th className="px-6 py-5 text-right uppercase tracking-widest">Operational Actions</th>
@@ -233,8 +317,12 @@ function FinalizeAdmissionContent() {
                                     return (
                                         <tr key={draft.id} className="hover:bg-slate-50 transition-colors group">
                                             <td className="px-6 py-4 text-slate-400 font-bold border-r border-slate-100">{index + 1}</td>
-                                            <td className="px-6 py-4 font-black text-slate-800 uppercase border-r border-slate-100 tracking-tight">{draft.name}</td>
-                                            <td className="px-6 py-4 text-slate-500 font-bold border-r border-slate-100 uppercase text-[10px] tracking-tight">{draft.father_name}</td>
+                                            <td className="px-6 py-4 font-black text-slate-800 uppercase border-r border-slate-100 tracking-tight">
+                                                <div className="flex flex-col">
+                                                    <span>{draft.name}</span>
+                                                    <span className="text-[9px] text-slate-400 font-medium lowercase tracking-normal mt-0.5">{draft.email}</span>
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4 border-r border-slate-100">
                                                 <span className="bg-blue-50 text-[#0b3578] border border-blue-100 px-3 py-1 rounded-sm text-[10px] font-black shadow-sm">
                                                     RANK {draft.exam_rank}
@@ -260,13 +348,22 @@ function FinalizeAdmissionContent() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button 
-                                                    onClick={() => handleFinalize(draft.id)} 
-                                                    disabled={!validation.isValid || finalizingId === draft.id} 
-                                                    className="w-full bg-[#0b3578] text-white px-5 py-2 rounded-sm font-black text-[10px] uppercase tracking-widest hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
-                                                >
-                                                    {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
-                                                </button>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button 
+                                                        onClick={() => fetchDetail(draft.id)}
+                                                        disabled={fetchingDetail}
+                                                        className="px-3 py-2 border-2 border-slate-800 text-slate-800 text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 rounded-sm transition-all"
+                                                    >
+                                                        {selectedDraftId === draft.id && fetchingDetail ? '...' : 'View/Edit'}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleFinalize(draft.id)} 
+                                                        disabled={!validation.isValid || finalizingId === draft.id} 
+                                                        className="px-6 py-2 bg-[#0b3578] text-white rounded-sm font-black text-[10px] uppercase tracking-widest hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
+                                                    >
+                                                        {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -276,6 +373,31 @@ function FinalizeAdmissionContent() {
                     </div>
                 )}
             </div>
+
+            {/* Audit Modal */}
+            {detail && (
+                <AdmissionModal
+                    detail={{ ...detail, ...editForm }}
+                    editForm={editForm}
+                    isEditing={isEditing}
+                    onFieldChange={handleFieldChange}
+                    onToggleEditing={() => {
+                        setIsEditing(prev => {
+                            const next = !prev;
+                            if (!prev && detail) setEditData(detail);
+                            return next;
+                        });
+                    }}
+                    onClose={() => setDetail(null)}
+                    onSave={handleSaveEdit}
+                    onReject={handleReject}
+                    processing={processing}
+                    rejectionMode={rejectionMode}
+                    setRejectionMode={setRejectionMode}
+                    rejectionReason={rejectionReason}
+                    setRejectionReason={setRejectionReason}
+                />
+            )}
         </div>
     );
 }

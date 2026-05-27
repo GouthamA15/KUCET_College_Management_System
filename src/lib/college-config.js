@@ -20,6 +20,7 @@ export const COLLEGE_CONFIG = {
     { code: '03', name: 'MECH' },
   ],
   genders: ['Male', 'Female'],
+  religions: ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Parsi', 'Other'],
   categories: ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'],
   bloodGroups: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Not available'],
   annualIncomes: [

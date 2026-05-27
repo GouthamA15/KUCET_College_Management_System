@@ -14,6 +14,36 @@ import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
  */
 export class StudentService {
   /**
+   * Normalize a roll number for database operations
+   * @param {string} rollNo 
+   * @returns {string}
+   */
+  static normalizeRollNo(rollNo) {
+    if (!rollNo) return '';
+    return String(rollNo).trim().toUpperCase();
+  }
+
+  /**
+   * Normalize a mobile number (numeric only)
+   * @param {string} mobile 
+   * @returns {string}
+   */
+  static normalizeMobile(mobile) {
+    if (!mobile) return '';
+    return String(mobile).replace(/\D/g, '');
+  }
+
+  /**
+   * Normalize an Aadhaar number (numeric only)
+   * @param {string} aadhaar 
+   * @returns {string}
+   */
+  static normalizeAadhaar(aadhaar) {
+    if (!aadhaar) return '';
+    return String(aadhaar).replace(/\D/g, '');
+  }
+
+  /**
    * Fetch students filtered by year and branch
    * @param {string} year Academic year (e.g., '2025-26')
    * @param {string} branch Branch code (e.g., 'CSE')
@@ -102,12 +132,12 @@ export class StudentService {
       like(studentsTable.roll_no, lateralRollPattern)
     ));
 
-    // Decrypt sensitive fields
+    // Decrypt sensitive fields with null-safety checks
     return results.map(row => ({
       ...row,
-      mobile: decrypt(row.mobile),
-      aadhaar_no: decrypt(row.aadhaar_no),
-      guardian_mobile: decrypt(row.guardian_mobile)
+      mobile: row.mobile ? decrypt(row.mobile) : null,
+      aadhaar_no: row.aadhaar_no ? decrypt(row.aadhaar_no) : null,
+      guardian_mobile: row.guardian_mobile ? decrypt(row.guardian_mobile) : null
     }));
   }
 
@@ -118,7 +148,7 @@ export class StudentService {
    * @returns {Promise<number>} ID of the created student
    */
   static async createStudent(data, clerkId) {
-    const {
+    let {
       admission_no, roll_no, name, date_of_birth, gender, mobile, email,
       father_name, mother_name, religion, sub_caste, category, address,
       qualifying_exam, aadhaar_no, annual_income
@@ -128,6 +158,11 @@ export class StudentService {
       throw new Error('Roll number and name are required');
     }
 
+    // Invisible Normalization Hooks
+    roll_no = String(roll_no).trim().toUpperCase();
+    const normalizedMobile = mobile ? String(mobile).replace(/\D/g, '') : null;
+    const normalizedAadhaar = aadhaar_no ? String(aadhaar_no).replace(/\D/g, '') : null;
+
     const result = await db.transaction(async (tx) => {
       // 1. Insert into core students table with encrypted mobile
       const [res] = await tx.insert(studentsTable).values({
@@ -136,8 +171,8 @@ export class StudentService {
         name,
         date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
         gender,
-        mobile: mobile ? encrypt(mobile) : null,
-        mobile_hash: mobile ? hashForIndex(mobile) : null,
+        mobile: normalizedMobile ? encrypt(normalizedMobile) : null,
+        mobile_hash: normalizedMobile ? hashForIndex(normalizedMobile) : null,
         email,
         added_by_clerk_id: clerkId
       });
@@ -152,8 +187,8 @@ export class StudentService {
         sub_caste,
         category,
         annual_income,
-        aadhaar_no: aadhaar_no ? encrypt(aadhaar_no) : null,
-        aadhaar_hash: aadhaar_no ? hashForIndex(aadhaar_no) : null,
+        aadhaar_no: normalizedAadhaar ? encrypt(normalizedAadhaar) : null,
+        aadhaar_hash: normalizedAadhaar ? hashForIndex(normalizedAadhaar) : null,
         address
       });
 

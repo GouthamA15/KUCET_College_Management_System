@@ -40,5 +40,5 @@ export default function RejectDetailsModal({ isOpen, request, onClose }) {
     </div>
   );
 
-  return createPortal(modal, document.body);
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : null;
 }

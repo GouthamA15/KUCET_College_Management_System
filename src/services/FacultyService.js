@@ -4,7 +4,8 @@ import {
   clerks, 
   branchTimetable, 
   attendanceSessions, 
-  facultySubjectAssignments 
+  facultySubjectAssignments,
+  studentMarks
 } from '@/db/schema';
 import { eq, and, desc, asc, sql, like, or } from 'drizzle-orm';
 
@@ -67,5 +68,48 @@ export class FacultyService {
     .from(clerks)
     .where(eq(clerks.role, 'faculty'))
     .orderBy(desc(scheduledWeeklyExpr), asc(clerks.name));
+  }
+
+  /**
+   * Atomic update for student marks with optimistic locking
+   * @param {number} id The mark record ID
+   * @param {object} data The marks data
+   * @param {number} originalVersion The version to check against
+   * @param {object} tx Optional transaction object
+   * @returns {Promise<boolean>} Success status
+   */
+  static async updateMarkAtomic(id, data, originalVersion, tx = db) {
+    const result = await tx.update(studentMarks)
+      .set({ 
+        ...data, 
+        version: sql`version + 1` 
+      })
+      .where(and(
+        eq(studentMarks.id, id),
+        eq(studentMarks.version, originalVersion)
+      ));
+    
+    return result[0].affectedRows > 0;
+  }
+
+  /**
+   * Atomic update for timetable slot with optimistic locking
+   * @param {number} id The slot ID
+   * @param {object} data The slot data
+   * @param {number} originalVersion The version to check against
+   * @returns {Promise<boolean>} Success status
+   */
+  static async updateTimetableAtomic(id, data, originalVersion) {
+    const result = await db.update(branchTimetable)
+      .set({ 
+        ...data, 
+        version: sql`version + 1` 
+      })
+      .where(and(
+        eq(branchTimetable.id, id),
+        eq(branchTimetable.version, originalVersion)
+      ));
+    
+    return result[0].affectedRows > 0;
   }
 }

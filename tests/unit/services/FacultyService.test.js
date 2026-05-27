@@ -26,6 +26,9 @@ describe('FacultyService', () => {
       const year = await FacultyService.getCurrentAcademicYear();
 
       expect(db.select).toHaveBeenCalled();
+      expect(mockSelect.from).toHaveBeenCalled();
+      expect(mockSelect.orderBy).toHaveBeenCalled();
+      expect(mockSelect.limit).toHaveBeenCalledWith(1);
       expect(year).toBe('2022-23');
     });
 
@@ -39,6 +42,10 @@ describe('FacultyService', () => {
 
       const year = await FacultyService.getCurrentAcademicYear();
 
+      expect(db.select).toHaveBeenCalled();
+      expect(mockSelect.from).toHaveBeenCalled();
+      expect(mockSelect.orderBy).toHaveBeenCalled();
+      expect(mockSelect.limit).toHaveBeenCalledWith(1);
       expect(year).toBe('2025-26');
     });
   });
@@ -57,8 +64,31 @@ describe('FacultyService', () => {
       const result = await FacultyService.getFacultyLoad('2025-26');
 
       expect(db.select).toHaveBeenCalled();
+      expect(mockSelect.from).toHaveBeenCalled();
+      expect(mockSelect.where).toHaveBeenCalled();
+      expect(mockSelect.orderBy).toHaveBeenCalled();
       expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject(
+        expect.objectContaining({
+          id: expect.any(Number),
+          name: expect.any(String),
+          scheduled_weekly: expect.any(Number),
+          total_conducted: expect.any(Number),
+          subjects: expect.any(String),
+        })
+      );
       expect(result[0].name).toBe('Faculty A');
+    });
+
+    it('should handle errors gracefully', async () => {
+      const mockSelect = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockRejectedValue(new Error('Database error')),
+      };
+      db.select.mockReturnValue(mockSelect);
+
+      await expect(FacultyService.getFacultyLoad('2025-26')).rejects.toThrow('Database error');
     });
   });
 });

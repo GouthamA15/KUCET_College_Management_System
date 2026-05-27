@@ -11,6 +11,7 @@ import { eq, and, asc, desc, or, like, inArray } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
 import { branchCodes } from '@/lib/rollNumber';
+import { FacultyService } from '@/services/FacultyService';
 
 export async function GET(request) {
   try {
@@ -93,6 +94,7 @@ export async function GET(request) {
       _marks_row_id: studentMarks.id,
       _marks_created_at: studentMarks.created_at,
       _marks_updated_at: studentMarks.updated_at,
+      _marks_version: studentMarks.version,
       mid1_marks: studentMarks.mid1_marks,
       mid2_marks: studentMarks.mid2_marks,
       assignment_marks: studentMarks.assignment_marks,
@@ -128,8 +130,8 @@ export async function GET(request) {
     }
 
     const cleanedStudents = Array.from(dedupedByStudent.values()).map((s) => {
-      const { _marks_row_id, _marks_created_at, _marks_updated_at, ...rest } = s;
-      return rest;
+      const { _marks_row_id, _marks_created_at, _marks_updated_at, _marks_version, ...rest } = s;
+      return { ...rest, marks_id: _marks_row_id, version: _marks_version || 1 };
     });
 
     // Fetch HOD recommendation
@@ -254,6 +256,7 @@ export async function POST(request) {
         is_published: studentMarks.is_published,
         created_at: studentMarks.created_at,
         updated_at: studentMarks.updated_at,
+        version: studentMarks.version,
       })
       .from(studentMarks)
       .where(and(
@@ -270,7 +273,6 @@ export async function POST(request) {
       }
 
       const rowsToInsert = [];
-      const updates = [];
 
       for (const studentId of studentIds) {
         const item = latestByStudent.get(studentId);
@@ -291,7 +293,12 @@ export async function POST(request) {
             };
 
         if (existing?.id) {
-          updates.push({ id: existing.id, set: markFields });
+          // Optimistic Locking: include version in update guard
+          const clientVersion = item.version || existing.version;
+          const success = await FacultyService.updateMarkAtomic(existing.id, markFields, clientVersion, tx);
+          if (!success) {
+            throw new Error(`CONCURRENCY_CONFLICT:${studentId}`);
+          }
         } else {
           rowsToInsert.push({
             student_id: studentId,
@@ -303,12 +310,6 @@ export async function POST(request) {
 
       if (rowsToInsert.length > 0) {
         await tx.insert(studentMarks).values(rowsToInsert);
-      }
-
-      for (const u of updates) {
-        await tx.update(studentMarks)
-          .set(u.set)
-          .where(eq(studentMarks.id, u.id));
       }
     });
 
@@ -324,6 +325,9 @@ export async function POST(request) {
       
     return apiResponse({ message: `Successfully updated ${marks_data.length} records` });
   } catch (error) {
+    if (error.message?.startsWith('CONCURRENCY_CONFLICT')) {
+      return apiError('Concurrency Conflict: Another user has updated these marks. Please refresh and try again.', 409);
+    }
     logger.error('Marks Bulk Update Error:', error);
     return apiError('Internal Server Error', 500);
   }

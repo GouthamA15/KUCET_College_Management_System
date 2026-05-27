@@ -23,7 +23,10 @@ export async function GET(req, context) {
 
   try {
     const params = await context.params;
-    const { rollno } = params;
+    let { rollno } = params;
+
+    // Invisible Normalization Hook
+    rollno = String(rollno || '').trim().toUpperCase();
 
     const rows = await db.select()
       .from(studentsTable)
@@ -99,8 +102,11 @@ export async function PUT(req, context) {
 
   try {
     const params = await context.params;
-    const { rollno } = params;
+    let { rollno } = params;
     if (!rollno) return apiError('Roll number is required', 400);
+
+    // Invisible Normalization Hook
+    rollno = String(rollno || '').trim().toUpperCase();
 
     let body;
     try {

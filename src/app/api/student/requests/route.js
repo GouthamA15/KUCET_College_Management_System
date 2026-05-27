@@ -182,12 +182,12 @@ export async function POST(request) {
 
     return apiResponse({ success: true, requestId });
   } catch (error) {
-    logger.error("Error processing certificate request:", {
-        message: error.message,
-        stack: error.stack,
-        requestId: requestId // This will be the ID if already created
-    });
+    logger.error({
+      message: error.message,
+      stack: error.stack,
+      requestId: requestId // This will be the ID if already created
+    }, 'Error processing certificate request');
     if (error.code === "ER_DUP_ENTRY") return apiError("Duplicate request detected.", 409);
-    return apiError("Internal Server Error", 500, error.message);
+    return apiError("Internal Server Error", 500);
   }
 }

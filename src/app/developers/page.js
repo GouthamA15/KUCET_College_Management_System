@@ -501,8 +501,8 @@ export default function DevelopersPage() {
                         </p>
 
                         {report.screenshot_url && (
-                          <div className="relative h-40 w-full rounded-lg overflow-hidden bg-gray-100 cursor-pointer group mb-3" onClick={() => window.open(report.screenshot_url, '_blank')}>
-                            <Image src={report.screenshot_url} alt="Screenshot" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                          <div className="relative h-40 w-full rounded-lg overflow-hidden bg-gray-100 cursor-pointer group mb-3" onClick={() => window.open(getAsset(report.screenshot_url), '_blank')}>
+                            <Image src={getAsset(report.screenshot_url)} alt="Screenshot" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <span className="text-white text-sm font-bold bg-black/40 px-3 py-1 rounded-lg">View Full Image</span>
                             </div>

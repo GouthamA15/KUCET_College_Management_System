@@ -91,30 +91,30 @@ async function getNextSerialNumber(tx, { branch, joiningYear, admissionSymbol })
     throw new Error(`Unknown branch: ${branch}`);
   }
 
-  // Get two-digit year if joiningYear is provided, otherwise use wildcard
   const yy = joiningYear ? twoDigitYear(joiningYear) : '__';
+  let queryConditions = [];
 
-  // Search historical roll numbers for that branch and year
-  // Regular: YY567TBB__
-  // Lateral: YY567BB__L
-  const regularPattern = `${yy}567T${branchCode}%`;
-  const lateralPattern = `${yy}567${branchCode}%L`;
-
-  // Select pattern based on admissionSymbol if provided
-  let pattern = null;
-  if (admissionSymbol === 'T') pattern = regularPattern;
-  else if (admissionSymbol === 'L') pattern = lateralPattern;
+  if (admissionSymbol === 'L') {
+    // LATERAL ENTRY RULE: Continue sequence from previous year's regulars
+    // e.g., Batch 2025 starts in 2025 (Regulars) and joins 2nd year in 2026 (Laterals)
+    const prevYY = joiningYear ? twoDigitYear(joiningYear - 1) : '__';
+    
+    // Condition 1: Regulars from PREVIOUS year (YY567TBB__)
+    queryConditions.push(like(studentsTable.roll_no, `${prevYY}567T${branchCode}%`));
+    
+    // Condition 2: Laterals from CURRENT year (YY567BB__L)
+    queryConditions.push(like(studentsTable.roll_no, `${yy}567${branchCode}%L`));
+  } else {
+    // REGULAR ENTRY RULE: Just search current year regulars
+    queryConditions.push(like(studentsTable.roll_no, `${yy}567T${branchCode}%`));
+    // Also include any laterals from the SAME year just in case (unlikely but safe)
+    queryConditions.push(like(studentsTable.roll_no, `${yy}567${branchCode}%L`));
+  }
 
   const rows = await tx
     .select({ roll_no: studentsTable.roll_no })
     .from(studentsTable)
-    .where(
-      and(
-        pattern 
-          ? like(studentsTable.roll_no, pattern)
-          : or(like(studentsTable.roll_no, regularPattern), like(studentsTable.roll_no, lateralPattern))
-      )
-    );
+    .where(or(...queryConditions));
 
   let maxSerial = 0;
   for (const row of rows) {
@@ -133,7 +133,7 @@ async function getNextSerialNumber(tx, { branch, joiningYear, admissionSymbol })
 
   const nextSerial = maxSerial + 1;
   if (nextSerial > 99) {
-    throw new Error(`Serial overflow: branch ${branch} for year ${joiningYear || 'any'} has reached 99 seats`);
+    throw new Error(`Serial overflow: branch ${branch} has reached 99 seats for this batch sequence`);
   }
 
   return nextSerial;

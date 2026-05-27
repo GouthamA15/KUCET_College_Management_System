@@ -298,7 +298,7 @@ export default function IDCardPDF({
 
           {/* Father's Name */}
           <View style={styles.fatherSection}>
-            <Text style={styles.fatherName}>Father&apos;s Name: {fatherName.toUpperCase()}</Text>
+            <Text style={styles.fatherName}>Father&apos;s Name: {(fatherName || '').toUpperCase()}</Text>
           </View>
 
           {/* QR Code */}

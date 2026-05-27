@@ -46,12 +46,22 @@ function AcademicsInner({ studentData, collegeInfo }) {
   const [currentYear, setCurrentYear] = useState(null);
 
   const { cache, saveCache, isReload } = useAcademicsCache() || {};
+  
+  // BREAK THE LOOP: Use a ref to access the latest cache without making it a dependency of the fetch function.
+  // Since fetchAcademicInfo updates the cache, having cache as a dependency creates a cycle.
+  const cacheRef = React.useRef(cache);
+  const hasFetchedRef = React.useRef(false);
+
+  useEffect(() => {
+    cacheRef.current = cache;
+  }, [cache]);
 
   const fetchAcademicInfo = React.useCallback(async (forceRefresh = false) => {
     setLoading(true);
     try {
-      // If we have cached payload and caller doesn't force refresh and this was not a full page reload, use cache
-      const cached = cache?.payload;
+      // Access current cache via ref to stay independent of re-renders
+      const cached = cacheRef.current?.payload;
+      
       if (!forceRefresh && cached && !isReload) {
         setData(cached.data || []);
         setCurrentSem(cached.semester);
@@ -67,14 +77,14 @@ function AcademicsInner({ studentData, collegeInfo }) {
       setData(subjects);
       setCurrentSem(json.semester);
       setCurrentYear(json.academicYear);
-      // Save payload to session cache
+      // Save payload to session cache - this triggers a re-render but NOT a re-fetch
       try { saveCache({ data: subjects, semester: json.semester, academicYear: json.academicYear }); } catch {}
     } catch (error) {
       toast.error(error.message);
     } finally {
       setLoading(false);
     }
-  }, [cache, saveCache, isReload]);
+  }, [saveCache, isReload]);
 
   const fetchHistory = async (subject) => {
     setHistorySubject(subject);
@@ -92,10 +102,11 @@ function AcademicsInner({ studentData, collegeInfo }) {
   };
 
   useEffect(() => {
-    const id = setTimeout(() => {
-      fetchAcademicInfo(false);
-    }, 0);
-    return () => clearTimeout(id);
+    // Prevent double-firing in StrictMode or due to parent re-renders
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
+    fetchAcademicInfo(false);
   }, [fetchAcademicInfo]);
 
   // removed unused helpers: getPercentageColor, overallAttendance

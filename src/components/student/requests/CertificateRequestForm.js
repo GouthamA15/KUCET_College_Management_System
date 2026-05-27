@@ -14,15 +14,17 @@ export default function CertificateRequestForm({
   isLoading,
   upiVPA,
 }) {
-  const [transactionId, setTransactionId] = useState('');
-  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
-  const [paymentPreviewUrl, setPaymentPreviewUrl] = useState(null);
-  const [purposeOption, setPurposeOption] = useState('Select');
-  const [customPurpose, setCustomPurpose] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [purposeError, setPurposeError] = useState('');
-  const [dateError, setDateError] = useState('');
+  const [formState, setFormState] = useState({
+    transactionId: '',
+    paymentScreenshot: null,
+    paymentPreviewUrl: null,
+    purposeOption: 'Select',
+    customPurpose: '',
+    fromDate: '',
+    toDate: '',
+    purposeError: '',
+    dateError: '',
+  });
   const commonPurposes = ['Scholarship', 'Internship', 'Education Loan', 'Higher Studies', 'Passport/Visa'];
 
   const isIncomeTax = selectedCertificate === 'Income Tax (IT) Certificate';
@@ -61,11 +63,14 @@ export default function CertificateRequestForm({
   };
 
   const handleRemoveImage = () => {
-    setPaymentScreenshot(null);
-    if (paymentPreviewUrl) {
-      try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
-      setPaymentPreviewUrl(null);
+    if (formState.paymentPreviewUrl) {
+      try { URL.revokeObjectURL(formState.paymentPreviewUrl); } catch (e) {}
     }
+    setFormState(prev => ({
+      ...prev,
+      paymentScreenshot: null,
+      paymentPreviewUrl: null,
+    }));
     if (fileInputRef.current) fileInputRef.current.value = null;
     toast('Image removed.');
   };
@@ -75,17 +80,20 @@ export default function CertificateRequestForm({
     if (file) {
       if (file.size > 1 * 1024 * 1024) {
         toast.error('File size must be less than 1MB.');
-        setPaymentScreenshot(null);
+        setFormState(prev => ({ ...prev, paymentScreenshot: null }));
         if (e.target) e.target.value = null;
         return;
       }
       // revoke previous preview if present
-      if (paymentPreviewUrl) {
-        try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
+      if (formState.paymentPreviewUrl) {
+        try { URL.revokeObjectURL(formState.paymentPreviewUrl); } catch (e) {}
       }
       const preview = URL.createObjectURL(file);
-      setPaymentScreenshot(file);
-      setPaymentPreviewUrl(preview);
+      setFormState(prev => ({
+        ...prev,
+        paymentScreenshot: file,
+        paymentPreviewUrl: preview,
+      }));
       toast.success('Image ready for upload.');
     }
   };
@@ -93,36 +101,39 @@ export default function CertificateRequestForm({
   // Clean up preview URL when component unmounts or preview changes
   useEffect(() => {
     return () => {
-      if (paymentPreviewUrl) {
-        try { URL.revokeObjectURL(paymentPreviewUrl); } catch (e) {}
+      if (formState.paymentPreviewUrl) {
+        try { URL.revokeObjectURL(formState.paymentPreviewUrl); } catch (e) {}
       }
     };
-  }, [paymentPreviewUrl]);
+  }, [formState.paymentPreviewUrl]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Special handling for No Objection: only require a manual purpose
     if (isNoObjection) {
-      const purposeValidationError = validateNocPurpose(customPurpose);
-      const dateValidationError = validateNocDates(fromDate, toDate);
-      setPurposeError(purposeValidationError);
-      setDateError(dateValidationError);
+      const purposeValidationError = validateNocPurpose(formState.customPurpose);
+      const dateValidationError = validateNocDates(formState.fromDate, formState.toDate);
+      setFormState(prev => ({
+        ...prev,
+        purposeError: purposeValidationError,
+        dateError: dateValidationError,
+      }));
       if (purposeValidationError || dateValidationError) {
         toast.error('Please fix the highlighted issues before submitting.');
         return;
       }
 
-      const finalPurpose = customPurpose.trim();
-      await onSubmit({ transactionId: '', paymentScreenshot: null, finalPurpose, fromDate, toDate });
+      const finalPurpose = formState.customPurpose.trim();
+      await onSubmit({ transactionId: '', paymentScreenshot: null, finalPurpose, fromDate: formState.fromDate, toDate: formState.toDate });
       return;
     }
 
     // Validation for standard purpose selection
-    if (purposeOption === 'Select') {
+    if (formState.purposeOption === 'Select') {
       toast.error('Please select a purpose for the certificate.');
       return;
     }
-    if (purposeOption === 'Other' && !customPurpose.trim()) {
+    if (formState.purposeOption === 'Other' && !formState.customPurpose.trim()) {
       toast.error('Please specify your purpose.');
       return;
     }
@@ -130,19 +141,19 @@ export default function CertificateRequestForm({
     // Conditional validation per certificate type based on fee
     if (!isIncomeTax && requiresPayment) {
       // Requires both UTR and screenshot
-      if (!transactionId || !paymentScreenshot) {
+      if (!formState.transactionId || !formState.paymentScreenshot) {
         toast.error('Please enter UTR and upload payment screenshot.');
         return;
       }
     } else if (isIncomeTax) {
       // Requires only screenshot
-      if (!paymentScreenshot) {
+      if (!formState.paymentScreenshot) {
         toast.error('Please upload college fee payment screenshot.');
         return;
       }
     }
-    const finalPurpose = purposeOption === 'Other' ? customPurpose.trim() : purposeOption;
-    await onSubmit({ transactionId, paymentScreenshot, finalPurpose, fromDate: null, toDate: null });
+    const finalPurpose = formState.purposeOption === 'Other' ? formState.customPurpose.trim() : formState.purposeOption;
+    await onSubmit({ transactionId: formState.transactionId, paymentScreenshot: formState.paymentScreenshot, finalPurpose, fromDate: null, toDate: null });
   };
 
   return (
@@ -199,11 +210,11 @@ export default function CertificateRequestForm({
                   <input
                     type="text"
                     id="transaction-id"
-                    value={transactionId}
+                    value={formState.transactionId}
                     // Allow only digits for Transaction ID / UTR and limit to 12 chars
                     onChange={(e) => {
                       const val = (e.target.value || '').replace(/\D/g, '').slice(0, 12);
-                      setTransactionId(val);
+                      setFormState(prev => ({ ...prev, transactionId: val }));
                     }}
                     onPaste={(e) => {
                       const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
@@ -216,7 +227,7 @@ export default function CertificateRequestForm({
                       const before = current.slice(0, start);
                       const after = current.slice(end);
                       const newVal = (before + digits + after).slice(0, 12);
-                      setTransactionId(newVal);
+                      setFormState(prev => ({ ...prev, transactionId: newVal }));
                       requestAnimationFrame(() => {
                         const caret = Math.min((before + digits).length, 12);
                         el.selectionStart = el.selectionEnd = caret;
@@ -238,10 +249,14 @@ export default function CertificateRequestForm({
                   <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>
                   <textarea
                     rows={3}
-                    value={customPurpose}
+                    value={formState.customPurpose}
                     onChange={(e) => {
-                      setCustomPurpose(e.target.value);
-                      setPurposeError(validateNocPurpose(e.target.value));
+                      const newValue = e.target.value;
+                      setFormState(prev => ({
+                        ...prev,
+                        customPurpose: newValue,
+                        purposeError: validateNocPurpose(newValue),
+                      }));
                     }}
                     className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     placeholder="Ex: Internship programme in X institution, passport verification, higher studies, event participation, etc."
@@ -249,8 +264,8 @@ export default function CertificateRequestForm({
                   <p className="text-xs mt-1 text-gray-500">
                     Please clearly describe the purpose (internship, passport verification, higher studies, event participation, etc.).
                   </p>
-                  {purposeError && (
-                    <p className="text-xs text-red-600 mt-1">{purposeError}</p>
+                  {formState.purposeError && (
+                    <p className="text-xs text-red-600 mt-1">{formState.purposeError}</p>
                   )}
 
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -258,11 +273,14 @@ export default function CertificateRequestForm({
                       <label className="block text-sm font-medium text-gray-700">From Date <span className="text-red-500">*</span></label>
                       <input
                         type="date"
-                        value={fromDate}
+                        value={formState.fromDate}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setFromDate(val);
-                          setDateError(validateNocDates(val, toDate));
+                          setFormState(prev => ({
+                            ...prev,
+                            fromDate: val,
+                            dateError: validateNocDates(val, formState.toDate),
+                          }));
                         }}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       />
@@ -271,18 +289,21 @@ export default function CertificateRequestForm({
                       <label className="block text-sm font-medium text-gray-700">To Date <span className="text-red-500">*</span></label>
                       <input
                         type="date"
-                        value={toDate}
+                        value={formState.toDate}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setToDate(val);
-                          setDateError(validateNocDates(fromDate, val));
+                          setFormState(prev => ({
+                            ...prev,
+                            toDate: val,
+                            dateError: validateNocDates(formState.fromDate, val),
+                          }));
                         }}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       />
                     </div>
                   </div>
-                  {dateError && (
-                    <p className="text-xs text-red-600 mt-1">{dateError}</p>
+                  {formState.dateError && (
+                    <p className="text-xs text-red-600 mt-1">{formState.dateError}</p>
                   )}
 
                   <p className="text-sm text-gray-500 mt-3">No upload or payment required for No Objection certificate.</p>
@@ -298,14 +319,14 @@ export default function CertificateRequestForm({
 
                   <div className="mb-3">
                     <div className="max-h-[250px] border-2 border-dashed border-gray-300 rounded-sm flex items-center justify-center p-4 relative">
-                      {!paymentScreenshot ? (
+                      {!formState.paymentScreenshot ? (
                         <div className="text-center text-gray-500">
                           <div className="mb-2 font-medium">No Screenshot Selected</div>
                           <div className="text-sm">Use the button below to upload an image</div>
                         </div>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center relative">
-                          <Image src={paymentPreviewUrl} alt="Payment Screenshot Preview" width={520} height={220} className="max-h-[220px] w-auto object-contain" unoptimized />
+                          <Image src={formState.paymentPreviewUrl} alt="Payment Screenshot Preview" width={520} height={220} className="max-h-[220px] w-auto object-contain" unoptimized />
                           <button type="button" onClick={handleRemoveImage} className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full p-1 text-gray-600 hover:bg-gray-100">
                             ×
                           </button>
@@ -325,10 +346,10 @@ export default function CertificateRequestForm({
                     />
                     <button type="button" onClick={handleUploadClick} className="px-4 py-2 bg-[#3258a8] text-white rounded-sm text-sm font-medium hover:bg-[#274f8f]">Upload Image</button>
                     <div className="mt-3 text-center">
-                      {paymentScreenshot ? (
+                      {formState.paymentScreenshot ? (
                         <>
-                          <div className="text-sm text-gray-700">{paymentScreenshot.name}</div>
-                          <div className="text-xs text-green-600">Image ready ({(paymentScreenshot.size / 1024).toFixed(2)} KB)</div>
+                          <div className="text-sm text-gray-700">{formState.paymentScreenshot.name}</div>
+                          <div className="text-xs text-green-600">Image ready ({(formState.paymentScreenshot.size / 1024).toFixed(2)} KB)</div>
                         </>
                       ) : (
                         <div className="text-sm text-gray-500">No image selected</div>
@@ -339,8 +360,8 @@ export default function CertificateRequestForm({
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>
                     <select
-                      value={purposeOption}
-                      onChange={(e) => setPurposeOption(e.target.value)}
+                      value={formState.purposeOption}
+                      onChange={(e) => setFormState(prev => ({ ...prev, purposeOption: e.target.value }))}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     >
                       <option value="Select">Select</option>
@@ -349,12 +370,12 @@ export default function CertificateRequestForm({
                       ))}
                       <option value="Other">Other (Please specify)</option>
                     </select>
-                    {purposeOption === 'Other' && (
+                    {formState.purposeOption === 'Other' && (
                       <textarea
                         required
                         rows={2}
-                        value={customPurpose}
-                        onChange={(e) => setCustomPurpose(e.target.value)}
+                        value={formState.customPurpose}
+                        onChange={(e) => setFormState(prev => ({ ...prev, customPurpose: e.target.value }))}
                         className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         placeholder="Describe your purpose here..."
                       />
@@ -365,19 +386,19 @@ export default function CertificateRequestForm({
 
               <div className="mt-6 flex justify-center">
                 {(() => {
-                  const nocPurposeInvalid = isNoObjection && !!validateNocPurpose(customPurpose);
-                  const nocDatesInvalid = isNoObjection && !!validateNocDates(fromDate, toDate);
+                  const nocPurposeInvalid = isNoObjection && !!validateNocPurpose(formState.customPurpose);
+                  const nocDatesInvalid = isNoObjection && !!validateNocDates(formState.fromDate, formState.toDate);
                   
                   // Standard purpose validation
                   const standardPurposeInvalid = !isNoObjection && (
-                    purposeOption === 'Select' || 
-                    (purposeOption === 'Other' && !customPurpose.trim())
+                    formState.purposeOption === 'Select' || 
+                    (formState.purposeOption === 'Other' && !formState.customPurpose.trim())
                   );
 
                   // Payment validation
                   const paymentInvalid = !isNoObjection && (
-                    (requiresPayment && !isIncomeTax && (!transactionId || !paymentScreenshot)) ||
-                    (isIncomeTax && !paymentScreenshot)
+                    (requiresPayment && !isIncomeTax && (!formState.transactionId || !formState.paymentScreenshot)) ||
+                    (isIncomeTax && !formState.paymentScreenshot)
                   );
 
                   const isSubmitDisabled = isLoading || nocPurposeInvalid || nocDatesInvalid || standardPurposeInvalid || paymentInvalid;

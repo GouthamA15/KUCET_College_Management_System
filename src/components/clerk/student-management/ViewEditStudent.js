@@ -9,6 +9,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { formatIndianNumber } from '@/lib/financial-utils';
+import { getAssetUrl } from '@/lib/assets';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
     <input
@@ -233,12 +234,12 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                                     </div>
                                 )}
                                 <Image 
-                                    src={String(p)} 
+                                    src={getAssetUrl(String(p))} 
                                     alt="Profile" 
                                     width={112} 
                                     height={112} 
                                     unoptimized
-                                    onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} 
+                                    onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(getAssetUrl(String(p))); setImagePreviewOpen(true); }} 
                                     className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                                     onLoad={() => setImageLoading(false)}
                                 />
@@ -255,12 +256,12 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   <div className="w-32 h-12 bg-white rounded border border-gray-200 overflow-hidden mb-1 flex items-center justify-center">
                     {fetchedStudent.signature ? (
                       <Image
-                        src={fetchedStudent.signature}
+                        src={getAssetUrl(fetchedStudent.signature)}
                         alt="Signature"
                         width={128}
                         height={48}
                         className="max-h-full max-w-full object-contain"
-                        onClick={() => { setImagePreviewSrc(fetchedStudent.signature); setImagePreviewOpen(true); }}
+                        onClick={() => { setImagePreviewSrc(getAssetUrl(fetchedStudent.signature)); setImagePreviewOpen(true); }}
                       />
                     ) : (
                       <div className="text-gray-400 text-[10px]">No Signature</div>
@@ -331,7 +332,12 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 <input placeholder="Father Name" value={personalFull.father_name || ''} onChange={e=>setPersonalFull({...personalFull, father_name:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Mother Name" value={personalFull.mother_name || ''} onChange={e=>setPersonalFull({...personalFull, mother_name:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Nationality" value={personalFull.nationality || ''} onChange={e=>setPersonalFull({...personalFull, nationality:e.target.value})} className="p-2 border rounded" />
-                <input placeholder="Religion" value={personalFull.religion || ''} onChange={e=>setPersonalFull({...personalFull, religion:e.target.value})} className="p-2 border rounded" />
+            <select value={personalFull.religion || ''} onChange={e=>setPersonalFull({...personalFull, religion:e.target.value})} className="p-2 border rounded">
+                <option value="">Select Religion</option>
+                {COLLEGE_CONFIG.religions.map(r => (
+                    <option key={r} value={r.toUpperCase()}>{r.toUpperCase()}</option>
+                ))}
+            </select>
                 <select value={personalFull.category || 'OC'} onChange={e=>setPersonalFull({...personalFull, category:e.target.value})} className="p-2 border rounded">{categories.map(c=> <option key={c} value={c}>{c}</option>)}</select>
                 <input placeholder="Sub Caste" value={personalFull.sub_caste || ''} onChange={e=>setPersonalFull({...personalFull, sub_caste:e.target.value})} className="p-2 border rounded" />
                 <select value={personalFull.area_status || 'Local'} onChange={e=>setPersonalFull({...personalFull, area_status:e.target.value})} className="p-2 border rounded"><option>Local</option><option>Non-Local</option></select>

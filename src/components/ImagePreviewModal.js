@@ -59,5 +59,5 @@ export default function ImagePreviewModal({ src, alt = '', open, onClose }) {
     </div>
   );
 
-  return createPortal(modal, document.body);
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : null;
 }

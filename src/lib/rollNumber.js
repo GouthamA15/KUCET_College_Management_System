@@ -85,6 +85,16 @@ function getAcademicYear(rollNo) {
 }
 
 /**
+ * Determines the intake year for a new admission application.
+ * From March onwards, applications are typically for the intake starting in the same calendar year.
+ */
+function getIntakeYear(now = getNowSync()) {
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  return currentMonth >= 3 ? currentYear : currentYear - 1;
+}
+
+/**
  * Determines the effective start year of the current academic session.
  * Uses college-specific semester start dates if provided, otherwise defaults to June 1st.
  */
@@ -263,6 +273,7 @@ export {
   getCurrentAcademicYear,
   getResolvedCurrentAcademicYear,
   getEffectiveAcademicYear,
+  getIntakeYear,
   getEntranceExamQualified,
   getBatchFromRoll,
   getCurrentSemester,

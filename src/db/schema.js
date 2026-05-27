@@ -7,11 +7,22 @@ import {
 
 export const collegeInfo = mysqlTable('college_info', {
   id: int('id').autoincrement().primaryKey().notNull(),
+  name: varchar('name', { length: 255 }).default('KU COLLEGE OF ENGINEERING & TECHNOLOGY'),
+  short_name: varchar('short_name', { length: 50 }).default('KUCET'),
+  address: text('address'),
+  location: varchar('location', { length: 100 }).default('Warangal'),
+  pincode: varchar('pincode', { length: 10 }).default('506009'),
+  contact: varchar('contact', { length: 100 }).default('0870-2970125'),
+  entrance_codes: json('entrance_codes'), // stores { pgecet, eapcet, ecet }
+  branches: json('branches'), // stores array of { code, name }
+  categories: json('categories'), // array of strings
+  annual_incomes: json('annual_incomes'), // array of strings
   first_sem_start_month: tinyint('first_sem_start_month'),
   first_sem_start_day: tinyint('first_sem_start_day'),
   second_sem_start_month: tinyint('second_sem_start_month'),
   second_sem_start_day: tinyint('second_sem_start_day'),
-  updated_at: datetime('updated_at'),
+  maintenance_mode: boolean('maintenance_mode').default(false).notNull(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
 });
 
 // --- 2. CORE IDENTITY & AUTHENTICATION ---
@@ -203,6 +214,7 @@ export const studentMarks = mysqlTable('student_marks', {
   lab_record_marks: decimal('lab_record_marks', { precision: 5, scale: 2 }),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
+  version: int('version').default(1).notNull(),
 }, (table) => ({
   studentAssignmentIdx: index('idx_marks_student_assignment').on(table.student_id, table.assignment_id),
   studentAssignmentUniq: uniqueIndex('uq_marks_student_assignment').on(table.student_id, table.assignment_id),
@@ -237,6 +249,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   room_no: varchar('room_no', { length: 20 }),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
+  version: int('version').default(1).notNull(),
 }, (table) => ({
   timetableLookupIdx: index('idx_timetable_lookup').on(table.branch, table.semester, table.academic_year),
   dayPeriodIdx: index('idx_bt_day_period').on(table.day_of_week, table.period_number),

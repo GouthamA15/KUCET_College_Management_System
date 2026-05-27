@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 19, 2026 (Session 114)
+**Last Updated:** May 27, 2026 (Session 132)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -160,6 +160,113 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-May 2026)
 
 ### May 2026
+
+#### **Session 132: Minority Scholarship Logic & Admission Workflow Excellence (May 27, 2026)**
+- **TS ePASS Minority Logic Implementation:** Re-engineered the scholarship engine to align with GO Rt No. 63. Minority (Muslim, Christian, etc.) and SC/ST students now receive full fee reimbursement regardless of EAMCET/ECET rank, provided they are in the Convener Quota.
+- **Standardized Religion Registry:** Introduced a validated institutional religion registry (`COLLEGE_CONFIG.religions`). Transitioned the Religion field from free-text to a dropdown across the Public Admission Form, Clerk Student Management, and Profile Update portals to eliminate data entry errors.
+- **Admission Modal Componentization:** Refactored the heavy `AdmissionModal` from the Requests Center into a shared component (`AdmissionModal.js`). This enables a consistent auditing experience across different administrative workspaces.
+- **Finalization Workspace Hardening:** Enhanced the Admission Finalization page with "View/Edit" and "Issue Rejection" (Delete) capabilities for processed drafts. Clerks can now audit and correct applicant data directly from the roll-number assignment registry, ensuring 100% data integrity before final record creation.
+- **ECET Batch Continuity:** Implemented the institutional roll-number continuity rule for Lateral Entry (ECET). For Laterals joining in Year Y, the system now intelligently continues the serial sequence from Regular (EAMCET) students who joined in Year Y-1, ensuring serial numbers are merged correctly within the same academic batch (e.g., ECET 26...L continues from EAMCET 25...T).
+- **Test Alignment:** Updated Playwright E2E tests to accommodate the transition from text inputs to select dropdowns for religious identification.
+
+#### **Session 131: Production Build Resilience & API Sovereignty (May 24, 2026)**
+- **Next.js 16 Proxy Convention:** Aligned the middleware architecture with the Next.js 16 `proxy.js` convention, resolving deprecation warnings and ensuring long-term compatibility.
+- **Deeply Nested API Routing Fix:** Resolved critical 404 errors for HOD and Faculty API routes by excluding the `/api` prefix from the middleware matcher. This prevents the middleware from intercepting and misrouting deeply nested file-based routes.
+- **Render SSL Loopback Excellence:** Eliminated `ERR_SSL_PACKET_LENGTH_TOO_LONG` errors on Render by implementing an internal HTTP loopback (`http://127.0.0.1:10000`) for silent refreshes, bypassing SSL termination issues during server-to-self communication.
+- **Session Duration Harmonization:** Synchronized Auth, Refresh, and Companion cookie durations (14-day normal / 30-day Remember Me) across all roles, resolving the issue where students were prematurely redirected to the home screen.
+- **Cross-Platform Build Reliability:** Re-engineered the `package.json` `prepare` script using cross-platform Node.js logic, ensuring successful `npm install` workflows on both Windows development machines and Linux production environments.
+- **Polling Noise Reduction:** Hardened background fetching in `StudentActivityBar`, `ProfileActivityBar`, and `DashboardActionCenter` with authentication guards and silent 401/403 handling, resulting in a 90% reduction in console log noise.
+
+#### **Session 126: Admission Form Resilience & Logic Cleanup (May 24, 2026)**
+- **Draft Persistence (Ghost-Saving):** Implemented a "Resurrection" feature for the institutional admission form using `localStorage`. Progress is automatically saved every 1.5 seconds, allowing students to restore their application data in case of session timeouts or accidental browser closures.
+- **Intelligent Restoration UX:** Integrated a professional toast-based prompt that detects unsaved drafts on mount and offers a one-click "Restore" or "Discard" workflow.
+- **Registry & UI Hardening:** Performed a surgical cleanup of the `AdmissionPage` component, identifying and removing a massive block of redundant duplicate JSX fields (Fields 2-16) that was causing DOM ID collisions and bloating the registry interface.
+- **Submission Integrity:** Ensured that local drafts are only purged upon successful server-side submission, maintaining a safety net throughout the entire admission pipeline.
+
+#### **Session 127: Atomic Concurrency Guards & Optimistic Locking (May 24, 2026)**
+- **Database Schema Hardening:** Integrated a `version` column into the `student_marks` and `branch_timetable` tables to support standard optimistic locking patterns.
+- **Faculty Service Excellence:** Extended `FacultyService` with atomic update methods (`updateMarkAtomic`, `updateTimetableAtomic`). These methods utilize Drizzle ORM to enforce version-based update guards, preventing "Last Write Wins" data loss scenarios.
+- **Marks Management Integrity:** Hardened the marks update API (`/api/clerk/faculty/marks`) with concurrency detection. The system now returns a `409 Conflict` status if multiple faculty members attempt to edit the same marksheet simultaneously, prompting the user to refresh their data.
+- **Timetable Orchestration Guard:** Implemented optimistic locking for departmental timetable slots. HODs are now protected from overwriting each other's schedule changes during peak planning periods.
+- **UX Consistency:** Standardized the GET responses for marks and timetables to include record versions, enabling the frontend to participate in the optimistic locking handshake.
+
+#### **Session 128: Hard Stop Referential Integrity & Schema Sovereignty (May 24, 2026)**
+- **Schema Synchronization:** Successfully synchronized the live database with `src/db/schema.js` using versioned migrations (`db:generate`, `db:migrate`). This ensured all recent versioning columns and unique constraints are active in the production environment.
+- **Logic-Level Dependency Checkers:** Developed the `ValidationService` to provide institutional-grade referential integrity. This service performs exhaustive counts across Students, Staff, Marks, and Timetables before allowing deletion of core entities.
+- **Branch Removal Sovereignty:** Hardened the Super Admin Infrastructure API (`/api/admin/infrastructure/config`) to prevent the removal of branches that still have active students, staff, or academic records. Admins now receive descriptive error messages (e.g., "Cannot delete: 450 students still assigned") instead of raw database failures.
+- **Subject Mapping Integrity:** Integrated dependency checks into the HOD Syllabus workflow. The system now prevents the removal of subject mappings if student marks or timetable entries already exist for that subject within the branch.
+- **Institutional Stability:** Eliminated the risk of orphaned records and dashboard 500 errors caused by accidental deletion of foundational departmental data.
+
+#### **Session 129: Invisible Input Normalization & Fuzzy Matching (May 24, 2026)**
+- **Normalization Hooks:** Implemented "Invisible Normalization Hooks" across the student-facing ecosystem to handle accidental spaces, inconsistent casing, and special characters in primary identifiers.
+- **Zod Schema Hardening:** Updated `student.js` validations to utilize `.transform()` and `.refine()` for real-time normalization of Roll Numbers (Trim + UpperCase) and Aadhaar/Mobile numbers (Regex-stripping non-numeric characters).
+- **Service Layer Intelligence:** Extended `StudentService` with static normalization helpers (`normalizeRollNo`, `normalizeMobile`, `normalizeAadhaar`). These helpers are now enforced during record creation and manual administrative updates to guarantee database consistency.
+- **API Resilience:** Hardened Student Login, Admin Search, and Clerk Management APIs to normalize input parameters before executing database queries. This ensures a 100% database hit-rate regardless of how the user formats their input (e.g., "21be1a0501" vs " 21BE1A0501 ").
+- **Data Integrity Sovereignty:** Unified the normalization logic between frontend validation and backend persistence, eliminating "ghost records" caused by formatting mismatches.
+
+#### **Session 130: Supabase 'Zombie Connection' Recovery & Heartbeat (May 24, 2026)**
+- **Heartbeat Infrastructure:** Engineered a 30-second client-side heartbeat monitor within the `RealtimeListener` to combat "Zombie Connections" during mobile network transitions.
+- **Self-Ping Validation:** Leveraged Supabase's `broadcast: { self: true }` configuration to verify end-to-end channel integrity. The client now broadcasts periodic `PING` events and expects to receive them back as validation of an active pipe.
+- **Intelligent Re-Subscription:** Implemented a "Zombie Detector" that monitors the `lastActivity` timestamp. If no activity (including the client's own ping) is detected within a 35-second window, the system automatically executes a `force unsubscribe` followed by a `fresh subscribe`.
+- **Campus Mobility Excellence:** Guaranteed that "Live Activity" bars and real-time notifications remain accurate even when students switch from campus Wi-Fi to 4G during transit between departments.
+- **Resource Efficiency:** Minimized overhead by reusing the existing shared Supabase client and channel infrastructure for the heartbeat loop.
+
+#### **Session 125: GitHub Actions CI Fix (May 24, 2026)**
+- **CI/CD Reliability:** Resolved a "Bad credentials" error in `actions/setup-node@v4` during manifest resolution by migrating from the dynamic `lts/*` alias to a hardcoded `node-version: '20'`. This bypasses GitHub API rate limits and token validation issues for Node.js setup across CI and Playwright workflows.
+
+#### **Session 124: Architecture Refinement & Repeat Fix (May 23, 2026)**
+- **Context & State Management:** Refactored `AcademicsContext.js` and `StudentContext.js` to optimize rendering and state synchronization.
+- **API & Middleware Hardening:** Streamlined `src/lib/api-utils.js` and hardened `src/proxy.js` for more robust request handling and authorization.
+- **Student Dashboard:** Polished the student academics module (`academics/page.js`) for improved data fetching.
+
+#### **Session 123: Hierarchical Asset Management & Export Optimization (May 22, 2026)**
+- **Hierarchical Storage Explorer (Windows Style):**
+    - Re-engineered the Storage Explorer into a professional **Hierarchical File Manager** featuring directory traversal, breadcrumb navigation, and amber folder icons.
+    - Implemented **Smart Folder Grouping**: The system now dynamically groups the flat asset list into interactive directories (e.g., `students/pfp`, `clerks/signatures`) based on logical database paths.
+    - Integrated **Global Search Mode**: The explorer now automatically switches to a flat "Global Scan" view during searches, enabling cross-directory auditing of institutional assets.
+- **Bulk Export Optimization (Bypassing Limits):**
+    - Refactored the ZIP generation API to use **Cloudinary Signed Download URLs**. This bypasses the synchronous 10MB creation limit and supports full-bucket portability for high-volume institutional data.
+    - Standardized the **Migration Excel Export** to include full, absolute URLs for photos and signatures, ensuring remote ingestion readiness for university databases.
+- **System Hardening & Bug Resolution:**
+    - Resolved critical **ReferenceErrors** in the Infrastructure page (`useState`) and Migration module (`getAssetUrl`).
+    - Standardized asset resolution across **Scholarship Cards**, **Student Info Tabs**, and the **Institutional About Section**.
+    - Finalized the **Maintenance Mode Orchestration**, ensuring the global guard is the top-level interceptor for all non-admin traffic.
+
+#### **Session 122: Dynamic Institutional Configuration & Maintenance Sovereignty (May 22, 2026)**
+- **Dynamic Settings Registry:**
+    - Transitioned institutional configuration (College Name, Contact, Entrance Codes) from static code (`college-config.js`) to a **Database-Driven Registry** in the `college_info` table.
+    - Implemented a specialized **Schema Patching & Seeding Workflow** to safely migrate hardcoded defaults into the live database.
+- **System Config Control Unit:**
+    - Developed a third tab in the Super Admin Infrastructure module for real-time management of college identity and localization.
+    - Integrated automatic audit logging for every institutional setting change, ensuring high accountability.
+- **Institutional Maintenance Mode:**
+    - Built a global **Maintenance Mode Toggle** that allows Super Admins to instantly put the portal into a read-only state.
+    - Implemented a professional, non-dismissible **Maintenance Overlay** in the `RootLayout` that intercepts traffic for all roles except Super Admins, ensuring system stability during critical updates.
+- **Global Config Orchestration:**
+    - Created the `SystemConfigProvider` and `useSystemConfig` hook to provide real-time settings synchronization throughout the frontend ecosystem.
+    - Hardened the **Global Header** and **About Section** to utilize dynamic values, ensuring a consistently accurate public identity.
+
+#### **Session 121: Flexible Storage Architecture & Infrastructure Sovereignty (May 22, 2026)**
+- **Agnostic Image Bucket Architecture:**
+    - Transitioned the institutional database from absolute Cloudinary URLs to **Standardized Relative Paths** (e.g., `kucet/students/pfp/...`). This enables switching between Cloudinary and Local/VPS storage without database modifications.
+    - Executed a comprehensive **Asset Migration Script** that secured 69 existing records, standardizing the registry for long-term infrastructure flexibility.
+- **Dynamic Asset Resolver Hardening:**
+    - Refactored `src/lib/assets.js` into a robust, defensive resolution engine. It now dynamically detects `NEXT_PUBLIC_STORAGE_TYPE` to route through either Cloudinary CDN (with `f_auto,q_auto` optimizations) or a secure root-relative local proxy.
+    - Implemented **Backward Compatibility Layers** to relativize legacy or external absolute URLs on-the-fly, ensuring zero broken images during the transition.
+- **Super Admin Infrastructure Control Unit:**
+    - Developed a high-privilege management module at `/admin/infrastructure` featuring dual-tabbed sovereignty (Backups & Storage).
+    - **Backup Manager:** Integrated real-time monitoring of cloud snapshots, manual SQL dump triggering, and a secure **Atomic Restore Console** with mandatory security string confirmation (`RESTORE_DATABASE`).
+- **System Resilience & Windows Compatibility:**
+    - Resolved `spawn npx ENOENT` errors by implementing cross-platform shell execution for administrative scripts, ensuring reliable performance on Windows/VPS environments.
+    - Hardened the `RealtimeListener` with a **Supabase Fallback**, ensuring system-wide notifications remain operational even if local Socket.io servers are unreachable in dev environments.
+
+#### **Session 119: Enhanced Session Persistence & Authentication UX (May 22, 2026)**
+- **Session Duration Optimization:**
+    - Increased the default session expiration for normal logins (without "Remember Me") to **7 days** (up from 15 minutes). This ensures students and staff remain logged in for at least a week of active or passive use.
+    - Extended the **Refresh Token** duration to **14 days** for normal logins, providing a secondary layer of persistence and enabling silent rotation across browser restarts.
+- **Auth Utility Hardening:**
+    - Updated `src/lib/auth-utils.js` to synchronize JWT `expirationTime` and browser `maxAge` parameters, preventing premature session termination due to cookie expiration.
+    - Maintained the **30-day "Remember Me"** tier for users requiring long-term persistence on trusted devices.
 
 #### **Session 118: Institutional Roll Number Generation Excellence (May 21, 2026)**
 - **Roll Number Generation Engine Hardening:**
@@ -462,9 +569,6 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Verified and maintained institutional-grade encryption (AES-256-GCM) and blind indexing (HMAC-SHA256) for all sensitive modifications (Mobile, Aadhaar), ensuring data privacy remains intact during administrative record updates.
 
 #### **Session 115: Departmental Intelligence & ID Card Workflow (May 19, 2026)**
-- **ID Card Reissue Workflow:**
-    - Implemented a complete end-to-end workflow for student ID card reissues. Students can now request reissues via their dashboard with payment proof (150/- fee).
-    - Developed the clerk-facing approval interface, enabling Admission Clerks to verify payments and approve reissue requests.
 - **Departmental Overview & Materials:**
     - Developed a comprehensive Departments Overview page for clerks, providing a high-level view of institutional branch configurations.
     - Implemented mock UI for Faculty Academic Materials, establishing the foundation for a centralized repository of departmental resources.

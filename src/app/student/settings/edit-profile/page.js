@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -43,8 +44,8 @@ export default function EditProfilePage() {
   const menuRef = useRef(null);
   const editBtnRef = useRef(null);
 
-  const displayedPhoto = pfpDataUrl || currentPfp || null;
-  const displayedSignature = signatureDataUrl || currentSignature;
+  const displayedPhoto = pfpDataUrl || getAssetUrl(currentPfp) || null;
+  const displayedSignature = signatureDataUrl || getAssetUrl(currentSignature);
 
   useEffect(() => {
     fetchProfileData();
@@ -477,7 +478,7 @@ export default function EditProfilePage() {
                     { label: 'Father Name', field: 'father_name', maxLength: 50 },
                     { label: 'Mother Name', field: 'mother_name', maxLength: 50 },
                     { label: 'Nationality', field: 'nationality', maxLength: 30 },
-                    { label: 'Religion', field: 'religion', maxLength: 20 },
+                    { label: 'Religion', field: 'religion', type: 'select', options: COLLEGE_CONFIG.religions },
                     { label: 'Category', field: 'category', type: 'select', options: COLLEGE_CONFIG.categories },
                     { label: 'Sub Caste', field: 'sub_caste', maxLength: 50 },
                     { label: 'Area Status', field: 'area_status', type: 'select', options: ['Local', 'Non-Local'] },

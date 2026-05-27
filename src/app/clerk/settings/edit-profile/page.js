@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function ClerkEditProfilePage() {
   const router = useRouter();
@@ -262,7 +263,7 @@ export default function ClerkEditProfilePage() {
                   <div className={`w-44 h-44 rounded-full border-4 ${pfpDataUrl ? 'border-[#0b3578]' : 'border-slate-100'} bg-slate-50 overflow-hidden flex items-center justify-center shadow-inner`}>
                     {(pfpDataUrl || clerk?.pfp) ? (
                       <Image 
-                        src={pfpDataUrl || clerk?.pfp} 
+                        src={pfpDataUrl || getAssetUrl(clerk?.pfp)} 
                         alt="Profile" 
                         width={176} 
                         height={176} 
@@ -293,7 +294,7 @@ export default function ClerkEditProfilePage() {
                 <div className={`w-full h-24 border-2 ${signatureDataUrl ? 'border-[#0b3578] bg-blue-50/20' : 'border-dashed border-slate-200 bg-slate-50'} flex items-center justify-center relative group overflow-hidden rounded-sm`}>
                   {(signatureDataUrl || clerk?.signature) ? (
                     <Image 
-                      src={signatureDataUrl || clerk?.signature} 
+                      src={signatureDataUrl || getAssetUrl(clerk?.signature)} 
                       alt="Signature" 
                       width={200} 
                       height={96} 

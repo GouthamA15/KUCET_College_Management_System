@@ -12,11 +12,14 @@ export async function GET(request, { params }) {
     return apiError('Unauthorized', 401);
   }
 
-  const { rollno } = await params;
+  let { rollno } = await params;
 
   if (!rollno) {
     return apiError('Roll number is required', 400);
   }
+
+  // Invisible Normalization Hook
+  rollno = String(rollno).trim().toUpperCase();
 
   try {
     const studentData = await db.select({

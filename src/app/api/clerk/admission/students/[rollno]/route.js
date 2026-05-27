@@ -27,8 +27,11 @@ export async function PUT(req, context) {
 
   try {
     const params = await context.params;
-    const { rollno } = params;
+    let { rollno } = params;
     if (!rollno) return apiError('Missing rollno parameter', 400);
+
+    // Invisible Normalization Hook
+    rollno = String(rollno).trim().toUpperCase();
 
     const updatedData = await req.json();
 
@@ -60,8 +63,9 @@ export async function PUT(req, context) {
       
       if (updatedData.mobile !== undefined) {
           const val = toNull(updatedData.mobile);
-          studentUpdate.mobile = val ? encrypt(val) : null;
-          studentUpdate.mobile_hash = val ? hashForIndex(val) : null;
+          const normalizedMobile = val ? String(val).replace(/\D/g, '') : null;
+          studentUpdate.mobile = normalizedMobile ? encrypt(normalizedMobile) : null;
+          studentUpdate.mobile_hash = normalizedMobile ? hashForIndex(normalizedMobile) : null;
       }
       
       if (updatedData.email !== undefined) studentUpdate.email = toNull(updatedData.email);
