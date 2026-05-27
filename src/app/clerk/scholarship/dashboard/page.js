@@ -17,7 +17,7 @@ import ScholarshipWindowCard from '@/components/clerk/scholarship/ScholarshipWin
 import { useScholarshipDashboard } from '@/context/ScholarshipDashboardContext';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber';
-import { formatDate } from '@/lib/date';
+import { formatDate, toMySQLDate } from '@/lib/date';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { smoothScrollToId } from '@/lib/scroll-utils';
 import { logoutScholarshipDashboard } from '@/lib/logout';
@@ -835,9 +835,9 @@ function ScholarshipDashboardContent() {
                    setSelectedProceeding(p);
                    setSchProceedingNo(p.proceeding_no || '');
                    setSchAmount(p.amount || '');
-                   setSchSanctionDate(p.date || '');
+                   setSchSanctionDate(toMySQLDate(p.date) || '');
                    setReleasedAmount(p.released_amount || '');
-                   setReleasedDate(p.released_date || '');
+                   setReleasedDate(toMySQLDate(p.released_date) || '');
                 }}
                 onCancelEdit={() => {
                    setSelectedProceeding(null);

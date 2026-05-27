@@ -22,7 +22,7 @@ export async function POST(req) {
       logger.info(`[Scholarship API] Incoming request for roll: ${body.roll_no}`);
     }
 
-    const roll_no = String(body.roll_no || '').trim();
+    const roll_no = String(body.roll_no || '').trim().toUpperCase();
     const academic_year = String(body.academic_year || '').trim();
     const application_no = toNull(body.application_no);
     const proceeding_no_raw = String(body.proceeding_no || '').trim();
@@ -77,11 +77,11 @@ export async function POST(req) {
 
     // ELIGIBILITY GUARD
     if (String(student.fee_reimbursement).toUpperCase() !== 'YES') {
+      logger.warn(`[Scholarship Validation] Rejected: proceedings not allowed for non-reimbursement student ${roll_no}`);
       if (process.env.NODE_ENV === 'development') {
-        logger.warn(`[Scholarship Validation] Rejected: Student ${roll_no} not eligible for reimbursement.`);
-        console.warn(`[Scholarship Validation] Rejected: Student ${roll_no} not eligible for reimbursement.`);
+        console.warn(`[Scholarship Validation] Rejected: proceedings not allowed for non-reimbursement student ${roll_no}`);
       }
-      return apiError('Student is not eligible for fee reimbursement. Scholarship registry disabled.', 403);
+      return apiError('Scholarship proceedings are not allowed for non-reimbursement students.', 400);
     }
 
     // TRANSACTIONAL EXECUTION
