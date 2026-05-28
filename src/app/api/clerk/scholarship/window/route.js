@@ -34,8 +34,8 @@ export async function GET() {
     return apiResponse({
       window: {
         id: win.id,
-        startDate: win.start_date,
-        endDate: win.end_date,
+        startDate: toMySQLDate(win.start_date),
+        endDate: toMySQLDate(win.end_date),
         status,
       },
     });

@@ -48,8 +48,8 @@ export async function GET() {
       const end = new Date(window.end_date);
       const today = new Date(now.toISOString().slice(0, 10));
 
-      windowStartDate = window.start_date;
-      windowEndDate = window.end_date;
+      windowStartDate = toMySQLDate(window.start_date);
+      windowEndDate = toMySQLDate(window.end_date);
 
       if (today >= start && today <= end) {
         windowStatus = 'OPEN';

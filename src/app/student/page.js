@@ -70,39 +70,6 @@ export default function StudentHomePage() {
         {/* Main Section */}
         <div className="lg:col-span-8 space-y-14">
           
-          {/* Financial Info
-          <section className="space-y-6">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Financial Overview</h2>
-              <Link href="/student/finances" className="text-[10px] font-semibold text-[#0b3578] hover:underline uppercase tracking-wider">Breakdown</Link>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="bg-surface p-8 rounded-2xl border border-institutional shadow-[0_2px_10px_rgba(0,0,0,0.02)] group hover:border-[#0b3578]/10 transition-all">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Total Settled</p>
-                <div className="flex items-baseline gap-1">
-                   <p className="text-3xl font-semibold text-slate-800 tracking-tight">{formatCurrency(totalSettled)}</p>
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-                   <span className="text-[9px] font-medium text-slate-400 uppercase tracking-tight">Verified Payments</span>
-                </div>
-              </div>
-
-              <div className="bg-surface p-8 rounded-2xl border border-institutional shadow-[0_2px_10px_rgba(0,0,0,0.02)] group hover:border-[#0b3578]/10 transition-all">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center justify-between">
-                   Pending Balance
-                   <span className="text-[9px] font-medium bg-slate-50 text-slate-400 px-1.5 py-0.5 rounded border border-slate-100">{academicYear}</span>
-                </p>
-                <p className={`text-3xl font-semibold tracking-tight ${currentPending > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>{formatCurrency(currentPending)}</p>
-                <div className="mt-4 flex items-center gap-2">
-                   <div className={`w-1.5 h-1.5 rounded-full ${currentPending > 0 ? 'bg-rose-400 animate-pulse' : 'bg-emerald-400'}`}></div>
-                   <span className="text-[9px] font-medium text-slate-400 uppercase tracking-tight">{currentPending > 0 ? 'Due for this session' : 'Account cleared'}</span>
-                </div>
-              </div>
-            </div>
-          </section> */}
-
           {/* Course Records - High Density List */}
           <section className="space-y-6">
              <div className="flex items-center justify-between px-1">

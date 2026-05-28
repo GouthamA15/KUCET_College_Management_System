@@ -118,7 +118,7 @@ export default function StudentActivityBar() {
   const isProfilePage = pathname === '/student/profile';
   const showBar = activeActivity || (hasAttendance && !isProfilePage);
 
-  const activity = activeActivity;
+  const activity = activeActivity?.activity;
   const period = activeActivity?.period;
 
   return (

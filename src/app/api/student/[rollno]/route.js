@@ -10,8 +10,7 @@ import {
   studentFeePayments 
 } from '@/db/schema';
 import { eq, asc, desc } from 'drizzle-orm';
-import { computeAcademicYear } from '@/app/lib/academicYear';
-import { getBranchFromRoll, getAdmissionTypeFromRoll } from '@/lib/rollNumber';
+import { getBranchFromRoll, getAdmissionTypeFromRoll, getAcademicYear as computeAcademicYear } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { decrypt } from '@/lib/encryption';
 
@@ -29,6 +28,14 @@ export async function GET(req, context) {
 
     // Invisible Normalization Hook
     rollno = String(rollno || '').trim().toUpperCase();
+
+    // SECURITY GUARD: A student can ONLY access their own profile.
+    // Staff (clerk/admin) can access any profile.
+    const isStudent = !!user.roll_no;
+    if (isStudent && user.roll_no !== rollno) {
+      logger.warn(`[SECURITY_ALERT] Student ${user.roll_no} tried to access profile ${rollno}`);
+      return apiError('Forbidden: Access denied to this profile', 403);
+    }
 
     // 1. Fetch student with joined personal and academic data
     const studentResult = await db.select()

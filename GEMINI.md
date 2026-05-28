@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 28, 2026 (Session 134)
+**Last Updated:** May 28, 2026 (Session 135)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -160,6 +160,20 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-May 2026)
 
 ### May 2026
+
+#### **Session 135: Advanced Edge Case Governance & Logic Hardening (May 28, 2026)**
+- **Scholarship Summary Refactor:** Overhauled the scholarship summary API (`/api/clerk/scholarship/summary/[rollno]`) to use standard Drizzle `select` and `join` queries. Eliminated dependency on the Relational Query API and hardened the fetching logic against undefined SQL parameters.
+- **Silent Token Rotation for APIs:** Updated the Next.js middleware matcher in `src/proxy.js` to include protected API routes (`/api/admin`, `/api/clerk`, `/api/student`). This ensures that background API requests can trigger silent JWT refreshes, preventing `401 Unauthorized` errors during active sessions.
+- **Ongoing Lecture Property Fix:** Resolved a bug in `StudentActivityBar.js` where "Ongoing Lecture" data (subject, faculty, room) was shown as TBD/Unassigned due to incorrect property access on the nested API response.
+- **Scholarship Window Date Consistency:** Standardized date formatting across `scholarship/window`, `scholarship/metrics`, and `student/activity` APIs. Enforced the `YYYY-MM-DD` format using `toMySQLDate` to ensure `<input type="date">` elements correctly display stored window dates after page refreshes.
+- **Student Profile Security Guard:** Implemented a critical access control check in the student profile API. Students are now restricted to accessing only their own roll number's data, while administrative staff retain global access.
+- **Dashboard UI Optimization:** Streamlined the student home page by removing redundant financial overview and bulletin sections, providing a more focused academic workspace.
+- **Mid-Semester "Spot" Admissions (Attendance Penalty Fix):** Added `admission_date` to student records and admission drafts. Re-engineered attendance calculation logic to count only sessions occurring on or after the student's admission date, preventing artificial attendance penalties for late joiners.
+- **Faculty Substitutions & "Ad-Hoc" Classes:** Implemented a new `faculty_substitutions` table and administrative UI for HODs. The system now dynamically grants temporary authority to substitute faculty members, allowing them to initiate live sessions and mark attendance while maintaining the integrity of the primary timetable matrix.
+- **Student Detention & Dropout Handling:** Introduced `academic_status` and `academic_offset_years` fields. Refactored dynamic year/semester calculations to respect academic offsets. Faculty class lists now dynamically generate cohorts, automatically holding back detained students in the correct academic year lists.
+- **Active Request Guard (Spam Protection):** Hardened the student profile update pipeline. The system now actively blocks duplicate requests for the same field while intelligently merging non-overlapping field updates into existing pending requests to maintain a clean clerk verification queue.
+- **Scholarship Rejection Fee Recalculation:** Added a `REJECTED` status to the scholarship sanction workflow. Financial summary utilities now instantly recalculate student dues by voiding any anticipated government credit from rejected proceedings. Added support for aggregating multiple proceedings per year.
+- **Manual Database Synchronization:** Successfully executed a manual SQL migration to synchronize the TiDB database with the expanded `schema.js`, overcoming `drizzle-kit` clustered index limitations.
 
 #### **Session 134: Security Hardening & Edge Case Governance (May 28, 2026)**
 - **Attendance PIN Brute-Force Protection:** Implemented a "3-Strike" rule for attendance PIN verification. Students are now locked out of a specific session after 3 failed attempts, with real-time `STUDENT_LOCKED` notifications broadcasted to the faculty.

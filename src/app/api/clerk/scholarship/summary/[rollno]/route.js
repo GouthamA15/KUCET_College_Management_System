@@ -35,7 +35,7 @@ export async function GET(req, ctx) {
       fee_reimbursement: studentsTable.fee_reimbursement,
       email: studentsTable.email,
       mobile: studentsTable.mobile,
-      has_pfp: sql`CASE WHEN ${studentImages.pfp} IS NOT NULL THEN 1 ELSE 0 END`
+      pfp: studentImages.pfp
     })
     .from(studentsTable)
     .leftJoin(studentImages, eq(studentsTable.id, studentImages.student_id))
@@ -62,13 +62,13 @@ export async function GET(req, ctx) {
     const total_fee = fee_category === 'SFC' ? 70000 : 35000;
 
     // STEP D: Fetch scholarship sanctions
-    const sanctionsRows = await db.query.scholarshipSanctions.findMany({
-      where: and(
+    const sanctionsRows = await db.select()
+      .from(scholarshipSanctions)
+      .where(and(
         eq(scholarshipSanctions.student_id, student.id),
         eq(scholarshipSanctions.academic_year, year)
-      ),
-      orderBy: [asc(scholarshipSanctions.sanction_date)]
-    });
+      ))
+      .orderBy(asc(scholarshipSanctions.sanction_date));
 
     const scholarship_proceedings = sanctionsRows
       .filter(r => (r.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
@@ -81,16 +81,6 @@ export async function GET(req, ctx) {
         released_date: r.released_date,
         status: r.status
       }));
-
-    const all_proceedings = sanctionsRows.map(r => ({
-      id: r.id,
-      proceeding_no: r.proceeding_no,
-      amount: Number(r.sanctioned_amount) || 0,
-      date: r.sanction_date,
-      released_amount: Number(r.released_amount) || 0,
-      released_date: r.released_date,
-      status: r.status
-    }));
 
     const application_no = sanctionsRows.map(r => r.application_no).find(v => v && String(v).trim() !== '') || null;
     
@@ -109,13 +99,13 @@ export async function GET(req, ctx) {
     const govt_paid = scholarship_proceedings.reduce((sum, p) => sum + p.amount, 0);
 
     // STEP E: Fetch student payments
-    const paymentsRows = await db.query.studentFeePayments.findMany({
-      where: and(
+    const paymentsRows = await db.select()
+      .from(studentFeePayments)
+      .where(and(
         eq(studentFeePayments.student_id, student.id),
         eq(studentFeePayments.academic_year, year)
-      ),
-      orderBy: [asc(studentFeePayments.transaction_date)]
-    });
+      ))
+      .orderBy(asc(studentFeePayments.transaction_date));
 
     const student_payments = paymentsRows.map(r => ({
       id: r.id,
@@ -142,7 +132,7 @@ export async function GET(req, ctx) {
         course,
         email: student.email ?? null,
         mobile: decrypt(student.mobile) ?? null,
-        pfp: student.has_pfp ? `/api/student/image/${student.roll_no}` : null,
+        pfp: student.pfp ? `/api/student/image/${student.roll_no}` : null,
         admission_year,
         current_year,
       },
@@ -164,8 +154,8 @@ export async function GET(req, ctx) {
 
     return apiResponse({ data: response });
   } catch (error) {
-    logger.error('Error fetching student data:', error);
-    return apiError('Internal Server Error', 500);
+    logger.error({ error: error.message, stack: error.stack }, 'Error fetching student data for scholarship summary');
+    return apiError('Internal Server Error', 500, error.message);
   }
 }
 
