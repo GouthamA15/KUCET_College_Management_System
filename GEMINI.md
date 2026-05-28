@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 28, 2026 (Session 135)
+**Last Updated:** May 28, 2026 (Session 138)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -160,6 +160,16 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-May 2026)
 
 ### May 2026
+
+#### **Session 138: Scholarship Registry Reliability & Clerk UX Hardening (May 28, 2026)**
+- **Scholarship Payments API Crash Fix:** Resolved a 500 error caused by selecting undefined Drizzle columns; stabilized student lookup and course/fee resolution logic for payment registration.
+- **Strict Student Payment Limit Validation:** Enforced a hard payable cap with a consistent `400` response when a payment would exceed the allowed limit (prevents silent over-collection and mismatched totals).
+- **Non-Reimbursement Proceedings Guard:** Blocked scholarship proceedings for students with `fee_reimbursement = NO` at the API layer to prevent invalid government sanction entries.
+- **Institutional Modal Dynamic Workflow:** Updated the clerk scholarship modal to switch between scholarship workflow vs payment-only workflow based on `fee_reimbursement` status (reduces operator confusion and invalid actions).
+- **Payment Form Locking at Limit:** Automatically disables student payment inputs once the payable limit is fully reached for the selected year (UI prevention; backend remains the final enforcement).
+- **Edit Proceeding Date Prefill Fix:** Normalized proceeding dates into `YYYY-MM-DD` for `<input type="date">` fields so sanction/release dates populate correctly during edit mode.
+- **Modal Usability Improvements:** Reduced scroll jank (removed expensive effects) and improved readability by emphasizing key computed amounts (remaining/balance/limits) with larger, bolder typography.
+- **Lint Cleanups:** Addressed a React Hook dependency warning in the admission form to keep CI quality gates green.
 
 #### **Session 137: Automated Quality Gates & CI/CD Hardening (May 28, 2026)**
 - **Hardened Quality Gates:** Overhauled the ESLint configuration (`eslint.config.mjs`) to enforce strict "no-undef" rules, preventing production crashes caused by missing imports or ReferenceErrors.
