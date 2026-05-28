@@ -152,12 +152,33 @@ export async function POST(req) {
     });
 
     if (pending) {
+      // --- ACTIVE REQUEST GUARD ---
+      const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : {};
+      const newFields = data ? Object.keys(data) : [];
+      const existingFields = Object.keys(existingData);
+      
+      const overlaps = newFields.filter(f => existingFields.includes(f));
+      
+      if (overlaps.length > 0) {
+        return apiError(`You already have a pending request for: ${overlaps.map(f => f.replace(/_/g, ' ')).join(', ')}. Please wait for clerk approval before submitting new changes for these fields.`, 400);
+      }
+
+      if (signature && pending.new_signature) {
+        return apiError('You already have a pending signature update request.', 400);
+      }
+      if (pfp && pending.new_pfp) {
+        return apiError('You already have a pending profile photo update request.', 400);
+      }
+
+      // Merge data for non-overlapping fields
+      const mergedData = { ...existingData, ...(encryptedData || {}) };
+
       // Update existing pending request
       const updateData = {};
       if (signatureUrl) updateData.new_signature = signatureUrl;
       if (pfpUrl) updateData.new_pfp = pfpUrl;
-      if (encryptedData) updateData.new_data = encryptedData;
-      if (proofUrl) updateData.proof_url = proofUrl;
+      if (Object.keys(mergedData).length > 0) updateData.new_data = mergedData;
+      if (proofUrl) updateData.proof_url = proofUrl; // Latest proof replaces old one
       
       await db.update(studentProfileRequests)
         .set(updateData)
