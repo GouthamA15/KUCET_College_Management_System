@@ -2,7 +2,8 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   attendanceSessions, 
-  facultySubjectAssignments 
+  facultySubjectAssignments,
+  facultySubstitutions
 } from '@/db/schema';
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
@@ -31,7 +32,8 @@ export async function GET(request) {
       session_pin: attendanceSessions.session_pin,
       session_token: attendanceSessions.session_token,
       expires_at: attendanceSessions.expires_at,
-      session_number: attendanceSessions.session_number
+      session_number: attendanceSessions.session_number,
+      faculty_id: attendanceSessions.faculty_id
     })
     .from(attendanceSessions)
     .where(and(
@@ -45,6 +47,7 @@ export async function GET(request) {
       return apiResponse({ active: false });
     }
 
+    // A session is active, check if the current user is the one who started it OR is authorized
     return apiResponse({ active: true, session: sessions[0] });
   } catch (error) {
     logger.error('Fetch Session Error:', error);
@@ -70,36 +73,66 @@ export async function POST(request) {
       return apiError('Missing assignment_id or attendance_date', 400);
     }
 
-    // 1. Verify assignment belongs to faculty
+    // 1. Verify assignment existence and get details
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
       branch: facultySubjectAssignments.branch,
-      subject_code: facultySubjectAssignments.subject_code
+      subject_code: facultySubjectAssignments.subject_code,
+      faculty_id: facultySubjectAssignments.faculty_id
     })
     .from(facultySubjectAssignments)
-    .where(and(
-      eq(facultySubjectAssignments.id, assignment_id),
-      eq(facultySubjectAssignments.faculty_id, user.id)
-    ))
+    .where(eq(facultySubjectAssignments.id, assignment_id))
     .limit(1);
 
     if (assignments.length === 0) {
-      return apiError('Assignment not found or unauthorized', 404);
+      return apiError('Assignment not found', 404);
     }
 
-    // 2. Deactivate any existing sessions for this assignment
+    const targetAssignment = assignments[0];
+
+    // 2. Authorization logic (Primary Faculty, HOD, or Substitute)
+    let isAuthorized = false;
+    let authType = 'PRIMARY';
+
+    if (targetAssignment.faculty_id === user.id) {
+      isAuthorized = true;
+    } else if (user.is_hod && user.branch === targetAssignment.branch) {
+      isAuthorized = true;
+      authType = 'HOD_OVERRIDE';
+    } else {
+      // Check for active substitution on this date
+      const substitution = await db.select()
+        .from(facultySubstitutions)
+        .where(and(
+          eq(facultySubstitutions.original_assignment_id, assignment_id),
+          eq(facultySubstitutions.substitute_faculty_id, user.id),
+          eq(facultySubstitutions.substitution_date, attendance_date)
+        ))
+        .limit(1);
+      
+      if (substitution.length > 0) {
+        isAuthorized = true;
+        authType = 'SUBSTITUTE';
+      }
+    }
+
+    if (!isAuthorized) {
+      return apiError('You are not authorized to start a session for this assignment (Not primary, HOD, or substitute)', 403);
+    }
+
+    // 3. Deactivate any existing sessions for this assignment
     await db.update(attendanceSessions)
       .set({ is_active: false })
       .where(eq(attendanceSessions.assignment_id, assignment_id));
 
-    // 3. Generate PIN and Token
+    // 4. Generate PIN and Token
     const sessionPin = crypto.randomInt(1000, 9999).toString();
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
     // Session valid for 10 minutes by default
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
 
-    // 4. Create new session
+    // 5. Create new session
     const [result] = await db.insert(attendanceSessions).values({
       assignment_id: assignment_id,
       faculty_id: user.id,
@@ -120,17 +153,18 @@ export async function POST(request) {
       broadcastUpdate('SESSION_STARTED', { 
         assignment_id, 
         faculty_id: user.id, 
-        branch: assignments[0].branch,
-        subject_code: assignments[0].subject_code,
+        branch: targetAssignment.branch,
+        subject_code: targetAssignment.subject_code,
         sessionId: result.insertId,
-        session_number: session_number || 1
+        session_number: session_number || 1,
+        auth_type: authType
       });
     } catch (sseErr) {
       console.warn('[SSE] Broadcast failed:', sseErr);
     }
 
     return apiResponse({
-      message: 'Session created successfully',
+      message: `Session created successfully (${authType})`,
       session: {
         id: result.insertId,
         session_pin: sessionPin,

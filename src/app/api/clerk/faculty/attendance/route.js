@@ -3,7 +3,8 @@ import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
   studentAttendance, 
-  collegeInfo as collegeInfoTable 
+  collegeInfo as collegeInfoTable,
+  facultySubstitutions
 } from '@/db/schema';
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
@@ -33,26 +34,52 @@ export async function POST(request) {
       }
     }
 
-    // Verify assignment belongs to faculty
+    // 1. Verify assignment existence and get details
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
       subject_code: facultySubjectAssignments.subject_code,
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,
-      academic_year: facultySubjectAssignments.academic_year
+      academic_year: facultySubjectAssignments.academic_year,
+      faculty_id: facultySubjectAssignments.faculty_id
     })
     .from(facultySubjectAssignments)
-    .where(and(
-      eq(facultySubjectAssignments.id, assignment_id),
-      eq(facultySubjectAssignments.faculty_id, user.id)
-    ))
+    .where(eq(facultySubjectAssignments.id, assignment_id))
     .limit(1);
 
     if (assignments.length === 0) {
-      return apiError('Assignment not found or unauthorized', 404);
+      return apiError('Assignment not found', 404);
     }
 
     const assignment = assignments[0];
+
+    // 2. Authorization logic (Primary Faculty, HOD, or Substitute)
+    let isAuthorized = false;
+
+    if (assignment.faculty_id === user.id) {
+      isAuthorized = true;
+    } else if (user.is_hod && user.branch === assignment.branch) {
+      isAuthorized = true;
+    } else {
+      // Check for active substitution on this date
+      const substitution = await db.select()
+        .from(facultySubstitutions)
+        .where(and(
+          eq(facultySubstitutions.original_assignment_id, assignment_id),
+          eq(facultySubstitutions.substitute_faculty_id, user.id),
+          eq(facultySubstitutions.substitution_date, date)
+        ))
+        .limit(1);
+      
+      if (substitution.length > 0) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return apiError('Unauthorized to mark attendance for this assignment', 403);
+    }
+
     const { subject_code, branch, course_semester, academic_year } = assignment;
 
     // --- SHARED DATA LOGIC: Canonical ID ---
@@ -130,25 +157,51 @@ export async function DELETE(request) {
       return apiError('Missing required parameters', 400);
     }
 
-    // Verify assignment and activity
+    // 1. Verify assignment existence and get details
     const assignments = await db.select({
       subject_code: facultySubjectAssignments.subject_code,
       branch: facultySubjectAssignments.branch,
       course_semester: facultySubjectAssignments.course_semester,
-      academic_year: facultySubjectAssignments.academic_year
+      academic_year: facultySubjectAssignments.academic_year,
+      faculty_id: facultySubjectAssignments.faculty_id
     })
     .from(facultySubjectAssignments)
-    .where(and(
-      eq(facultySubjectAssignments.id, assignment_id),
-      eq(facultySubjectAssignments.faculty_id, user.id)
-    ))
+    .where(eq(facultySubjectAssignments.id, assignment_id))
     .limit(1);
 
     if (assignments.length === 0) {
-      return apiError('Assignment not found or unauthorized', 404);
+      return apiError('Assignment not found', 404);
     }
 
     const assignment = assignments[0];
+
+    // 2. Authorization logic (Primary Faculty, HOD, or Substitute)
+    let isAuthorized = false;
+
+    if (assignment.faculty_id === user.id) {
+      isAuthorized = true;
+    } else if (user.is_hod && user.branch === assignment.branch) {
+      isAuthorized = true;
+    } else {
+      // Check for active substitution on this date
+      const substitution = await db.select()
+        .from(facultySubstitutions)
+        .where(and(
+          eq(facultySubstitutions.original_assignment_id, assignment_id),
+          eq(facultySubstitutions.substitute_faculty_id, user.id),
+          eq(facultySubstitutions.substitution_date, date)
+        ))
+        .limit(1);
+      
+      if (substitution.length > 0) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return apiError('Unauthorized to delete attendance for this assignment', 403);
+    }
+
     const { subject_code, branch, course_semester, academic_year } = assignment;
 
     // --- SHARED DATA LOGIC: Canonical ID ---

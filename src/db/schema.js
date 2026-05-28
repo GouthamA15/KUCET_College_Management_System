@@ -521,6 +521,18 @@ export const facultySubjectInterests = mysqlTable('faculty_subject_interests', {
   statusIdx: index('idx_fsi_status').on(table.status),
 }));
 
+export const facultySubstitutions = mysqlTable('faculty_substitutions', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  original_assignment_id: int('original_assignment_id').notNull(),
+  substitute_faculty_id: int('substitute_faculty_id').notNull(),
+  substitution_date: date('substitution_date').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  created_by_clerk_id: int('created_by_clerk_id'),
+}, (table) => ({
+  lookupIdx: index('idx_subst_lookup').on(table.original_assignment_id, table.substitution_date),
+  substituteIdx: index('idx_subst_faculty').on(table.substitute_faculty_id),
+}));
+
 export const studentProfileRequests = mysqlTable('student_profile_requests', {
   id: int('id').autoincrement().primaryKey().notNull(),
   student_id: int('student_id').notNull(),
