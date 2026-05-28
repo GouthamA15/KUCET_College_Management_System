@@ -52,6 +52,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  let requestId;
   try {
     const user = await getAuthUser("student");
     if (!user || !user.student_id || !user.roll_no) return apiError("Unauthorized", 401);
@@ -101,7 +102,6 @@ export async function POST(request) {
       return apiError("An active request already exists for this academic year.", 409);
     }
 
-    let requestId;
     if (existing) {
       // Update
       requestId = existing.request_id;
