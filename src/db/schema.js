@@ -42,6 +42,7 @@ export const students = mysqlTable('students', {
   is_email_verified: boolean('is_email_verified').default(false).notNull(),
   email_verified_at: timestamp('email_verified_at'),
   password_hash: varchar('password_hash', { length: 255 }),
+  admission_date: date('admission_date'),
   added_by_clerk_id: int('added_by_clerk_id'),
   updated_at: timestamp('updated_at').onUpdateNow(),
   updated_by_clerk_id: int('updated_by_clerk_id'),
@@ -163,6 +164,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   identification_mark_1: text('identification_mark_1'),
   identification_mark_2: text('identification_mark_2'),
   permanent_address: text('permanent_address'),
+  admission_date: date('admission_date'),
   roll_no: varchar('roll_no', { length: 255 }), // Promised/Assigned Roll Number
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),

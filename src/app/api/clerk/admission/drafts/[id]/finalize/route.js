@@ -21,7 +21,7 @@ export async function POST(req, context) {
   try {
     const params = await context.params;
     const id = parseInt(params.id);
-    const { roll_no } = await req.json();
+    const { roll_no, admission_date } = await req.json();
     const rollNo = String(roll_no || '').trim().toUpperCase();
 
     if (!rollNo) {
@@ -82,6 +82,7 @@ export async function POST(req, context) {
         email: draft.email,
         added_by_clerk_id: user.clerkId || user.id,
         fee_reimbursement: draft.fee_reimbursement === 'YES' ? 'YES' : 'NO',
+        admission_date: admission_date ? new Date(admission_date) : (draft.admission_date ? new Date(draft.admission_date) : new Date()),
         created_at: new Date()
       });
 

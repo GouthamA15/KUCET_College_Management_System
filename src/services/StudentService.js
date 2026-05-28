@@ -151,7 +151,7 @@ export class StudentService {
     let {
       admission_no, roll_no, name, date_of_birth, gender, mobile, email,
       father_name, mother_name, religion, sub_caste, category, address,
-      qualifying_exam, aadhaar_no, annual_income
+      qualifying_exam, aadhaar_no, annual_income, admission_date
     } = data;
 
     if (!roll_no || !name) {
@@ -174,6 +174,7 @@ export class StudentService {
         mobile: normalizedMobile ? encrypt(normalizedMobile) : null,
         mobile_hash: normalizedMobile ? hashForIndex(normalizedMobile) : null,
         email,
+        admission_date: admission_date ? new Date(admission_date) : new Date(),
         added_by_clerk_id: clerkId
       });
       const studentId = res.insertId;
