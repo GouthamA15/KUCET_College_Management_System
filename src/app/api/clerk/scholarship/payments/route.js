@@ -1,13 +1,12 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { studentFeePayments, students as studentsTable } from '@/db/schema';
+import { studentFeePayments, students as studentsTable, studentPersonalDetails, studentAcademicBackground } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getYearlyTotalFee } from '@/lib/financial-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
-
-const GOVT_CAP = 35000;
+import { calculateExpectedRTF } from '@/lib/scholarship-utils';
 
 export async function POST(req) {
   const user = await getAuthUser('clerk');
@@ -42,8 +41,15 @@ export async function POST(req) {
     const studentRows = await db.select({ 
       id: studentsTable.id,
       fee_reimbursement: studentsTable.fee_reimbursement,
+      category: studentPersonalDetails.category,
+      religion: studentPersonalDetails.religion,
+      seat_allotted_category: studentPersonalDetails.seat_allotted_category,
+      ranks: studentAcademicBackground.ranks,
+      previous_college_details: studentAcademicBackground.previous_college_details
     })
       .from(studentsTable)
+      .leftJoin(studentPersonalDetails, eq(studentPersonalDetails.student_id, studentsTable.id))
+      .leftJoin(studentAcademicBackground, eq(studentAcademicBackground.student_id, studentsTable.id))
       .where(eq(studentsTable.roll_no, roll_no))
       .limit(1);
     
@@ -60,7 +66,8 @@ export async function POST(req) {
         // FINANCIAL VALIDATION
         const totalCourseFee = Number(getYearlyTotalFee(course) || 0);
         const isScholarshipStudent = reimbursementStatus === 'YES';
-        const allowedPayableLimit = isScholarshipStudent ? Math.max(0, totalCourseFee - GOVT_CAP) : totalCourseFee;
+        const expectedRTF = isScholarshipStudent ? calculateExpectedRTF(student, totalCourseFee) : 0;
+        const allowedPayableLimit = Math.max(0, totalCourseFee - expectedRTF);
 
         logger.info(`[Payment API] Course fee detected: ${totalCourseFee}`);
 

@@ -1,11 +1,14 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { scholarshipSanctions, students as studentsTable, scholarshipWindows } from '@/db/schema';
+import { scholarshipSanctions, students as studentsTable, studentPersonalDetails, studentAcademicBackground, scholarshipWindows } from '@/db/schema';
 import { eq, and, or, desc, sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { sendInstitutionalEmail } from '@/lib/email';
+import { getBranchFromRoll } from '@/lib/rollNumber';
+import { getYearlyTotalFee } from '@/lib/financial-utils';
+import { calculateExpectedRTF } from '@/lib/scholarship-utils';
 
 const toNull = (v) => (!v || String(v).trim() === '') ? null : String(v).trim();
 
@@ -66,9 +69,16 @@ export async function POST(req) {
         name: studentsTable.name, 
         email: studentsTable.email, 
         is_email_verified: studentsTable.is_email_verified,
-        fee_reimbursement: studentsTable.fee_reimbursement
+        fee_reimbursement: studentsTable.fee_reimbursement,
+        category: studentPersonalDetails.category,
+        religion: studentPersonalDetails.religion,
+        seat_allotted_category: studentPersonalDetails.seat_allotted_category,
+        ranks: studentAcademicBackground.ranks,
+        previous_college_details: studentAcademicBackground.previous_college_details
     })
       .from(studentsTable)
+      .leftJoin(studentPersonalDetails, eq(studentPersonalDetails.student_id, studentsTable.id))
+      .leftJoin(studentAcademicBackground, eq(studentAcademicBackground.student_id, studentsTable.id))
       .where(eq(studentsTable.roll_no, roll_no))
       .limit(1);
     
@@ -110,7 +120,10 @@ export async function POST(req) {
       const providedProceeding = proceeding_no && String(proceeding_no).trim() !== '' ? String(proceeding_no).trim() : null;
 
       // FINANCIAL VALIDATION (₹35,000 CAP) - INSIDE TRANSACTION
-      const GOVT_ELIGIBLE_CAP = 35000;
+      const course = getBranchFromRoll(roll_no);
+      const totalCourseFee = Number(getYearlyTotalFee(course) || 0);
+      const GOVT_ELIGIBLE_CAP = calculateExpectedRTF(student, totalCourseFee);
+
       const existingRowForCap = providedProceeding ? existing.find(r => String(r.proceeding_no || '') === providedProceeding) : null;
       
       const otherSanctionsTotal = existing

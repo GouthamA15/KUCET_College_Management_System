@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 27, 2026 (Session 132)
+**Last Updated:** May 28, 2026 (Session 133)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -160,6 +160,11 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-May 2026)
 
 ### May 2026
+
+#### **Session 133: Scholarship Government Cap Bug Fix (May 28, 2026)**
+- **Dynamic RTF Calculation Restored:** Resolved a critical logic error in the scholarship Payments and Sanctions API routes where the government fee reimbursement cap was hardcoded to ₹35,000 for all eligible students.
+- **Minority Logic Integration:** Replaced the hardcoded cap with the dynamic `calculateExpectedRTF` utility, ensuring that Minority and SC/ST students correctly receive full fee reimbursement limits in both payment registration and scholarship sanction workflows, strictly adhering to the institutional rules established in Session 132.
+- **Relational Integrity:** Updated the database queries in both API routes to perform `leftJoin`s with `student_personal_details` and `student_academic_background` to fetch the required categorical and academic data (Category, Religion, Rank, Seat Type) necessary for accurate RTF evaluation.
 
 #### **Session 132: Minority Scholarship Logic & Admission Workflow Excellence (May 27, 2026)**
 - **TS ePASS Minority Logic Implementation:** Re-engineered the scholarship engine to align with GO Rt No. 63. Minority (Muslim, Christian, etc.) and SC/ST students now receive full fee reimbursement regardless of EAMCET/ECET rank, provided they are in the Convener Quota.
