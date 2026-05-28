@@ -21,21 +21,37 @@ export default function useFinancialRows(roll_no, scholarshipArray = [], feePaym
 
   const yearlyTotalFee = getYearlyTotalFee(course);
 
-  // Group scholarship by year
+  // Group scholarship by year (Aggregating multiple proceedings)
   const scholarshipByYear = {};
   (scholarshipArray || []).forEach((s) => {
+    if ((s.status || 'SANCTIONED').toUpperCase() === 'REJECTED') return;
+
     for (let y = 1; y <= maxYears; y++) {
       const acadLabel = computeAcademicYear(roll_no, y);
       if (!acadLabel) continue;
       const matchesYearIndex = s.year && Number(s.year) === y;
       const matchesAcademicLabel = s.academic_year && String(s.academic_year) === String(acadLabel);
       if (matchesYearIndex || matchesAcademicLabel) {
-        scholarshipByYear[y] = {
-          proceedings_no: s.proceeding_no ?? s.proceedings_no ?? s.proceedingNo ?? '',
-          amount_sanctioned: Number(s.sanctioned_amount ?? s.amount_sanctioned ?? 0),
-          amount_disbursed: Number(s.amount_disbursed ?? 0),
-          date: s.sanction_date ?? s.sanctionDate ?? s.date ?? null,
-        };
+        if (!scholarshipByYear[y]) {
+          scholarshipByYear[y] = {
+            proceedings_no: [],
+            amount_sanctioned: 0,
+            amount_disbursed: 0,
+            date: null,
+          };
+        }
+        const pNo = s.proceeding_no ?? s.proceedings_no ?? s.proceedingNo;
+        if (pNo) scholarshipByYear[y].proceedings_no.push(pNo);
+        
+        scholarshipByYear[y].amount_sanctioned += Number(s.sanctioned_amount ?? s.amount_sanctioned ?? 0);
+        scholarshipByYear[y].amount_disbursed += Number(s.amount_disbursed ?? 0);
+        
+        const pDate = s.sanction_date ?? s.sanctionDate ?? s.date;
+        if (pDate) {
+          if (!scholarshipByYear[y].date || new Date(pDate) > new Date(scholarshipByYear[y].date)) {
+            scholarshipByYear[y].date = pDate;
+          }
+        }
         break;
       }
     }
@@ -97,7 +113,7 @@ export default function useFinancialRows(roll_no, scholarshipArray = [], feePaym
 
     return {
       labelYear: acad ?? `Year ${y}`,
-      proceedings_no: scholar?.proceedings_no ?? '',
+      proceedings_no: scholar?.proceedings_no?.join(' & ') ?? '',
       amount_sanctioned: govtPaid > 0 ? govtPaid : '',
       student_paid: studentPaidRec.amount > 0 ? studentPaidRec.amount : '',
       pending_fee: pending,

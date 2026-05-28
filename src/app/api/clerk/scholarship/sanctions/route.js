@@ -50,19 +50,24 @@ export async function POST(req) {
       console.log(`[Scholarship API DEBUG] Parsed Released: ${released_amount} (${typeof released_amount})`);
     }
     const released_date = released_amount !== null ? toMySQLDate(body.released_date) : null;
+    const status = (body.status || 'SANCTIONED').toUpperCase();
 
     if (!roll_no) return apiError('Missing roll_no', 400);
     if (!academic_year || !academic_year.match(/^\d{4}-\d{2}$/)) return apiError('Invalid academic_year', 400);
     if (!application_no) return apiError('Missing application_no', 400);
+
+    if (!['PENDING', 'SANCTIONED', 'RELEASED', 'REJECTED'].includes(status)) {
+      return apiError('Invalid scholarship status', 400);
+    }
 
     // Strict Format Validation
     const cleanAppStr = String(application_no).trim();
     if (!/^\d+$/.test(cleanAppStr)) return apiError('application_no must be numeric', 400);
     if (cleanAppStr.length < 6 || cleanAppStr.length > 15) return apiError('application_no invalid length', 400);
 
-    if (sanctioned_amount !== null && !(sanctioned_amount > 0)) return apiError('Invalid sanctioned_amount', 400);
-    if (sanctioned_amount !== null && !proceeding_no) return apiError('Missing proceeding_no for amount', 400);
-    if (sanctioned_amount !== null && !sanction_date) return apiError('Invalid sanction_date', 400);
+    if (status !== 'REJECTED' && sanctioned_amount !== null && !(sanctioned_amount > 0)) return apiError('Invalid sanctioned_amount', 400);
+    if (status !== 'REJECTED' && sanctioned_amount !== null && !proceeding_no) return apiError('Missing proceeding_no for amount', 400);
+    if (status !== 'REJECTED' && sanctioned_amount !== null && !sanction_date) return apiError('Invalid sanction_date', 400);
 
     const studentRows = await db.select({ 
         id: studentsTable.id, 
@@ -127,22 +132,22 @@ export async function POST(req) {
       const existingRowForCap = providedProceeding ? existing.find(r => String(r.proceeding_no || '') === providedProceeding) : null;
       
       const otherSanctionsTotal = existing
-        .filter(r => !existingRowForCap || r.id !== existingRowForCap.id)
+        .filter(r => (!existingRowForCap || r.id !== existingRowForCap.id) && r.status !== 'REJECTED')
         .reduce((sum, r) => sum + Number(r.sanctioned_amount || 0), 0);
       
       const otherReleasedTotal = existing
-        .filter(r => !existingRowForCap || r.id !== existingRowForCap.id)
+        .filter(r => (!existingRowForCap || r.id !== existingRowForCap.id) && r.status !== 'REJECTED')
         .reduce((sum, r) => sum + Number(r.released_amount || 0), 0);
 
-      const finalSanctionedTotal = otherSanctionsTotal + (sanctioned_amount || 0);
-      const finalReleasedTotal = otherReleasedTotal + (released_amount || 0);
+      const finalSanctionedTotal = otherSanctionsTotal + (status === 'REJECTED' ? 0 : (sanctioned_amount || 0));
+      const finalReleasedTotal = otherReleasedTotal + (status === 'REJECTED' ? 0 : (released_amount || 0));
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[Scholarship Validation] Existing Sanctioned: ${otherSanctionsTotal}, Incoming: ${sanctioned_amount}, Final: ${finalSanctionedTotal}`);
-        console.log(`[Scholarship Validation] Existing Released: ${otherReleasedTotal}, Incoming: ${released_amount}, Final: ${finalReleasedTotal}`);
+        console.log(`[Scholarship Validation] Existing Sanctioned: ${otherSanctionsTotal}, Incoming: ${sanctioned_amount}, Status: ${status}, Final: ${finalSanctionedTotal}`);
+        console.log(`[Scholarship Validation] Existing Released: ${otherReleasedTotal}, Incoming: ${released_amount}, Status: ${status}, Final: ${finalReleasedTotal}`);
       }
 
-      if (sanctioned_amount !== null && finalSanctionedTotal > GOVT_ELIGIBLE_CAP) {
+      if (status !== 'REJECTED' && sanctioned_amount !== null && finalSanctionedTotal > GOVT_ELIGIBLE_CAP) {
         if (process.env.NODE_ENV === 'development') {
           logger.warn(`[Scholarship Validation] Total sanctioned exceeded. Final: ${finalSanctionedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
           console.warn(`[Scholarship Validation] Total sanctioned exceeded. Final: ${finalSanctionedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
@@ -150,7 +155,7 @@ export async function POST(req) {
         throw new Error(`Scholarship sanctioned total exceeds ₹${GOVT_ELIGIBLE_CAP.toLocaleString()} government limit.`);
       }
 
-      if (released_amount !== null && finalReleasedTotal > GOVT_ELIGIBLE_CAP) {
+      if (status !== 'REJECTED' && released_amount !== null && finalReleasedTotal > GOVT_ELIGIBLE_CAP) {
         if (process.env.NODE_ENV === 'development') {
           logger.warn(`[Scholarship Validation] Released amount exceeded. Final: ${finalReleasedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
           console.warn(`[Scholarship Validation] Released amount exceeded. Final: ${finalReleasedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
@@ -180,6 +185,7 @@ export async function POST(req) {
               sanction_date: sanction_date, 
               released_amount: released_amount !== null ? String(released_amount) : null,
               released_date: released_date,
+              status: status,
               application_no: providedApp || existingRow.application_no 
             })
             .where(eq(scholarshipSanctions.id, existingRow.id));
@@ -195,6 +201,7 @@ export async function POST(req) {
                 sanction_date: sanction_date, 
                 released_amount: released_amount !== null ? String(released_amount) : null,
                 released_date: released_date,
+                status: status,
                 application_no: providedApp || baseRow.application_no 
               })
               .where(eq(scholarshipSanctions.id, baseRow.id));
@@ -209,7 +216,8 @@ export async function POST(req) {
               sanctioned_amount: sanctioned_amount !== null ? String(sanctioned_amount) : null,
               sanction_date: sanction_date,
               released_amount: released_amount !== null ? String(released_amount) : null,
-              released_date: released_date
+              released_date: released_date,
+              status: status
             });
             targetRowId = ins.insertId;
             isNewInsert = true;
@@ -219,7 +227,7 @@ export async function POST(req) {
         const baseRow = existing.find(r => !r.proceeding_no) || null;
         if (baseRow) {
           if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Updating base row ID: ${baseRow.id}`);
-          if (providedApp) await tx.update(scholarshipSanctions).set({ application_no: providedApp }).where(eq(scholarshipSanctions.id, baseRow.id));
+          if (providedApp) await tx.update(scholarshipSanctions).set({ application_no: providedApp, status: status }).where(eq(scholarshipSanctions.id, baseRow.id));
           targetRowId = baseRow.id;
         } else if (existing.length > 0) {
           if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Syncing application_no to all proceedings');
@@ -227,7 +235,7 @@ export async function POST(req) {
           targetRowId = existing[0].id;
         } else {
           if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Inserting initial base row');
-          const [ins] = await tx.insert(scholarshipSanctions).values({ student_id: student.id, academic_year: academic_year, application_no: providedApp });
+          const [ins] = await tx.insert(scholarshipSanctions).values({ student_id: student.id, academic_year: academic_year, application_no: providedApp, status: status });
           targetRowId = ins.insertId;
           isNewInsert = true;
         }

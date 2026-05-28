@@ -425,6 +425,7 @@ export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
   sanction_date: date('sanction_date'),
   released_amount: decimal('released_amount', { precision: 10, scale: 2 }),
   released_date: date('released_date'),
+  status: mysqlEnum('status', ['PENDING', 'SANCTIONED', 'RELEASED', 'REJECTED']).default('PENDING'),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
   thumb_update_available: boolean('thumb_update_available').default(false),

@@ -73,9 +73,11 @@ export function calculateFinancialSummary(data, course, student = {}) {
   const expected_govt = getExpectedScholarship(student, total_fee);
   const expected_student_liability = Math.max(0, total_fee - expected_govt);
   
-  const scholarship_proceedings = (data.scholarship || []).map(r => ({
-    amount: Number(r.sanctioned_amount || r.amount_sanctioned) || 0,
-  }));
+  const scholarship_proceedings = (data.scholarship || [])
+    .filter(r => (r.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
+    .map(r => ({
+      amount: Number(r.sanctioned_amount || r.amount_sanctioned) || 0,
+    }));
   const govt_paid = scholarship_proceedings.reduce((sum, p) => sum + p.amount, 0);
 
   const student_payments = (data.fees || []).map(r => ({

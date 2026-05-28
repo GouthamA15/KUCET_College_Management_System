@@ -122,6 +122,7 @@ function ScholarshipDashboardContent() {
   const [schSanctionDate, setSchSanctionDate] = useState('');
   const [releasedAmount, setReleasedAmount] = useState('');
   const [releasedDate, setReleasedDate] = useState('');
+  const [schStatus, setSchStatus] = useState('SANCTIONED');
   const [payAmount, setPayAmount] = useState('');
   const [payRef, setPayRef] = useState('');
   const [payDate, setPayDate] = useState('');
@@ -152,6 +153,7 @@ function ScholarshipDashboardContent() {
       thumbUpdateAvailable: setThumbUpdateAvailable,
       thumbStatus: setThumbStatus,
       hardcopySubmitted: setHardcopySubmitted,
+      schStatus: setSchStatus,
     };
     const fn = setters[k] || (() => {});
     fn(v);
@@ -178,6 +180,7 @@ function ScholarshipDashboardContent() {
     setSchSanctionDate('');
     setReleasedAmount('');
     setReleasedDate('');
+    setSchStatus('SANCTIONED');
     setPayAmount('');
     setPayRef('');
     setPayDate('');
@@ -406,6 +409,7 @@ function ScholarshipDashboardContent() {
     setSchSanctionDate('');
     setReleasedAmount('');
     setReleasedDate('');
+    setSchStatus('SANCTIONED');
     setPayAmount('');
     setPayRef('');
     setPayDate('');
@@ -476,6 +480,7 @@ function ScholarshipDashboardContent() {
         sanction_date: schSanctionDate || null,
         released_amount: hasRelAmount ? Number(releasedAmount) : null,
         released_date: releasedDate || null,
+        status: schStatus || 'SANCTIONED',
         thumb_update_available: !!thumbUpdateAvailable,
         thumb_status: thumbStatus || 'Pending',
         hardcopy_submitted: hardcopySubmitted ? 1 : 0,
@@ -838,6 +843,7 @@ function ScholarshipDashboardContent() {
                    setSchSanctionDate(toMySQLDate(p.date) || '');
                    setReleasedAmount(p.released_amount || '');
                    setReleasedDate(toMySQLDate(p.released_date) || '');
+                   setSchStatus(p.status || 'SANCTIONED');
                 }}
                 onCancelEdit={() => {
                    setSelectedProceeding(null);
@@ -846,6 +852,7 @@ function ScholarshipDashboardContent() {
                    setSchSanctionDate('');
                    setReleasedAmount('');
                    setReleasedDate('');
+                   setSchStatus('SANCTIONED');
                 }}
                 toDmy={toDmy}
               />

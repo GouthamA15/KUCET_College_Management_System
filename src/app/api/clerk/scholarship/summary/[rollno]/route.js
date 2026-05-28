@@ -70,13 +70,26 @@ export async function GET(req, ctx) {
       orderBy: [asc(scholarshipSanctions.sanction_date)]
     });
 
-    const scholarship_proceedings = sanctionsRows.map(r => ({
+    const scholarship_proceedings = sanctionsRows
+      .filter(r => (r.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
+      .map(r => ({
+        id: r.id,
+        proceeding_no: r.proceeding_no,
+        amount: Number(r.sanctioned_amount) || 0,
+        date: r.sanction_date,
+        released_amount: Number(r.released_amount) || 0,
+        released_date: r.released_date,
+        status: r.status
+      }));
+
+    const all_proceedings = sanctionsRows.map(r => ({
       id: r.id,
       proceeding_no: r.proceeding_no,
       amount: Number(r.sanctioned_amount) || 0,
       date: r.sanction_date,
       released_amount: Number(r.released_amount) || 0,
       released_date: r.released_date,
+      status: r.status
     }));
 
     const application_no = sanctionsRows.map(r => r.application_no).find(v => v && String(v).trim() !== '') || null;

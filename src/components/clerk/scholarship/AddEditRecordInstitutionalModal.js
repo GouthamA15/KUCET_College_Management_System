@@ -68,8 +68,12 @@ export default function AddEditRecordInstitutionalModal({
   const proceedings = Array.isArray(summary?.scholarship_proceedings) ? summary.scholarship_proceedings : [];
   const payments = Array.isArray(summary?.student_payments) ? summary.student_payments : [];
 
-  const totalSanctioned = proceedings.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const totalReleased = proceedings.reduce((sum, p) => sum + (Number(p.released_amount) || 0), 0);
+  const totalSanctioned = proceedings
+    .filter(p => (p.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const totalReleased = proceedings
+    .filter(p => (p.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
+    .reduce((sum, p) => sum + (Number(p.released_amount) || 0), 0);
   const totalStudentPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
   
   const GOVT_CAP = 35000;
@@ -84,17 +88,18 @@ export default function AddEditRecordInstitutionalModal({
   // Validation for UI
   const currentEntryAmt = Number(formState.schAmount) || 0;
   const currentRelAmt = Number(formState.releasedAmount) || 0;
+  const currentStatus = (formState.schStatus || 'SANCTIONED').toUpperCase();
   
   const totalExcludingCurrent = proceedings
-    .filter(p => !formState.selectedProceeding || p.id !== formState.selectedProceeding.id)
+    .filter(p => (!formState.selectedProceeding || p.id !== formState.selectedProceeding.id) && (p.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
   const relExcludingCurrent = proceedings
-    .filter(p => !formState.selectedProceeding || p.id !== formState.selectedProceeding.id)
+    .filter(p => (!formState.selectedProceeding || p.id !== formState.selectedProceeding.id) && (p.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
     .reduce((sum, p) => sum + (Number(p.released_amount) || 0), 0);
 
-  const isOverflow = (totalExcludingCurrent + currentEntryAmt) > GOVT_CAP;
-  const isRelOverflow = (relExcludingCurrent + currentRelAmt) > GOVT_CAP;
+  const isOverflow = currentStatus !== 'REJECTED' && (totalExcludingCurrent + currentEntryAmt) > GOVT_CAP;
+  const isRelOverflow = currentStatus !== 'REJECTED' && (relExcludingCurrent + currentRelAmt) > GOVT_CAP;
 
   const remainingEligible = Math.max(0, GOVT_CAP - totalSanctioned);
   const balanceToRelease = Math.max(0, totalSanctioned - totalReleased);
@@ -459,6 +464,20 @@ export default function AddEditRecordInstitutionalModal({
                           className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
                         />
                       </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-slate-600">Status</label>
+                        <select 
+                          value={formState.schStatus || 'SANCTIONED'}
+                          onChange={(e) => setField('schStatus', e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition"
+                        >
+                          <option value="SANCTIONED">SANCTIONED</option>
+                          <option value="RELEASED">RELEASED</option>
+                          <option value="PENDING">PENDING</option>
+                          <option value="REJECTED">REJECTED (voids dues credit)</option>
+                        </select>
+                      </div>
                     </div>
                     
                     {/* Inline Validation Warnings */}
@@ -501,6 +520,7 @@ export default function AddEditRecordInstitutionalModal({
                           <th className="px-3 py-2 text-xs font-semibold text-slate-600">Proceeding</th>
                           <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-right">Sanctioned</th>
                           <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-center">Sanction date</th>
+                          <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-center">Status</th>
                           <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-right">Released</th>
                           <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-right">Actions</th>
                         </tr>
@@ -508,16 +528,25 @@ export default function AddEditRecordInstitutionalModal({
                       <tbody className="divide-y divide-slate-100">
                         {proceedings.length === 0 ? (
                           <tr>
-                            <td colSpan="5" className="px-3 py-10 text-center text-slate-500 text-sm">No proceedings recorded for this year.</td>
+                            <td colSpan="6" className="px-3 py-10 text-center text-slate-500 text-sm">No proceedings recorded for this year.</td>
                           </tr>
                         ) : (
                           proceedings.map((p) => (
-                            <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
+                            <tr key={p.id} className={`hover:bg-slate-50 transition-colors group ${p.status === 'REJECTED' ? 'bg-red-50/30' : ''}`}>
                               <td className="px-3 py-2.5">
                                 <p className="text-sm font-medium text-slate-900">{p.proceeding_no}</p>
                               </td>
                               <td className="px-3 py-2.5 text-right text-sm font-semibold text-slate-900 tabular-nums">₹{Number(p.amount).toLocaleString()}</td>
                               <td className="px-3 py-2.5 text-center text-xs text-slate-600">{toDmy(p.date)}</td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                  p.status === 'REJECTED' ? 'bg-red-100 text-red-700 border-red-200' :
+                                  p.status === 'RELEASED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                  'bg-indigo-100 text-indigo-700 border-indigo-200'
+                                }`}>
+                                  {p.status || 'SANCTIONED'}
+                                </span>
+                              </td>
                               <td className="px-3 py-2.5 text-right">
                                 {p.released_amount ? (
                                   <div className="space-y-0.5">
