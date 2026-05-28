@@ -1,5 +1,5 @@
-import { and, like, or } from 'drizzle-orm';
-import { students as studentsTable } from '@/db/schema';
+import { and, like, or, eq } from 'drizzle-orm';
+import { students as studentsTable, studentAdmissionDrafts } from '@/db/schema';
 import { branchCodes, validateRollNo } from '@/lib/rollNumber';
 
 function getAdmissionSymbol(examType) {
@@ -93,6 +93,7 @@ async function getNextSerialNumber(tx, { branch, joiningYear, admissionSymbol })
 
   const yy = joiningYear ? twoDigitYear(joiningYear) : '__';
   let queryConditions = [];
+  let draftConditions = [];
 
   if (admissionSymbol === 'L') {
     // LATERAL ENTRY RULE: Continue sequence from previous year's regulars
@@ -101,23 +102,37 @@ async function getNextSerialNumber(tx, { branch, joiningYear, admissionSymbol })
     
     // Condition 1: Regulars from PREVIOUS year (YY567TBB__)
     queryConditions.push(like(studentsTable.roll_no, `${prevYY}567T${branchCode}%`));
+    draftConditions.push(like(studentAdmissionDrafts.roll_no, `${prevYY}567T${branchCode}%`));
     
     // Condition 2: Laterals from CURRENT year (YY567BB__L)
     queryConditions.push(like(studentsTable.roll_no, `${yy}567${branchCode}%L`));
+    draftConditions.push(like(studentAdmissionDrafts.roll_no, `${yy}567${branchCode}%L`));
   } else {
     // REGULAR ENTRY RULE: Just search current year regulars
     queryConditions.push(like(studentsTable.roll_no, `${yy}567T${branchCode}%`));
+    draftConditions.push(like(studentAdmissionDrafts.roll_no, `${yy}567T${branchCode}%`));
     // Also include any laterals from the SAME year just in case (unlikely but safe)
     queryConditions.push(like(studentsTable.roll_no, `${yy}567${branchCode}%L`));
+    draftConditions.push(like(studentAdmissionDrafts.roll_no, `${yy}567${branchCode}%L`));
   }
 
-  const rows = await tx
+  const studentRows = await tx
     .select({ roll_no: studentsTable.roll_no })
     .from(studentsTable)
     .where(or(...queryConditions));
 
+  const draftRows = await tx
+    .select({ roll_no: studentAdmissionDrafts.roll_no })
+    .from(studentAdmissionDrafts)
+    .where(and(
+      or(...draftConditions),
+      eq(studentAdmissionDrafts.status, 'PROCESSED')
+    ));
+
+  const allRows = [...studentRows, ...draftRows];
+
   let maxSerial = 0;
-  for (const row of rows) {
+  for (const row of allRows) {
     const rn = row.roll_no;
     if (!rn) continue;
 
@@ -144,7 +159,7 @@ async function generateInstitutionalRollNumber(tx, { branch, examType, joiningYe
   if (!branchCode) throw new Error(`Unknown branch: ${branch}`);
 
   const admissionSymbol = getAdmissionSymbol(examType);
-  const nextSerial = await getNextSerialNumber(tx, { branch, joiningYear });
+  const nextSerial = await getNextSerialNumber(tx, { branch, joiningYear, admissionSymbol });
 
   const rollNumber = buildRollNumber({
     joiningYear,

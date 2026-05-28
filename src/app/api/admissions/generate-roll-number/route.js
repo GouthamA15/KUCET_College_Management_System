@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { students as studentsTable } from '@/db/schema';
-import { inArray } from 'drizzle-orm';
+import { students as studentsTable, studentAdmissionDrafts } from '@/db/schema';
+import { inArray, eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { buildRollNumber, getAdmissionSymbol, getBranchCodeFromName, getNextSerialNumber, validateGeneratedRollNumber } from '@/lib/autoGenerateRollNumber';
 
@@ -23,6 +23,7 @@ export async function POST(req) {
     const joiningYear = parseJoiningYear(body.joiningYear);
     const countRaw = body.count == null ? 1 : Number(body.count);
     const count = Number.isInteger(countRaw) ? countRaw : 1;
+    const draftId = body.draftId;
 
     if (!branch || !examType || !joiningYear) {
       return apiError('branch, examType, and joiningYear are required', 400);
@@ -66,6 +67,13 @@ export async function POST(req) {
         throw new Error('ROLL_CONFLICT');
       }
 
+      // If a draftId is provided, "promise" the first generated roll number to it.
+      if (draftId && rollNumbers.length === 1) {
+        await tx.update(studentAdmissionDrafts)
+          .set({ roll_no: rollNumbers[0] })
+          .where(eq(studentAdmissionDrafts.id, draftId));
+      }
+
       return rollNumbers;
     });
 
@@ -86,3 +94,4 @@ export async function POST(req) {
     return apiError('Failed to generate roll number(s).', 500);
   }
 }
+

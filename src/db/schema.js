@@ -163,6 +163,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   identification_mark_1: text('identification_mark_1'),
   identification_mark_2: text('identification_mark_2'),
   permanent_address: text('permanent_address'),
+  roll_no: varchar('roll_no', { length: 255 }), // Promised/Assigned Roll Number
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
@@ -482,7 +483,7 @@ export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
   device_hash: varchar('device_hash', { length: 255 }),
   ip_address: varchar('ip_address', { length: 45 }),
   ua_hash: varchar('ua_hash', { length: 32 }),
-  status: mysqlEnum('status', ['SUCCESS', 'FAILED_LOCATION', 'FAILED_EXPIRED']).default('SUCCESS'),
+  status: mysqlEnum('status', ['SUCCESS', 'FAILED_LOCATION', 'FAILED_EXPIRED', 'FAILED_PIN', 'LOCKED']).default('SUCCESS'),
   created_at: timestamp('created_at').defaultNow(),
 }, (table) => ({
   sessionIpUaIdx: index('idx_session_ip_ua').on(table.session_id, table.ip_address, table.ua_hash),

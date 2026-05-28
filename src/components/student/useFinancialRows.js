@@ -84,7 +84,10 @@ export default function useFinancialRows(roll_no, scholarshipArray = [], feePaym
     const scholar = scholarshipByYear[y];
     const studentPaidRec = paymentsByYear[y] || { amount: 0, date: null };
     const govtPaid = scholar?.amount_sanctioned || 0;
-    const pending = Math.max(0, yearlyTotalFee - (govtPaid + studentPaidRec.amount));
+    const totalPaid = govtPaid + studentPaidRec.amount;
+    const balance = yearlyTotalFee - totalPaid;
+    const pending = balance > 0 ? balance : 0;
+    const credit = balance < 0 ? Math.abs(balance) : 0;
 
     // Determine latest relevant date
     let displayDate = scholar?.date || studentPaidRec.date;
@@ -98,6 +101,7 @@ export default function useFinancialRows(roll_no, scholarshipArray = [], feePaym
       amount_sanctioned: govtPaid > 0 ? govtPaid : '',
       student_paid: studentPaidRec.amount > 0 ? studentPaidRec.amount : '',
       pending_fee: pending,
+      credit_balance: credit,
       date: displayDate ? formatDateSlash(displayDate) : '',
     };
   });

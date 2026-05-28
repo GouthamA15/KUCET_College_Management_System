@@ -219,6 +219,20 @@ export async function POST(request) {
       return apiError('Semester has ended. Marks locked.', 403);
     }
 
+    // Check if marks are locked by HOD (Administrative Lock)
+    const branchConfigs = await db.select({ is_locked: branchConfig.is_locked })
+      .from(branchConfig)
+      .where(and(
+        eq(branchConfig.branch, branch),
+        eq(branchConfig.academic_year, academic_year),
+        eq(branchConfig.semester, course_semester)
+      ))
+      .limit(1);
+    
+    if (branchConfigs.length > 0 && branchConfigs[0].is_locked) {
+      return apiError('Marks for this branch and semester have been finalized and locked by the HOD.', 403);
+    }
+
     // Once any row is published for this subject, lock edits to avoid inconsistent history.
     const publishedRows = await db.select({ id: studentMarks.id })
       .from(studentMarks)

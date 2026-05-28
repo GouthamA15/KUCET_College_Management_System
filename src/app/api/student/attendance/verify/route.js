@@ -44,43 +44,6 @@ export async function POST(request) {
 
     const sessionNum = session.session_number || 1;
 
-    // --- PIN / TOKEN VALIDATION ---
-    if (pin) {
-      if (String(pin) !== String(session.session_pin)) {
-        return apiError('Invalid PIN. Please enter the 4-digit code shown by the faculty.', 403);
-      }
-    } else if (token) {
-      if (token !== session.session_token) {
-        return apiError('Invalid verification token or QR code.', 403);
-      }
-    }
-
-    // --- GPS ACCURACY CHECK ---
-    if (accuracy !== undefined && accuracy === 0) {
-      console.warn(`[Geo] Suspicious accuracy (0) from student ${user.roll_no}. Possible mock.`);
-      return apiError('Location accuracy error. Please ensure GPS is enabled and not mocked.', 403);
-    }
-
-    if (accuracy !== undefined && accuracy > 100) {
-      return apiError('Low location accuracy (>100m). Please move to a clearer area or disable WiFi for better GPS.', 403);
-    }
-
-    // 3. Strict Geofencing check (50 meters radius)
-    if (session.latitude === null || session.longitude === null) {
-      return apiError('Faculty location not recorded. Please ask faculty to restart the session with GPS enabled.', 403);
-    }
-
-    const allowedRadius = 50; 
-    const distanceOk = isWithinRange(
-      parseFloat(session.latitude), parseFloat(session.longitude),
-      parseFloat(latitude), parseFloat(longitude),
-      allowedRadius
-    );
-
-    if (!distanceOk) {
-      return apiError(`Location mismatch. You must be within 50m of the classroom to mark attendance.`, 403);
-    }
-
     // --- ACTION B: PERSISTENT DEVICE FINGERPRINTING & PROXY DETECTION ---
     const userAgent = request.headers.get('user-agent') || '';
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || 
@@ -89,6 +52,63 @@ export async function POST(request) {
     
     const uaHash = crypto.createHash('md5').update(userAgent).digest('hex');
     const finalDeviceId = device_id || crypto.createHash('sha256').update(userAgent + ipAddress).digest('hex');
+
+    // --- PIN / TOKEN VALIDATION ---
+    if (pin) {
+      // 1. Check existing failures/lockout
+      const existingLogs = await db.select({ 
+        failed_count: sql`COUNT(CASE WHEN status = 'FAILED_PIN' THEN 1 END)`,
+        is_locked: sql`COUNT(CASE WHEN status = 'LOCKED' THEN 1 END)`
+      })
+        .from(attendanceSessionLogs)
+        .where(and(
+          eq(attendanceSessionLogs.session_id, session.id),
+          eq(attendanceSessionLogs.student_id, user.student_id)
+        ));
+      
+      const { failed_count, is_locked } = existingLogs[0];
+      if (Number(is_locked) > 0) {
+        return apiError('You have been locked out of this session due to multiple failed PIN attempts. Please contact the faculty.', 403);
+      }
+
+      if (String(pin) !== String(session.session_pin)) {
+        const newFailedCount = Number(failed_count) + 1;
+        const status = newFailedCount >= 3 ? 'LOCKED' : 'FAILED_PIN';
+        
+        // Record failure
+        await db.insert(attendanceSessionLogs)
+          .values({
+            session_id: session.id,
+            student_id: user.student_id,
+            status: status,
+            ip_address: ipAddress,
+            ua_hash: uaHash,
+            device_hash: finalDeviceId
+          });
+
+        if (newFailedCount >= 3) {
+          // Notify Faculty
+          try {
+            const { broadcastUpdate } = await import('@/lib/sse');
+            broadcastUpdate('STUDENT_LOCKED', { 
+              assignment_id: session.assignment_id,
+              session_number: sessionNum,
+              roll_no: user.roll_no,
+              reason: '3 failed PIN attempts'
+            });
+          } catch (sseErr) {}
+          return apiError('3 failed PIN attempts. You are now locked out of this session.', 403);
+        }
+
+        return apiError(`Invalid PIN. ${3 - newFailedCount} attempts remaining.`, 403);
+      }
+    } else if (token) {
+      if (token !== session.session_token) {
+        return apiError('Invalid verification token or QR code.', 403);
+      }
+    }
+
+    // --- GPS ACCURACY CHECK ---
 
     // 1. Check if this specific client-side Device ID has already been used for this session
     const idLogs = await db.select({

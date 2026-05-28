@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 28, 2026 (Session 133)
+**Last Updated:** May 28, 2026 (Session 134)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -160,6 +160,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-May 2026)
 
 ### May 2026
+
+#### **Session 134: Security Hardening & Edge Case Governance (May 28, 2026)**
+- **Attendance PIN Brute-Force Protection:** Implemented a "3-Strike" rule for attendance PIN verification. Students are now locked out of a specific session after 3 failed attempts, with real-time `STUDENT_LOCKED` notifications broadcasted to the faculty.
+- **HOD Marks "Final Lock":** Integrated an administrative lock mechanism for internal marks. Faculty members are now blocked from updating marks once the HOD has toggled the `is_locked` flag in the branch configuration, ensuring academic governance.
+- **Roll Number Collision Hardening:** Enhanced the roll number generation engine to check both the live `students` registry and the `student_admission_drafts` (PROCESSED status). This prevents serial number collisions between active students and pending admissions that have been "promised" a roll number.
+- **Financial "Credit Balance" UI:** Refined the student finance modules to intelligently calculate and display "Credit Balances." If scholarship arrivals combined with student payments exceed the yearly fee, the system now flags the excess in blue, providing transparency for overpayment/refund scenarios.
+- **Schema Evolution:** Updated `attendance_session_logs` to track `FAILED_PIN` and `LOCKED` statuses, and added a `roll_no` column to `student_admission_drafts` to support pre-finalization roll number reservations.
 
 #### **Session 133: Scholarship Government Cap Bug Fix (May 28, 2026)**
 - **Dynamic RTF Calculation Restored:** Resolved a critical logic error in the scholarship Payments and Sanctions API routes where the government fee reimbursement cap was hardcoded to ₹35,000 for all eligible students.
