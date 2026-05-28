@@ -47,6 +47,8 @@ export const students = mysqlTable('students', {
   updated_at: timestamp('updated_at').onUpdateNow(),
   updated_by_clerk_id: int('updated_by_clerk_id'),
   student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED']).default('ACTIVE'),
+  academic_status: mysqlEnum('academic_status', ['REGULAR', 'DETAINED', 'DROPPED', 'GRADUATED']).default('REGULAR'),
+  academic_offset_years: int('academic_offset_years').default(0),
 }, (table) => ({
   rollNoIdx: index('idx_roll_no').on(table.roll_no),
   rollNoUniq: uniqueIndex('uq_students_roll_no').on(table.roll_no),

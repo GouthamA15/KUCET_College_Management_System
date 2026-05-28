@@ -58,6 +58,8 @@ export async function PUT(req, context) {
       if (updatedData.name !== undefined) studentUpdate.name = toNull(updatedData.name);
       if (updatedData.admission_no !== undefined) studentUpdate.admission_no = toNull(updatedData.admission_no);
       if (updatedData.admission_date !== undefined) studentUpdate.admission_date = toMySQLDate(updatedData.admission_date) ? new Date(toMySQLDate(updatedData.admission_date)) : null;
+      if (updatedData.academic_status !== undefined) studentUpdate.academic_status = toNull(String(updatedData.academic_status).trim().toUpperCase());
+      if (updatedData.academic_offset_years !== undefined) studentUpdate.academic_offset_years = parseInt(updatedData.academic_offset_years) || 0;
       if (updatedData.fee_reimbursement !== undefined) studentUpdate.fee_reimbursement = toNull(String(updatedData.fee_reimbursement).trim().toUpperCase());
       if (updatedData.date_of_birth !== undefined) studentUpdate.date_of_birth = toMySQLDate(updatedData.date_of_birth) ? new Date(toMySQLDate(updatedData.date_of_birth)) : null;
       if (updatedData.gender !== undefined) studentUpdate.gender = toNull(updatedData.gender);

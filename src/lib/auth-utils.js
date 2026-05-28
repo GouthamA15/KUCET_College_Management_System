@@ -51,7 +51,8 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
     name: student.name,
     is_email_verified: student.is_email_verified === 1 || student.is_email_verified === true,
     has_password_set: !!(student.password_hash || student.has_password_set),
-    role: 'student'
+    role: 'student',
+    academic_offset_years: student.academic_offset_years || 0
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()

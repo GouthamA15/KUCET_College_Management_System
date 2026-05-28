@@ -25,7 +25,7 @@ export async function GET(request) {
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const collegeInfo = collegeRows[0] || null;
 
-    const { semester } = await calculateYearAndSemesterAsync(user.roll_no, collegeInfo);
+    const { semester } = await calculateYearAndSemesterAsync(user.roll_no, collegeInfo, user.academic_offset_years || 0);
     const academicYear = await getCollegeAcademicYear(collegeInfo);
     const branch = getBranchFromRoll(user.roll_no);
     const studentId = user.student_id;

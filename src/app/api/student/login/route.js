@@ -33,7 +33,8 @@ export async function POST(req) {
       category: studentPersonalDetails.category,
       mobile: students.mobile,
       date_of_birth: students.date_of_birth,
-      password_hash: students.password_hash
+      password_hash: students.password_hash,
+      academic_offset_years: students.academic_offset_years
     })
     .from(students)
     .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))

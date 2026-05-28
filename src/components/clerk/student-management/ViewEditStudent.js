@@ -69,7 +69,10 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       email: fetchedStudent.email || null,
       address: pd.address || fetchedStudent.address || null,
       father_occupation: pd.father_occupation || null,
-      annual_income: pd.annual_income || null
+      annual_income: pd.annual_income || null,
+      admission_date: formatDate(fetchedStudent.admission_date) || null,
+      academic_status: fetchedStudent.academic_status || 'REGULAR',
+      academic_offset_years: fetchedStudent.academic_offset_years || 0
     };
 
     const initialPersonal = {
@@ -160,6 +163,9 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         place_of_birth: personalFull.place_of_birth,
         father_occupation: personalFull.father_occupation,
         annual_income: personalFull.annual_income ? personalFull.annual_income.toString().replace(/,/g, '') : null,
+        admission_date: editValues.admission_date,
+        academic_status: editValues.academic_status,
+        academic_offset_years: editValues.academic_offset_years,
         guardian_mobile: personalFull.guardian_mobile,
         aadhaar_no: personalFull.aadhaar_no,
         address: personalFull.address,
@@ -325,6 +331,32 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   />
                 </div>
                 <input type="email" placeholder="Email" value={editValues.email || ''} onChange={e=>setEditValues({...editValues, email:e.target.value})} className="p-2 border rounded" />
+                <select value={editValues.academic_status || 'REGULAR'} onChange={e=>setEditValues({...editValues, academic_status:e.target.value})} className="p-2 border rounded">
+                  <option value="REGULAR">Status: REGULAR</option>
+                  <option value="DETAINED">Status: DETAINED</option>
+                  <option value="DROPPED">Status: DROPPED</option>
+                  <option value="GRADUATED">Status: GRADUATED</option>
+                </select>
+                <div className="flex items-center">
+                  <span className="px-3 py-2 border border-r-0 bg-gray-100 text-xs font-bold text-gray-500">OFFSET</span>
+                  <input 
+                    type="number" 
+                    placeholder="Years" 
+                    value={editValues.academic_offset_years || 0} 
+                    onChange={e=>setEditValues({...editValues, academic_offset_years: parseInt(e.target.value) || 0})} 
+                    className="p-2 border rounded w-full rounded-l-none" 
+                  />
+                </div>
+                <DatePicker
+                  selected={parseDate(editValues.admission_date)}
+                  onChange={(date) => setEditValues({ ...editValues, admission_date: formatDate(date) })}
+                  dateFormat="dd-MM-yyyy"
+                  placeholderText="Admission Date"
+                  className="p-2 border rounded w-full"
+                  showYearDropdown
+                  dropdownMode="select"
+                  customInput={<DatePickerInput className="p-2 border rounded w-full" />}
+                />
                 <div className="col-span-1 md:col-span-3 text-sm text-gray-500">Profile Picture is view-only here. Inform Students to Upload their Profile Picture Through Their Student Login.</div>
               </div>
               <h4 className="font-semibold mb-2">Section B: Personal Details</h4>
