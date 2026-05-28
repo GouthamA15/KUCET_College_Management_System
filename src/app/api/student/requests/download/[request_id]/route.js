@@ -15,6 +15,8 @@ import { getBranchFromRoll } from '@/lib/rollNumber';
 import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import { getNow } from '@/lib/clock';
 import { getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { decrypt } from '@/lib/encryption';
+import { studentImages } from '@/db/schema';
 
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
@@ -76,8 +78,10 @@ export async function GET(request, context) {
         const studentInfo = await db.select({
             name: students.name,
             roll_no: students.roll_no,
+            mobile: students.mobile,
             father_name: studentPersonalDetails.father_name,
-            date_of_birth: students.date_of_birth
+            date_of_birth: students.date_of_birth,
+            address: studentPersonalDetails.address
         })
         .from(students)
         .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))
@@ -88,6 +92,8 @@ export async function GET(request, context) {
             return apiError('Student details not found', 404);
         }
         const student = studentInfo[0];
+        const mobile = decrypt(student.mobile) || 'N/A';
+        const address = student.address || 'N/A';
 
         // Fetch college info
         const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
@@ -161,6 +167,7 @@ export async function GET(request, context) {
         };
 
         const logoUrl = await getBase64Image(getAssetUrl('/assets/ku-logo.png'));
+        const collegeLogoUrl = await getBase64Image(getAssetUrl('/assets/ku-college-logo.png')) || logoUrl;
         const signatureUrl = await getBase64Image(getAssetUrl('/assets/principal-sign.png'));
         const stampUrl = await getBase64Image(getAssetUrl('/assets/ku-college-seal.png'));
         const stampSign = await getBase64Image(getAssetUrl('/assets/principal-sign-stamp.png')) || signatureUrl;

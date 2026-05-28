@@ -159,24 +159,27 @@ export async function PUT(req) {
         if (new_data) {
           const data = typeof new_data === 'string' ? JSON.parse(new_data) : new_data;
           
-          if (data.mobile || data.email) {
-            const studentSets = {};
-            if (data.mobile) {
-                studentSets.mobile = data.mobile; // Already encrypted in DB
-                // Need to generate hash for blind index
-                const plainMobile = decrypt(data.mobile);
-                studentSets.mobile_hash = hashForIndex(plainMobile);
-            }
-            if (data.email) studentSets.email = data.email;
+          // Core Student Table Updates
+          const studentSets = {};
+          if (data.mobile) {
+              studentSets.mobile = data.mobile; // Already encrypted in DB
+              const plainMobile = decrypt(data.mobile);
+              studentSets.mobile_hash = hashForIndex(plainMobile);
+          }
+          if (data.email) studentSets.email = data.email;
+          if (data.name) studentSets.name = data.name;
+          if (data.dob) studentSets.date_of_birth = new Date(data.dob);
+
+          if (Object.keys(studentSets).length > 0) {
             await tx.update(studentsTable).set(studentSets).where(eq(studentsTable.id, student_id));
           }
 
+          // Personal Details Updates
           const spd_fields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks','blood_group'];
           const spd_data = {};
           spd_fields.forEach(f => { 
               if (data.hasOwnProperty(f)) {
                   spd_data[f] = data[f];
-                  // Handle blind index for Aadhaar if it was changed
                   if (f === 'aadhaar_no' && data[f]) {
                       const plainAadhaar = decrypt(data[f]);
                       spd_data['aadhaar_hash'] = hashForIndex(plainAadhaar);
@@ -185,19 +188,32 @@ export async function PUT(req) {
           });
           
           if (Object.keys(spd_data).length > 0) {
-            await tx.update(studentPersonalDetails).set(spd_data).where(eq(studentPersonalDetails.student_id, student_id));
+            const existingSPD = await tx.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.student_id, student_id) });
+            if (existingSPD) {
+                await tx.update(studentPersonalDetails).set(spd_data).where(eq(studentPersonalDetails.student_id, student_id));
+            } else {
+                await tx.insert(studentPersonalDetails).values({ student_id, ...spd_data });
+            }
           }
 
+          // Academic Background Updates
           const sab_fields = ['qualifying_exam','previous_college_details','medium_of_instruction','ranks','ssc_marks','inter_marks'];
           const sab_data = {};
           sab_fields.forEach(f => { if (data.hasOwnProperty(f)) sab_data[f] = data[f]; });
+          
           if (Object.keys(sab_data).length > 0) {
-            await tx.update(studentAcademicBackground).set(sab_data).where(eq(studentAcademicBackground.student_id, student_id));
+            const existingSAB = await tx.query.studentAcademicBackground.findFirst({ where: eq(studentAcademicBackground.student_id, student_id) });
+            if (existingSAB) {
+                await tx.update(studentAcademicBackground).set(sab_data).where(eq(studentAcademicBackground.student_id, student_id));
+            } else {
+                await tx.insert(studentAcademicBackground).values({ student_id, ...sab_data });
+            }
           }
         }
 
+        // 4. Update Request Status
         await tx.update(studentProfileRequests)
-          .set({ status: "approved", rejection_reason: null })
+          .set({ status: "approved", rejection_reason: null, updated_at: new Date() })
           .where(eq(studentProfileRequests.id, requestId));
       });
     } else {
@@ -205,7 +221,7 @@ export async function PUT(req) {
       if (new_signature) await deleteFromCloudinary(new_signature);
       if (proof_url) await deleteFromCloudinary(proof_url);
       await db.update(studentProfileRequests)
-        .set({ status: "rejected", rejection_reason: rejectionReason || 'No reason provided' })
+        .set({ status: "rejected", rejection_reason: rejectionReason || 'No reason provided', updated_at: new Date() })
         .where(eq(studentProfileRequests.id, requestId));
     }
 

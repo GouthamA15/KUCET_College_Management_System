@@ -9,6 +9,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { getBranchFromRoll, getAdmissionTypeFromRoll, getEntranceExamQualified } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { formatIndianNumber } from '@/lib/financial-utils';
+import { getAssetUrl } from '@/lib/assets';
 
 const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
     <input
@@ -68,7 +69,10 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       email: fetchedStudent.email || null,
       address: pd.address || fetchedStudent.address || null,
       father_occupation: pd.father_occupation || null,
-      annual_income: pd.annual_income || null
+      annual_income: pd.annual_income || null,
+      admission_date: formatDate(fetchedStudent.admission_date) || null,
+      academic_status: fetchedStudent.academic_status || 'REGULAR',
+      academic_offset_years: fetchedStudent.academic_offset_years || 0
     };
 
     const initialPersonal = {
@@ -159,6 +163,9 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         place_of_birth: personalFull.place_of_birth,
         father_occupation: personalFull.father_occupation,
         annual_income: personalFull.annual_income ? personalFull.annual_income.toString().replace(/,/g, '') : null,
+        admission_date: editValues.admission_date,
+        academic_status: editValues.academic_status,
+        academic_offset_years: editValues.academic_offset_years,
         guardian_mobile: personalFull.guardian_mobile,
         aadhaar_no: personalFull.aadhaar_no,
         address: personalFull.address,
@@ -233,12 +240,12 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                                     </div>
                                 )}
                                 <Image 
-                                    src={String(p)} 
+                                    src={getAssetUrl(String(p))} 
                                     alt="Profile" 
                                     width={112} 
                                     height={112} 
                                     unoptimized
-                                    onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(String(p)); setImagePreviewOpen(true); }} 
+                                    onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(getAssetUrl(String(p))); setImagePreviewOpen(true); }} 
                                     className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                                     onLoad={() => setImageLoading(false)}
                                 />
@@ -255,12 +262,12 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   <div className="w-32 h-12 bg-white rounded border border-gray-200 overflow-hidden mb-1 flex items-center justify-center">
                     {fetchedStudent.signature ? (
                       <Image
-                        src={fetchedStudent.signature}
+                        src={getAssetUrl(fetchedStudent.signature)}
                         alt="Signature"
                         width={128}
                         height={48}
                         className="max-h-full max-w-full object-contain"
-                        onClick={() => { setImagePreviewSrc(fetchedStudent.signature); setImagePreviewOpen(true); }}
+                        onClick={() => { setImagePreviewSrc(getAssetUrl(fetchedStudent.signature)); setImagePreviewOpen(true); }}
                       />
                     ) : (
                       <div className="text-gray-400 text-[10px]">No Signature</div>
@@ -324,6 +331,32 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   />
                 </div>
                 <input type="email" placeholder="Email" value={editValues.email || ''} onChange={e=>setEditValues({...editValues, email:e.target.value})} className="p-2 border rounded" />
+                <select value={editValues.academic_status || 'REGULAR'} onChange={e=>setEditValues({...editValues, academic_status:e.target.value})} className="p-2 border rounded">
+                  <option value="REGULAR">Status: REGULAR</option>
+                  <option value="DETAINED">Status: DETAINED</option>
+                  <option value="DROPPED">Status: DROPPED</option>
+                  <option value="GRADUATED">Status: GRADUATED</option>
+                </select>
+                <div className="flex items-center">
+                  <span className="px-3 py-2 border border-r-0 bg-gray-100 text-xs font-bold text-gray-500">OFFSET</span>
+                  <input 
+                    type="number" 
+                    placeholder="Years" 
+                    value={editValues.academic_offset_years || 0} 
+                    onChange={e=>setEditValues({...editValues, academic_offset_years: parseInt(e.target.value) || 0})} 
+                    className="p-2 border rounded w-full rounded-l-none" 
+                  />
+                </div>
+                <DatePicker
+                  selected={parseDate(editValues.admission_date)}
+                  onChange={(date) => setEditValues({ ...editValues, admission_date: formatDate(date) })}
+                  dateFormat="dd-MM-yyyy"
+                  placeholderText="Admission Date"
+                  className="p-2 border rounded w-full"
+                  showYearDropdown
+                  dropdownMode="select"
+                  customInput={<DatePickerInput className="p-2 border rounded w-full" />}
+                />
                 <div className="col-span-1 md:col-span-3 text-sm text-gray-500">Profile Picture is view-only here. Inform Students to Upload their Profile Picture Through Their Student Login.</div>
               </div>
               <h4 className="font-semibold mb-2">Section B: Personal Details</h4>
@@ -331,7 +364,12 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 <input placeholder="Father Name" value={personalFull.father_name || ''} onChange={e=>setPersonalFull({...personalFull, father_name:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Mother Name" value={personalFull.mother_name || ''} onChange={e=>setPersonalFull({...personalFull, mother_name:e.target.value})} className="p-2 border rounded" />
                 <input placeholder="Nationality" value={personalFull.nationality || ''} onChange={e=>setPersonalFull({...personalFull, nationality:e.target.value})} className="p-2 border rounded" />
-                <input placeholder="Religion" value={personalFull.religion || ''} onChange={e=>setPersonalFull({...personalFull, religion:e.target.value})} className="p-2 border rounded" />
+            <select value={personalFull.religion || ''} onChange={e=>setPersonalFull({...personalFull, religion:e.target.value})} className="p-2 border rounded">
+                <option value="">Select Religion</option>
+                {COLLEGE_CONFIG.religions.map(r => (
+                    <option key={r} value={r.toUpperCase()}>{r.toUpperCase()}</option>
+                ))}
+            </select>
                 <select value={personalFull.category || 'OC'} onChange={e=>setPersonalFull({...personalFull, category:e.target.value})} className="p-2 border rounded">{categories.map(c=> <option key={c} value={c}>{c}</option>)}</select>
                 <input placeholder="Sub Caste" value={personalFull.sub_caste || ''} onChange={e=>setPersonalFull({...personalFull, sub_caste:e.target.value})} className="p-2 border rounded" />
                 <select value={personalFull.area_status || 'Local'} onChange={e=>setPersonalFull({...personalFull, area_status:e.target.value})} className="p-2 border rounded"><option>Local</option><option>Non-Local</option></select>

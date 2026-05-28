@@ -575,6 +575,7 @@ export default function Sidebar({
       )}
       style={{ top: 0, height: '100vh' }}
       aria-hidden={!isMobileOpen}
+      inert={!isMobileOpen ? true : undefined}
     >
       <div className="w-72 h-full bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff] border-r border-slate-200 backdrop-blur-md">
         <div className="p-4 flex items-center justify-between">

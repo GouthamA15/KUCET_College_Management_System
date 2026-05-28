@@ -1,5 +1,6 @@
 'use client';
 import StudentPaymentsView from './StudentPaymentsView';
+import { createPortal } from 'react-dom';
 
 export default function AddEditRecordModal({
   open,
@@ -24,8 +25,8 @@ export default function AddEditRecordModal({
 
   const setField = (k, v) => setFormState?.(k, v);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+  const modal = (
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white w-full max-w-5xl rounded-lg shadow-lg max-h-[90vh] overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-4 pb-2 border-b sticky top-0 bg-white z-10">
           {(() => {
@@ -193,4 +194,6 @@ export default function AddEditRecordModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : null;
 }

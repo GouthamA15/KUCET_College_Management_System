@@ -1,8 +1,9 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { syllabusSubjects, syllabusStructure, syllabusUnits } from '@/db/schema';
-import { eq, and, inArray, asc } from 'drizzle-orm';
+import { syllabusSubjects, syllabusStructure } from '@/db/schema';
+import { eq, and, asc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { ValidationService } from '@/services/ValidationService';
 
 export async function GET(req) {
   let user;
@@ -39,23 +40,7 @@ export async function GET(req) {
     .where(and(...conditions))
     .orderBy(asc(syllabusStructure.semester), asc(syllabusSubjects.subject_name));
 
-    // Fetch all units for these subjects
-    const subjectCodes = subjects.map(s => s.subject_code);
-    let units = [];
-    if (subjectCodes.length > 0) {
-      units = await db.select()
-        .from(syllabusUnits)
-        .where(inArray(syllabusUnits.subject_code, subjectCodes))
-        .orderBy(asc(syllabusUnits.subject_code), asc(syllabusUnits.unit_order));
-    }
-
-    // Combine data
-    const data = subjects.map(s => ({
-      ...s,
-      units: units.filter(u => u.subject_code === s.subject_code)
-    }));
-
-    return apiResponse({ data });
+    return apiResponse({ data: subjects });
   } catch (error) {
     logger.error({ err: error, user: user?.id, branch: user?.branch }, 'Syllabus API Error');
     return apiError('Internal Server Error', 500);
@@ -70,7 +55,7 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { action, subject, unit } = body;
+    const { action, subject } = body;
 
     if (action === 'ADD_SUBJECT') {
       const { subject_code, subject_name, subject_type, semester } = subject;
@@ -98,6 +83,13 @@ export async function POST(req) {
 
     if (action === 'DELETE_SUBJECT') {
       const { subject_code } = subject;
+      
+      // Logic-level Dependency Check
+      const { canDelete, reason } = await ValidationService.checkSubjectBranchDependencies(subject_code, user.branch);
+      if (!canDelete) {
+        return apiError(reason, 400);
+      }
+
       // Only remove mapping for THIS branch
       await db.delete(syllabusStructure)
         .where(and(
@@ -105,40 +97,6 @@ export async function POST(req) {
             eq(syllabusStructure.subject_code, subject_code)
         ));
       return apiResponse({ success: true, message: 'Subject mapping removed' });
-    }
-
-    if (action === 'SAVE_UNIT') {
-      const { subject_code, unit_order, unit_name, topics } = unit;
-      
-      // Validation: Ensure topics is an array and cleanup
-      let finalTopics = [];
-      if (Array.isArray(topics)) {
-        finalTopics = topics.map(t => String(t).trim()).filter(Boolean);
-      } else if (typeof topics === 'string') {
-        try {
-          const parsed = JSON.parse(topics);
-          finalTopics = Array.isArray(parsed) ? parsed : [topics];
-        } catch (e) {
-          finalTopics = [topics];
-        }
-      }
-
-      await db.insert(syllabusUnits).values({
-        subject_code,
-        unit_order: parseInt(unit_order),
-        unit_name,
-        topics: finalTopics
-      }).onDuplicateKeyUpdate({
-        set: { unit_name, topics: finalTopics }
-      });
-
-      return apiResponse({ success: true, message: 'Unit saved' });
-    }
-
-    if (action === 'DELETE_UNIT') {
-        const { id } = unit;
-        await db.delete(syllabusUnits).where(eq(syllabusUnits.id, id));
-        return apiResponse({ success: true, message: 'Unit deleted' });
     }
 
     return apiError('Invalid action', 400);

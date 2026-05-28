@@ -12,8 +12,14 @@ export default function FinancialSummaryCardsMobile({ rows, totalExpectedFee }) 
         <div key={idx} className="border border-gray-300 rounded-lg p-4 bg-gray-50 shadow-sm">
           <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-3">
             <span className="font-bold text-indigo-700">{r.labelYear}</span>
-            <span className={`text-sm font-bold ${Number(r.pending_fee) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              Pending: ₹ {Number(r.pending_fee).toLocaleString('en-IN')}
+            <span className={`text-sm font-bold`}>
+              {Number(r.credit_balance) > 0 ? (
+                <span className="text-blue-600">Credit: ₹ {Number(r.credit_balance).toLocaleString('en-IN')}</span>
+              ) : (
+                <span className={Number(r.pending_fee) > 0 ? 'text-red-600' : 'text-green-600'}>
+                   Pending: ₹ {Number(r.pending_fee).toLocaleString('en-IN')}
+                </span>
+              )}
             </span>
           </div>
           

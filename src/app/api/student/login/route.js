@@ -16,10 +16,13 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { rollno, dob, rememberMe } = body;
+    let { rollno, dob, rememberMe } = body;
     if (!rollno || !dob) {
       return apiError('Missing rollno or dob', 400);
     }
+
+    // Invisible Normalization Hook
+    rollno = String(rollno).trim().toUpperCase();
     
     const rows = await db.select({
       id: students.id,
@@ -30,7 +33,8 @@ export async function POST(req) {
       category: studentPersonalDetails.category,
       mobile: students.mobile,
       date_of_birth: students.date_of_birth,
-      password_hash: students.password_hash
+      password_hash: students.password_hash,
+      academic_offset_years: students.academic_offset_years
     })
     .from(students)
     .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))

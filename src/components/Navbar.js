@@ -11,7 +11,7 @@ import ClerkNotificationDropdown from './clerk/ClerkNotificationDropdown';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { logoutByRole } from '@/lib/logout';
 
-export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false, sticky = true }) {
+export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false, sticky = true, minimalNav = false, brandLabel = 'LOGIN PORTAL' }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -58,7 +58,6 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   }
 
   const menuItemsRaw = NAV_MENU_CONFIG[effectiveRole] || NAV_MENU_CONFIG['guest'] || [
-    { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
     { label: 'STAFF LOGIN', action: 'open-panel-clerk' }
   ];
@@ -131,12 +130,13 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     <>
       <nav className={`bg-[#0b3578] shadow-lg ${sticky ? 'sticky z-50' : 'relative z-20'} pt-[env(safe-area-inset-top)]`} style={sticky ? { top: 'var(--site-header-height, 72px)' } : undefined}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-13">
-            <div className="flex-shrink-0 flex items-center gap-4">
-              <span className="text-white text-lg font-bold">LOGIN PORTAL</span>
+          <div className={`flex items-center h-13 ${minimalNav ? 'justify-start' : 'justify-between'}`}>
+            <div className={`flex items-center gap-4 ${minimalNav ? 'pl-2 sm:pl-4' : 'shrink-0'}`}>
+              <span className="text-white text-lg font-bold tracking-wide uppercase">{brandLabel}</span>
             </div>
 
             {/* Desktop Menu */}
+            {!minimalNav && (
             <div className="hidden md:flex items-center gap-6">
               <div className="flex items-center gap-4">
                 {(menuItems || []).map((item, idx) => {
@@ -229,7 +229,9 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                 </div>
               )}
             </div>
+            )}
             {/* Mobile Menu Button (single element morphing hamburger -> X) */}
+            {!minimalNav && (
             <div className="md:hidden">
               <button
                 onClick={() => setMobileMenuOpen(prev => !prev)}
@@ -249,9 +251,11 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                 </span>
               </button>
             </div>
+            )}
           </div>
         </div>
         {/* Mobile Menu */}
+        {!minimalNav && (
         <div
           className={`md:hidden bg-[#0a2d66] overflow-hidden shadow-sm ${mobileMenuOpen ? 'opacity-100' : 'opacity-0'}`}
           style={{
@@ -323,13 +327,14 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
             })}
           </div>
         </div>
+        )}
       </nav>
       <ChangePasswordModal 
         show={showChangePasswordModal} 
         onClose={() => setShowChangePasswordModal(false)}
         apiEndpoint={
             effectiveRole === 'student' ? '/api/auth/change-password/student' :
-            effectiveRole === 'clerk' ? '/api/auth/change-password/clerk' : ''
+            effectiveRole.startsWith('clerk') ? '/api/auth/change-password/clerk' : ''
           }
       />
     </>

@@ -27,12 +27,14 @@ export default function DashboardActionCenter({ student }) {
       }
 
       const res = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds.join(',')}`);
+      if (res.status === 401 || res.status === 403) return;
+      
       const json = await res.json();
       if (res.ok) {
         setAttendanceSessions(json.data || []);
       }
     } catch (e) {
-      console.error('DashboardActionCenter Attendance Sessions Fetch Error:', e);
+      // Silent
     }
   }, [academicPerformance]);
 

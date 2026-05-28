@@ -14,7 +14,7 @@ export default function RecordStatusBadge({ state }) {
       : 'bg-slate-400';
 
   return (
-    <span className={`inline-flex items-center gap-2 px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${badgeClass}`}>
+    <span className={`inline-flex items-center gap-2 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${badgeClass}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} aria-hidden="true" />
       {state}
     </span>

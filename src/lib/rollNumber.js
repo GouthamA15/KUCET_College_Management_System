@@ -85,6 +85,16 @@ function getAcademicYear(rollNo) {
 }
 
 /**
+ * Determines the intake year for a new admission application.
+ * From March onwards, applications are typically for the intake starting in the same calendar year.
+ */
+function getIntakeYear(now = getNowSync()) {
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  return currentMonth >= 3 ? currentYear : currentYear - 1;
+}
+
+/**
  * Determines the effective start year of the current academic session.
  * Uses college-specific semester start dates if provided, otherwise defaults to June 1st.
  */
@@ -103,7 +113,7 @@ function getEffectiveAcademicYear(collegeInfo = null, now = getNowSync()) {
   return currentTotal < boundaryTotal ? currentYear - 1 : currentYear;
 }
 
-function getCurrentStudyingYear(rollNo, collegeInfo = null, now = getNowSync()) {
+function getCurrentStudyingYear(rollNo, collegeInfo = null, now = getNowSync(), offsetYears = 0) {
   const entryYear = getEntryYearFromRoll(rollNo);
   const admissionType = getAdmissionTypeFromRoll(rollNo);
 
@@ -117,6 +127,9 @@ function getCurrentStudyingYear(rollNo, collegeInfo = null, now = getNowSync()) 
   const effectiveYear = getEffectiveAcademicYear(collegeInfo, now);
 
   let academicYearIndex = effectiveYear - entryYearInt + 1;
+
+  // Apply academic offset (e.g., for detentions)
+  academicYearIndex -= (offsetYears || 0);
 
   // For lateral entry students, their first year in college is the second year of the B.Tech program.
   if (admissionType && admissionType.toLowerCase() === 'lateral') {
@@ -133,8 +146,8 @@ function getCurrentStudyingYear(rollNo, collegeInfo = null, now = getNowSync()) 
  * Determine the current semester (1-8) for a student using roll number and college info.
  * Returns integer semester (1..8) or null when it cannot be determined.
  */
-function getCurrentSemester(rollNo, collegeInfo = null, now = getNowSync()) {
-  const yearOfStudy = getCurrentStudyingYear(rollNo, collegeInfo, now);
+function getCurrentSemester(rollNo, collegeInfo = null, now = getNowSync(), offsetYears = 0) {
+  const yearOfStudy = getCurrentStudyingYear(rollNo, collegeInfo, now, offsetYears);
   if (!yearOfStudy) return null;
 
   // Determine whether we are in the first or second semester of the study year
@@ -263,6 +276,7 @@ export {
   getCurrentAcademicYear,
   getResolvedCurrentAcademicYear,
   getEffectiveAcademicYear,
+  getIntakeYear,
   getEntranceExamQualified,
   getBatchFromRoll,
   getCurrentSemester,

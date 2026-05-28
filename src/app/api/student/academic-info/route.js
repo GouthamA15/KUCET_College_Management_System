@@ -2,6 +2,7 @@ import logger from '@/lib/logger';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { db } from '@/db';
 import { 
+  students as studentsTable,
   collegeInfo as collegeInfoTable, 
   syllabusStructure, 
   syllabusSubjects, 
@@ -10,7 +11,7 @@ import {
   clerks, 
   studentAttendance 
 } from '@/db/schema';
-import { eq, and, min, sql, countDistinct } from 'drizzle-orm';
+import { eq, and, min, sql, countDistinct, or } from 'drizzle-orm';
 import { calculateYearAndSemesterAsync, getCollegeAcademicYear } from '@/lib/academic-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 
@@ -24,7 +25,7 @@ export async function GET(request) {
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const collegeInfo = collegeRows[0] || null;
 
-    const { semester } = await calculateYearAndSemesterAsync(user.roll_no, collegeInfo);
+    const { semester } = await calculateYearAndSemesterAsync(user.roll_no, collegeInfo, user.academic_offset_years || 0);
     const academicYear = await getCollegeAcademicYear(collegeInfo);
     const branch = getBranchFromRoll(user.roll_no);
     const studentId = user.student_id;
@@ -36,7 +37,6 @@ export async function GET(request) {
     // --- OPTIMIZED AGGREGATED DATA QUERY USING DRIZZLE ---
     
     // 1. Define the CTE for Canonical Assignments
-    // We alias the MIN(id) to 'canonical_id' to avoid ambiguity with other 'id' columns
     const canonicalAssignments = db.$with('CanonicalAssignments').as(
       db.select({
         subject_code: facultySubjectAssignments.subject_code,
@@ -69,18 +69,19 @@ export async function GET(request) {
         lab_execution_marks: studentMarks.lab_execution_marks,
         lab_record_marks: studentMarks.lab_record_marks,
 
-        // Used only for backend-side dedupe when historical duplicates exist
+        // Used only for backend-side dedupe
         _marks_row_id: studentMarks.id,
         _marks_created_at: studentMarks.created_at,
         _marks_updated_at: studentMarks.updated_at,
 
-        // Attendance
-        total_classes: countDistinct(studentAttendance.id),
-        attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') THEN ${studentAttendance.id} END)`
+        // Attendance (Filtering by Admission Date to avoid Spot Admission penalty)
+        total_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.date} >= COALESCE(${studentsTable.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END)`,
+        attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') AND ${studentAttendance.date} >= COALESCE(${studentsTable.admission_date}, '1900-01-01') THEN ${studentAttendance.id} END)`
       })
       .from(syllabusStructure)
       .innerJoin(syllabusSubjects, eq(syllabusStructure.subject_code, syllabusSubjects.subject_code))
       .leftJoin(canonicalAssignments, eq(canonicalAssignments.subject_code, syllabusStructure.subject_code))
+      .innerJoin(studentsTable, eq(studentsTable.id, studentId)) // Join students to get admission_date
       .leftJoin(studentMarks, and(
         eq(studentMarks.student_id, studentId),
         eq(studentMarks.assignment_id, canonicalAssignments.canonical_id),
@@ -107,7 +108,8 @@ export async function GET(request) {
         syllabusSubjects.subject_name, 
         syllabusSubjects.subject_type, 
         canonicalAssignments.canonical_id,
-        studentMarks.id
+        studentMarks.id,
+        studentsTable.admission_date // Add to group by
       );
 
     // If student_marks already contains duplicates, the JOIN can yield repeated subject rows.

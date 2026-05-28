@@ -3,10 +3,9 @@ import { db } from '@/db';
 import { 
   syllabusStructure, 
   syllabusSubjects, 
-  syllabusUnits, 
   facultySubjectAssignments 
 } from '@/db/schema';
-import { eq, and, asc, sql, inArray } from 'drizzle-orm';
+import { eq, and, asc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {
@@ -41,24 +40,7 @@ export async function GET(request) {
         return apiResponse({ data: [] });
       }
 
-      const subjectCodes = [...new Set(structureRows.map(r => r.subject_code))];
-
-      // 2. Fetch units
-      const unitRows = await db.query.syllabusUnits.findMany({
-        where: inArray(syllabusUnits.subject_code, subjectCodes),
-        orderBy: [asc(syllabusUnits.subject_code), asc(syllabusUnits.unit_order)]
-      });
-
-      const unitsBySubject = unitRows.reduce((acc, u) => {
-        if (!acc[u.subject_code]) acc[u.subject_code] = [];
-        acc[u.subject_code].push({ 
-          name: u.unit_name, 
-          topics: typeof u.topics === 'string' ? JSON.parse(u.topics) : u.topics 
-        });
-        return acc;
-      }, {});
-
-      // 3. Fetch allocations
+      // 2. Fetch allocations
       let allocations = [];
       if (academicYear) {
         allocations = await db.select({
@@ -82,7 +64,7 @@ export async function GET(request) {
         };
       };
 
-      // 4. Reconstruct Nested Structure
+      // 3. Reconstruct Nested Structure
       const topLevel = structureRows.filter(r => !r.parent_group_code);
       const variants = structureRows.filter(r => r.parent_group_code);
 
@@ -91,8 +73,7 @@ export async function GET(request) {
           code: item.subject_code,
           title: item.title,
           isGroup: !!item.is_group,
-          subject_type: item.subject_type,
-          units: unitsBySubject[item.subject_code] || []
+          subject_type: item.subject_type
         };
 
         if (item.is_group) {
@@ -102,7 +83,6 @@ export async function GET(request) {
               code: v.subject_code,
               title: v.title,
               subject_type: v.subject_type,
-              units: unitsBySubject[v.subject_code] || [],
               ...check(v.subject_code)
             }));
           

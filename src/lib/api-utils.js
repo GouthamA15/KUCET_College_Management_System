@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { verifyJwt } from './auth';
 import { db } from '@/db';
 import { auditLogs } from '@/db/schema';
-import { refreshAccessToken } from './auth-utils';
 
 /**
  * Standard API response helper
@@ -49,63 +48,35 @@ export async function logAudit(req, { userId, userType, action, targetId, target
 }
 
 /**
- * Authentication helper to get user from session cookies
+ * Authentication helper to get user from session cookies or middleware-injected headers
  */
 export async function getAuthUser(role = null) {
   try {
     const cookieStore = await cookies();
+    const reqHeaders = await headers();
     let token = null;
     let expectedRole = role;
-    let type = null;
 
+    // Prioritize middleware-injected headers for silent refresh compatibility
     if (role === 'admin') {
-      token = cookieStore.get('admin_auth')?.value;
-      type = 'admin';
+      token = reqHeaders.get('x-admin-auth') || cookieStore.get('admin_auth')?.value;
     } else if (role === 'clerk') {
-      token = cookieStore.get('clerk_auth')?.value;
-      type = 'clerk';
+      token = reqHeaders.get('x-clerk-auth') || cookieStore.get('clerk_auth')?.value;
     } else if (role === 'student') {
-      token = cookieStore.get('student_auth')?.value;
-      type = 'student';
+      token = reqHeaders.get('x-student-auth') || cookieStore.get('student_auth')?.value;
     } else {
-      // Try to detect role from available cookies if not specified
-      const adminToken = cookieStore.get('admin_auth')?.value;
-      const clerkToken = cookieStore.get('clerk_auth')?.value;
-      const studentToken = cookieStore.get('student_auth')?.value;
-      
-      token = adminToken || clerkToken || studentToken;
-      if (adminToken) type = 'admin';
-      else if (clerkToken) type = 'clerk';
-      else if (studentToken) type = 'student';
+      // Try to detect role from available sources
+      token = reqHeaders.get('x-admin-auth') || reqHeaders.get('x-clerk-auth') || reqHeaders.get('x-student-auth') ||
+              cookieStore.get('admin_auth')?.value || cookieStore.get('clerk_auth')?.value || cookieStore.get('student_auth')?.value;
     }
 
     if (!token) return null;
 
-    let payload = await verifyJwt(token, process.env.JWT_SECRET);
+    const payload = await verifyJwt(token, process.env.JWT_SECRET);
     
-    // Silent Refresh if token is expired but refresh token exists
-    if (!payload && type) {
-        console.log(`[getAuthUser] Token expired for ${type}, attempting silent refresh...`);
-        // We create a dummy response object to hold the new cookies
-        const dummyRes = NextResponse.next();
-        const refreshedUser = await refreshAccessToken(dummyRes, type, cookieStore);
-        if (refreshedUser) {
-            // Note: Since we are in an API route (Server Component context), 
-            // we can't easily set cookies back to the client here without returning the dummyRes.
-            // However, subsequent calls in this request will have the updated payload.
-            // Most Next.js API routes will return their own response.
-            // For true silent rotation in APIs, we rely on the Middleware (proxy.js) 
-            // which already handles this for all incoming requests.
-            
-            // Re-verify the newly set cookie from dummyRes if needed, 
-            // or just fetch user again. For simplicity, we just return the payload
-            // if we successfully refreshed.
-            token = dummyRes.cookies.get(`${type}_auth`)?.value;
-            if (token) {
-                payload = await verifyJwt(token, process.env.JWT_SECRET);
-            }
-        }
-    }
+    // NOTE: Redundant silent refresh logic removed. 
+    // The middleware (proxy.js) now authoritatively handles silent refresh 
+    // and injects the new token into the request headers.
 
     if (!payload) return null;
 

@@ -25,7 +25,10 @@ export async function GET(req, context) {
 
   try {
     const params = await context.params;
-    const { rollno } = params;
+    let { rollno } = params;
+
+    // Invisible Normalization Hook
+    rollno = String(rollno || '').trim().toUpperCase();
 
     // 1. Fetch student with joined personal and academic data
     const studentResult = await db.select()

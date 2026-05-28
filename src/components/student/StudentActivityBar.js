@@ -8,7 +8,7 @@ import AttendanceVerificationActivity from './AttendanceVerificationActivity';
 
 export default function StudentActivityBar() {
   const pathname = usePathname();
-  const { academicPerformance, loading: studentLoading } = useStudent();
+  const { studentData, academicPerformance, loading: studentLoading } = useStudent();
   const [activeActivity, setActiveActivity] = useState(null);
   const [attendanceSessions, setAttendanceSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,9 +16,11 @@ export default function StudentActivityBar() {
   const isUnmountedRef = useRef(false);
 
   const fetchActivity = useCallback(async () => {
-    if (isUnmountedRef.current) return;
+    if (isUnmountedRef.current || studentLoading || !studentData) return;
     try {
       const res = await fetch('/api/student/current-activity');
+      if (res.status === 401 || res.status === 403) return;
+      
       const data = await res.json();
       if (isUnmountedRef.current) return;
 
@@ -30,29 +32,31 @@ export default function StudentActivityBar() {
         lastFetchedPeriodRef.current = null;
       }
     } catch (e) {
-      console.error('Failed to sync current student activity');
+      // Silent in production or if it's a transient network error during reload
     } finally {
       if (!isUnmountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [studentLoading, studentData]);
 
   const fetchAttendanceSessions = useCallback(async () => {
-    if (isUnmountedRef.current || !academicPerformance?.length) return;
+    if (isUnmountedRef.current || studentLoading || !studentData || !academicPerformance?.length) return;
     
     try {
       const assignmentIds = academicPerformance.map(s => s.assignment_id).filter(Boolean);
       if (!assignmentIds.length) return;
 
       const res = await fetch(`/api/student/attendance/active-sessions?ids=${assignmentIds.join(',')}`);
+      if (res.status === 401 || res.status === 403) return;
+
       const json = await res.json();
       
       if (res.ok && !isUnmountedRef.current) {
         setAttendanceSessions(json.data || []);
       }
     } catch (e) {
-      console.error('Failed to fetch active attendance sessions');
+      // Silent
     }
-  }, [academicPerformance]);
+  }, [academicPerformance, studentLoading, studentData]);
 
   useEffect(() => {
     isUnmountedRef.current = false;
@@ -114,13 +118,13 @@ export default function StudentActivityBar() {
   const isProfilePage = pathname === '/student/profile';
   const showBar = activeActivity || (hasAttendance && !isProfilePage);
 
-  if (loading && !showBar) return null;
-  if (!showBar) return null;
-
-  const { activity, period } = activeActivity || {};
+  const activity = activeActivity;
+  const period = activeActivity?.period;
 
   return (
     <div className="space-y-0 animate-in slide-in-from-top duration-500 shadow-md">
+      <RealtimeListener onUpdate={handleRealtimeUpdate} />
+      
       {/* 1. Main Activity Bar (Ongoing Lecture) */}
       {activeActivity && (
         <div className="bg-[#0b3578] border-b border-white/10 relative overflow-hidden">

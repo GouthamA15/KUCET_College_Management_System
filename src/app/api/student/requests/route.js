@@ -148,14 +148,19 @@ export async function POST(request) {
 
     // formData.get returns a File object in Next.js
     const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
+    
+    logger.info(`Processing certificate request: ${certificateType}. File valid: ${isFileValid}`);
 
     if (isFileValid) {
       const MAX_SIZE = 1 * 1024 * 1024;
       if (paymentScreenshotFile.size > MAX_SIZE) {
+        logger.warn(`File size limit exceeded: ${paymentScreenshotFile.size} bytes`);
         return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);
       }
 
+      logger.info(`Uploading to Cloudinary... File type: ${paymentScreenshotFile.type}`);
       const screenshotUrl = await uploadToCloudinary(paymentScreenshotFile, "certificates/payments");
+      logger.info(`Cloudinary upload result: ${screenshotUrl ? 'Success' : 'Failed'}`);
       
       if (screenshotUrl) {
         // Update dedicated images table
@@ -170,12 +175,18 @@ export async function POST(request) {
         await db.update(studentRequests)
           .set({ payment_screenshot: screenshotUrl })
           .where(eq(studentRequests.request_id, requestId));
+        
+        logger.info(`Database records updated with screenshot URL: ${requestId}`);
       }
     }
 
     return apiResponse({ success: true, requestId });
   } catch (error) {
-    logger.error("Error processing certificate request:", error);
+    logger.error({
+      message: error.message,
+      stack: error.stack,
+      requestId: requestId // This will be the ID if already created
+    }, 'Error processing certificate request');
     if (error.code === "ER_DUP_ENTRY") return apiError("Duplicate request detected.", 409);
     return apiError("Internal Server Error", 500);
   }

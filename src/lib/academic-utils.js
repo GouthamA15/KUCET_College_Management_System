@@ -5,8 +5,8 @@ import { getNow, getNowSync } from './clock';
  * CORE LOGIC (Shared between Sync and Async)
  */
 
-function calculateYearAndSemesterCore(rollNo, collegeInfo, now) {
-  const yearOfStudy = getCurrentStudyingYear(rollNo, collegeInfo, now);
+function calculateYearAndSemesterCore(rollNo, collegeInfo, now, offsetYears = 0) {
+  const yearOfStudy = getCurrentStudyingYear(rollNo, collegeInfo, now, offsetYears);
   if (!yearOfStudy) return { yearOfStudy: null, semester: null, semesterLabel: 'N/A' };
 
   const currentMonth = now.getMonth() + 1;
@@ -75,8 +75,8 @@ export function getCollegeAcademicYearSync(collegeInfo = null) {
   return `${startYear}-${(startYear + 1).toString().slice(-2)}`;
 }
 
-export function calculateYearAndSemesterSync(rollNo, collegeInfo = null) {
-  return calculateYearAndSemesterCore(rollNo, collegeInfo, getNowSync());
+export function calculateYearAndSemesterSync(rollNo, collegeInfo = null, offsetYears = 0) {
+  return calculateYearAndSemesterCore(rollNo, collegeInfo, getNowSync(), offsetYears);
 }
 
 /**
@@ -89,8 +89,8 @@ export async function getCollegeAcademicYear(collegeInfo = null) {
   return `${startYear}-${(startYear + 1).toString().slice(-2)}`;
 }
 
-export async function calculateYearAndSemesterAsync(rollNo, collegeInfo = null) {
-  return calculateYearAndSemesterCore(rollNo, collegeInfo, await getNow());
+export async function calculateYearAndSemesterAsync(rollNo, collegeInfo = null, offsetYears = 0) {
+  return calculateYearAndSemesterCore(rollNo, collegeInfo, await getNow(), offsetYears);
 }
 
 export function isSemesterActiveSync(semester, assignmentAcademicYear, collegeInfo = null) {

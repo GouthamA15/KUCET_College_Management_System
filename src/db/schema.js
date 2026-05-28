@@ -7,11 +7,22 @@ import {
 
 export const collegeInfo = mysqlTable('college_info', {
   id: int('id').autoincrement().primaryKey().notNull(),
+  name: varchar('name', { length: 255 }).default('KU COLLEGE OF ENGINEERING & TECHNOLOGY'),
+  short_name: varchar('short_name', { length: 50 }).default('KUCET'),
+  address: text('address'),
+  location: varchar('location', { length: 100 }).default('Warangal'),
+  pincode: varchar('pincode', { length: 10 }).default('506009'),
+  contact: varchar('contact', { length: 100 }).default('0870-2970125'),
+  entrance_codes: json('entrance_codes'), // stores { pgecet, eapcet, ecet }
+  branches: json('branches'), // stores array of { code, name }
+  categories: json('categories'), // array of strings
+  annual_incomes: json('annual_incomes'), // array of strings
   first_sem_start_month: tinyint('first_sem_start_month'),
   first_sem_start_day: tinyint('first_sem_start_day'),
   second_sem_start_month: tinyint('second_sem_start_month'),
   second_sem_start_day: tinyint('second_sem_start_day'),
-  updated_at: datetime('updated_at'),
+  maintenance_mode: boolean('maintenance_mode').default(false).notNull(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
 });
 
 // --- 2. CORE IDENTITY & AUTHENTICATION ---
@@ -31,12 +42,16 @@ export const students = mysqlTable('students', {
   is_email_verified: boolean('is_email_verified').default(false).notNull(),
   email_verified_at: timestamp('email_verified_at'),
   password_hash: varchar('password_hash', { length: 255 }),
+  admission_date: date('admission_date'),
   added_by_clerk_id: int('added_by_clerk_id'),
   updated_at: timestamp('updated_at').onUpdateNow(),
   updated_by_clerk_id: int('updated_by_clerk_id'),
   student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED']).default('ACTIVE'),
+  academic_status: mysqlEnum('academic_status', ['REGULAR', 'DETAINED', 'DROPPED', 'GRADUATED']).default('REGULAR'),
+  academic_offset_years: int('academic_offset_years').default(0),
 }, (table) => ({
   rollNoIdx: index('idx_roll_no').on(table.roll_no),
+  rollNoUniq: uniqueIndex('uq_students_roll_no').on(table.roll_no),
   mobileHashIdx: index('idx_students_mobile_hash').on(table.mobile_hash),
   emailIdx: index('idx_students_email').on(table.email),
   createdAtIdx: index('idx_students_created_at').on(table.created_at),
@@ -151,6 +166,8 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   identification_mark_1: text('identification_mark_1'),
   identification_mark_2: text('identification_mark_2'),
   permanent_address: text('permanent_address'),
+  admission_date: date('admission_date'),
+  roll_no: varchar('roll_no', { length: 255 }), // Promised/Assigned Roll Number
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
 }, (table) => ({
@@ -202,6 +219,7 @@ export const studentMarks = mysqlTable('student_marks', {
   lab_record_marks: decimal('lab_record_marks', { precision: 5, scale: 2 }),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
+  version: int('version').default(1).notNull(),
 }, (table) => ({
   studentAssignmentIdx: index('idx_marks_student_assignment').on(table.student_id, table.assignment_id),
   studentAssignmentUniq: uniqueIndex('uq_marks_student_assignment').on(table.student_id, table.assignment_id),
@@ -236,6 +254,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
   room_no: varchar('room_no', { length: 20 }),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
+  version: int('version').default(1).notNull(),
 }, (table) => ({
   timetableLookupIdx: index('idx_timetable_lookup').on(table.branch, table.semester, table.academic_year),
   dayPeriodIdx: index('idx_bt_day_period').on(table.day_of_week, table.period_number),
@@ -277,16 +296,6 @@ export const syllabusStructure = mysqlTable('syllabus_structure', {
 }, (table) => ({
   branchIdx: index('branch').on(table.branch, table.semester),
   subjectCodeIdx: index('subject_code').on(table.subject_code),
-}));
-
-export const syllabusUnits = mysqlTable('syllabus_units', {
-  id: int('id').autoincrement().primaryKey().notNull(),
-  subject_code: varchar('subject_code', { length: 50 }).notNull(),
-  unit_order: tinyint('unit_order').notNull(),
-  unit_name: varchar('unit_name', { length: 255 }).notNull(),
-  topics: json('topics').notNull(),
-}, (table) => ({
-  subjectIdx: index('idx_su_subject').on(table.subject_code),
 }));
 
 // --- 6. ASSETS & SIGNATURES ---
@@ -414,6 +423,9 @@ export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
   proceeding_no: varchar('proceeding_no', { length: 255 }),
   sanctioned_amount: decimal('sanctioned_amount', { precision: 10, scale: 2 }),
   sanction_date: date('sanction_date'),
+  released_amount: decimal('released_amount', { precision: 10, scale: 2 }),
+  released_date: date('released_date'),
+  status: mysqlEnum('status', ['PENDING', 'SANCTIONED', 'RELEASED', 'REJECTED']).default('PENDING'),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
   thumb_update_available: boolean('thumb_update_available').default(false),
@@ -476,7 +488,7 @@ export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
   device_hash: varchar('device_hash', { length: 255 }),
   ip_address: varchar('ip_address', { length: 45 }),
   ua_hash: varchar('ua_hash', { length: 32 }),
-  status: mysqlEnum('status', ['SUCCESS', 'FAILED_LOCATION', 'FAILED_EXPIRED']).default('SUCCESS'),
+  status: mysqlEnum('status', ['SUCCESS', 'FAILED_LOCATION', 'FAILED_EXPIRED', 'FAILED_PIN', 'LOCKED']).default('SUCCESS'),
   created_at: timestamp('created_at').defaultNow(),
 }, (table) => ({
   sessionIpUaIdx: index('idx_session_ip_ua').on(table.session_id, table.ip_address, table.ua_hash),
@@ -510,6 +522,18 @@ export const facultySubjectInterests = mysqlTable('faculty_subject_interests', {
 }, (table) => ({
   facultyIdx: index('idx_fsi_faculty').on(table.faculty_id),
   statusIdx: index('idx_fsi_status').on(table.status),
+}));
+
+export const facultySubstitutions = mysqlTable('faculty_substitutions', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  original_assignment_id: int('original_assignment_id').notNull(),
+  substitute_faculty_id: int('substitute_faculty_id').notNull(),
+  substitution_date: date('substitution_date').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  created_by_clerk_id: int('created_by_clerk_id'),
+}, (table) => ({
+  lookupIdx: index('idx_subst_lookup').on(table.original_assignment_id, table.substitution_date),
+  substituteIdx: index('idx_subst_faculty').on(table.substitute_faculty_id),
 }));
 
 export const studentProfileRequests = mysqlTable('student_profile_requests', {

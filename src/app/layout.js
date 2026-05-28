@@ -2,7 +2,8 @@ import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 import AuthProvider from "./components/AuthProvider";
 import { AssetProvider } from "@/context/AssetContext";
-import RealtimeListener from "@/components/RealtimeListener";
+import { SystemConfigProvider } from "@/context/SystemConfigContext";
+import MaintenanceGuard from "@/components/MaintenanceGuard";
 
 export const metadata = {
   title: "Login | KUCET",
@@ -27,13 +28,16 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased bg-institutional min-h-screen">
-        <RealtimeListener showIndicator enableNotifications />
-        <AssetProvider>
-          <AuthProvider>
-            <Toaster position="top-center" reverseOrder={false} />
-            {children}
-          </AuthProvider>
-        </AssetProvider>
+        <SystemConfigProvider>
+          <MaintenanceGuard>
+            <AssetProvider>
+              <AuthProvider>
+                <Toaster position="top-center" reverseOrder={false} />
+                {children}
+              </AuthProvider>
+            </AssetProvider>
+          </MaintenanceGuard>
+        </SystemConfigProvider>
       </body>
     </html>
   );

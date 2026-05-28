@@ -27,8 +27,11 @@ export async function PUT(req, context) {
 
   try {
     const params = await context.params;
-    const { rollno } = params;
+    let { rollno } = params;
     if (!rollno) return apiError('Missing rollno parameter', 400);
+
+    // Invisible Normalization Hook
+    rollno = String(rollno).trim().toUpperCase();
 
     const updatedData = await req.json();
 
@@ -54,14 +57,18 @@ export async function PUT(req, context) {
       const studentUpdate = {};
       if (updatedData.name !== undefined) studentUpdate.name = toNull(updatedData.name);
       if (updatedData.admission_no !== undefined) studentUpdate.admission_no = toNull(updatedData.admission_no);
+      if (updatedData.admission_date !== undefined) studentUpdate.admission_date = toMySQLDate(updatedData.admission_date) ? new Date(toMySQLDate(updatedData.admission_date)) : null;
+      if (updatedData.academic_status !== undefined) studentUpdate.academic_status = toNull(String(updatedData.academic_status).trim().toUpperCase());
+      if (updatedData.academic_offset_years !== undefined) studentUpdate.academic_offset_years = parseInt(updatedData.academic_offset_years) || 0;
       if (updatedData.fee_reimbursement !== undefined) studentUpdate.fee_reimbursement = toNull(String(updatedData.fee_reimbursement).trim().toUpperCase());
       if (updatedData.date_of_birth !== undefined) studentUpdate.date_of_birth = toMySQLDate(updatedData.date_of_birth) ? new Date(toMySQLDate(updatedData.date_of_birth)) : null;
       if (updatedData.gender !== undefined) studentUpdate.gender = toNull(updatedData.gender);
       
       if (updatedData.mobile !== undefined) {
           const val = toNull(updatedData.mobile);
-          studentUpdate.mobile = val ? encrypt(val) : null;
-          studentUpdate.mobile_hash = val ? hashForIndex(val) : null;
+          const normalizedMobile = val ? String(val).replace(/\D/g, '') : null;
+          studentUpdate.mobile = normalizedMobile ? encrypt(normalizedMobile) : null;
+          studentUpdate.mobile_hash = normalizedMobile ? hashForIndex(normalizedMobile) : null;
       }
       
       if (updatedData.email !== undefined) studentUpdate.email = toNull(updatedData.email);

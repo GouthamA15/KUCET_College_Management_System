@@ -1,19 +1,17 @@
-import Hero from '@/components/Hero';
-import AboutSection from '@/components/AboutSection';
 import Header from '@/components/Header';
 import HeaderMobileView from '@/components/Header-MobileView';
+import HomeLoginLanding from '@/components/HomeLoginLanding.client';
 import Footer from '@/app/components/Footer/Footer';
-import ClientShell from '@/components/ClientShell.client';
 
 export default async function Home({ searchParams }) {
   const sp = await searchParams;
   const error = Array.isArray(sp?.error) ? sp.error[0] : sp?.error ?? null;
-  const login = sp?.login === 'true' ? 'clerk' : null;
+  const login = sp?.login === 'true' ? 'clerk' : 'student';
 
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
 
   return (
-    <div className="min-h-screen bg-white relative">
+    <div className="min-h-screen bg-slate-50 relative flex flex-col">
       {isTesting && (
         <a
           href="/dev/time-machine"
@@ -29,17 +27,12 @@ export default async function Home({ searchParams }) {
       <Header fixed={false} />
       <HeaderMobileView />
 
-      {/* Client-side shell: navbar (sticky), login panels and toasts */}
-      <ClientShell serverError={error} stickyNavbar={false} initialPanel={login} />
-
-      {/* Main server-rendered content. */}
-      <div id="main-content" className="transition-all duration-500 ease-out opacity-100 flex flex-col min-h-screen">
-        <div className="grow">
-          <Hero />
-          <AboutSection />
-        </div>
-        <Footer />
+      {/* Direct Login Landing (Student / Staff) */}
+      <div className="grow">
+        <HomeLoginLanding serverError={error} initialPanel={login} />
       </div>
+
+      <Footer />
     </div>
   );
 }

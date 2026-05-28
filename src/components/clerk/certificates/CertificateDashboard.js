@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { usePathname } from 'next/navigation';
 import { useClerk } from "@/context/ClerkContext";
 // Filters moved into a contextual popover; removed full-width CertificateFilters component
@@ -10,9 +10,10 @@ import CertificateRecordsView from "./CertificateRecordsView";
 import CertificateActionPanel from "./CertificateActionPanel";
 import FiltersPopover from "./FiltersPopover";
 import FiltersButton from "./FiltersButton";
+import { createPortal } from 'react-dom';
 
 export default function CertificateDashboard({ clerkType }) {
-  const { pendingCertificateRequests, isLoadingRequests, refreshCertificateRequests } = useClerk();
+  const { pendingCertificateRequests, isLoadingRequests } = useClerk();
   const [workspaceMode, setWorkspaceMode] = useState("active"); // "active" | "history"
   const [selectedDate, setSelectedDate] = useState(null); // string | null
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -55,12 +56,7 @@ export default function CertificateDashboard({ clerkType }) {
 
   // Fetch records whenever mode/date/clerkType changes
   const fetchRecords = useCallback(async () => {
-    // If it's active mode and no filters, the useMemo displayRecords handles it.
-    // However, we still might need to trigger a background refresh if context is empty.
     if (workspaceMode === 'active' && appliedFilters.certificateType.length === 0 && appliedFilters.status.length === 0) {
-       if (pendingCertificateRequests.length === 0) {
-           refreshCertificateRequests(clerkType);
-       }
        return;
     }
 
@@ -104,7 +100,7 @@ export default function CertificateDashboard({ clerkType }) {
     } finally {
       setLoadingRecords(false);
     }
-  }, [workspaceMode, historyScope, clerkType, appliedFilters, pendingCertificateRequests, refreshCertificateRequests]);
+  }, [workspaceMode, historyScope, clerkType, appliedFilters]);
 
   // Effects
   useEffect(() => {
@@ -312,9 +308,10 @@ export default function CertificateDashboard({ clerkType }) {
       </div>
 
       {/* Modal/Dialog for request details */}
-      {isDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col">
+      {isDialogOpen && typeof document !== 'undefined' && createPortal(
+        (
+          <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800">Request Details</h3>
               <button
@@ -365,13 +362,16 @@ export default function CertificateDashboard({ clerkType }) {
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        ),
+        document.body
       )}
 
       {/* Reject reason dialog */}
-      {rejectReasonOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col">
+      {rejectReasonOpen && typeof document !== 'undefined' && createPortal(
+        (
+          <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800">Reason for Rejection</h3>
               <button type="button" className="text-gray-600 hover:text-gray-900 cursor-pointer" onClick={() => setRejectReasonOpen(false)} aria-label="Close">✕</button>
@@ -401,7 +401,9 @@ export default function CertificateDashboard({ clerkType }) {
               }}>Confirm Reject</button>
             </div>
           </div>
-        </div>
+          </div>
+        ),
+        document.body
       )}
     </div>
   );

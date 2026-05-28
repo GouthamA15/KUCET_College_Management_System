@@ -229,7 +229,12 @@ export default function AddNewStudent() {
             <input placeholder="Father Name" value={personal.father_name} onChange={e=>setPersonal({...personal, father_name:e.target.value})} className="p-2 border rounded" />
             <input placeholder="Mother Name" value={personal.mother_name} onChange={e=>setPersonal({...personal, mother_name:e.target.value})} className="p-2 border rounded" />
             <input placeholder="Nationality" value={personal.nationality} onChange={e=>setPersonal({...personal, nationality:e.target.value})} className="p-2 border rounded" />
-            <input placeholder="Religion" value={personal.religion} onChange={e=>setPersonal({...personal, religion:e.target.value})} className="p-2 border rounded" />
+            <select value={personal.religion || ''} onChange={e=>setPersonal({...personal, religion:e.target.value})} className="p-2 border rounded">
+                <option value="">Select Religion</option>
+                {COLLEGE_CONFIG.religions.map(r => (
+                    <option key={r} value={r.toUpperCase()}>{r.toUpperCase()}</option>
+                ))}
+            </select>
             <select value={personal.category} onChange={e=>setPersonal({...personal, category:e.target.value})} className="p-2 border rounded">{categories.map(c=> <option key={c} value={c}>{c}</option>)}</select>
             <input placeholder="Sub Caste" value={personal.sub_caste} onChange={e=>setPersonal({...personal, sub_caste:e.target.value})} className="p-2 border rounded" />
             <select value={personal.area_status} onChange={e=>setPersonal({...personal, area_status:e.target.value})} className="p-2 border rounded"><option>Local</option><option>Non-Local</option></select>

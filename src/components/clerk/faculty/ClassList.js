@@ -60,81 +60,92 @@ export default function ClassList() {
     return list.filter(s => (s.roll_no || '').toLowerCase().includes(searchRoll.toLowerCase()));
   }, [students, searchRoll]);
 
+  void loadingAssignments;
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md mt-2">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">Class List</h2>
-        <div className="text-xs text-gray-500 font-medium bg-gray-100 px-3 py-1 rounded-full">
+    <section className="bg-white border border-slate-200 rounded-sm shadow-sm overflow-hidden">
+      <div className="bg-slate-50 border-b border-slate-200 px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div>
+          <h2 className="text-base font-black text-slate-800 tracking-tight uppercase">Class Lists</h2>
+          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-tight mt-1">Filter by assignment to view roster.</p>
+        </div>
+        <div className="text-[10px] font-black text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-sm uppercase tracking-widest w-fit">
           Total Students: {students.length}
         </div>
       </div>
 
+      <div className="p-4 md:p-6 space-y-4">
+
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Academic Year</label>
-          <select value={selectedAY} onChange={(e)=>setSelectedAY(e.target.value)} className="w-full p-2 border rounded bg-white">
+      <div className="bg-slate-50 border border-slate-200 rounded-sm p-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Academic Year</label>
+            <select value={selectedAY} onChange={(e)=>setSelectedAY(e.target.value)} className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-white text-sm font-medium text-slate-700">
             <option value="">Select</option>
             {years.map(ay => (<option key={ay} value={ay}>{ay}</option>))}
           </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Branch</label>
-          <select value={selectedBranch} onChange={(e)=>setSelectedBranch(e.target.value)} className="w-full p-2 border rounded bg-white" disabled={!selectedAY}>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Branch</label>
+            <select value={selectedBranch} onChange={(e)=>setSelectedBranch(e.target.value)} className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-white text-sm font-medium text-slate-700 disabled:opacity-60" disabled={!selectedAY}>
             <option value="">Select</option>
             {branches.map(b => (<option key={b} value={b}>{b}</option>))}
           </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Semester</label>
-          <select value={selectedSemester} onChange={(e)=>setSelectedSemester(e.target.value)} className="w-full p-2 border rounded bg-white" disabled={!selectedBranch}>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Semester</label>
+            <select value={selectedSemester} onChange={(e)=>setSelectedSemester(e.target.value)} className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-white text-sm font-medium text-slate-700 disabled:opacity-60" disabled={!selectedBranch}>
             <option value="">Select</option>
             {semesters.map(s => (<option key={s} value={s}>Sem {s}</option>))}
           </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Subject</label>
-          <select value={selectedAssignmentId} onChange={(e)=>setSelectedAssignmentId(e.target.value)} className="w-full p-2 border rounded bg-white" disabled={!selectedSemester}>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Subject</label>
+            <select value={selectedAssignmentId} onChange={(e)=>setSelectedAssignmentId(e.target.value)} className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-white text-sm font-medium text-slate-700 disabled:opacity-60" disabled={!selectedSemester}>
             <option value="">Select</option>
             {filteredAssignments.map(a => (
               <option key={a.id} value={a.id}>{a.subject_name} ({a.subject_code})</option>
             ))}
           </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Search Roll No</label>
+            <input value={searchRoll} onChange={(e)=>setSearchRoll(e.target.value)} placeholder="e.g. 21K61A0001" className="w-full h-10 px-3 border border-slate-200 rounded-sm bg-white text-sm font-medium text-slate-700" />
+          </div>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Search Roll No</label>
-          <input value={searchRoll} onChange={(e)=>setSearchRoll(e.target.value)} placeholder="e.g. 21K61A0001" className="w-full p-2 border rounded" />
-        </div>
+
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border rounded-lg">
+      <div className="overflow-x-auto border border-slate-200 rounded-sm">
         {loadingStudents ? (
-          <div className="text-center py-6">Loading students...</div>
+          <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest">Loading students…</div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll Number</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student Name</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Roll Number</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Student Name</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-slate-200">
               {visibleStudents.map((s) => (
-                <tr key={s.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{s.roll_no}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{s.name}</td>
+                <tr key={s.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 whitespace-nowrap text-[11px] font-mono font-bold text-slate-800">{s.roll_no}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-700 font-semibold">{s.name}</td>
                 </tr>
               ))}
               {visibleStudents.length === 0 && (
                 <tr>
-                  <td className="px-6 py-6 text-center text-gray-500" colSpan={2}>No students found.</td>
+                  <td className="px-4 py-10 text-center text-[11px] text-slate-500 font-semibold uppercase tracking-widest" colSpan={2}>No students found.</td>
                 </tr>
               )}
             </tbody>
           </table>
         )}
       </div>
-    </div>
+      </div>
+    </section>
   );
 }

@@ -52,7 +52,7 @@ test.describe('Student Admission Flow', () => {
     // Date of Birth
     await page.getByLabel('10. Date of Birth').fill('2005-01-01');
     
-    await page.getByLabel('13. Religion').fill('HINDU');
+    await page.getByLabel('13. Religion').selectOption('HINDU');
     await page.getByLabel('14. Mother Tongue').fill('TELUGU');
     await page.getByLabel('16. SSC / 10th Marks').fill('950');
     await page.getByLabel('17. Intermediate (for EAMCET) / Diploma (for ECET) Marks').fill('900');

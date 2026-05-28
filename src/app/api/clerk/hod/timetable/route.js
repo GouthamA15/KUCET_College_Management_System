@@ -8,6 +8,7 @@ import {
 } from '@/db/schema';
 import { eq, and, desc, asc, sql, like, or, ne } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { FacultyService } from '@/services/FacultyService';
 
 export async function GET(req) {
   try {
@@ -37,6 +38,7 @@ export async function GET(req) {
       faculty_id: branchTimetable.faculty_id,
       academic_year: branchTimetable.academic_year,
       room_no: branchTimetable.room_no,
+      version: branchTimetable.version,
       faculty_name: clerks.name,
       subject_name: syllabusSubjects.subject_name
     })
@@ -69,7 +71,7 @@ export async function POST(req) {
     }
 
     let { 
-      semester, section = 'A', day_of_week, period_number, 
+      id, version, semester, section = 'A', day_of_week, period_number, 
       subject_code, faculty_id, academic_year = '2025-26', room_no = null 
     } = await req.json();
 
@@ -98,7 +100,8 @@ export async function POST(req) {
         ),
         // Term Parity Check: Only conflict if both are Odd or both are Even
         sql`(${branchTimetable.semester} % 2 = 0) = ${isEvenSem}`,
-        sql`NOT (${eq(branchTimetable.branch, user.branch)} AND ${eq(branchTimetable.semester, semester)} AND ${eq(branchTimetable.section, section)})`
+        // Don't conflict with itself
+        id ? ne(branchTimetable.id, id) : sql`NOT (${eq(branchTimetable.branch, user.branch)} AND ${eq(branchTimetable.semester, semester)} AND ${eq(branchTimetable.section, section)})`
       ))
       .limit(1);
 
@@ -108,7 +111,7 @@ export async function POST(req) {
       }
     }
 
-    await db.insert(branchTimetable).values({
+    const slotData = {
       branch: user.branch,
       semester: parseInt(semester),
       section: section,
@@ -118,14 +121,26 @@ export async function POST(req) {
       faculty_id: sanitizedFacultyId,
       academic_year: academic_year,
       room_no: room_no
-    })
-    .onDuplicateKeyUpdate({
-      set: {
-        subject_code: sql`VALUES(subject_code)`,
-        faculty_id: sql`VALUES(faculty_id)`,
-        room_no: sql`VALUES(room_no)`
+    };
+
+    if (id) {
+      // Optimistic Locking Update
+      const success = await FacultyService.updateTimetableAtomic(id, slotData, version);
+      if (!success) {
+        return apiError('Concurrency Conflict: This timetable slot was modified by another user. Please refresh.', 409);
       }
-    });
+    } else {
+      // New Slot or Coordinate-based upsert if ID is missing but slot exists
+      await db.insert(branchTimetable).values(slotData)
+      .onDuplicateKeyUpdate({
+        set: {
+          subject_code: sql`VALUES(subject_code)`,
+          faculty_id: sql`VALUES(faculty_id)`,
+          room_no: sql`VALUES(room_no)`,
+          version: sql`version + 1`
+        }
+      });
+    }
 
     // REAL-TIME
     try {
