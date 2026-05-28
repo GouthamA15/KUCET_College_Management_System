@@ -2,29 +2,31 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import RealtimeListener from '@/components/RealtimeListener';
+import { getPendingAttendance, savePendingAttendance, deletePendingAttendance } from '@/lib/idb-attendance';
 
 const FacultyAttendanceContext = createContext(null);
 
 export function FacultyAttendanceProvider({ assignment, children }) {
-  // ... (rest of state)
-
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSession, setSelectedSession] = useState(1);
   const [baseStudents, setBaseStudents] = useState([]);
   const [attendanceStatusMap, setAttendanceStatusMap] = useState({});
-  const [absentCountMap, setAbsentCountMap] = useState({}); // Tracking variable for absent clicks
+  const [absentCountMap, setAbsentCountMap] = useState({});
   const [existingSessionsForSelectedDate, setExistingSessionsForSelectedDate] = useState([]);
   const [dayInfo, setDayInfo] = useState(null);
   const [dateValidation, setDateValidation] = useState({
     isValid: false,
     message: 'Select a WORKING day from the academic calendar.',
   });
-  const [loading, setLoading] = useState(true); // base students loading
-  const [statusLoading, setStatusLoading] = useState(false); // attendance status loading for grid
+  const [loading, setLoading] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [attendanceCache, setAttendanceCache] = useState({}); // { `${date}-${session}`: { statusMap, sessions } }
+  const [attendanceCache, setAttendanceCache] = useState({});
   const [activeSession, setActiveSession] = useState(null);
   const [verifiedStudentIds, setVerifiedStudentIds] = useState(new Set());
+  const [pendingSyncs, setPendingSyncs] = useState([]);
+
+  // --- ACTIONS (useCallback) ---
 
   const fetchBaseStudents = useCallback(async () => {
     if (!assignment?.id) {
@@ -67,6 +69,117 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [assignment]);
 
+  const fetchAttendanceStatus = useCallback(async (forcedDate, forcedSession, bypassCache = false) => {
+    if (!assignment?.id) return;
+
+    const dateToUse = forcedDate || selectedDate;
+    const sessionToUse = forcedSession || selectedSession;
+
+    if (!dateToUse && !activeSession) return;
+
+    const cacheKey = `${dateToUse}-${sessionToUse}`;
+    if (!bypassCache && !activeSession && dateToUse && attendanceCache[cacheKey]) {
+      setAttendanceStatusMap(attendanceCache[cacheKey].statusMap || {});
+      setExistingSessionsForSelectedDate(attendanceCache[cacheKey].sessions || []);
+      return;
+    }
+
+    if (dateToUse) setStatusLoading(true);
+    try {
+      let url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}`;
+      if (dateToUse) url += `&date=${encodeURIComponent(dateToUse)}&session=${encodeURIComponent(sessionToUse)}`;
+      
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch attendance status');
+
+      const verifiedIds = new Set(data.verified_ids || []);
+      setVerifiedStudentIds(verifiedIds);
+
+      if (dateToUse) {
+        const statusMap = (data.data || []).reduce((acc, r) => {
+          acc[r.student_id] = r.status;
+          return acc;
+        }, {});
+
+        verifiedIds.forEach(id => {
+          if (!statusMap[id]) statusMap[id] = 'PRESENT';
+        });
+
+        const sessions = data.sessions || [];
+        setAttendanceStatusMap(statusMap);
+        setExistingSessionsForSelectedDate(sessions);
+
+        if (!activeSession) {
+          setAttendanceCache((prev) => ({
+            ...prev,
+            [cacheKey]: { statusMap, sessions },
+          }));
+        }
+      }
+    } catch (error) {
+      if (dateToUse) toast.error(error.message);
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [assignment, selectedDate, selectedSession, attendanceCache, activeSession]);
+
+  const refreshPendingSyncs = useCallback(async () => {
+    try {
+      const pending = await getPendingAttendance();
+      setPendingSyncs(pending || []);
+    } catch (e) {
+      console.error('Failed to fetch pending syncs:', e);
+    }
+  }, []);
+
+  const syncOfflineAttendance = useCallback(async (idToSync = null) => {
+    try {
+      const allPending = await getPendingAttendance();
+      const toSync = idToSync ? allPending.filter((p) => p.id === idToSync) : allPending;
+
+      if (toSync.length === 0) return;
+
+      setSubmitting(true);
+      let successCount = 0;
+
+      for (const item of toSync) {
+        try {
+          const res = await fetch('/api/clerk/faculty/attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assignment_id: item.assignment_id,
+              date: item.date,
+              session: item.session,
+              attendance_data: item.attendance_data,
+            }),
+          });
+
+          if (res.ok) {
+            await deletePendingAttendance(item.id);
+            successCount++;
+          } else {
+            const data = await res.json();
+            throw new Error(data.error || 'Failed to sync record');
+          }
+        } catch (e) {
+          toast.error(`Sync failed for ${item.date} Session ${item.session}: ${e.message}`);
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Successfully synced ${successCount} attendance records.`);
+        await refreshPendingSyncs();
+        fetchAttendanceStatus(null, null, true);
+      }
+    } catch (err) {
+      console.error('Global Sync Error:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [refreshPendingSyncs, fetchAttendanceStatus]);
+
   const startSession = async () => {
     if (!assignment?.id) return;
 
@@ -103,8 +216,6 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       }
 
       toast.loading('Creating secure session...', { id: 'session-loading' });
-
-  // ... rest same ...
 
       const res = await fetch('/api/clerk/faculty/attendance/session', {
         method: 'POST',
@@ -159,101 +270,6 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, [assignment]);
 
-  const fetchAttendanceStatus = useCallback(async (forcedDate, forcedSession, bypassCache = false) => {
-    if (!assignment?.id) return;
-
-    const dateToUse = forcedDate || selectedDate;
-    const sessionToUse = forcedSession || selectedSession;
-
-    // Even if no date is selected, we want to fetch verified IDs if a session is active
-    if (!dateToUse && !activeSession) return;
-
-    const cacheKey = `${dateToUse}-${sessionToUse}`;
-    if (!bypassCache && !activeSession && dateToUse && attendanceCache[cacheKey]) {
-      setAttendanceStatusMap(attendanceCache[cacheKey].statusMap || {});
-      setExistingSessionsForSelectedDate(attendanceCache[cacheKey].sessions || []);
-      return;
-    }
-
-    if (dateToUse) setStatusLoading(true);
-    try {
-      let url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}`;
-      if (dateToUse) url += `&date=${encodeURIComponent(dateToUse)}&session=${encodeURIComponent(sessionToUse)}`;
-      
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch attendance status');
-
-      const verifiedIds = new Set(data.verified_ids || []);
-      setVerifiedStudentIds(verifiedIds);
-
-      if (dateToUse) {
-        const statusMap = (data.data || []).reduce((acc, r) => {
-          acc[r.student_id] = r.status;
-          return acc;
-        }, {});
-
-        // Auto-set PRESENT for verified students who aren't in the DB yet
-        verifiedIds.forEach(id => {
-          if (!statusMap[id]) statusMap[id] = 'PRESENT';
-        });
-
-        const sessions = data.sessions || [];
-        setAttendanceStatusMap(statusMap);
-        setExistingSessionsForSelectedDate(sessions);
-
-        if (!activeSession) {
-          setAttendanceCache((prev) => ({
-            ...prev,
-            [cacheKey]: { statusMap, sessions },
-          }));
-        }
-      }
-    } catch (error) {
-      if (dateToUse) toast.error(error.message);
-    } finally {
-      setStatusLoading(false);
-    }
-  }, [assignment, selectedDate, selectedSession, attendanceCache, activeSession]);
-
-  // load base students once per assignment
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setSelectedDate(null);
-      setSelectedSession(1);
-      setAttendanceStatusMap({});
-      setAbsentCountMap({}); // FIX: Reset stage tracker on assignment change
-      setExistingSessionsForSelectedDate([]);
-      setDayInfo(null);
-      setDateValidation({
-        isValid: false,
-        message: 'Select a WORKING day from the academic calendar.',
-      });
-      setAttendanceCache({});
-      setActiveSession(null);
-
-      fetchBaseStudents();
-      fetchActiveSession();
-    }, 0);
-
-    return () => clearTimeout(id);
-  }, [assignment, fetchBaseStudents, fetchActiveSession]);
-
-  // on date or session change, only fetch attendance status
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (selectedDate) {
-        fetchAttendanceStatus();
-      } else {
-        setAttendanceStatusMap({});
-        setAbsentCountMap({}); // FIX: Reset stage tracker on date/session change to ensure fresh cycle
-        setExistingSessionsForSelectedDate([]);
-      }
-    }, 0);
-
-    return () => clearTimeout(id);
-  }, [selectedDate, selectedSession, fetchAttendanceStatus]);
-
   const handleManualRefresh = useCallback(() => {
     fetchAttendanceStatus(null, null, true);
   }, [fetchAttendanceStatus]);
@@ -267,8 +283,6 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       const currentStage = prevStages[studentId] || 0;
       let nextStage = currentStage + 1;
       
-      // The Cycle: N/A(0) -> P(1) -> A(2) -> P(3) -> A(4) -> NCC(5) -> MED(6) -> P(7)
-      // Repeat from second absent (Stage 4)
       if (nextStage > 7) nextStage = 4;
 
       const stageToStatus = {
@@ -300,13 +314,12 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       
       baseStudents.forEach((s) => {
         next[s.id] = status;
-        // Align stages for bulk actions
         if (status === 'ABSENT') {
-          nextStages[s.id] = 2; // Jump to first ABSENT stage
+          nextStages[s.id] = 2;
         } else if (status === 'PRESENT') {
-          nextStages[s.id] = 1; // Jump to first PRESENT stage
+          nextStages[s.id] = 1;
         } else {
-          nextStages[s.id] = 0; // Reset to N/A
+          nextStages[s.id] = 0;
         }
       });
       
@@ -318,7 +331,6 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const handleSaveAttendance = useCallback(async () => {
     if (!assignment?.id) return;
     
-    // Capture current state for rollback
     const previousStatusMap = { ...attendanceStatusMap };
     const previousCache = { ...attendanceCache };
     const previousActiveSession = activeSession;
@@ -334,28 +346,23 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         status: attendanceStatusMap[s.id] ?? null,
       }));
 
-      // Validation: Ensure no students are left as null
       const missing = attendanceData.filter(a => a.status === null);
       if (missing.length > 0) {
         throw new Error(`Please set attendance status for all students. (${missing.length} remaining)`);
       }
 
-      // --- OPTIMISTIC UI START ---
       toast.success('Attendance saved (Optimistic)', { id: 'attendance-save' });
       
-      // Optimistically clear active session
       if (activeSession) {
         setActiveSession(null);
       }
 
-      // Optimistically update cache
       const cacheKey = `${selectedDate}-${selectedSession}`;
       setAttendanceCache((prev) => {
         const next = { ...prev };
         delete next[cacheKey];
         return next;
       });
-      // --- OPTIMISTIC UI END ---
 
       const res = await fetch('/api/clerk/faculty/attendance', {
         method: 'POST',
@@ -366,35 +373,52 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           session: selectedSession,
           attendance_data: attendanceData,
         }),
+      }).catch(async (err) => {
+        if (!navigator.onLine || err.message.includes('Failed to fetch')) {
+          const payload = {
+            assignment_id: assignment.id,
+            subject_name: assignment.subject_name,
+            date: selectedDate,
+            session: selectedSession,
+            attendance_data: attendanceData,
+          };
+          await savePendingAttendance(payload);
+          await refreshPendingSyncs();
+          throw new Error('OFFLINE_SAVED');
+        }
+        throw err;
       });
+
       const data = await res.json();
-      
       if (!res.ok) throw new Error(data.error || 'Failed to save attendance');
 
       toast.success('Attendance synced with server', { id: 'attendance-save' });
 
-      // If we didn't end the session optimistically (e.g. if it was already null), 
-      // or to ensure server state is reflected
       if (previousActiveSession && !activeSession) {
-         // Session was already handled optimistically
+         // Session already handled
       } else if (activeSession) {
          await endSession();
       }
 
       await fetchAttendanceStatus(selectedDate, selectedSession, true);
     } catch (error) {
-      // --- ROLLBACK START ---
+      if (error.message === 'OFFLINE_SAVED') {
+        toast.success('Offline: Attendance saved to device. It will sync automatically when you are back online.', { duration: 5000 });
+        setActiveSession(null);
+        setSubmitting(false);
+        return;
+      }
+
       console.error('[AttendanceSaveRollback]', error);
       setAttendanceStatusMap(previousStatusMap);
       setAttendanceCache(previousCache);
       setActiveSession(previousActiveSession);
-      // --- ROLLBACK END ---
       
       toast.error(error.message, { id: 'attendance-save' });
     } finally {
       setSubmitting(false);
     }
-  }, [assignment, baseStudents, attendanceStatusMap, dateValidation.isValid, fetchAttendanceStatus, selectedDate, selectedSession, activeSession, endSession, attendanceCache]);
+  }, [assignment, baseStudents, attendanceStatusMap, dateValidation.isValid, fetchAttendanceStatus, selectedDate, selectedSession, activeSession, endSession, attendanceCache, refreshPendingSyncs]);
 
   const handleDeleteAttendance = useCallback(async () => {
     if (!assignment?.id) return;
@@ -457,11 +481,6 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
   }, []);
 
-  const students = useMemo(
-    () => baseStudents.map((s) => ({ ...s, status: attendanceStatusMap[s.id] ?? null })),
-    [baseStudents, attendanceStatusMap],
-  );
-
   const handleRealtimeUpdate = useCallback((data) => {
     if (data.type === 'STUDENT_VERIFIED' && data.payload.assignment_id === assignment.id) {
       console.log('[AttendanceSync] Student verified, refreshing...');
@@ -469,7 +488,6 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     } else if (data.type === 'PROXY_ATTEMPTED' && data.payload.assignment_id === assignment.id) {
       const { attempting_roll_no, original_roll_no, original_student_id } = data.payload;
       
-      // 1. Show Formal Government-Style Toaster
       toast.error(
         (t) => (
           <div className="flex flex-col gap-1 border-l-4 border-red-600 pl-2">
@@ -495,7 +513,6 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         }
       );
 
-      // 2. Update Local State: Remove from verified and set to ABSENT
       setVerifiedStudentIds(prev => {
         const next = new Set(prev);
         next.delete(original_student_id);
@@ -507,13 +524,70 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         [original_student_id]: 'ABSENT'
       }));
 
-      // 3. Update Absent Count Map to align with the stage cycle
       setAbsentCountMap(prev => ({
         ...prev,
-        [original_student_id]: 2 // Stage 2 is the first 'ABSENT' stage
+        [original_student_id]: 2
       }));
     }
   }, [assignment.id, fetchAttendanceStatus]);
+
+  // --- SYNCS (useEffect) ---
+
+  useEffect(() => {
+    const initSync = async () => {
+      await refreshPendingSyncs();
+    };
+    initSync();
+
+    const handleOnline = () => {
+      toast.success('Back online! Checking for pending attendance...', { icon: '🔄' });
+      syncOfflineAttendance();
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [refreshPendingSyncs, syncOfflineAttendance]);
+
+  useEffect(() => {
+    const init = async () => {
+      setSelectedDate(null);
+      setSelectedSession(1);
+      setAttendanceStatusMap({});
+      setAbsentCountMap({});
+      setExistingSessionsForSelectedDate([]);
+      setDayInfo(null);
+      setDateValidation({
+        isValid: false,
+        message: 'Select a WORKING day from the academic calendar.',
+      });
+      setAttendanceCache({});
+      setActiveSession(null);
+
+      await fetchBaseStudents();
+      await fetchActiveSession();
+    };
+    init();
+  }, [assignment, fetchBaseStudents, fetchActiveSession]);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (selectedDate) {
+        await fetchAttendanceStatus();
+      } else {
+        setAttendanceStatusMap({});
+        setAbsentCountMap({});
+        setExistingSessionsForSelectedDate([]);
+      }
+    };
+    fetchStatus();
+  }, [selectedDate, selectedSession, fetchAttendanceStatus]);
+
+  // --- DERIVED STATE (useMemo) ---
+
+  const students = useMemo(
+    () => baseStudents.map((s) => ({ ...s, status: attendanceStatusMap[s.id] ?? null })),
+    [baseStudents, attendanceStatusMap],
+  );
 
   const value = {
     assignment,
@@ -541,7 +615,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     startSession,
     endSession,
     verifiedStudentIds,
-    fetchAttendanceStatus
+    fetchAttendanceStatus,
+    pendingSyncs,
+    syncOfflineAttendance
   };
 
   return (

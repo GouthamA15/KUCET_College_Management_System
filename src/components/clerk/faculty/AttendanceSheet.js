@@ -380,6 +380,48 @@ const AttendanceGrid = () => {
   );
 };
 
+const PendingSyncIndicator = () => {
+  const { pendingSyncs, syncOfflineAttendance, submitting } = useFacultyAttendance();
+
+  if (!pendingSyncs || pendingSyncs.length === 0) return null;
+
+  return (
+    <div className="bg-amber-50 border-2 border-amber-200 p-4 rounded-xl mb-6 shadow-sm animate-fadeIn">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6 text-amber-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-amber-900 font-bold text-sm uppercase tracking-wide">Pending Offline Attendance ({pendingSyncs.length})</h3>
+            <p className="text-xs text-amber-700 mt-0.5 font-medium">
+              You recorded attendance while offline. These records need to be synced with the server.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => syncOfflineAttendance()}
+          disabled={submitting}
+          className="w-full sm:w-auto px-6 py-2.5 bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-700 transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {submitting ? 'Syncing...' : 'Sync All Now'}
+          {!submitting && <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>}
+        </button>
+      </div>
+      
+      <div className="mt-3 flex flex-wrap gap-2">
+        {pendingSyncs.map(p => (
+          <div key={p.id} className="text-[10px] font-bold bg-white/60 text-amber-800 px-2.5 py-1 rounded border border-amber-200">
+            {p.subject_name || 'Subject'} | {p.date} | S{p.session}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function AttendanceSheet({ onBack }) {
   const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect } = useFacultyAttendance();
 
@@ -392,6 +434,9 @@ export default function AttendanceSheet({ onBack }) {
         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
         Back to Subjects
       </button>
+
+      {/* Pending Sync Section */}
+      <PendingSyncIndicator />
 
       {/* Subject Identity Panel */}
       <SubjectIdentityPanel assignment={assignment} />
