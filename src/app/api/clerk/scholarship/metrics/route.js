@@ -4,6 +4,7 @@ import { scholarshipSanctions, scholarshipWindows } from '@/db/schema';
 import { eq, and, or, isNull, sql, desc, count } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
+import { toMySQLDate } from '@/lib/date';
 
 export async function GET() {
   const user = await getAuthUser('clerk');
