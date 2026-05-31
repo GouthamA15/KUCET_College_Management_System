@@ -152,13 +152,35 @@ export default class SecurityService {
   static async updateLastLogin(userType, userId, ipAddress) {
     try {
       const now = getNow();
-      if (userType.toUpperCase() === 'STUDENT') {
-        await db.update(students).set({ last_login_at: now, last_login_ip: ipAddress }).where(eq(students.id, userId));
-      } else if (['CLERK', 'FACULTY', 'HOD'].includes(userType.toUpperCase())) {
-        await db.update(clerks).set({ last_login_at: now, last_login_ip: ipAddress }).where(eq(clerks.id, userId));
+      const safeIp = ipAddress || 'unknown';
+      
+      if (!(now instanceof Date)) {
+        throw new Error('getNow() did not return a Date object');
+      }
+
+      const upperType = userType.toUpperCase();
+      const updatePayload = {
+        last_login_at: now,
+        last_login_ip: safeIp
+      };
+
+      let result;
+      if (upperType === 'STUDENT') {
+        [result] = await db.update(students).set(updatePayload).where(eq(students.id, userId));
+      } else if (['CLERK', 'FACULTY', 'HOD'].includes(upperType)) {
+        [result] = await db.update(clerks).set(updatePayload).where(eq(clerks.id, userId));
+      } else if (upperType === 'ADMIN') {
+        [result] = await db.update(principal).set(updatePayload).where(eq(principal.id, userId));
+      }
+      
+      const affectedRows = result?.affectedRows ?? 0;
+      if (affectedRows === 0) {
+        logger.warn({ userType: upperType, userId }, '[LAST_LOGIN_NOT_FOUND] No rows updated');
+      } else {
+        logger.info({ userType: upperType, userId, ip: safeIp, affectedRows }, '[LAST_LOGIN_UPDATED]');
       }
     } catch (err) {
-      logger.error(err, '[UPDATE_LAST_LOGIN_FAILED]');
+      logger.error({ err: err.message, userType, userId }, '[UPDATE_LAST_LOGIN_FAILED]');
     }
   }
 
