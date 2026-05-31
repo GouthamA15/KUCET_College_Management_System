@@ -7,13 +7,7 @@ import { getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNum
 import { calculateYearAndSemester } from '@/lib/academic-utils';
 import useFinancialRows from '@/components/student/useFinancialRows';
 import DashboardActionCenter from '@/components/student/DashboardActionCenter';
-import Header from '@/components/Header';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-
-const formatCurrency = (amount) => {
-  if (amount == null || Number.isNaN(Number(amount))) return '₹ 0';
-  return `₹ ${Number(amount).toLocaleString('en-IN')}`;
-};
 
 export default function StudentHomePage() {
   const { studentData, academicPerformance, loading: contextLoading } = useStudent();
@@ -31,10 +25,6 @@ export default function StudentHomePage() {
 
   const totalGovtPaid = rows.reduce((s, r) => s + Number(r.amount_sanctioned || 0), 0);
   const totalStudentPaid = rows.reduce((s, r) => s + Number(r.student_paid || 0), 0);
-  const totalSettled = totalGovtPaid + totalStudentPaid;
-
-  const currentYearRow = rows.find(r => r.labelYear === academicYear);
-  const currentPending = currentYearRow ? Number(currentYearRow.pending_fee || 0) : 0;
 
   if (contextLoading && !student) {
     return <LoadingSpinner label="Loading Records" />;

@@ -1,521 +1,212 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useStudent } from '@/context/StudentContext';
-import { smoothScrollToTop } from '@/lib/scroll-utils';
+import { AlertCircle } from 'lucide-react';
+import { formatInstitutionalDate, formatInstitutionalDateTime } from '@/lib/date';
+import { formatIPAddress } from '@/lib/security';
+import { 
+  useSecurityEvents, 
+  useSecuritySessions, 
+  useSecurityNotifications, 
+  usePasswordManagement,
+  useEmailVerification
+} from '@/hooks/security';
+import {
+  SecurityCenter,
+  SecurityOverview,
+  SecurityAlerts,
+  SecurityActivity,
+  SecuritySessions,
+  SecurityAuthentication,
+  SecurityStatusItem,
+  StudentActivationUI,
+  SecurityLoadingState
+} from '@/components/security';
 
-export default function SecurityPrivacyPage() {
+export default function SecurityCenterPage() {
   const { studentData, loading, refreshData } = useStudent();
   const student = studentData?.student;
-
-  // Email section state
-  const [emailInput, setEmailInput] = useState('');
-  const [otpInput, setOtpInput] = useState('');
-  const [emailSending, setEmailSending] = useState(false);
-  const [otpVerifying, setOtpVerifying] = useState(false);
-  const [emailMessage, setEmailMessage] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [emailEditing, setEmailEditing] = useState(false);
-  const [showPwSetup, setShowPwSetup] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-
-  // Password section state
-  const [pwExpanded, setPwExpanded] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [pwSaving, setPwSaving] = useState(false);
-  const [pwMessage, setPwMessage] = useState('');
-  const [showCurrentPw, setShowCurrentPw] = useState(false);
-  const [showNewPw, setShowNewPw] = useState(false);
-  const [showConfirmPw, setShowConfirmPw] = useState(false);
-  const [emailError, setEmailError] = useState('');
-  const [emailValid, setEmailValid] = useState(false);
-  const [pwStrength, setPwStrength] = useState({ score: 0, label: 'Too Weak' });
-
-  const rollno = student?.roll_no;
-
-  useEffect(() => {
-    if (student) {
-      const id = setTimeout(() => {
-        setEmailInput(student.email || '');
-      }, 0);
-      return () => clearTimeout(id);
-    }
-    return undefined;
-  }, [student]);
-
-  // Email validation helper: valid format and must end with .com
-  const validateEmail = (val) => {
-    const e = (val || '').trim().toLowerCase();
-    const basic = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(e);
-    const endsCom = e.endsWith('.com');
-    const valid = basic && endsCom;
-    let msg = '';
-    if (!basic) msg = 'Enter a valid email address.';
-    else if (!endsCom) msg = 'Email must end with .com';
-    return { valid, msg };
-  };
-
-  // Password strength meter (min 8, upper, lower, digit, special)
-  const measureStrength = (val) => {
-    const v = val || '';
-    const rules = {
-      length: v.length >= 8,
-      upper: /[A-Z]/.test(v),
-      lower: /[a-z]/.test(v),
-      digit: /\d/.test(v),
-      special: /[^A-Za-z0-9]/.test(v),
-    };
-    const score = Object.values(rules).filter(Boolean).length;
-    const label = score >= 5 ? 'Strong' : score === 4 ? 'Medium' : score === 3 ? 'Weak' : 'Too Weak';
-    return { score, label, rules };
-  };
-
-  // Keep email validation state in sync
-  useEffect(() => {
-    const id = setTimeout(() => {
-      const { valid, msg } = validateEmail(emailInput);
-      setEmailValid(valid);
-      setEmailError(msg);
-    }, 0);
-    return () => clearTimeout(id);
-  }, [emailInput]);
-
-  // Update password strength when newPassword changes
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setPwStrength(measureStrength(newPassword));
-    }, 0);
-    return () => clearTimeout(id);
-  }, [newPassword]);
-
-  const isEmailMissing = !student?.email;
+  const [activeTab, setActiveTab] = useState('overview');
+  
   const isEmailVerified = !!student?.is_email_verified;
   const isPasswordSet = !!student?.password_hash;
 
-  const badge = (ok) => (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${ok ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'}`}>{ok ? 'Verified' : 'Not Verified'}</span>
-  );
+  const { securityEvents, eventsLoading, fetchEvents } = useSecurityEvents(student?.roll_no, isEmailVerified);
+  const { sessions, sessionsLoading, handleRevokeSession, handleRevokeOtherSessions } = useSecuritySessions(activeTab);
+  const { 
+    notifications, 
+    notifsLoading, 
+    unreadCount, 
+    handleMarkAsRead, 
+    handleMarkAllAsRead 
+  } = useSecurityNotifications();
 
-  const statusBadge = (ok) => (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{ok ? 'Set' : 'Not Set'}</span>
-  );
-
-  const sendOtp = async () => {
-    if (!rollno || !emailInput) return;
-    setEmailMessage('');
-    setEmailSending(true);
-    try {
-      const res = await fetch('/api/student/send-update-email-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollno: rollno, email: emailInput })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setEmailMessage('OTP sent to your email. Check inbox.');
-        setOtpSent(true);
-        setOtpInput('');
-      } else {
-        setEmailMessage(data?.message || data?.error || 'Please try again after 15 minutes.');
-        setOtpSent(false);
-      }
-    } catch {
-      setEmailMessage('Network error while sending OTP');
-      setOtpSent(false);
-    } finally {
-      setEmailSending(false);
+  const emailVerification = useEmailVerification(student?.roll_no, student?.email, refreshData);
+  const passwordMgmt = usePasswordManagement({
+    role: 'student',
+    roll_no: student?.roll_no,
+    isPasswordSet,
+    onSuccess: async () => {
+      await refreshData();
+      fetchEvents();
     }
-  };
+  });
 
-  const verifyOtp = async () => {
-    if (!rollno || !otpInput || !emailInput) return;
-    setEmailMessage('');
-    setOtpVerifying(true);
-    try {
-      const res = await fetch('/api/student/verify-update-email-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollno: rollno, otp: otpInput, email: emailInput })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setEmailMessage('Email verified successfully.');
-        await refreshData();
-      } else {
-        setEmailMessage(data?.message || 'Failed to verify OTP');
-      }
-    } catch {
-      setEmailMessage('Network error while verifying OTP');
-    } finally {
-      setOtpVerifying(false);
-    }
-  };
+  if (loading && !studentData) return <SecurityLoadingState message="Loading Security Center..." />;
+  if (!student) return <div className="p-8 text-center text-red-500">Student session not found.</div>;
 
-  const canSaveNewPw = newPassword.length >= 8 && newPassword === confirmPassword;
+  if (!isEmailVerified) {
+    return (
+      <div className="w-full max-w-6xl mx-auto space-y-6 text-sm pb-12 px-4 sm:px-0">
+        <header className="mb-4">
+          <h1 className="text-2xl font-semibold text-gray-800">Account Activation Required</h1>
+          <p className="text-sm text-gray-600 mt-1">To ensure your security and unlock all features, please complete the activation steps below.</p>
+        </header>
 
-  const savePassword = async () => {
-    if (!rollno || !canSaveNewPw) return;
-    setPwMessage('');
-    setPwSaving(true);
-    try {
-      const res = await fetch('/api/student/set-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollno: rollno, password: newPassword })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setPwMessage('Password set successfully.');
-        await refreshData();
-        setPwExpanded(false);
-        setNewPassword(''); setConfirmPassword(''); setCurrentPassword('');
-        setToastMessage('Password set successfully');
-        smoothScrollToTop({ behavior: 'smooth' });
-        setTimeout(() => setToastMessage(''), 3000);
-      } else {
-        setPwMessage(data?.error || 'Failed to update password');
-      }
-    } catch {
-      setPwMessage('Network error while updating password');
-    } finally {
-      setPwSaving(false);
-    }
-  };
+        <StudentActivationUI 
+          {...emailVerification}
+          isEmailVerified={isEmailVerified}
+          isPasswordSet={isPasswordSet}
+          passwordManagement={passwordMgmt}
+        />
+        
+        <div className="bg-gray-50 p-4 rounded-md border border-gray-300 flex gap-3">
+          <AlertCircle className="text-gray-400 shrink-0" size={20} />
+          <p className="text-xs text-gray-600 leading-relaxed">
+            Activation is a one-time process. Once completed, you will be able to access your full student dashboard securely.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full max-w-4xl mx-auto bg-white shadow-xl rounded-lg p-6 md:p-8">
-      {toastMessage && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
-          <div className="px-4 py-2 rounded-md shadow-md bg-green-600 text-white text-sm">
-            {toastMessage}
-          </div>
-        </div>
-      )}
-
-      <h1 className="text-2xl font-bold mb-6">Security & Privacy</h1>
-
-          {!studentData && loading ? (
-            <div className="text-sm text-gray-600">Loading...</div>
-          ) : !studentData ? (
-            <div className="text-sm text-gray-600">Student not found.</div>
-          ) : (
-            <div className="space-y-8">
-              {/* Section 1: Account Security Status (Read-only) */}
-              <section className="border rounded-md p-4">
-                <h2 className="text-sm font-semibold text-gray-700 mb-3">Account Security Status</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-xs text-gray-500">Email</div>
-                    <div className="font-medium">{student?.email || 'Not Set'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Email Status</div>
-                    <div className="font-medium">{badge(isEmailVerified)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Password Status</div>
-                    <div className="font-medium">{statusBadge(isPasswordSet)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Last Login</div>
-                    <div className="font-medium">Not available</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Account Created</div>
-                    <div className="font-medium">Not available</div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Section 2: Email Setup (unverified) or Edit Email (verified) */}
-              <section className="border rounded-md p-4">
-                {(!isEmailVerified) ? (
-                  <>
-                    <h2 className="text-sm font-semibold text-gray-700 mb-3">Email Setup & Verification</h2>
-                    {(() => {
-                      const emailChanged = (emailInput || '').trim() !== (student?.email || '').trim();
-                      const canSend = !!emailInput && emailValid && !emailSending;
-                      const showOtpArea = otpSent === true;
-                      const buttonLabel = isEmailMissing ? 'Send OTP' : (emailChanged ? 'Send OTP' : 'Resend OTP');
-                      return (
-                        <div className="space-y-3">
-                          <div>
-                            <label className="text-xs text-gray-600">Email</label>
-                            <input
-                              className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-                              type="email"
-                              value={emailInput}
-                              onChange={(e) => { setEmailInput(e.target.value); setOtpSent(false); setOtpInput(''); }}
-                              placeholder="Enter your email"
-                            />
-                            {emailError && (
-                              <div className="mt-1 text-xs text-red-600">{emailError}</div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button onClick={sendOtp} disabled={!canSend} className={`px-3 py-2 rounded text-white ${!canSend ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}>{emailSending ? 'Sending...' : buttonLabel}</button>
-                            <span className="text-xs text-gray-500">Enter the OTP sent to your email</span>
-                          </div>
-                          {showOtpArea && (
-                            <>
-                              <div>
-                                <label className="text-xs text-gray-600">OTP</label>
-                                <input
-                                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-                                  type="text"
-                                  inputMode="numeric"
-                                  pattern="[0-9]*"
-                                  maxLength={6}
-                                  value={otpInput}
-                                  onChange={(e) => {
-                                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                    setOtpInput(v);
-                                  }}
-                                  placeholder="Enter 6-digit OTP"
-                                />
-                              </div>
-                              {(otpInput.trim().length === 6) && (
-                                <button onClick={verifyOtp} disabled={otpVerifying} className={`px-4 py-2 rounded text-white ${otpVerifying ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>{otpVerifying ? 'Verifying...' : 'Verify'}</button>
-                              )}
-                            </>
-                          )}
-                          {emailMessage && <div className="text-xs text-gray-600">{emailMessage}</div>}
-                        </div>
-                      );
-                    })()}
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-sm font-semibold text-gray-700 mb-3">Edit Email</h2>
-                    {(() => {
-                      const emailChanged = (emailInput || '').trim() !== (student?.email || '').trim();
-                      const canSendEdit = emailEditing && emailValid && emailChanged && !emailSending;
-                      const showOtpArea = emailEditing && otpSent === true;
-                      return (
-                        <div className="space-y-3">
-                          <div>
-                            <label className="text-xs text-gray-600">Email</label>
-                            <input
-                              className={`mt-1 w-full border rounded-md px-3 py-2 text-sm ${!emailEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                              type="email"
-                              value={emailInput}
-                              onChange={(e) => { setEmailInput(e.target.value); setOtpSent(false); setOtpInput(''); }}
-                              placeholder="Your email"
-                              readOnly={!emailEditing}
-                              disabled={!emailEditing}
-                            />
-                            {!emailEditing && (
-                              <div className="mt-1 text-xs text-gray-500">Click Edit to change your email</div>
-                            )}
-                            {emailError && emailEditing && (
-                              <div className="mt-1 text-xs text-red-600">{emailError}</div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!emailEditing ? (
-                              <button type="button" onClick={() => { setEmailEditing(true); setOtpSent(false); setOtpInput(''); }} className="px-3 py-2 rounded text-white bg-blue-600 hover:bg-blue-700">Edit</button>
-                            ) : (
-                              <>
-                                <button type="button" onClick={() => { setEmailEditing(false); setEmailInput(student?.email || ''); setOtpSent(false); setOtpInput(''); }} className="px-3 py-2 rounded border bg-white hover:bg-gray-50">Cancel</button>
-                                <button onClick={sendOtp} disabled={!canSendEdit} className={`px-3 py-2 rounded text-white ${!canSendEdit ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}>{emailSending ? 'Sending...' : 'Send OTP'}</button>
-                                {emailChanged && (
-                                  <span className="text-xs text-gray-500">Changing email requires verification</span>
-                                )}
-                              </>
-                            )}
-                          </div>
-                          {showOtpArea && (
-                            <>
-                              <div>
-                                <label className="text-xs text-gray-600">OTP</label>
-                                <input
-                                  className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-                                  type="text"
-                                  inputMode="numeric"
-                                  pattern="[0-9]*"
-                                  maxLength={6}
-                                  value={otpInput}
-                                  onChange={(e) => {
-                                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                    setOtpInput(v);
-                                  }}
-                                  placeholder="Enter 6-digit OTP"
-                                />
-                              </div>
-                              {(otpInput.trim().length === 6) && (
-                                <button onClick={async () => { await verifyOtp(); setEmailEditing(false); }} disabled={otpVerifying} className={`px-4 py-2 rounded text-white ${otpVerifying ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}>{otpVerifying ? 'Verifying...' : 'Verify'}</button>
-                              )}
-                            </>
-                          )}
-                          {emailMessage && <div className="text-xs text-gray-600">{emailMessage}</div>}
-                        </div>
-                      );
-                    })()}
-                  </>
-                )}
-              </section>
-
-              {/* Section 3: Password Setup / Change */}
-              {!isPasswordSet ? (
-                // CASE A: Password NOT set - red warning banner with embedded form
-                <section className="border border-red-300 bg-red-50 rounded-md p-4">
-                  <div className="text-red-700 font-semibold mb-2">Security Warning: Please set your password ASAP</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-700">New Password</label>
-                      <div className="relative">
-                        <input
-                          type={showPwSetup ? 'text' : 'password'}
-                          className={`mt-1 w-full border rounded-md px-3 py-2 text-sm pr-14 ${!isEmailVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="Enter new password"
-                          disabled={!isEmailVerified}
-                          minLength={8}
-                          autoComplete="new-password"
-                        />
-                        <button type="button" onClick={() => setShowPwSetup((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600 hover:text-gray-800">
-                          {showPwSetup ? 'Hide' : 'Show'}
-                        </button>
-                      </div>
-                      <div className="mt-1 flex items-center gap-2 text-xs">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 ${pwStrength.label === 'Strong' ? 'bg-green-100 text-green-700' : pwStrength.label === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}`}>{pwStrength.label}</span>
-                        <span className="text-gray-600">Min 8 chars, include upper, lower, number, special</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-700">Confirm Password</label>
-                      <div className="relative">
-                        <input
-                          type={showPwSetup ? 'text' : 'password'}
-                          className={`mt-1 w-full border rounded-md px-3 py-2 text-sm pr-14 ${!isEmailVerified ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="Re-enter password"
-                          disabled={!isEmailVerified}
-                          autoComplete="new-password"
-                        />
-                        <button type="button" onClick={() => setShowPwSetup((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600 hover:text-gray-800">
-                          {showPwSetup ? 'Hide' : 'Show'}
-                        </button>
-                        {confirmPassword && (
-                          <div className="mt-1 text-xs">
-                            {confirmPassword !== newPassword ? (
-                              <span className="text-red-600">Passwords do not match</span>
-                            ) : (
-                              newPassword.length >= 8 ? (
-                                <span className="text-green-700">Passwords match</span>
-                              ) : (
-                                <span className="text-gray-600">Passwords match, ensure minimum 8 characters</span>
-                              )
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    {(() => {
-                      const passwordsFilled = newPassword.length > 0 && confirmPassword.length > 0;
-                      const passwordsMatch = newPassword === confirmPassword;
-                      const meetsStrength = pwStrength.label === 'Medium' || pwStrength.label === 'Strong';
-                      const canShowSetButton = passwordsFilled && passwordsMatch && meetsStrength;
-                      return canShowSetButton ? (
-                        <button
-                          onClick={savePassword}
-                          disabled={!canSaveNewPw || pwSaving || !isEmailVerified}
-                          className={`px-4 py-2 rounded text-white ${pwSaving || !isEmailVerified ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 cursor-pointer'}`}
-                        >
-                          {pwSaving ? 'Saving...' : 'Set Password'}
-                        </button>
-                      ) : null;
-                    })()}
-                    {pwMessage && <div className="mt-2 text-xs text-gray-700">{pwMessage}</div>}
-                    {!isEmailVerified && (
-                      <div className="mt-1 text-xs text-gray-600">Verify your email above to enable password setup.</div>
-                    )}
-                  </div>
-                </section>
+    <SecurityCenter
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      unreadCount={unreadCount}
+      overviewContent={
+        <SecurityOverview title="Security Health Overview" description="Core security status of your institutional account.">
+          <SecurityStatusItem 
+            label="Email Status" 
+            value={student.email} 
+            subValue={isEmailVerified ? "Verified Institutional Account" : "Unverified"}
+            ok={isEmailVerified}
+          />
+          <SecurityStatusItem 
+            label="Password Security" 
+            value={isPasswordSet ? "Personal Password Set" : "Initial DOB Setup"} 
+            subValue={isPasswordSet ? "Standard Encryption Protected" : "Action Recommended"}
+            ok={isPasswordSet}
+          />
+          <SecurityStatusItem 
+            label="Last Account Activity" 
+            value={student.last_login_at ? formatInstitutionalDateTime(student.last_login_at) : 'No record found'} 
+            subValue={formatIPAddress(student.last_login_ip) || "Unknown Location"}
+            ok={true}
+          />
+          <SecurityStatusItem 
+            label="Account Created" 
+            value={formatInstitutionalDate(student.created_at)} 
+            subValue="Official Enrollment Record"
+            ok={true}
+          />
+          {student.password_changed_at && (
+            <SecurityStatusItem 
+              label="Password Last Updated" 
+              value={formatInstitutionalDateTime(student.password_changed_at)} 
+              subValue="Recent Authentication Change"
+              ok={true}
+            />
+          )}
+        </SecurityOverview>
+      }
+      alertsContent={
+        <SecurityAlerts
+          notifications={notifications}
+          notifsLoading={notifsLoading}
+          unreadCount={unreadCount}
+          onMarkAsRead={handleMarkAsRead}
+          onMarkAllAsRead={handleMarkAllAsRead}
+        />
+      }
+      activityContent={<SecurityActivity securityEvents={securityEvents} eventsLoading={eventsLoading} />}
+      sessionsContent={
+        <SecuritySessions
+          sessions={sessions}
+          sessionsLoading={sessionsLoading}
+          onRevokeSession={handleRevokeSession}
+          onRevokeOtherSessions={() => handleRevokeOtherSessions(fetchEvents)}
+        />
+      }
+      authContent={
+        <div className="space-y-6">
+          <section className="border border-gray-300 rounded-md bg-white p-4 sm:p-6">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-800">Email Management</h2>
+                <p className="text-sm text-gray-600">Primary contact for security alerts.</p>
+              </div>
+              {!emailVerification.emailEditing ? (
+                <button onClick={() => emailVerification.setEmailEditing(true)} className="text-[#0b3578] font-semibold hover:underline text-xs sm:text-sm">Edit Settings</button>
               ) : (
-                // CASE B: Password IS set - collapsed Change Password section
-                <section className="border rounded-md p-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-gray-700">Change Password</h2>
-                    <button onClick={() => setPwExpanded((v) => !v)} className="text-xs text-blue-600 hover:underline">{pwExpanded ? 'Collapse' : 'Expand'}</button>
-                  </div>
-                  {pwExpanded && (
-                    <div className="mt-3 space-y-3">
-                      <div>
-                        <label className="text-xs text-gray-700">Current Password</label>
-                        <div className="relative">
-                          <input type={showCurrentPw ? 'text' : 'password'} className="mt-1 w-full border rounded-md px-3 py-2 text-sm pr-14" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Enter current password" />
-                          <button type="button" onClick={() => setShowCurrentPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600 hover:text-gray-800">
-                            {showCurrentPw ? 'Hide' : 'Show'}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs text-gray-700">New Password</label>
-                          <div className="relative">
-                            <input type={showNewPw ? 'text' : 'password'} className="mt-1 w-full border rounded-md px-3 py-2 text-sm pr-14" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password" />
-                            <button type="button" onClick={() => setShowNewPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600 hover:text-gray-800">
-                              {showNewPw ? 'Hide' : 'Show'}
-                            </button>
-                          </div>
-                          <div className="mt-1 flex items-center gap-2 text-xs">
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 ${pwStrength.label === 'Strong' ? 'bg-green-100 text-green-700' : pwStrength.label === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}`}>{pwStrength.label}</span>
-                            <span className="text-gray-600">Min 8 chars, include upper, lower, number, special</span>
-                          </div>
-                          {(() => {
-                            const sameAsCurrent = currentPassword && newPassword && currentPassword === newPassword;
-                            return sameAsCurrent ? (
-                              <div className="mt-1 text-xs text-red-600">New password must be different from the current password</div>
-                            ) : null;
-                          })()}
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-700">Confirm Password</label>
-                          <div className="relative">
-                            <input type={showConfirmPw ? 'text' : 'password'} className="mt-1 w-full border rounded-md px-3 py-2 text-sm pr-14" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter password" />
-                            <button type="button" onClick={() => setShowConfirmPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600 hover:text-gray-800">
-                              {showConfirmPw ? 'Hide' : 'Show'}
-                            </button>
-                            {confirmPassword && (
-                              <div className="mt-1 text-xs">
-                                {confirmPassword !== newPassword ? (
-                                  <span className="text-red-600">Passwords do not match</span>
-                                ) : (
-                                  newPassword.length >= 8 ? (
-                                    <span className="text-green-700">Passwords match</span>
-                                  ) : (
-                                    <span className="text-gray-600">Passwords match, ensure minimum 8 characters</span>
-                                  )
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        {(() => {
-                          const sameAsCurrent = currentPassword && newPassword && currentPassword === newPassword;
-                          const showButton = currentPassword || newPassword || confirmPassword;
-                          const disabled = !canSaveNewPw || pwSaving || sameAsCurrent;
-                          return showButton ? (
-                            <button onClick={savePassword} disabled={disabled} className={`px-4 py-2 rounded text-white ${disabled ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'}`}>{pwSaving ? 'Saving...' : 'Update Password'}</button>
-                          ) : null;
-                        })()}
-                        {pwMessage && <div className="mt-2 text-xs text-gray-700">{pwMessage}</div>}
-                      </div>
-                    </div>
-                  )}
-                </section>
+                <button onClick={() => { emailVerification.setEmailEditing(false); emailVerification.setEmailInput(student.email); emailVerification.setOtpSent(false); }} className="text-gray-500 font-semibold hover:underline text-xs sm:text-sm">Cancel</button>
               )}
             </div>
-          )}
+
+            <div className="max-w-md space-y-4">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input 
+                  type="email" 
+                  value={emailVerification.emailInput}
+                  onChange={(e) => emailVerification.setEmailInput(e.target.value)}
+                  readOnly={!emailVerification.emailEditing}
+                  className={`flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-[#0b3578] outline-none transition-colors ${!emailVerification.emailEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                />
+                {emailVerification.emailEditing && !emailVerification.otpSent && (
+                  <button 
+                    onClick={emailVerification.handleSendOtp}
+                    disabled={emailVerification.emailSending || emailVerification.emailInput === student.email}
+                    className="bg-[#0b3578] text-white px-4 py-2 rounded-md font-medium hover:bg-[#0a2d66] disabled:opacity-50 text-sm"
+                  >
+                    {emailVerification.emailSending ? '...' : 'Verify'}
+                  </button>
+                )}
+              </div>
+
+              {emailVerification.otpSent && emailVerification.emailEditing && (
+                <div className="bg-blue-50 p-4 rounded-md border border-blue-200 animate-slideDown space-y-3">
+                  <label className="block text-[10px] font-bold text-[#0b3578] uppercase tracking-wider">Verification OTP</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      maxLength={6}
+                      value={emailVerification.otpInput}
+                      onChange={(e) => emailVerification.setOtpInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="000000"
+                      className="w-full border border-blue-200 rounded-md px-3 py-2 text-center font-mono tracking-widest outline-none text-sm"
+                    />
+                    <button 
+                      onClick={emailVerification.handleVerifyOtp}
+                      disabled={emailVerification.otpVerifying || emailVerification.otpInput.length !== 6}
+                      className="bg-[#0b3578] text-white px-6 py-2 rounded-md font-semibold hover:bg-[#0a2d66] disabled:opacity-50 shrink-0 text-sm"
+                    >
+                      {emailVerification.otpVerifying ? '...' : 'Confirm'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <SecurityAuthentication
+            isPasswordSet={isPasswordSet}
+            {...passwordMgmt}
+            buttonText={isPasswordSet ? 'Update Credentials' : 'Set Secure Password'}
+          />
         </div>
+      }
+    />
   );
 }

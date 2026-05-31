@@ -11,10 +11,10 @@ import PersonalInfoTab from '@/components/student/PersonalInfoTab';
 import SetPasswordGate from '@/components/student/SetPasswordGate';
 import ProfileActivityBar from '@/components/student/ProfileActivityBar';
 import ProfileWarningBar from '@/components/student/ProfileWarningBar';
-import useProfileEdit from '@/components/student/hooks/useProfileEdit';
-import useEmailVerification from '@/components/student/hooks/useEmailVerification';
-import usePasswordSetup from '@/components/student/hooks/usePasswordSetup';
-import useProfileActivity from '@/components/student/hooks/useProfileActivity';
+import useProfileEdit from '@/hooks/student/hooks/useProfileEdit';
+import useEmailVerification from '@/hooks/student/hooks/useEmailVerification';
+import usePasswordSetup from '@/hooks/student/hooks/usePasswordSetup';
+import useProfileActivity from '@/hooks/student/hooks/useProfileActivity';
 import Loading from './loading';
 
 export default function StudentProfileNew() {
