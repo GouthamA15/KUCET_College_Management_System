@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 28, 2026 (Session 134)
+**Last Updated:** June 1, 2026 (Session 140)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -92,6 +92,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **The Radio Tower:** `src/lib/sse.js` sends events to Supabase via WebSocket hooks.
 - **Global Reach:** Enables real-time sync on Serverless platforms (Vercel) where persistent connections are otherwise restricted.
 - **Listeners:** `RealtimeListener` component allows UI to react instantly to server pings without refreshing.
+- **Security Integration:** Real-time listeners now handle `SESSION_REVOKED` events for instant, refresh-free logout across all active devices.
 
 ### H. HOD & Branch Intelligence
 - **Sub-Role Pattern:** HODs are elevated Faculty members with authority over a specific branch.
@@ -99,11 +100,27 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **I. Service Layer (Business Logic Modularization)**
 - **Architecture:** Transitioning complex logic from API routes (`src/app/api`) to a dedicated Service Layer (`src/services`).
-- **Standard:** Services are static classes (e.g., `StudentService`, `FacultyService`) that handle database transactions, complex queries, and business rules.
+- **Standard:** Services are static classes that handle database transactions, complex queries, and business rules.
+- **Key Services:**
+    - `StudentService`: Student lifecycle, registry management, and data normalization.
+    - `FacultyService`: Timetable orchestration and workload analytics.
+    - `SecurityService`: Centralized engine for session revocation, new device detection, security notifications, and event logging.
 - **Benefits:**
     - **Reusability:** Share logic between different API routes or server-side actions.
     - **Testability:** Decouples business rules from the Next.js request/response lifecycle.
     - **Readability:** API routes remain "thin," focusing only on authorization and request parsing.
+
+### J. Shared Security Architecture
+- **Objective:** Eliminate UI and logic duplication between Student and Clerk Security Centers.
+- **Component Strategy:** Extracted functional UI sections into modular React components (`src/components/security`).
+    - `SecurityCenter`: Orchestrator for tab management and section rendering.
+    - `SecurityOverview`, `SecurityAlerts`, `SecurityActivity`, `SecuritySessions`, `SecurityAuthentication`: Pure UI components receiving data via props.
+- **Hook-Driven Logic:** All data fetching and side effects (revoking sessions, password updates, verification) are moved to custom hooks (`src/hooks/security`).
+    - `useSecurityEvents`, `useSecuritySessions`, `useSecurityNotifications`: Modular data managers.
+    - `usePasswordManagement`: Unified password update engine for both roles.
+    - `useEmailVerification`: Specialized student activation hook.
+- **Utility Centralization:** Helper functions (IP formatting, event naming, strength validation) are consolidated in `src/lib/security`.
+- **Compliance:** Page files must remain under 200 lines and contain zero `fetch` implementations, acting strictly as orchestrators.
 
 ---
 
@@ -157,9 +174,76 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ---
 
-## 6. Recent Activity Log (Feb-May 2026)
+## 6. Recent Activity Log (Feb-June 2026)
+
+### June 2026
+
+#### **Session 140: Shared Security Center Architecture (June 1, 2026)**
+- **Shared Security Module:** Engineered a unified security architecture used by both Student and Clerk portals, eliminating duplicated logic and UI.
+- **Hook-Based State Management:** Extracted all security operations into custom hooks:
+    - `useSecuritySessions`: Manages active device tracking and remote revocation.
+    - `usePasswordManagement`: Unified engine for secure credential updates across roles.
+    - `useEmailVerification`: Modularized student activation and OTP verification workflow.
+    - `useSecurityEvents` & `useSecurityNotifications`: Centralized data managers for audit logs and alerts.
+- **Modular Component Library:** Created a suite of shared UI components in `src/components/security`:
+    - `SecurityCenter`: The primary layout orchestrator.
+    - `SecurityOverview`, `SecurityAlerts`, `SecurityActivity`, `SecuritySessions`, `SecurityAuthentication`: Functional sections receiving data via props.
+    - `StudentActivationUI`: Specialized multi-step onboarding workflow extracted from the main page.
+- **Utility Centralization:** Consolidated IP formatting, event naming, and password strength evaluation in `src/lib/security`.
+- **Maintainability & Compliance:** Reduced Student and Clerk page files by ~70%, achieving a lean orchestrator pattern (<200 lines per page) with zero inline `fetch` implementations. Resolved cascading render issues by standardizing safe state updates within effects.
 
 ### May 2026
+
+#### **Session 139: Real-time Security Monitoring & Session Trust (May 31, 2026)**
+- **Centralized Security Logic:** Developed `SecurityService.js` to unify security event logging, notification generation, and session management.
+- **Instant Session Revocation:** Implemented real-time logout using Supabase Broadcast. Clients now listen for `SESSION_REVOKED` events and immediately terminate sessions with a forced redirect to a new unified `/api/auth/logout` endpoint.
+- **New Device Detection:** Integrated user-agent parsing (`src/lib/ua-parser.js`) into the login flow. The system now detects and logs new browser/OS patterns, triggering instant security notifications and email alerts.
+- **Institutional Email Security Alerts:** Automated institutional-branded security emails via Brevo for critical events (New Device, Password Change, Email Change, Session Revocation).
+- **Security Center Enhancements:**
+    - Added a new **Alerts Tab** to the Student and Clerk Security Centers with unread indicators and "Mark as Read" functionality.
+    - Upgraded the **Sessions Tab** with high-density device metadata (IP, OS, Browser, Location).
+- **Database-Level Revocation Guard:** Reinforced the `/api/auth/refresh` route to verify session status against the `user_sessions` table, ensuring revoked tokens cannot be rotated even if real-time sockets are disconnected.
+- **Unified Logout Infrastructure:** Created a robust `/api/auth/logout` API supporting both GET (for redirects) and POST, ensuring full cookie clearance across all roles.
+
+#### **Session 138: Scholarship Registry Reliability & Clerk UX Hardening (May 28, 2026)**
+- **Scholarship Payments API Crash Fix:** Resolved a 500 error caused by selecting undefined Drizzle columns; stabilized student lookup and course/fee resolution logic for payment registration.
+- **Strict Student Payment Limit Validation:** Enforced a hard payable cap with a consistent `400` response when a payment would exceed the allowed limit (prevents silent over-collection and mismatched totals).
+- **Non-Reimbursement Proceedings Guard:** Blocked scholarship proceedings for students with `fee_reimbursement = NO` at the API layer to prevent invalid government sanction entries.
+- **Institutional Modal Dynamic Workflow:** Updated the clerk scholarship modal to switch between scholarship workflow vs payment-only workflow based on `fee_reimbursement` status (reduces operator confusion and invalid actions).
+- **Payment Form Locking at Limit:** Automatically disables student payment inputs once the payable limit is fully reached for the selected year (UI prevention; backend remains the final enforcement).
+- **Edit Proceeding Date Prefill Fix:** Normalized proceeding dates into `YYYY-MM-DD` for `<input type="date">` fields so sanction/release dates populate correctly during edit mode.
+- **Modal Usability Improvements:** Reduced scroll jank (removed expensive effects) and improved readability by emphasizing key computed amounts (remaining/balance/limits) with larger, bolder typography.
+- **Lint Cleanups:** Addressed a React Hook dependency warning in the admission form to keep CI quality gates green.
+
+#### **Session 137: Automated Quality Gates & CI/CD Hardening (May 28, 2026)**
+- **Hardened Quality Gates:** Overhauled the ESLint configuration (`eslint.config.mjs`) to enforce strict "no-undef" rules, preventing production crashes caused by missing imports or ReferenceErrors.
+- **CI/CD Blockers:** Updated the GitHub Actions workflow (`ci.yml`) to act as a mandatory quality gate. Removed lenient "continue-on-error" flags; the pipeline now strictly blocks deployments if Linting, Production Build, or Unit/E2E tests fail.
+- **Critical ReferenceError Resolution:** Identified and fixed over 45 linting errors across the codebase, including missing `useCallback` imports in `AcademicTab.js`, undefined `setSearchParams` in `StorageExplorer.js`, and out-of-scope variables in the Student Requests API.
+- **Linting Modernization:** Integrated k6 and browser globals into the ESLint environment to eliminate false-positive "undefined" warnings for specialized scripts.
+- **Workflow Automation:** Re-synchronized local Husky pre-commit hooks with the stricter linting rules to catch development errors before they are pushed to the repository.
+
+#### **Session 136: Attendance Integrity & Offline Resilience (May 28, 2026)**
+- **GPS Accuracy Threshold (Proxy Prevention):** Implemented a mandatory 100-meter accuracy threshold for student attendance verification. The system now rejects verification attempts from low-quality GPS signals or spoofing apps, prompting students to move for better reception.
+- **Offline-First Faculty Fallback:** Developed a robust offline attendance recording system for faculty using **IndexedDB**. Faculty can now record attendance in "dead zones" (e.g., concrete classrooms) without a stable Wi-Fi connection.
+- **Background Synchronization:** Integrated automatic background syncing that pushes locally saved attendance records to the server as soon as the browser detects restored connectivity. Added a manual "Sync All Now" trigger for immediate control.
+- **Visual Sync Governance:** Implemented **Amber Pending Sync Indicators** on both desktop and mobile faculty dashboards. These alerts provide real-time visibility into the number of records stored locally and awaiting server synchronization.
+- **Persistence Engineering:** Created `src/lib/idb-attendance.js` as a specialized utility for managing the `KUCET_CMS_OFFLINE` IndexedDB store, ensuring attendance data survives browser restarts and session timeouts.
+- **Context Declaration Hardening:** Resolved a critical `ReferenceError: fetchBaseStudents is not defined` by reordering function declarations in `FacultyAttendanceContext.js`. Aligned the context with React 19 standards by wrapping synchronous state updates within async initialization closures.
+- **API Robustness:** Fixed a `ReferenceError: logger is not defined` in the faculty students API route by adding missing imports for `db` and `logger`, ensuring 100% successful cohort loading.
+
+#### **Session 135: Advanced Edge Case Governance & Logic Hardening (May 28, 2026)**
+- **Scholarship Summary Refactor:** Overhauled the scholarship summary API (`/api/clerk/scholarship/summary/[rollno]`) to use standard Drizzle `select` and `join` queries. Eliminated dependency on the Relational Query API and hardened the fetching logic against undefined SQL parameters.
+- **Silent Token Rotation for APIs:** Updated the Next.js middleware matcher in `src/proxy.js` to include protected API routes (`/api/admin`, `/api/clerk`, `/api/student`). This ensures that background API requests can trigger silent JWT refreshes, preventing `401 Unauthorized` errors during active sessions.
+- **Ongoing Lecture Property Fix:** Resolved a bug in `StudentActivityBar.js` where "Ongoing Lecture" data (subject, faculty, room) was shown as TBD/Unassigned due to incorrect property access on the nested API response.
+- **Scholarship Window Date Consistency:** Standardized date formatting across `scholarship/window`, `scholarship/metrics`, and `student/activity` APIs. Enforced the `YYYY-MM-DD` format using `toMySQLDate` to ensure `<input type="date">` elements correctly display stored window dates after page refreshes.
+- **Student Profile Security Guard:** Implemented a critical access control check in the student profile API. Students are now restricted to accessing only their own roll number's data, while administrative staff retain global access.
+- **Dashboard UI Optimization:** Streamlined the student home page by removing redundant financial overview and bulletin sections, providing a more focused academic workspace.
+- **Mid-Semester "Spot" Admissions (Attendance Penalty Fix):** Added `admission_date` to student records and admission drafts. Re-engineered attendance calculation logic to count only sessions occurring on or after the student's admission date, preventing artificial attendance penalties for late joiners.
+- **Faculty Substitutions & "Ad-Hoc" Classes:** Implemented a new `faculty_substitutions` table and administrative UI for HODs. The system now dynamically grants temporary authority to substitute faculty members, allowing them to initiate live sessions and mark attendance while maintaining the integrity of the primary timetable matrix.
+- **Student Detention & Dropout Handling:** Introduced `academic_status` and `academic_offset_years` fields. Refactored dynamic year/semester calculations to respect academic offsets. Faculty class lists now dynamically generate cohorts, automatically holding back detained students in the correct academic year lists.
+- **Active Request Guard (Spam Protection):** Hardened the student profile update pipeline. The system now actively blocks duplicate requests for the same field while intelligently merging non-overlapping field updates into existing pending requests to maintain a clean clerk verification queue.
+- **Scholarship Rejection Fee Recalculation:** Added a `REJECTED` status to the scholarship sanction workflow. Financial summary utilities now instantly recalculate student dues by voiding any anticipated government credit from rejected proceedings. Added support for aggregating multiple proceedings per year.
+- **Manual Database Synchronization:** Successfully executed a manual SQL migration to synchronize the TiDB database with the expanded `schema.js`, overcoming `drizzle-kit` clustered index limitations.
 
 #### **Session 134: Security Hardening & Edge Case Governance (May 28, 2026)**
 - **Attendance PIN Brute-Force Protection:** Implemented a "3-Strike" rule for attendance PIN verification. Students are now locked out of a specific session after 3 failed attempts, with real-time `STUDENT_LOCKED` notifications broadcasted to the faculty.

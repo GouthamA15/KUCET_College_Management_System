@@ -33,10 +33,21 @@ export async function POST(request) {
       const isValidPassword = await bcrypt.compare(password, admin.password_hash);
 
       if (isValidPassword) {
+        // Log Security Event & Update Last Login
+        const SecurityService = (await import('@/services/SecurityService')).default;
+        await SecurityService.updateLastLogin('ADMIN', admin.id, ip);
+        await SecurityService.logSecurityEvent({
+          userType: 'ADMIN',
+          userId: admin.id,
+          eventType: 'LOGIN_SUCCESS',
+          ipAddress: ip
+        });
+
         const response = apiResponse({ success: true, message: 'Admin login successful', role: 'admin' });
         response.cookies.delete('clerk_auth');
         response.cookies.delete('student_auth');
-        await issueAdminAuthCookie(response, admin, rememberMe);
+        const userAgent = request.headers.get('user-agent') || 'Unknown';
+        await issueAdminAuthCookie(response, admin, rememberMe, ip, userAgent);
         return response;
       }
       // If password doesn't match for an admin email, we don't fall through to clerks 
@@ -56,10 +67,21 @@ export async function POST(request) {
           return apiError('Your account has been deactivated. Please contact the administrator.', 403);
         }
 
+        // Log Security Event & Update Last Login
+        const SecurityService = (await import('@/services/SecurityService')).default;
+        await SecurityService.updateLastLogin('CLERK', clerk.id, ip);
+        await SecurityService.logSecurityEvent({
+          userType: 'CLERK',
+          userId: clerk.id,
+          eventType: 'LOGIN_SUCCESS',
+          ipAddress: ip
+        });
+
         const response = apiResponse({ success: true, message: 'Login successful', role: clerk.role });
         response.cookies.delete('admin_auth');
         response.cookies.delete('student_auth');
-        await issueClerkAuthCookie(response, clerk, rememberMe);
+        const userAgent = request.headers.get('user-agent') || 'Unknown';
+        await issueClerkAuthCookie(response, clerk, rememberMe, ip, userAgent);
         return response;
       }
     }

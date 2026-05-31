@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useStudent } from '@/context/StudentContext';
-import useProfileActivity from '@/components/student/hooks/useProfileActivity';
+import useProfileActivity from '@/hooks/student/hooks/useProfileActivity';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAssets } from '@/context/AssetContext';

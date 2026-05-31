@@ -32,12 +32,34 @@ export async function POST(req) {
       return apiError('Invalid old password', 400);
     }
 
+    if (oldPassword === newPassword) {
+      return apiError('New password must be different from the current password', 400);
+    }
+
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
     await db.update(clerks)
-      .set({ password_hash: hashedPassword })
+      .set({ 
+        password_hash: hashedPassword,
+        password_changed_at: new Date()
+      })
       .where(eq(clerks.email, user.email));
+
+    // Log Security Event
+    const fullClerk = await db.query.clerks.findFirst({
+      where: eq(clerks.email, user.email),
+      columns: { id: true }
+    });
+
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
+    const SecurityService = (await import('@/services/SecurityService')).default;
+    await SecurityService.logSecurityEvent({
+      userType: 'CLERK',
+      userId: fullClerk.id,
+      eventType: 'PASSWORD_CHANGED',
+      ipAddress: ip
+    });
 
     return apiResponse({ message: 'Password changed successfully' });
   } catch (error) {

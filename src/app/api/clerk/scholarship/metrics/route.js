@@ -4,6 +4,7 @@ import { scholarshipSanctions, scholarshipWindows } from '@/db/schema';
 import { eq, and, or, isNull, sql, desc, count } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
+import { toMySQLDate } from '@/lib/date';
 
 export async function GET() {
   const user = await getAuthUser('clerk');
@@ -48,8 +49,8 @@ export async function GET() {
       const end = new Date(window.end_date);
       const today = new Date(now.toISOString().slice(0, 10));
 
-      windowStartDate = window.start_date;
-      windowEndDate = window.end_date;
+      windowStartDate = toMySQLDate(window.start_date);
+      windowEndDate = toMySQLDate(window.end_date);
 
       if (today >= start && today <= end) {
         windowStatus = 'OPEN';

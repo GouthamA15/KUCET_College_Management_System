@@ -88,6 +88,13 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
 
       const { latitude, longitude, accuracy } = pos.coords;
 
+      // GPS Accuracy Enforcement (Edge Case Governance)
+      if (accuracy > 100) {
+        toast.error(`Location accuracy is too low (${Math.round(accuracy)}m). Please move near a window or outdoors for better GPS reception.`);
+        setSubmittingId(null);
+        return;
+      }
+
       const res = await fetch('/api/student/attendance/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

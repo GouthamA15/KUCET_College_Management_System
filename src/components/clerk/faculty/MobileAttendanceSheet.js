@@ -134,6 +134,39 @@ const MobileSessionControlPanel = () => {
   );
 };
 
+const MobilePendingSyncIndicator = () => {
+  const { pendingSyncs, syncOfflineAttendance, submitting } = useFacultyAttendance();
+
+  if (!pendingSyncs || pendingSyncs.length === 0) return null;
+
+  return (
+    <div className="bg-amber-50 border-2 border-amber-200 p-3 rounded-xl mb-4 shadow-sm">
+      <div className="flex justify-between items-start gap-3">
+        <div className="flex-1">
+          <h3 className="text-amber-900 font-black text-[10px] uppercase tracking-wider">Offline Sync Pending ({pendingSyncs.length})</h3>
+          <p className="text-[10px] text-amber-700 mt-0.5 leading-tight">
+            Recorded while offline. Click to sync with server.
+          </p>
+        </div>
+        <button
+          onClick={() => syncOfflineAttendance()}
+          disabled={submitting}
+          className="px-3 py-1.5 bg-amber-600 text-white text-[9px] font-black uppercase tracking-widest rounded-md shadow-sm active:scale-95 disabled:opacity-50"
+        >
+          {submitting ? '...' : 'Sync Now'}
+        </button>
+      </div>
+      <div className="mt-2 flex gap-1 overflow-x-auto no-scrollbar">
+        {pendingSyncs.map(p => (
+          <div key={p.id} className="text-[8px] font-bold bg-white/60 text-amber-800 px-1.5 py-0.5 rounded border border-amber-100 whitespace-nowrap">
+            {p.date} • S{p.session}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function MobileAttendanceSheet({ onBack }) {
   const {
     assignment,
@@ -163,6 +196,9 @@ export default function MobileAttendanceSheet({ onBack }) {
         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
         Back to Subjects
       </button>
+
+      {/* Pending Sync (Mobile) */}
+      <MobilePendingSyncIndicator />
 
       {/* Subject Identity Panel */}
       <MobileSubjectIdentityPanel />

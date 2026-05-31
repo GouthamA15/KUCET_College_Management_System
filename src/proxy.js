@@ -38,27 +38,41 @@ async function attemptSilentRefresh(userType, request) {
   try {
     const isDev = process.env.NODE_ENV === 'development';
     const cookieHeader = request.headers.get('cookie');
+    // Try origin first (works in most hosts). If that fails (SSL/loopback issues),
+    // fall back to local loopback with the configured PORT. This makes silent refresh
+    // robust across dev, Render, and Vercel environments.
+    const candidates = isDev
+      ? [request.nextUrl.origin]
+      : [request.nextUrl.origin, `http://127.0.0.1:${process.env.PORT || 10000}`];
 
-    // FIX: In production (Render/Vercel), fetching the public HTTPS URL from within the server
-    // often fails with SSL errors (ERR_SSL_PACKET_LENGTH_TOO_LONG) because internal routing 
-    // hits the HTTP port while expecting HTTPS. We use the local address for loopback.
-    const baseUrl = isDev 
-      ? request.nextUrl.origin 
-      : `http://127.0.0.1:${process.env.PORT || 10000}`;
+    for (const baseUrl of candidates) {
+      try {
+        const res = await fetch(`${baseUrl}/api/auth/refresh`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': cookieHeader || '',
+            'Host': request.nextUrl.host,
+          },
+          body: JSON.stringify({ type: userType }),
+        });
 
-    const res = await fetch(`${baseUrl}/api/auth/refresh`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cookie': cookieHeader || '',
-        'Host': request.nextUrl.host // Maintain host header for routing integrity
-      },
-      body: JSON.stringify({ type: userType }),
-    });
+        if (res.ok) return res;
 
-    if (res.ok) {
-      return res;
+        // Log non-OK responses for diagnostics in non-prod or when debugging
+        if (process.env.NODE_ENV === 'development') {
+          const text = await res.text().catch(() => '<no-body>');
+          console.error(`[EdgeRefresh][${userType}] ${baseUrl} responded ${res.status}: ${text}`);
+        }
+      } catch (err) {
+        // Try the next candidate, but log the error for debugging
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`[EdgeRefreshError][${userType}] base=${baseUrl}`, err);
+        }
+        continue;
+      }
     }
+
     return null;
   } catch (err) {
     // Only log real errors, suppress expected transient ones
@@ -223,6 +237,6 @@ export default async function proxy(request) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|assets|screenshots).*)',
+    '/((?!api/auth|api/public|api/dev|api/verify|_next/static|_next/image|favicon.ico|assets|screenshots).*)',
   ],
 };

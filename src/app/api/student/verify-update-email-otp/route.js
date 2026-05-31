@@ -43,12 +43,24 @@ export async function POST(req) {
           email_verified_at: new Date() 
         })
         .where(eq(students.roll_no, rollno));
-      
+
       await db.delete(otpCodes).where(eq(otpCodes.id, otpData.id));
 
       const updatedStudent = await db.query.students.findFirst({
         where: eq(students.roll_no, rollno)
       });
+
+      if (updatedStudent) {
+        // Log Security Event
+        const SecurityService = (await import('@/services/SecurityService')).default;
+        await SecurityService.logSecurityEvent({
+          userType: 'STUDENT',
+          userId: updatedStudent.id,
+          eventType: 'EMAIL_VERIFIED',
+          ipAddress: ip,
+          details: { email }
+        });
+      }
 
       const response = apiResponse({ message: 'Email address verified and updated successfully!' });
       const { issueStudentAuthCookie } = await import('@/lib/auth-utils');

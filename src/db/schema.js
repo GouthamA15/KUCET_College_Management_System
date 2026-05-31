@@ -49,6 +49,9 @@ export const students = mysqlTable('students', {
   student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED']).default('ACTIVE'),
   academic_status: mysqlEnum('academic_status', ['REGULAR', 'DETAINED', 'DROPPED', 'GRADUATED']).default('REGULAR'),
   academic_offset_years: int('academic_offset_years').default(0),
+  last_login_at: timestamp('last_login_at'),
+  last_login_ip: varchar('last_login_ip', { length: 64 }),
+  password_changed_at: timestamp('password_changed_at'),
 }, (table) => ({
   rollNoIdx: index('idx_roll_no').on(table.roll_no),
   rollNoUniq: uniqueIndex('uq_students_roll_no').on(table.roll_no),
@@ -74,6 +77,9 @@ export const clerks = mysqlTable('clerks', {
   updated_at: timestamp('updated_at').onUpdateNow(),
   is_hod: boolean('is_hod').default(false),
   branch: varchar('branch', { length: 50 }),
+  last_login_at: timestamp('last_login_at'),
+  last_login_ip: varchar('last_login_ip', { length: 64 }),
+  password_changed_at: timestamp('password_changed_at'),
 }, (table) => ({
   emailIdx: index('idx_clerks_email').on(table.email),
   employeeIdIdx: index('idx_clerks_employee_id').on(table.employee_id),
@@ -83,6 +89,9 @@ export const principal = mysqlTable('principal', {
   id: int('id').autoincrement().primaryKey().notNull(),
   email: varchar('email', { length: 255 }).notNull(),
   password_hash: varchar('password_hash', { length: 255 }).notNull(),
+  last_login_at: timestamp('last_login_at'),
+  last_login_ip: varchar('last_login_ip', { length: 64 }),
+  password_changed_at: timestamp('password_changed_at'),
   created_at: timestamp('created_at').defaultNow(),
 }, (table) => ({
   emailIdx: index('idx_principal_email').on(table.email),
@@ -393,7 +402,7 @@ export const otpCodes = mysqlTable('otp_codes', {
 }));
 
 export const passwordResetTokens = mysqlTable('password_reset_tokens', {
-  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
   token_hash: varchar('token_hash', { length: 255 }).notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(),
   user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),
@@ -411,6 +420,34 @@ export const rateLimits = mysqlTable('rate_limits', {
   expire_at: timestamp('expire_at').notNull(),
 }, (table) => ({
   expireIdx: index('idx_expire').on(table.expire_at),
+}));
+
+export const securityEvents = mysqlTable('security_events', {
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']).notNull(),
+  user_id: bigint('user_id', { mode: 'number', unsigned: true }),
+  event_type: varchar('event_type', { length: 50 }),
+  ip_address: varchar('ip_address', { length: 64 }),
+  details: json('details'),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('idx_security_events_user').on(table.user_id, table.user_type),
+  createdAtIdx: index('idx_security_events_created_at').on(table.created_at),
+}));
+
+export const securityNotifications = mysqlTable('security_notifications', {
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']).notNull(),
+  user_id: bigint('user_id', { mode: 'number', unsigned: true }),
+  title: varchar('title', { length: 255 }),
+  message: text('message'),
+  severity: mysqlEnum('severity', ['INFO', 'WARNING', 'CRITICAL']).default('INFO'),
+  is_read: boolean('is_read').default(false),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('idx_security_notifications_user').on(table.user_id, table.user_type),
+  severityIdx: index('idx_security_notifications_severity').on(table.severity),
+  createdAtIdx: index('idx_security_notifications_created_at').on(table.created_at),
 }));
 
 // --- 9. SCHOLARSHIP & FINANCE ---
@@ -581,7 +618,7 @@ export const auditLogs = mysqlTable('audit_logs', {
 }));
 
 export const refreshTokens = mysqlTable('refresh_tokens', {
-  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
   token_hash: varchar('token_hash', { length: 255 }).notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(), // roll_no for student, email for clerk/admin
   user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),
@@ -592,6 +629,27 @@ export const refreshTokens = mysqlTable('refresh_tokens', {
 }, (table) => ({
   tokenHashIdx: index('idx_refresh_token_hash').on(table.token_hash),
   userIdIdx: index('idx_refresh_user').on(table.user_id, table.user_type),
+}));
+
+export const userSessions = mysqlTable('user_sessions', {
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']),
+  user_id: bigint('user_id', { mode: 'number', unsigned: true }),
+  session_token_hash: varchar('session_token_hash', { length: 255 }),
+  device_name: varchar('device_name', { length: 255 }),
+  browser: varchar('browser', { length: 100 }),
+  operating_system: varchar('operating_system', { length: 100 }),
+  ip_address: varchar('ip_address', { length: 64 }),
+  location: varchar('location', { length: 255 }),
+  is_current: boolean('is_current').default(false),
+  is_revoked: boolean('is_revoked').default(false),
+  last_seen_at: timestamp('last_seen_at'),
+  created_at: timestamp('created_at').defaultNow(),
+  expires_at: timestamp('expires_at'),
+}, (table) => ({
+  sessionTokenIdx: index('idx_user_session_token').on(table.session_token_hash),
+  userIdx: index('idx_user_sessions_user').on(table.user_id, table.user_type),
+  lastSeenIdx: index('idx_user_sessions_last_seen').on(table.last_seen_at),
 }));
 
 export const bugReports = mysqlTable('bug_reports', {

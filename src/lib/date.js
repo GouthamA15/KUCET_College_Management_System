@@ -1,3 +1,5 @@
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 export function formatDate(dateString) {
   if (!dateString) return '';
   try {
@@ -19,7 +21,7 @@ export function formatDate(dateString) {
       return dateString;
     }
     const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const month = MONTHS[date.getMonth()];
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   } catch (error) {
@@ -27,6 +29,11 @@ export function formatDate(dateString) {
     return dateString;
   }
 }
+
+/**
+ * Alias for formatDate to match institutional naming standards.
+ */
+export const formatInstitutionalDate = formatDate;
 
 export function toMySQLDate(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -63,71 +70,86 @@ export function toMySQLDate(value) {
 }
 
 export function parseDate(str) {
-  if (!str && str !== 0) return null; // Handle null, undefined, empty string, but allow 0 for Excel dates
+  if (!str && str !== 0) return null;
 
-  // If it's already a Date object, return it
   if (str instanceof Date && !isNaN(str.getTime())) {
     return str;
   }
 
-  // If it's a number, it might be an Excel serial date
   if (typeof str === 'number') {
-    // Excel serial date to JS Date object conversion (assuming Windows Excel base date 1900-01-01)
-    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Dec 30, 1899, 00:00:00 UTC
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
     const ms = str * 24 * 60 * 60 * 1000;
     const date = new Date(excelEpoch.getTime() + ms);
-    if (!isNaN(date.getTime())) {
-      return date;
-    }
+    if (!isNaN(date.getTime())) return date;
   }
   
-  // Ensure it's a string before attempting split
-  const dateString = String(str);
+  const dateString = String(str).trim();
   
-  // Helper to parse date parts with a given separator and order
   const tryParse = (dateString, separator, order) => {
     const parts = dateString.split(separator);
     if (parts.length !== 3) return null;
 
-    let day, month, year;
-    if (order === 'DMY') { // DD-MM-YYYY or DD/MM/YYYY
-      [day, month, year] = parts;
-    } else if (order === 'MDY') { // MM-DD-YYYY or MM/DD/YYYY
-      [month, day, year] = parts;
-    } else if (order === 'YMD') { // YYYY-MM-DD
-      [year, month, day] = parts;
-    } else {
-      return null;
-    }
+    // STRICTURE: Ensure parts don't contain time (spaces or colons)
+    if (parts.some(p => p.includes(' ') || p.includes(':'))) return null;
 
-    // Convert to numbers and validate
-    const d = parseInt(day, 10);
-    const m = parseInt(month, 10);
-    const y = parseInt(year, 10);
+    let dayStr, monthStr, yearStr;
+    if (order === 'DMY') [dayStr, monthStr, yearStr] = parts;
+    else if (order === 'MDY') [monthStr, dayStr, yearStr] = parts;
+    else if (order === 'YMD') [yearStr, monthStr, dayStr] = parts;
+    else return null;
 
-    if (isNaN(d) || isNaN(m) || isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) {
-      return null;
-    }
+    const d = parseInt(dayStr, 10);
+    const m = parseInt(monthStr, 10);
+    const y = parseInt(yearStr, 10);
+
+    if (isNaN(d) || isNaN(m) || isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) return null;
 
     const date = new Date(y, m - 1, d);
-    // Check for valid date (e.g., avoid 31st of Feb)
-    if (date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d) {
-      return date;
-    }
+    if (date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d) return date;
     return null;
   };
 
-  // Try DD-MM-YYYY or DD/MM/YYYY
-  let date = tryParse(dateString, '-', 'DMY') || tryParse(dateString, '/', 'DMY');
-  if (date) return date;
+  return tryParse(dateString, '-', 'DMY') || 
+         tryParse(dateString, '/', 'DMY') || 
+         tryParse(dateString, '-', 'MDY') || 
+         tryParse(dateString, '/', 'MDY') || 
+         tryParse(dateString, '-', 'YMD');
+}
 
-  // Try MM-DD-YYYY or MM/DD/YYYY
-  date = tryParse(dateString, '-', 'MDY') || tryParse(dateString, '/', 'MDY');
-  if (date) return date;
+export function formatInstitutionalDateTime(dateInput) {
+  if (!dateInput && dateInput !== 0) return '';
 
-  // Try YYYY-MM-DD (fallback, but could also be parsed by YYYY-MM-DD logic)
-  date = tryParse(dateString, '-', 'YMD');
-  if (date) return date;
+  let d = null;
+  if (dateInput instanceof Date && !isNaN(dateInput.getTime())) {
+    d = dateInput;
+  } else if (typeof dateInput === 'string') {
+    // If it contains time indicators, skip custom parseDate (which might strip time)
+    if (dateInput.includes(':') || dateInput.includes('T')) {
+      d = new Date(dateInput);
+    } else {
+      d = parseDate(dateInput) || new Date(dateInput);
+    }
+  } else if (typeof dateInput === 'number') {
+    d = new Date(dateInput);
+  } else {
+    try {
+      d = new Date(dateInput);
+    } catch (e) {
+      return String(dateInput);
+    }
+  }
 
-  return null;
+  if (!d || isNaN(d.getTime())) return String(dateInput);
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = MONTHS[d.getMonth()];
+  const year = d.getFullYear();
+  
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; 
+
+  return `${day}-${month}-${year} • ${hours}:${minutes} ${ampm}`;
 }

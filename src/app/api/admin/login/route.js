@@ -45,7 +45,18 @@ export async function POST(request) {
     response.cookies.delete('clerk_auth');
     response.cookies.delete('student_auth');
 
-    await issueAdminAuthCookie(response, admin, rememberMe);
+    // Log Security Event & Update Last Login
+    const SecurityService = (await import('@/services/SecurityService')).default;
+    await SecurityService.updateLastLogin('ADMIN', admin.id, ip);
+    await SecurityService.logSecurityEvent({
+      userType: 'ADMIN',
+      userId: admin.id,
+      eventType: 'LOGIN_SUCCESS',
+      ipAddress: ip
+    });
+
+    const userAgent = request.headers.get('user-agent') || 'Unknown';
+    await issueAdminAuthCookie(response, admin, rememberMe, ip, userAgent);
 
     return response;
 

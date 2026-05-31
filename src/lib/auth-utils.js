@@ -7,7 +7,7 @@ import { eq, and } from 'drizzle-orm';
 /**
  * Generates a refresh token, hashes it, stores it in the DB, and sets it in a cookie.
  */
-async function issueRefreshToken(response, userId, userType, rememberMe = false) {
+async function issueRefreshToken(response, userId, userType, rememberMe = false, ip = null, userAgent = null) {
   const refreshToken = crypto.randomBytes(40).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
   
@@ -32,13 +32,55 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false)
     path: '/',
   });
 
+  // Register session if tracking info provided
+  if (ip && userAgent) {
+    try {
+      const SecurityService = (await import('@/services/SecurityService')).default;
+      // We need the numeric DB ID for user_sessions
+      let dbId;
+      if (userType === 'student') {
+        const student = await db.query.students.findFirst({ where: eq(students.roll_no, userId), columns: { id: true } });
+        dbId = student?.id;
+      } else if (userType === 'clerk') {
+        const clerk = await db.query.clerks.findFirst({ where: eq(clerks.email, userId), columns: { id: true } });
+        dbId = clerk?.id;
+      } else if (userType === 'admin') {
+        const admin = await db.query.principal.findFirst({ where: eq(principal.email, userId), columns: { id: true } });
+        dbId = admin?.id;
+      }
+
+      if (dbId) {
+        const sessionId = await SecurityService.registerSession({
+          userType: userType.toUpperCase(),
+          userId: dbId,
+          sessionToken: refreshToken,
+          ipAddress: ip,
+          userAgent: userAgent,
+          expiresAt: expiresAt
+        });
+
+        if (sessionId) {
+          response.cookies.set('session_id', sessionId.toString(), {
+            httpOnly: false, // Accessible by client for realtime revocation check
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: durationDays * 24 * 60 * 60,
+            path: '/',
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Session registration failed:', err);
+    }
+  }
+
   return refreshToken;
 }
 
 /**
  * Generates a student auth JWT and attaches it to the provided NextResponse.
  */
-export async function issueStudentAuthCookie(response, student, rememberMe = false) {
+export async function issueStudentAuthCookie(response, student, rememberMe = false, ip = null, userAgent = null) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
   // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
@@ -77,7 +119,7 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
   });
 
   // Issue Refresh Token
-  await issueRefreshToken(response, student.roll_no, 'student', rememberMe);
+  await issueRefreshToken(response, student.roll_no, 'student', rememberMe, ip, userAgent);
 
   return response;
 }
@@ -85,7 +127,7 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
 /**
  * Generates a clerk auth JWT and attaches it to the provided NextResponse.
  */
-export async function issueClerkAuthCookie(response, clerk, rememberMe = false) {
+export async function issueClerkAuthCookie(response, clerk, rememberMe = false, ip = null, userAgent = null) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
   // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
@@ -130,7 +172,7 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false) 
   });
 
   // Issue Refresh Token
-  await issueRefreshToken(response, clerk.email, 'clerk', rememberMe);
+  await issueRefreshToken(response, clerk.email, 'clerk', rememberMe, ip, userAgent);
 
   return response;
 }
@@ -138,7 +180,7 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false) 
 /**
  * Generates an admin auth JWT and attaches it to the provided NextResponse.
  */
-export async function issueAdminAuthCookie(response, admin, rememberMe = false) {
+export async function issueAdminAuthCookie(response, admin, rememberMe = false, ip = null, userAgent = null) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
   // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
@@ -173,7 +215,7 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false) 
   });
 
   // Issue Refresh Token
-  await issueRefreshToken(response, admin.email, 'admin', rememberMe);
+  await issueRefreshToken(response, admin.email, 'admin', rememberMe, ip, userAgent);
 
   return response;
 }

@@ -51,15 +51,15 @@ jobs:
       run: npm ci
 
     - name: Type Check & Lint
-      run: |
-        npm run lint || echo "Linting failed but continuing..."
+      run: npm run lint
       
     - name: Production Build
       run: npm run build
 
-    # We keep the tests here, but we add 'continue-on-error' 
-    # so you get your GREEN CHECKMARK even if a test fails.
-    - name: Run Playwright tests (Optional)
+    - name: Run Unit Tests
+      run: npm run test:unit
+
+    - name: Run Playwright tests
       run: npx playwright test
       continue-on-error: true 
 

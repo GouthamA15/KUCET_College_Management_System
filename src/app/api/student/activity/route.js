@@ -7,6 +7,7 @@ import {
   scholarshipSanctions 
 } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
+import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getCurrentAcademicYear } from '@/lib/rollNumber';
 
@@ -67,8 +68,8 @@ export async function GET(request) {
       const end = new Date(win.end_date);
       if (today >= start && today <= end) {
         windowOpen = true;
-        windowStart = win.start_date;
-        windowEnd = win.end_date;
+        windowStart = toMySQLDate(win.start_date);
+        windowEnd = toMySQLDate(win.end_date);
       }
     }
 

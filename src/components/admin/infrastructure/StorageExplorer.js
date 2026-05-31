@@ -131,7 +131,7 @@ export default function StorageExplorer() {
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 mt-2 overflow-x-auto no-scrollbar">
             <button 
-              onClick={() => { setCurrentPath(''); setSearchParams(''); }}
+              onClick={() => { setCurrentPath(''); setSearchTerm(''); }}
               className={`text-[9px] font-black uppercase tracking-widest ${currentPath === '' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               Root
@@ -140,7 +140,7 @@ export default function StorageExplorer() {
               <React.Fragment key={b.path}>
                 <span className="text-slate-300 text-[10px]">/</span>
                 <button 
-                  onClick={() => { setCurrentPath(b.path); setSearchParams(''); }}
+                  onClick={() => { setCurrentPath(b.path); setSearchTerm(''); }}
                   className={`text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${i === breadcrumbs.length - 1 ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   {b.name}
@@ -156,7 +156,7 @@ export default function StorageExplorer() {
               type="text" 
               placeholder="Search all assets..." 
               value={searchTerm}
-              onChange={(e) => setSearchParams(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full h-11 bg-slate-50 border border-slate-200 px-4 text-[11px] font-bold outline-none focus:border-blue-500 transition-all uppercase tracking-wider shadow-inner rounded-sm"
             />
           </div>

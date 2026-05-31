@@ -1,136 +1,273 @@
 # KUCET College Management System
 
-A role-based college management web application designed to digitalize
-student administration, scholarships, and fee management workflows.
+A production-oriented, role-based college management platform built for **Kakatiya University College of Engineering and Technology (KUCET)**.
 
-This system is being developed as a real-world institutional solution,
-not just a demo project, with a strong focus on correctness, automation,
-and role-based access.
+The system is designed to replace fragmented manual workflows with a centralized digital ecosystem that handles admissions, academics, attendance, scholarships, certificates, departmental management, and institutional administration.
 
----
 
-## 🎯 Project Objective
 
-To replace manual Excel-based student records with a centralized,
-secure, and scalable web system where:
+# 🎯 Vision
 
-- Students can view their academic and fee details
-- Clerks can manage admissions, scholarships, and fees
-- Administration can monitor and approve critical changes
+To build a scalable institutional platform where:
 
----
+* Students manage academics, attendance, finances, and requests digitally
+* Faculty and HODs manage departmental operations in real time
+* Clerks handle admissions, scholarships, and verification workflows efficiently
+* Administration gains centralized governance, auditing, and infrastructure control
 
-## 🧩 Core Features
+This is being developed as a real-world institutional system — not a demo CRUD project.
 
-### ✅ Automated Student Identification
-- Student Roll Number is the single source of truth
-- Branch, academic type (Regular/Lateral), and academic year
-  are automatically derived from the roll number
 
-### ✅ Role-Based Access Control
-- Student
-- Administrative Clerk
-- Scholarship Clerk
-- Principal (Admin)
 
-Each role sees only what they are allowed to see and edit.
+# ✨ Major Features
 
-### ✅ Normalized Database Design
-- Master tables for student identity
-- Transaction tables for year-wise records
-- Summary logic derived dynamically
-- No duplicated or derived data stored unnecessarily
+## 🔐 Institutional Authentication \& Security
 
----
+* JWT authentication with secure HTTP-only cookies
+* Silent token refresh \& session rotation
+* Google OAuth login support
+* AES-256-GCM encryption for sensitive student data
+* Blind indexing for Aadhaar \& mobile numbers
+* Role-based access control
+* Audit logging system
+* Rate limiting \& brute-force protection
 
-## 👥 Role-Based Workflow
 
-### 🎓 Student
-- Login using Roll Number
-- View personal profile (read-only)
-- View Fee Details (per academic year)
-- View payment history
-- View scholarship status (if applicable)
 
----
+## 🎓 Student Portal
 
-### 🧑‍💼 Administrative Clerk
-- Add new student records
-- Fetch students by Roll No / Admission No / Name
-- Edit all student details except Roll Number
-- View student status
-- (Future) Issue certificates and manage attendance flags
+* Personalized dashboard
+* Academic progress tracking
+* Real-time attendance visibility
+* Fee \& scholarship overview
+* Digital certificate requests
+* Student profile management
+* Profile update request workflow with verification proof uploads
+* Live session activity bar
+* Mobile-first responsive UI
 
----
 
-### 💰 Scholarship Clerk
-- Fetch student using Roll Number
-- View verified student information
-- Manage **year-wise scholarship records**
-- System reports:
-  - Scholar vs Non-Scholar automatically
-- Enter fee particulars per year
-- Track Pending / Success status
-- System captures clerk signature automatically
 
----
+## 🧑‍🏫 Faculty \& HOD System
 
-### 🧑‍⚖️ Principal (Admin)
-- View scholarship updates
-- Audit changes made by clerks
-- Approve sensitive modifications (future scope)
+* Attendance session management
+* GPS + PIN based attendance verification
+* Internal marks entry system
+* Faculty workload analytics
+* Department timetable management
+* Branch syllabus orchestration
+* Faculty substitution management
+* Live classroom session broadcasting
+* Branch-level governance controls
 
----
 
-## 🧠 Smart Automation Highlights
 
-- Academic Year is **derived**, not stored
-- Fee amount is **auto-calculated** based on:
-  - Branch (Self-Finance / Non-Self-Finance)
-  - Scholarship status
-- Clerk cannot override system rules
-- All calculations are centralized in a shared finance module
+## 🧑‍💼 Administrative Clerk System
 
----
+* Student admission finalization
+* Automated roll number generation
+* Student registry management
+* Certificate approval workflows
+* Student modification request verification
+* Migration Excel export system
+* Institutional request management center
 
-## 🖥️ Tech Stack
 
-- **Frontend**: Next.js (App Router), JavaScript
-- **Backend**: Node.js (API Routes)
-- **Database**: MySQL
-- **Authentication**: JWT (role-based)
-- **Styling**: CSS / Tailwind (as applicable)
 
----
+## 💰 Scholarship Management System
 
-## 📸 Screenshots
-- ### Home Page:
+* Government scholarship workflow automation
+* Year-wise scholarship tracking
+* Dynamic RTF calculations
+* Payment registration \& proceeding management
+* Scholarship summary analytics
+* Minority \& category-based reimbursement logic
+* Payment limit enforcement
+* Application number propagation system
+
+
+
+## 📚 Academic Infrastructure
+
+* Dynamic academic calendar
+* Semester intelligence engine
+* Attendance orchestration
+* Student detention \& offset management
+* Branch subject mapping
+* Marks pattern governance
+* Real-time departmental sync
+
+
+
+## 📄 Digital Certificate Engine
+
+Supports:
+
+* Bonafide Certificates
+* Transfer Certificates
+* No Objection Certificates
+* Course Completion Certificates
+* Study \& Conduct Certificates
+* Migration Certificates
+* Income Tax Certificates
+
+Features:
+
+* Professional PDF rendering
+* QR verification support
+* Digital signatures
+* Verification tracking
+* Download history
+* Institutional branding
+
+
+
+# ⚡ Advanced Platform Features
+
+## 🚀 Real-Time Infrastructure
+
+* Supabase Realtime integration
+* Distributed SSE architecture
+* Live notification broadcasting
+* Instant attendance/session sync
+* Zombie connection recovery heartbeat system
+
+
+
+## 📱 Progressive Web App (PWA)
+
+* Offline-ready architecture
+* Mobile-first experience
+* Optimized Android experience
+* Background synchronization support
+* Installable web application
+
+
+
+## 🧠 Smart Institutional Automation
+
+* Roll number intelligence engine
+* Academic year \& semester auto-resolution
+* Attendance eligibility automation
+* Scholarship fee calculations
+* Dynamic admission batch handling
+* Auto-generated academic timelines
+
+
+
+## 🛡️ Reliability \& Production Engineering
+
+* Drizzle ORM + versioned migrations
+* TiDB Cloud infrastructure
+* Automated database backups
+* Cloudinary asset infrastructure
+* CI/CD quality gates
+* ESLint + Husky enforcement
+* Playwright E2E testing
+* k6 load testing
+* Structured logging \& monitoring
+* Environment validation with Zod
+
+
+
+# 🖥️ Tech Stack
+
+## Frontend
+
+* Next.js 16 (App Router)
+* React 19
+* Tailwind CSS 4
+
+## Backend
+
+* Next.js API Routes
+* Node.js
+
+## Database \& ORM
+
+* TiDB Cloud (MySQL-compatible)
+* Drizzle ORM
+
+## Authentication
+
+* JWT (`jose`)
+* NextAuth
+
+## Realtime \& Infrastructure
+
+* Supabase Realtime
+* Upstash Redis
+* Cloudinary
+* PWA support
+
+## Validation \& Utilities
+
+* Zod
+* bcrypt
+* react-hot-toast
+* xlsx-js-style
+* qrcode
+
+
+
+# 🏗️ Architecture Highlights
+
+* Service Layer architecture
+* Thin API routes
+* Context-driven state management
+* Optimistic UI workflows
+* Distributed realtime broadcasting
+* Modular institutional components
+* Versioned database migrations
+* Role-aware middleware protection
+
+
+
+# 📸 Screenshots
+- ## Home Page:
     ![Home Page](screenshots/home.png)
-- ### Profile Module:
+- ## Profile Module:
     ![Profile Module](screenshots/profile-module.png)
-- ### Student Dashboard:
+- ## Student Dashboard:
     ![Student Dashboard](screenshots/student-dashboard.png)
-- ### Administrative Clerk Dashboard:
+- ## Administrative Clerk Dashboard:
     ![Admission Dashboard](screenshots/admission-dashboard1.png)
     ![Admission Dashboard](screenshots/admission-dashboard2.png)
-- ### Scholarship Clerk Dashboard:
+- ## Scholarship Clerk Dashboard:
     ![Scholarship Dashboard](screenshots/scholarship-dashboard.png)
 
 
----
+# 🚀 Future Scopex
 
-## 🚀 Future Enhancements
+* Hostel \& transport modules
+* University-level synchronization
+* Native mobile app ecosystem (React Native)
+* Smart classroom integrations
+* Predictive academic risk analytics
 
-- Attendance & Internal Marks Management
-- Certificate Generation (Bonafide, No Dues, TC)
-- Principal Approval Workflows
-- Reports & Analytics
-- Notification System (Email / In-app)
 
----
 
-## 📌 Status
+# 📌 Current Status
 
-🟡 **In Active Development**
+🟢 **Actively Developed \& Production-Oriented**
 
-This project is evolving module by module with real institutional workflows in mind.
+The platform is continuously evolving with:
+
+* Institutional-grade workflows
+* Scalability-focused architecture
+* Security-first engineering
+* Real-time operational systems
+* Long-term maintainability in mind
+
+
+
+# 👨‍💻 Development Philosophy
+
+This project prioritizes:
+
+* Correctness over shortcuts
+* Scalability over temporary fixes
+* Security over convenience
+* Institutional reliability over flashy UI
+
+The goal is to build a system capable of serving thousands of students and staff in a real academic environment.

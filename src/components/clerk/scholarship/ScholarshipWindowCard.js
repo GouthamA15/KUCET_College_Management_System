@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { formatDate } from '@/lib/date';
+import { formatDate, toMySQLDate } from '@/lib/date';
 
 export default function ScholarshipWindowCard({ onWindowUpdated }) {
   const [startDate, setStartDate] = useState('');
@@ -24,8 +24,8 @@ export default function ScholarshipWindowCard({ onWindowUpdated }) {
         const win = data.window;
         if (isMounted && win) {
           setHasWindow(true);
-          setStartDate(win.startDate || '');
-          setEndDate(win.endDate || '');
+          setStartDate(toMySQLDate(win.startDate) || '');
+          setEndDate(toMySQLDate(win.endDate) || '');
           setStatus(win.status || 'CLOSED');
         } else if (isMounted) {
           setHasWindow(false);
