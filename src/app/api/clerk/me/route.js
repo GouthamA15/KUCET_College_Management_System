@@ -20,7 +20,12 @@ export async function GET(req) {
       mobile: clerks.mobile,
       pfp: clerks.pfp,
       signature: clerks.signature,
-      address: clerks.address
+      address: clerks.address,
+      is_active: clerks.is_active,
+      created_at: clerks.created_at,
+      last_login_at: clerks.last_login_at,
+      last_login_ip: clerks.last_login_ip,
+      password_changed_at: clerks.password_changed_at
     })
     .from(clerks)
     .where(eq(clerks.id, user.clerkId))

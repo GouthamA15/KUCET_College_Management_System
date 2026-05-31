@@ -77,14 +77,31 @@ export async function POST(req) {
 
     if (!isAuthenticated) return apiError('Authentication failed', 401);
     
+    // Log Security Event & Update Last Login
+    const SecurityService = (await import('@/services/SecurityService')).default;
+
+    logger.info('[SECURITY_SERVICE_LOADED]', { 
+      hasUpdateLastLogin: !!SecurityService?.updateLastLogin,
+      hasLogSecurityEvent: !!SecurityService?.logSecurityEvent
+    });
+
+    await SecurityService.updateLastLogin('STUDENT', student.id, ip);
+    await SecurityService.logSecurityEvent({
+      userType: 'STUDENT',
+      userId: student.id,
+      eventType: 'LOGIN_SUCCESS',
+      ipAddress: ip
+    });
+
     const { date_of_birth: _dob, password_hash: _ph, ...profile } = student;
     const response = apiResponse({ student: profile, success: true });
 
     response.cookies.delete('admin_auth');
     response.cookies.delete('clerk_auth');
 
+    const userAgent = req.headers.get('user-agent') || 'Unknown';
     const { issueStudentAuthCookie } = await import('@/lib/auth-utils');
-    await issueStudentAuthCookie(response, student, rememberMe);
+    await issueStudentAuthCookie(response, student, rememberMe, ip, userAgent);
 
     return response;
 
