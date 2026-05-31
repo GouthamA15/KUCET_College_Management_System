@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { refreshTokens, students, clerks, principal } from '@/db/schema';
+import { refreshTokens, students, clerks, principal, userSessions } from '@/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
@@ -39,7 +39,19 @@ export async function POST(req) {
       return apiError('Invalid refresh token', 401);
     }
 
-    // 2. Check if revoked
+    // 2. Check if the specific session is revoked in user_sessions (Security Enhancement)
+    const sessionRecord = await db.query.userSessions.findFirst({
+      where: and(
+        eq(userSessions.session_token_hash, tokenHash),
+        eq(userSessions.is_revoked, true)
+      )
+    });
+
+    if (sessionRecord) {
+      return apiError('Your session has been revoked. Please login again.', 401);
+    }
+
+    // 3. Check if revoked in refreshTokens
     if (tokenRecord.revoked_at) {
       // SECURITY: Potential theft if a revoked token is reused. 
       // Revoke all tokens for this user as a precaution.
