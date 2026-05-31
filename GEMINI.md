@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 28, 2026 (Session 138)
+**Last Updated:** May 31, 2026 (Session 139)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -92,6 +92,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **The Radio Tower:** `src/lib/sse.js` sends events to Supabase via WebSocket hooks.
 - **Global Reach:** Enables real-time sync on Serverless platforms (Vercel) where persistent connections are otherwise restricted.
 - **Listeners:** `RealtimeListener` component allows UI to react instantly to server pings without refreshing.
+- **Security Integration:** Real-time listeners now handle `SESSION_REVOKED` events for instant, refresh-free logout across all active devices.
 
 ### H. HOD & Branch Intelligence
 - **Sub-Role Pattern:** HODs are elevated Faculty members with authority over a specific branch.
@@ -99,7 +100,11 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **I. Service Layer (Business Logic Modularization)**
 - **Architecture:** Transitioning complex logic from API routes (`src/app/api`) to a dedicated Service Layer (`src/services`).
-- **Standard:** Services are static classes (e.g., `StudentService`, `FacultyService`) that handle database transactions, complex queries, and business rules.
+- **Standard:** Services are static classes that handle database transactions, complex queries, and business rules.
+- **Key Services:**
+    - `StudentService`: Student lifecycle, registry management, and data normalization.
+    - `FacultyService`: Timetable orchestration and workload analytics.
+    - `SecurityService`: Centralized engine for session revocation, new device detection, security notifications, and event logging.
 - **Benefits:**
     - **Reusability:** Share logic between different API routes or server-side actions.
     - **Testability:** Decouples business rules from the Next.js request/response lifecycle.
@@ -160,6 +165,17 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-May 2026)
 
 ### May 2026
+
+#### **Session 139: Real-time Security Monitoring & Session Trust (May 31, 2026)**
+- **Centralized Security Logic:** Developed `SecurityService.js` to unify security event logging, notification generation, and session management.
+- **Instant Session Revocation:** Implemented real-time logout using Supabase Broadcast. Clients now listen for `SESSION_REVOKED` events and immediately terminate sessions with a forced redirect to a new unified `/api/auth/logout` endpoint.
+- **New Device Detection:** Integrated user-agent parsing (`src/lib/ua-parser.js`) into the login flow. The system now detects and logs new browser/OS patterns, triggering instant security notifications and email alerts.
+- **Institutional Email Security Alerts:** Automated institutional-branded security emails via Brevo for critical events (New Device, Password Change, Email Change, Session Revocation).
+- **Security Center Enhancements:**
+    - Added a new **Alerts Tab** to the Student and Clerk Security Centers with unread indicators and "Mark as Read" functionality.
+    - Upgraded the **Sessions Tab** with high-density device metadata (IP, OS, Browser, Location).
+- **Database-Level Revocation Guard:** Reinforced the `/api/auth/refresh` route to verify session status against the `user_sessions` table, ensuring revoked tokens cannot be rotated even if real-time sockets are disconnected.
+- **Unified Logout Infrastructure:** Created a robust `/api/auth/logout` API supporting both GET (for redirects) and POST, ensuring full cookie clearance across all roles.
 
 #### **Session 138: Scholarship Registry Reliability & Clerk UX Hardening (May 28, 2026)**
 - **Scholarship Payments API Crash Fix:** Resolved a 500 error caused by selecting undefined Drizzle columns; stabilized student lookup and course/fee resolution logic for payment registration.
