@@ -33,8 +33,9 @@ export async function POST(request) {
       const isValidPassword = await bcrypt.compare(password, admin.password_hash);
 
       if (isValidPassword) {
-        // Log Security Event
+        // Log Security Event & Update Last Login
         const SecurityService = (await import('@/services/SecurityService')).default;
+        await SecurityService.updateLastLogin('ADMIN', admin.id, ip);
         await SecurityService.logSecurityEvent({
           userType: 'ADMIN',
           userId: admin.id,

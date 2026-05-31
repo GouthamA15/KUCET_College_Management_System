@@ -45,8 +45,9 @@ export async function POST(request) {
     response.cookies.delete('clerk_auth');
     response.cookies.delete('student_auth');
 
-    // Log Security Event
+    // Log Security Event & Update Last Login
     const SecurityService = (await import('@/services/SecurityService')).default;
+    await SecurityService.updateLastLogin('ADMIN', admin.id, ip);
     await SecurityService.logSecurityEvent({
       userType: 'ADMIN',
       userId: admin.id,
