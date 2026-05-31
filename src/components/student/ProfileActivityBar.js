@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import AttendanceVerificationActivity from './AttendanceVerificationActivity';
-import useActivityDismissal from '@/components/student/hooks/useActivityDismissal';
+import useActivityDismissal from '@/hooks/student/hooks/useActivityDismissal';
 
 export default function ProfileActivityBar({ activity, student }) {
   const {
