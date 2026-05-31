@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** May 31, 2026 (Session 139)
+**Last Updated:** June 1, 2026 (Session 140)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -110,6 +110,18 @@ A robust, production-ready web application built with **Next.js** for managing t
     - **Testability:** Decouples business rules from the Next.js request/response lifecycle.
     - **Readability:** API routes remain "thin," focusing only on authorization and request parsing.
 
+### J. Shared Security Architecture
+- **Objective:** Eliminate UI and logic duplication between Student and Clerk Security Centers.
+- **Component Strategy:** Extracted functional UI sections into modular React components (`src/components/security`).
+    - `SecurityCenter`: Orchestrator for tab management and section rendering.
+    - `SecurityOverview`, `SecurityAlerts`, `SecurityActivity`, `SecuritySessions`, `SecurityAuthentication`: Pure UI components receiving data via props.
+- **Hook-Driven Logic:** All data fetching and side effects (revoking sessions, password updates, verification) are moved to custom hooks (`src/hooks/security`).
+    - `useSecurityEvents`, `useSecuritySessions`, `useSecurityNotifications`: Modular data managers.
+    - `usePasswordManagement`: Unified password update engine for both roles.
+    - `useEmailVerification`: Specialized student activation hook.
+- **Utility Centralization:** Helper functions (IP formatting, event naming, strength validation) are consolidated in `src/lib/security`.
+- **Compliance:** Page files must remain under 200 lines and contain zero `fetch` implementations, acting strictly as orchestrators.
+
 ---
 
 ## 4. Database Schema
@@ -162,7 +174,23 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ---
 
-## 6. Recent Activity Log (Feb-May 2026)
+## 6. Recent Activity Log (Feb-June 2026)
+
+### June 2026
+
+#### **Session 140: Shared Security Center Architecture (June 1, 2026)**
+- **Shared Security Module:** Engineered a unified security architecture used by both Student and Clerk portals, eliminating duplicated logic and UI.
+- **Hook-Based State Management:** Extracted all security operations into custom hooks:
+    - `useSecuritySessions`: Manages active device tracking and remote revocation.
+    - `usePasswordManagement`: Unified engine for secure credential updates across roles.
+    - `useEmailVerification`: Modularized student activation and OTP verification workflow.
+    - `useSecurityEvents` & `useSecurityNotifications`: Centralized data managers for audit logs and alerts.
+- **Modular Component Library:** Created a suite of shared UI components in `src/components/security`:
+    - `SecurityCenter`: The primary layout orchestrator.
+    - `SecurityOverview`, `SecurityAlerts`, `SecurityActivity`, `SecuritySessions`, `SecurityAuthentication`: Functional sections receiving data via props.
+    - `StudentActivationUI`: Specialized multi-step onboarding workflow extracted from the main page.
+- **Utility Centralization:** Consolidated IP formatting, event naming, and password strength evaluation in `src/lib/security`.
+- **Maintainability & Compliance:** Reduced Student and Clerk page files by ~70%, achieving a lean orchestrator pattern (<200 lines per page) with zero inline `fetch` implementations. Resolved cascading render issues by standardizing safe state updates within effects.
 
 ### May 2026
 
