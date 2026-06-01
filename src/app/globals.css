@@ -55,7 +55,6 @@
 body {
   background-color: var(--bg-body);
   color: var(--text-primary);
-  font-family: Arial, Helvetica, sans-serif;
   margin: 0;
   padding: 0;
   transition: background-color 0.2s ease, color 0.2s ease;
