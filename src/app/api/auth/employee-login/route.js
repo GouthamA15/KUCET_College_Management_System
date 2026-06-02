@@ -6,6 +6,7 @@ import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { issueClerkAuthCookie, issueAdminAuthCookie } from '@/lib/auth-utils';
 import logger from '@/lib/logger';
+import { z } from 'zod';
 
 export async function POST(request) {
   try {
@@ -16,11 +17,17 @@ export async function POST(request) {
       return apiError('Too many login attempts. Please try again later.', 429);
     }
 
-    const { email, password, rememberMe } = await request.json();
+    const json = await request.json();
 
-    if (!email || !password) {
-      return apiError('Email and password are required', 400);
-    }
+    // --- ZERO TRUST VALIDATION ---
+    const loginSchema = z.object({
+      email: z.string().trim().email().toLowerCase(),
+      password: z.string().min(1, "Password is required"),
+      rememberMe: z.boolean().default(false)
+    });
+
+    const validatedData = loginSchema.parse(json);
+    const { email, password, rememberMe } = validatedData;
 
     // 1. Try Admin (Principal) Table First
     const adminRows = await db.select({ id: principal.id, email: principal.email, password_hash: principal.password_hash })
@@ -50,9 +57,6 @@ export async function POST(request) {
         await issueAdminAuthCookie(response, admin, rememberMe, ip, userAgent);
         return response;
       }
-      // If password doesn't match for an admin email, we don't fall through to clerks 
-      // because emails should ideally be unique across system roles, 
-      // but let's check clerks anyway just in case of shared emails (rare).
     }
 
     // 2. Try Clerks (Faculty/Staff) Table
@@ -91,6 +95,9 @@ export async function POST(request) {
     return apiError('Invalid credentials', 401);
 
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors[0].message, 400);
+    }
     logger.error(error, 'Employee Login error');
     return apiError('An internal server error occurred.', 500);
   }

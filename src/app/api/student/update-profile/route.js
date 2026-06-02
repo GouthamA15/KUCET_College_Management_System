@@ -4,15 +4,28 @@ import { students, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
+import { studentUpdateSchema } from '@/lib/validations/student';
+import { z } from 'zod';
 
 export async function POST(req) {
   const user = await getAuthUser('student');
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const body = await req.json();
+    const json = await req.json();
     const rollno = user.roll_no;
     if (!rollno) return apiError('Missing roll_no in session', 400);
+
+    // Validate with Zod
+    const validation = studentUpdateSchema.extend({
+      phone: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 10).nullable().optional(),
+    }).safeParse(json);
+
+    if (!validation.success) {
+      return apiError(validation.error.errors[0].message, 400);
+    }
+
+    const validatedData = validation.data;
 
     const student = await db.query.students.findFirst({
       columns: { id: true },
@@ -23,11 +36,11 @@ export async function POST(req) {
     const student_id = student.id;
 
     // 1. Update mobile in students table if provided (Encrypted + Hash)
-    if (body.phone) {
+    if (validatedData.phone) {
       await db.update(students)
         .set({ 
-            mobile: encrypt(body.phone),
-            mobile_hash: hashForIndex(body.phone)
+            mobile: encrypt(validatedData.phone),
+            mobile_hash: hashForIndex(validatedData.phone)
         })
         .where(eq(students.roll_no, rollno));
     }
@@ -39,15 +52,15 @@ export async function POST(req) {
 
     const updateObj = {};
     fields.forEach(f => {
-      if (body.hasOwnProperty(f)) {
-        let value = body[f] || null;
+      if (validatedData.hasOwnProperty(f)) {
+        let value = validatedData[f] || null;
         
         // Encrypt sensitive fields before saving
         if (value && (f === 'aadhaar_no' || f === 'guardian_mobile')) {
           value = encrypt(value);
           // Special case: also update blind index for aadhaar
           if (f === 'aadhaar_no') {
-              updateObj['aadhaar_hash'] = hashForIndex(body[f]);
+              updateObj['aadhaar_hash'] = hashForIndex(validatedData[f]);
           }
         }
         
@@ -63,6 +76,9 @@ export async function POST(req) {
 
     return apiResponse({ success: true, message: "Profile updated successfully" });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return apiError(err.errors[0].message, 400);
+    }
     logger.error(err, "Update profile error");
     return apiError('Server error', 500, err.message);
   }

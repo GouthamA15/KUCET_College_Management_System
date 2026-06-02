@@ -9,6 +9,7 @@ import {
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
+import { z } from 'zod';
 
 export async function POST(request) {
   try {
@@ -17,22 +18,21 @@ export async function POST(request) {
       return apiError('Unauthorized', 401);
     }
 
-    const body = await request.json();
-    const { assignment_id, date, session, attendance_data } = body;
+    const json = await request.json();
 
-    if (!assignment_id || !date || !session || !Array.isArray(attendance_data)) {
-      return apiError('Missing required fields', 400);
-    }
+    // --- ZERO TRUST VALIDATION ---
+    const attendanceSchema = z.object({
+      assignment_id: z.number().int().positive(),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      session: z.number().int().min(1).max(8),
+      attendance_data: z.array(z.object({
+        student_id: z.number().int().positive(),
+        status: z.enum(['PRESENT', 'ABSENT', 'ON_DUTY', 'SUSPENDED'])
+      })).min(1, "Attendance data cannot be empty")
+    });
 
-    // Validate each attendance record: status must not be null/undefined
-    for (const item of attendance_data) {
-      if (item == null || item.student_id == null) {
-        return apiError('Missing attendance item or student_id', 400);
-      }
-      if (item.status === null || item.status === undefined) {
-        return apiError('Status cannot be null', 400);
-      }
-    }
+    const validatedData = attendanceSchema.parse(json);
+    const { assignment_id, date, session, attendance_data } = validatedData;
 
     // 1. Verify assignment existence and get details
     const assignments = await db.select({
@@ -106,21 +106,19 @@ export async function POST(request) {
 
     // Transaction
     await db.transaction(async (tx) => {
-      if (attendance_data.length > 0) {
-        const values = attendance_data.map(item => ({
-          student_id: item.student_id,
-          assignment_id: targetAssignmentId,
-          date: date,
-          session: session,
-          status: item.status
-        }));
+      const values = attendance_data.map(item => ({
+        student_id: item.student_id,
+        assignment_id: targetAssignmentId,
+        date: date,
+        session: session,
+        status: item.status
+      }));
 
-        await tx.insert(studentAttendance)
-          .values(values)
-          .onDuplicateKeyUpdate({
-            set: { status: sql`VALUES(status)` }
-          });
-      }
+      await tx.insert(studentAttendance)
+        .values(values)
+        .onDuplicateKeyUpdate({
+          set: { status: sql`VALUES(status)` }
+        });
     });
 
     // REAL-TIME: Notify HOD/Faculty
@@ -136,6 +134,9 @@ export async function POST(request) {
 
     return apiResponse({ message: 'Attendance updated successfully' });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors[0].message, 400);
+    }
     logger.error('Attendance Update Error:', error);
     return apiError('Internal Server Error', 500);
   }
@@ -149,13 +150,24 @@ export async function DELETE(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const assignment_id = searchParams.get('assignment_id') ? parseInt(searchParams.get('assignment_id')) : null;
+    const assignment_id_raw = searchParams.get('assignment_id');
     const date = searchParams.get('date');
-    const session = searchParams.get('session') ? parseInt(searchParams.get('session')) : null;
+    const session_raw = searchParams.get('session');
 
-    if (!assignment_id || !date || !session) {
-      return apiError('Missing required parameters', 400);
-    }
+    // --- ZERO TRUST VALIDATION (Query Params) ---
+    const deleteSchema = z.object({
+      assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      session: z.preprocess(v => Number(v), z.number().int().min(1).max(8))
+    });
+
+    const validatedData = deleteSchema.parse({
+      assignment_id: assignment_id_raw,
+      date,
+      session: session_raw
+    });
+
+    const { assignment_id, session } = validatedData;
 
     // 1. Verify assignment existence and get details
     const assignments = await db.select({
@@ -234,6 +246,9 @@ export async function DELETE(request) {
 
     return apiResponse({ message: 'Attendance for the selected date has been deleted' });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors[0].message, 400);
+    }
     logger.error('Attendance Delete Error:', error);
     return apiError('Internal Server Error', 500);
   }

@@ -121,17 +121,16 @@ export async function PUT(req, context) {
     // 1. Validate Input using Zod
     const validation = studentUpdateSchema.safeParse(body);
     if (!validation.success) {
-      const details = validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
-      return apiError('Validation failed', 400, details);
+      return apiError(validation.error.errors[0].message, 400);
     }
 
-    const data = validation.data;
-    const { name, gender, mobile, email, date_of_birth } = data;
+    const validatedData = validation.data;
+    const { name, gender, mobile, email, date_of_birth } = validatedData;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (gender !== undefined) updateData.gender = gender;
-    if (email !== undefined) updateData.email = email;
+    if (email !== undefined) updateData.email = email.toLowerCase();
     if (date_of_birth !== undefined) updateData.date_of_birth = date_of_birth ? new Date(date_of_birth) : null;
 
     if (mobile !== undefined) {

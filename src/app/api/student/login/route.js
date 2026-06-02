@@ -5,6 +5,7 @@ import { apiResponse, apiError } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 import { checkRateLimit } from '@/lib/rate-limit';
 import logger from '@/lib/logger';
+import { z } from 'zod';
 
 export async function POST(req) {
   try {
@@ -15,14 +16,17 @@ export async function POST(req) {
       return apiError('Too many login attempts. Please try again later.', 429);
     }
 
-    const body = await req.json();
-    let { rollno, dob, rememberMe } = body;
-    if (!rollno || !dob) {
-      return apiError('Missing rollno or dob', 400);
-    }
+    const json = await req.json();
 
-    // Invisible Normalization Hook
-    rollno = String(rollno).trim().toUpperCase();
+    // --- ZERO TRUST VALIDATION ---
+    const loginSchema = z.object({
+      rollno: z.string().trim().toUpperCase().min(10).max(12),
+      dob: z.string().trim().min(8).max(10), // Can be DD-MM-YYYY or YYYY-MM-DD
+      rememberMe: z.boolean().default(false)
+    });
+
+    const validatedData = loginSchema.parse(json);
+    const { rollno, dob, rememberMe } = validatedData;
     
     const rows = await db.select({
       id: students.id,
@@ -80,11 +84,6 @@ export async function POST(req) {
     // Log Security Event & Update Last Login
     const SecurityService = (await import('@/services/SecurityService')).default;
 
-    logger.info('[SECURITY_SERVICE_LOADED]', { 
-      hasUpdateLastLogin: !!SecurityService?.updateLastLogin,
-      hasLogSecurityEvent: !!SecurityService?.logSecurityEvent
-    });
-
     await SecurityService.updateLastLogin('STUDENT', student.id, ip);
     await SecurityService.logSecurityEvent({
       userType: 'STUDENT',
@@ -106,6 +105,9 @@ export async function POST(req) {
     return response;
 
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return apiError(err.errors[0].message, 400);
+    }
     logger.error(err, 'Student Login Error');
     return apiError('Server error', 500, err.message);
   }

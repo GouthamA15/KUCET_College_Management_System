@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** June 1, 2026 (Session 140)
+**Last Updated:** June 2, 2026 (Session 143)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -214,6 +214,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Edit Proceeding Date Prefill Fix:** Normalized proceeding dates into `YYYY-MM-DD` for `<input type="date">` fields so sanction/release dates populate correctly during edit mode.
 - **Modal Usability Improvements:** Reduced scroll jank (removed expensive effects) and improved readability by emphasizing key computed amounts (remaining/balance/limits) with larger, bolder typography.
 - **Lint Cleanups:** Addressed a React Hook dependency warning in the admission form to keep CI quality gates green.
+
+#### **Session 143: Zero-Trust Security & Input Sovereignty (June 2, 2026)**
+- **Massive Zod Hardening:** Implemented a project-wide 'Zero-Trust' validation layer using **Zod**. Every incoming API payload is now subjected to strict schema enforcement, length constraints, and regex-based content validation.
+- **Institutional Input Normalization:** Developed automated normalization hooks that transform and sanitize inputs before they reach the service layer. Features include **Auto-Trimming**, **Case Normalization (Roll Nos/Emails)**, and **Numeric Stripping (Mobile/Aadhaar)**.
+- **Hardenened Administrative Routes:** Overhauled core management APIs (Clerk Creation, Student Updates, Admission Finalization) to reject malformed or suspicious data with granular, descriptive error messages.
+- **Transactional Consistency:** Standardized the use of `getNow()` (IST) and institutional encryption standards across all newly hardened routes, ensuring a consistent and secure audit trail.
+- **Zero-Trust for Staff:** Applied the same rigorous constraints to high-privilege staff accounts, preventing accidental database corruption or privilege escalation through malformed administrative requests.
 
 #### **Session 142: Quality Sovereignty & Testing Milestone (June 2, 2026)**
 - **80% Coverage Threshold Met:** Successfully reached the institutional quality gate for unit testing. The codebase now maintains **88%+ line coverage** and **80%+ branch coverage** across all core services (`SecurityService`, `IdempotencyService`, `ValidationService`, `StudentService`, `FacultyService`).

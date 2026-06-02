@@ -11,6 +11,8 @@ import {
 import { eq, or } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { validateRollNo } from '@/lib/rollNumber';
+import { getNow } from '@/lib/clock';
+import { z } from 'zod';
 
 export async function POST(req, context) {
   const user = await getAuthUser('clerk');
@@ -21,12 +23,17 @@ export async function POST(req, context) {
   try {
     const params = await context.params;
     const id = parseInt(params.id);
-    const { roll_no, admission_date } = await req.json();
-    const rollNo = String(roll_no || '').trim().toUpperCase();
+    const json = await req.json();
 
-    if (!rollNo) {
-      return apiError('Roll number is required', 400);
-    }
+    // Validate with Zod
+    const finalizeSchema = z.object({
+      roll_no: z.string().trim().toUpperCase().min(10),
+      admission_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+    });
+
+    const validatedData = finalizeSchema.parse(json);
+    const rollNo = validatedData.roll_no;
+    const admissionDateInput = validatedData.admission_date;
 
     const parsed = validateRollNo(rollNo);
     if (!parsed.isValid) {
@@ -70,6 +77,8 @@ export async function POST(req, context) {
         throw new Error('STUDENT_EXISTS');
       }
 
+      const now = getNow();
+
       // 3. Insert into students table
       const [studentResult] = await tx.insert(studentsTable).values({
         admission_no: null,
@@ -82,8 +91,8 @@ export async function POST(req, context) {
         email: draft.email,
         added_by_clerk_id: user.clerkId || user.id,
         fee_reimbursement: draft.fee_reimbursement === 'YES' ? 'YES' : 'NO',
-        admission_date: admission_date ? new Date(admission_date) : (draft.admission_date ? new Date(draft.admission_date) : new Date()),
-        created_at: new Date()
+        admission_date: admissionDateInput ? new Date(admissionDateInput) : (draft.admission_date ? new Date(draft.admission_date) : now),
+        created_at: now
       });
 
       const studentId = studentResult.insertId;
@@ -147,6 +156,9 @@ export async function POST(req, context) {
     return apiResponse({ success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' });
 
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors[0].message, 400);
+    }
     if (error.message === 'DRAFT_NOT_FOUND') return apiError('Draft not found', 404);
     if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);
     if (error.message === 'STUDENT_EXISTS') return apiError('A student with this Roll No or Email already exists.', 409);
