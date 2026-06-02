@@ -20,10 +20,10 @@ export class DeviceService {
     else if (/opr|opera/i.test(ua)) browser = 'Opera';
 
     // OS Detection
-    if (/windows/i.test(ua)) os = 'Windows';
-    else if (/macintosh|mac os x/i.test(ua)) os = 'macOS';
-    else if (/android/i.test(ua)) os = 'Android';
+    if (/android/i.test(ua)) os = 'Android';
     else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
+    else if (/windows/i.test(ua)) os = 'Windows';
+    else if (/macintosh|mac os x/i.test(ua)) os = 'macOS';
     else if (/linux/i.test(ua)) os = 'Linux';
 
     // Device Type

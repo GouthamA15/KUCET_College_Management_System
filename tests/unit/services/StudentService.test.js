@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StudentService } from '@/services/StudentService';
 import { db } from '@/db';
 import { students as studentsTable } from '@/db/schema';
-import { encrypt, hashForIndex } from '@/lib/encryption';
+import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
 
 // Mock dependencies
 vi.mock('@/db', () => ({
@@ -16,6 +16,7 @@ vi.mock('@/db', () => ({
 vi.mock('@/lib/encryption', () => ({
   encrypt: vi.fn((val) => `encrypted_${val}`),
   hashForIndex: vi.fn((val) => `hash_${val}`),
+  decrypt: vi.fn((val) => `decrypted_${val}`),
 }));
 
 describe('StudentService', () => {
@@ -41,6 +42,58 @@ describe('StudentService', () => {
       expect(db.select).toHaveBeenCalled();
       expect(mockSelect.from).toHaveBeenCalledWith(studentsTable);
       expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('Normalization', () => {
+    it('should normalize roll number', () => {
+      expect(StudentService.normalizeRollNo(' 22567t0901 ')).toBe('22567T0901');
+      expect(StudentService.normalizeRollNo(null)).toBe('');
+    });
+
+    it('should normalize mobile', () => {
+      expect(StudentService.normalizeMobile('987-654-3210')).toBe('9876543210');
+      expect(StudentService.normalizeMobile(null)).toBe('');
+    });
+
+    it('should normalize Aadhaar', () => {
+      expect(StudentService.normalizeAadhaar('1234 5678 9012')).toBe('123456789012');
+      expect(StudentService.normalizeAadhaar(null)).toBe('');
+    });
+  });
+
+  describe('getFullStudentDataForExport', () => {
+    it('should throw error if params missing', async () => {
+      await expect(StudentService.getFullStudentDataForExport()).rejects.toThrow();
+    });
+
+    it('should fetch joined data and decrypt', async () => {
+      const mockResults = [
+        { roll_no: '22567T0901', mobile: 'encrypted_9876543210', aadhaar_no: 'encrypted_123456789012' }
+      ];
+      const mockSelect = {
+        from: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(mockResults),
+      };
+      db.select.mockReturnValue(mockSelect);
+
+      decrypt.mockReturnValue('decrypted_val');
+
+      const results = await StudentService.getFullStudentDataForExport('2022-26', '09');
+      expect(results[0].mobile).toBe('decrypted_val');
+      expect(db.select).toHaveBeenCalled();
+    });
+
+    it('should handle null sensitive fields in export', async () => {
+      const mockResults = [{ roll_no: '22567T0901', mobile: null, aadhaar_no: null }];
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(mockResults),
+      });
+      const results = await StudentService.getFullStudentDataForExport('2022-26', '09');
+      expect(results[0].mobile).toBeNull();
     });
   });
 

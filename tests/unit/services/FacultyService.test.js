@@ -6,6 +6,7 @@ import { db } from '@/db';
 vi.mock('@/db', () => ({
   db: {
     select: vi.fn(),
+    update: vi.fn(),
   },
 }));
 
@@ -89,6 +90,34 @@ describe('FacultyService', () => {
       db.select.mockReturnValue(mockSelect);
 
       await expect(FacultyService.getFacultyLoad('2025-26')).rejects.toThrow('Database error');
+    });
+  });
+
+  describe('updateMarkAtomic', () => {
+    it('should update marks with optimistic locking', async () => {
+      const mockUpdate = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]),
+      };
+      db.update.mockReturnValue(mockUpdate);
+
+      const success = await FacultyService.updateMarkAtomic(1, { internal_marks: 20 }, 0);
+      expect(success).toBe(true);
+      expect(db.update).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateTimetableAtomic', () => {
+    it('should update timetable with optimistic locking', async () => {
+      const mockUpdate = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]),
+      };
+      db.update.mockReturnValue(mockUpdate);
+
+      const success = await FacultyService.updateTimetableAtomic(1, { subject_code: 'CS101' }, 0);
+      expect(success).toBe(true);
+      expect(db.update).toHaveBeenCalled();
     });
   });
 });
