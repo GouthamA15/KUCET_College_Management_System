@@ -45,61 +45,28 @@ const STATIC_ASSETS = [
 export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   if (!path) return '';
   
-  const originalPath = path;
-
   // 1. Handle data URIs and already-correct absolute URLs from other domains
   if (path.startsWith('data:') || (path.startsWith('http') && !path.includes('cloudinary.com'))) {
     return path;
   }
 
-  // 2. Relativize absolute Cloudinary URLs for backward compatibility
-  if (path.startsWith('http') && path.includes('cloudinary.com')) {
-    const parts = path.split('/upload/');
-    if (parts.length >= 2) {
-      let relativePath = parts[1].replace(/^v\d+\//, ''); 
-      if (relativePath.includes('/')) {
-        const segments = relativePath.split('/');
-        if (segments[0].includes(',')) {
-          relativePath = segments.slice(1).join('/');
-        }
-      }
-      path = relativePath;
-    }
-  }
-
-  // 3. Ensure we are working with a relative path now
-  if (path.startsWith('http')) return path;
-
-  // 4. Preserve root-relative URLs (starting with /)
-  if (path.startsWith('/') && !path.startsWith('/api/assets/view/')) {
-    return path;
-  }
-
-  // 5. Normalize the path
+  // 2. Normalize path and check for static assets
   const cleanPath = path.startsWith('/') ? path.substring(1) : path;
   const normalizedPath = `/${cleanPath}`;
 
-  // 6. Handle Static Assets (Only if no custom transformations are requested)
   if (STATIC_ASSETS.includes(normalizedPath) && transformations === 'f_auto,q_auto') {
     return normalizedPath;
   }
 
-  // 7. Strategy: Local VPS Storage (Secure Proxy)
-  if (process.env.NEXT_PUBLIC_STORAGE_TYPE === 'local') {
-    return `/api/assets/view/${cleanPath}`;
+  // 3. Strategy: External Provider
+  try {
+    const { getStorageProvider } = require('./providers/storage/factory');
+    const storage = getStorageProvider();
+    return storage.getUrl(path, { transformations });
+  } catch (err) {
+    // Fallback if provider not available (shouldn't happen in production)
+    return normalizedPath;
   }
-
-  // 8. Strategy: Cloudinary
-  const extension = cleanPath.split('.').pop().toLowerCase();
-  let resourceType = 'image';
-  if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
-    resourceType = 'video';
-  } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
-    resourceType = 'raw';
-  }
-
-  const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
-  return `https://res.cloudinary.com/${CLOUD_NAME}/${resourceType}/upload/${transformations}/${finalPath}`;
 }
 
 export default getAssetUrl;

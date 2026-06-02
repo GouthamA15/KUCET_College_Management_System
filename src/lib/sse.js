@@ -39,47 +39,16 @@ if (REDIS_URL) {
 
 /**
  * Broadcasts a message to ALL connected clients.
- * Uses Redis if available (VPS mode), falling back to Supabase (Cloud mode).
+ * Uses the configured realtime provider.
  * @param {string} type - Event type (e.g., 'TIMETABLE_CHANGED', 'SESSION_STARTED')
  * @param {Object} payload - Data associated with the event
  */
 export async function broadcastUpdate(type, payload = {}) {
-  const data = {
-    ...payload,
-    type, // Ensure type is in the root for easier parsing
-    timestamp: Date.now()
-  };
-
-  // Strategy A: Redis (VPS)
-  if (redis) {
-    try {
-      // Use the channel name expected by the socket-server.js
-      await redis.publish('attendance-sync', JSON.stringify(data));
-      logger.info({ type }, '[REDIS_BROADCAST_SUCCESS]');
-    } catch (err) {
-      logger.error(err, '[REDIS_BROADCAST_EXCEPTION]');
-    }
-  }
-
-  // Strategy B: Supabase (Vercel/Cloud)
-  if (supabase) {
-    try {
-      const channel = supabase.channel('kucet-updates');
-      // Subscribe to the channel before sending
-      await channel.subscribe();
-      await channel.send({
-        type: 'broadcast',
-        event: type,
-        payload: data
-      });
-      logger.info({ type }, '[SUPABASE_BROADCAST_SUCCESS]');
-    } catch (err) {
-      logger.error(err, '[SUPABASE_BROADCAST_EXCEPTION]');
-    }
-  }
-
-  if (!redis && !supabase) {
-    logger.warn('[REALTIME_BROADCAST_SKIPPED] No messaging hub configured (Redis/Supabase)');
+  try {
+    const { realtime } = await import('./providers');
+    await realtime.broadcast(type, payload);
+  } catch (err) {
+    logger.error(err, '[REALTIME_BROADCAST_EXCEPTION]');
   }
 }
 
