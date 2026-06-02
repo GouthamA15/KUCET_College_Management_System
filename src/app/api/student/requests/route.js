@@ -11,6 +11,7 @@ import { getResolvedCurrentAcademicYear } from "@/lib/rollNumber";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import IdempotencyService from '@/services/IdempotencyService';
 
 export async function GET(request) {
   try {
@@ -52,10 +53,22 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const user = await getAuthUser("student");
+  if (!user || !user.student_id || !user.roll_no) return apiError("Unauthorized", 401);
+
+  const idempotencyKey = request.headers.get('idempotency-key');
+  let idempotencyStarted = false;
+
   let requestId;
   try {
-    const user = await getAuthUser("student");
-    if (!user || !user.student_id || !user.roll_no) return apiError("Unauthorized", 401);
+    if (idempotencyKey) {
+      const { isDuplicate, response, code } = await IdempotencyService.start(idempotencyKey);
+      if (isDuplicate) {
+        logger.info({ key: idempotencyKey }, '[IDEMPOTENCY_HIT] Returning cached response for certificate request');
+        return apiResponse(response, code || 200);
+      }
+      idempotencyStarted = true;
+    }
 
     const s = await db.query.students.findFirst({
       columns: {
@@ -113,7 +126,7 @@ export async function POST(request) {
           from_date: fromDateStr || null,
           to_date: toDateStr || null,
           status: 'PENDING',
-          updated_at: sql`NOW()`,
+          updated_at: now,
           completed_at: null
         })
         .where(eq(studentRequests.request_id, requestId));
@@ -149,21 +162,15 @@ export async function POST(request) {
     // formData.get returns a File object in Next.js
     const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
     
-    logger.info(`Processing certificate request: ${certificateType}. File valid: ${isFileValid}`);
-
     if (isFileValid) {
       const MAX_SIZE = 1 * 1024 * 1024;
       if (paymentScreenshotFile.size > MAX_SIZE) {
-        logger.warn(`File size limit exceeded: ${paymentScreenshotFile.size} bytes`);
         return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);
       }
 
-      logger.info(`Uploading to Cloudinary... File type: ${paymentScreenshotFile.type}`);
       const screenshotUrl = await uploadToCloudinary(paymentScreenshotFile, "certificates/payments");
-      logger.info(`Cloudinary upload result: ${screenshotUrl ? 'Success' : 'Failed'}`);
       
       if (screenshotUrl) {
-        // Update dedicated images table
         await db.insert(studentRequestImages)
           .values({
             request_id: requestId,
@@ -171,22 +178,21 @@ export async function POST(request) {
           })
           .onDuplicateKeyUpdate({ set: { payment_screenshot: screenshotUrl } });
         
-        // Update legacy column in main requests table
         await db.update(studentRequests)
           .set({ payment_screenshot: screenshotUrl })
           .where(eq(studentRequests.request_id, requestId));
-        
-        logger.info(`Database records updated with screenshot URL: ${requestId}`);
       }
     }
 
-    return apiResponse({ success: true, requestId });
+    const responseData = { success: true, requestId };
+    if (idempotencyStarted) {
+      await IdempotencyService.complete(idempotencyKey, 200, responseData);
+    }
+
+    return apiResponse(responseData);
   } catch (error) {
-    logger.error({
-      message: error.message,
-      stack: error.stack,
-      requestId: requestId // This will be the ID if already created
-    }, 'Error processing certificate request');
+    if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
+    logger.error('Error processing certificate request:', error);
     if (error.code === "ER_DUP_ENTRY") return apiError("Duplicate request detected.", 409);
     return apiError("Internal Server Error", 500);
   }

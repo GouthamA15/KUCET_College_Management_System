@@ -7,12 +7,25 @@ import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getYearlyTotalFee } from '@/lib/financial-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { calculateExpectedRTF } from '@/lib/scholarship-utils';
+import IdempotencyService from '@/services/IdempotencyService';
 
 export async function POST(req) {
   const user = await getAuthUser('clerk');
   if (!user) return apiError('Unauthorized', 401);
 
+  const idempotencyKey = req.headers.get('idempotency-key');
+  let idempotencyStarted = false;
+
   try {
+    if (idempotencyKey) {
+      const { isDuplicate, response, code } = await IdempotencyService.start(idempotencyKey);
+      if (isDuplicate) {
+        logger.info({ key: idempotencyKey }, '[IDEMPOTENCY_HIT] Returning cached response for payment');
+        return apiResponse(response, code || 201);
+      }
+      idempotencyStarted = true;
+    }
+
     const body = await req.json();
 
     if (process.env.NODE_ENV === 'development') {
@@ -71,11 +84,6 @@ export async function POST(req) {
 
         logger.info(`[Payment API] Course fee detected: ${totalCourseFee}`);
 
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Payment API] Student reimbursement status: ${reimbursementStatus}`);
-          console.log(`[Payment API] Course fee detected: ${totalCourseFee}`);
-        }
-
         // Fetch existing payments for this year (SUM) inside transaction
         const existingPayments = await tx.select({ total: sql`SUM(amount)` })
           .from(studentFeePayments)
@@ -87,27 +95,13 @@ export async function POST(req) {
         const currentPaidTotal = Number(existingPayments?.[0]?.total || 0);
         const finalPaidTotal = currentPaidTotal + amount;
 
-        logger.info(`[Payment API] Existing payment total: ${currentPaidTotal}`);
-        logger.info(`[Payment API] New calculated total: ${finalPaidTotal}`);
-        logger.info(`[Payment API] Allowed payable limit: ${allowedPayableLimit}`);
-
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[Payment API] Existing payment total: ${currentPaidTotal}`);
-          console.log(`[Payment API] New calculated total: ${finalPaidTotal}`);
-          console.log(`[Payment API] Allowed payable limit: ${allowedPayableLimit}`);
-        }
-
         if (finalPaidTotal > allowedPayableLimit) {
           logger.warn('[Payment API] Payment rejected due to overflow');
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[Payment API] Payment rejected due to overflow');
-          }
           const err = new Error('Payment exceeds allowed payable limit.');
           err.code = 'PAYMENT_LIMIT_EXCEEDED';
           throw err;
         }
 
-        if (process.env.NODE_ENV === 'development') logger.info('[Scholarship Payment API] Inserting new payment row');
         const [insertResult] = await tx.insert(studentFeePayments).values({
           student_id: student.id,
           academic_year: academic_year,
@@ -121,9 +115,7 @@ export async function POST(req) {
         return insertResult.insertId;
     });
 
-    if (process.env.NODE_ENV === 'development') console.log('[Scholarship Payment API] Transaction committed successfully');
-
-    return apiResponse({
+    const responseData = {
       id: resultId,
       student_id: student.id,
       academic_year,
@@ -132,9 +124,16 @@ export async function POST(req) {
       transaction_date,
       payment_mode,
       bank_name,
-    }, 201);
+    };
+
+    if (idempotencyStarted) {
+      await IdempotencyService.complete(idempotencyKey, 201, responseData);
+    }
+
+    return apiResponse(responseData, 201);
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') console.error('[Scholarship Payment API] FATAL ERROR:', error.message);
+    if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
+    
     logger.error('Error inserting payment:', error);
 
     if (error?.code === 'PAYMENT_LIMIT_EXCEEDED' || error?.message === 'Payment exceeds allowed payable limit.') {

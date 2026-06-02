@@ -518,6 +518,19 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   tokenIdx: index('idx_session_token').on(table.session_token),
 }));
 
+export const idempotencyKeys = mysqlTable('idempotency_keys', {
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  idempotency_key: varchar('idempotency_key', { length: 255 }).notNull(),
+  status: mysqlEnum('status', ['STARTED', 'COMPLETED', 'FAILED']).default('STARTED').notNull(),
+  response_code: int('response_code'),
+  response_body: json('response_body'),
+  created_at: timestamp('created_at').defaultNow(),
+  expires_at: timestamp('expires_at').notNull(),
+}, (table) => ({
+  keyIdx: uniqueIndex('uq_idempotency_key').on(table.idempotency_key),
+  expiryIdx: index('idx_idempotency_expiry').on(table.expires_at),
+}));
+
 export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
   id: int('id').autoincrement().primaryKey().notNull(),
   session_id: int('session_id').notNull(),

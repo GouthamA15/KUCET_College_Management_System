@@ -1,11 +1,13 @@
 import RealtimeProvider from './RealtimeProvider';
 import logger from '@/lib/logger';
+import { getBreaker } from '@/lib/utils/CircuitBreaker';
 
 export default class RedisRealtimeProvider extends RealtimeProvider {
   constructor(url) {
     super();
     this.url = url;
     this.redis = null;
+    this.breaker = getBreaker('RedisRealtime');
   }
 
   async init() {
@@ -23,22 +25,25 @@ export default class RedisRealtimeProvider extends RealtimeProvider {
   }
 
   async broadcast(type, payload) {
-    await this.init();
-    if (!this.redis) {
-      logger.warn('[REDIS_BROADCAST_SKIPPED] Redis not configured');
-      return;
-    }
+    return await this.breaker.execute(async () => {
+      await this.init();
+      if (!this.redis) {
+        logger.warn('[REDIS_BROADCAST_SKIPPED] Redis not configured');
+        return;
+      }
 
-    try {
-      const data = {
-        ...payload,
-        type,
-        timestamp: Date.now()
-      };
-      await this.redis.publish('attendance-sync', JSON.stringify(data));
-      logger.info({ type }, '[REDIS_BROADCAST_SUCCESS]');
-    } catch (err) {
-      logger.error(err, '[REDIS_BROADCAST_EXCEPTION]');
-    }
+      try {
+        const data = {
+          ...payload,
+          type,
+          timestamp: Date.now()
+        };
+        await this.redis.publish('attendance-sync', JSON.stringify(data));
+        logger.info({ type }, '[REDIS_BROADCAST_SUCCESS]');
+      } catch (err) {
+        logger.error(err, '[REDIS_BROADCAST_EXCEPTION]');
+        throw err; // Re-throw for circuit breaker
+      }
+    });
   }
 }

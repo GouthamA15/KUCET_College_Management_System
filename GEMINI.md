@@ -215,6 +215,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Modal Usability Improvements:** Reduced scroll jank (removed expensive effects) and improved readability by emphasizing key computed amounts (remaining/balance/limits) with larger, bolder typography.
 - **Lint Cleanups:** Addressed a React Hook dependency warning in the admission form to keep CI quality gates green.
 
+#### **Session 140: Extreme Robustness & Financial Idempotency (June 2, 2026)**
+- **Circuit Breaker Implementation:** Integrated a centralized `CircuitBreaker` utility to protect the application from cascading failures. External service providers (Email, Supabase, Redis) are now wrapped in breakers that "open" after 5 consecutive failures, preventing request hangs and enabling graceful degradation.
+- **Financial Idempotency Registry:** Developed an `IdempotencyService` backed by a new `idempotency_keys` database table. This infrastructure guarantees that high-stakes financial transactions (Scholarship Payments, Sanctions, Certificate Fees) are processed exactly once, even in the event of network retries or accidental double-clicks.
+- **Transactional Idempotency Guards:** Implemented idempotency checks in mission-critical API routes. The system now tracks `STARTED`, `COMPLETED`, and `FAILED` states for each unique key, providing cached responses for duplicate successful requests and allowing safe retries for failed ones.
+- **Provider-Level Resilience:** Refactored the `BrevoEmailProvider`, `SupabaseRealtimeProvider`, and `RedisRealtimeProvider` to automatically participate in the circuit breaker lifecycle, ensuring 100% uptime perception for the core portal logic during external outages.
+- **Production Sovereignty:** Verified the robustness overhaul with a full production build and validated the idempotency handshake through automated unit testing.
+
 #### **Session 139: Architectural Flexibility & Provider Sovereignty (June 2, 2026)**
 - **Provider-Based Dependency Injection:** Overhauled the external integration architecture by implementing a **Strategy Pattern** for Email, Storage, and Realtime services.
 - **Infrastructure Agnosticism:** Decoupled business logic from specific third-party providers. The system now utilizes abstract `Provider` interfaces and a `ProviderFactory` system, allowing for seamless switching between Brevo/SES (Email), Cloudinary/Local (Storage), and Redis/Supabase (Realtime) via environment variables.

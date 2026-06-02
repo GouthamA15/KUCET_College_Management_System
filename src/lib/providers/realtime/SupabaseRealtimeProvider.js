@@ -1,5 +1,6 @@
 import RealtimeProvider from './RealtimeProvider';
 import logger from '@/lib/logger';
+import { getBreaker } from '@/lib/utils/CircuitBreaker';
 
 export default class SupabaseRealtimeProvider extends RealtimeProvider {
   constructor(url, key) {
@@ -7,6 +8,7 @@ export default class SupabaseRealtimeProvider extends RealtimeProvider {
     this.url = url;
     this.key = key;
     this.supabase = null;
+    this.breaker = getBreaker('SupabaseRealtime');
   }
 
   async init() {
@@ -22,29 +24,32 @@ export default class SupabaseRealtimeProvider extends RealtimeProvider {
   }
 
   async broadcast(type, payload) {
-    await this.init();
-    if (!this.supabase) {
-      logger.warn('[SUPABASE_BROADCAST_SKIPPED] Supabase not configured');
-      return;
-    }
+    return await this.breaker.execute(async () => {
+      await this.init();
+      if (!this.supabase) {
+        logger.warn('[SUPABASE_BROADCAST_SKIPPED] Supabase not configured');
+        return;
+      }
 
-    try {
-      const data = {
-        ...payload,
-        type,
-        timestamp: Date.now()
-      };
+      try {
+        const data = {
+          ...payload,
+          type,
+          timestamp: Date.now()
+        };
 
-      const channel = this.supabase.channel('kucet-updates');
-      await channel.subscribe();
-      await channel.send({
-        type: 'broadcast',
-        event: type,
-        payload: data
-      });
-      logger.info({ type }, '[SUPABASE_BROADCAST_SUCCESS]');
-    } catch (err) {
-      logger.error(err, '[SUPABASE_BROADCAST_EXCEPTION]');
-    }
+        const channel = this.supabase.channel('kucet-updates');
+        await channel.subscribe();
+        await channel.send({
+          type: 'broadcast',
+          event: type,
+          payload: data
+        });
+        logger.info({ type }, '[SUPABASE_BROADCAST_SUCCESS]');
+      } catch (err) {
+        logger.error(err, '[SUPABASE_BROADCAST_EXCEPTION]');
+        throw err; // Re-throw for circuit breaker
+      }
+    });
   }
 }

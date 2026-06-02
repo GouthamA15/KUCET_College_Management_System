@@ -9,6 +9,7 @@ import { sendInstitutionalEmail } from '@/lib/email';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { getYearlyTotalFee } from '@/lib/financial-utils';
 import { calculateExpectedRTF } from '@/lib/scholarship-utils';
+import IdempotencyService from '@/services/IdempotencyService';
 
 const toNull = (v) => (!v || String(v).trim() === '') ? null : String(v).trim();
 
@@ -16,7 +17,19 @@ export async function POST(req) {
   const user = await getAuthUser('clerk');
   if (!user) return apiError('Unauthorized', 401);
 
+  const idempotencyKey = req.headers.get('idempotency-key');
+  let idempotencyStarted = false;
+
   try {
+    if (idempotencyKey) {
+      const { isDuplicate, response, code } = await IdempotencyService.start(idempotencyKey);
+      if (isDuplicate) {
+        logger.info({ key: idempotencyKey }, '[IDEMPOTENCY_HIT] Returning cached response for sanction');
+        return apiResponse(response, code || 200);
+      }
+      idempotencyStarted = true;
+    }
+
     const body = await req.json();
     
     // GUARANTEED TERMINAL VISIBILITY & INVESTIGATION LOGS
@@ -93,9 +106,6 @@ export async function POST(req) {
     // ELIGIBILITY GUARD
     if (String(student.fee_reimbursement).toUpperCase() !== 'YES') {
       logger.warn(`[Scholarship Validation] Rejected: proceedings not allowed for non-reimbursement student ${roll_no}`);
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`[Scholarship Validation] Rejected: proceedings not allowed for non-reimbursement student ${roll_no}`);
-      }
       return apiError('Scholarship proceedings are not allowed for non-reimbursement students.', 400);
     }
 
@@ -112,7 +122,6 @@ export async function POST(req) {
             windowOpen = true;
           }
         }
-        if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Window evaluated. Open: ${windowOpen}`);
       } catch (e) {
         console.error('[Scholarship API] Window evaluation failed:', e);
       }
@@ -142,24 +151,11 @@ export async function POST(req) {
       const finalSanctionedTotal = otherSanctionsTotal + (status === 'REJECTED' ? 0 : (sanctioned_amount || 0));
       const finalReleasedTotal = otherReleasedTotal + (status === 'REJECTED' ? 0 : (released_amount || 0));
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[Scholarship Validation] Existing Sanctioned: ${otherSanctionsTotal}, Incoming: ${sanctioned_amount}, Status: ${status}, Final: ${finalSanctionedTotal}`);
-        console.log(`[Scholarship Validation] Existing Released: ${otherReleasedTotal}, Incoming: ${released_amount}, Status: ${status}, Final: ${finalReleasedTotal}`);
-      }
-
       if (status !== 'REJECTED' && sanctioned_amount !== null && finalSanctionedTotal > GOVT_ELIGIBLE_CAP) {
-        if (process.env.NODE_ENV === 'development') {
-          logger.warn(`[Scholarship Validation] Total sanctioned exceeded. Final: ${finalSanctionedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
-          console.warn(`[Scholarship Validation] Total sanctioned exceeded. Final: ${finalSanctionedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
-        }
         throw new Error(`Scholarship sanctioned total exceeds ₹${GOVT_ELIGIBLE_CAP.toLocaleString()} government limit.`);
       }
 
       if (status !== 'REJECTED' && released_amount !== null && finalReleasedTotal > GOVT_ELIGIBLE_CAP) {
-        if (process.env.NODE_ENV === 'development') {
-          logger.warn(`[Scholarship Validation] Released amount exceeded. Final: ${finalReleasedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
-          console.warn(`[Scholarship Validation] Released amount exceeded. Final: ${finalReleasedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
-        }
         throw new Error(`Scholarship released total exceeds ₹${GOVT_ELIGIBLE_CAP.toLocaleString()} government limit.`);
       }
 
@@ -178,7 +174,6 @@ export async function POST(req) {
       if (providedProceeding) {
         const existingRow = existing.find(r => String(r.proceeding_no || '') === providedProceeding) || null;
         if (existingRow) {
-          if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Updating existing proceeding ID: ${existingRow.id}`);
           await tx.update(scholarshipSanctions)
             .set({ 
               sanctioned_amount: sanctioned_amount !== null ? String(sanctioned_amount) : null, 
@@ -193,7 +188,6 @@ export async function POST(req) {
         } else {
           const baseRow = existing.find(r => !r.proceeding_no) || null;
           if (baseRow) {
-            if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Converting base row ID: ${baseRow.id} to proceeding`);
             await tx.update(scholarshipSanctions)
               .set({ 
                 proceeding_no: providedProceeding, 
@@ -207,7 +201,6 @@ export async function POST(req) {
               .where(eq(scholarshipSanctions.id, baseRow.id));
             targetRowId = baseRow.id;
           } else {
-            if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Inserting new proceeding row');
             const [ins] = await tx.insert(scholarshipSanctions).values({
               student_id: student.id,
               academic_year: academic_year,
@@ -226,15 +219,12 @@ export async function POST(req) {
       } else {
         const baseRow = existing.find(r => !r.proceeding_no) || null;
         if (baseRow) {
-          if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Updating base row ID: ${baseRow.id}`);
           if (providedApp) await tx.update(scholarshipSanctions).set({ application_no: providedApp, status: status }).where(eq(scholarshipSanctions.id, baseRow.id));
           targetRowId = baseRow.id;
         } else if (existing.length > 0) {
-          if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Syncing application_no to all proceedings');
           if (providedApp) await tx.update(scholarshipSanctions).set({ application_no: providedApp }).where(and(eq(scholarshipSanctions.student_id, student.id), eq(scholarshipSanctions.academic_year, academic_year)));
           targetRowId = existing[0].id;
         } else {
-          if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Inserting initial base row');
           const [ins] = await tx.insert(scholarshipSanctions).values({ student_id: student.id, academic_year: academic_year, application_no: providedApp, status: status });
           targetRowId = ins.insertId;
           isNewInsert = true;
@@ -254,15 +244,18 @@ export async function POST(req) {
       return { targetRowId, isNewInsert, windowOpen, providedHardcopyFlag, prevHardcopy, providedThumbFlag, providedThumbStatus, prevThumbAvailable, prevThumbStatus, providedApp, existing };
     });
 
-    // EMAIL TRIGGERS (OUTSIDE TRANSACTION TO AVOID LOCKING)
-    const { windowOpen, providedHardcopyFlag, prevHardcopy, providedThumbFlag, providedThumbStatus, prevThumbAvailable, prevThumbStatus, providedApp, existing } = result;
+    const { targetRowId, isNewInsert } = result;
+    const responseData = { id: targetRowId, success: true };
 
+    if (idempotencyStarted) {
+      await IdempotencyService.complete(idempotencyKey, isNewInsert ? 201 : 200, responseData);
+    }
+
+    // EMAIL TRIGGERS (OUTSIDE TRANSACTION)
+    const { windowOpen, providedHardcopyFlag, prevHardcopy, providedThumbFlag, providedThumbStatus, prevThumbAvailable, prevThumbStatus, providedApp, existing } = result;
     if (windowOpen && student.email && student.is_email_verified) {
         const currentApp = providedApp || (existing.find(r => r.application_no)?.application_no);
-        
-        // Trigger 1: Hardcopy Required
         if (currentApp && providedHardcopyFlag === 0 && !prevHardcopy) {
-            if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Triggering Hardcopy Email');
             try {
                 const subject = 'Scholarship Hard Copy Submission Required';
                 await sendInstitutionalEmail({
@@ -272,13 +265,9 @@ export async function POST(req) {
                     bodyHtml: `<p>Dear ${student.name},</p><p>Your scholarship application (${currentApp}) has been recorded. Please submit the hard copy documents to the scholarship office immediately.</p>`,
                     infoRows: [{ label: 'App No', value: currentApp }, { label: 'Year', value: academic_year }]
                 });
-                if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Hardcopy Email Sent');
             } catch (err) { console.error('[Scholarship API] Hardcopy Email Failed:', err); }
         }
-
-        // Trigger 2: Thumb Verification Required
         if (providedThumbFlag === 1 && providedThumbStatus === 'PENDING' && (!prevThumbAvailable || prevThumbStatus !== 'PENDING')) {
-            if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Triggering Thumb Email');
             try {
                 const subject = 'Scholarship Thumb Verification Required';
                 await sendInstitutionalEmail({
@@ -288,24 +277,17 @@ export async function POST(req) {
                     bodyHtml: `<p>Dear ${student.name},</p><p>Your application (${currentApp || ''}) requires biometric (thumb) verification. Please visit a Mee-Seva center soon.</p>`,
                     infoRows: [{ label: 'App No', value: currentApp || 'N/A' }, { label: 'Year', value: academic_year }]
                 });
-                if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Thumb Email Sent');
             } catch (err) { console.error('[Scholarship API] Thumb Email Failed:', err); }
         }
-    } else {
-        if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Email skipped. Window: ${windowOpen}, Verified Email: ${!!(student.email && student.is_email_verified)}`);
     }
 
-    if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Transaction committed successfully');
-    return apiResponse({ id: result.targetRowId, success: true }, result.isNewInsert ? 201 : 200);
+    return apiResponse(responseData, isNewInsert ? 201 : 200);
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') console.error('[Scholarship API] FATAL ERROR:', error.message);
+    if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
     logger.error('Error inserting sanction:', error);
-    
-    // Distinguish between validation errors and internal errors
     if (error.message.includes('Scholarship sanctioned total exceeds') || error.message.includes('Scholarship released total exceeds')) {
       return apiError(error.message, 400);
     }
-
     return apiError('Internal Server Error', 500);
   }
 }
