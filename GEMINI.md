@@ -215,6 +215,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Modal Usability Improvements:** Reduced scroll jank (removed expensive effects) and improved readability by emphasizing key computed amounts (remaining/balance/limits) with larger, bolder typography.
 - **Lint Cleanups:** Addressed a React Hook dependency warning in the admission form to keep CI quality gates green.
 
+#### **Session 138: Security Sovereignty & Session Orchestration (June 2, 2026)**
+- **Real-Time Session Tracking:** Implemented a robust `user_sessions` architecture that tracks active logins across all roles. The system now captures device heuristics (Browser, OS, Device Type) and IP-based location data for every active session.
+- **Security Event Engine:** Developed a centralized `SecurityService` to log mission-critical events (Successful Logins, Password Changes, Email Verifications). Integrated automated **Institutional Email Alerts** that notify users of critical account modifications in real-time.
+- **Active Session Management (Remote Revocation):** Launched a specialized **Security Center** for students and staff. Users can now view all active devices and perform **Remote Revocations** (logging out specific devices) or "Revoke All Other Sessions" to secure compromised accounts.
+- **Silent Refresh Persistence:** Hardened the middleware and auth-utils to maintain session continuity during silent token rotation. The system now intelligently updates the active `user_session` record on every refresh, ensuring "Current Device" status and activity tracking remain accurate.
+- **Account Activation Pipeline:** Implemented a mandatory multi-stage activation workflow for new students. Features include institutional email verification (OTP-based) and standardized password strength enforcement before full dashboard access is granted.
+- **Security Notifications Hub:** Integrated a dedicated notification system for security-specific alerts (e.g., "New Device Login Detected"). Features real-time Supabase broadcasting to update unread counts instantly.
+- **Time Management Standardization:** Sanitized the security and authentication modules to exclusively use the `getNow()` IST clock, ensuring accurate audit logs and expiration checks across all server environments.
+
 #### **Session 137: Automated Quality Gates & CI/CD Hardening (May 28, 2026)**
 - **Hardened Quality Gates:** Overhauled the ESLint configuration (`eslint.config.mjs`) to enforce strict "no-undef" rules, preventing production crashes caused by missing imports or ReferenceErrors.
 - **CI/CD Blockers:** Updated the GitHub Actions workflow (`ci.yml`) to act as a mandatory quality gate. Removed lenient "continue-on-error" flags; the pipeline now strictly blocks deployments if Linting, Production Build, or Unit/E2E tests fail.
