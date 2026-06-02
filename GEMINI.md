@@ -215,6 +215,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Modal Usability Improvements:** Reduced scroll jank (removed expensive effects) and improved readability by emphasizing key computed amounts (remaining/balance/limits) with larger, bolder typography.
 - **Lint Cleanups:** Addressed a React Hook dependency warning in the admission form to keep CI quality gates green.
 
+#### **Session 141: Fraud Detection & 'Integrity Guard' (June 2, 2026)**
+- **Cryptographic Proof Fingerprinting:** Implemented a SHA-256-based "Integrity Guard" for student certificate requests. The system now generates a unique digital fingerprint for every payment screenshot uploaded, allowing for instant detection of duplicate image data.
+- **Multi-Vector Conflict Detection:** Re-engineered the request processing pipeline to scan the entire registry for recycled evidence. Conflict checks now cover both **Transaction ID collisions** and **Screenshot Hash matches** across different student accounts.
+- **Clerk Fraud Alerts:** Developed a "Red Zone" UI for the Clerk dashboard. Flagged requests now display a pulsing rose-colored warning icon in the registry and a detailed "Conflict Detected" alert in the audit modal, showing precisely who originally used the evidence.
+- **Silent Flagging Architecture:** Implemented a "Silent Guard" strategy. The system accepts suspicious requests without alerting the submitter, preventing them from attempting alternative tampered versions while providing clerks with full auditability.
+- **Transactional Consistency:** Integrated the fraud detection logic into the database schema via `is_flagged`, `flag_details`, and `payment_hash` fields, ensuring permanent traceability of suspicious activity.
+
 #### **Session 140: Extreme Robustness & Financial Idempotency (June 2, 2026)**
 - **Circuit Breaker Implementation:** Integrated a centralized `CircuitBreaker` utility to protect the application from cascading failures. External service providers (Email, Supabase, Redis) are now wrapped in breakers that "open" after 5 consecutive failures, preventing request hangs and enabling graceful degradation.
 - **Financial Idempotency Registry:** Developed an `IdempotencyService` backed by a new `idempotency_keys` database table. This infrastructure guarantees that high-stakes financial transactions (Scholarship Payments, Sanctions, Certificate Fees) are processed exactly once, even in the event of network retries or accidental double-clicks.

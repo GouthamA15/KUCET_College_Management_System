@@ -6,51 +6,13 @@ import {
   collegeInfo as collegeInfoTable,
   studentRequestImages
 } from "@/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, or } from "drizzle-orm";
 import { getResolvedCurrentAcademicYear } from "@/lib/rollNumber";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import IdempotencyService from '@/services/IdempotencyService';
-
-export async function GET(request) {
-  try {
-    const user = await getAuthUser("student");
-    if (!user || !user.student_id) return apiError("Unauthorized", 401);
-
-    const s = await db.query.students.findFirst({
-      columns: {
-        email: true,
-        is_email_verified: true,
-        password_hash: true
-      },
-      where: eq(students.id, user.student_id)
-    });
-
-    if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
-      return apiError("Verification required", 403);
-    }
-
-    const rows = await db.select({
-      request_id: studentRequests.request_id,
-      certificate_type: studentRequests.certificate_type,
-      status: studentRequests.status,
-      academic_year: studentRequests.academic_year,
-      created_at: studentRequests.created_at,
-      reject_reason: studentRequests.reject_reason,
-      roll_number: students.roll_no
-    })
-    .from(studentRequests)
-    .innerJoin(students, eq(studentRequests.student_id, students.id))
-    .where(eq(studentRequests.student_id, user.student_id))
-    .orderBy(desc(studentRequests.created_at));
-
-    return apiResponse({ data: rows });
-  } catch (error) {
-    logger.error("Error fetching student requests:", error);
-    return apiError("Failed to fetch requests", 500);
-  }
-}
+import crypto from 'crypto';
 
 export async function POST(request) {
   const user = await getAuthUser("student");
@@ -87,7 +49,7 @@ export async function POST(request) {
     const certificateType = formData.get("certificateType");
     const clerkType = formData.get("clerkType");
     const paymentAmount = formData.get("paymentAmount");
-    const transactionId = formData.get("transactionId");
+    const transactionId = formData.get("transactionId")?.toString().trim();
     const purpose = formData.get("purpose");
     const fromDateStr = formData.get("fromDate");
     const toDateStr = formData.get("toDate");
@@ -101,6 +63,58 @@ export async function POST(request) {
     const now = await getNow();
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeRows[0], now);
+
+    // --- INTEGRITY GUARD: Multi-Vector Conflict Check ---
+    let isFlagged = false;
+    let flagDetails = null;
+    let paymentHash = null;
+
+    // A. Transaction ID Conflict
+    if (transactionId) {
+      const conflictTrans = await db.query.studentRequests.findFirst({
+        where: and(
+          eq(studentRequests.transaction_id, transactionId),
+          sql`${studentRequests.status} != 'REJECTED'`
+        ),
+        with: { student: { columns: { roll_no: true } } }
+      });
+
+      if (conflictTrans && conflictTrans.student_id !== user.student_id) {
+        isFlagged = true;
+        flagDetails = {
+          type: 'TRANSACTION_ID_CONFLICT',
+          conflict_roll_no: conflictTrans.student.roll_no,
+          conflict_request_id: conflictTrans.request_id,
+          conflict_date: conflictTrans.created_at
+        };
+      }
+    }
+
+    // B. Screenshot Hash Conflict (Fingerprinting)
+    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
+    if (isFileValid) {
+      const buffer = Buffer.from(await paymentScreenshotFile.arrayBuffer());
+      paymentHash = crypto.createHash('sha256').update(buffer).digest('hex');
+
+      const conflictHash = await db.query.studentRequests.findFirst({
+        where: and(
+          eq(studentRequests.payment_hash, paymentHash),
+          sql`${studentRequests.status} != 'REJECTED'`
+        ),
+        with: { student: { columns: { roll_no: true } } }
+      });
+
+      if (conflictHash && conflictHash.student_id !== user.student_id) {
+        isFlagged = true;
+        flagDetails = {
+          ...(flagDetails || {}),
+          hash_conflict: true,
+          conflict_roll_no: conflictHash.student.roll_no,
+          conflict_request_id: conflictHash.request_id,
+          conflict_date: conflictHash.created_at
+        };
+      }
+    }
 
     // Check existing
     const existing = await db.query.studentRequests.findFirst({
@@ -127,7 +141,10 @@ export async function POST(request) {
           to_date: toDateStr || null,
           status: 'PENDING',
           updated_at: now,
-          completed_at: null
+          completed_at: null,
+          is_flagged: isFlagged,
+          flag_details: flagDetails,
+          payment_hash: paymentHash
         })
         .where(eq(studentRequests.request_id, requestId));
     } else {
@@ -141,7 +158,10 @@ export async function POST(request) {
         purpose: purpose || null,
         from_date: fromDateStr ? new Date(fromDateStr) : null,
         to_date: toDateStr ? new Date(toDateStr) : null,
-        status: 'PENDING'
+        status: 'PENDING',
+        is_flagged: isFlagged,
+        flag_details: flagDetails,
+        payment_hash: paymentHash
       });
       requestId = result[0].insertId;
 
@@ -152,16 +172,14 @@ export async function POST(request) {
           clerkType,
           certificateType,
           student_id: user.student_id,
-          roll_no: user.roll_no
+          roll_no: user.roll_no,
+          is_flagged: isFlagged
         });
       } catch (e) {
         logger.error('SSE Broadcast error:', e);
       }
     }
 
-    // formData.get returns a File object in Next.js
-    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
-    
     if (isFileValid) {
       const MAX_SIZE = 1 * 1024 * 1024;
       if (paymentScreenshotFile.size > MAX_SIZE) {
@@ -184,7 +202,7 @@ export async function POST(request) {
       }
     }
 
-    const responseData = { success: true, requestId };
+    const responseData = { success: true, requestId, is_flagged: isFlagged };
     if (idempotencyStarted) {
       await IdempotencyService.complete(idempotencyKey, 200, responseData);
     }

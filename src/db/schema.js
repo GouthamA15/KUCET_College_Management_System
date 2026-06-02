@@ -346,10 +346,15 @@ export const studentRequests = mysqlTable('student_requests', {
   generated_attendance: varchar('generated_attendance', { length: 10 }),
   action_by_clerk_id: int('action_by_clerk_id'),
   action_by_role: varchar('action_by_role', { length: 50 }),
+  is_flagged: boolean('is_flagged').default(false),
+  flag_details: json('flag_details'),
+  payment_hash: varchar('payment_hash', { length: 64 }),
 }, (table) => ({
   genCertIdx: index('idx_gen_cert_id').on(table.generated_certificate_id),
   studentIdx: index('idx_sr_student').on(table.student_id),
   statusIdx: index('idx_sr_status').on(table.status),
+  hashIdx: index('idx_sr_payment_hash').on(table.payment_hash),
+  transIdx: index('idx_sr_transaction').on(table.transaction_id),
 }));
 
 export const studentRequestImages = mysqlTable('student_request_images', {

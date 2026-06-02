@@ -65,7 +65,10 @@ export async function GET(request) {
         updated_at: studentRequests.updated_at,
         reject_reason: studentRequests.reject_reason,
         action_by_clerk_id: studentRequests.action_by_clerk_id,
-        action_by_role: studentRequests.action_by_role
+        action_by_role: studentRequests.action_by_role,
+        is_flagged: studentRequests.is_flagged,
+        flag_details: studentRequests.flag_details,
+        payment_hash: studentRequests.payment_hash
       })
       .from(studentRequests)
       .innerJoin(students, eq(studentRequests.student_id, students.id))
@@ -103,7 +106,10 @@ export async function GET(request) {
         payment_screenshot: studentRequests.payment_screenshot,
         purpose: studentRequests.purpose,
         academic_year: studentRequests.academic_year,
-        created_at: studentRequests.created_at
+        created_at: studentRequests.created_at,
+        is_flagged: studentRequests.is_flagged,
+        flag_details: studentRequests.flag_details,
+        payment_hash: studentRequests.payment_hash
       })
       .from(studentRequests)
       .innerJoin(students, eq(studentRequests.student_id, students.id))
