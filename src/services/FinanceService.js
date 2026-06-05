@@ -82,7 +82,13 @@ export class FinanceService {
           date: studentRequests.created_at,
           reference: studentRequests.transaction_id,
           status: studentRequests.status,
-          details: sql`json_object('cert_type', ${studentRequests.certificate_type})`
+          details: sql`json_object(
+            'cert_type', ${studentRequests.certificate_type}, 
+            'completed_at', ${studentRequests.completed_at},
+            'action_by_clerk_id', ${studentRequests.action_by_clerk_id},
+            'action_by_role', ${studentRequests.action_by_role},
+            'reject_reason', ${studentRequests.reject_reason}
+          )`
         })
         .from(studentRequests)
         .leftJoin(students, eq(studentRequests.student_id, students.id));
