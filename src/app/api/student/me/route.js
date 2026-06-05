@@ -1,18 +1,12 @@
 import { db } from '@/db';
 import { students, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { apiError, wrapHandler } from '@/lib/api-utils';
 import { decrypt } from '@/lib/encryption';
-import logger from '@/lib/logger';
 
-export async function GET(req) {
-  try {
-    const user = await getAuthUser('student');
-
-    if (!user) {
-      return apiError('Unauthorized', 401);
-    }
-
+export const GET = wrapHandler({
+  auth: 'student',
+  handler: async (req, { user }) => {
     // Fetch full profile to decrypt sensitive fields
     const profile = await db.select({
       student: students,
@@ -30,7 +24,7 @@ export async function GET(req) {
     const { student, personal } = profile[0];
 
     // Decrypt fields
-    const decryptedData = {
+    return {
       ...student,
       mobile: decrypt(student.mobile),
       personal_details: personal ? {
@@ -39,10 +33,5 @@ export async function GET(req) {
         aadhaar_no: decrypt(personal.aadhaar_no)
       } : null
     };
-
-    return apiResponse(decryptedData);
-  } catch (error) {
-    logger.error(error, 'API /student/me error');
-    return apiError('Internal Server Error', 500);
   }
-}
+});

@@ -109,7 +109,10 @@ export function wrapHandler({ handler, schema, auth, audit }) {
         // 4. Handle Response
         const response = result instanceof NextResponse ? result : apiResponse(result);
 
-        // 5. Audit Logging (If successful and configured)
+        // 5. Inject Trace ID into headers for debugging
+        response.headers.set('x-trace-id', traceId);
+
+        // 6. Audit Logging (If successful and configured)
         if (audit && response.status >= 200 && response.status < 300) {
           // Run audit in background to not block response
           logAudit(req, {
