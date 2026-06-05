@@ -101,11 +101,16 @@ export function calculateFinancialSummary(data, course, student = {}) {
   };
 }
 
-  export const formatIndianNumber = (digits) => {
-  if (!digits) return '';
-  const s = String(digits).replace(/\D/g, '');
-  if (s.length <= 3) return s;
-  const last3 = s.slice(-3);
-  const rest = s.slice(0, -3);
-  return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
-  };
+export const formatIndianNumber = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  
+  // Convert string to float to handle decimals safely
+  const num = parseFloat(value);
+  if (isNaN(num)) return String(value);
+
+  // Use the native Intl API for robust Indian numbering system (Lakhs/Crores)
+  return new Intl.NumberFormat('en-IN', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0
+  }).format(num);
+};
