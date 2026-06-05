@@ -12,7 +12,7 @@ export function getYearlyTotalFee(course) {
 }
 
 /**
- * Calculates the expected scholarship amount from the government based on TS ePASS rules (including GO Rt No. 63).
+ * Calculates the expected scholarship amount from the government based on TG ePASS rules (including GO Rt No. 63).
  * @param {Object} student - Student details (requires fee_reimbursement, category, religion, ranks, seat_allotted_category)
  * @param {number} totalFee - The yearly total fee for the student's branch (e.g., 70000)
  * @returns {number} - The expected government scholarship amount (e.g., 35000 or 70000)
@@ -36,7 +36,7 @@ export function getExpectedScholarship(student, totalFee) {
   const religion = String(student?.religion || '').toUpperCase();
   
   // 4. Rule for SC/ST/Minority (GO Rt No. 63)
-  // These categories get FULL fee reimbursement (RTF) regardless of their EAMCET/ECET rank.
+  // These categories get FULL fee reimbursement (RTF) regardless of their TG EAPCET/TG ECET rank.
   if (['SC', 'ST'].includes(category)) return totalFee;
   
   const minorityReligions = ['MUSLIM', 'CHRISTIAN', 'SIKH', 'BUDDHIST', 'JAIN', 'PARSI'];

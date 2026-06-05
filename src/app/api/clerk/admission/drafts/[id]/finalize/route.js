@@ -59,7 +59,7 @@ export async function POST(req, context) {
       if (String(parsed.branch).toUpperCase() !== String(draft.branch).toUpperCase()) {
         throw new Error('ROLL_BRANCH_MISMATCH');
       }
-      const expectedType = String(draft.entrance_exam).toUpperCase() === 'ECET' ? 'Lateral' : 'Regular';
+      const expectedType = String(draft.entrance_exam).toUpperCase() === 'TG ECET' ? 'Lateral' : 'Regular';
       if (String(parsed.admissionType) !== expectedType) {
         throw new Error('ROLL_TYPE_MISMATCH');
       }

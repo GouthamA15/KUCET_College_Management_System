@@ -115,7 +115,7 @@ describe('StudentService', () => {
         name: 'John Doe',
         mobile: '9876543210',
         aadhaar_no: '123456789012',
-        qualifying_exam: 'EAMCET'
+        qualifying_exam: 'TG EAPCET'
       };
 
       const resultId = await StudentService.createStudent(studentData, 1);

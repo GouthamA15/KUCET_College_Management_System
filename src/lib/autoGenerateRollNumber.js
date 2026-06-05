@@ -4,8 +4,8 @@ import { branchCodes, validateRollNo } from '@/lib/rollNumber';
 
 function getAdmissionSymbol(examType) {
   const t = String(examType || '').trim().toUpperCase();
-  if (t === 'EAMCET') return 'T';
-  if (t === 'ECET') return 'L';
+  if (t === 'TG EAPCET') return 'T';
+  if (t === 'TG ECET') return 'L';
   throw new Error(`Unsupported examType: ${examType}`);
 }
 
@@ -76,7 +76,7 @@ function validateGeneratedRollNumber(rollNo, { expectedBranch, expectedExamType 
 
   if (expectedExamType) {
     const exam = String(expectedExamType).toUpperCase();
-    const expectedAdmissionType = exam === 'ECET' ? 'Lateral' : 'Regular';
+    const expectedAdmissionType = (exam === 'TG ECET') ? 'Lateral' : 'Regular';
     if (String(parsed.admissionType) !== expectedAdmissionType) {
       return { isValid: false, error: `Admission type mismatch (expected ${expectedAdmissionType})` };
     }

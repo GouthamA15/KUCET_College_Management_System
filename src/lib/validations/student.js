@@ -64,7 +64,7 @@ export const studentCreateSchema = z.object({
     .optional()
     .or(z.literal('')),
   address: z.string().trim().max(1000).optional().or(z.literal('')),
-  qualifying_exam: z.enum(['EAMCET', 'ECET', 'PGECET', 'Other']).optional().or(z.literal('')),
+  qualifying_exam: z.enum(['TG EAPCET', 'TG ECET', 'PGECET', 'Other']).optional().or(z.literal('')),
 });
 
 /**

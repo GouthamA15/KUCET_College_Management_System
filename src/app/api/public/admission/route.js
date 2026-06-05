@@ -24,7 +24,7 @@ export async function POST(req) {
     const admissionSchema = z.object({
       name: z.string().trim().min(3).max(255).regex(/^[a-zA-Z\s.]+$/),
       admission_year: z.string().regex(/^\d{4}-\d{2}$/),
-      entrance_exam: z.enum(['EAMCET', 'ECET', 'PGECET', 'Other']),
+      entrance_exam: z.enum(['TG EAPCET', 'TG ECET', 'PGECET', 'Other']),
       branch: z.string().trim().min(2).max(50),
       seat_allotted_category: z.string().trim().min(1).max(50),
       religion: z.string().trim().min(1).max(100),

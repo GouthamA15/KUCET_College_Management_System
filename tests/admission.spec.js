@@ -42,10 +42,10 @@ test.describe('Student Admission Flow', () => {
     await page.getByLabel("3. Mother's Name (as per memo)").fill('TEST MOTHER');
     
     // Selection
-    await page.getByLabel('4. Entrance Exam & Branch').first().selectOption('EAMCET');
+    await page.getByLabel('4. Entrance Exam & Branch').first().selectOption('TG EAPCET');
     await page.getByLabel('Branch', { exact: true }).selectOption({ label: 'CSE' });
     
-    await page.getByLabel('5. ECET / EAMCET Rank Details').fill('1234');
+    await page.getByLabel('5. TG ECET / TG EAPCET Rank Details').fill('1234');
     await page.getByLabel('8. Sub Caste').fill('TEST CASTE');
     await page.getByLabel('9. Seat Allotted Category').fill('OC_GEN_UR');
     
@@ -55,7 +55,7 @@ test.describe('Student Admission Flow', () => {
     await page.getByLabel('13. Religion').selectOption('HINDU');
     await page.getByLabel('14. Mother Tongue').fill('TELUGU');
     await page.getByLabel('16. SSC / 10th Marks').fill('950');
-    await page.getByLabel('17. Intermediate (for EAMCET) / Diploma (for ECET) Marks').fill('900');
+    await page.getByLabel('17. Intermediate (for TG EAPCET) / Diploma (for TG ECET) Marks').fill('900');
     
     // Nationality
     await page.getByLabel('12. Nationality').fill('INDIAN');

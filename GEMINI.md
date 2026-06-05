@@ -336,11 +336,11 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Relational Integrity:** Updated the database queries in both API routes to perform `leftJoin`s with `student_personal_details` and `student_academic_background` to fetch the required categorical and academic data (Category, Religion, Rank, Seat Type) necessary for accurate RTF evaluation.
 
 #### **Session 132: Minority Scholarship Logic & Admission Workflow Excellence (May 27, 2026)**
-- **TS ePASS Minority Logic Implementation:** Re-engineered the scholarship engine to align with GO Rt No. 63. Minority (Muslim, Christian, etc.) and SC/ST students now receive full fee reimbursement regardless of EAMCET/ECET rank, provided they are in the Convener Quota.
+- **TG ePASS Minority Logic Implementation:** Re-engineered the scholarship engine to align with GO Rt No. 63. Minority (Muslim, Christian, etc.) and SC/ST students now receive full fee reimbursement regardless of TG EAPCET/TG ECET rank, provided they are in the Convener Quota.
 - **Standardized Religion Registry:** Introduced a validated institutional religion registry (`COLLEGE_CONFIG.religions`). Transitioned the Religion field from free-text to a dropdown across the Public Admission Form, Clerk Student Management, and Profile Update portals to eliminate data entry errors.
 - **Admission Modal Componentization:** Refactored the heavy `AdmissionModal` from the Requests Center into a shared component (`AdmissionModal.js`). This enables a consistent auditing experience across different administrative workspaces.
 - **Finalization Workspace Hardening:** Enhanced the Admission Finalization page with "View/Edit" and "Issue Rejection" (Delete) capabilities for processed drafts. Clerks can now audit and correct applicant data directly from the roll-number assignment registry, ensuring 100% data integrity before final record creation.
-- **ECET Batch Continuity:** Implemented the institutional roll-number continuity rule for Lateral Entry (ECET). For Laterals joining in Year Y, the system now intelligently continues the serial sequence from Regular (EAMCET) students who joined in Year Y-1, ensuring serial numbers are merged correctly within the same academic batch (e.g., ECET 26...L continues from EAMCET 25...T).
+- **TG ECET Batch Continuity:** Implemented the institutional roll-number continuity rule for Lateral Entry (TG ECET). For Laterals joining in Year Y, the system now intelligently continues the serial sequence from Regular (TG EAPCET) students who joined in Year Y-1, ensuring serial numbers are merged correctly within the same academic batch (e.g., TG ECET 26...L continues from TG EAPCET 25...T).
 - **Test Alignment:** Updated Playwright E2E tests to accommodate the transition from text inputs to select dropdowns for religious identification.
 
 #### **Session 131: Production Build Resilience & API Sovereignty (May 24, 2026)**
@@ -447,8 +447,8 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Resolved a critical bug in `getNextSerialNumber` where the system searched across all historical records for a branch, causing serial numbers to continue from previous batches instead of resetting per year.
     - Implemented **Year-Specific Counting**: The generation engine now strictly filters by the 2-digit entry year, ensuring each new intake starts from serial `01`.
     - Integrated **Type-Aware Counters**: Separated serial lookups for Regular (`T`) and Lateral (`L`) students, allowing independent numbering sequences within the same branch and year.
-- **Lateral Entry (ECET) Intelligence:**
-    - Automated the **One-Year Entry Offset** for Lateral students. The system now correctly detects ECET intake and increments the joining year by 1 (e.g., Batch 2024 -> Entry 2025 -> Roll Prefix `25`), aligning with the institutional batch-sync logic where Laterals join directly into the 2nd year.
+- **Lateral Entry (TG ECET) Intelligence:**
+    - Automated the **One-Year Entry Offset** for Lateral students. The system now correctly detects TG ECET intake and increments the joining year by 1 (e.g., Batch 2024 -> Entry 2025 -> Roll Prefix `25`), aligning with the institutional batch-sync logic where Laterals join directly into the 2nd year.
 - **API & Registry Synchronization:**
     - Updated the `/api/admissions/generate-roll-number` route and the Admission Finalization frontend to support multi-parameter generation (Branch, Exam, Year, Type).
     - Verified that generated roll numbers strictly adhere to the patterns parsed by `src/lib/rollNumber.js`, ensuring system-wide compatibility for academic year and semester calculations.

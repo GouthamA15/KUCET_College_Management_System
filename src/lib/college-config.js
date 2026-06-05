@@ -6,9 +6,9 @@ export const COLLEGE_CONFIG = {
   pincode: "506009",
   contact: "0870-2970125",
   entranceCodes: {
-    pgecet: "KUWL1",
-    eapcet: "KUWL",
-    ecet: "KUWL"
+    tgpgecet: "KUWL1",
+    tgeapcet: "KUWL",
+    tgecet: "KUWL"
   },
   branches: [
     { code: '09', name: 'CSE' },

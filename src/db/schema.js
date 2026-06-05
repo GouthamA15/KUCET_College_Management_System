@@ -13,7 +13,7 @@ export const collegeInfo = mysqlTable('college_info', {
   location: varchar('location', { length: 100 }).default('Warangal'),
   pincode: varchar('pincode', { length: 10 }).default('506009'),
   contact: varchar('contact', { length: 100 }).default('0870-2970125'),
-  entrance_codes: json('entrance_codes'), // stores { pgecet, eapcet, ecet }
+  entrance_codes: json('entrance_codes'), // stores { tgpgecet, tgeapcet, tgecet }
   branches: json('branches'), // stores array of { code, name }
   categories: json('categories'), // array of strings
   annual_incomes: json('annual_incomes'), // array of strings

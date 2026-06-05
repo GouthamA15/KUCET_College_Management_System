@@ -146,7 +146,7 @@ export default function ConfigManager() {
            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Institutional Entrance Codes</span>
         </div>
         <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
-           {['pgecet', 'eapcet', 'ecet'].map(exam => (
+           {['tgpgecet', 'tgeapcet', 'tgecet'].map(exam => (
              <div key={exam} className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{exam} Code</label>
                 <input 

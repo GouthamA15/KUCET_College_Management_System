@@ -10,7 +10,7 @@ import { formatIndianNumber } from '@/lib/financial-utils';
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
     const [form, setForm] = useState({
-        entrance_exam: 'EAMCET',
+        entrance_exam: 'TG EAPCET',
         branch: 'CSE',
         name: '',
         father_name: '',
@@ -114,9 +114,9 @@ const AdmissionPage = () => {
     useEffect(() => {
         const id = setTimeout(() => {
             const year = getIntakeYear();
-            if (form.entrance_exam === 'EAMCET') {
+            if (form.entrance_exam === 'TG EAPCET') {
                 setAdmissionYear(`${year}-${year + 4}`);
-            } else if (form.entrance_exam === 'ECET') {
+            } else if (form.entrance_exam === 'TG ECET') {
                 setAdmissionYear(`${year}-${year + 3}`);
             }
         }, 0);
@@ -266,8 +266,8 @@ const AdmissionPage = () => {
                             <label id="exam-branch-label" className={labelClasses}>4. Entrance Exam & Branch <span className="text-red-500">*</span></label>
                             <div className="grid grid-cols-2 gap-2">
                                 <select required value={form.entrance_exam} onChange={e => setForm({...form, entrance_exam: e.target.value})} className={inputClasses} aria-labelledby="exam-branch-label">
-                                    <option value="EAMCET">EAMCET</option>
-                                    <option value="ECET">ECET</option>
+                                    <option value="TG EAPCET">TG EAPCET</option>
+                                    <option value="TG ECET">TG ECET</option>
                                 </select>
                                 <select required value={form.branch} onChange={e => setForm({...form, branch: e.target.value})} className={inputClasses} aria-label="Branch">
                                     {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name}</option>)}
@@ -276,7 +276,7 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label htmlFor="exam-rank" className={labelClasses}>5. ECET / EAMCET Rank Details <span className="text-red-500">*</span></label>
+                            <label htmlFor="exam-rank" className={labelClasses}>5. TG ECET / TG EAPCET Rank Details <span className="text-red-500">*</span></label>
                             <input id="exam-rank" required type="number" min="1" max="200000" value={form.exam_rank} onChange={e => setForm({...form, exam_rank: e.target.value})} className={inputClasses} placeholder="ENTRANCE RANK" />
                         </div>
 
@@ -358,7 +358,7 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1 md:col-span-2">
-                            <label htmlFor="inter-marks" className={labelClasses}>17. Intermediate (for EAMCET) / Diploma (for ECET) Marks <span className="text-red-500">*</span></label>
+                            <label htmlFor="inter-marks" className={labelClasses}>17. Intermediate (for TG EAPCET) / Diploma (for TG ECET) Marks <span className="text-red-500">*</span></label>
                             <input id="inter-marks" required type="number" min="0" value={form.inter_diploma_marks} onChange={e => setForm({...form, inter_diploma_marks: e.target.value})} className={inputClasses} placeholder="MARKS OBTAINED" />
                         </div>
 
