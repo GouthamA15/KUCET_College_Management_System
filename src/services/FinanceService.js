@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { studentFeePayments, studentRequests, scholarshipSanctions, students } from '@/db/schema';
+import { studentFeePayments, studentRequests, scholarshipSanctions, students, clerks } from '@/db/schema';
 import { eq, sql, desc } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
@@ -58,7 +58,11 @@ export class FinanceService {
           date: studentFeePayments.transaction_date,
           reference: studentFeePayments.transaction_ref_no,
           status: sql`'SUCCESS'`,
-          details: sql`json_object('mode', ${studentFeePayments.payment_mode}, 'bank', ${studentFeePayments.bank_name})`
+          details: sql`json_object(
+            'payment_mode', ${studentFeePayments.payment_mode}, 
+            'bank_name', ${studentFeePayments.bank_name},
+            'academic_year', ${studentFeePayments.academic_year}
+          )`
         })
         .from(studentFeePayments)
         .leftJoin(students, eq(studentFeePayments.student_id, students.id));
@@ -84,14 +88,23 @@ export class FinanceService {
           status: studentRequests.status,
           details: sql`json_object(
             'cert_type', ${studentRequests.certificate_type}, 
+            'purpose', ${studentRequests.purpose},
+            'from_date', ${studentRequests.from_date},
+            'to_date', ${studentRequests.to_date},
+            'generated_cert_id', ${studentRequests.generated_certificate_id},
+            'academic_year', ${studentRequests.academic_year},
             'completed_at', ${studentRequests.completed_at},
             'action_by_clerk_id', ${studentRequests.action_by_clerk_id},
+            'action_by_clerk_name', ${clerks.name},
             'action_by_role', ${studentRequests.action_by_role},
-            'reject_reason', ${studentRequests.reject_reason}
+            'reject_reason', ${studentRequests.reject_reason},
+            'payment_screenshot', ${studentRequests.payment_screenshot},
+            'is_flagged', ${studentRequests.is_flagged}
           )`
         })
         .from(studentRequests)
-        .leftJoin(students, eq(studentRequests.student_id, students.id));
+        .leftJoin(students, eq(studentRequests.student_id, students.id))
+        .leftJoin(clerks, eq(studentRequests.action_by_clerk_id, clerks.id));
 
         if (rollNo) certQuery.where(eq(students.roll_no, rollNo));
         if (status) certQuery.where(eq(studentRequests.status, status));
@@ -112,7 +125,12 @@ export class FinanceService {
           date: scholarshipSanctions.released_date,
           reference: scholarshipSanctions.proceeding_no,
           status: scholarshipSanctions.status,
-          details: sql`json_object('app_no', ${scholarshipSanctions.application_no}, 'sanctioned', ${scholarshipSanctions.sanctioned_amount})`
+          details: sql`json_object(
+            'application_no', ${scholarshipSanctions.application_no}, 
+            'sanctioned_amount', ${scholarshipSanctions.sanctioned_amount},
+            'sanctioned_date', ${scholarshipSanctions.sanction_date},
+            'academic_year', ${scholarshipSanctions.academic_year}
+          )`
         })
         .from(scholarshipSanctions)
         .leftJoin(students, eq(scholarshipSanctions.student_id, students.id));

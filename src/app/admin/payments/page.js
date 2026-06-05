@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { formatIndianNumber } from '@/lib/financial-utils';
 import { formatDate } from '@/lib/date';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function AdminPaymentsPage() {
   const [stats, setStats] = useState(null);
@@ -15,7 +16,7 @@ export default function AdminPaymentsPage() {
   const [searchRoll, setSearchRoll] = useState('');
   
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewSrc] = useState('');
+  const [previewSrc, setPreviewSrc] = useState('');
 
   const [selectedTx, setSelectedTx] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -266,9 +267,58 @@ export default function AdminPaymentsPage() {
                            <DetailRow label="Internal Status" value={selectedTx.status} highlight />
                            
                            {/* Dynamic Fields based on Type */}
-                           {selectedTx.details && Object.entries(selectedTx.details).map(([key, val]) => (
-                               <DetailRow key={key} label={key.replace(/_/g, ' ')} value={val} />
-                           ))}
+                           {selectedTx.details && Object.entries(selectedTx.details).map(([key, val]) => {
+                               if (val === null || val === undefined) return null;
+                               
+                               if (key === 'payment_screenshot') {
+                                  return (
+                                    <div key={key} className="flex justify-between items-center py-2 border-t border-slate-100 mt-2">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase">Payment Proof</span>
+                                        <button 
+                                            onClick={() => {
+                                                setPreviewSrc(getAssetUrl(val));
+                                                setIsPreviewOpen(true);
+                                            }}
+                                            className="text-[10px] font-black uppercase tracking-widest text-[#0b3578] hover:text-blue-900 flex items-center gap-1 cursor-pointer bg-blue-50 px-3 py-1.5 rounded-sm transition-colors"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                            View Screenshot
+                                        </button>
+                                    </div>
+                                  );
+                               }
+
+                               if (key.includes('date') || key.includes('_at')) {
+                                   val = formatDate(val);
+                               }
+                               
+                               // Pretty format the key
+                               const formatKey = (k) => {
+                                  const keyMap = {
+                                    'action_by_clerk_name': 'Approved/Processed By (Name)',
+                                    'action_by_clerk_id': 'Clerk ID',
+                                    'action_by_role': 'Clerk Role',
+                                    'generated_cert_id': 'Certificate ID',
+                                    'cert_type': 'Certificate Type',
+                                    'payment_mode': 'Payment Mode',
+                                    'bank_name': 'Bank Name',
+                                    'academic_year': 'Academic Year',
+                                    'application_no': 'Scholarship App No.',
+                                    'sanctioned_amount': 'Sanctioned Amount',
+                                    'sanctioned_date': 'Sanction Date',
+                                    'bank_account_no': 'Bank Account No',
+                                    'reject_reason': 'Rejection Reason',
+                                    'is_flagged': 'Security Flag',
+                                    'purpose': 'Purpose',
+                                    'from_date': 'From Date',
+                                    'to_date': 'To Date',
+                                    'completed_at': 'Completed At'
+                                  };
+                                  return keyMap[k] || k.replace(/_/g, ' ');
+                               };
+
+                               return <DetailRow key={key} label={formatKey(key)} value={val} />;
+                           })}
                         </div>
                     </div>
 
@@ -302,8 +352,8 @@ function DetailRow({ label, value, mono, highlight }) {
     return (
         <div className="flex justify-between items-center py-1">
             <span className="text-[10px] font-bold text-slate-500 uppercase">{label}</span>
-            <span className={`text-xs ${mono ? 'font-mono' : 'font-medium'} ${highlight ? 'text-[#0b3578] font-bold uppercase' : 'text-slate-900'}`}>
-                {value}
+            <span className={`text-xs ${mono ? 'font-mono' : 'font-medium'} ${highlight ? 'text-[#0b3578] font-bold uppercase' : 'text-slate-900'} capitalize`}>
+                {String(value)}
             </span>
         </div>
     );
