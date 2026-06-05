@@ -197,6 +197,11 @@ A robust, production-ready web application built with **Next.js** for managing t
     - Engineered a high-density **Transaction Details Modal** that dynamically unpacks and elegantly formats transaction-specific JSON metadata (e.g., Bank Name, Clerk Approver Name, Security Flags).
     - Resolved a critical UI crash by fixing the `formatIndianNumber` utility. Safely parsed values as floats and utilized native `Intl.NumberFormat` to prevent artificial inflation of decimal database values.
     - Optimized database load by running aggregate financial stat queries in parallel via `Promise.all`.
+    - **Date Range Filtering:** Upgraded the `FinanceService` to support dynamic date boundaries (`startDate` / `endDate`), enabling real-time recalculation of total institutional revenue across all registries.
+- **Student Dashboard Synchronization:**
+    - Resolved a critical discrepancy between the Student Dashboard and Student Profile regarding Academic Year and Semester calculations.
+    - Injected `academic_offset_years` into the dashboard context to ensure detained or lateral entry students display the correct current term.
+    - Synchronized the dashboard to use the global `collegeInfo` configurations for accurate semester boundary detection.
 
 #### **Session 145: Unified API Orchestration & 'Thin Route' Architecture (June 5, 2026)**
 - **Unified API Wrapper (`wrapHandler`):** Engineered a high-order function in `src/lib/api-utils.js` to centralize cross-cutting concerns:
