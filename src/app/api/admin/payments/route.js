@@ -8,11 +8,13 @@ export const GET = wrapHandler({
     const type = searchParams.get('type');
     const status = searchParams.get('status');
     const rollNo = searchParams.get('rollNo');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
     const limit = parseInt(searchParams.get('limit') || '50');
 
     const [stats, transactions] = await Promise.all([
-      FinanceService.getFinancialStats(),
-      FinanceService.getAllTransactions({ type, status, rollNo, limit })
+      FinanceService.getFinancialStats({ startDate, endDate }),
+      FinanceService.getAllTransactions({ type, status, rollNo, startDate, endDate, limit })
     ]);
 
     return apiResponse({

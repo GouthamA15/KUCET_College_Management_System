@@ -14,10 +14,11 @@ export default function AdminPaymentsPage() {
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchRoll, setSearchRoll] = useState('');
-  
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewSrc, setPreviewSrc] = useState('');
-
   const [selectedTx, setSelectedTx] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
@@ -28,6 +29,8 @@ export default function AdminPaymentsPage() {
       if (filterType) params.append('type', filterType);
       if (filterStatus) params.append('status', filterStatus);
       if (searchRoll) params.append('rollNo', searchRoll);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
 
       const res = await fetch(`/api/admin/payments?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch payments');
@@ -39,7 +42,7 @@ export default function AdminPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterType, filterStatus, searchRoll]);
+  }, [filterType, filterStatus, searchRoll, startDate, endDate]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -110,47 +113,78 @@ export default function AdminPaymentsPage() {
         </div>
 
         {/* Filters & Search */}
-        <div className="flex flex-col lg:flex-row gap-4 mb-6 items-end">
-          <div className="flex-1 w-full">
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Search Student</label>
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Roll Number..."
-                value={searchRoll}
-                onChange={e => setSearchRoll(e.target.value)}
-                className="flex-1 px-3 py-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-hidden"
-              />
-              <button type="submit" className="bg-[#0b3578] text-white px-4 py-2 rounded text-xs font-bold uppercase tracking-widest hover:bg-[#0a2d66] transition-colors">Search</button>
-            </form>
-          </div>
-          
-          <div className="w-full lg:w-48">
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Payment Type</label>
-            <select 
-              value={filterType} 
-              onChange={e => setFilterType(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-hidden bg-white"
-            >
-              <option value="">All Types</option>
-              <option value="FEE">Fee Payments</option>
-              <option value="SCHOLARSHIP">Scholarships</option>
-              <option value="CERTIFICATE">Certificates</option>
-            </select>
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-end">
+            <div className="flex-1 w-full">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Search Student</label>
+              <form onSubmit={handleSearch} className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Roll Number..."
+                  value={searchRoll}
+                  onChange={e => setSearchRoll(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                />
+                <button type="submit" className="bg-[#0b3578] text-white px-4 py-2 rounded text-xs font-bold uppercase tracking-widest hover:bg-[#0a2d66] transition-colors">Search</button>
+              </form>
+            </div>
+
+            <div className="w-full lg:w-48">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Payment Type</label>
+              <select 
+                value={filterType} 
+                onChange={e => setFilterType(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+              >
+                <option value="">All Types</option>
+                <option value="FEE">Fee Payments</option>
+                <option value="SCHOLARSHIP">Scholarships</option>
+                <option value="CERTIFICATE">Certificates</option>
+              </select>
+            </div>
+
+            <div className="w-full lg:w-48">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Status</label>
+              <select 
+                value={filterStatus} 
+                onChange={e => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+              >
+                <option value="">All Statuses</option>
+                <option value="SUCCESS">Success / Released</option>
+                <option value="PENDING">Pending</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
           </div>
 
-          <div className="w-full lg:w-48">
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Status</label>
-            <select 
-              value={filterStatus} 
-              onChange={e => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-hidden bg-white"
-            >
-              <option value="">All Statuses</option>
-              <option value="SUCCESS">Success / Released</option>
-              <option value="PENDING">Pending</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
+          <div className="flex flex-col lg:flex-row gap-4 items-end">
+            <div className="w-full lg:w-48">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Start Date</label>
+              <input 
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div className="w-full lg:w-48">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">End Date</label>
+              <input 
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            { (startDate || endDate) && (
+              <button 
+                onClick={() => { setStartDate(''); setEndDate(''); }}
+                className="px-4 py-2 border border-slate-200 rounded text-xs font-bold text-slate-600 uppercase tracking-widest hover:bg-slate-50 transition-colors"
+              >
+                Clear Dates
+              </button>
+            )}
           </div>
         </div>
 

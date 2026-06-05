@@ -1,22 +1,45 @@
 import { db } from '@/db';
 import { studentFeePayments, studentRequests, scholarshipSanctions, students, clerks } from '@/db/schema';
-import { eq, sql, desc } from 'drizzle-orm';
+import { eq, sql, desc, and, gte, lte } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
 export class FinanceService {
   /**
    * Get financial summary statistics
    */
-  static async getFinancialStats() {
+  static async getFinancialStats({ startDate, endDate } = {}) {
     try {
-      const [feeRes, certRes, scholarshipRes] = await Promise.all([
-        db.select({ totalFees: sql`sum(${studentFeePayments.amount})` }).from(studentFeePayments),
-        db.select({ totalCertFees: sql`sum(${studentRequests.payment_amount})` }).from(studentRequests).where(eq(studentRequests.status, 'APPROVED')),
-        db.select({ 
-          totalSanctioned: sql`sum(${scholarshipSanctions.sanctioned_amount})`,
-          totalReleased: sql`sum(${scholarshipSanctions.released_amount})`
-        }).from(scholarshipSanctions)
-      ]);
+      const feeConditions = [];
+      const certConditions = [eq(studentRequests.status, 'APPROVED')];
+      const schConditions = [];
+
+      if (startDate) {
+        const start = new Date(startDate);
+        feeConditions.push(gte(studentFeePayments.transaction_date, start));
+        certConditions.push(gte(studentRequests.created_at, start));
+        schConditions.push(gte(scholarshipSanctions.created_at, start));
+      }
+
+      if (endDate) {
+        const end = new Date(endDate + 'T23:59:59.999Z');
+        feeConditions.push(lte(studentFeePayments.transaction_date, end));
+        certConditions.push(lte(studentRequests.created_at, end));
+        schConditions.push(lte(scholarshipSanctions.created_at, end));
+      }
+
+      const feeQuery = db.select({ totalFees: sql`sum(${studentFeePayments.amount})` }).from(studentFeePayments);
+      if (feeConditions.length > 0) feeQuery.where(and(...feeConditions));
+
+      const certQuery = db.select({ totalCertFees: sql`sum(${studentRequests.payment_amount})` }).from(studentRequests);
+      certQuery.where(and(...certConditions));
+
+      const schQuery = db.select({ 
+        totalSanctioned: sql`sum(${scholarshipSanctions.sanctioned_amount})`,
+        totalReleased: sql`sum(${scholarshipSanctions.released_amount})`
+      }).from(scholarshipSanctions);
+      if (schConditions.length > 0) schQuery.where(and(...schConditions));
+
+      const [feeRes, certRes, scholarshipRes] = await Promise.all([feeQuery, certQuery, schQuery]);
 
       const totalFees = parseFloat(feeRes[0]?.totalFees || 0);
       const totalCertFees = parseFloat(certRes[0]?.totalCertFees || 0);
@@ -39,7 +62,7 @@ export class FinanceService {
   /**
    * Get unified transaction list
    */
-  static async getAllTransactions({ type, status, rollNo, limit = 50 }) {
+  static async getAllTransactions({ type, status, rollNo, startDate, endDate, limit = 50 }) {
     try {
       // Since schema is different, we fetch separately and combine or use complex SQL.
       // For Admin oversight, separate fetches with a common structure is cleaner.
@@ -67,8 +90,11 @@ export class FinanceService {
         .from(studentFeePayments)
         .leftJoin(students, eq(studentFeePayments.student_id, students.id));
 
-        // Add filters
-        if (rollNo) feeQuery.where(eq(students.roll_no, rollNo));
+        const conditions = [];
+        if (rollNo) conditions.push(eq(students.roll_no, rollNo));
+        if (startDate) conditions.push(gte(studentFeePayments.transaction_date, new Date(startDate)));
+        if (endDate) conditions.push(lte(studentFeePayments.transaction_date, new Date(endDate + 'T23:59:59.999Z')));
+        if (conditions.length > 0) feeQuery.where(and(...conditions));
 
         const feeResults = await feeQuery.orderBy(desc(studentFeePayments.transaction_date)).limit(limit);
         transactions.push(...feeResults);
@@ -106,8 +132,12 @@ export class FinanceService {
         .leftJoin(students, eq(studentRequests.student_id, students.id))
         .leftJoin(clerks, eq(studentRequests.action_by_clerk_id, clerks.id));
 
-        if (rollNo) certQuery.where(eq(students.roll_no, rollNo));
-        if (status) certQuery.where(eq(studentRequests.status, status));
+        const conditions = [];
+        if (rollNo) conditions.push(eq(students.roll_no, rollNo));
+        if (status) conditions.push(eq(studentRequests.status, status));
+        if (startDate) conditions.push(gte(studentRequests.created_at, new Date(startDate)));
+        if (endDate) conditions.push(lte(studentRequests.created_at, new Date(endDate + 'T23:59:59.999Z')));
+        if (conditions.length > 0) certQuery.where(and(...conditions));
 
         const certResults = await certQuery.orderBy(desc(studentRequests.created_at)).limit(limit);
         transactions.push(...certResults);
@@ -135,8 +165,12 @@ export class FinanceService {
         .from(scholarshipSanctions)
         .leftJoin(students, eq(scholarshipSanctions.student_id, students.id));
 
-        if (rollNo) schQuery.where(eq(students.roll_no, rollNo));
-        if (status) schQuery.where(eq(scholarshipSanctions.status, status));
+        const conditions = [];
+        if (rollNo) conditions.push(eq(students.roll_no, rollNo));
+        if (status) conditions.push(eq(scholarshipSanctions.status, status));
+        if (startDate) conditions.push(gte(scholarshipSanctions.created_at, new Date(startDate)));
+        if (endDate) conditions.push(lte(scholarshipSanctions.created_at, new Date(endDate + 'T23:59:59.999Z')));
+        if (conditions.length > 0) schQuery.where(and(...conditions));
 
         const schResults = await schQuery.orderBy(desc(scholarshipSanctions.created_at)).limit(limit);
         transactions.push(...schResults);
