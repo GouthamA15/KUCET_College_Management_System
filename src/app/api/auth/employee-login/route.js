@@ -21,7 +21,7 @@ export async function POST(request) {
 
     // --- ZERO TRUST VALIDATION ---
     const loginSchema = z.object({
-      email: z.string().trim().email().toLowerCase(),
+      email: z.string().trim().min(1, "Email is required").toLowerCase(),
       password: z.string().min(1, "Password is required"),
       rememberMe: z.boolean().default(false)
     });
@@ -96,7 +96,7 @@ export async function POST(request) {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error(error, 'Employee Login error');
     return apiError('An internal server error occurred.', 500);

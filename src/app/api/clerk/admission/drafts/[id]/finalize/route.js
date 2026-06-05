@@ -28,7 +28,7 @@ export async function POST(req, context) {
     // Validate with Zod
     const finalizeSchema = z.object({
       roll_no: z.string().trim().toUpperCase().min(10),
-      admission_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+      admission_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal(''))
     });
 
     const validatedData = finalizeSchema.parse(json);
@@ -157,7 +157,7 @@ export async function POST(req, context) {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     if (error.message === 'DRAFT_NOT_FOUND') return apiError('Draft not found', 404);
     if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);

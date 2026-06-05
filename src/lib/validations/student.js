@@ -24,11 +24,12 @@ export const studentCreateSchema = z.object({
     .optional()
     .or(z.literal('')),
   mobile: z.string()
-    .transform((val) => val.replace(/\D/g, ''))
-    .refine((val) => val.length === 10, "Mobile number must be exactly 10 digits"),
+    .transform((val) => val?.replace(/\D/g, '') || '')
+    .refine((val) => val === '' || val.length === 10, "Mobile number must be exactly 10 digits")
+    .optional(),
   aadhaar_no: z.string()
-    .transform((val) => val.replace(/\D/g, ''))
-    .refine((val) => val.length === 0 || val.length === 12, "Aadhaar number must be exactly 12 digits")
+    .transform((val) => val?.replace(/\D/g, '') || '')
+    .refine((val) => val === '' || val.length === 12, "Aadhaar number must be exactly 12 digits")
     .optional()
     .or(z.literal('')),
   admission_no: z.string()

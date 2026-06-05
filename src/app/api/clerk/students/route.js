@@ -41,7 +41,7 @@ export async function POST(req) {
     // 1. Validate Input using Zod
     const validation = studentCreateSchema.safeParse(rawData);
     if (!validation.success) {
-      return apiError(validation.error.errors[0].message, 400);
+      return apiError(validation.error.errors?.[0]?.message || 'Invalid input data', 400);
     }
 
     const clerkId = user.clerkId || user.id;

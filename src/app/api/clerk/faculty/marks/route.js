@@ -170,18 +170,23 @@ export async function POST(request) {
     const json = await request.json();
 
     // Validate with Zod
+    const markValueSchema = z.preprocess(
+      (v) => (v === '' || v === null || v === undefined) ? null : Number(v),
+      z.number().min(0).max(100).nullable().optional()
+    );
+
     const validationSchema = z.object({
-      assignment_id: z.number().int().positive(),
+      assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
       mid_max: z.number().int().min(1).max(100).optional(),
       publish: z.boolean().default(true),
       marks_data: z.array(z.object({
         student_id: z.number().int().positive(),
-        mid1_marks: z.number().min(0).max(100).nullable().optional(),
-        mid2_marks: z.number().min(0).max(100).nullable().optional(),
-        assignment_marks: z.number().min(0).max(100).nullable().optional(),
-        lab_theory_marks: z.number().min(0).max(100).nullable().optional(),
-        lab_execution_marks: z.number().min(0).max(100).nullable().optional(),
-        lab_record_marks: z.number().min(0).max(100).nullable().optional(),
+        mid1_marks: markValueSchema,
+        mid2_marks: markValueSchema,
+        assignment_marks: markValueSchema,
+        lab_theory_marks: markValueSchema,
+        lab_execution_marks: markValueSchema,
+        lab_record_marks: markValueSchema,
         version: z.number().int().min(0).optional()
       })).min(1, "Marks data cannot be empty")
     });
@@ -353,7 +358,7 @@ export async function POST(request) {
     return apiResponse({ message: `Successfully updated ${marks_data.length} records` });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     if (error.message?.startsWith('CONCURRENCY_CONFLICT')) {
       return apiError('Concurrency Conflict: Another user has updated these marks. Please refresh and try again.', 409);

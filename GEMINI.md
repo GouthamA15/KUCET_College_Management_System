@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** June 2, 2026 (Session 143)
+**Last Updated:** June 5, 2026 (Session 144)
 
 ## Table of Contents
 1. [Project Overview](#1-project-overview)
@@ -104,23 +104,27 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Key Services:**
     - `StudentService`: Student lifecycle, registry management, and data normalization.
     - `FacultyService`: Timetable orchestration and workload analytics.
-    - `SecurityService`: Centralized engine for session revocation, new device detection, security notifications, and event logging.
-- **Benefits:**
-    - **Reusability:** Share logic between different API routes or server-side actions.
-    - **Testability:** Decouples business rules from the Next.js request/response lifecycle.
-    - **Readability:** API routes remain "thin," focusing only on authorization and request parsing.
+    - `SecurityService`: Centralized engine for session revocation, new device detection, and event logging.
+    - `ValidationService`: Institutional-grade referential integrity and dependency checkers.
+    - `IdempotencyService`: Infrastructure for processing high-stakes transactions exactly once.
 
 ### J. Shared Security Architecture
 - **Objective:** Eliminate UI and logic duplication between Student and Clerk Security Centers.
 - **Component Strategy:** Extracted functional UI sections into modular React components (`src/components/security`).
-    - `SecurityCenter`: Orchestrator for tab management and section rendering.
-    - `SecurityOverview`, `SecurityAlerts`, `SecurityActivity`, `SecuritySessions`, `SecurityAuthentication`: Pure UI components receiving data via props.
-- **Hook-Driven Logic:** All data fetching and side effects (revoking sessions, password updates, verification) are moved to custom hooks (`src/hooks/security`).
-    - `useSecurityEvents`, `useSecuritySessions`, `useSecurityNotifications`: Modular data managers.
-    - `usePasswordManagement`: Unified password update engine for both roles.
-    - `useEmailVerification`: Specialized student activation hook.
-- **Utility Centralization:** Helper functions (IP formatting, event naming, strength validation) are consolidated in `src/lib/security`.
-- **Compliance:** Page files must remain under 200 lines and contain zero `fetch` implementations, acting strictly as orchestrators.
+- **Hook-Driven Logic:** All data fetching and side effects (revoking sessions, password updates) are moved to custom hooks (`src/hooks/security`).
+
+### **K. Provider-Based Infrastructure (Dependency Injection)**
+- **Pattern:** Implemented a **Strategy Pattern** for external integrations (Email, Storage, Realtime).
+- **Agnosticism:** Business logic is decoupled from specific providers (Brevo, Cloudinary, Supabase).
+- **Factory System:** `src/lib/providers` allows swapping infrastructure via environment variables without modifying service-level code.
+
+### **L. Transactional Robustness (Circuit Breakers & Idempotency)**
+- **Circuit Breakers:** Centralized utility (`src/lib/utils/CircuitBreaker.js`) protects the app from cascading failures by instantly failing requests to downed external services.
+- **Financial Idempotency:** Uses an `idempotency_keys` registry to prevent duplicate charges or government records in scholarship and fee workflows.
+
+### **M. Fraud Detection ('Integrity Guard')**
+- **Fingerprinting:** Generates SHA-256 hashes of all payment screenshots to detect identical image data across different student accounts.
+- **Conflict Scanners:** Multi-vector checks for recycled Transaction IDs and image hashes, silently flagging suspicious requests for clerk audit.
 
 ---
 
@@ -177,6 +181,21 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (Feb-June 2026)
 
 ### June 2026
+
+#### **Session 144: Dev Environment Optimization & Zero-Trust Regression Fixes (June 5, 2026)**
+- **Dev-Fast Redis Strategy:** Optimized the `RedisRealtimeProvider` to immediately fail if Redis is unreachable in development (`NODE_ENV=development`). Disabled offline command queuing and reduced retries to zero, eliminating the 9-second blocking delay during login and other real-time broadcasts.
+- **Non-Blocking Hybrid Broadcast:** Refactored `HybridRealtimeProvider` to use `Promise.allSettled`. This ensures that a failure in one provider (e.g., offline local Redis) never blocks or crashes the main request or other healthy providers (e.g., Supabase).
+- **Staff Login Sovereignty:** Relaxed the "Zero-Trust" validation for clerk/admin login to support legacy accounts with non-standard email formats and shorter passwords (min 1 char), resolving a bug where clerks with 5-character passwords were blocked.
+- **Student Login Limit Increase:** Increased the maximum character limit for the student `dob`/password field from 10 to 255, allowing returning students with standard-length passwords to log in successfully.
+- **Faculty API Hardening:**
+    - **Attendance Enum Fix:** Synchronized the attendance status enum (`PRESENT`, `ABSENT`, `NCC`, `MEDICAL`) with the database schema, preventing "Invalid input data" errors during roll-call.
+    - **Marks Preprocessing:** Implemented numeric preprocessing for all marks fields, ensuring string inputs from HTML forms are correctly transformed before validation.
+    - **Timetable Schema Alignment:** Corrected day-of-week abbreviations (`MON`, `TUE`, etc.) and field names in the timetable validation schema.
+- **Admission & Student Registry Fixes:**
+    - **Optional Field Resilience:** Updated student validation to safely handle missing mobile/Aadhaar numbers, aligning with the nullable database schema.
+    - **Finalization Date Flexibility:** Relaxed `admission_date` validation during admission finalization to allow empty strings, ensuring smooth record creation with default timestamps.
+    - **Syllabus Type Normalization:** Standardized `subject_type` to lowercase (`theory`, `lab`) to maintain institutional database integrity.
+- **Legacy Logic Cleanup:** Sanitized `src/lib/sse.js` by removing redundant legacy Redis/Supabase initializations, fully migrating the system to the new provider-based architecture.
 
 #### **Session 140: Shared Security Center Architecture (June 1, 2026)**
 - **Shared Security Module:** Engineered a unified security architecture used by both Student and Clerk portals, eliminating duplicated logic and UI.

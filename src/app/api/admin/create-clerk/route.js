@@ -66,7 +66,7 @@ export async function POST(req) {
     return apiResponse({ success: true, clerkId: result.insertId }, 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error('Error creating clerk:', error);
     if (error.code === 'ER_DUP_ENTRY') {

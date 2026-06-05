@@ -157,7 +157,7 @@ export async function POST(req) {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error(error, 'Error saving admission draft');
     return apiError('Failed to submit application.', 500);

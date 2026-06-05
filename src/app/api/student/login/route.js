@@ -21,7 +21,7 @@ export async function POST(req) {
     // --- ZERO TRUST VALIDATION ---
     const loginSchema = z.object({
       rollno: z.string().trim().toUpperCase().min(10).max(12),
-      dob: z.string().trim().min(8).max(10), // Can be DD-MM-YYYY or YYYY-MM-DD
+      dob: z.string().trim().min(8).max(255), // Can be DOB (8-10) or Password (up to 255)
       rememberMe: z.boolean().default(false)
     });
 
@@ -106,7 +106,8 @@ export async function POST(req) {
 
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return apiError(err.errors[0].message, 400);
+      const message = err.errors?.[0]?.message || 'Invalid input data';
+      return apiError(message, 400);
     }
     logger.error(err, 'Student Login Error');
     return apiError('Server error', 500, err.message);

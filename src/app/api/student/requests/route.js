@@ -14,6 +14,23 @@ import { uploadToCloudinary } from "@/lib/cloudinary";
 import IdempotencyService from '@/services/IdempotencyService';
 import crypto from 'crypto';
 
+export async function GET() {
+  const user = await getAuthUser("student");
+  if (!user || !user.student_id) return apiError("Unauthorized", 401);
+
+  try {
+    const requests = await db.query.studentRequests.findMany({
+      where: eq(studentRequests.student_id, user.student_id),
+      orderBy: [desc(studentRequests.created_at)]
+    });
+
+    return apiResponse(requests);
+  } catch (error) {
+    logger.error('Error fetching student requests:', error);
+    return apiError("Internal Server Error", 500);
+  }
+}
+
 export async function POST(request) {
   const user = await getAuthUser("student");
   if (!user || !user.student_id || !user.roll_no) return apiError("Unauthorized", 401);

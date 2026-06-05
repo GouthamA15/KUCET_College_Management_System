@@ -1424,6 +1424,75 @@
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
+    "idempotency_keys": {
+      "name": "idempotency_keys",
+      "columns": {
+        "id": {
+          "autoincrement": true,
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "autoincrement": false,
+          "name": "idempotency_key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "default": "'STARTED'",
+          "autoincrement": false,
+          "name": "status",
+          "type": "enum('STARTED','COMPLETED','FAILED')",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "response_code": {
+          "autoincrement": false,
+          "name": "response_code",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_body": {
+          "autoincrement": false,
+          "name": "response_body",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "'CURRENT_TIMESTAMP'",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "autoincrement": false,
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "uq_idempotency_key": {
+          "name": "uq_idempotency_key",
+          "columns": [
+            "idempotency_key"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
     "otp_codes": {
       "name": "otp_codes",
       "columns": {
@@ -1582,6 +1651,27 @@
           "default": "'CURRENT_TIMESTAMP'",
           "autoincrement": false,
           "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_login_at": {
+          "autoincrement": false,
+          "name": "last_login_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_login_ip": {
+          "autoincrement": false,
+          "name": "last_login_ip",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password_changed_at": {
+          "autoincrement": false,
+          "name": "password_changed_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
@@ -1963,30 +2053,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "indexes": {
-        "idx_user": {
-          "name": "idx_user",
-          "columns": [
-            "user_type",
-            "user_id"
-          ],
-          "isUnique": false
-        },
-        "idx_event_type": {
-          "name": "idx_event_type",
-          "columns": [
-            "event_type"
-          ],
-          "isUnique": false
-        },
-        "idx_created_at": {
-          "name": "idx_created_at",
-          "columns": [
-            "created_at"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "uniqueConstraints": {},
       "checkConstraint": {}
@@ -2055,23 +2122,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "indexes": {
-        "idx_user": {
-          "name": "idx_user",
-          "columns": [
-            "user_type",
-            "user_id"
-          ],
-          "isUnique": false
-        },
-        "idx_read": {
-          "name": "idx_read",
-          "columns": [
-            "is_read"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "uniqueConstraints": {},
       "checkConstraint": {}
@@ -2848,7 +2899,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "indexes": {},
+      "indexes": {
+        "uq_marks_student_assignment": {
+          "name": "uq_marks_student_assignment",
+          "columns": [
+            "student_id",
+            "assignment_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "uniqueConstraints": {},
       "checkConstraint": {}
@@ -3256,6 +3316,28 @@
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false
+        },
+        "is_flagged": {
+          "default": 0,
+          "autoincrement": false,
+          "name": "is_flagged",
+          "type": "tinyint(1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "flag_details": {
+          "autoincrement": false,
+          "name": "flag_details",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_hash": {
+          "autoincrement": false,
+          "name": "payment_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "compositePrimaryKeys": {},
@@ -3264,6 +3346,13 @@
           "name": "idx_gen_cert_id",
           "columns": [
             "generated_certificate_id"
+          ],
+          "isUnique": false
+        },
+        "idx_sr_payment_hash": {
+          "name": "idx_sr_payment_hash",
+          "columns": [
+            "payment_hash"
           ],
           "isUnique": false
         }
@@ -3505,6 +3594,13 @@
             "mobile_hash"
           ],
           "isUnique": false
+        },
+        "uq_students_roll_no": {
+          "name": "uq_students_roll_no",
+          "columns": [
+            "roll_no"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
@@ -3717,24 +3813,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "indexes": {
-        "idx_user": {
-          "name": "idx_user",
-          "columns": [
-            "user_type",
-            "user_id"
-          ],
-          "isUnique": false
-        },
-        "idx_active": {
-          "name": "idx_active",
-          "columns": [
-            "is_revoked",
-            "last_seen_at"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "uniqueConstraints": {},
       "checkConstraint": {}

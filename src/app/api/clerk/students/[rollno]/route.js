@@ -121,7 +121,7 @@ export async function PUT(req, context) {
     // 1. Validate Input using Zod
     const validation = studentUpdateSchema.safeParse(body);
     if (!validation.success) {
-      return apiError(validation.error.errors[0].message, 400);
+      return apiError(validation.error.errors?.[0]?.message || 'Invalid input data', 400);
     }
 
     const validatedData = validation.data;

@@ -67,7 +67,7 @@ export async function POST(req) {
     return apiResponse({ success: true, message: 'Profile updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error('Error updating clerk profile:', error);
     return apiError('Internal Server Error', 500, error.message);
