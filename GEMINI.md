@@ -182,6 +182,22 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### June 2026
 
+#### **Session 146: Global Naming Refactoring & Financial Oversight (June 5, 2026)**
+- **Telangana Naming Schema Modernization:** Executed a comprehensive global refactoring to transition the institutional platform from legacy entrance exam naming conventions to the current state standards.
+    - Replaced all instances of `TS EAMCET` with **`TG EAPCET`** and `TS ECET` with **`TG ECET`**.
+    - Updated UI labels, validation schemas, backend logic (roll number generation), and test suites.
+    - Executed a surgical database migration to update existing records in `student_admission_drafts`, `student_academic_background`, and `college_info`.
+- **Request Lifecycle Monitoring (Tracing):**
+    - Integrated `AsyncLocalStorage` and `pino` to automatically generate and inject a unique `traceId` into every API log line, enabling end-to-end traceability of individual user requests.
+    - Injected the `x-trace-id` into HTTP response headers for frontend correlation.
+    - Implemented real-time **Performance Profiling** within the `wrapHandler` that automatically flags API routes exceeding a 500ms response threshold with `[API_SLOW_PERFORMANCE]` warnings.
+- **Admin Payment Management (Financial Command Unit):**
+    - Developed the `FinanceService` to aggregate cross-table financial data, providing a unified view of Student Fees, Certificate Payments, and Scholarship Disbursements.
+    - Implemented a centralized **Admin Payments Dashboard** (`/admin/payments`) protected by Super Admin credentials, featuring multi-vector filtering (Type, Status, Roll Number).
+    - Engineered a high-density **Transaction Details Modal** that dynamically unpacks and elegantly formats transaction-specific JSON metadata (e.g., Bank Name, Clerk Approver Name, Security Flags).
+    - Resolved a critical UI crash by fixing the `formatIndianNumber` utility. Safely parsed values as floats and utilized native `Intl.NumberFormat` to prevent artificial inflation of decimal database values.
+    - Optimized database load by running aggregate financial stat queries in parallel via `Promise.all`.
+
 #### **Session 145: Unified API Orchestration & 'Thin Route' Architecture (June 5, 2026)**
 - **Unified API Wrapper (`wrapHandler`):** Engineered a high-order function in `src/lib/api-utils.js` to centralize cross-cutting concerns:
     - **Zero-Trust Enforcement:** Automatically parses JSON and executes Zod validation before the handler runs.
