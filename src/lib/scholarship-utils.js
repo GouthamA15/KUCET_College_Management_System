@@ -1,6 +1,6 @@
 
 /**
- * Comprehensive TS ePASS Scholarship Rules Utility
+ * Comprehensive TG ePASS Scholarship Rules Utility
  * Refines the logic based on GO Rt No. 63 and Institutional standards.
  */
 

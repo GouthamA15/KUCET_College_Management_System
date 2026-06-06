@@ -4,9 +4,11 @@ import {
   studentPersonalDetails, 
   studentAcademicBackground,
   studentImages,
-  studentSignatures
+  studentSignatures,
+  scholarshipSanctions,
+  studentFeePayments
 } from '@/db/schema';
-import { eq, or, like, and } from 'drizzle-orm';
+import { eq, or, like, desc } from 'drizzle-orm';
 import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
 
 /**
@@ -77,7 +79,6 @@ export class StudentService {
       throw new Error('Year and branch are required');
     }
 
-    // Extract the last 2 digits of the START year (e.g., '23' from '2023-24' or '2023-2027')
     const startYear = year.split('-')[0];
     const yearShort = startYear.slice(-2);
     
@@ -85,7 +86,6 @@ export class StudentService {
     const lateralRollPattern = `${yearShort}567${branch}%L`;
 
     const results = await db.select({
-      // 1. Core
       admission_no: studentsTable.admission_no,
       roll_no: studentsTable.roll_no,
       name: studentsTable.name,
@@ -94,7 +94,6 @@ export class StudentService {
       gender: studentsTable.gender,
       dob: studentsTable.date_of_birth,
       fee_reimbursement: studentsTable.fee_reimbursement,
-      // 2. Personal
       father_name: studentPersonalDetails.father_name,
       mother_name: studentPersonalDetails.mother_name,
       nationality: studentPersonalDetails.nationality,
@@ -112,13 +111,11 @@ export class StudentService {
       permanent_address: studentPersonalDetails.address,
       seat_allotted_category: studentPersonalDetails.seat_allotted_category,
       blood_group: studentPersonalDetails.blood_group,
-      // 3. Academic
       qualifying_exam: studentAcademicBackground.qualifying_exam,
       ssc_marks: studentAcademicBackground.ssc_marks,
       inter_marks: studentAcademicBackground.inter_marks,
       entrance_exam_rank: studentAcademicBackground.ranks,
       previous_college: studentAcademicBackground.previous_college_details,
-      // 4. Assets
       photo: studentImages.pfp,
       signature: studentSignatures.signature
     })
@@ -132,7 +129,6 @@ export class StudentService {
       like(studentsTable.roll_no, lateralRollPattern)
     ));
 
-    // Decrypt sensitive fields with null-safety checks
     return results.map(row => ({
       ...row,
       mobile: row.mobile ? decrypt(row.mobile) : null,
@@ -142,68 +138,207 @@ export class StudentService {
   }
 
   /**
-   * Create a new student with personal and academic details
-   * @param {Object} data Student data
-   * @param {number} clerkId ID of the clerk adding the student
-   * @returns {Promise<number>} ID of the created student
+   * Upsert a student record with all related details (personal, academic, images)
+   * @param {Object} data Comprehensive student data object
+   * @param {number} clerkId ID of the clerk performing the action
+   * @param {Object} tx Optional Drizzle transaction object
+   * @returns {Promise<number>} Student ID
    */
-  static async createStudent(data, clerkId) {
-    let {
-      admission_no, roll_no, name, date_of_birth, gender, mobile, email,
-      father_name, mother_name, religion, sub_caste, category, address,
-      qualifying_exam, aadhaar_no, annual_income, admission_date
+  static async upsertStudent(data, clerkId, tx = null) {
+    const {
+      admission_no, roll_no, name, date_of_birth, gender, email, mobile,
+      father_name, mother_name, nationality, religion, category, sub_caste,
+      area_status, mother_tongue, place_of_birth, father_occupation, annual_income,
+      guardian_mobile, aadhaar_no, address, seat_allotted_category, blood_group,
+      identification_marks, qualifying_exam, previous_college_details,
+      medium_of_instruction, ranks, ssc_marks, inter_marks, fee_reimbursement,
+      pfp, signature, admission_date
     } = data;
 
-    if (!roll_no || !name) {
-      throw new Error('Roll number and name are required');
-    }
+    const roll = this.normalizeRollNo(roll_no);
+    if (!roll || !name) throw new Error('MISSING_REQUIRED_FIELDS');
 
-    // Invisible Normalization Hooks
-    roll_no = String(roll_no).trim().toUpperCase();
-    const normalizedMobile = mobile ? String(mobile).replace(/\D/g, '') : null;
-    const normalizedAadhaar = aadhaar_no ? String(aadhaar_no).replace(/\D/g, '') : null;
+    const normMobile = this.normalizeMobile(mobile);
+    const normGuardianMobile = this.normalizeMobile(guardian_mobile);
+    const normAadhaar = this.normalizeAadhaar(aadhaar_no);
 
-    const result = await db.transaction(async (tx) => {
-      // 1. Insert into core students table with encrypted mobile
-      const [res] = await tx.insert(studentsTable).values({
-        admission_no,
-        roll_no,
-        name,
-        date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
-        gender,
-        mobile: normalizedMobile ? encrypt(normalizedMobile) : null,
-        mobile_hash: normalizedMobile ? hashForIndex(normalizedMobile) : null,
-        email,
-        admission_date: admission_date ? new Date(admission_date) : new Date(),
-        added_by_clerk_id: clerkId
-      });
-      const studentId = res.insertId;
+    const studentValues = {
+      admission_no: admission_no || null,
+      roll_no: roll,
+      name,
+      date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
+      gender: gender || null,
+      email: email ? String(email).toLowerCase() : null,
+      mobile: normMobile ? encrypt(normMobile) : null,
+      mobile_hash: normMobile ? hashForIndex(normMobile) : null,
+      fee_reimbursement: String(fee_reimbursement).toUpperCase() === 'YES' ? 'YES' : 'NO',
+      admission_date: admission_date ? new Date(admission_date) : new Date()
+    };
 
-      // 2. Insert into personal details with encrypted Aadhaar
-      await tx.insert(studentPersonalDetails).values({
-        student_id: studentId,
-        father_name,
-        mother_name,
-        religion,
-        sub_caste,
-        category,
-        annual_income,
-        aadhaar_no: normalizedAadhaar ? encrypt(normalizedAadhaar) : null,
-        aadhaar_hash: normalizedAadhaar ? hashForIndex(normalizedAadhaar) : null,
-        address
-      });
+    const personalValues = {
+      father_name: father_name || null,
+      mother_name: mother_name || null,
+      nationality: nationality || 'Indian',
+      religion: religion || null,
+      category: category || null,
+      sub_caste: sub_caste || null,
+      area_status: area_status || 'Local',
+      mother_tongue: mother_tongue || null,
+      place_of_birth: place_of_birth || null,
+      father_occupation: father_occupation || null,
+      annual_income: annual_income || null,
+      guardian_mobile: normGuardianMobile ? encrypt(normGuardianMobile) : null,
+      aadhaar_no: normAadhaar ? encrypt(normAadhaar) : null,
+      aadhaar_hash: normAadhaar ? hashForIndex(normAadhaar) : null,
+      address: address || null,
+      seat_allotted_category: seat_allotted_category || null,
+      blood_group: blood_group || null,
+      identification_marks: identification_marks || null
+    };
 
-      // 3. Insert into academic background
-      if (qualifying_exam) {
-        await tx.insert(studentAcademicBackground).values({
-          student_id: studentId,
-          qualifying_exam
-        });
+    const academicValues = {
+      qualifying_exam: qualifying_exam || null,
+      previous_college_details: previous_college_details || null,
+      medium_of_instruction: medium_of_instruction || null,
+      ranks: ranks ? parseInt(ranks) : null,
+      ssc_marks: ssc_marks || null,
+      inter_marks: inter_marks || null
+    };
+
+    const executeUpsert = async (innerTx) => {
+      const existing = await innerTx.select({ id: studentsTable.id })
+        .from(studentsTable).where(eq(studentsTable.roll_no, roll)).limit(1);
+      
+      let studentId;
+      if (existing.length > 0) {
+        studentId = existing[0].id;
+        await innerTx.update(studentsTable).set(studentValues).where(eq(studentsTable.id, studentId));
+      } else {
+        const res = await innerTx.insert(studentsTable).values({ ...studentValues, added_by_clerk_id: clerkId });
+        studentId = res.insertId || res[0]?.insertId;
+        if (!studentId) throw new Error('STUDENT_ID_GENERATION_FAILED');
       }
 
-      return res;
-    });
+      const existingPersonal = await innerTx.select({ id: studentPersonalDetails.id })
+        .from(studentPersonalDetails).where(eq(studentPersonalDetails.student_id, studentId)).limit(1);
+      
+      if (existingPersonal.length > 0) {
+        await innerTx.update(studentPersonalDetails).set(personalValues).where(eq(studentPersonalDetails.id, existingPersonal[0].id));
+      } else {
+        await innerTx.insert(studentPersonalDetails).values({ student_id: studentId, ...personalValues });
+      }
 
-    return result.insertId;
+      const existingAcademic = await innerTx.select({ id: studentAcademicBackground.id })
+        .from(studentAcademicBackground).where(eq(studentAcademicBackground.student_id, studentId)).limit(1);
+      
+      if (existingAcademic.length > 0) {
+        await innerTx.update(studentAcademicBackground).set(academicValues).where(eq(studentAcademicBackground.id, existingAcademic[0].id));
+      } else {
+        await innerTx.insert(studentAcademicBackground).values({ student_id: studentId, ...academicValues });
+      }
+
+      if (pfp) {
+        await innerTx.insert(studentImages).values({ student_id: studentId, pfp }).onDuplicateKeyUpdate({ set: { pfp } });
+      }
+      if (signature) {
+        await innerTx.insert(studentSignatures).values({ student_id: studentId, signature }).onDuplicateKeyUpdate({ set: { signature } });
+      }
+
+      return studentId;
+    };
+
+    if (tx) {
+      return await executeUpsert(tx);
+    } else {
+      return await db.transaction(executeUpsert);
+    }
+  }
+
+  /**
+   * Fetch a full student profile with all related data (joined and collections)
+   * @param {string} rollNo 
+   * @returns {Promise<Object>} Full student profile
+   */
+  static async getStudentProfile(rollNo) {
+    const roll = this.normalizeRollNo(rollNo);
+    if (!roll) throw new Error('ROLL_NUMBER_REQUIRED');
+
+    const rows = await db.select()
+      .from(studentsTable)
+      .leftJoin(studentPersonalDetails, eq(studentsTable.id, studentPersonalDetails.student_id))
+      .leftJoin(studentAcademicBackground, eq(studentsTable.id, studentAcademicBackground.student_id))
+      .where(eq(studentsTable.roll_no, roll))
+      .limit(1);
+
+    if (rows.length === 0) return null;
+
+    const row = rows[0];
+    const studentId = row.students.id;
+
+    const student = {
+      ...row.students,
+      mobile: row.students.mobile ? decrypt(row.students.mobile) : null,
+      personal_details: row.student_personal_details ? {
+        ...row.student_personal_details,
+        guardian_mobile: row.student_personal_details.guardian_mobile ? decrypt(row.student_personal_details.guardian_mobile) : null,
+        aadhaar_no: row.student_personal_details.aadhaar_no ? decrypt(row.student_personal_details.aadhaar_no) : null
+      } : {},
+      academic_background: row.student_academic_background || null
+    };
+
+    const [pfpRow, sigRow, scholarship, fees] = await Promise.all([
+      db.query.studentImages.findFirst({ where: eq(studentImages.student_id, studentId) }),
+      db.query.studentSignatures.findFirst({ where: eq(studentSignatures.student_id, studentId) }),
+      db.query.scholarshipSanctions.findMany({
+        where: eq(scholarshipSanctions.student_id, studentId),
+        orderBy: [desc(scholarshipSanctions.sanction_date)]
+      }),
+      db.query.studentFeePayments.findMany({
+        where: eq(studentFeePayments.student_id, studentId),
+        orderBy: [desc(studentFeePayments.transaction_date)]
+      })
+    ]);
+
+    const imageHelper = (val) => {
+      if (!val) return null;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      if (Buffer.isBuffer(val)) {
+        // Detect MIME type from magic bytes
+        let mimeType = 'application/octet-stream';
+        if (val.length >= 4) {
+          const header = val.slice(0, 12);
+          // PNG: 89 50 4E 47
+          if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) {
+            mimeType = 'image/png';
+          }
+          // JPEG: FF D8 FF
+          else if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) {
+            mimeType = 'image/jpeg';
+          }
+          // GIF: 47 49 46
+          else if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46) {
+            mimeType = 'image/gif';
+          }
+          // WEBP: RIFF...WEBP
+          else if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46 &&
+                   header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50) {
+            mimeType = 'image/webp';
+          }
+        }
+        return `data:${mimeType};base64,${val.toString('base64')}`;
+      }
+      return val;
+    };
+
+    return {
+      student: {
+        ...student,
+        pfp: pfpRow ? imageHelper(pfpRow.pfp) : null,
+        signature: sigRow ? imageHelper(sigRow.signature) : null
+      },
+      scholarship,
+      fees,
+      academics: row.student_academic_background ? [row.student_academic_background] : []
+    };
   }
 }

@@ -2,14 +2,11 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { clerks, semesters } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { apiError, wrapHandler } from '@/lib/api-utils';
 
-export async function GET(req) {
-  const user = await getAuthUser('clerk');
-  logger.info({ user }, '[DEBUG_CLERK_ME_USER]');
-  if (!user) return apiError('Unauthorized', 401);
-
-  try {
+export const GET = wrapHandler({
+  auth: 'clerk',
+  handler: async (req, { user }) => {
     const clerkId = user.clerkId || user.id;
     if (!clerkId) {
       logger.error({ user }, '[CLERK_ME_ERROR] No clerkId or id found in token');
@@ -40,12 +37,6 @@ export async function GET(req) {
 
     if (rows.length === 0) return apiError('Clerk not found', 404);
     const clerk = rows[0];
-
-    logger.info({ 
-      last_login_at: clerk.last_login_at,
-      type: typeof clerk.last_login_at,
-      isDate: clerk.last_login_at instanceof Date
-    }, '[DEBUG_CLERK_ME_TIMESTAMPS]');
 
     // Decrypt mobile if exists
     try {
@@ -78,13 +69,6 @@ export async function GET(req) {
       clerk.academic_year = '2025-26';
     }
 
-    return apiResponse({ data: clerk });
-  } catch (error) {
-    logger.error({ 
-      err: error.message, 
-      stack: error.stack,
-      userPayload: user 
-    }, '[CLERK_ME_ERROR]');
-    return apiError('Internal Server Error', 500);
+    return { data: clerk };
   }
-}
+});

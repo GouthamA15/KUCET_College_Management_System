@@ -6,56 +6,49 @@ import {
   collegeInfo as collegeInfoTable,
   studentRequestImages
 } from "@/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { getResolvedCurrentAcademicYear } from "@/lib/rollNumber";
+import { eq, and, desc } from "drizzle-orm";
+import { getResolvedCurrentAcademicYear, getAdmissionTypeFromRoll } from "@/lib/rollNumber";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import IdempotencyService from '@/services/IdempotencyService';
+import { FinanceService } from '@/services/FinanceService';
+import crypto from 'crypto';
 
-export async function GET(request) {
+export async function GET() {
+  const user = await getAuthUser("student");
+  if (!user || !user.student_id) return apiError("Unauthorized", 401);
+
   try {
-    const user = await getAuthUser("student");
-    if (!user || !user.student_id) return apiError("Unauthorized", 401);
-
-    const s = await db.query.students.findFirst({
-      columns: {
-        email: true,
-        is_email_verified: true,
-        password_hash: true
-      },
-      where: eq(students.id, user.student_id)
+    const requests = await db.query.studentRequests.findMany({
+      where: eq(studentRequests.student_id, user.student_id),
+      orderBy: [desc(studentRequests.created_at)]
     });
 
-    if (!s || !s.email || !s.is_email_verified || !s.password_hash) {
-      return apiError("Verification required", 403);
-    }
-
-    const rows = await db.select({
-      request_id: studentRequests.request_id,
-      certificate_type: studentRequests.certificate_type,
-      status: studentRequests.status,
-      academic_year: studentRequests.academic_year,
-      created_at: studentRequests.created_at,
-      reject_reason: studentRequests.reject_reason,
-      roll_number: students.roll_no
-    })
-    .from(studentRequests)
-    .innerJoin(students, eq(studentRequests.student_id, students.id))
-    .where(eq(studentRequests.student_id, user.student_id))
-    .orderBy(desc(studentRequests.created_at));
-
-    return apiResponse({ data: rows });
+    return apiResponse(requests);
   } catch (error) {
-    logger.error("Error fetching student requests:", error);
-    return apiError("Failed to fetch requests", 500);
+    logger.error('Error fetching student requests:', error);
+    return apiError("Internal Server Error", 500);
   }
 }
 
 export async function POST(request) {
+  const user = await getAuthUser("student");
+  if (!user || !user.student_id || !user.roll_no) return apiError("Unauthorized", 401);
+
+  const idempotencyKey = request.headers.get('idempotency-key');
+  let idempotencyStarted = false;
+
   let requestId;
   try {
-    const user = await getAuthUser("student");
-    if (!user || !user.student_id || !user.roll_no) return apiError("Unauthorized", 401);
+    if (idempotencyKey) {
+      const { isDuplicate, response, code } = await IdempotencyService.start(idempotencyKey);
+      if (isDuplicate) {
+        logger.info({ key: idempotencyKey }, '[IDEMPOTENCY_HIT] Returning cached response for certificate request');
+        return apiResponse(response, code || 200);
+      }
+      idempotencyStarted = true;
+    }
 
     const s = await db.query.students.findFirst({
       columns: {
@@ -74,7 +67,7 @@ export async function POST(request) {
     const certificateType = formData.get("certificateType");
     const clerkType = formData.get("clerkType");
     const paymentAmount = formData.get("paymentAmount");
-    const transactionId = formData.get("transactionId");
+    const transactionId = formData.get("transactionId")?.toString().trim();
     const purpose = formData.get("purpose");
     const fromDateStr = formData.get("fromDate");
     const toDateStr = formData.get("toDate");
@@ -95,40 +88,123 @@ export async function POST(request) {
         eq(studentRequests.student_id, user.student_id),
         eq(studentRequests.certificate_type, certificateType),
         eq(studentRequests.academic_year, academicYear)
-      )
+      ),
+      orderBy: [desc(studentRequests.created_at)]
     });
 
-    if (existing && existing.status !== "REJECTED") {
-      return apiError("An active request already exists for this academic year.", 409);
+    requestId = existing?.request_id;
+
+    // --- BONAFIDE LIMITS & FREE LOGIC ---
+    let finalPaymentAmount = paymentAmountNum;
+    if (certificateType === 'Bonafide Certificate') {
+      const approvedRequests = await db.query.studentRequests.findMany({
+        where: and(
+          eq(studentRequests.student_id, user.student_id),
+          eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+          eq(studentRequests.status, 'APPROVED')
+        )
+      });
+
+      // 1. Total Limit Check (4 for Regular, 3 for Lateral)
+      const admissionType = getAdmissionTypeFromRoll(user.roll_no);
+      const maxAllowed = admissionType === 'Lateral' ? 3 : 4;
+
+      if (approvedRequests.length >= maxAllowed) {
+        return apiError(`You have reached the maximum limit of ${maxAllowed} Bonafide Certificates for your course duration.`, 403);
+      }
+
+      // 2. Per-Year Limit Check (Only one per academic year)
+      const alreadyHasYearlyBonafide = approvedRequests.some(req => req.academic_year === academicYear);
+      if (alreadyHasYearlyBonafide) {
+        return apiError(`You have already received a Bonafide Certificate for the current academic year (${academicYear}). Only one is allowed per year.`, 403);
+      }
+
+      // 3. Free for subsequent requests logic (only free if already paid once in a previous year)
+      const hasPreviousPaidBonafide = approvedRequests.some(req => req.academic_year !== academicYear && req.payment_amount > 0);
+      if (hasPreviousPaidBonafide && approvedRequests.length > 0) {
+        finalPaymentAmount = 0;
+      }
     }
 
-    if (existing) {
-      // Update
+    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
+
+    // --- INTEGRITY GUARD: Multi-Vector Conflict Check ---
+    let isFlagged = false;
+    let flagDetails = null;
+    let paymentHash = null;
+
+    if (finalPaymentAmount > 0) {
+      if (isFileValid) {
+        const buffer = Buffer.from(await paymentScreenshotFile.arrayBuffer());
+        paymentHash = crypto.createHash('sha256').update(buffer).digest('hex');
+      }
+
+      const integrity = await FinanceService.verifyTransactionIntegrity({
+        transactionId: transactionId,
+        paymentHash,
+        studentId: user.student_id,
+        requestId
+      });
+
+      isFlagged = integrity.isFlagged;
+      flagDetails = integrity.flagDetails;
+    }
+
+    // If an active (PENDING) request already exists for this academic year, block new one.
+    // If it's APPROVED or REJECTED, we can allow a new one (especially for Bonafide which is free after first)
+    if (existing && existing.status === "PENDING") {
+      return apiError("An active request already exists for this academic year. Please wait for it to be processed.", 409);
+    }
+
+    if (existing && existing.status === "REJECTED") {
+      // For rejected bonafides, recheck yearly limit before allowing re-submission
+      if (certificateType === 'Bonafide Certificate') {
+        const approvedBonafides = await db.query.studentRequests.findMany({
+          where: and(
+            eq(studentRequests.student_id, user.student_id),
+            eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+            eq(studentRequests.status, 'APPROVED'),
+            eq(studentRequests.academic_year, academicYear)
+          )
+        });
+        if (approvedBonafides.length > 0) {
+          return apiError(`You have already received a Bonafide Certificate for the current academic year (${academicYear}). Cannot re-submit rejected request.`, 403);
+        }
+      }
+      // Update the rejected one to PENDING again (original behavior)
       requestId = existing.request_id;
       await db.update(studentRequests)
         .set({
-          payment_amount: paymentAmountNum,
+          payment_amount: finalPaymentAmount,
           transaction_id: transactionId || null,
           purpose: purpose || null,
-          from_date: fromDateStr || null,
-          to_date: toDateStr || null,
+          from_date: fromDateStr ? new Date(fromDateStr) : null,
+          to_date: toDateStr ? new Date(toDateStr) : null,
           status: 'PENDING',
-          updated_at: sql`NOW()`,
-          completed_at: null
+          updated_at: now,
+          completed_at: null,
+          is_flagged: isFlagged,
+          flag_details: flagDetails,
+          payment_hash: paymentHash
         })
         .where(eq(studentRequests.request_id, requestId));
     } else {
-      // Insert
+      // Insert new request (even if an APPROVED one exists for this year, we allow new ones for Bonafide)
       const result = await db.insert(studentRequests).values({
         student_id: user.student_id,
         certificate_type: certificateType,
         academic_year: academicYear,
-        payment_amount: paymentAmountNum,
+        payment_amount: finalPaymentAmount,
         transaction_id: transactionId || null,
         purpose: purpose || null,
         from_date: fromDateStr ? new Date(fromDateStr) : null,
         to_date: toDateStr ? new Date(toDateStr) : null,
-        status: 'PENDING'
+        status: 'PENDING',
+        is_flagged: isFlagged,
+        flag_details: flagDetails,
+        payment_hash: paymentHash,
+        created_at: now,
+        updated_at: now
       });
       requestId = result[0].insertId;
 
@@ -139,31 +215,23 @@ export async function POST(request) {
           clerkType,
           certificateType,
           student_id: user.student_id,
-          roll_no: user.roll_no
+          roll_no: user.roll_no,
+          is_flagged: isFlagged
         });
       } catch (e) {
         logger.error('SSE Broadcast error:', e);
       }
     }
 
-    // formData.get returns a File object in Next.js
-    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
-    
-    logger.info(`Processing certificate request: ${certificateType}. File valid: ${isFileValid}`);
-
     if (isFileValid) {
       const MAX_SIZE = 1 * 1024 * 1024;
       if (paymentScreenshotFile.size > MAX_SIZE) {
-        logger.warn(`File size limit exceeded: ${paymentScreenshotFile.size} bytes`);
         return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);
       }
 
-      logger.info(`Uploading to Cloudinary... File type: ${paymentScreenshotFile.type}`);
       const screenshotUrl = await uploadToCloudinary(paymentScreenshotFile, "certificates/payments");
-      logger.info(`Cloudinary upload result: ${screenshotUrl ? 'Success' : 'Failed'}`);
       
       if (screenshotUrl) {
-        // Update dedicated images table
         await db.insert(studentRequestImages)
           .values({
             request_id: requestId,
@@ -171,22 +239,24 @@ export async function POST(request) {
           })
           .onDuplicateKeyUpdate({ set: { payment_screenshot: screenshotUrl } });
         
-        // Update legacy column in main requests table
         await db.update(studentRequests)
-          .set({ payment_screenshot: screenshotUrl })
+          .set({ 
+            payment_screenshot: screenshotUrl,
+            updated_at: now
+          })
           .where(eq(studentRequests.request_id, requestId));
-        
-        logger.info(`Database records updated with screenshot URL: ${requestId}`);
       }
     }
 
-    return apiResponse({ success: true, requestId });
+    const responseData = { success: true, requestId, is_flagged: isFlagged };
+    if (idempotencyStarted) {
+      await IdempotencyService.complete(idempotencyKey, 200, responseData);
+    }
+
+    return apiResponse(responseData);
   } catch (error) {
-    logger.error({
-      message: error.message,
-      stack: error.stack,
-      requestId: requestId // This will be the ID if already created
-    }, 'Error processing certificate request');
+    if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
+    logger.error('Error processing certificate request:', error);
     if (error.code === "ER_DUP_ENTRY") return apiError("Duplicate request detected.", 409);
     return apiError("Internal Server Error", 500);
   }

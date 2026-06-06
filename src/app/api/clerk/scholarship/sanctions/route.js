@@ -9,66 +9,52 @@ import { sendInstitutionalEmail } from '@/lib/email';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { getYearlyTotalFee } from '@/lib/financial-utils';
 import { calculateExpectedRTF } from '@/lib/scholarship-utils';
-
-const toNull = (v) => (!v || String(v).trim() === '') ? null : String(v).trim();
+import IdempotencyService from '@/services/IdempotencyService';
+import { scholarshipSanctionSchema } from '@/lib/validations/staff';
+import { z } from 'zod';
 
 export async function POST(req) {
   const user = await getAuthUser('clerk');
   if (!user) return apiError('Unauthorized', 401);
 
+  const idempotencyKey = req.headers.get('idempotency-key');
+  let idempotencyStarted = false;
+
   try {
-    const body = await req.json();
+    const json = await req.json();
+
+    // Validate with Zod
+    const amountSchema = z.preprocess(
+      (v) => (v === '' || v === null || v === undefined) ? null : Number(v),
+      z.number().min(0).max(100000).nullable().optional()
+    );
+
+    const validationSchema = scholarshipSanctionSchema.extend({
+      sanctioned_amount: amountSchema,
+      released_amount: amountSchema,
+      sanction_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal('')),
+      released_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal('')),
+      thumb_update_available: z.boolean().optional(),
+      thumb_status: z.enum(['PENDING', 'COMPLETED', 'FAILED']).optional(),
+      hardcopy_submitted: z.boolean().optional()
+    });
+
+    const validatedData = validationSchema.parse(json);
+    const { 
+      roll_no, academic_year, application_no, proceeding_no, 
+      sanctioned_amount, released_amount, status, sanction_date, 
+      released_date, thumb_update_available, thumb_status, hardcopy_submitted 
+    } = validatedData;
+
+    if (idempotencyKey) {
+      const { isDuplicate, response, code } = await IdempotencyService.start(idempotencyKey);
+      if (isDuplicate) {
+        logger.info({ key: idempotencyKey }, '[IDEMPOTENCY_HIT] Returning cached response for sanction');
+        return apiResponse(response, code || 200);
+      }
+      idempotencyStarted = true;
+    }
     
-    // GUARANTEED TERMINAL VISIBILITY & INVESTIGATION LOGS
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Scholarship API] Incoming request:', JSON.stringify(body, null, 2));
-      logger.info(`[Scholarship API] Incoming request for roll: ${body.roll_no}`);
-    }
-
-    const roll_no = String(body.roll_no || '').trim().toUpperCase();
-    const academic_year = String(body.academic_year || '').trim();
-    const application_no = toNull(body.application_no);
-    const proceeding_no_raw = String(body.proceeding_no || '').trim();
-    const proceeding_no = toNull(proceeding_no_raw);
-
-    // INVESTIGATE 26000 -> 25999 BUG
-    const sanctioned_amount_raw = body.sanctioned_amount;
-    const sanctioned_amount = (sanctioned_amount_raw === undefined || sanctioned_amount_raw === null || sanctioned_amount_raw === '') ? null : Number(sanctioned_amount_raw);
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Scholarship API DEBUG] Raw Sanctioned: ${sanctioned_amount_raw} (${typeof sanctioned_amount_raw})`);
-      console.log(`[Scholarship API DEBUG] Parsed Sanctioned: ${sanctioned_amount} (${typeof sanctioned_amount})`);
-    }
-
-    const sanction_date = sanctioned_amount !== null ? toMySQLDate(body.sanction_date) : null;
-
-    const released_amount_raw = body.released_amount;
-    const released_amount = (released_amount_raw === undefined || released_amount_raw === null || released_amount_raw === '') ? null : Number(released_amount_raw);
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Scholarship API DEBUG] Raw Released: ${released_amount_raw} (${typeof released_amount_raw})`);
-      console.log(`[Scholarship API DEBUG] Parsed Released: ${released_amount} (${typeof released_amount})`);
-    }
-    const released_date = released_amount !== null ? toMySQLDate(body.released_date) : null;
-    const status = (body.status || 'SANCTIONED').toUpperCase();
-
-    if (!roll_no) return apiError('Missing roll_no', 400);
-    if (!academic_year || !academic_year.match(/^\d{4}-\d{2}$/)) return apiError('Invalid academic_year', 400);
-    if (!application_no) return apiError('Missing application_no', 400);
-
-    if (!['PENDING', 'SANCTIONED', 'RELEASED', 'REJECTED'].includes(status)) {
-      return apiError('Invalid scholarship status', 400);
-    }
-
-    // Strict Format Validation
-    const cleanAppStr = String(application_no).trim();
-    if (!/^\d+$/.test(cleanAppStr)) return apiError('application_no must be numeric', 400);
-    if (cleanAppStr.length < 6 || cleanAppStr.length > 15) return apiError('application_no invalid length', 400);
-
-    if (status !== 'REJECTED' && sanctioned_amount !== null && !(sanctioned_amount > 0)) return apiError('Invalid sanctioned_amount', 400);
-    if (status !== 'REJECTED' && sanctioned_amount !== null && !proceeding_no) return apiError('Missing proceeding_no for amount', 400);
-    if (status !== 'REJECTED' && sanctioned_amount !== null && !sanction_date) return apiError('Invalid sanction_date', 400);
-
     const studentRows = await db.select({ 
         id: studentsTable.id, 
         name: studentsTable.name, 
@@ -92,10 +78,6 @@ export async function POST(req) {
 
     // ELIGIBILITY GUARD
     if (String(student.fee_reimbursement).toUpperCase() !== 'YES') {
-      logger.warn(`[Scholarship Validation] Rejected: proceedings not allowed for non-reimbursement student ${roll_no}`);
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`[Scholarship Validation] Rejected: proceedings not allowed for non-reimbursement student ${roll_no}`);
-      }
       return apiError('Scholarship proceedings are not allowed for non-reimbursement students.', 400);
     }
 
@@ -112,7 +94,6 @@ export async function POST(req) {
             windowOpen = true;
           }
         }
-        if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Window evaluated. Open: ${windowOpen}`);
       } catch (e) {
         console.error('[Scholarship API] Window evaluation failed:', e);
       }
@@ -122,7 +103,7 @@ export async function POST(req) {
         where: and(eq(scholarshipSanctions.student_id, student.id), eq(scholarshipSanctions.academic_year, academic_year))
       });
 
-      const providedProceeding = proceeding_no && String(proceeding_no).trim() !== '' ? String(proceeding_no).trim() : null;
+      const providedProceeding = proceeding_no || null;
 
       // FINANCIAL VALIDATION (₹35,000 CAP) - INSIDE TRANSACTION
       const course = getBranchFromRoll(roll_no);
@@ -142,24 +123,11 @@ export async function POST(req) {
       const finalSanctionedTotal = otherSanctionsTotal + (status === 'REJECTED' ? 0 : (sanctioned_amount || 0));
       const finalReleasedTotal = otherReleasedTotal + (status === 'REJECTED' ? 0 : (released_amount || 0));
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[Scholarship Validation] Existing Sanctioned: ${otherSanctionsTotal}, Incoming: ${sanctioned_amount}, Status: ${status}, Final: ${finalSanctionedTotal}`);
-        console.log(`[Scholarship Validation] Existing Released: ${otherReleasedTotal}, Incoming: ${released_amount}, Status: ${status}, Final: ${finalReleasedTotal}`);
-      }
-
       if (status !== 'REJECTED' && sanctioned_amount !== null && finalSanctionedTotal > GOVT_ELIGIBLE_CAP) {
-        if (process.env.NODE_ENV === 'development') {
-          logger.warn(`[Scholarship Validation] Total sanctioned exceeded. Final: ${finalSanctionedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
-          console.warn(`[Scholarship Validation] Total sanctioned exceeded. Final: ${finalSanctionedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
-        }
         throw new Error(`Scholarship sanctioned total exceeds ₹${GOVT_ELIGIBLE_CAP.toLocaleString()} government limit.`);
       }
 
       if (status !== 'REJECTED' && released_amount !== null && finalReleasedTotal > GOVT_ELIGIBLE_CAP) {
-        if (process.env.NODE_ENV === 'development') {
-          logger.warn(`[Scholarship Validation] Released amount exceeded. Final: ${finalReleasedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
-          console.warn(`[Scholarship Validation] Released amount exceeded. Final: ${finalReleasedTotal}, Cap: ${GOVT_ELIGIBLE_CAP}`);
-        }
         throw new Error(`Scholarship released total exceeds ₹${GOVT_ELIGIBLE_CAP.toLocaleString()} government limit.`);
       }
 
@@ -167,10 +135,9 @@ export async function POST(req) {
       const prevThumbAvailable = existing.some(r => r.thumb_update_available === 1);
       const prevThumbStatus = existing.find(r => r.thumb_update_available === 1)?.thumb_status || 'PENDING';
 
-      const providedApp = application_no && String(application_no).trim() !== '' ? String(application_no).trim() : null;
-      const providedThumbFlag = body.thumb_update_available ? 1 : 0;
-      const providedThumbStatus = (body.thumb_status || 'PENDING').toUpperCase();
-      const providedHardcopyFlag = body.hardcopy_submitted ? 1 : 0;
+      const providedThumbFlag = thumb_update_available ? 1 : 0;
+      const providedThumbStatus = (thumb_status || 'PENDING').toUpperCase();
+      const providedHardcopyFlag = hardcopy_submitted ? 1 : 0;
 
       let targetRowId = null;
       let isNewInsert = false;
@@ -178,45 +145,42 @@ export async function POST(req) {
       if (providedProceeding) {
         const existingRow = existing.find(r => String(r.proceeding_no || '') === providedProceeding) || null;
         if (existingRow) {
-          if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Updating existing proceeding ID: ${existingRow.id}`);
           await tx.update(scholarshipSanctions)
             .set({ 
               sanctioned_amount: sanctioned_amount !== null ? String(sanctioned_amount) : null, 
-              sanction_date: sanction_date, 
+              sanction_date: toMySQLDate(sanction_date), 
               released_amount: released_amount !== null ? String(released_amount) : null,
-              released_date: released_date,
+              released_date: toMySQLDate(released_date),
               status: status,
-              application_no: providedApp || existingRow.application_no 
+              application_no: application_no || existingRow.application_no 
             })
             .where(eq(scholarshipSanctions.id, existingRow.id));
           targetRowId = existingRow.id;
         } else {
           const baseRow = existing.find(r => !r.proceeding_no) || null;
           if (baseRow) {
-            if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Converting base row ID: ${baseRow.id} to proceeding`);
             await tx.update(scholarshipSanctions)
               .set({ 
                 proceeding_no: providedProceeding, 
                 sanctioned_amount: sanctioned_amount !== null ? String(sanctioned_amount) : null, 
-                sanction_date: sanction_date, 
+                sanction_date: toMySQLDate(sanction_date), 
                 released_amount: released_amount !== null ? String(released_amount) : null,
-                released_date: released_date,
+                released_date: toMySQLDate(released_date),
                 status: status,
-                application_no: providedApp || baseRow.application_no 
+                application_no: application_no || baseRow.application_no 
               })
               .where(eq(scholarshipSanctions.id, baseRow.id));
             targetRowId = baseRow.id;
           } else {
-            if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Inserting new proceeding row');
             const [ins] = await tx.insert(scholarshipSanctions).values({
               student_id: student.id,
               academic_year: academic_year,
-              application_no: providedApp || (existing.length > 0 ? existing[0].application_no : null),
+              application_no: application_no || (existing.length > 0 ? existing[0].application_no : null),
               proceeding_no: providedProceeding,
               sanctioned_amount: sanctioned_amount !== null ? String(sanctioned_amount) : null,
-              sanction_date: sanction_date,
+              sanction_date: toMySQLDate(sanction_date),
               released_amount: released_amount !== null ? String(released_amount) : null,
-              released_date: released_date,
+              released_date: toMySQLDate(released_date),
               status: status
             });
             targetRowId = ins.insertId;
@@ -226,16 +190,13 @@ export async function POST(req) {
       } else {
         const baseRow = existing.find(r => !r.proceeding_no) || null;
         if (baseRow) {
-          if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Updating base row ID: ${baseRow.id}`);
-          if (providedApp) await tx.update(scholarshipSanctions).set({ application_no: providedApp, status: status }).where(eq(scholarshipSanctions.id, baseRow.id));
+          if (application_no) await tx.update(scholarshipSanctions).set({ application_no: application_no, status: status }).where(eq(scholarshipSanctions.id, baseRow.id));
           targetRowId = baseRow.id;
         } else if (existing.length > 0) {
-          if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Syncing application_no to all proceedings');
-          if (providedApp) await tx.update(scholarshipSanctions).set({ application_no: providedApp }).where(and(eq(scholarshipSanctions.student_id, student.id), eq(scholarshipSanctions.academic_year, academic_year)));
+          if (application_no) await tx.update(scholarshipSanctions).set({ application_no: application_no }).where(and(eq(scholarshipSanctions.student_id, student.id), eq(scholarshipSanctions.academic_year, academic_year)));
           targetRowId = existing[0].id;
         } else {
-          if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Inserting initial base row');
-          const [ins] = await tx.insert(scholarshipSanctions).values({ student_id: student.id, academic_year: academic_year, application_no: providedApp, status: status });
+          const [ins] = await tx.insert(scholarshipSanctions).values({ student_id: student.id, academic_year: academic_year, application_no: application_no, status: status });
           targetRowId = ins.insertId;
           isNewInsert = true;
         }
@@ -247,22 +208,25 @@ export async function POST(req) {
         .where(and(eq(scholarshipSanctions.student_id, student.id), eq(scholarshipSanctions.academic_year, academic_year)));
 
       // AUTO-PROPAGATE APPLICATION NO
-      if (providedApp) {
-        await tx.update(scholarshipSanctions).set({ application_no: providedApp }).where(and(eq(scholarshipSanctions.student_id, student.id), or(sql`${scholarshipSanctions.application_no} IS NULL`, eq(scholarshipSanctions.application_no, ''))));
+      if (application_no) {
+        await tx.update(scholarshipSanctions).set({ application_no: application_no }).where(and(eq(scholarshipSanctions.student_id, student.id), or(sql`${scholarshipSanctions.application_no} IS NULL`, eq(scholarshipSanctions.application_no, ''))));
       }
 
-      return { targetRowId, isNewInsert, windowOpen, providedHardcopyFlag, prevHardcopy, providedThumbFlag, providedThumbStatus, prevThumbAvailable, prevThumbStatus, providedApp, existing };
+      return { targetRowId, isNewInsert, windowOpen, providedHardcopyFlag, prevHardcopy, providedThumbFlag, providedThumbStatus, prevThumbAvailable, prevThumbStatus, application_no, existing };
     });
 
-    // EMAIL TRIGGERS (OUTSIDE TRANSACTION TO AVOID LOCKING)
-    const { windowOpen, providedHardcopyFlag, prevHardcopy, providedThumbFlag, providedThumbStatus, prevThumbAvailable, prevThumbStatus, providedApp, existing } = result;
+    const { targetRowId, isNewInsert } = result;
+    const responseData = { id: targetRowId, success: true };
 
+    if (idempotencyStarted) {
+      await IdempotencyService.complete(idempotencyKey, isNewInsert ? 201 : 200, responseData);
+    }
+
+    // EMAIL TRIGGERS (OUTSIDE TRANSACTION)
+    const { windowOpen, providedHardcopyFlag, prevHardcopy, providedThumbFlag, providedThumbStatus, prevThumbAvailable, prevThumbStatus, existing } = result;
     if (windowOpen && student.email && student.is_email_verified) {
-        const currentApp = providedApp || (existing.find(r => r.application_no)?.application_no);
-        
-        // Trigger 1: Hardcopy Required
+        const currentApp = application_no || (existing.find(r => r.application_no)?.application_no);
         if (currentApp && providedHardcopyFlag === 0 && !prevHardcopy) {
-            if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Triggering Hardcopy Email');
             try {
                 const subject = 'Scholarship Hard Copy Submission Required';
                 await sendInstitutionalEmail({
@@ -272,13 +236,9 @@ export async function POST(req) {
                     bodyHtml: `<p>Dear ${student.name},</p><p>Your scholarship application (${currentApp}) has been recorded. Please submit the hard copy documents to the scholarship office immediately.</p>`,
                     infoRows: [{ label: 'App No', value: currentApp }, { label: 'Year', value: academic_year }]
                 });
-                if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Hardcopy Email Sent');
             } catch (err) { console.error('[Scholarship API] Hardcopy Email Failed:', err); }
         }
-
-        // Trigger 2: Thumb Verification Required
         if (providedThumbFlag === 1 && providedThumbStatus === 'PENDING' && (!prevThumbAvailable || prevThumbStatus !== 'PENDING')) {
-            if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Triggering Thumb Email');
             try {
                 const subject = 'Scholarship Thumb Verification Required';
                 await sendInstitutionalEmail({
@@ -288,24 +248,20 @@ export async function POST(req) {
                     bodyHtml: `<p>Dear ${student.name},</p><p>Your application (${currentApp || ''}) requires biometric (thumb) verification. Please visit a Mee-Seva center soon.</p>`,
                     infoRows: [{ label: 'App No', value: currentApp || 'N/A' }, { label: 'Year', value: academic_year }]
                 });
-                if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Thumb Email Sent');
             } catch (err) { console.error('[Scholarship API] Thumb Email Failed:', err); }
         }
-    } else {
-        if (process.env.NODE_ENV === 'development') console.log(`[Scholarship API] Email skipped. Window: ${windowOpen}, Verified Email: ${!!(student.email && student.is_email_verified)}`);
     }
 
-    if (process.env.NODE_ENV === 'development') console.log('[Scholarship API] Transaction committed successfully');
-    return apiResponse({ id: result.targetRowId, success: true }, result.isNewInsert ? 201 : 200);
+    return apiResponse(responseData, isNewInsert ? 201 : 200);
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') console.error('[Scholarship API] FATAL ERROR:', error.message);
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
+    if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
     logger.error('Error inserting sanction:', error);
-    
-    // Distinguish between validation errors and internal errors
     if (error.message.includes('Scholarship sanctioned total exceeds') || error.message.includes('Scholarship released total exceeds')) {
       return apiError(error.message, 400);
     }
-
     return apiError('Internal Server Error', 500);
   }
 }

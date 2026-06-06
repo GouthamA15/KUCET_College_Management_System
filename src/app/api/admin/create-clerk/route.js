@@ -5,27 +5,36 @@ import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { clerkSchema } from '@/lib/validations/staff';
+import { z } from 'zod';
 
 export async function POST(req) {
   const user = await getAuthUser('admin');
   if (!user) return apiError('Unauthorized', 401);
 
   try {
-    const { name, email, password, employee_id, role } = await req.json();
+    const json = await req.json();
+    
+    // Validate with Zod
+    const validationSchema = clerkSchema.extend({
+      password: z.string().min(8, "Password must be at least 8 characters"),
+      employee_id: z.string().trim().min(1, "Employee ID is required").max(50)
+    });
 
-    if (!name || !email || !password || !employee_id || !role) {
-      return apiError('Name, email, password, employee_id, and role are required', 400);
-    }
+    const validatedData = validationSchema.parse(json);
+    const { name, email, password, employee_id, role, branch, is_hod } = validatedData;
 
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     const [result] = await db.insert(clerks).values({
       name,
-      email,
+      email: email.toLowerCase(),
       password_hash: passwordHash,
       employee_id,
-      role
+      role,
+      branch: branch || null,
+      is_hod: !!is_hod
     });
 
     const subject = `Your KUCET CMS ${role} Account Credentials`;
@@ -56,6 +65,9 @@ export async function POST(req) {
 
     return apiResponse({ success: true, clerkId: result.insertId }, 201);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
     logger.error('Error creating clerk:', error);
     if (error.code === 'ER_DUP_ENTRY') {
       return apiError('Email or Employee ID already exists', 409);

@@ -13,7 +13,7 @@ export const collegeInfo = mysqlTable('college_info', {
   location: varchar('location', { length: 100 }).default('Warangal'),
   pincode: varchar('pincode', { length: 10 }).default('506009'),
   contact: varchar('contact', { length: 100 }).default('0870-2970125'),
-  entrance_codes: json('entrance_codes'), // stores { pgecet, eapcet, ecet }
+  entrance_codes: json('entrance_codes'), // stores { tgpgecet, tgeapcet, tgecet }
   branches: json('branches'), // stores array of { code, name }
   categories: json('categories'), // array of strings
   annual_incomes: json('annual_incomes'), // array of strings
@@ -346,10 +346,15 @@ export const studentRequests = mysqlTable('student_requests', {
   generated_attendance: varchar('generated_attendance', { length: 10 }),
   action_by_clerk_id: int('action_by_clerk_id'),
   action_by_role: varchar('action_by_role', { length: 50 }),
+  is_flagged: boolean('is_flagged').default(false),
+  flag_details: json('flag_details'),
+  payment_hash: varchar('payment_hash', { length: 64 }),
 }, (table) => ({
   genCertIdx: index('idx_gen_cert_id').on(table.generated_certificate_id),
   studentIdx: index('idx_sr_student').on(table.student_id),
   statusIdx: index('idx_sr_status').on(table.status),
+  hashIdx: index('idx_sr_payment_hash').on(table.payment_hash),
+  transIdx: index('idx_sr_transaction').on(table.transaction_id),
 }));
 
 export const studentRequestImages = mysqlTable('student_request_images', {
@@ -402,7 +407,7 @@ export const otpCodes = mysqlTable('otp_codes', {
 }));
 
 export const passwordResetTokens = mysqlTable('password_reset_tokens', {
-  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
   token_hash: varchar('token_hash', { length: 255 }).notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(),
   user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),
@@ -423,7 +428,7 @@ export const rateLimits = mysqlTable('rate_limits', {
 }));
 
 export const securityEvents = mysqlTable('security_events', {
-  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
   user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']).notNull(),
   user_id: bigint('user_id', { mode: 'number', unsigned: true }),
   event_type: varchar('event_type', { length: 50 }),
@@ -436,7 +441,7 @@ export const securityEvents = mysqlTable('security_events', {
 }));
 
 export const securityNotifications = mysqlTable('security_notifications', {
-  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
   user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']).notNull(),
   user_id: bigint('user_id', { mode: 'number', unsigned: true }),
   title: varchar('title', { length: 255 }),
@@ -516,6 +521,19 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   assignmentActiveIdx: index('idx_assignment_active').on(table.assignment_id, table.is_active),
   sessionsActiveIdx: index('idx_sessions_active').on(table.is_active, table.expires_at),
   tokenIdx: index('idx_session_token').on(table.session_token),
+}));
+
+export const idempotencyKeys = mysqlTable('idempotency_keys', {
+  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
+  idempotency_key: varchar('idempotency_key', { length: 255 }).notNull(),
+  status: mysqlEnum('status', ['STARTED', 'COMPLETED', 'FAILED']).default('STARTED').notNull(),
+  response_code: int('response_code'),
+  response_body: json('response_body'),
+  created_at: timestamp('created_at').defaultNow(),
+  expires_at: timestamp('expires_at').notNull(),
+}, (table) => ({
+  keyIdx: uniqueIndex('uq_idempotency_key').on(table.idempotency_key),
+  expiryIdx: index('idx_idempotency_expiry').on(table.expires_at),
 }));
 
 export const attendanceSessionLogs = mysqlTable('attendance_session_logs', {
@@ -618,7 +636,7 @@ export const auditLogs = mysqlTable('audit_logs', {
 }));
 
 export const refreshTokens = mysqlTable('refresh_tokens', {
-  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
   token_hash: varchar('token_hash', { length: 255 }).notNull(),
   user_id: varchar('user_id', { length: 255 }).notNull(), // roll_no for student, email for clerk/admin
   user_type: mysqlEnum('user_type', ['student', 'clerk', 'admin']).notNull(),
@@ -632,7 +650,7 @@ export const refreshTokens = mysqlTable('refresh_tokens', {
 }));
 
 export const userSessions = mysqlTable('user_sessions', {
-  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
   user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']),
   user_id: bigint('user_id', { mode: 'number', unsigned: true }),
   session_token_hash: varchar('session_token_hash', { length: 255 }),

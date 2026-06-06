@@ -118,7 +118,7 @@ export async function GET(request, context) {
         let certId = certRequest.generated_certificate_id;
         if (!certId) {
             const hash = crypto.createHmac('sha256', SECRET_SALT)
-                               .update(`${student.roll_no}-${certRequest.certificate_type}`)
+                               .update(`${student.roll_no}-${certRequest.certificate_type}-${requestIdNum}`)
                                .digest('hex');
             certId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
             await db.update(studentRequests)

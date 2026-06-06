@@ -4,6 +4,12 @@ import AuthProvider from "./components/AuthProvider";
 import { AssetProvider } from "@/context/AssetContext";
 import { SystemConfigProvider } from "@/context/SystemConfigContext";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
+import { Inter } from 'next/font/google';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+});
 
 export const metadata = {
   title: "Login | KUCET",
@@ -27,7 +33,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className="antialiased bg-institutional min-h-screen">
+      <body className={`${inter.className} antialiased bg-institutional min-h-screen`}>
         <SystemConfigProvider>
           <MaintenanceGuard>
             <AssetProvider>

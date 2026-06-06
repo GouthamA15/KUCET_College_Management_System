@@ -1,67 +1,38 @@
-import logger from '@/lib/logger';
-import { db } from '@/db';
-import { 
-  branchTimetable, 
-  semesters, 
-  clerks, 
-  syllabusSubjects 
-} from '@/db/schema';
-import { eq, and, desc, asc, sql, like, or, ne } from 'drizzle-orm';
-import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { apiError, apiResponse, getAuthUser, wrapHandler } from '@/lib/api-utils';
 import { FacultyService } from '@/services/FacultyService';
+import { timetableSlotSchema } from '@/lib/validations/staff';
+import { z } from 'zod';
+import { db } from '@/db';
+import { branchTimetable, syllabusSubjects } from '@/db/schema';
+import { eq, and, like, or, ne, sql } from 'drizzle-orm';
+import logger from '@/lib/logger';
 
-export async function GET(req) {
-  try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'faculty' || !user.is_hod) {
-      return apiError('Unauthorized', 401);
+/**
+ * GET /api/clerk/hod/timetable
+ * Fetch branch timetable for HOD management
+ */
+export const GET = wrapHandler({
+  auth: 'clerk',
+  handler: async (req, { user }) => {
+    if (user.role !== 'faculty' || !user.is_hod) {
+      return apiError('Unauthorized: HOD only', 403);
     }
 
     const { searchParams } = new URL(req.url);
     const semester = searchParams.get('semester') ? parseInt(searchParams.get('semester')) : 1;
     const section = searchParams.get('section') || 'A';
 
-    const semRows = await db.select({ academic_year: semesters.academic_year })
-      .from(semesters)
-      .orderBy(desc(semesters.id))
-      .limit(1);
-    const systemYear = semRows[0]?.academic_year || '2025-26';
-    
-    const timetable = await db.select({
-      id: branchTimetable.id,
-      branch: branchTimetable.branch,
-      semester: branchTimetable.semester,
-      section: branchTimetable.section,
-      day_of_week: branchTimetable.day_of_week,
-      period_number: branchTimetable.period_number,
-      subject_code: branchTimetable.subject_code,
-      faculty_id: branchTimetable.faculty_id,
-      academic_year: branchTimetable.academic_year,
-      room_no: branchTimetable.room_no,
-      version: branchTimetable.version,
-      faculty_name: clerks.name,
-      subject_name: syllabusSubjects.subject_name
-    })
-    .from(branchTimetable)
-    .leftJoin(clerks, eq(branchTimetable.faculty_id, clerks.id))
-    .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
-    .where(and(
-      eq(branchTimetable.branch, user.branch),
-      eq(branchTimetable.semester, semester),
-      eq(branchTimetable.section, section),
-      or(
-        like(branchTimetable.academic_year, `%${systemYear.substring(0, 4)}%`),
-        eq(branchTimetable.academic_year, '2025-26')
-      )
-    ))
-    .orderBy(asc(branchTimetable.day_of_week), asc(branchTimetable.period_number));
+    const systemYear = await FacultyService.getCurrentAcademicYear();
+    const timetable = await FacultyService.getBranchTimetable({
+      branch: user.branch,
+      semester,
+      section,
+      academicYear: systemYear
+    });
 
-    return apiResponse({ data: timetable });
-  } catch (error) {
-    logger.error('Timetable API Error:', error);
-    return apiError('Internal Server Error', 500);
+    return { data: timetable };
   }
-}
+});
 
 export async function POST(req) {
   try {
@@ -70,16 +41,30 @@ export async function POST(req) {
       return apiError('Unauthorized', 401);
     }
 
-    let { 
-      id, version, semester, section = 'A', day_of_week, period_number, 
-      subject_code, faculty_id, academic_year = '2025-26', room_no = null 
-    } = await req.json();
+    const json = await req.json();
 
-    const sanitizedFacultyId = (faculty_id === '' || !faculty_id) ? null : parseInt(faculty_id);
+    // Validate with Zod
+    const validationSchema = timetableSlotSchema.extend({
+      id: z.number().int().positive().optional(),
+      version: z.number().int().min(0).optional(),
+      section: z.string().trim().max(1).toUpperCase().default('A'),
+      academic_year: z.string().regex(/^\d{4}-\d{2}$/, "Format: YYYY-YY").default('2025-26'),
+      semester: z.number().int().min(1).max(8),
+      faculty_id: z.preprocess(
+        (v) => (v === '' || v === undefined || v === null) ? null : Number(v),
+        z.number().int().positive().nullable()
+      )
+    });
 
-    if (sanitizedFacultyId) {
+    const validatedData = validationSchema.parse(json);
+    const { 
+      id, version, semester, section, day_of_week, period_number, 
+      subject_code, faculty_id, academic_year, room_no 
+    } = validatedData;
+
+    if (faculty_id) {
       const yearPrefix = academic_year.substring(0, 7);
-      const isEvenSem = parseInt(semester) % 2 === 0;
+      const isEvenSem = semester % 2 === 0;
       
       const conflictRows = await db.select({
         branch: branchTimetable.branch,
@@ -91,7 +76,7 @@ export async function POST(req) {
       .from(branchTimetable)
       .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
       .where(and(
-        eq(branchTimetable.faculty_id, sanitizedFacultyId),
+        eq(branchTimetable.faculty_id, faculty_id),
         eq(branchTimetable.day_of_week, day_of_week),
         eq(branchTimetable.period_number, period_number),
         or(
@@ -113,19 +98,19 @@ export async function POST(req) {
 
     const slotData = {
       branch: user.branch,
-      semester: parseInt(semester),
+      semester: semester,
       section: section,
       day_of_week: day_of_week,
-      period_number: parseInt(period_number),
+      period_number: period_number,
       subject_code: subject_code,
-      faculty_id: sanitizedFacultyId,
+      faculty_id: faculty_id,
       academic_year: academic_year,
       room_no: room_no
     };
 
     if (id) {
       // Optimistic Locking Update
-      const success = await FacultyService.updateTimetableAtomic(id, slotData, version);
+      const success = await FacultyService.updateTimetableAtomic(id, slotData, version || 0);
       if (!success) {
         return apiError('Concurrency Conflict: This timetable slot was modified by another user. Please refresh.', 409);
       }
@@ -150,6 +135,9 @@ export async function POST(req) {
 
     return apiResponse({ success: true, message: 'Slot updated successfully' });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
     logger.error('Timetable Save Error:', error);
     return apiError('Internal Server Error', 500);
   }

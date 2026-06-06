@@ -11,8 +11,8 @@ const branchCodes = {
 };
 
 const EXAM_TOTAL_MARKS = {
-  'EAMCET': 160,
-  'ECET': 200,
+  'TG EAPCET': 160,
+  'TG ECET': 200,
   'PGECET': 120, // Assuming a default or common value for PGECET, can be updated if specified
 };
 
@@ -188,10 +188,10 @@ function getBatchFromRoll(rollNo) {
 function getEntranceExamQualified(rollNo) {
   if (rollNo && typeof rollNo === 'string') {
     if (rollNo.includes('T')) {
-      return 'EAMCET';
+      return 'TG EAPCET';
     }
     if (rollNo.includes('L')) {
-      return 'ECET';
+      return 'TG ECET';
     }
   }
   return null;

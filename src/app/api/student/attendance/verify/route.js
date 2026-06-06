@@ -9,6 +9,7 @@ import {
 } from '@/db/schema';
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { isWithinRange } from '@/lib/geo-utils';
+import { getNow } from '@/lib/clock';
 import crypto from 'crypto';
 
 /**
@@ -29,12 +30,14 @@ export async function POST(request) {
       return apiError('Location and Verification Data (PIN/QR) are required.', 400);
     }
 
+    const now = await getNow();
+    
     // 1. Fetch the active session
     const session = await db.query.attendanceSessions.findFirst({
       where: and(
         session_id ? eq(attendanceSessions.id, session_id) : eq(attendanceSessions.assignment_id, assignment_id),
         eq(attendanceSessions.is_active, true),
-        gt(attendanceSessions.expires_at, sql`NOW()`)
+        gt(attendanceSessions.expires_at, now)
       )
     });
 
@@ -44,7 +47,35 @@ export async function POST(request) {
 
     const sessionNum = session.session_number || 1;
 
-    // --- ACTION B: PERSISTENT DEVICE FINGERPRINTING & PROXY DETECTION ---
+    // --- GPS RADIUS & ACCURACY CHECK ---
+    const maxAccuracy = 100; // 100 meters
+    if (accuracy && accuracy > maxAccuracy) {
+      return apiError(`GPS accuracy too low (${Math.round(accuracy)}m). Please move to a clearer area and try again.`, 400);
+    }
+
+    if (session.latitude && session.longitude) {
+      const isNearby = isWithinRange(
+        Number(session.latitude), 
+        Number(session.longitude), 
+        latitude, 
+        longitude, 
+        50 // 50m radius
+      );
+
+      if (!isNearby) {
+        // Record failure
+        await db.insert(attendanceSessionLogs)
+          .values({
+            session_id: session.id,
+            student_id: user.student_id,
+            status: 'FAILED_LOCATION',
+            ip_address: request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1',
+            created_at: now
+          });
+
+        return apiError('You are not within the allowed radius (50m) of the classroom.', 403);
+      }
+    }
     const userAgent = request.headers.get('user-agent') || '';
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || 
                       request.headers.get('x-real-ip') || 
@@ -108,9 +139,7 @@ export async function POST(request) {
       }
     }
 
-    // --- GPS ACCURACY CHECK ---
-
-    // 1. Check if this specific client-side Device ID has already been used for this session
+    // --- PROXY DETECTION: DEVICE FINGERPRINTING ---
     const idLogs = await db.select({
       student_id: attendanceSessionLogs.student_id,
       roll_no: students.roll_no
@@ -126,16 +155,30 @@ export async function POST(request) {
     if (idLogs.length > 0 && idLogs[0].student_id !== user.student_id) {
       const originalStudent = idLogs[0];
       
-      // PROXY DETECTED: Mark original student as ABSENT
-      await db.insert(studentAttendance)
-        .values({
-          assignment_id: session.assignment_id,
-          student_id: originalStudent.student_id,
-          date: session.attendance_date,
-          session: sessionNum,
-          status: 'ABSENT'
-        })
-        .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
+      // PROXY DETECTED: Mark BOTH students as ABSENT
+      await db.transaction(async (tx) => {
+        // Original student
+        await tx.insert(studentAttendance)
+          .values({
+            assignment_id: session.assignment_id,
+            student_id: originalStudent.student_id,
+            date: session.attendance_date,
+            session: sessionNum,
+            status: 'ABSENT'
+          })
+          .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
+
+        // Attempting student (user)
+        await tx.insert(studentAttendance)
+          .values({
+            assignment_id: session.assignment_id,
+            student_id: user.student_id,
+            date: session.attendance_date,
+            session: sessionNum,
+            status: 'ABSENT'
+          })
+          .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
+      });
 
       // Notify Faculty
       try {
@@ -149,7 +192,7 @@ export async function POST(request) {
         });
       } catch (sseErr) {}
 
-      return apiError(`Proxy blocked: Student ${originalStudent.roll_no} attempted to proxy for you using their device/session. Both records have been flagged.`, 403);
+      return apiError(`Proxy blocked: Student ${originalStudent.roll_no} attempted to proxy for you using their device/session. Both records have been flagged as ABSENT.`, 403);
     }
 
     // 2. Check if this specific IP + User-Agent combination has already been used
@@ -169,16 +212,30 @@ export async function POST(request) {
     if (proxyLogs.length > 0 && proxyLogs[0].student_id !== user.student_id) {
       const originalStudent = proxyLogs[0];
 
-      // PROXY DETECTED: Mark original student as ABSENT
-      await db.insert(studentAttendance)
-        .values({
-          assignment_id: session.assignment_id,
-          student_id: originalStudent.student_id,
-          date: session.attendance_date,
-          session: sessionNum,
-          status: 'ABSENT'
-        })
-        .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
+      // PROXY DETECTED: Mark BOTH students as ABSENT
+      await db.transaction(async (tx) => {
+        // Original student
+        await tx.insert(studentAttendance)
+          .values({
+            assignment_id: session.assignment_id,
+            student_id: originalStudent.student_id,
+            date: session.attendance_date,
+            session: sessionNum,
+            status: 'ABSENT'
+          })
+          .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
+
+        // Attempting student (user)
+        await tx.insert(studentAttendance)
+          .values({
+            assignment_id: session.assignment_id,
+            student_id: user.student_id,
+            date: session.attendance_date,
+            session: sessionNum,
+            status: 'ABSENT'
+          })
+          .onDuplicateKeyUpdate({ set: { status: 'ABSENT' } });
+      });
 
       // Notify Faculty
       try {
@@ -192,7 +249,7 @@ export async function POST(request) {
         });
       } catch (sseErr) {}
 
-      return apiError(`Proxy blocked: This network signature has already been used by student ${originalStudent.roll_no} to verify their attendance.`, 403);
+      return apiError(`Proxy blocked: This network signature has already been used by student ${originalStudent.roll_no} to verify their attendance. Both records have been flagged as ABSENT.`, 403);
     }
 
     // 5. Record the log with all fingerprinting markers

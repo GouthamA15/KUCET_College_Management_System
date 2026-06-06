@@ -3,6 +3,8 @@ import { db } from '@/db';
 import { clerks } from '@/db/schema';
 import { eq, and, ne, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
+import { clerkSchema } from '@/lib/validations/staff';
+import { z } from 'zod';
 
 export async function DELETE(req, context) {
   const user = await getAuthUser('admin');
@@ -50,8 +52,16 @@ export async function PUT(req, context) {
   try {
     const params = await context.params;
     const idNum = parseInt(params.id);
-    const body = await req.json();
-    const { name, email, employee_id, role, is_hod, branch, is_active } = body;
+    const json = await req.json();
+
+    // Validate with Zod
+    const updateSchema = clerkSchema.extend({
+      is_active: z.boolean().default(true),
+      employee_id: z.string().trim().min(1).max(50)
+    }).partial();
+
+    const validatedData = updateSchema.parse(json);
+    const { name, email, employee_id, role, is_hod, branch, is_active } = validatedData;
 
     const clerkBefore = await db.query.clerks.findFirst({
       where: eq(clerks.id, idNum)
@@ -62,7 +72,7 @@ export async function PUT(req, context) {
     }
 
     // STRICT VALIDATION: Only one HOD per branch
-    if (is_hod && branch && is_active) {
+    if (is_hod && branch && is_active !== false) {
       const existingHOD = await db.select({ id: clerks.id, name: clerks.name })
         .from(clerks)
         .where(and(
@@ -81,8 +91,17 @@ export async function PUT(req, context) {
       }
     }
 
+    const updatePayload = {};
+    if (name !== undefined) updatePayload.name = name;
+    if (email !== undefined) updatePayload.email = email.toLowerCase();
+    if (employee_id !== undefined) updatePayload.employee_id = employee_id;
+    if (role !== undefined) updatePayload.role = role;
+    if (is_hod !== undefined) updatePayload.is_hod = !!is_hod;
+    if (branch !== undefined) updatePayload.branch = branch || null;
+    if (is_active !== undefined) updatePayload.is_active = !!is_active;
+
     const [result] = await db.update(clerks)
-      .set({ name, email, employee_id, role, is_hod, branch, is_active })
+      .set(updatePayload)
       .where(eq(clerks.id, idNum));
 
     if (result.affectedRows === 0) {
@@ -97,11 +116,14 @@ export async function PUT(req, context) {
       targetId: idNum,
       targetType: 'clerk',
       before: clerkBefore,
-      after: { name, email, employee_id, role, is_hod, branch, is_active }
+      after: updatePayload
     });
 
     return apiResponse({ message: 'Clerk updated successfully' });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
     logger.error('Error updating clerk:', error);
     if (error && error.code === 'ER_DUP_ENTRY') {
       return apiError('Email or Employee ID already exists', 409);

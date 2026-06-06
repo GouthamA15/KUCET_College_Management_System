@@ -1,16 +1,17 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
-  students as studentsTable, 
-  studentPersonalDetails, 
-  studentAcademicBackground, 
-  studentImages, 
-  studentSignatures, 
   studentAdmissionDrafts 
 } from '@/db/schema';
-import { eq, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { validateRollNo } from '@/lib/rollNumber';
+import { getNow } from '@/lib/clock';
+import { z } from 'zod';
+import { decrypt } from '@/lib/encryption';
+
+import IdempotencyService from '@/services/IdempotencyService';
+import { StudentService } from '@/services/StudentService';
 
 export async function POST(req, context) {
   const user = await getAuthUser('clerk');
@@ -18,15 +19,31 @@ export async function POST(req, context) {
     return apiError('Forbidden', 403);
   }
 
+  const idempotencyKey = req.headers.get('idempotency-key');
+  let idempotencyStarted = false;
+
   try {
     const params = await context.params;
     const id = parseInt(params.id);
-    const { roll_no, admission_date } = await req.json();
-    const rollNo = String(roll_no || '').trim().toUpperCase();
+    const json = await req.json();
 
-    if (!rollNo) {
-      return apiError('Roll number is required', 400);
+    if (idempotencyKey) {
+      const { isDuplicate, response, code } = await IdempotencyService.start(idempotencyKey);
+      if (isDuplicate) {
+        return apiResponse(response, code || 201);
+      }
+      idempotencyStarted = true;
     }
+
+    // Validate with Zod
+    const finalizeSchema = z.object({
+      roll_no: z.string().trim().toUpperCase().min(10),
+      admission_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal(''))
+    });
+
+    const validatedData = finalizeSchema.parse(json);
+    const rollNo = validatedData.roll_no;
+    const admissionDateInput = validatedData.admission_date;
 
     const parsed = validateRollNo(rollNo);
     if (!parsed.isValid) {
@@ -40,95 +57,43 @@ export async function POST(req, context) {
         .where(eq(studentAdmissionDrafts.id, id))
         .for('update');
 
-      if (draftRows.length === 0) {
-        throw new Error('DRAFT_NOT_FOUND');
-      }
+      if (draftRows.length === 0) throw new Error('DRAFT_NOT_FOUND');
       const draft = draftRows[0];
-      if (draft.status !== 'PROCESSED') {
-        throw new Error('DRAFT_NOT_VERIFIED');
-      }
+      if (draft.status !== 'PROCESSED') throw new Error('DRAFT_NOT_VERIFIED');
 
       // Enforce branch + admission type consistency with the draft
-      if (String(parsed.branch).toUpperCase() !== String(draft.branch).toUpperCase()) {
-        throw new Error('ROLL_BRANCH_MISMATCH');
-      }
-      const expectedType = String(draft.entrance_exam).toUpperCase() === 'ECET' ? 'Lateral' : 'Regular';
-      if (String(parsed.admissionType) !== expectedType) {
-        throw new Error('ROLL_TYPE_MISMATCH');
-      }
+      if (String(parsed.branch).toUpperCase() !== String(draft.branch).toUpperCase()) throw new Error('ROLL_BRANCH_MISMATCH');
+      const expectedType = String(draft.entrance_exam).toUpperCase() === 'TG ECET' ? 'Lateral' : 'Regular';
+      if (String(parsed.admissionType) !== expectedType) throw new Error('ROLL_TYPE_MISMATCH');
 
-      // 2. Check if roll_no or email already exists
-      const existing = await tx.select({ id: studentsTable.id })
-        .from(studentsTable)
-        .where(or(
-          eq(studentsTable.roll_no, rollNo),
-          eq(studentsTable.email, draft.email)
-        ))
-        .limit(1);
-
-      if (existing.length > 0) {
-        throw new Error('STUDENT_EXISTS');
-      }
-
-      // 3. Insert into students table
-      const [studentResult] = await tx.insert(studentsTable).values({
-        admission_no: null,
+      // 2. Map draft fields to upsert data structure
+      const studentData = {
+        ...draft,
         roll_no: rollNo,
-        name: draft.name,
         date_of_birth: draft.dob,
-        gender: draft.gender,
-        mobile: draft.student_mobile,
-        mobile_hash: draft.mobile_hash, // Transfer blind index
-        email: draft.email,
-        added_by_clerk_id: user.clerkId || user.id,
-        fee_reimbursement: draft.fee_reimbursement === 'YES' ? 'YES' : 'NO',
-        admission_date: admission_date ? new Date(admission_date) : (draft.admission_date ? new Date(draft.admission_date) : new Date()),
-        created_at: new Date()
-      });
-
-      const studentId = studentResult.insertId;
-
-      // 4. Insert into personal details
-      await tx.insert(studentPersonalDetails).values({
-        student_id: studentId,
-        father_name: draft.father_name,
-        mother_name: draft.mother_name,
-        nationality: draft.nationality,
-        religion: draft.religion,
-        category: draft.category,
-        sub_caste: draft.sub_caste,
-        area_status: draft.area_status === 'Local' ? 'Local' : 'Non-Local',
-        mother_tongue: draft.mother_tongue,
-        place_of_birth: draft.place_of_birth,
-        father_occupation: draft.father_occupation,
-        annual_income: draft.annual_income,
-        guardian_mobile: draft.guardian_mobile,
-        aadhaar_no: draft.aadhaar_no,
-        aadhaar_hash: draft.aadhaar_hash, // Transfer blind index
+        admission_date: admissionDateInput || draft.admission_date,
+        mobile: decrypt(draft.student_mobile),
+        guardian_mobile: draft.guardian_mobile ? decrypt(draft.guardian_mobile) : null,
+        aadhaar_no: draft.aadhaar_no ? decrypt(draft.aadhaar_no) : null,
         address: draft.permanent_address,
-        identification_marks: `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim()
-      });
-
-      // 5. Insert into academic background
-      await tx.insert(studentAcademicBackground).values({
-        student_id: studentId,
+        identification_marks: `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim(),
         qualifying_exam: draft.entrance_exam,
-        ssc_marks: draft.ssc_marks,
-        inter_marks: draft.inter_marks || draft.inter_diploma_marks,
+        inter_marks: draft.inter_diploma_marks,
         ranks: draft.exam_rank
-      });
+      };
 
-      // 6. Insert Images if they exist
-      if (draft.pfp) {
-        await tx.insert(studentImages).values({ student_id: studentId, pfp: draft.pfp });
-      }
-      if (draft.signature) {
-        await tx.insert(studentSignatures).values({ student_id: studentId, signature: draft.signature });
-      }
+      // 3. Perform Upsert via Service
+      const studentId = await StudentService.upsertStudent(studentData, user.clerkId || user.id, tx);
+      if (!studentId) throw new Error('UPSERT_FAILED');
 
-      // 7. Mark draft as FINALIZED
+      // 4. Mark draft as FINALIZED and cleanup large strings
       await tx.update(studentAdmissionDrafts)
-        .set({ status: "FINALIZED" })
+        .set({ 
+          status: "FINALIZED",
+          pfp: null,
+          signature: null,
+          updated_at: getNow()
+        })
         .where(eq(studentAdmissionDrafts.id, id));
 
       return { studentId };
@@ -144,14 +109,25 @@ export async function POST(req, context) {
       payload_after: { draft_id: id, roll_no: rollNo }
     });
 
-    return apiResponse({ success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' });
+    const responseData = { success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' };
+
+    if (idempotencyStarted) {
+      await IdempotencyService.complete(idempotencyKey, 201, responseData);
+    }
+
+    return apiResponse(responseData, 201);
 
   } catch (error) {
+    if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
     if (error.message === 'DRAFT_NOT_FOUND') return apiError('Draft not found', 404);
     if (error.message === 'DRAFT_NOT_VERIFIED') return apiError('Only verified drafts can be finalized', 400);
     if (error.message === 'STUDENT_EXISTS') return apiError('A student with this Roll No or Email already exists.', 409);
     if (error.message === 'ROLL_BRANCH_MISMATCH') return apiError('Roll number branch does not match the draft branch.', 400);
     if (error.message === 'ROLL_TYPE_MISMATCH') return apiError('Roll number admission type does not match the draft entrance exam.', 400);
+    if (error.message === 'UPSERT_FAILED') return apiError('Student record creation failed.', 500);
     
     logger.error(error, 'Finalization error');
     return apiError('Failed to finalize admission.', 500);

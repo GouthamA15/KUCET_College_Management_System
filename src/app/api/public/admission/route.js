@@ -1,12 +1,13 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAdmissionDrafts, students, clerks, studentPersonalDetails } from '@/db/schema';
-import { eq, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
+import { z } from 'zod';
 
 export async function POST(req) {
   try {
@@ -17,18 +18,60 @@ export async function POST(req) {
       return apiError('Too many attempts. Please try again in an hour.', 429);
     }
 
-    const draftData = await req.json();
+    const json = await req.json();
 
-    // Basic validation
-    if (!draftData.name || !draftData.admission_year || !draftData.entrance_exam || !draftData.branch || !draftData.seat_allotted_category || !draftData.religion || !draftData.mother_tongue) {
-      return apiError('Missing required fields.', 400);
-    }
+    // --- ZERO TRUST VALIDATION ---
+    const admissionSchema = z.object({
+      name: z.string().trim().min(3).max(255).regex(/^[a-zA-Z\s.]+$/),
+      admission_year: z.string().regex(/^\d{4}-\d{2}$/),
+      entrance_exam: z.enum(['TG EAPCET', 'TG ECET', 'PGECET', 'Other']),
+      branch: z.string().trim().min(2).max(50),
+      seat_allotted_category: z.string().trim().min(1).max(50),
+      religion: z.string().trim().min(1).max(100),
+      mother_tongue: z.string().trim().min(1).max(100),
+      email: z.string().trim().email().toLowerCase().nullable().optional().or(z.literal('')),
+      student_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v.length === 10),
+      guardian_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 10).nullable().optional(),
+      aadhaar_no: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 12).nullable().optional(),
+      dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
+      father_name: z.string().trim().max(255).nullable().optional(),
+      mother_name: z.string().trim().max(255).nullable().optional(),
+      exam_rank: z.preprocess(v => v === '' ? null : Number(v), z.number().int().positive().nullable().optional()),
+      area_status: z.enum(['URBAN', 'RURAL', 'LOCAL', 'NON-LOCAL']).nullable().optional(),
+      category: z.string().trim().max(50).nullable().optional(),
+      sub_caste: z.string().trim().max(100).nullable().optional(),
+      ssc_marks: z.string().trim().max(50).nullable().optional(),
+      inter_diploma_marks: z.string().trim().max(50).nullable().optional(),
+      nationality: z.string().trim().max(100).default('Indian'),
+      blood_group: z.string().trim().max(20).nullable().optional(),
+      place_of_birth: z.string().trim().max(255).nullable().optional(),
+      father_occupation: z.string().trim().max(255).nullable().optional(),
+      annual_income: z.string().trim().max(50).nullable().optional(),
+      fee_reimbursement: z.enum(['YES', 'NO']).default('NO'),
+      identification_mark_1: z.string().trim().max(500).nullable().optional(),
+      identification_mark_2: z.string().trim().max(500).nullable().optional(),
+      permanent_address: z.string().trim().max(1000).nullable().optional(),
+      pfp: z.string().nullable().optional(),
+      signature: z.string().nullable().optional()
+    });
+
+    const validatedData = admissionSchema.parse(json);
+    const { 
+      name, admission_year, entrance_exam, branch, seat_allotted_category, 
+      religion, mother_tongue, email, student_mobile, guardian_mobile, 
+      aadhaar_no, dob, gender, father_name, mother_name, exam_rank,
+      area_status, category, sub_caste, ssc_marks, inter_diploma_marks,
+      nationality, blood_group, place_of_birth, father_occupation, 
+      annual_income, fee_reimbursement, identification_mark_1, 
+      identification_mark_2, permanent_address, pfp, signature
+    } = validatedData;
     
     // 1. Email Uniqueness Check (Plain text)
-    if (draftData.email) {
-        const emailInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.email, draftData.email) });
-        const emailInStudent = await db.query.students.findFirst({ where: eq(students.email, draftData.email) });
-        const emailInClerk = await db.query.clerks.findFirst({ where: eq(clerks.email, draftData.email) });
+    if (email) {
+        const emailInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.email, email) });
+        const emailInStudent = await db.query.students.findFirst({ where: eq(students.email, email) });
+        const emailInClerk = await db.query.clerks.findFirst({ where: eq(clerks.email, email) });
         
         if (emailInDraft || emailInStudent || emailInClerk) {
             return apiError('This email address is already registered in our system.', 409);
@@ -36,21 +79,19 @@ export async function POST(req) {
     }
 
     // 2. Mobile Uniqueness Check (Using Blind Index)
-    if (draftData.student_mobile) {
-        const mobileHash = hashForIndex(draftData.student_mobile);
-        const mobileInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.mobile_hash, mobileHash) });
-        const mobileInStudent = await db.query.students.findFirst({ where: eq(students.mobile_hash, mobileHash) });
-        
-        if (mobileInDraft || mobileInStudent) {
-            return apiError('This mobile number is already in use.', 409);
-        }
+    const mobileHash = hashForIndex(student_mobile);
+    const mobileInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.mobile_hash, mobileHash) });
+    const mobileInStudent = await db.query.students.findFirst({ where: eq(students.mobile_hash, mobileHash) });
+    
+    if (mobileInDraft || mobileInStudent) {
+        return apiError('This mobile number is already in use.', 409);
     }
 
     // 3. Aadhaar Uniqueness Check (Using Blind Index)
-    if (draftData.aadhaar_no) {
-        const aadhaarHash = hashForIndex(draftData.aadhaar_no);
-        const aadhaarInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.aadhaar_hash, aadhaarHash) });
-        const aadhaarInStudent = await db.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.aadhaar_hash, aadhaarHash) });
+    if (aadhaar_no) {
+        const aHash = hashForIndex(aadhaar_no);
+        const aadhaarInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.aadhaar_hash, aHash) });
+        const aadhaarInStudent = await db.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.aadhaar_hash, aHash) });
         
         if (aadhaarInDraft || aadhaarInStudent) {
             return apiError('This Aadhaar number is already registered.', 409);
@@ -61,63 +102,63 @@ export async function POST(req) {
     let pfpUrl = null;
     let signatureUrl = null;
 
-    if (draftData.pfp) {
-      pfpUrl = await uploadToCloudinary(draftData.pfp, 'admission_drafts/pfp');
+    if (pfp) {
+      pfpUrl = await uploadToCloudinary(pfp, 'admission_drafts/pfp');
     }
-    if (draftData.signature) {
-      signatureUrl = await uploadToCloudinary(draftData.signature, 'admission_drafts/signatures');
+    if (signature) {
+      signatureUrl = await uploadToCloudinary(signature, 'admission_drafts/signatures');
     }
 
-    // 5. Encrypt Sensitive Fields & Generate Hashes
-    const encryptedMobile = draftData.student_mobile ? encrypt(draftData.student_mobile) : null;
-    const mobileHash = draftData.student_mobile ? hashForIndex(draftData.student_mobile) : null;
-    
-    const encryptedGuardianMobile = draftData.guardian_mobile ? encrypt(draftData.guardian_mobile) : null;
-    
-    const encryptedAadhaar = draftData.aadhaar_no ? encrypt(draftData.aadhaar_no) : null;
-    const aadhaarHash = draftData.aadhaar_no ? hashForIndex(draftData.aadhaar_no) : null;
+    // 5. Encrypt Sensitive Fields
+    const encryptedMobile = encrypt(student_mobile);
+    const encryptedGuardianMobile = guardian_mobile ? encrypt(guardian_mobile) : null;
+    const encryptedAadhaar = aadhaar_no ? encrypt(aadhaar_no) : null;
+    const aHash = aadhaar_no ? hashForIndex(aadhaar_no) : null;
 
     const [result] = await db.insert(studentAdmissionDrafts).values({
         status: 'DRAFT',
-        admission_year: draftData.admission_year,
-        entrance_exam: draftData.entrance_exam,
-        branch: draftData.branch,
-        name: draftData.name,
-        father_name: draftData.father_name || null,
-        mother_name: draftData.mother_name || null,
-        dob: toMySQLDate(draftData.dob),
-        gender: draftData.gender || null,
-        email: draftData.email || null,
+        admission_year,
+        entrance_exam,
+        branch,
+        name,
+        father_name: father_name || null,
+        mother_name: mother_name || null,
+        dob: toMySQLDate(dob),
+        gender: gender || null,
+        email: email || null,
         student_mobile: encryptedMobile,
         mobile_hash: mobileHash,
         guardian_mobile: encryptedGuardianMobile,
         pfp: pfpUrl,
         signature: signatureUrl,
-        exam_rank: draftData.exam_rank || null,
-        area_status: draftData.area_status || null,
-        category: draftData.category || null,
-        sub_caste: draftData.sub_caste || null,
-        seat_allotted_category: draftData.seat_allotted_category || null,
-        ssc_marks: draftData.ssc_marks || null,
-        inter_diploma_marks: draftData.inter_diploma_marks || null,
-        nationality: draftData.nationality || null,
-        religion: draftData.religion || null,
-        mother_tongue: draftData.mother_tongue || null,
-        blood_group: draftData.blood_group || null,
-        place_of_birth: draftData.place_of_birth || null,
-        father_occupation: draftData.father_occupation || null,
-        annual_income: draftData.annual_income || null,
+        exam_rank: exam_rank || null,
+        area_status: area_status || null,
+        category: category || null,
+        sub_caste: sub_caste || null,
+        seat_allotted_category: seat_allotted_category || null,
+        ssc_marks: ssc_marks || null,
+        inter_diploma_marks: inter_diploma_marks || null,
+        nationality: nationality || null,
+        religion: religion || null,
+        mother_tongue: mother_tongue || null,
+        blood_group: blood_group || null,
+        place_of_birth: place_of_birth || null,
+        father_occupation: father_occupation || null,
+        annual_income: annual_income || null,
         aadhaar_no: encryptedAadhaar,
-        aadhaar_hash: aadhaarHash,
-        fee_reimbursement: draftData.fee_reimbursement || null,
-        identification_mark_1: draftData.identification_mark_1 || null,
-        identification_mark_2: draftData.identification_mark_2 || null,
-        permanent_address: draftData.permanent_address || null
+        aadhaar_hash: aHash,
+        fee_reimbursement: fee_reimbursement || null,
+        identification_mark_1: identification_mark_1 || null,
+        identification_mark_2: identification_mark_2 || null,
+        permanent_address: permanent_address || null
     });
 
     return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
 
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
     logger.error(error, 'Error saving admission draft');
     return apiError('Failed to submit application.', 500);
   }

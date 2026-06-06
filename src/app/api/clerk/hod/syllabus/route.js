@@ -4,6 +4,7 @@ import { syllabusSubjects, syllabusStructure } from '@/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { ValidationService } from '@/services/ValidationService';
+import { z } from 'zod';
 
 export async function GET(req) {
   let user;
@@ -54,8 +55,32 @@ export async function POST(req) {
       return apiError('Unauthorized', 401);
     }
 
-    const body = await req.json();
-    const { action, subject } = body;
+    const json = await req.json();
+
+    // --- ZERO TRUST VALIDATION ---
+    const actionSchema = z.discriminatedUnion("action", [
+      z.object({
+        action: z.literal("ADD_SUBJECT"),
+        subject: z.object({
+          subject_code: z.string().trim().min(1).max(50).toUpperCase(),
+          subject_name: z.string().trim().min(3).max(255),
+          subject_type: z.preprocess(
+            (v) => typeof v === 'string' ? v.toLowerCase() : v,
+            z.enum(['theory', 'lab'])
+          ),
+          semester: z.preprocess(v => Number(v), z.number().int().min(1).max(8))
+        })
+      }),
+      z.object({
+        action: z.literal("DELETE_SUBJECT"),
+        subject: z.object({
+          subject_code: z.string().trim().toUpperCase()
+        })
+      })
+    ]);
+
+    const validatedData = actionSchema.parse(json);
+    const { action, subject } = validatedData;
 
     if (action === 'ADD_SUBJECT') {
       const { subject_code, subject_name, subject_type, semester } = subject;
@@ -72,10 +97,10 @@ export async function POST(req) {
       // 2. Map to branch structure
       await db.insert(syllabusStructure).values({
         branch: user.branch,
-        semester: parseInt(semester),
+        semester: semester,
         subject_code
       }).onDuplicateKeyUpdate({
-        set: { semester: parseInt(semester) }
+        set: { semester: semester }
       });
 
       return apiResponse({ success: true, message: 'Subject added/updated successfully' });
@@ -101,6 +126,9 @@ export async function POST(req) {
 
     return apiError('Invalid action', 400);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
     logger.error('HOD Syllabus POST Error:', error);
     return apiError('Internal Server Error', 500);
   }

@@ -61,6 +61,27 @@ export default function CertificateActionPanel({ request }) {
             </div>
           </div>
 
+          {/* INTEGRITY GUARD WARNING */}
+          {request?.is_flagged && (
+            <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-sm animate-pulse">
+              <div className="flex items-center gap-2 text-rose-800 font-bold text-xs uppercase tracking-wider mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Integrity Guard: Duplicate Proof Warning</span>
+              </div>
+              <p className="text-[11px] text-rose-700 font-medium leading-relaxed">
+                This request has been flagged for potentially recycled payment evidence. 
+                {request.flag_details?.type === 'TRANSACTION_ID_CONFLICT' && (
+                  <span className="block mt-1 font-bold">CONFLICT: Transaction ID previously used by {request.flag_details.conflict_roll_no} (Req #{request.flag_details.conflict_request_id}).</span>
+                )}
+                {request.flag_details?.hash_conflict && (
+                  <span className="block mt-1 font-bold">CONFLICT: Screenshot data is identical to a submission by {request.flag_details.conflict_roll_no}.</span>
+                )}
+              </p>
+            </div>
+          )}
+
           {/* Request Details */}
           <div className="mb-3 pt-2 border-t border-gray-100">
             <h4 className="text-sm font-semibold text-gray-800 mb-2">Request Details</h4>

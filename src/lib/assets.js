@@ -5,9 +5,6 @@
  * Uses CLOUDINARY_CLOUD_NAME from environment configuration with a fallback for client-side access.
  */
 
-const DEFAULT_CLOUD_NAME = 'djs0ry74r';
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || DEFAULT_CLOUD_NAME;
-
 /**
  * List of assets verified to be in the local 'public' folder.
  * These will be served via the app's Global CDN (Next.js public folder)
@@ -45,52 +42,27 @@ const STATIC_ASSETS = [
 export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   if (!path) return '';
   
-  const originalPath = path;
-
-  // 1. Handle data URIs and already-correct absolute URLs from other domains
-  if (path.startsWith('data:') || (path.startsWith('http') && !path.includes('cloudinary.com'))) {
+  // 1. Handle data URIs, absolute URLs, and local API routes
+  if (path.startsWith('data:') || (path.startsWith('http') && !path.includes('cloudinary.com')) || path.startsWith('/api/')) {
     return path;
   }
 
-  // 2. Relativize absolute Cloudinary URLs for backward compatibility
-  if (path.startsWith('http') && path.includes('cloudinary.com')) {
-    const parts = path.split('/upload/');
-    if (parts.length >= 2) {
-      let relativePath = parts[1].replace(/^v\d+\//, ''); 
-      if (relativePath.includes('/')) {
-        const segments = relativePath.split('/');
-        if (segments[0].includes(',')) {
-          relativePath = segments.slice(1).join('/');
-        }
-      }
-      path = relativePath;
-    }
-  }
-
-  // 3. Ensure we are working with a relative path now
-  if (path.startsWith('http')) return path;
-
-  // 4. Preserve root-relative URLs (starting with /)
-  if (path.startsWith('/') && !path.startsWith('/api/assets/view/')) {
-    return path;
-  }
-
-  // 5. Normalize the path
+  // 2. Normalize path and check for static assets
   const cleanPath = path.startsWith('/') ? path.substring(1) : path;
   const normalizedPath = `/${cleanPath}`;
 
-  // 6. Handle Static Assets (Only if no custom transformations are requested)
   if (STATIC_ASSETS.includes(normalizedPath) && transformations === 'f_auto,q_auto') {
     return normalizedPath;
   }
 
-  // 7. Strategy: Local VPS Storage (Secure Proxy)
+  // 3. Strategy: Local VPS storage proxy
   if (process.env.NEXT_PUBLIC_STORAGE_TYPE === 'local') {
     return `/api/assets/view/${cleanPath}`;
   }
 
-  // 8. Strategy: Cloudinary
-  const extension = cleanPath.split('.').pop().toLowerCase();
+  // 4. Strategy: Cloudinary (client-safe)
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
+  const extension = cleanPath.split('.').pop()?.toLowerCase();
   let resourceType = 'image';
   if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
     resourceType = 'video';
@@ -99,7 +71,7 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   }
 
   const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
-  return `https://res.cloudinary.com/${CLOUD_NAME}/${resourceType}/upload/${transformations}/${finalPath}`;
+  return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
 }
 
 export default getAssetUrl;

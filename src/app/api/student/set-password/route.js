@@ -88,11 +88,12 @@ export async function POST(req) {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    const now = (await import('@/lib/clock')).getNow();
     await db.update(students)
       .set({ 
         password_hash: hashedPassword, 
         is_email_verified: true,
-        password_changed_at: new Date()
+        password_changed_at: now
       })
       .where(eq(students.roll_no, rollno));
 

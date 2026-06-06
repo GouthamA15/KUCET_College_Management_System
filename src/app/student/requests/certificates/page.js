@@ -39,7 +39,17 @@ export default function CertificateRequestsPage() {
   const [historyFlash, setHistoryFlash] = useState(false);
 
   const selectedOption = certificateOptions.find(o => o.value === selectedCertificate) || certificateOptions[0];
-  const fee = selectedOption.fee;
+  
+  // Calculate dynamic fee for Bonafide Certificate
+  let fee = selectedOption.fee;
+  if (selectedCertificate === 'Bonafide Certificate') {
+    const hasApprovedBonafide = (certificateRequests || []).some(
+      req => req.certificate_type === 'Bonafide Certificate' && req.status === 'APPROVED'
+    );
+    if (hasApprovedBonafide) {
+      fee = 0;
+    }
+  }
 
   const fetchRequests = useCallback(async () => {
     try {

@@ -30,7 +30,7 @@ export default function AddNewStudent() {
   const [incomeError, setIncomeError] = useState('');
   const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
   const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '', guardian_mobile: '' });
-  const [academic, setAcademic] = useState({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'', ssc_marks:'', inter_marks:'' });
+  const [academic, setAcademic] = useState({ qualifying_exam:'TG EAPCET', previous_college_details:'', medium_of_instruction:'English', ranks:'', ssc_marks:'', inter_marks:'' });
   const [files, setFiles] = useState({ pfp: null, signature: null });
   const [addLoading, setAddLoading] = useState(false);
   const [savedRollLocked, setSavedRollLocked] = useState(false);
@@ -53,13 +53,13 @@ export default function AddNewStudent() {
           setRollNoError(`Roll Number must be exactly ${MAX_ROLL} characters long`);
         }
         const entranceExam = getEntranceExamQualified(basic.roll_no);
-        const newQualifyingExam = entranceExam || 'EAMCET';
+        const newQualifyingExam = entranceExam || 'TG EAPCET';
 
         setAcademic(prev => ({ ...prev, qualifying_exam: newQualifyingExam, ranks: '' })); // Initialize ranks to empty
         setIsTotalMarksAutofilled(false); // Ranks is not autofilled based on exam
       } else {
         setRollNoError('');
-        setAcademic(prev => ({ ...prev, qualifying_exam: 'EAMCET', ranks: '' })); // Reset to default if rollNo is empty
+        setAcademic(prev => ({ ...prev, qualifying_exam: 'TG EAPCET', ranks: '' })); // Reset to default if rollNo is empty
         setIsTotalMarksAutofilled(false);
       }
     }, 0);
@@ -145,7 +145,7 @@ export default function AddNewStudent() {
       // reset fee_reimbursement
       setBasic(prev => ({ ...prev, fee_reimbursement: undefined }));
       setAnnualIncomeDisplay('');
-      setAcademic({ qualifying_exam:'EAMCET', previous_college_details:'', medium_of_instruction:'English', ranks:'', ssc_marks:'', inter_marks:'' });
+      setAcademic({ qualifying_exam:'TG EAPCET', previous_college_details:'', medium_of_instruction:'English', ranks:'', ssc_marks:'', inter_marks:'' });
       setFiles({ pfp: null, signature: null });
       setSavedRollLocked(false);
       setTimeout(()=>{ setShowAddForm(true); }, 1500);
@@ -285,8 +285,8 @@ export default function AddNewStudent() {
               onChange={e => setAcademic({...academic, qualifying_exam:e.target.value})}
               className="p-2 border rounded"
             >
-              <option>EAMCET</option>
-              <option>ECET</option>
+              <option>TG EAPCET</option>
+              <option>TG ECET</option>
               <option>PGECET</option>
             </select>
             <input

@@ -12,7 +12,7 @@ function FinalizeAdmissionContent() {
     const [drafts, setDrafts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedBranch, setSelectedBranch] = useState('CSE');
-    const [selectedExam, setSelectedExam] = useState('EAMCET');
+    const [selectedExam, setSelectedExam] = useState('TG EAPCET');
     const [joiningYear, setJoiningYear] = useState(getIntakeYear());
     const [rollNumbers, setRollNumbers] = useState({});
     const [finalizingId, setFinalizingId] = useState(null);
@@ -168,10 +168,10 @@ function FinalizeAdmissionContent() {
           return;
         }
 
-        // For Lateral Entry (ECET), the roll number prefix usually corresponds to 
+        // For Lateral Entry (TG ECET), the roll number prefix usually corresponds to 
         // the year they join college (which is 1 year after the regular batch start)
         // However, the API expects the "joiningYear" which is then used as prefix.
-        // If we want prefix 26 for ECET, we send 2026.
+        // If we want prefix 26 for TG ECET, we send 2026.
         // If the regulars of this batch joined in 2025 (prefix 25), then laterals joining in 2026 (prefix 26) 
         // are part of the same "2025-2029" batch.
         
@@ -208,7 +208,7 @@ function FinalizeAdmissionContent() {
         const result = validateRollNo(rollNo);
         if (!result.isValid) return { isValid: false, error: 'Invalid Format' };
         if (result.branch !== draft.branch) return { isValid: false, error: `Branch Mismatch (Got ${result.branch})` };
-        const expectedType = draft.entrance_exam === 'ECET' ? 'Lateral' : 'Regular';
+        const expectedType = draft.entrance_exam === 'TG ECET' ? 'Lateral' : 'Regular';
         if (result.admissionType !== expectedType) return { isValid: false, error: `${draft.entrance_exam} must be ${expectedType}` };
         return { isValid: true };
     };
@@ -248,8 +248,8 @@ function FinalizeAdmissionContent() {
                           onChange={e => setSelectedExam(e.target.value)} 
                           className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-black text-[#0b3578] uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-sm transition-all"
                       >
-                          <option value="EAMCET">EAMCET</option>
-                          <option value="ECET">ECET</option>
+                          <option value="TG EAPCET">TG EAPCET</option>
+                          <option value="TG ECET">TG ECET</option>
                       </select>
                     </div>
                     <div className="flex-1 sm:w-60">
@@ -332,7 +332,7 @@ function FinalizeAdmissionContent() {
                                                 <div className="space-y-1.5">
                                                     <input 
                                                         type="text"
-                                                        placeholder={draft.entrance_exam === 'ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
+                                                        placeholder={draft.entrance_exam === 'TG ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
                                                         value={rollNumbers[draft.id] || ''}
                                                         onChange={e => handleRollNumberChange(draft.id, e.target.value)}
                                                         className={`block w-full px-3 py-2 border-2 text-xs font-black tracking-widest focus:outline-none transition-all rounded-sm uppercase ${

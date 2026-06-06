@@ -7,11 +7,13 @@ import {
   branchConfig, 
   collegeInfo as collegeInfoTable 
 } from '@/db/schema';
-import { eq, and, asc, desc, or, like, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, or, like, inArray, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
 import { branchCodes } from '@/lib/rollNumber';
 import { FacultyService } from '@/services/FacultyService';
+import { internalMarksSchema } from '@/lib/validations/staff';
+import { z } from 'zod';
 
 export async function GET(request) {
   try {
@@ -165,15 +167,32 @@ export async function POST(request) {
       return apiError('Unauthorized', 401);
     }
 
-    const body = await request.json();
-    const { assignment_id, marks_data, mid_max, publish } = body;
+    const json = await request.json();
 
-    // Backward compatible: historically POST meant "publish/save".
-    const publishFlag = publish === undefined ? true : Boolean(publish);
+    // Validate with Zod
+    const markValueSchema = z.preprocess(
+      (v) => (v === '' || v === null || v === undefined) ? null : Number(v),
+      z.number().min(0).max(100).nullable().optional()
+    );
 
-    if (!assignment_id || !Array.isArray(marks_data) || marks_data.length === 0) {
-      return apiError('Missing or empty marks data', 400);
-    }
+    const validationSchema = z.object({
+      assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
+      mid_max: z.number().int().min(1).max(100).optional(),
+      publish: z.boolean().default(true),
+      marks_data: z.array(z.object({
+        student_id: z.number().int().positive(),
+        mid1_marks: markValueSchema,
+        mid2_marks: markValueSchema,
+        assignment_marks: markValueSchema,
+        lab_theory_marks: markValueSchema,
+        lab_execution_marks: markValueSchema,
+        lab_record_marks: markValueSchema,
+        version: z.number().int().min(0).optional()
+      })).min(1, "Marks data cannot be empty")
+    });
+
+    const validatedData = validationSchema.parse(json);
+    const { assignment_id, marks_data, mid_max, publish: publishFlag } = validatedData;
 
     const assignments = await db.select({
       id: facultySubjectAssignments.id,
@@ -256,7 +275,6 @@ export async function POST(request) {
       // Deduplicate payload by student_id (last write wins) to avoid accidental double updates.
       const latestByStudent = new Map();
       for (const item of marks_data) {
-        if (!item?.student_id) continue;
         latestByStudent.set(item.student_id, item);
       }
 
@@ -307,8 +325,12 @@ export async function POST(request) {
             };
 
         if (existing?.id) {
-          // Optimistic Locking: include version in update guard
-          const clientVersion = item.version || existing.version;
+          // Optimistic Locking: strictly use the version provided by the client.
+          // If no version is provided for an existing record, we assume stale data or bypass attempt.
+          const clientVersion = item.version;
+          if (clientVersion === undefined || clientVersion === null) {
+            throw new Error(`VERSION_MISSING:${studentId}`);
+          }
           const success = await FacultyService.updateMarkAtomic(existing.id, markFields, clientVersion, tx);
           if (!success) {
             throw new Error(`CONCURRENCY_CONFLICT:${studentId}`);
@@ -339,6 +361,9 @@ export async function POST(request) {
       
     return apiResponse({ message: `Successfully updated ${marks_data.length} records` });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
     if (error.message?.startsWith('CONCURRENCY_CONFLICT')) {
       return apiError('Concurrency Conflict: Another user has updated these marks. Please refresh and try again.', 409);
     }

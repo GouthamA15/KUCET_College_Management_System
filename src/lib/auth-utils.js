@@ -8,19 +8,21 @@ import { eq, and } from 'drizzle-orm';
  * Generates a refresh token, hashes it, stores it in the DB, and sets it in a cookie.
  */
 async function issueRefreshToken(response, userId, userType, rememberMe = false, ip = null, userAgent = null) {
+  const { getNow } = await import('./clock');
   const refreshToken = crypto.randomBytes(40).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
   
   // Normal login: 14 days, Remember Me: 30 days
   const durationDays = rememberMe ? 30 : 14;
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + durationDays);
+  const now = getNow();
+  const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
   await db.insert(refreshTokens).values({
     token_hash: tokenHash,
     user_id: String(userId),
     user_type: userType,
     expires_at: expiresAt,
+    created_at: now,
   });
 
   const cookieName = `${userType}_refresh_token`;
@@ -32,10 +34,14 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
     path: '/',
   });
 
-  // Register session if tracking info provided
+  // Register or Update session if tracking info provided
   if (ip && userAgent) {
     try {
       const SecurityService = (await import('@/services/SecurityService')).default;
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      const existingSessionId = cookieStore.get('session_id')?.value;
+
       // We need the numeric DB ID for user_sessions
       let dbId;
       if (userType === 'student') {
@@ -50,14 +56,30 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
       }
 
       if (dbId) {
-        const sessionId = await SecurityService.registerSession({
-          userType: userType.toUpperCase(),
-          userId: dbId,
-          sessionToken: refreshToken,
-          ipAddress: ip,
-          userAgent: userAgent,
-          expiresAt: expiresAt
-        });
+        let sessionId;
+        if (existingSessionId) {
+          // Update existing session
+          const updated = await SecurityService.updateSession({
+            sessionId: parseInt(existingSessionId),
+            newToken: refreshToken,
+            ipAddress: ip,
+            userAgent: userAgent,
+            expiresAt: expiresAt
+          });
+          if (updated) sessionId = existingSessionId;
+        }
+
+        // Fallback to register new if update failed or didn't exist
+        if (!sessionId) {
+          sessionId = await SecurityService.registerSession({
+            userType: userType.toUpperCase(),
+            userId: dbId,
+            sessionToken: refreshToken,
+            ipAddress: ip,
+            userAgent: userAgent,
+            expiresAt: expiresAt
+          });
+        }
 
         if (sessionId) {
           response.cookies.set('session_id', sessionId.toString(), {
@@ -70,7 +92,7 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
         }
       }
     } catch (err) {
-      console.error('Session registration failed:', err);
+      console.error('Session management failed:', err);
     }
   }
 
@@ -224,8 +246,9 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false, 
  * Attempts to refresh the access token using the refresh token from cookies.
  * This is used by the middleware (proxy.js) for silent rotation.
  */
-export async function refreshAccessToken(response, userType, cookies) {
+export async function refreshAccessToken(response, userType, cookies, ip = null, userAgent = null) {
   try {
+    const { getNow } = await import('./clock');
     const refreshToken = cookies.get(`${userType}_refresh_token`)?.value;
     if (!refreshToken) return null;
 
@@ -239,30 +262,31 @@ export async function refreshAccessToken(response, userType, cookies) {
       )
     });
 
-    if (!tokenRecord || tokenRecord.revoked_at || new Date(tokenRecord.expires_at) < new Date()) {
+    const now = getNow();
+    if (!tokenRecord || tokenRecord.revoked_at || new Date(tokenRecord.expires_at) < now) {
       return null;
     }
 
     // 2. Revoke old token
     await db.update(refreshTokens)
-      .set({ revoked_at: new Date() })
+      .set({ revoked_at: now })
       .where(eq(refreshTokens.id, tokenRecord.id));
 
     // 3. Fetch user and issue new tokens
     if (userType === 'student') {
       const user = await db.query.students.findFirst({ where: eq(students.roll_no, tokenRecord.user_id) });
       if (!user) return null;
-      await issueStudentAuthCookie(response, user, true);
+      await issueStudentAuthCookie(response, user, true, ip, userAgent);
       return user;
     } else if (userType === 'clerk') {
       const user = await db.query.clerks.findFirst({ where: eq(clerks.email, tokenRecord.user_id) });
       if (!user || !user.is_active) return null;
-      await issueClerkAuthCookie(response, user, true);
+      await issueClerkAuthCookie(response, user, true, ip, userAgent);
       return user;
     } else if (userType === 'admin') {
       const user = await db.query.principal.findFirst({ where: eq(principal.email, tokenRecord.user_id) });
       if (!user) return null;
-      await issueAdminAuthCookie(response, user, true);
+      await issueAdminAuthCookie(response, user, true, ip, userAgent);
       return user;
     }
 

@@ -217,6 +217,7 @@ export default class SecurityService {
    */
   static async getActiveSessions(userType, userId, currentTokenHash = null) {
     try {
+      const now = getNow();
       const sessions = await db
         .select()
         .from(userSessions)
@@ -224,7 +225,7 @@ export default class SecurityService {
           eq(userSessions.user_id, userId),
           eq(userSessions.user_type, userType.toUpperCase()),
           eq(userSessions.is_revoked, false),
-          sql`${userSessions.expires_at} > NOW()`
+          sql`${userSessions.expires_at} > ${now}`
         ))
         .orderBy(desc(userSessions.last_seen_at));
 
@@ -463,7 +464,7 @@ export default class SecurityService {
 
       const createdAt = getNow();
       const lastSeenAt = getNow();
-      const expiryDate = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const expiryDate = expiresAt ? new Date(expiresAt) : new Date(getNow().getTime() + 30 * 24 * 60 * 60 * 1000);
 
       logger.info('[SESSION_REGISTRATION_TYPES]', {
         createdAtIsDate: createdAt instanceof Date,
@@ -491,6 +492,55 @@ export default class SecurityService {
       return result.insertId;
     } catch (err) {
       logger.error(err, '[SESSION_REGISTRATION_FAILED]');
+    }
+  }
+
+  /**
+   * Update an existing session with a new token hash and activity info
+   */
+  static async updateSession({ sessionId, newToken, ipAddress, userAgent, expiresAt }) {
+    try {
+      const deviceInfo = parseUA(userAgent);
+      const sessionTokenHash = crypto.createHash('sha256').update(newToken).digest('hex');
+      const lastSeenAt = getNow();
+      const expiryDate = expiresAt ? new Date(expiresAt) : new Date(getNow().getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      // Ensure only one current session per user (mirror registerSession behavior)
+      const [session] = await db
+        .select({ user_id: userSessions.user_id, user_type: userSessions.user_type })
+        .from(userSessions)
+        .where(eq(userSessions.id, sessionId))
+        .limit(1);
+
+      if (session) {
+        await db
+          .update(userSessions)
+          .set({ is_current: false })
+          .where(and(
+            eq(userSessions.user_id, session.user_id),
+            eq(userSessions.user_type, session.user_type),
+            ne(userSessions.id, sessionId)
+          ));
+      }
+
+      await db
+        .update(userSessions)
+        .set({
+          session_token_hash: sessionTokenHash,
+          browser: deviceInfo.browser,
+          operating_system: deviceInfo.operatingSystem,
+          ip_address: ipAddress,
+          last_seen_at: lastSeenAt,
+          expires_at: expiryDate,
+          is_current: true
+        })
+        .where(eq(userSessions.id, sessionId));
+
+      logger.info({ sessionId, ipAddress }, '[SESSION_UPDATED]');
+      return true;
+    } catch (err) {
+      logger.error(err, '[SESSION_UPDATE_FAILED]');
+      return false;
     }
   }
 }

@@ -11,7 +11,8 @@ import { eq, and, inArray, sql } from 'drizzle-orm';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { encrypt } from '@/lib/encryption';
+import { encrypt, hashForIndex } from '@/lib/encryption';
+import { StudentService } from '@/services/StudentService';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -183,13 +184,32 @@ export async function POST(req) {
         if (key.startsWith('_')) return;
         if (ALIASES.students[key]) {
             let val = record[key];
-            if (key === 'mobile' && val) val = encrypt(val);
-            student[key] = val;
+            if (key === 'mobile' && val) {
+              const cleanMobile = String(val).replace(/\D/g, '');
+              if (cleanMobile.length === 10) {
+                student['mobile'] = encrypt(cleanMobile);
+                student['mobile_hash'] = hashForIndex(cleanMobile);
+              }
+            } else {
+              student[key] = val;
+            }
         }
         else if (ALIASES.student_personal_details[key]) {
             let val = record[key];
-            if ((key === 'aadhaar_no' || key === 'guardian_mobile') && val) val = encrypt(val);
-            personal[key] = val;
+            if (key === 'aadhaar_no' && val) {
+              const cleanAadhaar = String(val).replace(/\D/g, '');
+              if (cleanAadhaar.length === 12) {
+                personal['aadhaar_no'] = encrypt(cleanAadhaar);
+                personal['aadhaar_hash'] = hashForIndex(cleanAadhaar);
+              }
+            } else if (key === 'guardian_mobile' && val) {
+              const cleanGMobile = String(val).replace(/\D/g, '');
+              if (cleanGMobile.length === 10) {
+                personal['guardian_mobile'] = encrypt(cleanGMobile);
+              }
+            } else {
+              personal[key] = val;
+            }
         }
         else if (ALIASES.student_academic_background[key]) academic[key] = record[key];
       });
@@ -223,9 +243,13 @@ export async function POST(req) {
     if (prepared.length === 0) return apiResponse({ totalRows, inserted: 0, updated: 0, skipped: totalRows, errors });
 
     const incomingRolls = prepared.map(p => p.student.roll_no);
-    const existingStudents = await db.select({
+    const incomingEmails = prepared.map(p => p.student.email).filter(Boolean);
+
+    // 1. Fetch existing students by Roll No
+    const existingByRoll = await db.select({
       id: studentsTable.id,
       roll_no: studentsTable.roll_no,
+      email: studentsTable.email,
       personal_id: studentPersonalDetails.id,
       academic_id: studentAcademicBackground.id
     })
@@ -234,40 +258,49 @@ export async function POST(req) {
     .leftJoin(studentAcademicBackground, eq(studentsTable.id, studentAcademicBackground.student_id))
     .where(inArray(studentsTable.roll_no, incomingRolls));
 
-    const existingMap = new Map(existingStudents.map(s => [s.roll_no, s]));
+    // 2. Fetch existing students by Email (to prevent cross-collisions)
+    const existingByEmail = incomingEmails.length > 0 ? await db.select({
+      id: studentsTable.id,
+      roll_no: studentsTable.roll_no,
+      email: studentsTable.email
+    })
+    .from(studentsTable)
+    .where(inArray(studentsTable.email, incomingEmails)) : [];
+
+    const rollMap = new Map(existingByRoll.map(s => [s.roll_no, s]));
+    const emailMap = new Map(existingByEmail.map(s => [s.email, s]));
 
     let insertedCount = 0;
     let updatedCount = 0;
 
     await db.transaction(async (tx) => {
       for (const rec of prepared) {
-        const existing = existingMap.get(rec.student.roll_no);
         const { student, personal, academic } = rec;
-
-        if (existing) {
-          // Update
-          await tx.update(studentsTable).set(student).where(eq(studentsTable.id, existing.id));
-          if (existing.personal_id) {
-            await tx.update(studentPersonalDetails).set(personal).where(eq(studentPersonalDetails.id, existing.personal_id));
-          } else {
-            await tx.insert(studentPersonalDetails).values({ student_id: existing.id, ...personal });
+        
+        // Collision Check: If email exists but belongs to a DIFFERENT roll number
+        if (student.email) {
+          const emailCollision = emailMap.get(student.email);
+          if (emailCollision && emailCollision.roll_no !== student.roll_no) {
+            errors.push({ 
+              row: rec.rowNumber, 
+              roll_no: student.roll_no, 
+              reason: `Email (${student.email}) is already assigned to student ${emailCollision.roll_no}` 
+            });
+            continue; 
           }
-          if (existing.academic_id) {
-            await tx.update(studentAcademicBackground).set(academic).where(eq(studentAcademicBackground.id, existing.academic_id));
-          } else if (Object.keys(academic).length > 0) {
-            await tx.insert(studentAcademicBackground).values({ student_id: existing.id, ...academic });
-          }
-          updatedCount++;
-        } else {
-          // Insert
-          const [res] = await tx.insert(studentsTable).values({ ...student, added_by_clerk_id: clerkId });
-          const studentId = res.insertId;
-          await tx.insert(studentPersonalDetails).values({ student_id: studentId, ...personal });
-          if (Object.keys(academic).length > 0) {
-            await tx.insert(studentAcademicBackground).values({ student_id: studentId, ...academic });
-          }
-          insertedCount++;
         }
+
+        const isUpdate = rollMap.has(student.roll_no);
+
+        // Perform Upsert via StudentService
+        await StudentService.upsertStudent({
+          ...student,
+          ...personal,
+          ...academic
+        }, clerkId, tx);
+
+        if (isUpdate) updatedCount++;
+        else insertedCount++;
       }
 
       if (insertedCount > 0) {

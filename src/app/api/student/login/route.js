@@ -1,13 +1,21 @@
 import { db } from '@/db';
 import { students, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { apiResponse, apiError } from '@/lib/api-utils';
+import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 import { checkRateLimit } from '@/lib/rate-limit';
 import logger from '@/lib/logger';
+import { z } from 'zod';
 
-export async function POST(req) {
-  try {
+const loginSchema = z.object({
+  rollno: z.string().trim().toUpperCase().min(10).max(12),
+  dob: z.string().trim().min(8).max(255), // Can be DOB (8-10) or Password (up to 255)
+  rememberMe: z.boolean().default(false)
+});
+
+export const POST = wrapHandler({
+  schema: loginSchema,
+  handler: async (req, { data }) => {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
     const rateCheck = await checkRateLimit(`login_student:${ip}`, 5, 900); // 5 attempts per 15 min
 
@@ -15,14 +23,7 @@ export async function POST(req) {
       return apiError('Too many login attempts. Please try again later.', 429);
     }
 
-    const body = await req.json();
-    let { rollno, dob, rememberMe } = body;
-    if (!rollno || !dob) {
-      return apiError('Missing rollno or dob', 400);
-    }
-
-    // Invisible Normalization Hook
-    rollno = String(rollno).trim().toUpperCase();
+    const { rollno, dob, rememberMe } = data;
     
     const rows = await db.select({
       id: students.id,
@@ -80,11 +81,6 @@ export async function POST(req) {
     // Log Security Event & Update Last Login
     const SecurityService = (await import('@/services/SecurityService')).default;
 
-    logger.info('[SECURITY_SERVICE_LOADED]', { 
-      hasUpdateLastLogin: !!SecurityService?.updateLastLogin,
-      hasLogSecurityEvent: !!SecurityService?.logSecurityEvent
-    });
-
     await SecurityService.updateLastLogin('STUDENT', student.id, ip);
     await SecurityService.logSecurityEvent({
       userType: 'STUDENT',
@@ -104,9 +100,5 @@ export async function POST(req) {
     await issueStudentAuthCookie(response, student, rememberMe, ip, userAgent);
 
     return response;
-
-  } catch (err) {
-    logger.error(err, 'Student Login Error');
-    return apiError('Server error', 500, err.message);
   }
-}
+});
