@@ -57,7 +57,7 @@ export async function PUT(request, { params }) {
         if (status === 'APPROVED' && !generatedCertId) {
             const SECRET_SALT = process.env.CERTIFICATE_SECRET || 'fallback_salt';
             const hash = crypto.createHmac('sha256', SECRET_SALT)
-                               .update(`${requestToUpdate.roll_no}-${requestToUpdate.certificate_type}`)
+                               .update(`${requestToUpdate.roll_no}-${requestToUpdate.certificate_type}-${requestIdNum}`)
                                .digest('hex');
             generatedCertId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
         }

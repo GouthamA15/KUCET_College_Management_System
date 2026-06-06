@@ -81,6 +81,18 @@ export async function POST(request) {
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeRows[0], now);
 
+    // Check existing
+    const existing = await db.query.studentRequests.findFirst({
+      where: and(
+        eq(studentRequests.student_id, user.student_id),
+        eq(studentRequests.certificate_type, certificateType),
+        eq(studentRequests.academic_year, academicYear)
+      ),
+      orderBy: [desc(studentRequests.created_at)]
+    });
+
+    requestId = existing?.request_id;
+
     // --- BONAFIDE FREE LOGIC: Pay Once, Free for 4 Years ---
     let finalPaymentAmount = paymentAmountNum;
     if (certificateType === 'Bonafide Certificate') {
@@ -111,14 +123,17 @@ export async function POST(request) {
         with: { student: { columns: { roll_no: true } } }
       });
 
-      if (conflictTrans && conflictTrans.student_id !== user.student_id) {
-        isFlagged = true;
-        flagDetails = {
-          type: 'TRANSACTION_ID_CONFLICT',
-          conflict_roll_no: conflictTrans.student.roll_no,
-          conflict_request_id: conflictTrans.request_id,
-          conflict_date: conflictTrans.created_at
-        };
+      if (conflictTrans) {
+        // Flag if it's a different student OR a different request by the same student (reusing payment)
+        if (conflictTrans.student_id !== user.student_id || (requestId && conflictTrans.request_id !== requestId)) {
+          isFlagged = true;
+          flagDetails = {
+            type: 'TRANSACTION_ID_CONFLICT',
+            conflict_roll_no: conflictTrans.student.roll_no,
+            conflict_request_id: conflictTrans.request_id,
+            conflict_date: conflictTrans.created_at
+          };
+        }
       }
     }
 
@@ -136,27 +151,20 @@ export async function POST(request) {
         with: { student: { columns: { roll_no: true } } }
       });
 
-      if (conflictHash && conflictHash.student_id !== user.student_id) {
-        isFlagged = true;
-        flagDetails = {
-          ...(flagDetails || {}),
-          hash_conflict: true,
-          conflict_roll_no: conflictHash.student.roll_no,
-          conflict_request_id: conflictHash.request_id,
-          conflict_date: conflictHash.created_at
-        };
+      if (conflictHash) {
+        // Flag if it's a different student OR a different request by the same student
+        if (conflictHash.student_id !== user.student_id || (requestId && conflictHash.request_id !== requestId)) {
+          isFlagged = true;
+          flagDetails = {
+            ...(flagDetails || {}),
+            hash_conflict: true,
+            conflict_roll_no: conflictHash.student.roll_no,
+            conflict_request_id: conflictHash.request_id,
+            conflict_date: conflictHash.created_at
+          };
+        }
       }
     }
-
-    // Check existing
-    const existing = await db.query.studentRequests.findFirst({
-      where: and(
-        eq(studentRequests.student_id, user.student_id),
-        eq(studentRequests.certificate_type, certificateType),
-        eq(studentRequests.academic_year, academicYear)
-      ),
-      orderBy: [desc(studentRequests.created_at)]
-    });
 
     // If an active (PENDING) request already exists for this academic year, block new one.
     // If it's APPROVED or REJECTED, we can allow a new one (especially for Bonafide which is free after first)
