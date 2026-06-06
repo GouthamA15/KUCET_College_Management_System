@@ -19,7 +19,11 @@ export const GET = wrapHandler({
     const semester = getCurrentSemester(rollNo, collegeInfo);
     const branch = getBranchFromRoll(rollNo);
 
-    if (!semester || !branch) throw new Error('ACADEMIC_RESOLUTION_FAILED');
+    if (!semester || !branch) {
+      const err = new Error('Resolution failed');
+      err.status = 400;
+      throw err;
+    }
 
     const systemYear = await FacultyService.getCurrentAcademicYear();
     const timetable = await FacultyService.getBranchTimetable({ 
