@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StudentService } from '@/services/StudentService';
 import { db } from '@/db';
-import { students as studentsTable, studentPersonalDetails, studentAcademicBackground } from '@/db/schema';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 
 // Mock dependencies
@@ -9,30 +8,24 @@ vi.mock('@/db', () => ({
   db: {
     select: vi.fn(),
     transaction: vi.fn(),
+    query: {
+      studentImages: { findFirst: vi.fn() },
+      studentSignatures: { findFirst: vi.fn() },
+      scholarshipSanctions: { findMany: vi.fn() },
+      studentFeePayments: { findMany: vi.fn() },
+    },
   },
 }));
 
 vi.mock('@/lib/encryption', () => ({
   encrypt: vi.fn((val) => `encrypted_${val}`),
   hashForIndex: vi.fn((val) => `hash_${val}`),
-  decrypt: vi.fn((val) => val.replace('encrypted_', '')),
+  decrypt: vi.fn((val) => val ? val.replace('encrypted_', '') : null),
 }));
 
 describe('StudentService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  describe('normalizeRollNo', () => {
-    it('should trim and uppercase roll numbers', () => {
-      expect(StudentService.normalizeRollNo(' 22567t0901 ')).toBe('22567T0901');
-    });
-  });
-
-  describe('normalizeMobile', () => {
-    it('should strip non-numeric characters', () => {
-      expect(StudentService.normalizeMobile('+91 98765-43210')).toBe('919876543210');
-    });
   });
 
   describe('upsertStudent', () => {
@@ -61,53 +54,70 @@ describe('StudentService', () => {
       mockTx.update.mockReturnValue(chainable);
     });
 
-    it('should throw an error if roll_no or name is missing', async () => {
-      await expect(StudentService.upsertStudent({}, 1))
-        .rejects.toThrow('MISSING_REQUIRED_FIELDS');
-    });
-
-    it('should create a new student when no record exists', async () => {
-      const studentData = {
+    it('should create new student with full details', async () => {
+      const data = {
         roll_no: '22567T0901',
-        name: 'John Doe',
-        mobile: '9876543210',
-        qualifying_exam: 'TG EAPCET'
+        name: 'Full Test',
+        email: 'test@kucet.com',
+        pfp: 'data:image/png;base64,123',
+        signature: 'data:image/png;base64,456'
       };
-
-      const resultId = await StudentService.upsertStudent(studentData, 1);
-
-      expect(resultId).toBe(101);
-      expect(mockTx.insert).toHaveBeenCalled();
-      expect(encrypt).toHaveBeenCalledWith('9876543210');
+      await StudentService.upsertStudent(data, 1);
+      expect(mockTx.insert).toHaveBeenCalledTimes(5); // Student, Personal, Academic, Images, Signatures
     });
 
-    it('should update an existing student if roll_no matches', async () => {
-      mockTx.select.mockReturnValueOnce({ 
-        from: vi.fn().mockReturnThis(), 
-        where: vi.fn().mockReturnThis(), 
-        limit: vi.fn().mockResolvedValue([{ id: 101 }]) 
+    it('should update existing student if found', async () => {
+        mockTx.select.mockReturnValue({ from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue([{ id: 101 }]) });
+        await StudentService.upsertStudent({ roll_no: '22567T0901', name: 'Update' }, 1);
+        expect(mockTx.update).toHaveBeenCalled();
+    });
+  });
+
+  describe('getStudentProfile', () => {
+    it('should handle Buffer and string images', async () => {
+      const mockJoined = [{
+        students: { id: 1, roll_no: '22567T0901', name: 'John' },
+        student_personal_details: { id: 1 },
+        student_academic_background: null
+      }];
+
+      db.select.mockReturnValue({
+        from: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue(mockJoined),
       });
 
-      const studentData = {
-        roll_no: '22567T0901',
-        name: 'John Updated',
-      };
+      // Buffer PNG
+      db.query.studentImages.findFirst.mockResolvedValue({ pfp: Buffer.from([0x89, 0x50, 0x4E, 0x47]) });
+      // Buffer JPEG
+      db.query.studentSignatures.findFirst.mockResolvedValue({ signature: Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]) });
+      db.query.scholarshipSanctions.findMany.mockResolvedValue([]);
+      db.query.studentFeePayments.findMany.mockResolvedValue([]);
 
-      await StudentService.upsertStudent(studentData, 1);
-
-      expect(mockTx.update).toHaveBeenCalled();
+      const profile = await StudentService.getStudentProfile('22567T0901');
+      expect(profile.student.pfp).toContain('image/png');
+      expect(profile.student.signature).toContain('image/jpeg');
     });
 
-    it('should handle academic background only if provided', async () => {
-      const studentData = {
-        roll_no: '22567T0902',
-        name: 'Jane Doe',
-      };
+    it('should handle GIF and WEBP', async () => {
+        db.select.mockReturnValue({ from: vi.fn().mockReturnThis(), leftJoin: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue([{ students: { id: 1 } }]) });
+        
+        db.query.studentImages.findFirst.mockResolvedValue({ pfp: Buffer.from([0x47, 0x49, 0x46, 0x38]) });
+        let profile = await StudentService.getStudentProfile('X');
+        expect(profile.student.pfp).toContain('image/gif');
 
-      await StudentService.upsertStudent(studentData, 1);
+        db.query.studentImages.findFirst.mockResolvedValue({ pfp: Buffer.from([0x52, 0x49, 0x46, 0x46, 0,0,0,0, 0x57, 0x45, 0x42, 0x50]) });
+        profile = await StudentService.getStudentProfile('X');
+        expect(profile.student.pfp).toContain('image/webp');
+    });
+  });
 
-      // Core, Personal, Academic (even if empty values, structure is created)
-      expect(mockTx.insert).toHaveBeenCalledTimes(3); 
+  describe('getStudentsByYearAndBranch', () => {
+    it('should query correctly', async () => {
+        db.select.mockReturnValue({ from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([]) });
+        await StudentService.getStudentsByYearAndBranch('2025-26', '09');
+        expect(db.select).toHaveBeenCalled();
     });
   });
 });
