@@ -5,7 +5,8 @@ import {
   branchTimetable, 
   attendanceSessions, 
   facultySubjectAssignments,
-  studentMarks
+  studentMarks,
+  syllabusSubjects
 } from '@/db/schema';
 import { eq, and, desc, asc, sql, like, or } from 'drizzle-orm';
 
@@ -33,7 +34,6 @@ export class FacultyService {
   static async getFacultyLoad(academicYear) {
     const yearPattern = `%${academicYear.substring(0, 4)}%`;
 
-    // Metrics definitions (moved from API route to service)
     const scheduledWeeklyExpr = sql`(
         SELECT COUNT(*) 
         FROM branch_timetable 
@@ -72,11 +72,6 @@ export class FacultyService {
 
   /**
    * Atomic update for student marks with optimistic locking
-   * @param {number} id The mark record ID
-   * @param {object} data The marks data
-   * @param {number} originalVersion The version to check against
-   * @param {object} tx Optional transaction object
-   * @returns {Promise<boolean>} Success status
    */
   static async updateMarkAtomic(id, data, originalVersion, tx = db) {
     const result = await tx.update(studentMarks)
@@ -94,10 +89,6 @@ export class FacultyService {
 
   /**
    * Atomic update for timetable slot with optimistic locking
-   * @param {number} id The slot ID
-   * @param {object} data The slot data
-   * @param {number} originalVersion The version to check against
-   * @returns {Promise<boolean>} Success status
    */
   static async updateTimetableAtomic(id, data, originalVersion) {
     const result = await db.update(branchTimetable)
@@ -111,5 +102,50 @@ export class FacultyService {
       ));
     
     return result[0].affectedRows > 0;
+  }
+
+  /**
+   * Fetch consistent branch timetable for any role (HOD or Student)
+   */
+  static async getBranchTimetable({ branch, semester, section, academicYear }) {
+    let systemYear = academicYear;
+    if (!systemYear) {
+      systemYear = await this.getCurrentAcademicYear();
+    }
+
+    const whereClause = [
+      eq(branchTimetable.branch, branch),
+      eq(branchTimetable.semester, semester),
+      or(
+        like(branchTimetable.academic_year, `%${systemYear.substring(0, 4)}%`),
+        eq(branchTimetable.academic_year, '2025-26')
+      )
+    ];
+
+    if (section) {
+      whereClause.push(eq(branchTimetable.section, section));
+    }
+
+    return await db.select({
+      id: branchTimetable.id,
+      day_of_week: branchTimetable.day_of_week,
+      period_number: branchTimetable.period_number,
+      subject_code: branchTimetable.subject_code,
+      faculty_id: branchTimetable.faculty_id,
+      academic_year: branchTimetable.academic_year,
+      room_no: branchTimetable.room_no,
+      version: branchTimetable.version,
+      faculty_name: clerks.name,
+      subject_name: syllabusSubjects.subject_name,
+      display_name: sql`COALESCE(${syllabusSubjects.subject_name}, ${branchTimetable.subject_code})`
+    })
+    .from(branchTimetable)
+    .leftJoin(clerks, eq(branchTimetable.faculty_id, clerks.id))
+    .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
+    .where(and(...whereClause))
+    .orderBy(
+      sql`FIELD(${branchTimetable.day_of_week}, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT')`,
+      branchTimetable.period_number
+    );
   }
 }

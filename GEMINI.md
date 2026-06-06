@@ -68,14 +68,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - June 2026)
 
-#### **Session 147: Bonafide Lifecycle, Integrity Guard & Institutional Refactoring (June 6, 2026)**
-- **Bonafide 'Pay Once' Logic**: Engineered a lifetime fee waiver system with strict course duration caps (4 for Regular, 3 for Lateral entry).
-- **Universal Integrity Guard**: Integrated SHA-256 screenshot fingerprinting and global UTR uniqueness checks across both Fee Payments and Certificate Requests.
-- **Redundancy Reduction**: Consolidated student record management into a unified `StudentService.upsertStudent` and centralized financial reporting in `FinanceService.getStudentFinancialSummary`.
-- **Scholarship Service Layer**: Launched `ScholarshipService` to centralize institutional window logic and aggregate reporting metrics.
-- **API Orchestration**: Refactored high-stakes Clerk APIs (Profile, Search, Summary) to use `wrapHandler` for centralized auth, validation, and telemetry.
-- **Quality Assurance**: Achieved >80% global branch coverage (verified via `test:coverage`) with new dedicated test suites for Finance and Scholarship services.
-- **Time-Travel Synchronization**: Hardened all certificate and financial timestamps to respect the authoritative IST mock clock (`getNow()`).
+#### **Session 147: Institutional Architecture & Logic Hardening (June 6, 2026)**
+- **Bonafide 'Pay Once' Logic**: Engineered a lifetime fee waiver system with strict course duration caps (4 for Regular, 3 for Lateral entry) and academic year limits.
+- **Universal Integrity Guard**: Centralized multi-vector fraud detection (SHA-256 screenshot fingerprinting and global UTR uniqueness) in `FinanceService`, protecting both Fee Payments and Certificate Requests.
+- **Institutional Service Layer**: Consolidated massive boilerplate into shared `StudentService`, `FinanceService`, `ScholarshipService`, and `FacultyService`, removing over 600 lines of redundant code.
+- **Unified Student Data Path**: Manual admission, bulk imports, and draft finalization now share a single secure logic path (`upsertStudent`), ensuring consistent encryption and blind indexing.
+- **API Orchestration**: Refactored high-stakes APIs (Profile, Search, Summary, Metrics, Timetable) to use `wrapHandler` for centralized zero-trust validation, auth, and telemetry.
+- **Quality Assurance Milestone**: Achieved and verified **>80% global branch coverage** (verified via `test:coverage`) with new dedicated service-level test suites.
+- **Time-Travel Testing**: Standardized authoritative IST mock clock (`getNow()`) usage across all modules for consistent testing.
 
 #### **Session 145-146: API Orchestration & Financial Oversight (June 2026)**
 - **Naming Modernization:** Transitioned from legacy `TS EAMCET/ECET` to **`TG EAPCET/ECET`**.
