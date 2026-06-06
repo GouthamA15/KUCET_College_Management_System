@@ -13,6 +13,7 @@ import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { validateRollNo } from '@/lib/rollNumber';
 import { getNow } from '@/lib/clock';
 import { z } from 'zod';
+import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
 
 export async function POST(req, context) {
   const user = await getAuthUser('clerk');
@@ -79,6 +80,12 @@ export async function POST(req, context) {
 
       const now = getNow();
 
+      // Decrypt sensitive fields from draft and re-encrypt for students
+      // This ensures scheme/key consistency and provides a clear audit trail in the transaction
+      const rawMobile = draft.student_mobile ? decrypt(draft.student_mobile) : null;
+      const rawGuardianMobile = draft.guardian_mobile ? decrypt(draft.guardian_mobile) : null;
+      const rawAadhaar = draft.aadhaar_no ? decrypt(draft.aadhaar_no) : null;
+
       // 3. Insert into students table
       const [studentResult] = await tx.insert(studentsTable).values({
         admission_no: null,
@@ -86,8 +93,8 @@ export async function POST(req, context) {
         name: draft.name,
         date_of_birth: draft.dob,
         gender: draft.gender,
-        mobile: draft.student_mobile,
-        mobile_hash: draft.mobile_hash, // Transfer blind index
+        mobile: rawMobile ? encrypt(rawMobile) : null,
+        mobile_hash: rawMobile ? hashForIndex(rawMobile) : null,
         email: draft.email,
         added_by_clerk_id: user.clerkId || user.id,
         fee_reimbursement: draft.fee_reimbursement === 'YES' ? 'YES' : 'NO',
@@ -111,9 +118,9 @@ export async function POST(req, context) {
         place_of_birth: draft.place_of_birth,
         father_occupation: draft.father_occupation,
         annual_income: draft.annual_income,
-        guardian_mobile: draft.guardian_mobile,
-        aadhaar_no: draft.aadhaar_no,
-        aadhaar_hash: draft.aadhaar_hash, // Transfer blind index
+        guardian_mobile: rawGuardianMobile ? encrypt(rawGuardianMobile) : null,
+        aadhaar_no: rawAadhaar ? encrypt(rawAadhaar) : null,
+        aadhaar_hash: rawAadhaar ? hashForIndex(rawAadhaar) : null,
         address: draft.permanent_address,
         identification_marks: `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim()
       });
@@ -123,7 +130,7 @@ export async function POST(req, context) {
         student_id: studentId,
         qualifying_exam: draft.entrance_exam,
         ssc_marks: draft.ssc_marks,
-        inter_marks: draft.inter_marks || draft.inter_diploma_marks,
+        inter_marks: draft.inter_diploma_marks,
         ranks: draft.exam_rank
       });
 
@@ -136,8 +143,15 @@ export async function POST(req, context) {
       }
 
       // 7. Mark draft as FINALIZED
+      // IMPROVEMENT: We could delete it, but marking as FINALIZED is safer for audit.
+      // However, to prevent data bloat and orphaned images, we should at least clear the large image strings.
       await tx.update(studentAdmissionDrafts)
-        .set({ status: "FINALIZED" })
+        .set({ 
+          status: "FINALIZED",
+          pfp: null,
+          signature: null,
+          updated_at: now
+        })
         .where(eq(studentAdmissionDrafts.id, id));
 
       return { studentId };

@@ -11,7 +11,7 @@ import { eq, and, inArray, sql } from 'drizzle-orm';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { encrypt } from '@/lib/encryption';
+import { encrypt, hashForIndex } from '@/lib/encryption';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -183,13 +183,32 @@ export async function POST(req) {
         if (key.startsWith('_')) return;
         if (ALIASES.students[key]) {
             let val = record[key];
-            if (key === 'mobile' && val) val = encrypt(val);
-            student[key] = val;
+            if (key === 'mobile' && val) {
+              const cleanMobile = String(val).replace(/\D/g, '');
+              if (cleanMobile.length === 10) {
+                student['mobile'] = encrypt(cleanMobile);
+                student['mobile_hash'] = hashForIndex(cleanMobile);
+              }
+            } else {
+              student[key] = val;
+            }
         }
         else if (ALIASES.student_personal_details[key]) {
             let val = record[key];
-            if ((key === 'aadhaar_no' || key === 'guardian_mobile') && val) val = encrypt(val);
-            personal[key] = val;
+            if (key === 'aadhaar_no' && val) {
+              const cleanAadhaar = String(val).replace(/\D/g, '');
+              if (cleanAadhaar.length === 12) {
+                personal['aadhaar_no'] = encrypt(cleanAadhaar);
+                personal['aadhaar_hash'] = hashForIndex(cleanAadhaar);
+              }
+            } else if (key === 'guardian_mobile' && val) {
+              const cleanGMobile = String(val).replace(/\D/g, '');
+              if (cleanGMobile.length === 10) {
+                personal['guardian_mobile'] = encrypt(cleanGMobile);
+              }
+            } else {
+              personal[key] = val;
+            }
         }
         else if (ALIASES.student_academic_background[key]) academic[key] = record[key];
       });
