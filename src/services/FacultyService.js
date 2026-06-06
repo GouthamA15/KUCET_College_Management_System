@@ -82,7 +82,7 @@ export class FacultyService {
         eq(studentMarks.version, originalVersion)
       ));
     
-    return result[0].affectedRows > 0;
+    return result.affectedRows > 0;
   }
 
   /**
