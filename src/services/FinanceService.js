@@ -64,9 +64,6 @@ export class FinanceService {
    */
   static async getAllTransactions({ type, status, rollNo, startDate, endDate, limit = 50 }) {
     try {
-      // Since schema is different, we fetch separately and combine or use complex SQL.
-      // For Admin oversight, separate fetches with a common structure is cleaner.
-      
       let transactions = [];
 
       // 1. Fee Payments
@@ -176,13 +173,77 @@ export class FinanceService {
         transactions.push(...schResults);
       }
 
-      // Sort all combined by date
       transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
       return transactions.slice(0, limit);
     } catch (error) {
       logger.error(error, '[GET_ALL_TRANSACTIONS_ERROR]');
       throw error;
     }
+  }
+
+  /**
+   * Verify transaction integrity (UTR uniqueness and Screenshot fingerprinting)
+   * @param {Object} params { transactionId, paymentHash, studentId, requestId }
+   * @returns {Promise<{ isFlagged: boolean, flagDetails: Object | null }>}
+   */
+  static async verifyTransactionIntegrity({ transactionId, paymentHash, studentId, requestId, feePaymentId }) {
+    let isFlagged = false;
+    let flagDetails = null;
+
+    // 1. Transaction ID Conflict (UTR uniqueness)
+    if (transactionId) {
+      // Check in fee payments
+      const conflictFee = await db.query.studentFeePayments.findFirst({
+        where: eq(studentFeePayments.transaction_ref_no, transactionId)
+      });
+
+      if (conflictFee) {
+        // Flag if it's a different student OR a different record by the same student (reusing UTR)
+        if (!feePaymentId || conflictFee.id !== feePaymentId) {
+          isFlagged = true;
+          flagDetails = { type: 'UTR_CONFLICT_FEE', conflict_student_id: conflictFee.student_id };
+        }
+      }
+
+      // Check in certificate requests
+      if (!isFlagged) {
+        const conflictReq = await db.query.studentRequests.findFirst({
+          where: and(
+            eq(studentRequests.transaction_id, transactionId),
+            sql`${studentRequests.status} != 'REJECTED'`
+          )
+        });
+
+        if (conflictReq && (conflictReq.student_id !== studentId || (requestId && conflictReq.request_id !== requestId))) {
+          isFlagged = true;
+          flagDetails = { 
+            type: 'UTR_CONFLICT_REQUEST', 
+            conflict_student_id: conflictReq.student_id,
+            conflict_request_id: conflictReq.request_id 
+          };
+        }
+      }
+    }
+
+    // 2. Screenshot Hash Conflict (Fingerprinting)
+    if (paymentHash && !isFlagged) {
+      const conflictHash = await db.query.studentRequests.findFirst({
+        where: and(
+          eq(studentRequests.payment_hash, paymentHash),
+          sql`${studentRequests.status} != 'REJECTED'`
+        )
+      });
+
+      if (conflictHash && (conflictHash.student_id !== studentId || (requestId && conflictHash.request_id !== requestId))) {
+        isFlagged = true;
+        flagDetails = {
+          type: 'HASH_CONFLICT',
+          conflict_student_id: conflictHash.student_id,
+          conflict_request_id: conflictHash.request_id
+        };
+      }
+    }
+
+    return { isFlagged, flagDetails };
   }
 }

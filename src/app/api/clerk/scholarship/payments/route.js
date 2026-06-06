@@ -8,6 +8,7 @@ import { getYearlyTotalFee } from '@/lib/financial-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { calculateExpectedRTF } from '@/lib/scholarship-utils';
 import IdempotencyService from '@/services/IdempotencyService';
+import { FinanceService } from '@/services/FinanceService';
 
 export async function POST(req) {
   const user = await getAuthUser('clerk');
@@ -74,13 +75,14 @@ export async function POST(req) {
 
     logger.info(`[Payment API] Student reimbursement status: ${reimbursementStatus}`);
 
-    // --- INTEGRITY GUARD: Check for Duplicate Transaction Reference ---
-    const duplicateRef = await db.query.studentFeePayments.findFirst({
-      where: eq(studentFeePayments.transaction_ref_no, transaction_ref)
+    // --- INTEGRITY GUARD: Multi-Vector Conflict Check ---
+    const { isFlagged, flagDetails } = await FinanceService.verifyTransactionIntegrity({
+      transactionId: transaction_ref,
+      studentId: student.id
     });
 
-    if (duplicateRef) {
-      const conflictMsg = `Transaction Reference (${transaction_ref}) has already been used for student ID: ${duplicateRef.student_id}.`;
+    if (isFlagged) {
+      const conflictMsg = `Transaction Reference (${transaction_ref}) has already been used (Type: ${flagDetails.type}).`;
       logger.warn(`[Payment API] Duplicate UTR detected: ${transaction_ref}`);
       return apiError(conflictMsg, 409);
     }

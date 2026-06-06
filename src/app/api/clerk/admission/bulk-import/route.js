@@ -12,6 +12,7 @@ import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
+import { StudentService } from '@/services/StudentService';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -275,8 +276,7 @@ export async function POST(req) {
     await db.transaction(async (tx) => {
       for (const rec of prepared) {
         const { student, personal, academic } = rec;
-        const existing = rollMap.get(student.roll_no);
-
+        
         // Collision Check: If email exists but belongs to a DIFFERENT roll number
         if (student.email) {
           const emailCollision = emailMap.get(student.email);
@@ -290,30 +290,17 @@ export async function POST(req) {
           }
         }
 
-        if (existing) {
-          // Update
-          await tx.update(studentsTable).set(student).where(eq(studentsTable.id, existing.id));
-          if (existing.personal_id) {
-            await tx.update(studentPersonalDetails).set(personal).where(eq(studentPersonalDetails.id, existing.personal_id));
-          } else {
-            await tx.insert(studentPersonalDetails).values({ student_id: existing.id, ...personal });
-          }
-          if (existing.academic_id) {
-            await tx.update(studentAcademicBackground).set(academic).where(eq(studentAcademicBackground.id, existing.academic_id));
-          } else if (Object.keys(academic).length > 0) {
-            await tx.insert(studentAcademicBackground).values({ student_id: existing.id, ...academic });
-          }
-          updatedCount++;
-        } else {
-          // Insert
-          const [res] = await tx.insert(studentsTable).values({ ...student, added_by_clerk_id: clerkId });
-          const studentId = res.insertId;
-          await tx.insert(studentPersonalDetails).values({ student_id: studentId, ...personal });
-          if (Object.keys(academic).length > 0) {
-            await tx.insert(studentAcademicBackground).values({ student_id: studentId, ...academic });
-          }
-          insertedCount++;
-        }
+        const isUpdate = rollMap.has(student.roll_no);
+
+        // Perform Upsert via StudentService
+        await StudentService.upsertStudent({
+          ...student,
+          ...personal,
+          ...academic
+        }, clerkId, tx);
+
+        if (isUpdate) updatedCount++;
+        else insertedCount++;
       }
 
       if (insertedCount > 0) {

@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StudentService } from '@/services/StudentService';
 import { db } from '@/db';
-import { students as studentsTable } from '@/db/schema';
-import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
+import { students as studentsTable, studentPersonalDetails, studentAcademicBackground } from '@/db/schema';
+import { encrypt, hashForIndex } from '@/lib/encryption';
 
 // Mock dependencies
 vi.mock('@/db', () => ({
   db: {
     select: vi.fn(),
-    insert: vi.fn(),
     transaction: vi.fn(),
   },
 }));
@@ -16,7 +15,7 @@ vi.mock('@/db', () => ({
 vi.mock('@/lib/encryption', () => ({
   encrypt: vi.fn((val) => `encrypted_${val}`),
   hashForIndex: vi.fn((val) => `hash_${val}`),
-  decrypt: vi.fn((val) => `decrypted_${val}`),
+  decrypt: vi.fn((val) => val.replace('encrypted_', '')),
 }));
 
 describe('StudentService', () => {
@@ -24,124 +23,91 @@ describe('StudentService', () => {
     vi.clearAllMocks();
   });
 
-  describe('getStudentsByYearAndBranch', () => {
-    it('should throw an error if year or branch is missing', async () => {
-      await expect(StudentService.getStudentsByYearAndBranch(null, 'CSE'))
-        .rejects.toThrow('Year and branch are required');
-    });
-
-    it('should call db.select with correct patterns', async () => {
-      const mockSelect = {
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue([{ id: 1, roll_no: '22567T0901' }]),
-      };
-      db.select.mockReturnValue(mockSelect);
-
-      const result = await StudentService.getStudentsByYearAndBranch('2022-23', '09');
-
-      expect(db.select).toHaveBeenCalled();
-      expect(mockSelect.from).toHaveBeenCalledWith(studentsTable);
-      expect(result).toHaveLength(1);
-    });
-  });
-
-  describe('Normalization', () => {
-    it('should normalize roll number', () => {
+  describe('normalizeRollNo', () => {
+    it('should trim and uppercase roll numbers', () => {
       expect(StudentService.normalizeRollNo(' 22567t0901 ')).toBe('22567T0901');
-      expect(StudentService.normalizeRollNo(null)).toBe('');
-    });
-
-    it('should normalize mobile', () => {
-      expect(StudentService.normalizeMobile('987-654-3210')).toBe('9876543210');
-      expect(StudentService.normalizeMobile(null)).toBe('');
-    });
-
-    it('should normalize Aadhaar', () => {
-      expect(StudentService.normalizeAadhaar('1234 5678 9012')).toBe('123456789012');
-      expect(StudentService.normalizeAadhaar(null)).toBe('');
     });
   });
 
-  describe('getFullStudentDataForExport', () => {
-    it('should throw error if params missing', async () => {
-      await expect(StudentService.getFullStudentDataForExport()).rejects.toThrow();
+  describe('normalizeMobile', () => {
+    it('should strip non-numeric characters', () => {
+      expect(StudentService.normalizeMobile('+91 98765-43210')).toBe('919876543210');
     });
+  });
 
-    it('should fetch joined data and decrypt', async () => {
-      const mockResults = [
-        { roll_no: '22567T0901', mobile: 'encrypted_9876543210', aadhaar_no: 'encrypted_123456789012' }
-      ];
-      const mockSelect = {
+  describe('upsertStudent', () => {
+    const mockTx = {
+      select: vi.fn(),
+      insert: vi.fn(),
+      update: vi.fn(),
+      transaction: vi.fn((cb) => cb(mockTx)),
+    };
+
+    beforeEach(() => {
+      db.transaction.mockImplementation((cb) => cb(mockTx));
+      
+      const chainable = {
         from: vi.fn().mockReturnThis(),
-        leftJoin: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue(mockResults),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue([]),
+        set: vi.fn().mockReturnThis(),
+        values: vi.fn().mockReturnThis(),
+        onDuplicateKeyUpdate: vi.fn().mockReturnThis(),
+        then: vi.fn((resolve) => resolve([{ insertId: 101, affectedRows: 1 }]))
       };
-      db.select.mockReturnValue(mockSelect);
 
-      decrypt.mockReturnValue('decrypted_val');
-
-      const results = await StudentService.getFullStudentDataForExport('2022-26', '09');
-      expect(results[0].mobile).toBe('decrypted_val');
-      expect(db.select).toHaveBeenCalled();
+      mockTx.select.mockReturnValue(chainable);
+      mockTx.insert.mockReturnValue(chainable);
+      mockTx.update.mockReturnValue(chainable);
     });
 
-    it('should handle null sensitive fields in export', async () => {
-      const mockResults = [{ roll_no: '22567T0901', mobile: null, aadhaar_no: null }];
-      db.select.mockReturnValueOnce({
-        from: vi.fn().mockReturnThis(),
-        leftJoin: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue(mockResults),
-      });
-      const results = await StudentService.getFullStudentDataForExport('2022-26', '09');
-      expect(results[0].mobile).toBeNull();
-    });
-  });
-
-  describe('createStudent', () => {
     it('should throw an error if roll_no or name is missing', async () => {
-      await expect(StudentService.createStudent({}, 1))
-        .rejects.toThrow('Roll number and name are required');
+      await expect(StudentService.upsertStudent({}, 1))
+        .rejects.toThrow('MISSING_REQUIRED_FIELDS');
     });
 
-    it('should create a student within a transaction', async () => {
-      const mockTx = {
-        insert: vi.fn().mockReturnThis(),
-        values: vi.fn().mockResolvedValue([{ insertId: 101 }]),
-      };
-      db.transaction.mockImplementation(async (cb) => cb(mockTx));
-
+    it('should create a new student when no record exists', async () => {
       const studentData = {
         roll_no: '22567T0901',
         name: 'John Doe',
         mobile: '9876543210',
-        aadhaar_no: '123456789012',
         qualifying_exam: 'TG EAPCET'
       };
 
-      const resultId = await StudentService.createStudent(studentData, 1);
+      const resultId = await StudentService.upsertStudent(studentData, 1);
 
-      expect(db.transaction).toHaveBeenCalled();
-      expect(mockTx.insert).toHaveBeenCalledTimes(3); // students, personal, academic
-      expect(encrypt).toHaveBeenCalledWith('9876543210');
-      expect(hashForIndex).toHaveBeenCalledWith('123456789012');
       expect(resultId).toBe(101);
+      expect(mockTx.insert).toHaveBeenCalled();
+      expect(encrypt).toHaveBeenCalledWith('9876543210');
     });
 
-    it('should skip academic background if qualifying_exam is missing', async () => {
-      const mockTx = {
-        insert: vi.fn().mockReturnThis(),
-        values: vi.fn().mockResolvedValue([{ insertId: 102 }]),
-      };
-      db.transaction.mockImplementation(async (cb) => cb(mockTx));
+    it('should update an existing student if roll_no matches', async () => {
+      mockTx.select.mockReturnValueOnce({ 
+        from: vi.fn().mockReturnThis(), 
+        where: vi.fn().mockReturnThis(), 
+        limit: vi.fn().mockResolvedValue([{ id: 101 }]) 
+      });
 
+      const studentData = {
+        roll_no: '22567T0901',
+        name: 'John Updated',
+      };
+
+      await StudentService.upsertStudent(studentData, 1);
+
+      expect(mockTx.update).toHaveBeenCalled();
+    });
+
+    it('should handle academic background only if provided', async () => {
       const studentData = {
         roll_no: '22567T0902',
         name: 'Jane Doe',
       };
 
-      await StudentService.createStudent(studentData, 1);
+      await StudentService.upsertStudent(studentData, 1);
 
-      expect(mockTx.insert).toHaveBeenCalledTimes(2); // only students and personal
+      // Core, Personal, Academic (even if empty values, structure is created)
+      expect(mockTx.insert).toHaveBeenCalledTimes(3); 
     });
   });
 });

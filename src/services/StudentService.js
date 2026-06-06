@@ -142,68 +142,123 @@ export class StudentService {
   }
 
   /**
-   * Create a new student with personal and academic details
-   * @param {Object} data Student data
-   * @param {number} clerkId ID of the clerk adding the student
-   * @returns {Promise<number>} ID of the created student
+   * Upsert a student record with all related details (personal, academic, images)
+   * @param {Object} data Comprehensive student data object
+   * @param {number} clerkId ID of the clerk performing the action
+   * @param {Object} tx Optional Drizzle transaction object
+   * @returns {Promise<number>} Student ID
    */
-  static async createStudent(data, clerkId) {
-    let {
-      admission_no, roll_no, name, date_of_birth, gender, mobile, email,
-      father_name, mother_name, religion, sub_caste, category, address,
-      qualifying_exam, aadhaar_no, annual_income, admission_date
+  static async upsertStudent(data, clerkId, tx = null) {
+    const {
+      admission_no, roll_no, name, date_of_birth, gender, email, mobile,
+      father_name, mother_name, nationality, religion, category, sub_caste,
+      area_status, mother_tongue, place_of_birth, father_occupation, annual_income,
+      guardian_mobile, aadhaar_no, address, seat_allotted_category, blood_group,
+      identification_marks, qualifying_exam, previous_college_details,
+      medium_of_instruction, ranks, ssc_marks, inter_marks, fee_reimbursement,
+      pfp, signature, admission_date
     } = data;
 
-    if (!roll_no || !name) {
-      throw new Error('Roll number and name are required');
-    }
+    const roll = this.normalizeRollNo(roll_no);
+    if (!roll || !name) throw new Error('MISSING_REQUIRED_FIELDS');
 
-    // Invisible Normalization Hooks
-    roll_no = String(roll_no).trim().toUpperCase();
-    const normalizedMobile = mobile ? String(mobile).replace(/\D/g, '') : null;
-    const normalizedAadhaar = aadhaar_no ? String(aadhaar_no).replace(/\D/g, '') : null;
+    // Normalization & Encryption
+    const normMobile = this.normalizeMobile(mobile);
+    const normGuardianMobile = this.normalizeMobile(guardian_mobile);
+    const normAadhaar = this.normalizeAadhaar(aadhaar_no);
 
-    const result = await db.transaction(async (tx) => {
-      // 1. Insert into core students table with encrypted mobile
-      const [res] = await tx.insert(studentsTable).values({
-        admission_no,
-        roll_no,
-        name,
-        date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
-        gender,
-        mobile: normalizedMobile ? encrypt(normalizedMobile) : null,
-        mobile_hash: normalizedMobile ? hashForIndex(normalizedMobile) : null,
-        email,
-        admission_date: admission_date ? new Date(admission_date) : new Date(),
-        added_by_clerk_id: clerkId
-      });
-      const studentId = res.insertId;
+    const studentValues = {
+      admission_no: admission_no || null,
+      roll_no: roll,
+      name,
+      date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
+      gender: gender || null,
+      email: email ? String(email).toLowerCase() : null,
+      mobile: normMobile ? encrypt(normMobile) : null,
+      mobile_hash: normMobile ? hashForIndex(normMobile) : null,
+      fee_reimbursement: String(fee_reimbursement).toUpperCase() === 'YES' ? 'YES' : 'NO',
+      admission_date: admission_date ? new Date(admission_date) : new Date()
+    };
 
-      // 2. Insert into personal details with encrypted Aadhaar
-      await tx.insert(studentPersonalDetails).values({
-        student_id: studentId,
-        father_name,
-        mother_name,
-        religion,
-        sub_caste,
-        category,
-        annual_income,
-        aadhaar_no: normalizedAadhaar ? encrypt(normalizedAadhaar) : null,
-        aadhaar_hash: normalizedAadhaar ? hashForIndex(normalizedAadhaar) : null,
-        address
-      });
+    const personalValues = {
+      father_name: father_name || null,
+      mother_name: mother_name || null,
+      nationality: nationality || 'Indian',
+      religion: religion || null,
+      category: category || null,
+      sub_caste: sub_caste || null,
+      area_status: area_status || 'Local',
+      mother_tongue: mother_tongue || null,
+      place_of_birth: place_of_birth || null,
+      father_occupation: father_occupation || null,
+      annual_income: annual_income || null,
+      guardian_mobile: normGuardianMobile ? encrypt(normGuardianMobile) : null,
+      aadhaar_no: normAadhaar ? encrypt(normAadhaar) : null,
+      aadhaar_hash: normAadhaar ? hashForIndex(normAadhaar) : null,
+      address: address || null,
+      seat_allotted_category: seat_allotted_category || null,
+      blood_group: blood_group || null,
+      identification_marks: identification_marks || null
+    };
 
-      // 3. Insert into academic background
-      if (qualifying_exam) {
-        await tx.insert(studentAcademicBackground).values({
-          student_id: studentId,
-          qualifying_exam
-        });
+    const academicValues = {
+      qualifying_exam: qualifying_exam || null,
+      previous_college_details: previous_college_details || null,
+      medium_of_instruction: medium_of_instruction || null,
+      ranks: ranks ? parseInt(ranks) : null,
+      ssc_marks: ssc_marks || null,
+      inter_marks: inter_marks || null
+    };
+
+    const executeUpsert = async (innerTx) => {
+      // 1. Core Student Record
+      const existing = await innerTx.select({ id: studentsTable.id })
+        .from(studentsTable).where(eq(studentsTable.roll_no, roll)).limit(1);
+      
+      let studentId;
+      if (existing.length > 0) {
+        studentId = existing[0].id;
+        await innerTx.update(studentsTable).set(studentValues).where(eq(studentsTable.id, studentId));
+      } else {
+        const [res] = await innerTx.insert(studentsTable).values({ ...studentValues, added_by_clerk_id: clerkId });
+        studentId = res.insertId;
       }
 
-      return res;
-    });
+      // 2. Personal Details
+      const existingPersonal = await innerTx.select({ id: studentPersonalDetails.id })
+        .from(studentPersonalDetails).where(eq(studentPersonalDetails.student_id, studentId)).limit(1);
+      
+      if (existingPersonal.length > 0) {
+        await innerTx.update(studentPersonalDetails).set(personalValues).where(eq(studentPersonalDetails.id, existingPersonal[0].id));
+      } else {
+        await innerTx.insert(studentPersonalDetails).values({ student_id: studentId, ...personalValues });
+      }
 
-    return result.insertId;
+      // 3. Academic Background
+      const existingAcademic = await innerTx.select({ id: studentAcademicBackground.id })
+        .from(studentAcademicBackground).where(eq(studentAcademicBackground.student_id, studentId)).limit(1);
+      
+      if (existingAcademic.length > 0) {
+        await innerTx.update(studentAcademicBackground).set(academicValues).where(eq(studentAcademicBackground.id, existingAcademic[0].id));
+      } else {
+        await innerTx.insert(studentAcademicBackground).values({ student_id: studentId, ...academicValues });
+      }
+
+      // 4. Images
+      if (pfp) {
+        await innerTx.insert(studentImages).values({ student_id: studentId, pfp }).onDuplicateKeyUpdate({ set: { pfp } });
+      }
+      if (signature) {
+        await innerTx.insert(studentSignatures).values({ student_id: studentId, signature }).onDuplicateKeyUpdate({ set: { signature } });
+      }
+
+      return studentId;
+    };
+
+    if (tx) {
+      return await executeUpsert(tx);
+    } else {
+      return await db.transaction(executeUpsert);
+    }
   }
 }

@@ -12,6 +12,7 @@ import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import IdempotencyService from '@/services/IdempotencyService';
+import { FinanceService } from '@/services/FinanceService';
 import crypto from 'crypto';
 
 export async function GET() {
@@ -124,62 +125,28 @@ export async function POST(request) {
       }
     }
 
+    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
+
     // --- INTEGRITY GUARD: Multi-Vector Conflict Check ---
     let isFlagged = false;
     let flagDetails = null;
     let paymentHash = null;
 
-    // A. Transaction ID Conflict (UTR uniqueness) (only if payment is required)
-    if (transactionId && finalPaymentAmount > 0) {
-      const conflictTrans = await db.query.studentRequests.findFirst({
-        where: and(
-          eq(studentRequests.transaction_id, transactionId),
-          sql`${studentRequests.status} != 'REJECTED'`
-        ),
-        with: { student: { columns: { roll_no: true } } }
+    if (finalPaymentAmount > 0) {
+      if (isFileValid) {
+        const buffer = Buffer.from(await paymentScreenshotFile.arrayBuffer());
+        paymentHash = crypto.createHash('sha256').update(buffer).digest('hex');
+      }
+
+      const integrity = await FinanceService.verifyTransactionIntegrity({
+        transactionId: transactionId,
+        paymentHash,
+        studentId: user.student_id,
+        requestId
       });
 
-      if (conflictTrans) {
-        // Flag if it's a different student OR a different request by the same student (reusing payment)
-        if (conflictTrans.student_id !== user.student_id || (requestId && conflictTrans.request_id !== requestId)) {
-          isFlagged = true;
-          flagDetails = {
-            type: 'TRANSACTION_ID_CONFLICT',
-            conflict_roll_no: conflictTrans.student.roll_no,
-            conflict_request_id: conflictTrans.request_id,
-            conflict_date: conflictTrans.created_at
-          };
-        }
-      }
-    }
-
-    // B. Screenshot Hash Conflict (Fingerprinting) (only if payment is required)
-    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
-    if (isFileValid && finalPaymentAmount > 0) {
-      const buffer = Buffer.from(await paymentScreenshotFile.arrayBuffer());
-      paymentHash = crypto.createHash('sha256').update(buffer).digest('hex');
-
-      const conflictHash = await db.query.studentRequests.findFirst({
-        where: and(
-          eq(studentRequests.payment_hash, paymentHash),
-          sql`${studentRequests.status} != 'REJECTED'`
-        ),
-        with: { student: { columns: { roll_no: true } } }
-      });
-
-      if (conflictHash) {
-        // Flag if it's a different student OR a different request by the same student
-        if (conflictHash.student_id !== user.student_id || (requestId && conflictHash.request_id !== requestId)) {
-          isFlagged = true;
-          flagDetails = {
-            ...(flagDetails || {}),
-            hash_conflict: true,
-            conflict_roll_no: conflictHash.student.roll_no,
-            conflict_request_id: conflictHash.request_id,
-            conflict_date: conflictHash.created_at
-          };
-        }
-      }
+      isFlagged = integrity.isFlagged;
+      flagDetails = integrity.flagDetails;
     }
 
     // If an active (PENDING) request already exists for this academic year, block new one.
