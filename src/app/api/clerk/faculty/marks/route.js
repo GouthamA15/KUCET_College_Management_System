@@ -325,8 +325,12 @@ export async function POST(request) {
             };
 
         if (existing?.id) {
-          // Optimistic Locking: include version in update guard
-          const clientVersion = item.version || existing.version;
+          // Optimistic Locking: strictly use the version provided by the client.
+          // If no version is provided for an existing record, we assume stale data or bypass attempt.
+          const clientVersion = item.version;
+          if (clientVersion === undefined || clientVersion === null) {
+            throw new Error(`VERSION_MISSING:${studentId}`);
+          }
           const success = await FacultyService.updateMarkAtomic(existing.id, markFields, clientVersion, tx);
           if (!success) {
             throw new Error(`CONCURRENCY_CONFLICT:${studentId}`);
