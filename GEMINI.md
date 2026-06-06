@@ -68,6 +68,12 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - June 2026)
 
+#### **Session 147: Bonafide Lifecycle & Integrity Guard (June 6, 2026)**
+- **Bonafide 'Pay Once' Logic**: Engineered a lifetime fee waiver system where subsequent Bonafide requests are free after the first approved payment.
+- **Fraud Detection Hardening**: Integrated SHA-256 screenshot fingerprinting and UTR conflict checks into the certificate request pipeline.
+- **Time-Travel Synchronization**: Hardened all certificate request and approval timestamps to respect the authoritative mock clock (`getNow()`) for testing.
+- **UI/UX Optimization**: Dynamically simplified request forms to hide payment fields when fees are waived.
+
 #### **Session 145-146: API Orchestration & Financial Oversight (June 2026)**
 - **Naming Modernization:** Transitioned from legacy `TS EAMCET/ECET` to **`TG EAPCET/ECET`**.
 - **Unified API Wrapper:** Engineered `wrapHandler` for centralized Zod, Auth, and Performance Telemetry.
