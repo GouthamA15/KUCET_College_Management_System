@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { studentRequests, students, clerks } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
+import { getNow } from '@/lib/clock';
 import crypto from 'crypto';
 
 const clerkToTypes = {
@@ -61,17 +62,18 @@ export async function PUT(request, { params }) {
             generatedCertId = `KUCET-${hash.substring(0, 8).toUpperCase()}`;
         }
 
-        const updateData = { status, updated_at: new Date() };
+        const now = getNow();
+        const updateData = { status, updated_at: now };
 
         if (status === 'REJECTED') {
             if (!reject_reason || String(reject_reason).trim().length === 0) return apiError('Rejection reason is required', 400);
             updateData.reject_reason = String(reject_reason).trim();
-            updateData.completed_at = new Date();
+            updateData.completed_at = now;
             updateData.action_by_clerk_id = clerk.id;
             updateData.action_by_role = clerk.role;
         } else if (status === 'APPROVED') {
             updateData.reject_reason = null;
-            updateData.completed_at = new Date();
+            updateData.completed_at = now;
             updateData.action_by_clerk_id = clerk.id;
             updateData.action_by_role = clerk.role;
             updateData.generated_certificate_id = generatedCertId;

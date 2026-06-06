@@ -81,13 +81,28 @@ export async function POST(request) {
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeRows[0], now);
 
+    // --- BONAFIDE FREE LOGIC: Pay Once, Free for 4 Years ---
+    let finalPaymentAmount = paymentAmountNum;
+    if (certificateType === 'Bonafide Certificate') {
+      const previouslyPaid = await db.query.studentRequests.findFirst({
+        where: and(
+          eq(studentRequests.student_id, user.student_id),
+          eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+          eq(studentRequests.status, 'APPROVED')
+        )
+      });
+      if (previouslyPaid) {
+        finalPaymentAmount = 0;
+      }
+    }
+
     // --- INTEGRITY GUARD: Multi-Vector Conflict Check ---
     let isFlagged = false;
     let flagDetails = null;
     let paymentHash = null;
 
-    // A. Transaction ID Conflict
-    if (transactionId) {
+    // A. Transaction ID Conflict (only if payment is required)
+    if (transactionId && finalPaymentAmount > 0) {
       const conflictTrans = await db.query.studentRequests.findFirst({
         where: and(
           eq(studentRequests.transaction_id, transactionId),
@@ -107,9 +122,9 @@ export async function POST(request) {
       }
     }
 
-    // B. Screenshot Hash Conflict (Fingerprinting)
+    // B. Screenshot Hash Conflict (Fingerprinting) (only if payment is required)
     const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
-    if (isFileValid) {
+    if (isFileValid && finalPaymentAmount > 0) {
       const buffer = Buffer.from(await paymentScreenshotFile.arrayBuffer());
       paymentHash = crypto.createHash('sha256').update(buffer).digest('hex');
 
@@ -139,23 +154,26 @@ export async function POST(request) {
         eq(studentRequests.student_id, user.student_id),
         eq(studentRequests.certificate_type, certificateType),
         eq(studentRequests.academic_year, academicYear)
-      )
+      ),
+      orderBy: [desc(studentRequests.created_at)]
     });
 
-    if (existing && existing.status !== "REJECTED") {
-      return apiError("An active request already exists for this academic year.", 409);
+    // If an active (PENDING) request already exists for this academic year, block new one.
+    // If it's APPROVED or REJECTED, we can allow a new one (especially for Bonafide which is free after first)
+    if (existing && existing.status === "PENDING") {
+      return apiError("An active request already exists for this academic year. Please wait for it to be processed.", 409);
     }
 
-    if (existing) {
-      // Update
+    if (existing && existing.status === "REJECTED") {
+      // Update the rejected one to PENDING again (original behavior)
       requestId = existing.request_id;
       await db.update(studentRequests)
         .set({
-          payment_amount: paymentAmountNum,
+          payment_amount: finalPaymentAmount,
           transaction_id: transactionId || null,
           purpose: purpose || null,
-          from_date: fromDateStr || null,
-          to_date: toDateStr || null,
+          from_date: fromDateStr ? new Date(fromDateStr) : null,
+          to_date: toDateStr ? new Date(toDateStr) : null,
           status: 'PENDING',
           updated_at: now,
           completed_at: null,
@@ -165,12 +183,12 @@ export async function POST(request) {
         })
         .where(eq(studentRequests.request_id, requestId));
     } else {
-      // Insert
+      // Insert new request (even if an APPROVED one exists for this year, we allow new ones for Bonafide)
       const result = await db.insert(studentRequests).values({
         student_id: user.student_id,
         certificate_type: certificateType,
         academic_year: academicYear,
-        payment_amount: paymentAmountNum,
+        payment_amount: finalPaymentAmount,
         transaction_id: transactionId || null,
         purpose: purpose || null,
         from_date: fromDateStr ? new Date(fromDateStr) : null,
@@ -178,7 +196,9 @@ export async function POST(request) {
         status: 'PENDING',
         is_flagged: isFlagged,
         flag_details: flagDetails,
-        payment_hash: paymentHash
+        payment_hash: paymentHash,
+        created_at: now,
+        updated_at: now
       });
       requestId = result[0].insertId;
 
@@ -214,7 +234,10 @@ export async function POST(request) {
           .onDuplicateKeyUpdate({ set: { payment_screenshot: screenshotUrl } });
         
         await db.update(studentRequests)
-          .set({ payment_screenshot: screenshotUrl })
+          .set({ 
+            payment_screenshot: screenshotUrl,
+            updated_at: now
+          })
           .where(eq(studentRequests.request_id, requestId));
       }
     }
