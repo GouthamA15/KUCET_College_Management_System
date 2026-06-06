@@ -68,11 +68,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - June 2026)
 
-#### **Session 147: Bonafide Lifecycle & Integrity Guard (June 6, 2026)**
-- **Bonafide 'Pay Once' Logic**: Engineered a lifetime fee waiver system where subsequent Bonafide requests are free after the first approved payment.
-- **Fraud Detection Hardening**: Integrated SHA-256 screenshot fingerprinting and UTR conflict checks into the certificate request pipeline.
-- **Time-Travel Synchronization**: Hardened all certificate request and approval timestamps to respect the authoritative mock clock (`getNow()`) for testing.
-- **UI/UX Optimization**: Dynamically simplified request forms to hide payment fields when fees are waived.
+#### **Session 147: Bonafide Lifecycle, Integrity Guard & Institutional Refactoring (June 6, 2026)**
+- **Bonafide 'Pay Once' Logic**: Engineered a lifetime fee waiver system with strict course duration caps (4 for Regular, 3 for Lateral entry).
+- **Universal Integrity Guard**: Integrated SHA-256 screenshot fingerprinting and global UTR uniqueness checks across both Fee Payments and Certificate Requests.
+- **Redundancy Reduction**: Consolidated student record management into a unified `StudentService.upsertStudent` and centralized financial reporting in `FinanceService.getStudentFinancialSummary`.
+- **Scholarship Service Layer**: Launched `ScholarshipService` to centralize institutional window logic and aggregate reporting metrics.
+- **API Orchestration**: Refactored high-stakes Clerk APIs (Profile, Search, Summary) to use `wrapHandler` for centralized auth, validation, and telemetry.
+- **Time-Travel Synchronization**: Hardened all certificate and financial timestamps to respect the authoritative IST mock clock (`getNow()`).
 
 #### **Session 145-146: API Orchestration & Financial Oversight (June 2026)**
 - **Naming Modernization:** Transitioned from legacy `TS EAMCET/ECET` to **`TG EAPCET/ECET`**.
