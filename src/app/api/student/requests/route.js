@@ -7,7 +7,7 @@ import {
   studentRequestImages
 } from "@/db/schema";
 import { eq, and, desc, sql, or } from "drizzle-orm";
-import { getResolvedCurrentAcademicYear } from "@/lib/rollNumber";
+import { getResolvedCurrentAcademicYear, getAdmissionTypeFromRoll } from "@/lib/rollNumber";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -93,17 +93,33 @@ export async function POST(request) {
 
     requestId = existing?.request_id;
 
-    // --- BONAFIDE FREE LOGIC: Pay Once, Free for 4 Years ---
+    // --- BONAFIDE LIMITS & FREE LOGIC ---
     let finalPaymentAmount = paymentAmountNum;
     if (certificateType === 'Bonafide Certificate') {
-      const previouslyPaid = await db.query.studentRequests.findFirst({
+      const approvedRequests = await db.query.studentRequests.findMany({
         where: and(
           eq(studentRequests.student_id, user.student_id),
           eq(studentRequests.certificate_type, 'Bonafide Certificate'),
           eq(studentRequests.status, 'APPROVED')
         )
       });
-      if (previouslyPaid) {
+
+      // 1. Total Limit Check (4 for Regular, 3 for Lateral)
+      const admissionType = getAdmissionTypeFromRoll(user.roll_no);
+      const maxAllowed = admissionType === 'Lateral' ? 3 : 4;
+
+      if (approvedRequests.length >= maxAllowed) {
+        return apiError(`You have reached the maximum limit of ${maxAllowed} Bonafide Certificates for your course duration.`, 403);
+      }
+
+      // 2. Per-Year Limit Check (Only one per academic year)
+      const alreadyHasYearlyBonafide = approvedRequests.some(req => req.academic_year === academicYear);
+      if (alreadyHasYearlyBonafide) {
+        return apiError(`You have already received a Bonafide Certificate for the current academic year (${academicYear}). Only one is allowed per year.`, 403);
+      }
+
+      // 3. Free for subsequent requests logic
+      if (approvedRequests.length > 0) {
         finalPaymentAmount = 0;
       }
     }
