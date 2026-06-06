@@ -15,16 +15,29 @@ import { getNow } from '@/lib/clock';
 import { z } from 'zod';
 import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
 
+import IdempotencyService from '@/services/IdempotencyService';
+
 export async function POST(req, context) {
   const user = await getAuthUser('clerk');
   if (!user || user.role !== 'admission') {
     return apiError('Forbidden', 403);
   }
 
+  const idempotencyKey = req.headers.get('idempotency-key');
+  let idempotencyStarted = false;
+
   try {
     const params = await context.params;
     const id = parseInt(params.id);
     const json = await req.json();
+
+    if (idempotencyKey) {
+      const { isDuplicate, response, code } = await IdempotencyService.start(idempotencyKey);
+      if (isDuplicate) {
+        return apiResponse(response, code || 201);
+      }
+      idempotencyStarted = true;
+    }
 
     // Validate with Zod
     const finalizeSchema = z.object({
@@ -167,9 +180,16 @@ export async function POST(req, context) {
       payload_after: { draft_id: id, roll_no: rollNo }
     });
 
-    return apiResponse({ success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' });
+    const responseData = { success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' };
+
+    if (idempotencyStarted) {
+      await IdempotencyService.complete(idempotencyKey, 201, responseData);
+    }
+
+    return apiResponse(responseData, 201);
 
   } catch (error) {
+    if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
     if (error instanceof z.ZodError) {
       return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
