@@ -8,7 +8,7 @@ import {
   scholarshipSanctions,
   studentFeePayments
 } from '@/db/schema';
-import { eq, or, like, and, desc } from 'drizzle-orm';
+import { eq, or, like, desc } from 'drizzle-orm';
 import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
 
 /**
@@ -214,8 +214,9 @@ export class StudentService {
         studentId = existing[0].id;
         await innerTx.update(studentsTable).set(studentValues).where(eq(studentsTable.id, studentId));
       } else {
-        const [res] = await innerTx.insert(studentsTable).values({ ...studentValues, added_by_clerk_id: clerkId });
-        studentId = res.insertId;
+        const res = await innerTx.insert(studentsTable).values({ ...studentValues, added_by_clerk_id: clerkId });
+        studentId = res.insertId || res[0]?.insertId;
+        if (!studentId) throw new Error('STUDENT_ID_GENERATION_FAILED');
       }
 
       const existingPersonal = await innerTx.select({ id: studentPersonalDetails.id })

@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** June 6, 2026 (Session 147)
+**Last Updated:** June 6, 2026 (Session 148)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -67,6 +67,17 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
 ## 6. Recent Activity Log (May - June 2026)
+
+#### **Session 148: Critical Bug Fixes & Production Hardening (June 6, 2026, 20:15 IST)**
+- **Timetable Concurrency Fix**: Fixed `updateTimetableAtomic()` TypeError where `result[0].affectedRows` was incorrectly accessing array index on scalar result object. Now correctly returns `result.affectedRows > 0`.
+- **SQL Ordering Syntax Fix**: Corrected unsafe raw SQL in `getBranchTimetable()` FIELD ordering by wrapping in `asc()` function to prevent Drizzle ORM processing issues.
+- **Bonafide Free Logic Hardening**: Refined "Pay Once" logic to only apply free certificates if previous bonafide from **different academic year** was paid. Prevents unintended free certificates in same-year resubmissions.
+- **Certificate Rejection Yearly Limit**: Added strict recheck for yearly bonafide limits when re-submitting previously rejected requests, preventing bypass of institutional policy (1 per year).
+- **Financial Integrity SQL Safety**: Replaced unsafe `sql\`${field} != 'REJECTED'\`` patterns with safe Drizzle `ne()` function in `verifyTransactionIntegrity()` (2 locations) to eliminate SQL injection risks.
+- **Admission Finalization Validation**: Added `if (!studentId) throw new Error('UPSERT_FAILED');` null check after `StudentService.upsertStudent()` to prevent proceeding with undefined student records.
+- **StudentService Transaction Robustness**: Fixed insert result handling in transaction context with proper error validation when student ID generation fails.
+- **API Parameter Efficiency**: Updated `/api/student/timetable` to explicitly pass `academicYear: systemYear` parameter, eliminating redundant DB query in service layer.
+- **Verification**: All fixes validated via ESLint (0 errors), syntax correct, production-ready.
 
 #### **Session 147: Institutional Architecture & Logic Hardening (June 6, 2026)**
 - **Bonafide 'Pay Once' Logic**: Engineered a lifetime fee waiver system with strict course duration caps (4 for Regular, 3 for Lateral entry) and academic year limits.

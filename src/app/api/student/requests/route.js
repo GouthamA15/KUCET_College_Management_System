@@ -6,7 +6,7 @@ import {
   collegeInfo as collegeInfoTable,
   studentRequestImages
 } from "@/db/schema";
-import { eq, and, desc, sql, or } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { getResolvedCurrentAcademicYear, getAdmissionTypeFromRoll } from "@/lib/rollNumber";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
@@ -119,8 +119,9 @@ export async function POST(request) {
         return apiError(`You have already received a Bonafide Certificate for the current academic year (${academicYear}). Only one is allowed per year.`, 403);
       }
 
-      // 3. Free for subsequent requests logic
-      if (approvedRequests.length > 0) {
+      // 3. Free for subsequent requests logic (only free if already paid once in a previous year)
+      const hasPreviousPaidBonafide = approvedRequests.some(req => req.academic_year !== academicYear && req.payment_amount > 0);
+      if (hasPreviousPaidBonafide && approvedRequests.length > 0) {
         finalPaymentAmount = 0;
       }
     }
@@ -156,6 +157,20 @@ export async function POST(request) {
     }
 
     if (existing && existing.status === "REJECTED") {
+      // For rejected bonafides, recheck yearly limit before allowing re-submission
+      if (certificateType === 'Bonafide Certificate') {
+        const approvedBonafides = await db.query.studentRequests.findMany({
+          where: and(
+            eq(studentRequests.student_id, user.student_id),
+            eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+            eq(studentRequests.status, 'APPROVED'),
+            eq(studentRequests.academic_year, academicYear)
+          )
+        });
+        if (approvedBonafides.length > 0) {
+          return apiError(`You have already received a Bonafide Certificate for the current academic year (${academicYear}). Cannot re-submit rejected request.`, 403);
+        }
+      }
       // Update the rejected one to PENDING again (original behavior)
       requestId = existing.request_id;
       await db.update(studentRequests)

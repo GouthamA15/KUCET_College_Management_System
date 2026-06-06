@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { studentFeePayments, studentRequests, scholarshipSanctions, students, clerks } from '@/db/schema';
-import { eq, sql, desc, and, gte, lte, asc } from 'drizzle-orm';
+import { eq, sql, desc, and, gte, lte, asc, ne } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
 export class FinanceService {
@@ -210,7 +210,7 @@ export class FinanceService {
         const conflictReq = await db.query.studentRequests.findFirst({
           where: and(
             eq(studentRequests.transaction_id, transactionId),
-            sql`${studentRequests.status} != 'REJECTED'`
+            ne(studentRequests.status, 'REJECTED')
           )
         });
 
@@ -230,7 +230,7 @@ export class FinanceService {
       const conflictHash = await db.query.studentRequests.findFirst({
         where: and(
           eq(studentRequests.payment_hash, paymentHash),
-          sql`${studentRequests.status} != 'REJECTED'`
+          ne(studentRequests.status, 'REJECTED')
         )
       });
 

@@ -24,7 +24,8 @@ export const GET = wrapHandler({
     const systemYear = await FacultyService.getCurrentAcademicYear();
     const timetable = await FacultyService.getBranchTimetable({ 
       branch, 
-      semester 
+      semester,
+      academicYear: systemYear
     });
 
     return { data: timetable, meta: { branch, semester, systemYear, rollNo } };

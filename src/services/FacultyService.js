@@ -2,9 +2,7 @@ import { db } from '@/db';
 import { 
   semesters, 
   clerks, 
-  branchTimetable, 
-  attendanceSessions, 
-  facultySubjectAssignments,
+  branchTimetable,
   studentMarks,
   syllabusSubjects
 } from '@/db/schema';
@@ -101,7 +99,7 @@ export class FacultyService {
         eq(branchTimetable.version, originalVersion)
       ));
     
-    return result[0].affectedRows > 0;
+    return result.affectedRows > 0;
   }
 
   /**
@@ -144,8 +142,8 @@ export class FacultyService {
     .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
     .where(and(...whereClause))
     .orderBy(
-      sql`FIELD(${branchTimetable.day_of_week}, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT')`,
-      branchTimetable.period_number
+      asc(sql`FIELD(${branchTimetable.day_of_week}, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT')`),
+      asc(branchTimetable.period_number)
     );
   }
 }

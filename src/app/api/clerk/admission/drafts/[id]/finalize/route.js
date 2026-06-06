@@ -84,6 +84,7 @@ export async function POST(req, context) {
 
       // 3. Perform Upsert via Service
       const studentId = await StudentService.upsertStudent(studentData, user.clerkId || user.id, tx);
+      if (!studentId) throw new Error('UPSERT_FAILED');
 
       // 4. Mark draft as FINALIZED and cleanup large strings
       await tx.update(studentAdmissionDrafts)
@@ -126,6 +127,7 @@ export async function POST(req, context) {
     if (error.message === 'STUDENT_EXISTS') return apiError('A student with this Roll No or Email already exists.', 409);
     if (error.message === 'ROLL_BRANCH_MISMATCH') return apiError('Roll number branch does not match the draft branch.', 400);
     if (error.message === 'ROLL_TYPE_MISMATCH') return apiError('Roll number admission type does not match the draft entrance exam.', 400);
+    if (error.message === 'UPSERT_FAILED') return apiError('Student record creation failed.', 500);
     
     logger.error(error, 'Finalization error');
     return apiError('Failed to finalize admission.', 500);
