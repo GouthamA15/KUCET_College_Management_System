@@ -242,9 +242,13 @@ export async function POST(req) {
     if (prepared.length === 0) return apiResponse({ totalRows, inserted: 0, updated: 0, skipped: totalRows, errors });
 
     const incomingRolls = prepared.map(p => p.student.roll_no);
-    const existingStudents = await db.select({
+    const incomingEmails = prepared.map(p => p.student.email).filter(Boolean);
+
+    // 1. Fetch existing students by Roll No
+    const existingByRoll = await db.select({
       id: studentsTable.id,
       roll_no: studentsTable.roll_no,
+      email: studentsTable.email,
       personal_id: studentPersonalDetails.id,
       academic_id: studentAcademicBackground.id
     })
@@ -253,15 +257,38 @@ export async function POST(req) {
     .leftJoin(studentAcademicBackground, eq(studentsTable.id, studentAcademicBackground.student_id))
     .where(inArray(studentsTable.roll_no, incomingRolls));
 
-    const existingMap = new Map(existingStudents.map(s => [s.roll_no, s]));
+    // 2. Fetch existing students by Email (to prevent cross-collisions)
+    const existingByEmail = incomingEmails.length > 0 ? await db.select({
+      id: studentsTable.id,
+      roll_no: studentsTable.roll_no,
+      email: studentsTable.email
+    })
+    .from(studentsTable)
+    .where(inArray(studentsTable.email, incomingEmails)) : [];
+
+    const rollMap = new Map(existingByRoll.map(s => [s.roll_no, s]));
+    const emailMap = new Map(existingByEmail.map(s => [s.email, s]));
 
     let insertedCount = 0;
     let updatedCount = 0;
 
     await db.transaction(async (tx) => {
       for (const rec of prepared) {
-        const existing = existingMap.get(rec.student.roll_no);
         const { student, personal, academic } = rec;
+        const existing = rollMap.get(student.roll_no);
+
+        // Collision Check: If email exists but belongs to a DIFFERENT roll number
+        if (student.email) {
+          const emailCollision = emailMap.get(student.email);
+          if (emailCollision && emailCollision.roll_no !== student.roll_no) {
+            errors.push({ 
+              row: rec.rowNumber, 
+              roll_no: student.roll_no, 
+              reason: `Email (${student.email}) is already assigned to student ${emailCollision.roll_no}` 
+            });
+            continue; 
+          }
+        }
 
         if (existing) {
           // Update

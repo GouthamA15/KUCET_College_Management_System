@@ -74,6 +74,17 @@ export async function POST(req) {
 
     logger.info(`[Payment API] Student reimbursement status: ${reimbursementStatus}`);
 
+    // --- INTEGRITY GUARD: Check for Duplicate Transaction Reference ---
+    const duplicateRef = await db.query.studentFeePayments.findFirst({
+      where: eq(studentFeePayments.transaction_ref_no, transaction_ref)
+    });
+
+    if (duplicateRef) {
+      const conflictMsg = `Transaction Reference (${transaction_ref}) has already been used for student ID: ${duplicateRef.student_id}.`;
+      logger.warn(`[Payment API] Duplicate UTR detected: ${transaction_ref}`);
+      return apiError(conflictMsg, 409);
+    }
+
     // TRANSACTIONAL EXECUTION
     const resultId = await db.transaction(async (tx) => {
         // FINANCIAL VALIDATION
