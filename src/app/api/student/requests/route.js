@@ -129,7 +129,7 @@ export async function POST(request) {
     let flagDetails = null;
     let paymentHash = null;
 
-    // A. Transaction ID Conflict (only if payment is required)
+    // A. Transaction ID Conflict (UTR uniqueness) (only if payment is required)
     if (transactionId && finalPaymentAmount > 0) {
       const conflictTrans = await db.query.studentRequests.findFirst({
         where: and(

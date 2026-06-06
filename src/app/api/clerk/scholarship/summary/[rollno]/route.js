@@ -9,6 +9,7 @@ import {
 } from '@/db/schema';
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { getBranchFromRoll, getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { getYearlyTotalFee } from '@/lib/financial-utils';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
@@ -57,9 +58,8 @@ export async function GET(req, ctx) {
     const current_year = getResolvedCurrentAcademicYear(student.roll_no, collegeInfo, now);
     if (!year) year = current_year;
 
-    const SFC_COURSES = new Set(['CSD', 'IT', 'CIVIL']);
-    const fee_category = SFC_COURSES.has(String(course).toUpperCase()) ? 'SFC' : 'NON-SFC';
-    const total_fee = fee_category === 'SFC' ? 70000 : 35000;
+    const total_fee = getYearlyTotalFee(course);
+    const fee_category = total_fee === 70000 ? 'SFC' : 'NON-SFC';
 
     // STEP D: Fetch scholarship sanctions
     const sanctionsRows = await db.select()
