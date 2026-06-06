@@ -1,34 +1,30 @@
-import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
   studentImages, 
-  collegeInfo as collegeInfoTable, 
-  scholarshipSanctions, 
-  studentFeePayments 
+  collegeInfo as collegeInfoTable 
 } from '@/db/schema';
-import { eq, and, asc, sql } from 'drizzle-orm';
-import { getBranchFromRoll, getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
-import { getYearlyTotalFee } from '@/lib/financial-utils';
-import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { eq } from 'drizzle-orm';
+import { getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { apiError, wrapHandler } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
+import { FinanceService } from '@/services/FinanceService';
 
-export async function GET(req, ctx) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
-
-  try {
+/**
+ * GET /api/clerk/scholarship/summary/[rollno]
+ * Fetch comprehensive financial and scholarship summary for a student
+ */
+export const GET = wrapHandler({
+  auth: 'clerk',
+  handler: async (req, { context }) => {
+    const { rollno } = await context.params;
     const url = new URL(req.url);
     let year = url.searchParams.get('year');
-    const params = await ctx.params;
-    const { rollno } = params;
-
-    if (!rollno) return apiError('Missing rollno parameter', 400);
 
     const now = await getNow();
 
-    // STEP A: Fetch student with pfp check
+    // 1. Fetch student core info
     const studentRows = await db.select({
       id: studentsTable.id,
       roll_no: studentsTable.roll_no,
@@ -40,7 +36,7 @@ export async function GET(req, ctx) {
     })
     .from(studentsTable)
     .leftJoin(studentImages, eq(studentsTable.id, studentImages.student_id))
-    .where(eq(studentsTable.roll_no, rollno))
+    .where(eq(studentsTable.roll_no, String(rollno).toUpperCase().trim()))
     .limit(1);
 
     if (studentRows.length === 0) {
@@ -48,117 +44,36 @@ export async function GET(req, ctx) {
     }
     const student = studentRows[0];
 
-    // STEP B: Resolve context
-    const course = getBranchFromRoll(student.roll_no);
-    const admission_year = getAcademicYear(student.roll_no);
-
+    // 2. Resolve academic context
+    const admissionYear = getAcademicYear(student.roll_no);
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const collegeInfo = collegeRows[0] || null;
-
-    const current_year = getResolvedCurrentAcademicYear(student.roll_no, collegeInfo, now);
-    if (!year) year = current_year;
-
-    const total_fee = getYearlyTotalFee(course);
-    const fee_category = total_fee === 70000 ? 'SFC' : 'NON-SFC';
-
-    // STEP D: Fetch scholarship sanctions
-    const sanctionsRows = await db.select()
-      .from(scholarshipSanctions)
-      .where(and(
-        eq(scholarshipSanctions.student_id, student.id),
-        eq(scholarshipSanctions.academic_year, year)
-      ))
-      .orderBy(asc(scholarshipSanctions.sanction_date));
-
-    const scholarship_proceedings = sanctionsRows
-      .filter(r => (r.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
-      .map(r => ({
-        id: r.id,
-        proceeding_no: r.proceeding_no,
-        amount: Number(r.sanctioned_amount) || 0,
-        date: r.sanction_date,
-        released_amount: Number(r.released_amount) || 0,
-        released_date: r.released_date,
-        status: r.status
-      }));
-
-    const application_no = sanctionsRows.map(r => r.application_no).find(v => v && String(v).trim() !== '') || null;
+    const currentYear = getResolvedCurrentAcademicYear(student.roll_no, collegeRows[0], now);
     
-    let thumb_update_available = 0;
-    let thumb_status = null;
-    let hardcopy_submitted = 0;
-    if (sanctionsRows.length > 0) {
-      const baseRow = sanctionsRows.find(r => !r.proceeding_no) || sanctionsRows[sanctionsRows.length - 1];
-      if (baseRow) {
-        thumb_update_available = baseRow.thumb_update_available ? 1 : 0;
-        thumb_status = baseRow.thumb_status || null;
-        hardcopy_submitted = baseRow.hardcopy_submitted ? 1 : 0;
-      }
-    }
+    if (!year) year = currentYear;
 
-    const govt_paid = scholarship_proceedings.reduce((sum, p) => sum + p.amount, 0);
+    // 3. Fetch financial summary via service
+    const financialSummary = await FinanceService.getStudentFinancialSummary(student.id, year, student.roll_no);
 
-    // STEP E: Fetch student payments
-    const paymentsRows = await db.select()
-      .from(studentFeePayments)
-      .where(and(
-        eq(studentFeePayments.student_id, student.id),
-        eq(studentFeePayments.academic_year, year)
-      ))
-      .orderBy(asc(studentFeePayments.transaction_date));
-
-    const student_payments = paymentsRows.map(r => ({
-      id: r.id,
-      transaction_ref: r.transaction_ref_no,
-      amount: Number(r.amount) || 0,
-      date: r.transaction_date,
-      payment_mode: r.payment_mode,
-      bank_name: r.bank_name,
-      created_at: r.created_at,
-    }));
-    const student_paid = student_payments.reduce((sum, p) => sum + p.amount, 0);
-
-    // STEP F: Compute derived fields
-    const pending_fee = Math.max(0, Number(total_fee) - (Number(govt_paid) + Number(student_paid)));
-    const status = pending_fee === 0 ? 'COMPLETED' : 'PENDING';
-
-    const response = {
+    return {
       student: {
         id: student.id,
         roll_no: student.roll_no,
         name: student.name,
         fee_reimbursement: student.fee_reimbursement,
-        fee_category,
-        course,
-        email: student.email ?? null,
-        mobile: decrypt(student.mobile) ?? null,
+        fee_category: financialSummary.feeSummary.feeCategory,
+        course: student.roll_no.substring(student.roll_no.length - 4, student.roll_no.length - 2), // Fallback course detection
+        email: student.email || null,
+        mobile: student.mobile ? decrypt(student.mobile) : null,
         pfp: student.pfp ? `/api/student/image/${student.roll_no}` : null,
-        admission_year,
-        current_year,
+        admission_year: admissionYear,
+        current_year: currentYear,
       },
-      academic_year: year,
-      fee_summary: {
-        total_fee,
-        govt_paid,
-        student_paid,
-        pending_fee,
-        status,
-      },
-      scholarship_proceedings,
-      application_no,
-      thumb_update_available,
-      thumb_status,
-      hardcopy_submitted,
-      student_payments,
+      ...financialSummary,
+      data: { // Legacy structure support for frontend compatibility
+        student: { ...student, mobile: student.mobile ? decrypt(student.mobile) : null },
+        ...financialSummary,
+        academic_year: year
+      }
     };
-
-    return apiResponse({ data: response });
-  } catch (error) {
-    logger.error({ error: error.message, stack: error.stack }, 'Error fetching student data for scholarship summary');
-    return apiError('Internal Server Error', 500, error.message);
   }
-}
-
-export async function POST() { return apiError('Method Not Allowed', 405); }
-export async function PUT() { return apiError('Method Not Allowed', 405); }
-export async function DELETE() { return apiError('Method Not Allowed', 405); }
+});

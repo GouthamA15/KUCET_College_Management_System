@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { studentFeePayments, studentRequests, scholarshipSanctions, students, clerks } from '@/db/schema';
-import { eq, sql, desc, and, gte, lte } from 'drizzle-orm';
+import { eq, sql, desc, and, gte, lte, asc } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
 export class FinanceService {
@@ -245,5 +245,84 @@ export class FinanceService {
     }
 
     return { isFlagged, flagDetails };
+  }
+
+  /**
+   * Get comprehensive financial summary for a specific student and academic year
+   * @param {number} studentId 
+   * @param {string} academicYear 
+   * @param {string} branchOrRoll Course code/name or student roll number
+   * @returns {Promise<Object>} Aggregated financial summary
+   */
+  static async getStudentFinancialSummary(studentId, academicYear, branchOrRoll) {
+    const { getYearlyTotalFee } = await import('@/lib/financial-utils');
+    const { getBranchFromRoll } = await import('@/lib/rollNumber');
+
+    // Ensure we have a valid branch name for fee lookup
+    let course = branchOrRoll;
+    if (branchOrRoll && branchOrRoll.length > 5) {
+      course = getBranchFromRoll(branchOrRoll);
+    }
+
+    const totalFee = getYearlyTotalFee(course);
+    const feeCategory = totalFee === 70000 ? 'SFC' : 'NON-SFC';
+
+    const [sanctions, payments] = await Promise.all([
+      db.query.scholarshipSanctions.findMany({
+        where: and(
+          eq(scholarshipSanctions.student_id, studentId),
+          eq(scholarshipSanctions.academic_year, academicYear)
+        ),
+        orderBy: [asc(scholarshipSanctions.sanction_date)]
+      }),
+      db.query.studentFeePayments.findMany({
+        where: and(
+          eq(studentFeePayments.student_id, studentId),
+          eq(studentFeePayments.academic_year, academicYear)
+        ),
+        orderBy: [asc(studentFeePayments.transaction_date)]
+      })
+    ]);
+
+    const activeSanctions = sanctions.filter(s => (s.status || 'SANCTIONED').toUpperCase() !== 'REJECTED');
+    const govtPaid = activeSanctions.reduce((sum, s) => sum + (Number(s.sanctioned_amount) || 0), 0);
+    const govtReleased = activeSanctions.reduce((sum, s) => sum + (Number(s.released_amount) || 0), 0);
+    
+    const studentPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const pendingFee = Math.max(0, totalFee - (govtPaid + studentPaid));
+
+    return {
+      academicYear,
+      feeSummary: {
+        totalFee,
+        feeCategory,
+        govtPaid,
+        govtReleased,
+        studentPaid,
+        pendingFee,
+        status: pendingFee === 0 ? 'COMPLETED' : 'PENDING'
+      },
+      scholarshipProceedings: activeSanctions.map(s => ({
+        id: s.id,
+        proceeding_no: s.proceeding_no,
+        amount: Number(s.sanctioned_amount) || 0,
+        date: s.sanction_date,
+        released_amount: Number(s.released_amount) || 0,
+        released_date: s.released_date,
+        status: s.status
+      })),
+      studentPayments: payments.map(p => ({
+        id: p.id,
+        transaction_ref: p.transaction_ref_no,
+        amount: Number(p.amount) || 0,
+        date: p.transaction_date,
+        payment_mode: p.payment_mode,
+        bank_name: p.bank_name,
+        created_at: p.created_at
+      })),
+      applicationNo: sanctions.find(s => s.application_no)?.application_no || null,
+      thumbStatus: sanctions[0]?.thumb_status || null,
+      hardcopySubmitted: !!sanctions[0]?.hardcopy_submitted
+    };
   }
 }
