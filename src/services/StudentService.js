@@ -164,17 +164,24 @@ export class StudentService {
     const normGuardianMobile = this.normalizeMobile(guardian_mobile);
     const normAadhaar = this.normalizeAadhaar(aadhaar_no);
 
+    const normalizeToMySQLDate = (val) => {
+      if (!val) return null;
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return null;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
     const studentValues = {
       admission_no: admission_no || null,
       roll_no: roll,
       name,
-      date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
+      date_of_birth: normalizeToMySQLDate(date_of_birth),
       gender: gender || null,
       email: email ? String(email).toLowerCase() : null,
       mobile: normMobile ? encrypt(normMobile) : null,
       mobile_hash: normMobile ? hashForIndex(normMobile) : null,
       fee_reimbursement: String(fee_reimbursement).toUpperCase() === 'YES' ? 'YES' : 'NO',
-      admission_date: admission_date ? new Date(admission_date) : new Date()
+      admission_date: normalizeToMySQLDate(admission_date) || normalizeToMySQLDate(new Date())
     };
 
     const personalValues = {
