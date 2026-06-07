@@ -431,7 +431,7 @@ export const rateLimits = mysqlTable('rate_limits', {
 }));
 
 export const securityEvents = mysqlTable('security_events', {
-  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
   user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']).notNull(),
   user_id: bigint('user_id', { mode: 'number', unsigned: true }),
   event_type: varchar('event_type', { length: 50 }),
@@ -444,7 +444,7 @@ export const securityEvents = mysqlTable('security_events', {
 }));
 
 export const securityNotifications = mysqlTable('security_notifications', {
-  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
   user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']).notNull(),
   user_id: bigint('user_id', { mode: 'number', unsigned: true }),
   title: varchar('title', { length: 255 }),
@@ -527,7 +527,7 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
 }));
 
 export const idempotencyKeys = mysqlTable('idempotency_keys', {
-  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
   idempotency_key: varchar('idempotency_key', { length: 255 }).notNull(),
   status: mysqlEnum('status', ['STARTED', 'COMPLETED', 'FAILED']).default('STARTED').notNull(),
   response_code: int('response_code'),
@@ -653,7 +653,7 @@ export const refreshTokens = mysqlTable('refresh_tokens', {
 }));
 
 export const userSessions = mysqlTable('user_sessions', {
-  id: bigint('id', { mode: 'number', unsigned: true }).autoincrement().primaryKey().notNull(),
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
   user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']),
   user_id: bigint('user_id', { mode: 'number', unsigned: true }),
   session_token_hash: varchar('session_token_hash', { length: 255 }),
