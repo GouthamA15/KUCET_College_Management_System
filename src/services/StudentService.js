@@ -80,10 +80,12 @@ export class StudentService {
     }
 
     const startYear = year.split('-')[0];
-    const yearShort = startYear.slice(-2);
+    const startYearInt = parseInt(startYear, 10);
+    const regularYearShort = String(startYearInt).slice(-2);
+    const lateralYearShort = String(startYearInt + 1).slice(-2);
     
-    const regularRollPattern = `${yearShort}567T${branch}%`;
-    const lateralRollPattern = `${yearShort}567${branch}%L`;
+    const regularRollPattern = `${regularYearShort}567T${branch}%`;
+    const lateralRollPattern = `${lateralYearShort}567${branch}%L`;
 
     const results = await db.select({
       admission_no: studentsTable.admission_no,
