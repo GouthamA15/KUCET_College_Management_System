@@ -29,12 +29,13 @@ export default function CertificateRequestForm({
 
   const isIncomeTax = selectedCertificate === 'Income Tax (IT) Certificate';
   const isNoObjection = selectedCertificate === 'No Objection Certificate';
+  const isBonafide = selectedCertificate === 'Bonafide Certificate';
   const requiresPayment = fee > 0;
   const requiresTransactionId = fee > 0 || isIncomeTax;
 
   // Show the form whenever a certificate requires any payment proof or fee-related action
-  // Also show for No Objection certificate which has no fee/upload but needs a purpose + submit
-  const showForm = isNoObjection || isIncomeTax || requiresPayment;
+  // Also show for No Objection certificate and Bonafide which need purpose + submit even if free
+  const showForm = isNoObjection || isIncomeTax || requiresPayment || isBonafide;
 
   const fileInputRef = useRef(null);
 
@@ -201,7 +202,10 @@ export default function CertificateRequestForm({
                 {fee > 0 ? (
                   <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-indigo-600">₹{fee}</span></p>
                 ) : (
-                  <p className="text-sm text-gray-700 font-semibold text-green-600">No additional payment required.</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-700 font-semibold text-green-600">No additional payment required.</p>
+                    {isBonafide && <p className="text-xs text-gray-500 italic">Fee waived: One-time payment for Bonafide valid for entire course.</p>}
+                  </div>
                 )}
               </div>
               {requiresTransactionId && (
@@ -310,52 +314,60 @@ export default function CertificateRequestForm({
                 </div>
               ) : (
                 <>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    {requiresPayment && !isIncomeTax ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <1MB).'}
-                  </p>
+                  {(requiresPayment || isIncomeTax) ? (
+                    <>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                        {requiresPayment && !isIncomeTax ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-3">
+                        {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <1MB).'}
+                      </p>
 
-                  <div className="mb-3">
-                    <div className="max-h-[250px] border-2 border-dashed border-gray-300 rounded-sm flex items-center justify-center p-4 relative">
-                      {!formState.paymentScreenshot ? (
-                        <div className="text-center text-gray-500">
-                          <div className="mb-2 font-medium">No Screenshot Selected</div>
-                          <div className="text-sm">Use the button below to upload an image</div>
+                      <div className="mb-3">
+                        <div className="max-h-[250px] border-2 border-dashed border-gray-300 rounded-sm flex items-center justify-center p-4 relative">
+                          {!formState.paymentScreenshot ? (
+                            <div className="text-center text-gray-500">
+                              <div className="mb-2 font-medium">No Screenshot Selected</div>
+                              <div className="text-sm">Use the button below to upload an image</div>
+                            </div>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center relative">
+                              <Image src={formState.paymentPreviewUrl} alt="Payment Screenshot Preview" width={520} height={220} className="max-h-[220px] w-auto object-contain" unoptimized />
+                              <button type="button" onClick={handleRemoveImage} className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full p-1 text-gray-600 hover:bg-gray-100">
+                                ×
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center relative">
-                          <Image src={formState.paymentPreviewUrl} alt="Payment Screenshot Preview" width={520} height={220} className="max-h-[220px] w-auto object-contain" unoptimized />
-                          <button type="button" onClick={handleRemoveImage} className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full p-1 text-gray-600 hover:bg-gray-100">
-                            ×
-                          </button>
+                      </div>
+                      {/* Controlled upload UI: hidden input + visible button */}
+                      <div className="mt-2 flex flex-col items-center">
+                        <input
+                          type="file"
+                          id="payment-screenshot"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          ref={fileInputRef}
+                          className="hidden"
+                        />
+                        <button type="button" onClick={handleUploadClick} className="px-4 py-2 bg-[#3258a8] text-white rounded-sm text-sm font-medium hover:bg-[#274f8f]">Upload Image</button>
+                        <div className="mt-3 text-center">
+                          {formState.paymentScreenshot ? (
+                            <>
+                              <div className="text-sm text-gray-700">{formState.paymentScreenshot.name}</div>
+                              <div className="text-xs text-green-600">Image ready ({(formState.paymentScreenshot.size / 1024).toFixed(2)} KB)</div>
+                            </>
+                          ) : (
+                            <div className="text-sm text-gray-500">No image selected</div>
+                          )}
                         </div>
-                      )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-sm">
+                      <p className="text-sm text-green-700">This request is free. No payment screenshot required. Just select the purpose and submit.</p>
                     </div>
-                  </div>
-                  {/* Controlled upload UI: hidden input + visible button */}
-                  <div className="mt-2 flex flex-col items-center">
-                    <input
-                      type="file"
-                      id="payment-screenshot"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      ref={fileInputRef}
-                      className="hidden"
-                    />
-                    <button type="button" onClick={handleUploadClick} className="px-4 py-2 bg-[#3258a8] text-white rounded-sm text-sm font-medium hover:bg-[#274f8f]">Upload Image</button>
-                    <div className="mt-3 text-center">
-                      {formState.paymentScreenshot ? (
-                        <>
-                          <div className="text-sm text-gray-700">{formState.paymentScreenshot.name}</div>
-                          <div className="text-xs text-green-600">Image ready ({(formState.paymentScreenshot.size / 1024).toFixed(2)} KB)</div>
-                        </>
-                      ) : (
-                        <div className="text-sm text-gray-500">No image selected</div>
-                      )}
-                    </div>
-                  </div>
+                  )}
 
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>

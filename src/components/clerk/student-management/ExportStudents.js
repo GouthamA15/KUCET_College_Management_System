@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx-js-style';
-import { branchCodes } from '@/lib/rollNumber';
+import { branchCodes, getBatchFromRoll } from '@/lib/rollNumber';
 import { getAssetUrl } from '@/lib/assets';
 
 const ExportStudents = () => {
@@ -90,6 +90,7 @@ const ExportStudents = () => {
     const worksheetData = students.map(s => ({
       'Roll Number': s.roll_no,
       'Admission Number': s.admission_no,
+      'Batch': getBatchFromRoll(s.roll_no),
       'Full Name': s.name,
       'Gender': s.gender,
       'Date of Birth': s.dob,
@@ -138,7 +139,7 @@ const ExportStudents = () => {
 
     // Setting column widths
     const columnWidths = [
-      { wch: 15 }, { wch: 18 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 15 },
+      { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 15 },
       { wch: 25 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 12 },
       { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 40 },
       { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 15 },
@@ -245,6 +246,7 @@ const ExportStudents = () => {
               <thead className="sticky top-0 bg-white shadow-sm">
                 <tr className="border-b-2 border-slate-100">
                   <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Roll Number</th>
+                  <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Batch</th>
                   <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Full Name</th>
                   <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Aadhaar</th>
                   <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Mobile</th>
@@ -256,6 +258,7 @@ const ExportStudents = () => {
                 {previewData.map((student, index) => (
                   <tr key={`${student.roll_no}-${index}`} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 text-xs font-black text-slate-700">{student.roll_no}</td>
+                    <td className="px-6 py-4 text-[10px] font-bold text-indigo-600 uppercase tracking-tight">{getBatchFromRoll(student.roll_no)}</td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-600">{student.name}</td>
                     <td className="px-6 py-4 text-[11px] font-mono text-slate-500">{maskAadhaar(student.aadhaar_no)}</td>
                     <td className="px-6 py-4 text-[11px] font-mono text-slate-500">{maskMobile(student.mobile)}</td>

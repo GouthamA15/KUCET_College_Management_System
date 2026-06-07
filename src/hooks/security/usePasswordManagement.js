@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { getPasswordRequirements, getPasswordStrength } from '@/lib/security';
+import { getPasswordRequirements, getPasswordStrength, generateStrongPassword } from '@/lib/security';
 
 export function usePasswordManagement({ role, roll_no, isPasswordSet, onSuccess }) {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -10,6 +10,13 @@ export function usePasswordManagement({ role, roll_no, isPasswordSet, onSuccess 
 
   const requirements = useMemo(() => getPasswordRequirements(newPassword), [newPassword]);
   const pwStrength = useMemo(() => getPasswordStrength(newPassword, requirements), [newPassword, requirements]);
+
+  const generatePassword = useCallback(() => {
+    const pw = generateStrongPassword();
+    setNewPassword(pw);
+    setConfirmPassword(pw);
+    toast.success('Strong password generated!');
+  }, []);
 
   const handleSavePassword = async () => {
     if (role === 'clerk') {
@@ -67,6 +74,7 @@ export function usePasswordManagement({ role, roll_no, isPasswordSet, onSuccess 
     pwSaving,
     requirements,
     pwStrength,
-    handleSavePassword
+    generatePassword,
+    onSavePassword: handleSavePassword
   };
 }

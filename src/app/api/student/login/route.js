@@ -1,14 +1,21 @@
 import { db } from '@/db';
 import { students, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { apiResponse, apiError } from '@/lib/api-utils';
+import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 import { checkRateLimit } from '@/lib/rate-limit';
 import logger from '@/lib/logger';
 import { z } from 'zod';
 
-export async function POST(req) {
-  try {
+const loginSchema = z.object({
+  rollno: z.string().trim().toUpperCase().min(10).max(12),
+  dob: z.string().trim().min(8).max(255), // Can be DOB (8-10) or Password (up to 255)
+  rememberMe: z.boolean().default(false)
+});
+
+export const POST = wrapHandler({
+  schema: loginSchema,
+  handler: async (req, { data }) => {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
     const rateCheck = await checkRateLimit(`login_student:${ip}`, 5, 900); // 5 attempts per 15 min
 
@@ -16,17 +23,7 @@ export async function POST(req) {
       return apiError('Too many login attempts. Please try again later.', 429);
     }
 
-    const json = await req.json();
-
-    // --- ZERO TRUST VALIDATION ---
-    const loginSchema = z.object({
-      rollno: z.string().trim().toUpperCase().min(10).max(12),
-      dob: z.string().trim().min(8).max(10), // Can be DD-MM-YYYY or YYYY-MM-DD
-      rememberMe: z.boolean().default(false)
-    });
-
-    const validatedData = loginSchema.parse(json);
-    const { rollno, dob, rememberMe } = validatedData;
+    const { rollno, dob, rememberMe } = data;
     
     const rows = await db.select({
       id: students.id,
@@ -103,12 +100,5 @@ export async function POST(req) {
     await issueStudentAuthCookie(response, student, rememberMe, ip, userAgent);
 
     return response;
-
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return apiError(err.errors[0].message, 400);
-    }
-    logger.error(err, 'Student Login Error');
-    return apiError('Server error', 500, err.message);
   }
-}
+});

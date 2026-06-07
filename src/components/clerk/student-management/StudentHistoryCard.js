@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useClerk } from '@/context/ClerkContext';
 
 export default function StudentHistoryCard({ currentClerkId }) {
-  const { studentHistory, isLoadingHistory, refreshStudentHistory } = useClerk();
   // State
   const [historyScope, setHistoryScope] = useState('my'); // 'my' | 'all'
   const [showFilters, setShowFilters] = useState(false);
@@ -12,11 +10,17 @@ export default function StudentHistoryCard({ currentClerkId }) {
   const DEFAULT_FILTERS = { actionTypes: [], dateRange: 'all' };
   const [historyFilters, setHistoryFilters] = useState(DEFAULT_FILTERS); // staged filters
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS); // actually applied to fetch
+  const [historyData, setHistoryData] = useState({ records: [], myCount: 0, allCount: 0 });
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const triggerRef = useRef(null);
+  const historyCacheRef = useRef(new Map());
+  const lastRequestKeyRef = useRef(null);
 
-  const myCount = studentHistory.myCount || 0;
-  const allCount = studentHistory.allCount || 0;
+  const myCount = historyData.myCount || 0;
+  const allCount = historyData.allCount || 0;
   const loading = isLoadingHistory;
+  const actionTypesKey = useMemo(() => [...appliedFilters.actionTypes].sort().join(','), [appliedFilters.actionTypes]);
+  const requestKey = useMemo(() => `${historyScope}|${appliedFilters.dateRange}|${actionTypesKey}`, [historyScope, appliedFilters.dateRange, actionTypesKey]);
 
   // Helpers
   const formatDateKey = (iso) => {
@@ -30,13 +34,58 @@ export default function StudentHistoryCard({ currentClerkId }) {
 
   // Fetch records from backend when scope or filters change
   useEffect(() => {
-    if (historyScope === 'my' && appliedFilters.dateRange === 'all' && appliedFilters.actionTypes.length === 0) {
-      // If it's the default and we already have it, don't re-fetch
-      if ((studentHistory.records || []).length > 0) return;
+    if (lastRequestKeyRef.current === requestKey) return;
+    lastRequestKeyRef.current = requestKey;
+
+    const cachedHistory = historyCacheRef.current.get(requestKey);
+    if (cachedHistory) {
+      setHistoryData(cachedHistory);
+      return;
     }
-    
-    refreshStudentHistory(historyScope);
-  }, [historyScope, refreshStudentHistory, appliedFilters, studentHistory.records]);
+
+    const controller = new AbortController();
+    let isActive = true;
+
+    const loadHistory = async () => {
+      setIsLoadingHistory(true);
+      try {
+        const params = new URLSearchParams();
+        params.set('scope', historyScope);
+        params.set('dateRange', appliedFilters.dateRange);
+        appliedFilters.actionTypes.forEach((type) => params.append('actionType', type));
+
+        const res = await fetch(`/api/clerk/student-history?${params.toString()}`, { signal: controller.signal });
+        if (!res.ok) return;
+
+        const json = await res.json();
+        const nextHistory = {
+          records: json.records || [],
+          myCount: json.myCount || 0,
+          allCount: json.allCount || 0
+        };
+
+        historyCacheRef.current.set(requestKey, nextHistory);
+        if (isActive) {
+          setHistoryData(nextHistory);
+        }
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          console.error('Failed to fetch student history', error);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingHistory(false);
+        }
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [requestKey, historyScope, appliedFilters.dateRange, appliedFilters.actionTypes]);
 
   // Compute popover placement to avoid viewport overflow
   useEffect(() => {
@@ -64,7 +113,7 @@ export default function StudentHistoryCard({ currentClerkId }) {
 
   // Derived filtered/grouped records from recordsRaw
   const filtered = useMemo(() => {
-    const raw = studentHistory.records || [];
+    const raw = historyData.records || [];
     // Apply client-side actionType filter if backend didn't (defensive)
     const src = raw.filter(r => {
       if (appliedFilters.actionTypes.length > 0 && !appliedFilters.actionTypes.includes(String(r.actionType))) return false;
@@ -85,7 +134,7 @@ export default function StudentHistoryCard({ currentClerkId }) {
     });
 
     return { groups, keys };
-  }, [studentHistory.records, appliedFilters.actionTypes]);
+  }, [historyData.records, appliedFilters.actionTypes]);
 
   const toggleActionType = (type) => {
     setHistoryFilters(h => {

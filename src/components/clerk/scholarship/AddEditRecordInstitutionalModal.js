@@ -75,8 +75,14 @@ export default function AddEditRecordInstitutionalModal({
     .filter(p => (p.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
     .reduce((sum, p) => sum + (Number(p.released_amount) || 0), 0);
   const totalStudentPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+  // DYNAMIC GOVT CAP: SC/ST/Minority get full fee, others capped at 35k
+  const category = String(student?.category || '').toUpperCase();
+  const religion = String(student?.religion || '').toUpperCase();
+  const isFullReimbursementCategory = ['SC', 'ST'].includes(category) || 
+    ['MUSLIM', 'CHRISTIAN', 'SIKH', 'BUDDHIST', 'JAIN', 'PARSI'].includes(religion);
   
-  const GOVT_CAP = 35000;
+  const GOVT_CAP = isFullReimbursementCategory ? totalFee : 35000;
   const eligibleAmount = isScholar ? GOVT_CAP : 0;
 
   const allowedStudentPayableLimit = isScholar ? Math.max(0, totalFee - GOVT_CAP) : totalFee;

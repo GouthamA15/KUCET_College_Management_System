@@ -5,15 +5,17 @@ import {
   studentPersonalDetails, 
   studentAcademicBackground 
 } from '@/db/schema';
-import { eq, and, like } from 'drizzle-orm';
-import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { eq, like } from 'drizzle-orm';
+import { apiError, wrapHandler } from '@/lib/api-utils';
 import { decrypt } from '@/lib/encryption';
 
-export async function GET(req) {
-  const user = await getAuthUser('clerk');
-  if (!user) return apiError('Unauthorized', 401);
-
-  try {
+/**
+ * GET /api/clerk/students/search
+ * Search students by name, roll no, or admission no
+ */
+export const GET = wrapHandler({
+  auth: 'clerk',
+  handler: async (req) => {
     const url = req.nextUrl;
     const name = url.searchParams.get('name');
     const admission_no = url.searchParams.get('admission_no');
@@ -42,9 +44,9 @@ export async function GET(req) {
 
     let condition;
     if (roll_no) {
-      condition = eq(studentsTable.roll_no, roll_no);
+      condition = eq(studentsTable.roll_no, String(roll_no).trim().toUpperCase());
     } else if (admission_no) {
-      condition = eq(studentsTable.admission_no, admission_no);
+      condition = eq(studentsTable.admission_no, String(admission_no).trim());
     } else {
       condition = like(studentsTable.name, `%${name}%`);
     }
@@ -52,15 +54,12 @@ export async function GET(req) {
     const rows = await query.where(condition).limit(100);
 
     // Decrypt sensitive fields
-    const decryptedRows = rows.map(row => ({
+    const students = rows.map(row => ({
       ...row,
-      mobile: decrypt(row.mobile),
-      aadhaar_no: decrypt(row.aadhaar_no)
+      mobile: row.mobile ? decrypt(row.mobile) : null,
+      aadhaar_no: row.aadhaar_no ? decrypt(row.aadhaar_no) : null
     }));
 
-    return apiResponse({ students: decryptedRows });
-  } catch (err) {
-    logger.error(err, 'Search students error');
-    return apiError('Server error', 500, err.message);
+    return { students };
   }
-}
+});

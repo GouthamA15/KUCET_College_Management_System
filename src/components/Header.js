@@ -130,9 +130,9 @@ export default function Header({ fixed = true }) {
 
           <div className="flex flex-col justify-center h-full py-0.5">
             <div className="text-[11px] lg:text-[12px] text-[#333] leading-tight">
-              <p className="m-0"><b>PGECET:</b> {config.entranceCodes.pgecet}</p>
-              <p className="m-0"><b>EAPCET:</b> {config.entranceCodes.eapcet}</p>
-              <p className="m-0"><b>ECET:</b> {config.entranceCodes.ecet}</p>
+              <p className="m-0"><b>PGECET:</b> {config.entranceCodes.tgpgecet}</p>
+              <p className="m-0"><b>TG EAPCET:</b> {config.entranceCodes.tgeapcet}</p>
+              <p className="m-0"><b>TG ECET:</b> {config.entranceCodes.tgecet}</p>
             </div>
 
             {/* Contact Number */}

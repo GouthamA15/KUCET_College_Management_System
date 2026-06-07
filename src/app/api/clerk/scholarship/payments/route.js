@@ -8,6 +8,7 @@ import { getYearlyTotalFee } from '@/lib/financial-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { calculateExpectedRTF } from '@/lib/scholarship-utils';
 import IdempotencyService from '@/services/IdempotencyService';
+import { FinanceService } from '@/services/FinanceService';
 
 export async function POST(req) {
   const user = await getAuthUser('clerk');
@@ -74,15 +75,31 @@ export async function POST(req) {
 
     logger.info(`[Payment API] Student reimbursement status: ${reimbursementStatus}`);
 
+    // --- INTEGRITY GUARD: Multi-Vector Conflict Check ---
+    const { isFlagged, flagDetails } = await FinanceService.verifyTransactionIntegrity({
+      transactionId: transaction_ref,
+      studentId: student.id
+    });
+
+    if (isFlagged) {
+      const conflictMsg = `Transaction Reference (${transaction_ref}) has already been used (Type: ${flagDetails.type}).`;
+      logger.warn(`[Payment API] Duplicate UTR detected: ${transaction_ref}`);
+      return apiError(conflictMsg, 409);
+    }
+
     // TRANSACTIONAL EXECUTION
     const resultId = await db.transaction(async (tx) => {
         // FINANCIAL VALIDATION
         const totalCourseFee = Number(getYearlyTotalFee(course) || 0);
         const isScholarshipStudent = reimbursementStatus === 'YES';
         const expectedRTF = isScholarshipStudent ? calculateExpectedRTF(student, totalCourseFee) : 0;
-        const allowedPayableLimit = Math.max(0, totalCourseFee - expectedRTF);
+        
+        // RELAXED LIMIT: Allow payments up to the absolute total fee.
+        // We warn but don't block, in case student loses scholarship eligibility.
+        const absoluteLimit = totalCourseFee;
+        const recommendedPayableLimit = Math.max(0, totalCourseFee - expectedRTF);
 
-        logger.info(`[Payment API] Course fee detected: ${totalCourseFee}`);
+        logger.info(`[Payment API] Course fee: ${totalCourseFee}, Expected RTF: ${expectedRTF}`);
 
         // Fetch existing payments for this year (SUM) inside transaction
         const existingPayments = await tx.select({ total: sql`SUM(amount)` })
@@ -95,11 +112,15 @@ export async function POST(req) {
         const currentPaidTotal = Number(existingPayments?.[0]?.total || 0);
         const finalPaidTotal = currentPaidTotal + amount;
 
-        if (finalPaidTotal > allowedPayableLimit) {
-          logger.warn('[Payment API] Payment rejected due to overflow');
-          const err = new Error('Payment exceeds allowed payable limit.');
+        if (finalPaidTotal > absoluteLimit) {
+          logger.warn('[Payment API] Payment rejected: exceeds total college fee');
+          const err = new Error(`Payment exceeds total college fee of ₹${totalCourseFee.toLocaleString()}.`);
           err.code = 'PAYMENT_LIMIT_EXCEEDED';
           throw err;
+        }
+
+        if (isScholarshipStudent && finalPaidTotal > recommendedPayableLimit) {
+          logger.info('[Payment API] Student paying beyond recommended limit (scholarship overlap)');
         }
 
         const [insertResult] = await tx.insert(studentFeePayments).values({

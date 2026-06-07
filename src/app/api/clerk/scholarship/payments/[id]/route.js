@@ -2,7 +2,7 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentFeePayments } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 
 export async function DELETE(req, ctx) {
   const user = await getAuthUser('clerk');
@@ -13,7 +13,23 @@ export async function DELETE(req, ctx) {
     const id = Number(params?.id);
     if (!id || !Number.isInteger(id) || id <= 0) return apiError('Invalid id', 400);
 
-    await db.delete(studentFeePayments).where(eq(studentFeePayments.id, id));
+    // Fetch before delete for audit
+    const existing = await db.query.studentFeePayments.findFirst({
+      where: eq(studentFeePayments.id, id)
+    });
+
+    if (existing) {
+      await db.delete(studentFeePayments).where(eq(studentFeePayments.id, id));
+      
+      await logAudit(req, {
+        userId: user.clerkId || user.id,
+        userType: 'clerk',
+        action: 'DELETE_FEE_PAYMENT',
+        targetId: id,
+        targetType: 'finance',
+        payload_before: existing
+      });
+    }
     
     return apiResponse({ success: true });
   } catch (error) {

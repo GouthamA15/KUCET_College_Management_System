@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentAdmissionDrafts, students, clerks, studentPersonalDetails } from '@/db/schema';
-import { eq, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { uploadToCloudinary } from '@/lib/cloudinary';
@@ -24,7 +24,7 @@ export async function POST(req) {
     const admissionSchema = z.object({
       name: z.string().trim().min(3).max(255).regex(/^[a-zA-Z\s.]+$/),
       admission_year: z.string().regex(/^\d{4}-\d{2}$/),
-      entrance_exam: z.enum(['EAMCET', 'ECET', 'PGECET', 'Other']),
+      entrance_exam: z.enum(['TG EAPCET', 'TG ECET', 'PGECET', 'Other']),
       branch: z.string().trim().min(2).max(50),
       seat_allotted_category: z.string().trim().min(1).max(50),
       religion: z.string().trim().min(1).max(100),
@@ -157,7 +157,7 @@ export async function POST(req) {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error(error, 'Error saving admission draft');
     return apiError('Failed to submit application.', 500);

@@ -41,12 +41,12 @@ export const clerkSchema = z.object({
  * Zod schema for Timetable Slots.
  */
 export const timetableSlotSchema = z.object({
-  day_of_week: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']),
+  day_of_week: z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']),
   period_number: z.number().int().min(1).max(8),
   subject_code: z.string().trim().min(1).max(50).toUpperCase(),
   faculty_id: z.number().int().positive(),
   room_no: z.string().trim().max(50).toUpperCase().optional().nullable(),
-  semester_id: z.number().int().positive()
+  semester: z.number().int().min(1).max(8)
 });
 
 /**

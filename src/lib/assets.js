@@ -5,9 +5,6 @@
  * Uses CLOUDINARY_CLOUD_NAME from environment configuration with a fallback for client-side access.
  */
 
-const DEFAULT_CLOUD_NAME = 'djs0ry74r';
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || DEFAULT_CLOUD_NAME;
-
 /**
  * List of assets verified to be in the local 'public' folder.
  * These will be served via the app's Global CDN (Next.js public folder)
@@ -45,8 +42,8 @@ const STATIC_ASSETS = [
 export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   if (!path) return '';
   
-  // 1. Handle data URIs and already-correct absolute URLs from other domains
-  if (path.startsWith('data:') || (path.startsWith('http') && !path.includes('cloudinary.com'))) {
+  // 1. Handle data URIs, absolute URLs, and local API routes
+  if (path.startsWith('data:') || (path.startsWith('http') && !path.includes('cloudinary.com')) || path.startsWith('/api/')) {
     return path;
   }
 
@@ -58,15 +55,23 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return normalizedPath;
   }
 
-  // 3. Strategy: External Provider
-  try {
-    const { getStorageProvider } = require('./providers/storage/factory');
-    const storage = getStorageProvider();
-    return storage.getUrl(path, { transformations });
-  } catch (err) {
-    // Fallback if provider not available (shouldn't happen in production)
-    return normalizedPath;
+  // 3. Strategy: Local VPS storage proxy
+  if (process.env.NEXT_PUBLIC_STORAGE_TYPE === 'local') {
+    return `/api/assets/view/${cleanPath}`;
   }
+
+  // 4. Strategy: Cloudinary (client-safe)
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
+  const extension = cleanPath.split('.').pop()?.toLowerCase();
+  let resourceType = 'image';
+  if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
+    resourceType = 'video';
+  } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
+    resourceType = 'raw';
+  }
+
+  const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
+  return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
 }
 
 export default getAssetUrl;

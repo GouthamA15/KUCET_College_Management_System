@@ -122,7 +122,7 @@ export async function PUT(req, context) {
     return apiResponse({ message: 'Clerk updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error('Error updating clerk:', error);
     if (error && error.code === 'ER_DUP_ENTRY') {

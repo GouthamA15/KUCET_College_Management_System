@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "a298b85e-9186-4af3-b9b7-18a4c238d21f",
+  "id": "75be3338-da18-4e15-9926-d1d8711cd4a5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "academic_calendar": {
@@ -1636,7 +1636,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "bigint",
+          "type": "bigint unsigned",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": true
@@ -1780,7 +1780,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "bigint",
+          "type": "bigint unsigned",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": true
@@ -1985,7 +1985,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "bigint",
+          "type": "bigint unsigned",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": true
@@ -2281,7 +2281,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "bigint",
+          "type": "bigint unsigned",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": true
@@ -2364,7 +2364,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "bigint",
+          "type": "bigint unsigned",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": true
@@ -4275,7 +4275,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "bigint",
+          "type": "bigint unsigned",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": true

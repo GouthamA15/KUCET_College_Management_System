@@ -103,7 +103,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
     let currentInterMarks = initialAcademics.length > 0 ? initialAcademics[0].inter_marks : '';
 
     if (!currentQualifyingExam) {
-      currentQualifyingExam = getEntranceExamQualified(fetchedStudent.roll_no) || 'EAMCET';
+      currentQualifyingExam = getEntranceExamQualified(fetchedStudent.roll_no) || 'TG EAPCET';
     }
     if (initialAcademics.length === 0) {
       initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks });
@@ -417,12 +417,12 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
             <h4 className="font-semibold mb-2">Section C: Academic Background</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <select
-                value={(academicsList[0] && academicsList[0].qualifying_exam) || 'EAMCET'}
+                value={(academicsList[0] && academicsList[0].qualifying_exam) || 'TG EAPCET'}
                 onChange={e=>{ const copy = [...academicsList]; copy[0] = {...(copy[0]||{}), qualifying_exam: e.target.value}; setAcademicsList(copy); }}
                 className="p-2 border rounded"
               >
-                <option>EAMCET</option>
-                <option>ECET</option>
+                <option>TG EAPCET</option>
+                <option>TG ECET</option>
                 <option>PGECET</option>
               </select>
               <input 

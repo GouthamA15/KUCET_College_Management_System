@@ -24,9 +24,16 @@ export async function POST(req) {
     const json = await req.json();
 
     // Validate with Zod
+    const amountSchema = z.preprocess(
+      (v) => (v === '' || v === null || v === undefined) ? null : Number(v),
+      z.number().min(0).max(100000).nullable().optional()
+    );
+
     const validationSchema = scholarshipSanctionSchema.extend({
-      sanction_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-      released_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+      sanctioned_amount: amountSchema,
+      released_amount: amountSchema,
+      sanction_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal('')),
+      released_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal('')),
       thumb_update_available: z.boolean().optional(),
       thumb_status: z.enum(['PENDING', 'COMPLETED', 'FAILED']).optional(),
       hardcopy_submitted: z.boolean().optional()
@@ -248,7 +255,7 @@ export async function POST(req) {
     return apiResponse(responseData, isNewInsert ? 201 : 200);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
     logger.error('Error inserting sanction:', error);

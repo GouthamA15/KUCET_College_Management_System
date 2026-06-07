@@ -22,12 +22,12 @@ export async function POST(request) {
 
     // --- ZERO TRUST VALIDATION ---
     const attendanceSchema = z.object({
-      assignment_id: z.number().int().positive(),
+      assignment_id: z.preprocess(v => Number(v), z.number().int().positive()),
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       session: z.number().int().min(1).max(8),
       attendance_data: z.array(z.object({
         student_id: z.number().int().positive(),
-        status: z.enum(['PRESENT', 'ABSENT', 'ON_DUTY', 'SUSPENDED'])
+        status: z.enum(['PRESENT', 'ABSENT', 'NCC', 'MEDICAL'])
       })).min(1, "Attendance data cannot be empty")
     });
 
@@ -135,7 +135,7 @@ export async function POST(request) {
     return apiResponse({ message: 'Attendance updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error('Attendance Update Error:', error);
     return apiError('Internal Server Error', 500);
@@ -247,7 +247,7 @@ export async function DELETE(request) {
     return apiResponse({ message: 'Attendance for the selected date has been deleted' });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error('Attendance Delete Error:', error);
     return apiError('Internal Server Error', 500);

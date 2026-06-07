@@ -7,6 +7,7 @@ export function StudentActivationUI({
   handleSendOtp, emailSending, otpSent, setOtpSent,
   otpInput, setOtpInput, handleVerifyOtp, otpVerifying,
   isEmailVerified, isPasswordSet,
+  resendCountdown,
   passwordManagement
 }) {
   return (
@@ -35,13 +36,15 @@ export function StudentActivationUI({
                 placeholder="name@example.com"
                 className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-[#0b3578] transition-all outline-none disabled:bg-gray-50"
               />
-              <button 
-                onClick={handleSendOtp}
-                disabled={emailSending || !emailInput || otpSent}
-                className="bg-[#0b3578] hover:bg-[#0a2d66] text-white px-4 py-2 rounded-md text-sm font-medium transition-all disabled:opacity-50"
-              >
-                {emailSending ? 'Sending...' : (otpSent ? 'Sent' : 'Send OTP')}
-              </button>
+              {!otpSent && (
+                <button 
+                  onClick={handleSendOtp}
+                  disabled={emailSending || !emailInput || otpSent}
+                  className="bg-[#0b3578] hover:bg-[#0a2d66] text-white px-4 py-2 rounded-md text-sm font-medium transition-all disabled:opacity-50"
+                >
+                  {emailSending ? 'Sending...' : 'Send OTP'}
+                </button>
+              )}
             </div>
 
             {otpSent && (
@@ -63,12 +66,26 @@ export function StudentActivationUI({
                   >
                     {otpVerifying ? 'Verifying...' : 'Verify'}
                   </button>
-                  <button 
-                    onClick={() => { setOtpSent(false); setOtpInput(''); }}
-                    className="w-full sm:w-auto text-[#0b3578] text-xs hover:underline px-2 text-center"
-                  >
-                    Change Email
-                  </button>
+                  
+                  <div className="w-full flex items-center justify-between mt-2">
+                    <button 
+                      onClick={() => { setOtpSent(false); setOtpInput(''); }}
+                      className="text-[#0b3578] text-[10px] font-bold uppercase hover:underline"
+                    >
+                      Change Email
+                    </button>
+                    
+                    {resendCountdown > 0 ? (
+                      <span className="text-gray-400 text-[10px] font-bold uppercase">Resend in {resendCountdown}s</span>
+                    ) : (
+                      <button 
+                        onClick={handleSendOtp}
+                        className="text-[#0b3578] text-[10px] font-bold uppercase hover:underline"
+                      >
+                        Resend OTP
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

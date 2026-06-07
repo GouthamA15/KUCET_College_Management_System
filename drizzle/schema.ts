@@ -234,6 +234,19 @@ export const facultySubstitutions = mysqlTable("faculty_substitutions", {
 	createdByClerkId: int("created_by_clerk_id"),
 });
 
+export const idempotencyKeys = mysqlTable("idempotency_keys", {
+	id: bigint({ mode: "number" }).autoincrement().notNull(),
+	idempotencyKey: varchar("idempotency_key", { length: 255 }).notNull(),
+	status: mysqlEnum(['STARTED','COMPLETED','FAILED']).default('STARTED').notNull(),
+	responseCode: int("response_code"),
+	responseBody: json("response_body"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
+},
+(table) => [
+	index("uq_idempotency_key").on(table.idempotencyKey),
+]);
+
 export const otpCodes = mysqlTable("otp_codes", {
 	id: int().autoincrement().notNull(),
 	identifier: varchar({ length: 255 }).notNull(),
@@ -264,6 +277,9 @@ export const principal = mysqlTable("principal", {
 	email: varchar({ length: 255 }).notNull(),
 	passwordHash: varchar("password_hash", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	lastLoginAt: timestamp("last_login_at", { mode: 'string' }),
+	lastLoginIp: varchar("last_login_ip", { length: 64 }),
+	passwordChangedAt: timestamp("password_changed_at", { mode: 'string' }),
 });
 
 export const rateLimits = mysqlTable("rate_limits", {
@@ -333,12 +349,7 @@ export const securityEvents = mysqlTable("security_events", {
 	ipAddress: varchar("ip_address", { length: 64 }),
 	details: json(),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
-},
-(table) => [
-	index("idx_user").on(table.userType, table.userId),
-	index("idx_event_type").on(table.eventType),
-	index("idx_created_at").on(table.createdAt),
-]);
+});
 
 export const securityNotifications = mysqlTable("security_notifications", {
 	id: bigint({ mode: "number" }).autoincrement().notNull(),
@@ -349,11 +360,7 @@ export const securityNotifications = mysqlTable("security_notifications", {
 	severity: mysqlEnum(['INFO','WARNING','CRITICAL']).default('INFO'),
 	isRead: tinyint("is_read").default(0),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
-},
-(table) => [
-	index("idx_user").on(table.userType, table.userId),
-	index("idx_read").on(table.isRead),
-]);
+});
 
 export const semesters = mysqlTable("semesters", {
 	id: int().autoincrement().notNull(),
@@ -486,7 +493,10 @@ export const studentMarks = mysqlTable("student_marks", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).onUpdateNow(),
 	isPublished: tinyint("is_published").default(1).notNull(),
 	version: int().default(1).notNull(),
-});
+},
+(table) => [
+	index("uq_marks_student_assignment").on(table.studentId, table.assignmentId),
+]);
 
 export const studentPersonalDetails = mysqlTable("student_personal_details", {
 	id: int().autoincrement().notNull(),
@@ -554,9 +564,13 @@ export const studentRequests = mysqlTable("student_requests", {
 	generatedAttendance: varchar("generated_attendance", { length: 10 }),
 	actionByClerkId: int("action_by_clerk_id"),
 	actionByRole: varchar("action_by_role", { length: 50 }),
+	isFlagged: tinyint("is_flagged").default(0),
+	flagDetails: json("flag_details"),
+	paymentHash: varchar("payment_hash", { length: 64 }),
 },
 (table) => [
 	index("idx_gen_cert_id").on(table.generatedCertificateId),
+	index("idx_sr_payment_hash").on(table.paymentHash),
 ]);
 
 export const studentSignatures = mysqlTable("student_signatures", {
@@ -597,6 +611,7 @@ export const students = mysqlTable("students", {
 	index("idx_roll_no").on(table.rollNo),
 	index("idx_students_created_at").on(table.createdAt),
 	index("idx_students_mobile_hash").on(table.mobileHash),
+	index("uq_students_roll_no").on(table.rollNo),
 ]);
 
 export const syllabusStructure = mysqlTable("syllabus_structure", {
@@ -633,8 +648,4 @@ export const userSessions = mysqlTable("user_sessions", {
 	lastSeenAt: timestamp("last_seen_at", { mode: 'string' }),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
 	expiresAt: timestamp("expires_at", { mode: 'string' }),
-},
-(table) => [
-	index("idx_user").on(table.userType, table.userId),
-	index("idx_active").on(table.isRevoked, table.lastSeenAt),
-]);
+});

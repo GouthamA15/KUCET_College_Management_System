@@ -64,7 +64,10 @@ export async function POST(req) {
         subject: z.object({
           subject_code: z.string().trim().min(1).max(50).toUpperCase(),
           subject_name: z.string().trim().min(3).max(255),
-          subject_type: z.enum(['Theory', 'Lab', 'Seminar', 'Project', 'Other']),
+          subject_type: z.preprocess(
+            (v) => typeof v === 'string' ? v.toLowerCase() : v,
+            z.enum(['theory', 'lab'])
+          ),
           semester: z.preprocess(v => Number(v), z.number().int().min(1).max(8))
         })
       }),
@@ -124,7 +127,7 @@ export async function POST(req) {
     return apiError('Invalid action', 400);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors[0].message, 400);
+      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
     logger.error('HOD Syllabus POST Error:', error);
     return apiError('Internal Server Error', 500);

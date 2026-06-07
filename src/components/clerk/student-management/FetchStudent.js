@@ -68,7 +68,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
       let currentInterMarks = initialAcademics.length > 0 ? initialAcademics[0].inter_marks : '';
 
       if (!currentQualifyingExam) {
-        currentQualifyingExam = getEntranceExamQualified(student.roll_no) || 'EAMCET';
+        currentQualifyingExam = getEntranceExamQualified(student.roll_no) || 'TG EAPCET';
       }
       
       if (initialAcademics.length === 0) {

@@ -117,14 +117,14 @@ function pickSubjectVisual(subjectName, index) {
 }
 
 export default function StudentHomePage() {
-  const { studentData, academicPerformance, loading: contextLoading } = useStudent();
+  const { studentData, collegeInfo, academicPerformance, loading: contextLoading } = useStudent();
 
   const student = studentData?.student || null;
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
-  const { semesterLabel } = student 
-    ? calculateYearAndSemester(student.roll_no, studentData?.collegeInfo) 
+  const { semesterLabel } = student
+    ? calculateYearAndSemester(student.roll_no, collegeInfo, student.academic_offset_years || 0)
     : { semesterLabel: '' };
-  const academicYear = student ? getResolvedCurrentAcademicYear(student.roll_no, studentData?.collegeInfo) : null;
+  const academicYear = student ? getResolvedCurrentAcademicYear(student.roll_no, collegeInfo) : null;
 
   if (contextLoading && !student) {
     return <LoadingSpinner label="Loading Records" />;

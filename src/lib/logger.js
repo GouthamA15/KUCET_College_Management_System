@@ -1,6 +1,8 @@
 import pino from 'pino';
+import { AsyncLocalStorage } from 'async_hooks';
 
 const isProduction = process.env.NODE_ENV === 'production';
+const storage = new AsyncLocalStorage();
 
 // In production, we log JSON to standard output.
 // In development, we use pino-pretty for readable logs.
@@ -15,10 +17,15 @@ const transport = !isProduction
     }
   : undefined;
 
-const logger = pino({
+const pinoLogger = pino({
   level: isProduction ? 'info' : 'debug',
   base: isProduction ? { env: 'production' } : undefined,
   transport,
+  // Mix in request context from AsyncLocalStorage if available
+  mixin() {
+    const context = storage.getStore();
+    return context || {};
+  },
   redact: {
     paths: [
       'email',
@@ -36,5 +43,17 @@ const logger = pino({
     censor: '[REDACTED]',
   },
 });
+
+const logger = {
+  info: (obj, msg) => pinoLogger.info(obj, msg),
+  warn: (obj, msg) => pinoLogger.warn(obj, msg),
+  error: (obj, msg) => pinoLogger.error(obj, msg),
+  debug: (obj, msg) => pinoLogger.debug(obj, msg),
+  
+  /**
+   * Runs a function within a logging context (e.g., with a traceId)
+   */
+  runWithContext: (context, fn) => storage.run(context, fn),
+};
 
 export default logger;

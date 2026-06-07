@@ -22,7 +22,7 @@ export async function POST(req) {
     }).safeParse(json);
 
     if (!validation.success) {
-      return apiError(validation.error.errors[0].message, 400);
+      return apiError(validation.error.errors?.[0]?.message || 'Invalid input data', 400);
     }
 
     const validatedData = validation.data;
@@ -77,7 +77,8 @@ export async function POST(req) {
     return apiResponse({ success: true, message: "Profile updated successfully" });
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return apiError(err.errors[0].message, 400);
+      const message = err.errors?.[0]?.message || 'Invalid input data';
+      return apiError(message, 400);
     }
     logger.error(err, "Update profile error");
     return apiError('Server error', 500, err.message);

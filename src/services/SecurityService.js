@@ -505,6 +505,24 @@ export default class SecurityService {
       const lastSeenAt = getNow();
       const expiryDate = expiresAt ? new Date(expiresAt) : new Date(getNow().getTime() + 30 * 24 * 60 * 60 * 1000);
 
+      // Ensure only one current session per user (mirror registerSession behavior)
+      const [session] = await db
+        .select({ user_id: userSessions.user_id, user_type: userSessions.user_type })
+        .from(userSessions)
+        .where(eq(userSessions.id, sessionId))
+        .limit(1);
+
+      if (session) {
+        await db
+          .update(userSessions)
+          .set({ is_current: false })
+          .where(and(
+            eq(userSessions.user_id, session.user_id),
+            eq(userSessions.user_type, session.user_type),
+            ne(userSessions.id, sessionId)
+          ));
+      }
+
       await db
         .update(userSessions)
         .set({

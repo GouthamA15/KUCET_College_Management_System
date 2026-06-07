@@ -6,13 +6,31 @@ import {
   collegeInfo as collegeInfoTable,
   studentRequestImages
 } from "@/db/schema";
-import { eq, and, desc, sql, or } from "drizzle-orm";
-import { getResolvedCurrentAcademicYear } from "@/lib/rollNumber";
+import { eq, and, desc } from "drizzle-orm";
+import { getResolvedCurrentAcademicYear, getAdmissionTypeFromRoll } from "@/lib/rollNumber";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import IdempotencyService from '@/services/IdempotencyService';
+import { FinanceService } from '@/services/FinanceService';
 import crypto from 'crypto';
+
+export async function GET() {
+  const user = await getAuthUser("student");
+  if (!user || !user.student_id) return apiError("Unauthorized", 401);
+
+  try {
+    const requests = await db.query.studentRequests.findMany({
+      where: eq(studentRequests.student_id, user.student_id),
+      orderBy: [desc(studentRequests.created_at)]
+    });
+
+    return apiResponse(requests);
+  } catch (error) {
+    logger.error('Error fetching student requests:', error);
+    return apiError("Internal Server Error", 500);
+  }
+}
 
 export async function POST(request) {
   const user = await getAuthUser("student");
@@ -64,81 +82,104 @@ export async function POST(request) {
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeRows[0], now);
 
-    // --- INTEGRITY GUARD: Multi-Vector Conflict Check ---
-    let isFlagged = false;
-    let flagDetails = null;
-    let paymentHash = null;
-
-    // A. Transaction ID Conflict
-    if (transactionId) {
-      const conflictTrans = await db.query.studentRequests.findFirst({
-        where: and(
-          eq(studentRequests.transaction_id, transactionId),
-          sql`${studentRequests.status} != 'REJECTED'`
-        ),
-        with: { student: { columns: { roll_no: true } } }
-      });
-
-      if (conflictTrans && conflictTrans.student_id !== user.student_id) {
-        isFlagged = true;
-        flagDetails = {
-          type: 'TRANSACTION_ID_CONFLICT',
-          conflict_roll_no: conflictTrans.student.roll_no,
-          conflict_request_id: conflictTrans.request_id,
-          conflict_date: conflictTrans.created_at
-        };
-      }
-    }
-
-    // B. Screenshot Hash Conflict (Fingerprinting)
-    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
-    if (isFileValid) {
-      const buffer = Buffer.from(await paymentScreenshotFile.arrayBuffer());
-      paymentHash = crypto.createHash('sha256').update(buffer).digest('hex');
-
-      const conflictHash = await db.query.studentRequests.findFirst({
-        where: and(
-          eq(studentRequests.payment_hash, paymentHash),
-          sql`${studentRequests.status} != 'REJECTED'`
-        ),
-        with: { student: { columns: { roll_no: true } } }
-      });
-
-      if (conflictHash && conflictHash.student_id !== user.student_id) {
-        isFlagged = true;
-        flagDetails = {
-          ...(flagDetails || {}),
-          hash_conflict: true,
-          conflict_roll_no: conflictHash.student.roll_no,
-          conflict_request_id: conflictHash.request_id,
-          conflict_date: conflictHash.created_at
-        };
-      }
-    }
-
     // Check existing
     const existing = await db.query.studentRequests.findFirst({
       where: and(
         eq(studentRequests.student_id, user.student_id),
         eq(studentRequests.certificate_type, certificateType),
         eq(studentRequests.academic_year, academicYear)
-      )
+      ),
+      orderBy: [desc(studentRequests.created_at)]
     });
 
-    if (existing && existing.status !== "REJECTED") {
-      return apiError("An active request already exists for this academic year.", 409);
+    requestId = existing?.request_id;
+
+    // --- BONAFIDE LIMITS & FREE LOGIC ---
+    let finalPaymentAmount = paymentAmountNum;
+    if (certificateType === 'Bonafide Certificate') {
+      const approvedRequests = await db.query.studentRequests.findMany({
+        where: and(
+          eq(studentRequests.student_id, user.student_id),
+          eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+          eq(studentRequests.status, 'APPROVED')
+        )
+      });
+
+      // 1. Total Limit Check (4 for Regular, 3 for Lateral)
+      const admissionType = getAdmissionTypeFromRoll(user.roll_no);
+      const maxAllowed = admissionType === 'Lateral' ? 3 : 4;
+
+      if (approvedRequests.length >= maxAllowed) {
+        return apiError(`You have reached the maximum limit of ${maxAllowed} Bonafide Certificates for your course duration.`, 403);
+      }
+
+      // 2. Per-Year Limit Check (Only one per academic year)
+      const alreadyHasYearlyBonafide = approvedRequests.some(req => req.academic_year === academicYear);
+      if (alreadyHasYearlyBonafide) {
+        return apiError(`You have already received a Bonafide Certificate for the current academic year (${academicYear}). Only one is allowed per year.`, 403);
+      }
+
+      // 3. Free for subsequent requests logic (only free if already paid once in a previous year)
+      const hasPreviousPaidBonafide = approvedRequests.some(req => req.academic_year !== academicYear && req.payment_amount > 0);
+      if (hasPreviousPaidBonafide && approvedRequests.length > 0) {
+        finalPaymentAmount = 0;
+      }
     }
 
-    if (existing) {
-      // Update
+    const isFileValid = paymentScreenshotFile && typeof paymentScreenshotFile === 'object' && paymentScreenshotFile.size > 0;
+
+    // --- INTEGRITY GUARD: Multi-Vector Conflict Check ---
+    let isFlagged = false;
+    let flagDetails = null;
+    let paymentHash = null;
+
+    if (finalPaymentAmount > 0) {
+      if (isFileValid) {
+        const buffer = Buffer.from(await paymentScreenshotFile.arrayBuffer());
+        paymentHash = crypto.createHash('sha256').update(buffer).digest('hex');
+      }
+
+      const integrity = await FinanceService.verifyTransactionIntegrity({
+        transactionId: transactionId,
+        paymentHash,
+        studentId: user.student_id,
+        requestId
+      });
+
+      isFlagged = integrity.isFlagged;
+      flagDetails = integrity.flagDetails;
+    }
+
+    // If an active (PENDING) request already exists for this academic year, block new one.
+    // If it's APPROVED or REJECTED, we can allow a new one (especially for Bonafide which is free after first)
+    if (existing && existing.status === "PENDING") {
+      return apiError("An active request already exists for this academic year. Please wait for it to be processed.", 409);
+    }
+
+    if (existing && existing.status === "REJECTED") {
+      // For rejected bonafides, recheck yearly limit before allowing re-submission
+      if (certificateType === 'Bonafide Certificate') {
+        const approvedBonafides = await db.query.studentRequests.findMany({
+          where: and(
+            eq(studentRequests.student_id, user.student_id),
+            eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+            eq(studentRequests.status, 'APPROVED'),
+            eq(studentRequests.academic_year, academicYear)
+          )
+        });
+        if (approvedBonafides.length > 0) {
+          return apiError(`You have already received a Bonafide Certificate for the current academic year (${academicYear}). Cannot re-submit rejected request.`, 403);
+        }
+      }
+      // Update the rejected one to PENDING again (original behavior)
       requestId = existing.request_id;
       await db.update(studentRequests)
         .set({
-          payment_amount: paymentAmountNum,
+          payment_amount: finalPaymentAmount,
           transaction_id: transactionId || null,
           purpose: purpose || null,
-          from_date: fromDateStr || null,
-          to_date: toDateStr || null,
+          from_date: fromDateStr ? new Date(fromDateStr) : null,
+          to_date: toDateStr ? new Date(toDateStr) : null,
           status: 'PENDING',
           updated_at: now,
           completed_at: null,
@@ -148,12 +189,12 @@ export async function POST(request) {
         })
         .where(eq(studentRequests.request_id, requestId));
     } else {
-      // Insert
+      // Insert new request (even if an APPROVED one exists for this year, we allow new ones for Bonafide)
       const result = await db.insert(studentRequests).values({
         student_id: user.student_id,
         certificate_type: certificateType,
         academic_year: academicYear,
-        payment_amount: paymentAmountNum,
+        payment_amount: finalPaymentAmount,
         transaction_id: transactionId || null,
         purpose: purpose || null,
         from_date: fromDateStr ? new Date(fromDateStr) : null,
@@ -161,7 +202,9 @@ export async function POST(request) {
         status: 'PENDING',
         is_flagged: isFlagged,
         flag_details: flagDetails,
-        payment_hash: paymentHash
+        payment_hash: paymentHash,
+        created_at: now,
+        updated_at: now
       });
       requestId = result[0].insertId;
 
@@ -197,7 +240,10 @@ export async function POST(request) {
           .onDuplicateKeyUpdate({ set: { payment_screenshot: screenshotUrl } });
         
         await db.update(studentRequests)
-          .set({ payment_screenshot: screenshotUrl })
+          .set({ 
+            payment_screenshot: screenshotUrl,
+            updated_at: now
+          })
           .where(eq(studentRequests.request_id, requestId));
       }
     }
