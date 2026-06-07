@@ -39,7 +39,11 @@ export function toMySQLDate(value) {
   if (value === undefined || value === null || value === '') return null;
   
   if (value instanceof Date && !isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+    // Robustly extract local date parts to avoid UTC shift
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 
   if (typeof value !== 'string') {

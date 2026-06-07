@@ -1,16 +1,14 @@
-import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 
   studentPersonalDetails, 
   studentAcademicBackground,
-  studentImportLogs,
-  clerks
+  studentImportLogs
 } from '@/db/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
-import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { apiError, wrapHandler } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { StudentService } from '@/services/StudentService';
 
@@ -18,19 +16,8 @@ import { StudentService } from '@/services/StudentService';
 const normalizeHeader = (h) => {
   const s = String(h || '').toLowerCase().trim();
   return s
-    .replace(/[\s\-]+/g, '_')
+    .replace(/[\s-]+/g, '_')
     .replace(/[^a-z0-9_]/g, '');
-};
-
-// Canonical display names for required fields
-const REQUIRED_DISPLAY = {
-  roll_no: 'ROLL NUMBER',
-  name: 'CANDIDATE NAME',
-  gender: 'GENDER',
-  date_of_birth: 'DOB',
-  father_name: 'FATHER NAME',
-  category: 'CATEGORY',
-  address: 'ADDRESS',
 };
 
 const VALID_CATEGORIES = new Set(['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS']);
@@ -122,15 +109,12 @@ function normalizeDateToMySQL(value) {
   return null;
 }
 
-export async function POST(req) {
-  try {
-    const user = await getAuthUser('clerk');
-    if (!user || user.role !== 'admission') return apiError('Forbidden', 403);
+export const POST = wrapHandler({
+  auth: 'clerk',
+  handler: async (req, { user, ip }) => {
+    if (user.role !== 'admission') return apiError('Forbidden', 403);
 
-    const clerkId = user?.clerkId || user.id || null;
-    const clerk = await db.query.clerks.findFirst({ where: eq(clerks.id, clerkId) });
-    if (!clerk) return apiError('Unauthorized: clerk not found', 403);
-
+    const clerkId = user.clerkId || user.id;
     const contentType = req.headers.get('content-type') || '';
     let totalRows = 0;
     const errors = [];
@@ -240,7 +224,7 @@ export async function POST(req) {
       });
     }
 
-    if (prepared.length === 0) return apiResponse({ totalRows, inserted: 0, updated: 0, skipped: totalRows, errors });
+    if (prepared.length === 0) return { totalRows, inserted: 0, updated: 0, skipped: totalRows, errors };
 
     const incomingRolls = prepared.map(p => p.student.roll_no);
     const incomingEmails = prepared.map(p => p.student.email).filter(Boolean);
@@ -308,16 +292,12 @@ export async function POST(req) {
       }
     });
 
-    return apiResponse({
+    return {
       totalRows,
       inserted: insertedCount,
       updated: updatedCount,
       skipped: totalRows - insertedCount - updatedCount,
       errors
-    });
-
-  } catch (error) {
-    logger.error(error, 'BULK IMPORT ERROR');
-    return apiError('Import failed', 500);
+    };
   }
-}
+});

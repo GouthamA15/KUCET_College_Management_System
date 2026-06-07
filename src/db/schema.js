@@ -198,6 +198,7 @@ export const academicCalendar = mysqlTable('academic_calendar', {
 }, (table) => ({
   dateIdx: index('idx_date').on(table.date),
   aySemIdx: index('idx_ay_sem').on(table.academic_year, table.semester),
+  uqDate: uniqueIndex('uq_academic_calendar_date').on(table.date),
 }));
 
 
@@ -213,6 +214,7 @@ export const studentAttendance = mysqlTable('student_attendance', {
   attendanceIdx: index('idx_attendance_lookup').on(table.assignment_id, table.date, table.session),
   historyIdx: index('idx_student_attendance_history').on(table.student_id, table.date),
   studentAssignmentIdx: index('idx_sa_student_assignment').on(table.student_id, table.assignment_id),
+  uqAttendance: uniqueIndex('uq_student_attendance').on(table.student_id, table.assignment_id, table.date, table.session),
 }));
 
 export const studentMarks = mysqlTable('student_marks', {
@@ -267,6 +269,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
 }, (table) => ({
   timetableLookupIdx: index('idx_timetable_lookup').on(table.branch, table.semester, table.academic_year),
   dayPeriodIdx: index('idx_bt_day_period').on(table.day_of_week, table.period_number),
+  uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.section, table.day_of_week, table.period_number, table.academic_year),
 }));
 
 export const facultySubjectAssignments = mysqlTable('faculty_subject_assignments', {
