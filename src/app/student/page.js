@@ -5,7 +5,6 @@ import { useStudent } from '@/context/StudentContext';
 import Link from 'next/link';
 import { getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 import { calculateYearAndSemester } from '@/lib/academic-utils';
-import useFinancialRows from '@/components/student/useFinancialRows';
 import DashboardActionCenter from '@/components/student/DashboardActionCenter';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
@@ -127,13 +126,6 @@ export default function StudentHomePage() {
     : { semesterLabel: '' };
   const academicYear = student ? getResolvedCurrentAcademicYear(student.roll_no, studentData?.collegeInfo) : null;
 
-  const scholarshipList = studentData?.scholarship || [];
-  const feeRecords = studentData?.fees || [];
-  const { rows = [] } = useFinancialRows(student?.roll_no, scholarshipList, feeRecords, branch);
-
-  const totalGovtPaid = rows.reduce((s, r) => s + Number(r.amount_sanctioned || 0), 0);
-  const totalStudentPaid = rows.reduce((s, r) => s + Number(r.student_paid || 0), 0);
-
   if (contextLoading && !student) {
     return <LoadingSpinner label="Loading Records" />;
   }
@@ -141,71 +133,74 @@ export default function StudentHomePage() {
   if (!student) return null;
 
   return (
-    <div className="-mx-4 lg:-mx-8 -mt-4 bg-[#F5F7FB]">
-      <div className="max-w-7xl mx-auto space-y-10 pb-20 px-4 lg:px-8 pt-8 animate-fadeIn antialiased text-slate-700">
+    <div className="-mx-4 lg:-mx-8 -mt-4 bg-slate-50 lg:h-full lg:min-h-0 lg:overflow-hidden">
+      <div className="max-w-7xl mx-auto lg:h-full lg:min-h-0 px-4 lg:px-8 py-4 lg:py-3 animate-fadeIn antialiased text-slate-700 flex flex-col gap-4 lg:gap-3">
 
-      {/* Header: modern gradient */}
-      <header className="relative overflow-hidden rounded-[18px] border border-white/60 bg-gradient-to-br from-[#1E3A8A] via-[#2563EB] to-[#1E3A8A] shadow-[0_18px_60px_rgba(30,58,138,0.22)]">
-        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(900px 280px at 18% 18%, rgba(255,255,255,0.32) 0%, transparent 60%), radial-gradient(720px 260px at 92% 38%, rgba(255,255,255,0.18) 0%, transparent 58%)' }} />
-        <div className="relative p-6 sm:p-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="space-y-2">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.26em] text-white/75">Academic Dashboard</p>
-              <h1 className="text-3xl sm:text-[34px] font-black tracking-tight text-white leading-tight">
-                Welcome, {student.name.split(' ')[0]}
-              </h1>
+        {/* Header: text-only on mobile, card on desktop */}
+        <header className="relative shrink-0 lg:overflow-hidden lg:rounded-sm lg:border lg:border-slate-200 lg:bg-[#0b3578]">
+          <div
+            className="absolute inset-0 opacity-10 hidden lg:block"
+            style={{
+              backgroundImage:
+                'radial-gradient(900px 220px at 18% 18%, rgba(255,255,255,0.32) 0%, transparent 60%), radial-gradient(720px 220px at 92% 38%, rgba(255,255,255,0.18) 0%, transparent 58%)',
+            }}
+          />
+          <div className="relative p-0 lg:p-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+              <div className="space-y-1 lg:space-y-0.5 text-left">
+                <h1 className="text-2xl lg:text-lg font-bold tracking-tight text-[#0b3578] lg:text-white leading-tight">
+                  Welcome, {student.name.split(' ')[0]}
+                </h1>
 
-              <div className="flex flex-wrap items-center gap-2.5 pt-1">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider bg-white/15 text-white border border-white/20 px-2.5 py-1 rounded-full">
-                  {student.roll_no}
-                </span>
-                <span className="text-white/35">•</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-white/85">
-                  {branch} • {semesterLabel}
-                </span>
-                {academicYear ? (
-                  <>
-                    <span className="text-white/35">•</span>
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-white/75">{academicYear}</span>
-                  </>
-                ) : null}
+                <div className="flex flex-wrap items-center justify-start gap-2 lg:gap-1.5 pt-1 lg:pt-0.5">
+                  <span className="text-[10px] lg:text-[8px] font-semibold uppercase tracking-wider bg-[#0b3578]/5 text-[#0b3578] border border-[#0b3578]/10 lg:bg-white/15 lg:text-white lg:border-white/20 px-1.5 py-0.5 rounded-full">
+                    {student.roll_no}
+                  </span>
+                  <span className="text-slate-300 lg:text-white/35 inline">•</span>
+                  <span className="text-[10px] lg:text-[8px] font-semibold uppercase tracking-wide text-slate-600 lg:text-white/85">
+                    {branch} • {semesterLabel}
+                  </span>
+                  {academicYear ? (
+                    <>
+                      <span className="text-slate-300 lg:text-white/35 inline">•</span>
+                      <span className="text-[10px] lg:text-[8px] font-semibold uppercase tracking-wide text-slate-500 lg:text-white/75">{academicYear}</span>
+                    </>
+                  ) : null}
+                </div>
               </div>
-
-              <p className="text-sm text-white/75 max-w-2xl leading-relaxed pt-2">
-                Your attendance, academics, and requests — all in one clean space.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Link
-                href="/student/profile"
-                className="inline-flex items-center justify-center px-6 py-3 bg-[#2563EB] text-white text-[12px] font-extrabold uppercase tracking-[0.22em] rounded-[14px] shadow-[0_10px_26px_rgba(37,99,235,0.35)] hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-              >
-                Open Profile
-              </Link>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Action Center */}
-      <DashboardActionCenter student={student} />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-3 lg:flex-1 lg:min-h-0">
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        
-        {/* Main Section */}
-        <div className="lg:col-span-8 space-y-12">
-          
-          {/* Course Records - High Density List */}
-          <section className="space-y-6">
-             <div className="flex items-center justify-between px-1">
-                <h2 className="text-[11px] font-extrabold text-slate-500 uppercase tracking-[0.22em]">Academic Records</h2>
-                <Link href="/student/academics" className="text-[10px] font-extrabold text-[#2563EB] hover:text-blue-700 uppercase tracking-widest">Full Progress</Link>
-             </div>
+          {/* Priority Actions Card (Top on Mobile, Right on Desktop) */}
+          <div className="order-1 lg:order-2 lg:col-span-4 flex flex-col gap-3 lg:min-h-0">
+            <div className="lg:min-h-0 lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <DashboardActionCenter student={student} />
+            </div>
 
-             <div className="rounded-[18px] overflow-hidden border border-white/70 bg-white/65 backdrop-blur-xl shadow-[0_14px_46px_rgba(15,23,42,0.08)]">
+            {/* Support Card (Relocated below Priority Actions) */}
+            <section className="shrink-0 rounded-sm border border-slate-200 bg-white p-4">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.20em]">Support</p>
+              <p className="text-[11.5px] text-slate-500 mt-1.5 leading-relaxed">
+                Contact the departmental clerk during office hours.
+              </p>
+            </section>
+          </div>
+
+          {/* Academic Records Card (Middle on Mobile, Left on Desktop) */}
+          <div className="order-2 lg:order-1 lg:col-span-8 flex flex-col gap-3 lg:min-h-0">
+            {/* Course Records - compact + internally scrollable */}
+            <section className="lg:flex lg:flex-col lg:min-h-0 rounded-sm overflow-hidden border border-[#0b3578] lg:border-slate-200 bg-white">
+              <div className="bg-[#0b3578]/5 lg:bg-slate-50 px-4 py-2.5 lg:py-2 border-b border-[#0b3578] lg:border-slate-200 flex items-center justify-between shrink-0">
+                <h2 className="text-[10px] font-bold text-[#0b3578] lg:text-slate-500 uppercase tracking-[0.20em]">Academic Records</h2>
+                <Link href="/student/academics" className="text-[9px] font-bold text-[#2563EB] hover:text-blue-700 uppercase tracking-widest">Full Progress</Link>
+              </div>
+
+              <div className="bg-[#0b3578]/[0.02] lg:bg-transparent lg:flex-1 lg:min-h-0 lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {academicPerformance && academicPerformance.length > 0 ? (
-                  <div className="divide-y divide-slate-100/70">
+                  <div className="divide-y divide-slate-100">
                     {academicPerformance.slice(0, 5).map((sub, i) => (
                       (() => {
                         const percent = getAttendancePercent(sub);
@@ -217,22 +212,22 @@ export default function StudentHomePage() {
                           <div
                             key={i}
                             className={
-                              'group flex items-center justify-between gap-6 p-5 sm:p-6 cursor-pointer transition-all ' +
-                              'hover:bg-white/70 hover:-translate-y-[1px] ' +
-                              'border-l-4 ' +
-                              tone.accentBorder
+                              'group flex items-center justify-between gap-4 p-3 sm:p-4 transition-all ' +
+                              'hover:bg-slate-50 ' +
+                              'border-l-0 lg:border-l-[3px] ' +
+                              'lg:' + tone.accentBorder
                             }
                           >
-                            <div className="flex items-center gap-4 min-w-0">
-                              <div className={"h-10 w-10 rounded-[14px] ring-1 " + visual.ring + " " + visual.bg + " flex items-center justify-center"}>
-                                <VisualIcon className={"h-5 w-5 " + visual.fg} />
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={"h-8 w-8 shrink-0 rounded-sm ring-1 " + visual.ring + " " + visual.bg + " flex items-center justify-center"}>
+                                <VisualIcon className={"h-4 w-4 " + visual.fg} />
                               </div>
 
                               <div className="min-w-0">
-                                <h4 className="text-sm sm:text-[15px] font-bold text-slate-900 leading-tight tracking-tight truncate">
+                                <h4 className="text-[13px] font-bold text-slate-900 leading-tight tracking-tight truncate">
                                   {sub.subject_name}
                                 </h4>
-                                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-1 truncate">
+                                <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wider mt-0.5 truncate">
                                   {sub.subject_code} • {sub.faculty_name || 'TBA'}
                                 </p>
                               </div>
@@ -240,17 +235,30 @@ export default function StudentHomePage() {
 
                             <div className="flex items-center gap-4">
                               <div className="hidden sm:flex flex-col items-end">
-                                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.22em]">Attendance</p>
-                                <div className={"mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 " + tone.border + ' ' + tone.bg}>
-                                  <span className={"h-2 w-2 rounded-full " + tone.dot} aria-hidden="true" />
-                                  <span className={"text-[11px] font-extrabold " + tone.text}>{percent.toFixed(1)}%</span>
-                                  <span className={"text-[10px] font-extrabold uppercase tracking-wider " + tone.text + '/80'}>{tone.label}</span>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.18em]">Attendance</p>
+                                <div className={"mt-1 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 " + tone.border + ' ' + tone.bg}>
+                                  <span className={"h-1.5 w-1.5 rounded-full " + tone.dot} aria-hidden="true" />
+                                  <span className={"text-[10px] font-bold " + tone.text}>{percent.toFixed(1)}%</span>
                                 </div>
                               </div>
 
-                              <svg className="w-4 h-4 text-slate-300 group-hover:text-[#2563EB] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                              </svg>
+                              <Link
+                                href="/student/academics"
+                                className="flex items-center"
+                              >
+                                <span className="hidden sm:inline text-[9px] font-bold text-slate-400 hover:text-[#2563EB] uppercase tracking-widest">
+                                  View
+                                </span>
+                                <svg 
+                                  className="sm:hidden w-5 h-5 text-[#0b3578]" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  viewBox="0 0 24 24"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </Link>
                             </div>
                           </div>
                         );
@@ -258,64 +266,13 @@ export default function StudentHomePage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-16 text-center text-slate-400 text-xs font-extrabold uppercase tracking-[0.22em]">No curriculum records</div>
+                  <div className="p-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.20em]">No curriculum records</div>
                 )}
-             </div>
-          </section>
+              </div>
+            </section>
+          </div>
 
         </div>
-
-        {/* Sidebar */}
-        <div className="lg:col-span-4 space-y-10">
-          
-          {/* Bulletins - Minimalist Timeline
-          <section className="space-y-8">
-             <div className="flex items-center justify-between px-1">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Campus Bulletins</h3>
-                <Link href="#" className="text-[9px] font-bold text-[#0b3578] uppercase tracking-widest hover:opacity-60">Archive</Link>
-             </div>
-             
-             <div className="space-y-8 border-l border-slate-100 ml-1 pl-6">
-                {[
-                  { title: 'Library Extensions', desc: 'Operating hours extended until 8 PM for exams.', date: 'Today' },
-                  { title: 'Internal Marks Review', desc: 'Verify your S1 internal marks in the academics tab.', date: 'Yesterday' }
-                ].map((notice, i) => (
-                  <div key={i} className="relative group cursor-pointer">
-                     <div className="absolute -left-[28.5px] top-1.5 w-1.5 h-1.5 rounded-full bg-slate-200 group-hover:bg-[#0b3578] transition-colors shadow-[0_0_0_4px_white]"></div>
-                     <p className="text-[9px] font-bold text-slate-300 uppercase mb-1.5 tracking-wider">{notice.date}</p>
-                     <h4 className="text-sm font-semibold text-slate-700 group-hover:text-[#0b3578] transition-colors leading-snug">{notice.title}</h4>
-                     <p className="text-xs text-slate-400 mt-1 leading-relaxed font-medium line-clamp-2">{notice.desc}</p>
-                  </div>
-                ))}
-             </div>
-          </section> */}
-
-          {/* Quick Hub - Softer Colors */}
-          <section className="p-8 rounded-2xl bg-[#f8faff] border border-slate-203/90 ring-1 ring-slate-200/60 shadow-sm space-y-6">
-             <h3 className="text-[10px] font-bold text-[#0b3578]/40 uppercase tracking-[0.2em]">Resource Center</h3>
-             <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: 'Schedule', route: '/student/timetable', icon: '📅' },
-                  { label: 'Syllabus', route: '/student/academics', icon: '📚' },
-                  { label: 'Certificates', route: '/student/requests/certificates', icon: '📜' },
-                  
-                ].map((item) => (
-                  <Link key={item.label} href={item.route} className="flex flex-col p-4 bg-white border border-slate-200/80 rounded-xl hover:border-[#0b3578]/30 hover:shadow-md transition-all group">
-                    <span className="text-lg mb-2 opacity-80 group-hover:scale-110 transition-transform">{item.icon}</span>
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-[#0b3578] transition-colors">{item.label}</span>
-                  </Link>
-                ))}
-             </div>
-             <div className="pt-4 border-t border-blue-100/50">
-                <p className="text-[10px] text-slate-400 font-medium italic leading-relaxed">
-                  For administrative support, please contact the departmental clerk during office hours.
-                </p>
-             </div>
-          </section>
-
-        </div>
-
-      </div>
       </div>
     </div>
   );
