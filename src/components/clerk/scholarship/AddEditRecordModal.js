@@ -175,7 +175,16 @@ export default function AddEditRecordModal({
                       <div className="text-sm truncate">{s.proceeding_no}</div>
                       <div className="text-sm">{s.amount}</div>
                       <div className="text-sm">{toDmy?.(s.date)}</div>
-                      <button onClick={() => onDeleteScholarship?.(s.id)} className="text-red-600 text-xs">Delete</button>
+                      <button 
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to permanently delete this scholarship proceeding record?')) {
+                            onDeleteScholarship?.(s.id);
+                          }
+                        }} 
+                        className="text-red-600 text-xs"
+                      >
+                        Delete
+                      </button>
                     </div>
                   ))}
                 </div>

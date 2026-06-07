@@ -30,7 +30,7 @@ export async function POST(req) {
     const body = await req.json();
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Scholarship Payment API] Incoming Payload:', JSON.stringify(body, null, 2));
+      console.info('[Scholarship Payment API] Incoming Payload:', JSON.stringify(body, null, 2));
     }
 
     const roll_no = String(body.roll_no || '').trim().toUpperCase();
@@ -43,7 +43,7 @@ export async function POST(req) {
     const bank_name = body.bank_name || null;
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[Scholarship Payment API DEBUG] Raw Amount: ${amount_raw} (${typeof amount_raw}), Parsed: ${amount}`);
+      console.info(`[Scholarship Payment API DEBUG] Raw Amount: ${amount_raw} (${typeof amount_raw}), Parsed: ${amount}`);
     }
 
     if (!roll_no) return apiError('Missing roll_no', 400);
@@ -94,9 +94,9 @@ export async function POST(req) {
         const isScholarshipStudent = reimbursementStatus === 'YES';
         const expectedRTF = isScholarshipStudent ? calculateExpectedRTF(student, totalCourseFee) : 0;
         
-        // RELAXED LIMIT: Allow payments up to the absolute total fee.
-        // We warn but don't block, in case student loses scholarship eligibility.
-        const absoluteLimit = totalCourseFee;
+        // RELAXED LIMIT: Allow payments up to a generous threshold to accommodate miscellaneous fees or overpayments.
+        // We warn but don't block at the exact 35k/70k limit to prevent clerk frustration.
+        const absoluteLimit = 150000; 
         const recommendedPayableLimit = Math.max(0, totalCourseFee - expectedRTF);
 
         logger.info(`[Payment API] Course fee: ${totalCourseFee}, Expected RTF: ${expectedRTF}`);
@@ -113,8 +113,8 @@ export async function POST(req) {
         const finalPaidTotal = currentPaidTotal + amount;
 
         if (finalPaidTotal > absoluteLimit) {
-          logger.warn('[Payment API] Payment rejected: exceeds total college fee');
-          const err = new Error(`Payment exceeds total college fee of ₹${totalCourseFee.toLocaleString()}.`);
+          logger.warn({ roll_no: student.roll_no, amount: finalPaidTotal }, '[Payment API] Payment rejected: exceeds total college fee');
+          const err = new Error(`Payment Not Possible: Total paid for this year (₹${finalPaidTotal.toLocaleString()}) would exceed the allowed limit of ₹${absoluteLimit.toLocaleString()}.`);
           err.code = 'PAYMENT_LIMIT_EXCEEDED';
           throw err;
         }

@@ -5,7 +5,7 @@ import {
   collegeInfo as collegeInfoTable 
 } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { getAcademicYear, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
+import { getAcademicYear, getResolvedCurrentAcademicYear, getBranchFromRoll } from '@/lib/rollNumber';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
@@ -54,23 +54,25 @@ export const GET = wrapHandler({
     // 3. Fetch financial summary via service
     const financialSummary = await FinanceService.getStudentFinancialSummary(student.id, year, student.roll_no);
 
+    const enrichedStudent = {
+      id: student.id,
+      roll_no: student.roll_no,
+      name: student.name,
+      fee_reimbursement: student.fee_reimbursement,
+      fee_category: financialSummary.feeSummary.feeCategory,
+      course: getBranchFromRoll(student.roll_no) || student.roll_no.substring(student.roll_no.length - 4, student.roll_no.length - 2),
+      email: student.email || null,
+      mobile: student.mobile ? decrypt(student.mobile) : null,
+      pfp: student.pfp ? `/api/student/image/${student.roll_no}` : null,
+      admission_year: admissionYear,
+      current_year: currentYear,
+    };
+
     return {
-      student: {
-        id: student.id,
-        roll_no: student.roll_no,
-        name: student.name,
-        fee_reimbursement: student.fee_reimbursement,
-        fee_category: financialSummary.feeSummary.feeCategory,
-        course: student.roll_no.substring(student.roll_no.length - 4, student.roll_no.length - 2), // Fallback course detection
-        email: student.email || null,
-        mobile: student.mobile ? decrypt(student.mobile) : null,
-        pfp: student.pfp ? `/api/student/image/${student.roll_no}` : null,
-        admission_year: admissionYear,
-        current_year: currentYear,
-      },
+      student: enrichedStudent,
       ...financialSummary,
       data: { // Legacy structure support for frontend compatibility
-        student: { ...student, mobile: student.mobile ? decrypt(student.mobile) : null },
+        student: enrichedStudent,
         ...financialSummary,
         academic_year: year
       }

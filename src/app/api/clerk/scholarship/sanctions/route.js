@@ -30,6 +30,7 @@ export async function POST(req) {
     );
 
     const validationSchema = scholarshipSanctionSchema.extend({
+      application_no: z.string().trim().max(20).regex(/^\d+$/, "Must be numeric").nullable().optional().or(z.literal('')),
       sanctioned_amount: amountSchema,
       released_amount: amountSchema,
       sanction_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal('')),
@@ -76,13 +77,17 @@ export async function POST(req) {
     if (studentRows.length === 0) return apiError('Student not found', 404);
     const student = studentRows[0];
 
-    // ELIGIBILITY GUARD
-    if (String(student.fee_reimbursement).toUpperCase() !== 'YES') {
-      return apiError('Scholarship proceedings are not allowed for non-reimbursement students.', 400);
-    }
-
     // TRANSACTIONAL EXECUTION
     const result = await db.transaction(async (tx) => {
+      // 1. If student is currently marked 'NO' but a sanction is being added, 
+      // promote them to 'YES' automatically to ensure registry consistency.
+      if (String(student.fee_reimbursement).toUpperCase() !== 'YES' && (Number(sanctioned_amount) > 0 || Number(released_amount) > 0)) {
+        logger.info({ roll_no: student.roll_no }, '[Scholarship API] Promoting student to FEE REIMBURSEMENT: YES due to new sanction record');
+        await tx.update(studentsTable)
+          .set({ fee_reimbursement: 'YES' })
+          .where(eq(studentsTable.id, student.id));
+      }
+
       // Evaluate Scholarship Window
       let windowOpen = false;
       try {
