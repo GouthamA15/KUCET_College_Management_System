@@ -267,7 +267,7 @@ export class FinanceService {
     const totalFee = getYearlyTotalFee(course);
     const feeCategory = totalFee === 70000 ? 'SFC' : 'NON-SFC';
 
-    const [sanctions, payments] = await Promise.all([
+    const [sanctions, payments, studentData] = await Promise.all([
       db.query.scholarshipSanctions.findMany({
         where: and(
           eq(scholarshipSanctions.student_id, studentId),
@@ -281,8 +281,15 @@ export class FinanceService {
           eq(studentFeePayments.academic_year, academicYear)
         ),
         orderBy: [asc(studentFeePayments.transaction_date)]
+      }),
+      db.query.students.findFirst({
+        where: eq(students.id, studentId)
       })
     ]);
+
+    const { getExpectedScholarship } = await import('@/lib/financial-utils');
+    const expectedGovt = getExpectedScholarship(studentData, totalFee);
+    const expectedStudentLiability = Math.max(0, totalFee - expectedGovt);
 
     const activeSanctions = sanctions.filter(s => (s.status || 'SANCTIONED').toUpperCase() !== 'REJECTED');
     const govtPaid = activeSanctions.reduce((sum, s) => sum + (Number(s.sanctioned_amount) || 0), 0);
@@ -298,13 +305,17 @@ export class FinanceService {
       govtReleased,
       studentPaid,
       pendingFee,
+      expectedGovt,
+      expectedStudentLiability,
       status: pendingFee === 0 ? 'COMPLETED' : 'PENDING',
       // Legacy Aliases
       total_fee: totalFee,
       pending_fee: pendingFee,
       student_paid: studentPaid,
       govt_paid: govtPaid,
-      govt_released: govtReleased
+      govt_released: govtReleased,
+      expected_govt: expectedGovt,
+      expected_student_liability: expectedStudentLiability
     };
 
     const scholarshipProceedings = activeSanctions.map(s => ({
