@@ -76,8 +76,8 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (file.size > 4 * 1024 * 1024) {
-            alert('File size exceeds 4MB limit.');
+        if (file.size > 1 * 1024 * 1024) {
+            alert('File size exceeds 1MB limit.');
             return;
         }
 
