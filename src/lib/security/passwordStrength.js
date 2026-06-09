@@ -24,15 +24,34 @@ export function generateStrongPassword() {
   const special = "!@#$%^&*()";
   const all = upper + lower + numbers + special;
   
-  let password = "";
-  password += upper[Math.floor(Math.random() * upper.length)];
-  password += lower[Math.floor(Math.random() * lower.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += special[Math.floor(Math.random() * special.length)];
+  // Cryptographically secure random selection
+  const getRandomChar = (charset) => {
+    const randomValues = new Uint32Array(1);
+    crypto.getRandomValues(randomValues);
+    return charset[randomValues[0] % charset.length];
+  };
+  
+  // Fisher-Yates shuffle with crypto randomness
+  const shuffleArray = (array) => {
+    for (let i = array.length - 1; i > 0; i--) {
+      const randomValues = new Uint32Array(1);
+      crypto.getRandomValues(randomValues);
+      const j = randomValues[0] % (i + 1);
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  };
+  
+  const chars = [
+    getRandomChar(upper),
+    getRandomChar(lower),
+    getRandomChar(numbers),
+    getRandomChar(special)
+  ];
   
   for (let i = 0; i < 8; i++) {
-    password += all[Math.floor(Math.random() * all.length)];
+    chars.push(getRandomChar(all));
   }
   
-  return password.split('').sort(() => 0.5 - Math.random()).join('');
+  return shuffleArray(chars).join('');
 }
