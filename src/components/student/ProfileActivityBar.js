@@ -142,7 +142,7 @@ export default function ProfileActivityBar({ activity, student }) {
     return String(dateStr);
   };
 
-  const isScholarshipEligible = student?.fee_reimbursement === 'YES';
+  const isScholarshipEligible = student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV';
 
   const showRequestBar =
     !!latestRequest &&
