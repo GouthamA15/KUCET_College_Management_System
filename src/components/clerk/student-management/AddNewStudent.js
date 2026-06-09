@@ -82,9 +82,9 @@ export default function AddNewStudent() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // 4MB limit
-    if (file.size > 4 * 1024 * 1024) {
-      toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} file is too large. Max limit is 4MB.`);
+    // 1MB limit
+    if (file.size > 1 * 1024 * 1024) {
+      toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} file is too large. Max limit is 1MB.`);
       e.target.value = null;
       return;
     }
@@ -315,7 +315,7 @@ export default function AddNewStudent() {
         </div>
 
         <div>
-          <h3 className="font-bold">Section D: Documents Upload (Max 4MB)</h3>
+          <h3 className="font-bold">Section D: Documents Upload (Max 1MB)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700">Student Photo (PFP)</label>

@@ -132,8 +132,8 @@ const AdmissionPage = () => {
     const handleFileChange = (e, type) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 4 * 1024 * 1024) {
-            toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} is too large (Max 4MB).`);
+        if (file.size > 1 * 1024 * 1024) {
+            toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} is too large (Max 1MB).`);
             e.target.value = null;
             return;
         }
