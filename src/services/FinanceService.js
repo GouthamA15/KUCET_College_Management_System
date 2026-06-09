@@ -267,24 +267,31 @@ export class FinanceService {
     const totalFee = getYearlyTotalFee(course);
     const feeCategory = totalFee === 70000 ? 'SFC' : 'NON-SFC';
 
+    // Use a runtime DB reference: if the top-level `db.query` is undefined
+    // (happens when tests/mock import order differs), dynamically import
+    // `@/db` so mocks are respected.
+    const runtimeDb = (db && db.query) ? db : (await import('@/db')).db;
+
+    const studentDataPromise = (runtimeDb.query.students && runtimeDb.query.students.findFirst)
+      ? runtimeDb.query.students.findFirst({ where: eq(students.id, studentId) })
+      : Promise.resolve(null);
+
     const [sanctions, payments, studentData] = await Promise.all([
-      db.query.scholarshipSanctions.findMany({
+      runtimeDb.query.scholarshipSanctions.findMany({
         where: and(
           eq(scholarshipSanctions.student_id, studentId),
           eq(scholarshipSanctions.academic_year, academicYear)
         ),
         orderBy: [asc(scholarshipSanctions.sanction_date)]
       }),
-      db.query.studentFeePayments.findMany({
+      runtimeDb.query.studentFeePayments.findMany({
         where: and(
           eq(studentFeePayments.student_id, studentId),
           eq(studentFeePayments.academic_year, academicYear)
         ),
         orderBy: [asc(studentFeePayments.transaction_date)]
       }),
-      db.query.students.findFirst({
-        where: eq(students.id, studentId)
-      })
+      studentDataPromise
     ]);
 
     const { getExpectedScholarship } = await import('@/lib/financial-utils');
