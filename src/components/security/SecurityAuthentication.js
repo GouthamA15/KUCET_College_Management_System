@@ -25,8 +25,9 @@ export function SecurityAuthentication({
 
   const copyToClipboard = () => {
     if (!newPassword) return;
-    navigator.clipboard.writeText(newPassword);
-    toast.success('Password copied to clipboard!');
+    navigator.clipboard.writeText(newPassword)
+      .then(() => toast.success('Password copied to clipboard!'))
+      .catch(() => toast.error('Failed to copy. Please copy manually.'));
   };
 
   return (

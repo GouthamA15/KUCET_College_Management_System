@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 
 export function useEmailVerification(roll_no, initialEmail, onVerified) {
@@ -9,13 +9,26 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
   const [otpSent, setOtpSent] = useState(false);
   const [emailEditing, setEmailEditing] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
   const startCountdown = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
     setResendCountdown(60);
-    const timer = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setResendCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
+          clearInterval(timerRef.current);
+          timerRef.current = null;
           return 0;
         }
         return prev - 1;
