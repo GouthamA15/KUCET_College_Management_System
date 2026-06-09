@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { scholarshipWindows, students as studentsTable } from '@/db/schema';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, or, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { getNow } from '@/lib/clock';
@@ -134,7 +134,10 @@ export async function POST(req) {
         const eligibleStudents = await db.select({ id: studentsTable.id, name: studentsTable.name, email: studentsTable.email })
           .from(studentsTable)
           .where(and(
-            eq(studentsTable.fee_reimbursement, 'YES'),
+            or(
+              eq(studentsTable.fee_reimbursement, 'YES'),
+              eq(studentsTable.fee_reimbursement, 'GOV')
+            ),
             eq(studentsTable.student_status, 'ACTIVE'),
             sql`${studentsTable.email} IS NOT NULL`,
             sql`${studentsTable.email} <> ''`

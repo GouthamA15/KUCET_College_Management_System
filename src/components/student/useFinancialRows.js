@@ -1,17 +1,18 @@
 'use client';
 import { computeAcademicYear, isYearAllowed } from '@/app/lib/academicYear';
 import { formatDate } from '@/lib/date';
-import { getYearlyTotalFee } from '@/lib/financial-utils';
+import { getYearlyTotalFee, getExpectedScholarship } from '@/lib/financial-utils';
 
 /**
  * Hook to process both scholarship sanctions and student fee payments into year-wise rows.
- * @param {string} roll_no 
+ * @param {Object} student 
  * @param {Array} scholarshipArray 
  * @param {Array} feePaymentsArray 
  * @param {string} course 
  */
-export default function useFinancialRows(roll_no, scholarshipArray = [], feePaymentsArray = [], course = '') {
-  if (!roll_no) return { rows: [], maxYears: 4 };
+export default function useFinancialRows(student, scholarshipArray = [], feePaymentsArray = [], course = '') {
+  const roll_no = student?.roll_no;
+  if (!roll_no) return { rows: [], maxYears: 4, yearlyTotalFee: 0 };
 
   const maxYears = (() => {
     let n = 4;
@@ -20,6 +21,8 @@ export default function useFinancialRows(roll_no, scholarshipArray = [], feePaym
   })();
 
   const yearlyTotalFee = getYearlyTotalFee(course);
+  const expectedGovt = getExpectedScholarship(student, yearlyTotalFee);
+  const expectedStudentLiability = Math.max(0, yearlyTotalFee - expectedGovt);
 
   // Group scholarship by year (Aggregating multiple proceedings)
   const scholarshipByYear = {};
@@ -100,10 +103,11 @@ export default function useFinancialRows(roll_no, scholarshipArray = [], feePaym
     const scholar = scholarshipByYear[y];
     const studentPaidRec = paymentsByYear[y] || { amount: 0, date: null };
     const govtPaid = scholar?.amount_sanctioned || 0;
-    const totalPaid = govtPaid + studentPaidRec.amount;
-    const balance = yearlyTotalFee - totalPaid;
-    const pending = balance > 0 ? balance : 0;
-    const credit = balance < 0 ? Math.abs(balance) : 0;
+    
+    // Student's pending liability depends on what they are expected to pay vs what they actually paid
+    const studentBalance = expectedStudentLiability - studentPaidRec.amount;
+    const pending = studentBalance > 0 ? studentBalance : 0;
+    const credit = studentBalance < 0 ? Math.abs(studentBalance) : 0;
 
     // Determine latest relevant date
     let displayDate = scholar?.date || studentPaidRec.date;
