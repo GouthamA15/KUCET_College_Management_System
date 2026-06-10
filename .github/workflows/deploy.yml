@@ -18,25 +18,17 @@ jobs:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: 22
-          script: |
-            # 1. Navigate to the project directory
+        run: |
+          # 1. Save the SSH Key to a temporary file
+          echo "${{ secrets.SERVER_SSH_KEY }}" > deploy_key
+          chmod 600 deploy_key
+
+          # 2. Run the deployment commands on the server
+          # We use -o StrictHostKeyChecking=no because the Tailscale tunnel is private and secure
+          ssh -i deploy_key -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
             cd /var/www/kucet-cms
-
-            # 2. Pull the latest changes from GitHub
             git pull origin testvanilla
-
-            # 3. Rebuild and restart the Docker containers
-            # We use the specific docker-compose file from the deployment package
             docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml up -d --build
-
-            # 4. Run database migrations/schema push to ensure DB is in sync
             docker exec kucet-cms-app npm run db:push
-
-            # 5. Optional: Prune unused Docker images to save disk space
             docker image prune -f
+          EOF
