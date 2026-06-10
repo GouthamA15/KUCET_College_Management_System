@@ -267,22 +267,36 @@ export class FinanceService {
     const totalFee = getYearlyTotalFee(course);
     const feeCategory = totalFee === 70000 ? 'SFC' : 'NON-SFC';
 
-    const [sanctions, payments] = await Promise.all([
-      db.query.scholarshipSanctions.findMany({
+    // Use a runtime DB reference: if the top-level `db.query` is undefined
+    // (happens when tests/mock import order differs), dynamically import
+    // `@/db` so mocks are respected.
+    const runtimeDb = (db && db.query) ? db : (await import('@/db')).db;
+
+    const studentDataPromise = (runtimeDb.query.students && runtimeDb.query.students.findFirst)
+      ? runtimeDb.query.students.findFirst({ where: eq(students.id, studentId) })
+      : Promise.resolve(null);
+
+    const [sanctions, payments, studentData] = await Promise.all([
+      runtimeDb.query.scholarshipSanctions.findMany({
         where: and(
           eq(scholarshipSanctions.student_id, studentId),
           eq(scholarshipSanctions.academic_year, academicYear)
         ),
         orderBy: [asc(scholarshipSanctions.sanction_date)]
       }),
-      db.query.studentFeePayments.findMany({
+      runtimeDb.query.studentFeePayments.findMany({
         where: and(
           eq(studentFeePayments.student_id, studentId),
           eq(studentFeePayments.academic_year, academicYear)
         ),
         orderBy: [asc(studentFeePayments.transaction_date)]
-      })
+      }),
+      studentDataPromise
     ]);
+
+    const { getExpectedScholarship } = await import('@/lib/financial-utils');
+    const expectedGovt = getExpectedScholarship(studentData, totalFee);
+    const expectedStudentLiability = Math.max(0, totalFee - expectedGovt);
 
     const activeSanctions = sanctions.filter(s => (s.status || 'SANCTIONED').toUpperCase() !== 'REJECTED');
     const govtPaid = activeSanctions.reduce((sum, s) => sum + (Number(s.sanctioned_amount) || 0), 0);
@@ -291,38 +305,71 @@ export class FinanceService {
     const studentPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
     const pendingFee = Math.max(0, totalFee - (govtPaid + studentPaid));
 
+    const feeSummary = {
+      totalFee,
+      feeCategory,
+      govtPaid,
+      govtReleased,
+      studentPaid,
+      pendingFee,
+      expectedGovt,
+      expectedStudentLiability,
+      status: pendingFee === 0 ? 'COMPLETED' : 'PENDING',
+      // Legacy Aliases
+      total_fee: totalFee,
+      pending_fee: pendingFee,
+      student_paid: studentPaid,
+      govt_paid: govtPaid,
+      govt_released: govtReleased,
+      expected_govt: expectedGovt,
+      expected_student_liability: expectedStudentLiability
+    };
+
+    const scholarshipProceedings = activeSanctions.map(s => ({
+      id: s.id,
+      proceeding_no: s.proceeding_no,
+      amount: Number(s.sanctioned_amount) || 0,
+      date: s.sanction_date,
+      released_amount: Number(s.released_amount) || 0,
+      released_date: s.released_date,
+      status: s.status
+    }));
+
+    const studentPayments = payments.map(p => ({
+      id: p.id,
+      transaction_ref: p.transaction_ref_no,
+      amount: Number(p.amount) || 0,
+      date: p.transaction_date,
+      payment_mode: p.payment_mode,
+      bank_name: p.bank_name,
+      created_at: p.created_at
+    }));
+
+    const applicationNo = sanctions.find(s => s.application_no)?.application_no || null;
+    const thumbStatus = sanctions[0]?.thumb_status || null;
+    const thumbUpdateAvailable = sanctions.some(s => s.thumb_update_available);
+    const hardcopySubmitted = sanctions.some(s => s.hardcopy_submitted);
+
     return {
       academicYear,
-      feeSummary: {
-        totalFee,
-        feeCategory,
-        govtPaid,
-        govtReleased,
-        studentPaid,
-        pendingFee,
-        status: pendingFee === 0 ? 'COMPLETED' : 'PENDING'
-      },
-      scholarshipProceedings: activeSanctions.map(s => ({
-        id: s.id,
-        proceeding_no: s.proceeding_no,
-        amount: Number(s.sanctioned_amount) || 0,
-        date: s.sanction_date,
-        released_amount: Number(s.released_amount) || 0,
-        released_date: s.released_date,
-        status: s.status
-      })),
-      studentPayments: payments.map(p => ({
-        id: p.id,
-        transaction_ref: p.transaction_ref_no,
-        amount: Number(p.amount) || 0,
-        date: p.transaction_date,
-        payment_mode: p.payment_mode,
-        bank_name: p.bank_name,
-        created_at: p.created_at
-      })),
-      applicationNo: sanctions.find(s => s.application_no)?.application_no || null,
-      thumbStatus: sanctions[0]?.thumb_status || null,
-      hardcopySubmitted: !!sanctions[0]?.hardcopy_submitted
+      academic_year: academicYear,
+      feeSummary,
+      fee_summary: feeSummary,
+      scholarshipProceedings,
+      scholarship_proceedings: scholarshipProceedings,
+      studentPayments,
+      student_payments: studentPayments,
+      applicationNo,
+      application_no: applicationNo,
+      thumbStatus,
+      thumb_status: thumbStatus,
+      thumbUpdateAvailable,
+      thumb_update_available: thumbUpdateAvailable ? 1 : 0,
+      hardcopySubmitted,
+      hardcopy_submitted: hardcopySubmitted ? 1 : 0,
+      record_state: (scholarshipProceedings.length === 0 && studentPayments.length === 0 && !applicationNo) 
+        ? 'NO_RECORD' 
+        : (feeSummary.status)
     };
   }
 }

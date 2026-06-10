@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 
 export function useEmailVerification(roll_no, initialEmail, onVerified) {
@@ -8,9 +8,36 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [emailEditing, setEmailEditing] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  const startCountdown = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    setResendCountdown(60);
+    timerRef.current = setInterval(() => {
+      setResendCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
 
   const handleSendOtp = useCallback(async () => {
-    if (!emailInput || !roll_no) return;
+    if (!emailInput || !roll_no || resendCountdown > 0) return;
     setEmailSending(true);
     try {
       const res = await fetch('/api/student/send-update-email-otp', {
@@ -22,6 +49,7 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
       if (res.ok) {
         toast.success('OTP sent to your email.');
         setOtpSent(true);
+        startCountdown();
       } else {
         toast.error(data.message || 'Failed to send OTP');
       }
@@ -30,7 +58,7 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
     } finally {
       setEmailSending(false);
     }
-  }, [emailInput, roll_no]);
+  }, [emailInput, roll_no, resendCountdown, startCountdown]);
 
   const handleVerifyOtp = useCallback(async () => {
     if (!otpInput || !roll_no) return;
@@ -64,6 +92,7 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
     emailSending, otpVerifying,
     otpSent, setOtpSent,
     emailEditing, setEmailEditing,
+    resendCountdown,
     handleSendOtp,
     handleVerifyOtp
   };

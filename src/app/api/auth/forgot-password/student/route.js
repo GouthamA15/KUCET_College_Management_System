@@ -58,7 +58,7 @@ export async function POST(req) {
     }
 
     if (!student.is_email_verified || !student.password_hash) {
-      return apiError('Password reset not available.Because you not set your password and verify your gmail!! Please login using your Date of Birth has a password in (DD-MM-YYYY) format or contact support.', 403, { can_dob_login: true });
+      return apiError("Password reset is not available because your account hasn't been activated yet. Please log in using your Date of Birth (DD-MM-YYYY) as a temporary password to complete your account setup.", 403, { can_dob_login: true });
     }
 
     // Generate raw token and store only its SHA-256 hash in DB

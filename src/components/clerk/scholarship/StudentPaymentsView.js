@@ -11,7 +11,16 @@ export default function StudentPaymentsView({ payments, onDelete, toDmy }) {
               <div className="text-sm">{p.transaction_ref}</div>
               <div className="text-sm">{p.amount}</div>
               <div className="text-sm">{toDmy?.(p.date)}</div>
-              <button onClick={() => onDelete?.(p.id)} className="text-red-600 text-xs">Delete</button>
+              <button 
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to permanently delete this payment record?')) {
+                    onDelete?.(p.id);
+                  }
+                }} 
+                className="text-red-600 text-xs"
+              >
+                Delete
+              </button>
             </div>
           ))}
         </div>

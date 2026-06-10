@@ -42,9 +42,17 @@ export default function AddEditRecordInstitutionalModal({
 }) {
   const [isDesktop, setIsDesktop] = useState(true);
 
-  const reimbursementStatus = String(student?.fee_reimbursement || 'NO').toUpperCase();
-  const isScholar = reimbursementStatus === 'YES';
+  // 1. Core data derivation (needed for state and initial logic)
+  const proceedings = Array.isArray(summary?.scholarship_proceedings) ? summary.scholarship_proceedings : [];
+  const payments = Array.isArray(summary?.student_payments) ? summary.student_payments : [];
 
+  const reimbursementStatus = String(student?.fee_reimbursement || 'NO').toUpperCase();
+  const hasScholarshipData = (proceedings.length > 0) || (summary?.application_no && String(summary.application_no).trim() !== '');
+  
+  const [forceScholarWorkflow, setForceScholarWorkflow] = useState(false);
+  const isScholar = reimbursementStatus === 'YES' || reimbursementStatus === 'GOV' || hasScholarshipData || forceScholarWorkflow;
+
+  // 2. Lifecycle hooks
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
     handleResize();
@@ -63,11 +71,8 @@ export default function AddEditRecordInstitutionalModal({
 
   if (!open) return null;
 
-  // Derived values
+  // 3. Advanced derived values
   const totalFee = getYearlyTotalFee(student?.course);
-  const proceedings = Array.isArray(summary?.scholarship_proceedings) ? summary.scholarship_proceedings : [];
-  const payments = Array.isArray(summary?.student_payments) ? summary.student_payments : [];
-
   const totalSanctioned = proceedings
     .filter(p => (p.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -82,7 +87,7 @@ export default function AddEditRecordInstitutionalModal({
   const isFullReimbursementCategory = ['SC', 'ST'].includes(category) || 
     ['MUSLIM', 'CHRISTIAN', 'SIKH', 'BUDDHIST', 'JAIN', 'PARSI'].includes(religion);
   
-  const GOVT_CAP = isFullReimbursementCategory ? totalFee : 35000;
+  const GOVT_CAP = (reimbursementStatus === 'GOV' || isFullReimbursementCategory) ? totalFee : 35000;
   const eligibleAmount = isScholar ? GOVT_CAP : 0;
 
   const allowedStudentPayableLimit = isScholar ? Math.max(0, totalFee - GOVT_CAP) : totalFee;
@@ -192,6 +197,14 @@ export default function AddEditRecordInstitutionalModal({
                 <span className="hidden sm:inline-flex px-2 py-0.5 text-[11px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded">
                   {isScholar ? 'Registry' : 'Payments'}
                 </span>
+                {(!isScholar && reimbursementStatus === 'NO') && (
+                  <button 
+                    onClick={() => setForceScholarWorkflow(true)}
+                    className="px-2 py-0.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors uppercase tracking-wider"
+                  >
+                    Enable Scholarship Workflow
+                  </button>
+                )}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-600">
                 <span className="font-semibold text-slate-800">{year}</span>
@@ -571,8 +584,12 @@ export default function AddEditRecordInstitutionalModal({
                                   >
                                     <Edit2 size={16} />
                                   </button>
-                                  <button 
-                                    onClick={() => onDeleteScholarship?.(p.id)}
+                                  <button
+                                    onClick={() => {
+                                      if (window.confirm('Are you sure you want to permanently delete this scholarship proceeding record?')) {
+                                        onDeleteScholarship?.(p.id);
+                                      }
+                                    }}
                                     className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                   >
                                     <X size={16} />
@@ -630,18 +647,18 @@ export default function AddEditRecordInstitutionalModal({
                           </div>
                         )}
                         {isPayOverflow && (
-                          <div className="mt-1 px-3 py-2 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                            <AlertCircle size={16} className="text-red-600 mt-0.5" />
+                          <div className="mt-1 px-3 py-2 bg-red-100 border border-red-300 rounded-md flex items-start gap-2 animate-shake">
+                            <AlertCircle size={16} className="text-red-700 mt-0.5" />       
                             <div>
-                              <p className="text-xs font-semibold text-red-900">Payment exceeds allowed payable limit</p>
-                              <p className="text-xs text-red-700 mt-0.5">
-                                Reduce the amount to <span className="font-bold tabular-nums">₹{remainingStudentPayable.toLocaleString()}</span> or less.
+                              <p className="text-xs font-bold text-red-900 uppercase">Payment Not Possible</p>
+                              <p className="text-xs text-red-800 mt-0.5 font-medium">
+                                This amount exceeds the student&apos;s required payable limit. Reduce it to <span className="underline font-bold tabular-nums">₹{remainingStudentPayable.toLocaleString()}</span> or less to proceed.
                               </p>
                             </div>
                           </div>
                         )}
-                      </div>
-                      <div className="space-y-2">
+                        </div>
+                        <div className="space-y-2">
                         <label className="text-xs font-medium text-slate-600">Payment date</label>
                         <input 
                           type="date"
@@ -650,8 +667,8 @@ export default function AddEditRecordInstitutionalModal({
                           disabled={saving || isPayLimitReached}
                           className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
                         />
-                      </div>
-                      <div className="space-y-2">
+                        </div>
+                        <div className="space-y-2">
                         <label className="text-xs font-medium text-slate-600">Payment mode</label>
                         <select 
                           value={formState.payMode || 'UPI'}
@@ -665,8 +682,8 @@ export default function AddEditRecordInstitutionalModal({
                           <option value="DD">DEMAND DRAFT (DD)</option>
                           <option value="OTHER">OTHER</option>
                         </select>
-                      </div>
-                      <div className="space-y-2">
+                        </div>
+                        <div className="space-y-2">
                         <label className="text-xs font-medium text-slate-600">Bank name</label>
                         <input 
                           type="text"
@@ -676,8 +693,8 @@ export default function AddEditRecordInstitutionalModal({
                           disabled={saving || isPayLimitReached}
                           className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
                         />
-                      </div>
-                      <div className="col-span-2 space-y-2">
+                        </div>
+                        <div className="col-span-2 space-y-2">
                         <label className="text-xs font-medium text-slate-600">Reference (UTR/Ref No)</label>
                         <input 
                           type="text"
@@ -687,15 +704,15 @@ export default function AddEditRecordInstitutionalModal({
                           disabled={saving || isPayLimitReached}
                           className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition"
                         />
-                      </div>
-                    </div>
-                    <button 
-                      onClick={wrapSave(onPaymentSave, 'PAYMENT')}
-                      disabled={saving || isPayLimitReached || !formState.payAmount || !formState.payRef || isPayOverflow}
-                      className="w-full py-2 bg-[#0b3578] border border-[#0b3578] text-white text-sm font-semibold rounded-md hover:bg-[#072a5f] transition-colors disabled:opacity-50"
-                    >
-                      {saving ? 'Processing...' : 'Register student payment'}
-                    </button>
+                        </div>
+                        </div>
+                        <button 
+                        onClick={wrapSave(onPaymentSave, 'PAYMENT')}
+                        disabled={saving || isPayLimitReached || !formState.payAmount || !formState.payRef || isPayOverflow}
+                        className="w-full py-2 bg-[#0b3578] border border-[#0b3578] text-white text-sm font-semibold rounded-md hover:bg-[#072a5f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                        {saving ? 'Processing...' : isPayOverflow ? 'Payment Limit Exceeded' : 'Register student payment'}
+                        </button>
                   </div>
 
                   <div className="max-h-[250px] overflow-y-auto border-t border-slate-200">
@@ -725,7 +742,11 @@ export default function AddEditRecordInstitutionalModal({
                               </td>
                               <td className="px-3 py-2.5 text-right">
                                 <button 
-                                  onClick={() => onDeletePayment?.(p.id)}
+                                  onClick={() => {
+                                    if (window.confirm('Are you sure you want to permanently delete this student fee payment record?')) {
+                                      onDeletePayment?.(p.id);
+                                    }
+                                  }}
                                   className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-colors"
                                 >
                                   <X size={16} />

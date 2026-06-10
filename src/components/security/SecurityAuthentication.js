@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Clock, Lock, Check, X } from 'lucide-react';
+import { Clock, Lock, Check, X, Wand2, Copy, Share2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export function SecurityAuthentication({
   currentPassword,
@@ -10,6 +11,7 @@ export function SecurityAuthentication({
   setConfirmPassword,
   pwSaving,
   onSavePassword,
+  generatePassword,
   pwStrength,
   requirements,
   isPasswordSet = true,
@@ -21,14 +23,32 @@ export function SecurityAuthentication({
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
 
+  const copyToClipboard = () => {
+    if (!newPassword) return;
+    navigator.clipboard.writeText(newPassword)
+      .then(() => toast.success('Password copied to clipboard!'))
+      .catch(() => toast.error('Failed to copy. Please copy manually.'));
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {children}
       
       <section className="border border-gray-300 rounded-md bg-white p-4 sm:p-6">
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
-          <p className="text-sm text-gray-600">{description}</p>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
+            <p className="text-sm text-gray-600">{description}</p>
+          </div>
+          {generatePassword && (
+            <button 
+              onClick={generatePassword}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-[#0b3578] rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-blue-100 transition-colors border border-blue-100"
+            >
+              <Wand2 size={14} />
+              Generate
+            </button>
+          )}
         </div>
 
         <div className="max-w-md space-y-5">
@@ -51,7 +71,14 @@ export function SecurityAuthentication({
           )}
 
           <div className="space-y-1">
-            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-tight">New Password</label>
+            <div className="flex items-center justify-between">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-tight">New Password</label>
+              {newPassword && (
+                <button onClick={copyToClipboard} className="text-[#0b3578] hover:underline text-[10px] font-bold uppercase flex items-center gap-1">
+                  <Copy size={12} /> Copy
+                </button>
+              )}
+            </div>
             <div className="relative">
               <input 
                 type={showNewPw ? 'text' : 'password'}
@@ -73,6 +100,13 @@ export function SecurityAuthentication({
                 </div>
                 <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
                   <div className={`h-full transition-all duration-500 ${pwStrength?.color} ${pwStrength?.label === 'Strong' ? 'w-3/4' : pwStrength?.label === 'Very Strong' ? 'w-full' : pwStrength?.label === 'Medium' ? 'w-1/2' : 'w-1/4'}`} />
+                </div>
+
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-md flex gap-3">
+                  <Share2 className="text-amber-600 shrink-0" size={16} />
+                  <p className="text-[10px] text-amber-800 font-medium leading-relaxed">
+                    <strong className="uppercase">Important:</strong> Please save this password in your <span className="font-bold text-green-700">WhatsApp</span> (Message yourself) or a safe place before proceeding.
+                  </p>
                 </div>
               </div>
             )}

@@ -68,7 +68,9 @@ export default function SecurityCenterPage() {
           {...emailVerification}
           isEmailVerified={isEmailVerified}
           isPasswordSet={isPasswordSet}
+          resendCountdown={emailVerification.resendCountdown}
           passwordManagement={passwordMgmt}
+          generatePassword={passwordMgmt.generatePassword}
         />
         
         <div className="bg-gray-50 p-4 rounded-md border border-gray-300 flex gap-3">

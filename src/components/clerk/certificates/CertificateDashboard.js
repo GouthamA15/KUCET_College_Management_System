@@ -13,7 +13,7 @@ import FiltersButton from "./FiltersButton";
 import { createPortal } from 'react-dom';
 
 export default function CertificateDashboard({ clerkType }) {
-  const { pendingCertificateRequests, isLoadingRequests } = useClerk();
+  const { pendingCertificateRequests, isLoadingRequests, refreshCertificateRequests } = useClerk();
   const [workspaceMode, setWorkspaceMode] = useState("active"); // "active" | "history"
   const [selectedDate, setSelectedDate] = useState(null); // string | null
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -346,6 +346,7 @@ export default function CertificateDashboard({ clerkType }) {
                       });
                       if (res.ok) {
                         closeDialog();
+                        await refreshCertificateRequests(clerkType);
                         await fetchRecords();
                       }
                     } catch {}
@@ -395,6 +396,7 @@ export default function CertificateDashboard({ clerkType }) {
                   if (res.ok) {
                     setRejectReasonOpen(false);
                     closeDialog();
+                    await refreshCertificateRequests(clerkType);
                     await fetchRecords();
                   }
                 } catch {}

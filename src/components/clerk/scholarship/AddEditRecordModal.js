@@ -17,7 +17,7 @@ export default function AddEditRecordModal({
   toDmy,
 }) {
   if (!open) return null;
-  const isScholar = student?.fee_reimbursement === 'YES';
+  const isScholar = student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV';
   const isSfc = String(student?.fee_category).toUpperCase() === 'SFC';
   const feeFieldsLocked = isScholar && !isSfc;
   const existingApp = String(summary?.application_no || '').trim();
@@ -165,7 +165,7 @@ export default function AddEditRecordModal({
         {/* Existing records */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <StudentPaymentsView payments={summary?.student_payments || []} onDelete={onDeletePayment} toDmy={toDmy} />
-          {student?.fee_reimbursement === 'YES' && (
+          {(student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV') && (
             <div className="p-4 bg-white rounded border">
               <h4 className="font-semibold mb-2">Existing Scholarship Proceedings</h4>
               {Array.isArray(summary?.scholarship_proceedings) && summary.scholarship_proceedings.length > 0 ? (
@@ -175,7 +175,16 @@ export default function AddEditRecordModal({
                       <div className="text-sm truncate">{s.proceeding_no}</div>
                       <div className="text-sm">{s.amount}</div>
                       <div className="text-sm">{toDmy?.(s.date)}</div>
-                      <button onClick={() => onDeleteScholarship?.(s.id)} className="text-red-600 text-xs">Delete</button>
+                      <button 
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to permanently delete this scholarship proceeding record?')) {
+                            onDeleteScholarship?.(s.id);
+                          }
+                        }} 
+                        className="text-red-600 text-xs"
+                      >
+                        Delete
+                      </button>
                     </div>
                   ))}
                 </div>

@@ -16,7 +16,7 @@ export default function StudentFinancesPage() {
 
   const scholarshipList = studentData?.scholarship || [];
   const feeRecords = studentData?.fees || [];
-  const { rows = [], yearlyTotalFee = 0 } = useFinancialRows(student?.roll_no, scholarshipList, feeRecords, branch);
+  const { rows = [], yearlyTotalFee = 0 } = useFinancialRows(student, scholarshipList, feeRecords, branch);
 
   if (contextLoading && !student) {
     return (
@@ -30,6 +30,8 @@ export default function StudentFinancesPage() {
 
   if (!student) return null;
 
+  const isScholar = student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV';
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-2 animate-fadeIn font-sans antialiased text-slate-900">
       <header className="border-b border-slate-200 pb-6">
@@ -38,9 +40,9 @@ export default function StudentFinancesPage() {
       </header>
 
       <div className="bg-white shadow-xl rounded-lg p-6 overflow-hidden border border-slate-100">
-        <FinancialSummaryTable rows={rows} totalExpectedFee={yearlyTotalFee} />
+        <FinancialSummaryTable rows={rows} totalExpectedFee={yearlyTotalFee} isScholar={isScholar} />
         <div className="md:hidden">
-           <FinancialSummaryCardsMobile rows={rows} totalExpectedFee={yearlyTotalFee} />
+           <FinancialSummaryCardsMobile rows={rows} totalExpectedFee={yearlyTotalFee} isScholar={isScholar} />
         </div>
       </div>
     </div>

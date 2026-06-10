@@ -114,10 +114,16 @@ export function wrapHandler({ handler, schema, auth, audit }) {
 
         // 6. Audit Logging (If successful and configured)
         if (audit && response.status >= 200 && response.status < 300) {
+          // Normalize role for enum compliance
+          const rawRole = user?.role || 'student';
+          let normalizedType = 'student';
+          if (rawRole === 'admin') normalizedType = 'admin';
+          else if (rawRole.toLowerCase().includes('clerk') || ['faculty', 'hod', 'principal'].includes(rawRole)) normalizedType = 'clerk';
+
           // Run audit in background to not block response
           logAudit(req, {
             userId: user?.id || user?.student_id || user?.clerkId,
-            userType: user?.role || 'student',
+            userType: normalizedType,
             action: audit.action,
             targetId: audit.getTargetId ? audit.getTargetId(validatedData, result) : null,
             before: audit.getBefore ? await audit.getBefore(validatedData) : null,

@@ -66,9 +66,9 @@ export const internalMarksSchema = z.object({
 export const scholarshipSanctionSchema = z.object({
   roll_no: z.string().trim().toUpperCase().min(10),
   academic_year: z.string().regex(/^\d{4}-\d{2}$/, "Format: YYYY-YY"),
-  application_no: z.string().trim().min(6).max(20).regex(/^\d+$/, "Must be numeric"),
+  application_no: z.string().trim().min(6).max(20).regex(/^\d+$/, "Must be numeric").optional().nullable(),
   proceeding_no: z.string().trim().max(100).optional().nullable(),
-  sanctioned_amount: z.number().min(0).max(100000).optional().nullable(),
-  released_amount: z.number().min(0).max(100000).optional().nullable(),
+  sanctioned_amount: z.number().min(0).max(150000).optional().nullable(),
+  released_amount: z.number().min(0).max(150000).optional().nullable(),
   status: z.enum(['PENDING', 'SANCTIONED', 'RELEASED', 'REJECTED'])
 });

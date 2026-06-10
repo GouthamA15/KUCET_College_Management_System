@@ -48,7 +48,7 @@ export async function POST(req) {
       place_of_birth: z.string().trim().max(255).nullable().optional(),
       father_occupation: z.string().trim().max(255).nullable().optional(),
       annual_income: z.string().trim().max(50).nullable().optional(),
-      fee_reimbursement: z.enum(['YES', 'NO']).default('NO'),
+      fee_reimbursement: z.enum(['YES', 'NO', 'GOV']).default('NO'),
       identification_mark_1: z.string().trim().max(500).nullable().optional(),
       identification_mark_2: z.string().trim().max(500).nullable().optional(),
       permanent_address: z.string().trim().max(1000).nullable().optional(),

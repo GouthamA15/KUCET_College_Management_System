@@ -19,7 +19,10 @@ export function getYearlyTotalFee(course) {
  */
 export function getExpectedScholarship(student, totalFee) {
   // 1. Mandatory Eligibility Check
-  if (student?.fee_reimbursement !== 'YES') return 0;
+  const frStatus = String(student?.fee_reimbursement || 'NO').toUpperCase();
+  
+  if (frStatus === 'GOV') return totalFee;
+  if (frStatus !== 'YES') return 0;
   
   // 2. Quota Check (Convener vs Management)
   // Only Convener Quota (Category-A) is eligible. 

@@ -71,17 +71,7 @@ function getAdmissionTypeFromRoll(rollNo) {
 }
 
 function getAcademicYear(rollNo) {
-  const entryYear = getEntryYearFromRoll(rollNo);
-  const admissionType = getAdmissionTypeFromRoll(rollNo);
-
-  if (!entryYear) {
-    return null;
-  }
-
-  const startYear = parseInt(entryYear, 10);
-  const endYear = admissionType === 'Regular' ? startYear + 4 : startYear + 3;
-
-  return `${startYear}-${endYear}`;
+  return getBatchFromRoll(rollNo);
 }
 
 /**

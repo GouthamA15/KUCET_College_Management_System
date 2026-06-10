@@ -72,7 +72,7 @@ export class FacultyService {
    * Atomic update for student marks with optimistic locking
    */
   static async updateMarkAtomic(id, data, originalVersion, tx = db) {
-    const result = await tx.update(studentMarks)
+    const res = await tx.update(studentMarks)
       .set({ 
         ...data, 
         version: sql`version + 1` 
@@ -82,14 +82,16 @@ export class FacultyService {
         eq(studentMarks.version, originalVersion)
       ));
     
-    return result.affectedRows > 0;
+    // For MySQL2, Drizzle returns a ResultSetHeader in an array or as the first element
+    const header = Array.isArray(res) ? res[0] : res;
+    return (header?.affectedRows || 0) > 0;
   }
 
   /**
    * Atomic update for timetable slot with optimistic locking
    */
-  static async updateTimetableAtomic(id, data, originalVersion) {
-    const result = await db.update(branchTimetable)
+  static async updateTimetableAtomic(id, data, originalVersion, tx = db) {
+    const res = await tx.update(branchTimetable)
       .set({ 
         ...data, 
         version: sql`version + 1` 
@@ -99,7 +101,8 @@ export class FacultyService {
         eq(branchTimetable.version, originalVersion)
       ));
     
-    return result.affectedRows > 0;
+    const header = Array.isArray(res) ? res[0] : res;
+    return (header?.affectedRows || 0) > 0;
   }
 
   /**

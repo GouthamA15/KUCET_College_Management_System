@@ -23,7 +23,10 @@ export function calculateExpectedRTF(student, collegeTuitionFee) {
     seatCategory.includes('MANAGEMENT') || 
     seatCategory.includes('CAT-B');
   
-  if (isManagementOrSpot || student?.fee_reimbursement === 'NO') {
+  const frStatus = String(student?.fee_reimbursement || 'NO').toUpperCase();
+  if (frStatus === 'GOV') return collegeTuitionFee;
+
+  if (isManagementOrSpot || frStatus === 'NO') {
     return 0;
   }
 

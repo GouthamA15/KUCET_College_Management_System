@@ -9,6 +9,38 @@ import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import HeaderMobileView from '@/components/Header-MobileView';
 import MobileTopbar from '@/components/MobileTopbar';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useStudent } from '@/context/StudentContext';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+
+function ActivationGuard({ children }) {
+  const { studentData, loading } = useStudent();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && studentData?.student) {
+      const isVerified = studentData.student.is_email_verified;
+      const isPasswordSet = !!studentData.student.password_hash;
+      const isSecurityPage = pathname === '/student/settings/security';
+      
+      if ((!isVerified || !isPasswordSet) && !isSecurityPage) {
+        router.replace('/student/settings/security');
+      }
+    }
+  }, [studentData, loading, pathname, router]);
+
+  if (loading && !studentData) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0">
+        <LoadingSpinner label="Authenticating Session" />
+      </div>
+    );
+  }
+
+  return children;
+}
 
 export default function StudentLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -40,15 +72,17 @@ export default function StudentLayout({ children }) {
 
               {/* Content stack (single, consistent top spacing below header/topbar) */}
               <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,100px) ">
-                {/* Activity Bar */}
-                <div className="px-4 lg:px-8">
-                  <StudentActivityBar />
-                </div>
+                <ActivationGuard>
+                  {/* Activity Bar */}
+                  <div className="px-4 lg:px-8">
+                    <StudentActivityBar />
+                  </div>
 
-                {/* Page Content */}
-                <main className="flex-1 p-4 lg:p-8 pt-0">
-                  {children}
-                </main>
+                  {/* Page Content */}
+                  <main className="flex-1 p-4 lg:p-8 pt-0">
+                    {children}
+                  </main>
+                </ActivationGuard>
               </div>
             </div>
           </div>
