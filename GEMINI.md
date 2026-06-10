@@ -66,7 +66,35 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **D. Digital Certificate Engine**
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
-## 6. Recent Activity Log (May - June 2026)
+## 7. Deployment & Self-Hosting Architecture (Local Sovereign)
+
+### A. Infrastructure Overview
+- **Target OS:** Ubuntu/Debian Linux (Local Server).
+- **Containerization:** Full Docker Compose orchestration for isolation and portability.
+- **Stack:** Nginx (Proxy), Next.js (App), MySQL 8.0 (DB), Redis 7 (Cache), Uptime Kuma (Monitoring).
+
+### B. Storage Strategy (Local Sovereign)
+- **Local Sovereignty:** Transitioned from Cloudinary to local filesystem volumes for performance and cost-efficiency.
+- **Unified Vault:** `/var/www/kucet-storage/public` (mapped to `/app/public/uploads`). Stores all assets including logos, profile photos, signatures, and payment screenshots.
+- **Permissions:** Restricted to Docker UID `1001` with `755` masks.
+
+### C. Networking & Access
+- **Tunneling:** `cloudflared` tunnel provides secure access to `login.kucet.ac.in` without exposing local ports.
+- **Direct Access:** Bypass Cloudflare 100MB limits via local IP/Tailscale for massive bulk imports.
+- **Security:** UFW (Uncomplicated Firewall) and Fail2Ban active on host.
+
+### D. Resilience & Maintenance
+- **Auto-Recovery:** BIOS-level "Power-On" and Systemd service persistence for Docker/Cloudflared.
+- **Backups:** Nightly `docker exec` MySQL dumps stored in `/var/backups`.
+- **Offsite Sync:** Rclone-driven synchronization to Google Drive/S3 at 4:00 AM daily.
+
+## 8. Recent Activity Log (June 2026)
+
+#### **Session 153: Deployment Sovereignty & Asset Restoration (June 10, 2026)**
+- **Deployment Documentation:** Engineered the `MASTER_DEPLOYMENT_GUIDE.md` for zero-ambiguity local self-hosting execution.
+- **Asset Migration Path:** Defined the "Cloudy Style" restoration workflow, enabling the transfer and extraction of Cloudinary ZIP backups into the local `/var/www/kucet-storage/public` volume.
+- **Architecture Hardening:** Formalized the local storage mapping strategy in `docker-compose.yml` to ensure separation between public assets (Nginx served) and private authenticated records.
+- **Knowledge Persistence:** Centralized all self-hosting context into `GEMINI.md` as the primary architectural reference.
 
 #### **Session 152: Global Image Standardization (June 9, 2026)**
 - **Image Upload Hardening:** Standardized all image upload size limits to strictly **less than 1MB** project-wide. 
