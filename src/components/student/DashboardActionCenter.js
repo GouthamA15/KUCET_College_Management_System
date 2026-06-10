@@ -64,7 +64,7 @@ export default function DashboardActionCenter({ student }) {
 
   const scholarshipReceivedDismissal = useActivityDismissal('scholarship_received');
 
-  const isScholarshipEligible = student?.fee_reimbursement === 'YES';
+  const isScholarshipEligible = student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV';
   const showScholarshipThumb = isScholarshipEligible && !!scholarshipThumbUpdate?.active;
   const showScholarshipHardcopy = isScholarshipEligible && !!scholarshipHardcopyPending?.active;
   const showScholarshipApplicationReceived = isScholarshipEligible && !!scholarshipApplicationReceived?.active;

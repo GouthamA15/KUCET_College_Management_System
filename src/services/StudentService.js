@@ -180,7 +180,9 @@ export class StudentService {
       email: email ? String(email).toLowerCase() : null,
       mobile: normMobile ? encrypt(normMobile) : null,
       mobile_hash: normMobile ? hashForIndex(normMobile) : null,
-      fee_reimbursement: String(fee_reimbursement).toUpperCase() === 'YES' ? 'YES' : 'NO',
+      fee_reimbursement: ['YES', 'NO', 'GOV'].includes(String(fee_reimbursement).toUpperCase()) 
+        ? String(fee_reimbursement).toUpperCase() 
+        : 'NO',
       admission_date: normalizeToMySQLDate(admission_date) || normalizeToMySQLDate(new Date())
     };
 

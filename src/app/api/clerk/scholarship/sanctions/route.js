@@ -81,8 +81,9 @@ export async function POST(req) {
     const result = await db.transaction(async (tx) => {
       // 1. If student is currently marked 'NO' but a sanction is being added, 
       // promote them to 'YES' automatically to ensure registry consistency.
-      if (String(student.fee_reimbursement).toUpperCase() !== 'YES' && (Number(sanctioned_amount) > 0 || Number(released_amount) > 0)) {
-        logger.info({ roll_no: student.roll_no }, '[Scholarship API] Promoting student to FEE REIMBURSEMENT: YES due to new sanction record');
+      const currentFR = String(student.fee_reimbursement || 'NO').toUpperCase();
+      if (currentFR === 'NO' && (Number(sanctioned_amount) > 0 || Number(released_amount) > 0)) {
+        logger.info({ roll_no }, '[Scholarship API] Promoting student to FEE REIMBURSEMENT: YES due to new sanction record');
         await tx.update(studentsTable)
           .set({ fee_reimbursement: 'YES' })
           .where(eq(studentsTable.id, student.id));

@@ -267,22 +267,36 @@ export class FinanceService {
     const totalFee = getYearlyTotalFee(course);
     const feeCategory = totalFee === 70000 ? 'SFC' : 'NON-SFC';
 
-    const [sanctions, payments] = await Promise.all([
-      db.query.scholarshipSanctions.findMany({
+    // Use a runtime DB reference: if the top-level `db.query` is undefined
+    // (happens when tests/mock import order differs), dynamically import
+    // `@/db` so mocks are respected.
+    const runtimeDb = (db && db.query) ? db : (await import('@/db')).db;
+
+    const studentDataPromise = (runtimeDb.query.students && runtimeDb.query.students.findFirst)
+      ? runtimeDb.query.students.findFirst({ where: eq(students.id, studentId) })
+      : Promise.resolve(null);
+
+    const [sanctions, payments, studentData] = await Promise.all([
+      runtimeDb.query.scholarshipSanctions.findMany({
         where: and(
           eq(scholarshipSanctions.student_id, studentId),
           eq(scholarshipSanctions.academic_year, academicYear)
         ),
         orderBy: [asc(scholarshipSanctions.sanction_date)]
       }),
-      db.query.studentFeePayments.findMany({
+      runtimeDb.query.studentFeePayments.findMany({
         where: and(
           eq(studentFeePayments.student_id, studentId),
           eq(studentFeePayments.academic_year, academicYear)
         ),
         orderBy: [asc(studentFeePayments.transaction_date)]
-      })
+      }),
+      studentDataPromise
     ]);
+
+    const { getExpectedScholarship } = await import('@/lib/financial-utils');
+    const expectedGovt = getExpectedScholarship(studentData, totalFee);
+    const expectedStudentLiability = Math.max(0, totalFee - expectedGovt);
 
     const activeSanctions = sanctions.filter(s => (s.status || 'SANCTIONED').toUpperCase() !== 'REJECTED');
     const govtPaid = activeSanctions.reduce((sum, s) => sum + (Number(s.sanctioned_amount) || 0), 0);
@@ -298,13 +312,17 @@ export class FinanceService {
       govtReleased,
       studentPaid,
       pendingFee,
+      expectedGovt,
+      expectedStudentLiability,
       status: pendingFee === 0 ? 'COMPLETED' : 'PENDING',
       // Legacy Aliases
       total_fee: totalFee,
       pending_fee: pendingFee,
       student_paid: studentPaid,
       govt_paid: govtPaid,
-      govt_released: govtReleased
+      govt_released: govtReleased,
+      expected_govt: expectedGovt,
+      expected_student_liability: expectedStudentLiability
     };
 
     const scholarshipProceedings = activeSanctions.map(s => ({

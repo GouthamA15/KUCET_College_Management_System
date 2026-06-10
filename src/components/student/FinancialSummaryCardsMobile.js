@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 
-export default function FinancialSummaryCardsMobile({ rows, totalExpectedFee }) {
+export default function FinancialSummaryCardsMobile({ rows, totalExpectedFee, isScholar = false }) {
   return (
     <div className="md:hidden space-y-4">
       <div className="px-1">
@@ -24,14 +24,22 @@ export default function FinancialSummaryCardsMobile({ rows, totalExpectedFee }) 
           </div>
           
           <div className="grid grid-cols-2 gap-y-2 text-sm">
-            <div className="text-gray-500">Proceedings</div>
-            <div className="font-mono text-xs text-right truncate pl-2">{r.proceedings_no || '-'}</div>
+            {isScholar && (
+              <>
+                <div className="text-gray-500">Proceedings</div>
+                <div className="font-mono text-xs text-right truncate pl-2">{r.proceedings_no || '-'}</div>
+                
+                <div className="text-gray-500">Govt Paid</div>
+                <div className="text-right font-medium">{r.amount_sanctioned ? `₹ ${Number(r.amount_sanctioned).toLocaleString('en-IN')}` : '-'}</div>
+              </>
+            )}
             
-            <div className="text-gray-500">Govt Paid</div>
-            <div className="text-right font-medium">{r.amount_sanctioned ? `₹ ${Number(r.amount_sanctioned).toLocaleString('en-IN')}` : '-'}</div>
-            
-            <div className="text-gray-500">Student Paid</div>
-            <div className="text-right font-medium">{r.student_paid ? `₹ ${Number(r.student_paid).toLocaleString('en-IN')}` : '-'}</div>
+            {Number(r.student_paid) > 0 && (
+              <>
+                <div className="text-gray-500">Student Paid</div>
+                <div className="text-right font-medium">₹ {Number(r.student_paid).toLocaleString('en-IN')}</div>
+              </>
+            )}
             
             <div className="text-gray-500">Date</div>
             <div className="text-right text-xs">{r.date || '-'}</div>

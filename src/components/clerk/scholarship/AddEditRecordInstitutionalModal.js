@@ -50,7 +50,7 @@ export default function AddEditRecordInstitutionalModal({
   const hasScholarshipData = (proceedings.length > 0) || (summary?.application_no && String(summary.application_no).trim() !== '');
   
   const [forceScholarWorkflow, setForceScholarWorkflow] = useState(false);
-  const isScholar = reimbursementStatus === 'YES' || hasScholarshipData || forceScholarWorkflow;
+  const isScholar = reimbursementStatus === 'YES' || reimbursementStatus === 'GOV' || hasScholarshipData || forceScholarWorkflow;
 
   // 2. Lifecycle hooks
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function AddEditRecordInstitutionalModal({
   const isFullReimbursementCategory = ['SC', 'ST'].includes(category) || 
     ['MUSLIM', 'CHRISTIAN', 'SIKH', 'BUDDHIST', 'JAIN', 'PARSI'].includes(religion);
   
-  const GOVT_CAP = isFullReimbursementCategory ? totalFee : 35000;
+  const GOVT_CAP = (reimbursementStatus === 'GOV' || isFullReimbursementCategory) ? totalFee : 35000;
   const eligibleAmount = isScholar ? GOVT_CAP : 0;
 
   const allowedStudentPayableLimit = isScholar ? Math.max(0, totalFee - GOVT_CAP) : totalFee;
