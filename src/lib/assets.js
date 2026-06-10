@@ -55,13 +55,18 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return normalizedPath;
   }
 
-  // 3. Strategy: Local VPS storage (Served by Nginx alias)
+  // 3. Strategy: Local VPS storage
   if (process.env.NEXT_PUBLIC_STORAGE_TYPE === 'local') {
     // If the path is a static asset (starts with 'assets/'), it should not go to /uploads/
     if (cleanPath.startsWith('assets/')) {
         return `/${cleanPath}`;
     }
-    return `/uploads/${cleanPath}`;
+    
+    // In production, Nginx serves /uploads/ directly. In dev, we use the proxy.
+    if (process.env.NODE_ENV === 'production') {
+        return `/uploads/${cleanPath}`;
+    }
+    return `/api/assets/view/${cleanPath}`;
   }
 
   // 4. Strategy: Cloudinary (client-safe)
