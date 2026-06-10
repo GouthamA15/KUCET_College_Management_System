@@ -52,7 +52,7 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
                     </li>
                     <li className="flex gap-2">
                       <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                      <span>Students Test auto deployment : first-time login may require DOB as password (DD-MM-YYYY).</span>
+                      <span>Students: first-time login may require DOB as password (DD-MM-YYYY).</span>
                     </li>
                     <li className="flex gap-2">
                       <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
