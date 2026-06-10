@@ -16,13 +16,12 @@ jobs:
         uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          # Enable Tailscale SSH on the GitHub runner
-          ssh: true
+          # The --ssh flag must be passed via args in v3
+          args: --ssh
 
       - name: Deploy via Tailscale SSH
         run: |
-          # Use 'tailscale ssh' which handles authentication automatically
-          # based on your Tailnet identity and the TAILSCALE_AUTHKEY.
+          # Use the MagicDNS name or the Tailscale IP
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
             cd /var/www/kucet-cms
             git pull origin testvanilla
