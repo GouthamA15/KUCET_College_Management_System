@@ -73,7 +73,9 @@ test.describe('Attendance Marking Flow', () => {
             name: 'MOCK STUDENT',
             branch: 'CSE',
             email: 'mock@example.com',
-            pfp: null
+            pfp: null,
+            is_email_verified: 1,
+            password_hash: 'hashed_password'
           },
           scholarship: [],
           fees: []
