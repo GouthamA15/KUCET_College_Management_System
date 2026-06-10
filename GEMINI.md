@@ -93,7 +93,9 @@ A robust, production-ready web application built with **Next.js** for managing t
 #### **Session 154: High Availability & Sovereign Storage Overhaul (June 10, 2026)**
 - **Sovereign Storage Architecture:** Engineered a high-performance local storage system for the self-hosted environment. Transitioned from database-bloating Base64 storage to a robust filesystem-backed vault (`/app/public/uploads`).
 - **High-Performance Asset Serving:** Optimized Nginx configuration to serve user assets directly via a dedicated `/uploads/` location block, bypassing Node.js overhead and resolving critical image loading latency.
+- **Security Hardening:** Hardened the asset serving pipeline with mandatory Nginx security headers, directory traversal protection in `LocalStorageProvider`, and SVG script-execution prevention via forced downloads.
 - **Unified Storage Provider:** Developed a strategic `StorageProvider` abstraction, enabling seamless switching between Cloudinary and Local VPS storage via environment variables (`NEXT_PUBLIC_STORAGE_TYPE`).
+- **Robustness & Integrity:** Implemented atomic "track-and-cleanup" logic for orphaned assets during upload failures and upgraded `StudentService` with advanced magic-byte detection for multi-format image support (PNG, JPEG, GIF, WebP).
 - **Data Integrity & Migration:** Created a surgical migration utility (`src/db/migrate-images-to-local.js`) to offload existing Base64 images from the database to the filesystem, restoring system performance.
 - **Engagement Infrastructure:** Hardened the "Always Active" experience by integrating Uptime Kuma monitoring with institutional health checks and refining the PWA's aggressive caching and zombie-connection recovery.
 
