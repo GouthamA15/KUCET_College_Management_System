@@ -79,7 +79,14 @@ export default class LocalStorageProvider extends StorageProvider {
   async delete(relativePath) {
     if (!relativePath) return;
     try {
-      const absolutePath = path.join(this.storagePath, relativePath);
+      const absolutePath = path.resolve(this.storagePath, relativePath);
+      
+      // Security: Ensure path is within storagePath
+      if (!absolutePath.startsWith(path.resolve(this.storagePath))) {
+        logger.error({ tag: 'LOCAL_DELETE_SECURITY_VIOLATION', path: relativePath }, 'Attempted directory traversal in delete');
+        return;
+      }
+
       await fs.unlink(absolutePath);
       logger.info({ tag: 'LOCAL_DELETE_SUCCESS', path: relativePath }, 'File deleted from local storage');
     } catch (error) {

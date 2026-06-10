@@ -1,4 +1,5 @@
 import { apiError } from '@/lib/api-utils';
+import logger from '@/lib/logger';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -17,11 +18,11 @@ export async function GET(req, { params }) {
 
     try {
       const fileBuffer = await fs.readFile(absolutePath);
-      
+
       // Determine content type
       const ext = path.extname(absolutePath).toLowerCase();
       let contentType = 'application/octet-stream';
-      
+
       const mimeTypes = {
         '.jpg': 'image/jpeg',
         '.jpeg': 'image/jpeg',
@@ -38,12 +39,18 @@ export async function GET(req, { params }) {
         contentType = mimeTypes[ext];
       }
 
-      return new Response(fileBuffer, {
-        headers: {
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=31536000, immutable',
-        },
-      });
+      const headers = {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      };
+
+      // SECURITY: Force download for SVGs to prevent inline script execution
+      if (ext === '.svg') {
+        const fileName = path.basename(absolutePath);
+        headers['Content-Disposition'] = `attachment; filename="${fileName}"`;
+      }
+
+      return new Response(fileBuffer, { headers });
     } catch (e) {
       if (e.code === 'ENOENT') {
         return apiError('File not found', 404);
@@ -51,7 +58,7 @@ export async function GET(req, { params }) {
       throw e;
     }
   } catch (error) {
-    console.error('Asset Proxy Error:', error);
+    logger.error({ err: error }, 'Asset Proxy Error');
     return apiError('Internal server error', 500);
   }
 }

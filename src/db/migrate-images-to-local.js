@@ -1,4 +1,4 @@
-/* eslint-disable */
+ 
 /**
  * IMAGE MIGRATION SCRIPT (DB -> LOCAL STORAGE)
  * 
@@ -32,12 +32,14 @@ async function migrateBase64ToLocal(data, folder, filename) {
     if (buffer[0] === 0x89 && buffer[1] === 0x50) extension = '.png';
     else if (buffer[0] === 0xFF && buffer[1] === 0xD8) extension = '.jpg';
   } 
-  // String Handling (Data URI or Base64)
+  // Case 2: String Handling (Data URI or Base64)
   else if (typeof data === 'string') {
     if (data.startsWith('data:')) {
         const parts = data.split(';base64,');
-        const mime = parts[0].split(':')[1];
-        extension = `.${mime.split('/')[1]}` || '.jpg';
+        if (parts.length < 2) return null;
+        const mime = parts[0].split(':')[1] || '';
+        const subtype = mime.split('/')[1] || 'jpg';
+        extension = `.${subtype}`;
         buffer = Buffer.from(parts[1], 'base64');
     } else if (data.length > 100 && (data.startsWith('iVBORw') || data.startsWith('/9j/4'))) {
         extension = data.startsWith('iVBORw') ? '.png' : '.jpg';

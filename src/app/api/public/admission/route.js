@@ -104,58 +104,71 @@ export async function POST(req) {
 
     const storage = getStorageProvider();
 
-    if (pfp) {
-      pfpUrl = await storage.upload(pfp, 'admission_drafts/pfp');
+    try {
+      if (pfp) {
+        pfpUrl = await storage.upload(pfp, 'admission_drafts/pfp');
+      }
+      if (signature) {
+        signatureUrl = await storage.upload(signature, 'admission_drafts/signatures');
+      }
+
+      // 5. Encrypt Sensitive Fields
+      const encryptedMobile = encrypt(student_mobile);
+      const encryptedGuardianMobile = guardian_mobile ? encrypt(guardian_mobile) : null;
+      const encryptedAadhaar = aadhaar_no ? encrypt(aadhaar_no) : null;
+      const aHash = aadhaar_no ? hashForIndex(aadhaar_no) : null;
+
+      const [result] = await db.insert(studentAdmissionDrafts).values({
+          status: 'DRAFT',
+          admission_year,
+          entrance_exam,
+          branch,
+          name,
+          father_name: father_name || null,
+          mother_name: mother_name || null,
+          dob: toMySQLDate(dob),
+          gender: gender || null,
+          email: email || null,
+          student_mobile: encryptedMobile,
+          mobile_hash: mobileHash,
+          guardian_mobile: encryptedGuardianMobile,
+          pfp: pfpUrl,
+          signature: signatureUrl,
+          exam_rank: exam_rank || null,
+          area_status: area_status || null,
+          category: category || null,
+          sub_caste: sub_caste || null,
+          seat_allotted_category: seat_allotted_category || null,
+          ssc_marks: ssc_marks || null,
+          inter_diploma_marks: inter_diploma_marks || null,
+          nationality: nationality || null,
+          religion: religion || null,
+          mother_tongue: mother_tongue || null,
+          blood_group: blood_group || null,
+          place_of_birth: place_of_birth || null,
+          father_occupation: father_occupation || null,
+          annual_income: annual_income || null,
+          aadhaar_no: encryptedAadhaar,
+          aadhaar_hash: aHash,
+          fee_reimbursement: fee_reimbursement || null,
+          identification_mark_1: identification_mark_1 || null,
+          identification_mark_2: identification_mark_2 || null,
+          permanent_address: permanent_address || null
+      });
+
+      return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
+    } catch (e) {
+      // Cleanup uploaded files on error
+      if (pfpUrl) {
+        try { await storage.delete(pfpUrl); }
+        catch (delErr) { logger.error({ err: delErr, path: pfpUrl }, 'Orphaned pfp cleanup failed'); }
+      }
+      if (signatureUrl) {
+        try { await storage.delete(signatureUrl); }
+        catch (delErr) { logger.error({ err: delErr, path: signatureUrl }, 'Orphaned signature cleanup failed'); }
+      }
+      throw e;
     }
-    if (signature) {
-      signatureUrl = await storage.upload(signature, 'admission_drafts/signatures');
-    }
-
-    // 5. Encrypt Sensitive Fields
-    const encryptedMobile = encrypt(student_mobile);
-    const encryptedGuardianMobile = guardian_mobile ? encrypt(guardian_mobile) : null;
-    const encryptedAadhaar = aadhaar_no ? encrypt(aadhaar_no) : null;
-    const aHash = aadhaar_no ? hashForIndex(aadhaar_no) : null;
-
-    const [result] = await db.insert(studentAdmissionDrafts).values({
-        status: 'DRAFT',
-        admission_year,
-        entrance_exam,
-        branch,
-        name,
-        father_name: father_name || null,
-        mother_name: mother_name || null,
-        dob: toMySQLDate(dob),
-        gender: gender || null,
-        email: email || null,
-        student_mobile: encryptedMobile,
-        mobile_hash: mobileHash,
-        guardian_mobile: encryptedGuardianMobile,
-        pfp: pfpUrl,
-        signature: signatureUrl,
-        exam_rank: exam_rank || null,
-        area_status: area_status || null,
-        category: category || null,
-        sub_caste: sub_caste || null,
-        seat_allotted_category: seat_allotted_category || null,
-        ssc_marks: ssc_marks || null,
-        inter_diploma_marks: inter_diploma_marks || null,
-        nationality: nationality || null,
-        religion: religion || null,
-        mother_tongue: mother_tongue || null,
-        blood_group: blood_group || null,
-        place_of_birth: place_of_birth || null,
-        father_occupation: father_occupation || null,
-        annual_income: annual_income || null,
-        aadhaar_no: encryptedAadhaar,
-        aadhaar_hash: aHash,
-        fee_reimbursement: fee_reimbursement || null,
-        identification_mark_1: identification_mark_1 || null,
-        identification_mark_2: identification_mark_2 || null,
-        permanent_address: permanent_address || null
-    });
-
-    return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
 
   } catch (error) {
     if (error instanceof z.ZodError) {

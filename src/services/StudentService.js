@@ -1,4 +1,5 @@
 import { db } from '@/db';
+import logger from '@/lib/logger';
 import { 
   students as studentsTable, 
   studentPersonalDetails, 
@@ -217,73 +218,78 @@ export class StudentService {
       inter_marks: inter_marks || null
     };
 
-    const executeUpsert = async (innerTx) => {
-      const existing = await innerTx.select({ id: studentsTable.id })
-        .from(studentsTable).where(eq(studentsTable.roll_no, roll)).limit(1);
-      
-      let studentId;
-      if (existing.length > 0) {
-        studentId = existing[0].id;
-        await innerTx.update(studentsTable).set(studentValues).where(eq(studentsTable.id, studentId));
-      } else {
-        const res = await innerTx.insert(studentsTable).values({ ...studentValues, added_by_clerk_id: clerkId });
-        studentId = res.insertId || res[0]?.insertId;
-        if (!studentId) throw new Error('STUDENT_ID_GENERATION_FAILED');
+    const storage = getStorageProvider();
+    const uploadedPaths = [];
+
+    let pfpPath = pfp;
+    let sigPath = signature;
+
+    try {
+      // 1. Upload to storage BEFORE transaction
+      if (typeof pfp === 'string' && pfp.startsWith('data:')) {
+        pfpPath = await storage.upload(pfp, 'students/pfp', roll);
+        uploadedPaths.push(pfpPath);
+      }
+      if (typeof signature === 'string' && signature.startsWith('data:')) {
+        sigPath = await storage.upload(signature, 'students/signatures', `${roll}-sig`);
+        uploadedPaths.push(sigPath);
       }
 
-      const existingPersonal = await innerTx.select({ id: studentPersonalDetails.id })
-        .from(studentPersonalDetails).where(eq(studentPersonalDetails.student_id, studentId)).limit(1);
-      
-      if (existingPersonal.length > 0) {
-        await innerTx.update(studentPersonalDetails).set(personalValues).where(eq(studentPersonalDetails.id, existingPersonal[0].id));
-      } else {
-        await innerTx.insert(studentPersonalDetails).values({ student_id: studentId, ...personalValues });
-      }
-
-      const existingAcademic = await innerTx.select({ id: studentAcademicBackground.id })
-        .from(studentAcademicBackground).where(eq(studentAcademicBackground.student_id, studentId)).limit(1);
-      
-      if (existingAcademic.length > 0) {
-        await innerTx.update(studentAcademicBackground).set(academicValues).where(eq(studentAcademicBackground.id, existingAcademic[0].id));
-      } else {
-        await innerTx.insert(studentAcademicBackground).values({ student_id: studentId, ...academicValues });
-      }
-
-      if (pfp) {
-        let pfpPath = pfp;
-        // If it's a data URI, upload it to storage first
-        if (typeof pfp === 'string' && pfp.startsWith('data:')) {
-          try {
-            const storage = getStorageProvider();
-            pfpPath = await storage.upload(pfp, 'students/pfp', roll);
-          } catch (e) {
-            console.error('PFP upload failed during upsert:', e);
-            // Fallback to storing as is if storage fails, though not ideal
-          }
+      const executeUpsert = async (innerTx) => {
+        const existing = await innerTx.select({ id: studentsTable.id })
+          .from(studentsTable).where(eq(studentsTable.roll_no, roll)).limit(1);
+        
+        let studentId;
+        if (existing.length > 0) {
+          studentId = existing[0].id;
+          await innerTx.update(studentsTable).set(studentValues).where(eq(studentsTable.id, studentId));
+        } else {
+          const res = await innerTx.insert(studentsTable).values({ ...studentValues, added_by_clerk_id: clerkId });
+          studentId = res.insertId || res[0]?.insertId;
+          if (!studentId) throw new Error('STUDENT_ID_GENERATION_FAILED');
         }
-        await innerTx.insert(studentImages).values({ student_id: studentId, pfp: pfpPath }).onDuplicateKeyUpdate({ set: { pfp: pfpPath } });
-      }
-      if (signature) {
-        let sigPath = signature;
-        // If it's a data URI, upload it to storage first
-        if (typeof signature === 'string' && signature.startsWith('data:')) {
-          try {
-            const storage = getStorageProvider();
-            sigPath = await storage.upload(signature, 'students/signatures', `${roll}-sig`);
-          } catch (e) {
-            console.error('Signature upload failed during upsert:', e);
-          }
+
+        const existingPersonal = await innerTx.select({ id: studentPersonalDetails.id })
+          .from(studentPersonalDetails).where(eq(studentPersonalDetails.student_id, studentId)).limit(1);
+        
+        if (existingPersonal.length > 0) {
+          await innerTx.update(studentPersonalDetails).set(personalValues).where(eq(studentPersonalDetails.id, existingPersonal[0].id));
+        } else {
+          await innerTx.insert(studentPersonalDetails).values({ student_id: studentId, ...personalValues });
         }
-        await innerTx.insert(studentSignatures).values({ student_id: studentId, signature: sigPath }).onDuplicateKeyUpdate({ set: { signature: sigPath } });
+
+        const existingAcademic = await innerTx.select({ id: studentAcademicBackground.id })
+          .from(studentAcademicBackground).where(eq(studentAcademicBackground.student_id, studentId)).limit(1);
+        
+        if (existingAcademic.length > 0) {
+          await innerTx.update(studentAcademicBackground).set(academicValues).where(eq(studentAcademicBackground.id, existingAcademic[0].id));
+        } else {
+          await innerTx.insert(studentAcademicBackground).values({ student_id: studentId, ...academicValues });
+        }
+
+        if (pfpPath) {
+          await innerTx.insert(studentImages).values({ student_id: studentId, pfp: pfpPath }).onDuplicateKeyUpdate({ set: { pfp: pfpPath } });
+        }
+        if (sigPath) {
+          await innerTx.insert(studentSignatures).values({ student_id: studentId, signature: sigPath }).onDuplicateKeyUpdate({ set: { signature: sigPath } });
+        }
+
+        return studentId;
+      };
+
+      if (tx) {
+        return await executeUpsert(tx);
+      } else {
+        return await db.transaction(executeUpsert);
       }
-
-      return studentId;
-    };
-
-    if (tx) {
-      return await executeUpsert(tx);
-    } else {
-      return await db.transaction(executeUpsert);
+    } catch (error) {
+      // Cleanup uploaded files on error
+      for (const path of uploadedPaths) {
+        try { await storage.delete(path); }
+        catch (delErr) { logger.error({ err: delErr, path }, 'Orphaned student asset cleanup failed'); }
+      }
+      logger.error({ err: error, roll }, 'Upsert student failed');
+      throw error;
     }
   }
 
@@ -335,33 +341,44 @@ export class StudentService {
     const storage = getStorageProvider();
     const imageHelper = (val) => {
       if (!val) return null;
-      // If it's already an absolute URL or data URI, return as is
-      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      // 1. Data URI or Absolute URL
+      if (typeof val === 'string' && (val.startsWith('http') || /^data:[^;]+;base64,/.test(val))) return val;
       
-      // Handle raw base64 strings (legacy)
-      if (typeof val === 'string' && val.length > 1000) {
-        // Try to detect if it's base64. A simple check for common image starts in base64
-        // iVBORw (PNG), /9j/4 (JPEG)
-        if (val.startsWith('iVBORw') || val.startsWith('/9j/4')) {
-          const mimeType = val.startsWith('iVBORw') ? 'image/png' : 'image/jpeg';
-          return `data:${mimeType};base64,${val}`;
-        }
+      // 2. Legacy Raw Base64 Detection
+      if (typeof val === 'string' && val.length > 50) {
+        let mimeType = null;
+        if (val.startsWith('iVBORw')) mimeType = 'image/png';
+        else if (val.startsWith('/9j/')) mimeType = 'image/jpeg';
+        else if (val.startsWith('R0lGOD')) mimeType = 'image/gif';
+        else if (val.startsWith('UklGR')) mimeType = 'image/webp';
+        
+        if (mimeType) return `data:${mimeType};base64,${val}`;
       }
 
-      // If it's a Buffer (legacy BLOB data), convert to data URI
+      // 3. Buffer Magic Byte Detection
       if (Buffer.isBuffer(val)) {
-        // Detect MIME type from magic bytes...
         let mimeType = 'application/octet-stream';
         if (val.length >= 4) {
-          const header = val.slice(0, 12);
-          if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) mimeType = 'image/png';
-          else if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) mimeType = 'image/jpeg';
+          // PNG: 89 50 4E 47
+          if (val[0] === 0x89 && val[1] === 0x50 && val[2] === 0x4E && val[3] === 0x47) mimeType = 'image/png';
+          // JPEG: FF D8 FF
+          else if (val[0] === 0xFF && val[1] === 0xD8 && val[2] === 0xFF) mimeType = 'image/jpeg';
+          // GIF: 47 49 46 38
+          else if (val[0] === 0x47 && val[1] === 0x49 && val[2] === 0x46 && val[3] === 0x38) mimeType = 'image/gif';
+          // WEBP: RIFF...WEBP
+          else if (val[0] === 0x52 && val[1] === 0x49 && val[2] === 0x46 && val[3] === 0x46 &&
+                   val[8] === 0x57 && val[9] === 0x45 && val[10] === 0x42 && val[11] === 0x50) mimeType = 'image/webp';
         }
         return `data:${mimeType};base64,${val.toString('base64')}`;
       }
 
-      // Otherwise, treat as a relative path and resolve via provider
-      return storage.getUrl(val);
+      // 4. Relative Path
+      try {
+        return storage.getUrl(val);
+      } catch (e) {
+        logger.error({ err: e, val, func: 'imageHelper' }, 'Failed to resolve image URL');
+        return null;
+      }
     };
 
     return {

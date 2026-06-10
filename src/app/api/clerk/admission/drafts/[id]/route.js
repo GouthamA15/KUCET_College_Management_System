@@ -1,4 +1,5 @@
 import { db } from '@/db';
+import logger from '@/lib/logger';
 import { studentAdmissionDrafts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
@@ -31,7 +32,12 @@ export const GET = wrapHandler({
       if (!val) return null;
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
       if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
-      return storage.getUrl(val);
+      try {
+        return storage.getUrl(val);
+      } catch (e) {
+        logger.error({ err: e, val, func: 'imageHelper' }, 'Failed to resolve image URL');
+        return null;
+      }
     };
 
     if (draft.pfp) draft.pfp = imageHelper(draft.pfp);
@@ -80,8 +86,14 @@ export const PUT = wrapHandler({
             ]
           });
 
-          if (currentDraft.pfp) await storage.delete(currentDraft.pfp);
-          if (currentDraft.signature) await storage.delete(currentDraft.signature);
+          if (currentDraft.pfp) {
+            try { await storage.delete(currentDraft.pfp); }
+            catch (e) { logger.error({ err: e, id, asset: 'pfp' }, 'Best-effort pfp deletion failed'); }
+          }
+          if (currentDraft.signature) {
+            try { await storage.delete(currentDraft.signature); }
+            catch (e) { logger.error({ err: e, id, asset: 'signature' }, 'Best-effort signature deletion failed'); }
+          }
 
           await db.delete(studentAdmissionDrafts).where(eq(studentAdmissionDrafts.id, id));
 
@@ -95,46 +107,58 @@ export const PUT = wrapHandler({
     }
 
     // Handle full update
-    if (body.pfp && body.pfp.startsWith('data:image')) {
-      if (currentDraft?.pfp) await storage.delete(currentDraft.pfp);
-      body.pfp = await storage.upload(body.pfp, 'admission_drafts/pfp');
+    const uploadedPaths = [];
+    try {
+      if (body.pfp && body.pfp.startsWith('data:image')) {
+        if (currentDraft?.pfp) await storage.delete(currentDraft.pfp);
+        body.pfp = await storage.upload(body.pfp, 'admission_drafts/pfp');
+        uploadedPaths.push(body.pfp);
+      }
+      if (body.signature && body.signature.startsWith('data:image')) {
+        if (currentDraft?.signature) await storage.delete(currentDraft.signature);
+        body.signature = await storage.upload(body.signature, 'admission_drafts/signatures');
+        uploadedPaths.push(body.signature);
+      }
+  
+      const allowedFields = [
+        'name', 'father_name', 'mother_name', 'dob', 'gender', 'email', 'student_mobile', 'guardian_mobile',
+        'exam_rank', 'area_status', 'category', 'sub_caste', 'seat_allotted_category', 'ssc_marks', 'inter_diploma_marks',
+        'nationality', 'religion', 'mother_tongue', 'blood_group', 'place_of_birth', 'father_occupation', 'annual_income', 
+        'aadhaar_no', 'fee_reimbursement', 'identification_mark_1', 'identification_mark_2', 'permanent_address', 'branch', 'entrance_exam',
+        'pfp', 'signature', 'status'
+      ];
+  
+      const updateObj = {};
+      for (const field of allowedFields) {
+          if (body[field] !== undefined) {
+              let value = body[field] === '' ? null : body[field];
+              
+              if (field === 'dob') {
+                  value = toMySQLDate(body[field]);
+              } 
+              // Encrypt sensitive fields before saving
+              else if (value && (field === 'student_mobile' || field === 'guardian_mobile' || field === 'aadhaar_no')) {
+                  value = encrypt(value);
+              }
+  
+              updateObj[field] = value;
+          }
+      }
+  
+      if (Object.keys(updateObj).length === 0) return apiError('No valid fields', 400);
+  
+      await db.update(studentAdmissionDrafts)
+        .set(updateObj)
+        .where(eq(studentAdmissionDrafts.id, id));
+  
+      return { success: true, message: 'Draft updated successfully' };
+    } catch (e) {
+      // Cleanup newly uploaded files if DB update fails
+      for (const path of uploadedPaths) {
+        try { await storage.delete(path); }
+        catch (delErr) { logger.error({ err: delErr, path }, 'Failed to cleanup orphaned file after update error'); }
+      }
+      throw e;
     }
-    if (body.signature && body.signature.startsWith('data:image')) {
-      if (currentDraft?.signature) await storage.delete(currentDraft.signature);
-      body.signature = await storage.upload(body.signature, 'admission_drafts/signatures');
-    }
-
-    const allowedFields = [
-      'name', 'father_name', 'mother_name', 'dob', 'gender', 'email', 'student_mobile', 'guardian_mobile',
-      'exam_rank', 'area_status', 'category', 'sub_caste', 'seat_allotted_category', 'ssc_marks', 'inter_diploma_marks',
-      'nationality', 'religion', 'mother_tongue', 'blood_group', 'place_of_birth', 'father_occupation', 'annual_income', 
-      'aadhaar_no', 'fee_reimbursement', 'identification_mark_1', 'identification_mark_2', 'permanent_address', 'branch', 'entrance_exam',
-      'pfp', 'signature', 'status'
-    ];
-
-    const updateObj = {};
-    for (const field of allowedFields) {
-        if (body[field] !== undefined) {
-            let value = body[field] === '' ? null : body[field];
-            
-            if (field === 'dob') {
-                value = toMySQLDate(body[field]);
-            } 
-            // Encrypt sensitive fields before saving
-            else if (value && (field === 'student_mobile' || field === 'guardian_mobile' || field === 'aadhaar_no')) {
-                value = encrypt(value);
-            }
-
-            updateObj[field] = value;
-        }
-    }
-
-    if (Object.keys(updateObj).length === 0) return apiError('No valid fields', 400);
-
-    await db.update(studentAdmissionDrafts)
-      .set(updateObj)
-      .where(eq(studentAdmissionDrafts.id, id));
-
-    return { success: true, message: 'Draft updated successfully' };
   }
 });

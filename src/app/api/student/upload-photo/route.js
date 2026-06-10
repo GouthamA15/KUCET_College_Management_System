@@ -26,10 +26,21 @@ export async function POST(req) {
     const storage = getStorageProvider();
 
     if (pfp) {
+      // SECURITY: Validate pfp is a valid data URI image
+      const dataUriRegex = /^data:image\/(png|jpeg|jpg|gif);base64,/;
+      if (typeof pfp !== 'string' || !dataUriRegex.test(pfp)) {
+        return apiError('Invalid image format. Only PNG, JPEG, JPG, and GIF data URIs are allowed.', 400);
+      }
+
       // 1. Upload to storage (Cloudinary or Local VPS)
       // This returns a relative path (e.g., 'kucet/students/pfp/rollno.jpg')
       const uploadedPath = await storage.upload(pfp, 'students/pfp', roll_no);
       
+      if (typeof uploadedPath !== 'string' || uploadedPath.length === 0) {
+        logger.error({ roll_no, studentId }, 'Storage upload failed or returned invalid path');
+        return apiError('Failed to upload image', 500);
+      }
+
       // 2. Store the PATH in the database (efficient)
       await db.insert(studentImages)
         .values({
@@ -38,14 +49,18 @@ export async function POST(req) {
         })
         .onDuplicateKeyUpdate({ set: { pfp: uploadedPath } });
     } else {
-      // Handle deletion
-      const existing = await db.query.studentImages.findFirst({
-        where: eq(studentImages.student_id, studentId)
+      // Handle deletion in a transaction to prevent races
+      await db.transaction(async (tx) => {
+        const existing = await tx.query.studentImages.findFirst({
+          where: eq(studentImages.student_id, studentId)
+        });
+        
+        if (existing?.pfp) {
+          await storage.delete(existing.pfp);
+        }
+        
+        await tx.delete(studentImages).where(eq(studentImages.student_id, studentId));
       });
-      if (existing?.pfp) {
-        await storage.delete(existing.pfp);
-      }
-      await db.delete(studentImages).where(eq(studentImages.student_id, studentId));
     }
 
     return apiResponse({ success: true });
