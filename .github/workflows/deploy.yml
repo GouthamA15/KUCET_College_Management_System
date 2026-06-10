@@ -17,15 +17,17 @@ jobs:
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
 
+      - name: Verify Tailscale Connection
+        run: tailscale status
+
       - name: Deploy via SSH
         run: |
-          # 1. Save the SSH Key
-          echo "${{ secrets.SERVER_SSH_KEY }}" > deploy_key
+          # 1. Save the SSH Key using printf to preserve format exactly
+          printf "%s" "${{ secrets.SERVER_SSH_KEY }}" > deploy_key
           chmod 600 deploy_key
 
-          # 2. Run the deployment via the Tailscale Proxy
-          # We use the ProxyCommand to force SSH through the Tailscale SOCKS5 tunnel
-          ssh -i deploy_key \
+          # 2. Run the deployment with Verbose logs (-v) to see why it closes
+          ssh -v -i deploy_key \
             -o StrictHostKeyChecking=no \
             -o "ProxyCommand=nc -X 5 -x 127.0.0.1:1055 %h %p" \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
