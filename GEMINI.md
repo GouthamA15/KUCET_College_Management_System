@@ -90,6 +90,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 8. Recent Activity Log (June 2026)
 
+#### **Session 155: Auto-Deployment & CI/CD Orchestration (June 10, 2026)**
+- **GitHub Actions CI/CD Pipeline:** Engineered a robust auto-deployment workflow (`.github/workflows/deploy.yml`) that triggers on pushes to the `testvanilla` branch.
+- **Secure SSH Orchestration:** Implemented the `appleboy/ssh-action` to securely log into the self-hosted server, pull the latest code, and orchestrate Docker container restarts.
+- **Restricted Deployment User:** Established a dedicated `deployer` user on the server with limited permissions, added to the `docker` group, and granted ownership of the project directory (`/var/www/kucet-cms`) for enhanced security.
+- **Schema Synchronization:** Integrated automatic `npm run db:push` into the deployment script to ensure database schema changes are applied immediately upon code update.
+- **Infrastructure Cleanup:** Added automatic Docker image pruning to the deployment pipeline to prevent disk space exhaustion on the self-hosted server.
+
 #### **Session 154: High Availability & Sovereign Storage Overhaul (June 10, 2026)**
 - **Sovereign Storage Architecture:** Engineered a high-performance local storage system for the self-hosted environment. Transitioned from database-bloating Base64 storage to a robust filesystem-backed vault (`/app/public/uploads`).
 - **High-Performance Asset Serving:** Optimized Nginx configuration to serve user assets directly via a dedicated `/uploads/` location block, bypassing Node.js overhead and resolving critical image loading latency.

@@ -10,7 +10,7 @@ import {
 } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
 
 export async function GET(req) {
@@ -138,60 +138,89 @@ export async function POST(req) {
         if (encryptedData.aadhaar_no) encryptedData.aadhaar_no = encrypt(encryptedData.aadhaar_no);
     }
     
-    // Upload images to Cloudinary if provided
-    const signatureUrl = signature ? await uploadToCloudinary(signature, 'requests/signatures') : null;
-    const pfpUrl = pfp ? await uploadToCloudinary(pfp, 'requests/pfp') : null;
-    const proofUrl = proof ? await uploadToCloudinary(proof, 'requests/proofs') : null;
+    const storage = getStorageProvider();
+    let signatureUrl = null;
+    let pfpUrl = null;
+    let proofUrl = null;
+    const uploadedPaths = [];
 
-    // Check if there's already a pending request
-    const pending = await db.query.studentProfileRequests.findFirst({
-      where: and(
-        eq(studentProfileRequests.student_id, user.student_id),
-        eq(studentProfileRequests.status, 'pending')
-      )
-    });
-
-    if (pending) {
-      // --- ACTIVE REQUEST GUARD ---
-      const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : {};
-      const newFields = data ? Object.keys(data) : [];
-      const existingFields = Object.keys(existingData);
-      
-      const overlaps = newFields.filter(f => existingFields.includes(f));
-      
-      if (overlaps.length > 0) {
-        return apiError(`You already have a pending request for: ${overlaps.map(f => f.replace(/_/g, ' ')).join(', ')}. Please wait for clerk approval before submitting new changes for these fields.`, 400);
+    try {
+      // Upload images to storage if provided
+      if (signature) {
+        signatureUrl = await storage.upload(signature, 'requests/signatures');
+        uploadedPaths.push(signatureUrl);
+      }
+      if (pfp) {
+        pfpUrl = await storage.upload(pfp, 'requests/pfp');
+        uploadedPaths.push(pfpUrl);
+      }
+      if (proof) {
+        proofUrl = await storage.upload(proof, 'requests/proofs');
+        uploadedPaths.push(proofUrl);
       }
 
-      if (signature && pending.new_signature) {
-        return apiError('You already have a pending signature update request.', 400);
-      }
-      if (pfp && pending.new_pfp) {
-        return apiError('You already have a pending profile photo update request.', 400);
-      }
-
-      // Merge data for non-overlapping fields
-      const mergedData = { ...existingData, ...(encryptedData || {}) };
-
-      // Update existing pending request
-      const updateData = {};
-      if (signatureUrl) updateData.new_signature = signatureUrl;
-      if (pfpUrl) updateData.new_pfp = pfpUrl;
-      if (Object.keys(mergedData).length > 0) updateData.new_data = mergedData;
-      if (proofUrl) updateData.proof_url = proofUrl; // Latest proof replaces old one
-      
-      await db.update(studentProfileRequests)
-        .set(updateData)
-        .where(eq(studentProfileRequests.id, pending.id));
-    } else {
-      // Create a new request (status defaults to 'pending')
-      await db.insert(studentProfileRequests).values({
-        student_id: user.student_id,
-        new_signature: signatureUrl,
-        new_pfp: pfpUrl,
-        new_data: encryptedData || null,
-        proof_url: proofUrl
+      // Check if there's already a pending request
+      const pending = await db.query.studentProfileRequests.findFirst({
+        where: and(
+          eq(studentProfileRequests.student_id, user.student_id),
+          eq(studentProfileRequests.status, 'pending')
+        )
       });
+
+      if (pending) {
+        // --- ACTIVE REQUEST GUARD ---
+        const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : {};
+        const newFields = data ? Object.keys(data) : [];
+        const existingFields = Object.keys(existingData);
+        
+        const overlaps = newFields.filter(f => existingFields.includes(f));
+        
+        if (overlaps.length > 0) {
+          throw new Error(`You already have a pending request for: ${overlaps.map(f => f.replace(/_/g, ' ')).join(', ')}. Please wait for clerk approval before submitting new changes for these fields.`);
+        }
+
+        if (signature && pending.new_signature) {
+          throw new Error('You already have a pending signature update request.');
+        }
+        if (pfp && pending.new_pfp) {
+          throw new Error('You already have a pending profile photo update request.');
+        }
+
+        // Merge data for non-overlapping fields
+        const mergedData = { ...existingData, ...(encryptedData || {}) };
+
+        // Update existing pending request
+        const updateData = {};
+        if (signatureUrl) updateData.new_signature = signatureUrl;
+        if (pfpUrl) updateData.new_pfp = pfpUrl;
+        if (Object.keys(mergedData).length > 0) updateData.new_data = mergedData;
+        if (proofUrl) updateData.proof_url = proofUrl; // Latest proof replaces old one
+        
+        await db.update(studentProfileRequests)
+          .set(updateData)
+          .where(eq(studentProfileRequests.id, pending.id));
+      } else {
+        // Create a new request (status defaults to 'pending')
+        await db.insert(studentProfileRequests).values({
+          student_id: user.student_id,
+          new_signature: signatureUrl,
+          new_pfp: pfpUrl,
+          new_data: encryptedData || null,
+          proof_url: proofUrl
+        });
+      }
+    } catch (dbError) {
+      // Cleanup uploaded files on error to prevent orphaned assets
+      for (const path of uploadedPaths) {
+        try { await storage.delete(path); }
+        catch (delErr) { logger.error({ err: delErr, path }, 'Orphaned student request asset cleanup failed'); }
+      }
+      
+      // If it's a known validation error, return a 400
+      if (dbError.message.includes('You already have a pending')) {
+        return apiError(dbError.message, 400);
+      }
+      throw dbError; // Rethrow to be caught by the outer catch block
     }
 
     // REAL-TIME: Broadcast to admission clerks
