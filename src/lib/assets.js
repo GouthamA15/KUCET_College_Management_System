@@ -57,6 +57,10 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
 
   // 3. Strategy: Local VPS storage (Served by Nginx alias)
   if (process.env.NEXT_PUBLIC_STORAGE_TYPE === 'local') {
+    // If the path is a static asset (starts with 'assets/'), it should not go to /uploads/
+    if (cleanPath.startsWith('assets/')) {
+        return `/${cleanPath}`;
+    }
     return `/uploads/${cleanPath}`;
   }
 
