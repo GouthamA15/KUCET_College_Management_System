@@ -16,35 +16,14 @@ jobs:
         uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          # Enable Tailscale SSH on the GitHub runner
+          ssh: true
 
-      - name: Verify Tailscale Connection
+      - name: Deploy via Tailscale SSH
         run: |
-          tailscale status
-          # Try to resolve the host to ensure MagicDNS or IP is working
-          tailscale ip -4 ${{ secrets.SERVER_HOST }} || echo "Host not found in Tailnet"
-
-      - name: Deploy via SSH
-        run: |
-          # 1. Save the SSH Key using a heredoc to preserve every newline exactly
-          cat << 'EOF' > deploy_key
-          ${{ secrets.SERVER_SSH_KEY }}
-          EOF
-          
-          # 2. Fix permissions and remove any accidental Windows-style line endings
-          chmod 600 deploy_key
-          sed -i 's/\r$//' deploy_key
-
-          # 3. Diagnostic: Print the first line (header) to confirm it's recognized
-          # (This is safe, it doesn't show the secret part)
-          head -n 1 deploy_key
-          ls -l deploy_key
-
-          # 4. Run the deployment
-          ssh -v -i deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o "ProxyCommand=nc -X 5 -x 127.0.0.1:1055 %h %p" \
-            -o ConnectTimeout=30 \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          # Use 'tailscale ssh' which handles authentication automatically
+          # based on your Tailnet identity and the TAILSCALE_AUTHKEY.
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
             cd /var/www/kucet-cms
             git pull origin testvanilla
             docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml up -d --build
