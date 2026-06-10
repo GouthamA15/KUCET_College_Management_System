@@ -19,16 +19,20 @@ jobs:
 
       - name: Deploy via SSH
         run: |
-          # 1. Save the SSH Key to a temporary file
+          # 1. Save the SSH Key
           echo "${{ secrets.SERVER_SSH_KEY }}" > deploy_key
           chmod 600 deploy_key
 
-          # 2. Run the deployment commands on the server
-          # We use -o StrictHostKeyChecking=no because the Tailscale tunnel is private and secure
-          ssh -i deploy_key -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          # 2. Run the deployment via the Tailscale Proxy
+          # We use the ProxyCommand to force SSH through the Tailscale SOCKS5 tunnel
+          ssh -i deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o "ProxyCommand=nc -X 5 -x 127.0.0.1:1055 %h %p" \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
             cd /var/www/kucet-cms
             git pull origin testvanilla
             docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml up -d --build
             docker exec kucet-cms-app npm run db:push
             docker image prune -f
           EOF
+
