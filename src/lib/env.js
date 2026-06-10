@@ -26,8 +26,8 @@ const envSchema = z.object({
 
   // Cloudinary
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
-  CLOUDINARY_API_KEY: z.string().url().optional(),
-  CLOUDINARY_API_SECRET: z.string().url().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
 
   // Supabase (Real-time Messaging - Optional for VPS)
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
