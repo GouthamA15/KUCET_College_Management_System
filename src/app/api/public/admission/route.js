@@ -4,10 +4,10 @@ import { studentAdmissionDrafts, students, clerks, studentPersonalDetails } from
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
-import { uploadToCloudinary } from '@/lib/cloudinary';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { z } from 'zod';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 
 export async function POST(req) {
   try {
@@ -98,15 +98,17 @@ export async function POST(req) {
         }
     }
 
-    // 4. Upload to Cloudinary
+    // 4. Upload to Storage
     let pfpUrl = null;
     let signatureUrl = null;
 
+    const storage = getStorageProvider();
+
     if (pfp) {
-      pfpUrl = await uploadToCloudinary(pfp, 'admission_drafts/pfp');
+      pfpUrl = await storage.upload(pfp, 'admission_drafts/pfp');
     }
     if (signature) {
-      signatureUrl = await uploadToCloudinary(signature, 'admission_drafts/signatures');
+      signatureUrl = await storage.upload(signature, 'admission_drafts/signatures');
     }
 
     // 5. Encrypt Sensitive Fields

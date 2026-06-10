@@ -43,7 +43,7 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   if (!path) return '';
   
   // 1. Handle data URIs, absolute URLs, and local API routes
-  if (path.startsWith('data:') || (path.startsWith('http') && !path.includes('cloudinary.com')) || path.startsWith('/api/')) {
+  if (path.startsWith('data:') || path.startsWith('http') || path.startsWith('/api/')) {
     return path;
   }
 
@@ -55,9 +55,9 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return normalizedPath;
   }
 
-  // 3. Strategy: Local VPS storage proxy
+  // 3. Strategy: Local VPS storage (Served by Nginx alias)
   if (process.env.NEXT_PUBLIC_STORAGE_TYPE === 'local') {
-    return `/api/assets/view/${cleanPath}`;
+    return `/uploads/${cleanPath}`;
   }
 
   // 4. Strategy: Cloudinary (client-safe)

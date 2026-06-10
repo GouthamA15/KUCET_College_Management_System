@@ -10,6 +10,7 @@ import {
 } from '@/db/schema';
 import { eq, or, like, desc } from 'drizzle-orm';
 import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 
 /**
  * Service for Student-related business logic
@@ -249,10 +250,31 @@ export class StudentService {
       }
 
       if (pfp) {
-        await innerTx.insert(studentImages).values({ student_id: studentId, pfp }).onDuplicateKeyUpdate({ set: { pfp } });
+        let pfpPath = pfp;
+        // If it's a data URI, upload it to storage first
+        if (typeof pfp === 'string' && pfp.startsWith('data:')) {
+          try {
+            const storage = getStorageProvider();
+            pfpPath = await storage.upload(pfp, 'students/pfp', roll);
+          } catch (e) {
+            console.error('PFP upload failed during upsert:', e);
+            // Fallback to storing as is if storage fails, though not ideal
+          }
+        }
+        await innerTx.insert(studentImages).values({ student_id: studentId, pfp: pfpPath }).onDuplicateKeyUpdate({ set: { pfp: pfpPath } });
       }
       if (signature) {
-        await innerTx.insert(studentSignatures).values({ student_id: studentId, signature }).onDuplicateKeyUpdate({ set: { signature } });
+        let sigPath = signature;
+        // If it's a data URI, upload it to storage first
+        if (typeof signature === 'string' && signature.startsWith('data:')) {
+          try {
+            const storage = getStorageProvider();
+            sigPath = await storage.upload(signature, 'students/signatures', `${roll}-sig`);
+          } catch (e) {
+            console.error('Signature upload failed during upsert:', e);
+          }
+        }
+        await innerTx.insert(studentSignatures).values({ student_id: studentId, signature: sigPath }).onDuplicateKeyUpdate({ set: { signature: sigPath } });
       }
 
       return studentId;
@@ -310,35 +332,36 @@ export class StudentService {
       })
     ]);
 
+    const storage = getStorageProvider();
     const imageHelper = (val) => {
       if (!val) return null;
+      // If it's already an absolute URL or data URI, return as is
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      
+      // Handle raw base64 strings (legacy)
+      if (typeof val === 'string' && val.length > 1000) {
+        // Try to detect if it's base64. A simple check for common image starts in base64
+        // iVBORw (PNG), /9j/4 (JPEG)
+        if (val.startsWith('iVBORw') || val.startsWith('/9j/4')) {
+          const mimeType = val.startsWith('iVBORw') ? 'image/png' : 'image/jpeg';
+          return `data:${mimeType};base64,${val}`;
+        }
+      }
+
+      // If it's a Buffer (legacy BLOB data), convert to data URI
       if (Buffer.isBuffer(val)) {
-        // Detect MIME type from magic bytes
+        // Detect MIME type from magic bytes...
         let mimeType = 'application/octet-stream';
         if (val.length >= 4) {
           const header = val.slice(0, 12);
-          // PNG: 89 50 4E 47
-          if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) {
-            mimeType = 'image/png';
-          }
-          // JPEG: FF D8 FF
-          else if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) {
-            mimeType = 'image/jpeg';
-          }
-          // GIF: 47 49 46
-          else if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46) {
-            mimeType = 'image/gif';
-          }
-          // WEBP: RIFF...WEBP
-          else if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46 &&
-                   header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50) {
-            mimeType = 'image/webp';
-          }
+          if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) mimeType = 'image/png';
+          else if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) mimeType = 'image/jpeg';
         }
         return `data:${mimeType};base64,${val.toString('base64')}`;
       }
-      return val;
+
+      // Otherwise, treat as a relative path and resolve via provider
+      return storage.getUrl(val);
     };
 
     return {

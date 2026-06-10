@@ -3,7 +3,7 @@ import { studentAdmissionDrafts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
-import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { encrypt, decrypt } from '@/lib/encryption';
 
@@ -26,11 +26,12 @@ export const GET = wrapHandler({
     draft.guardian_mobile = decrypt(draft.guardian_mobile);
     draft.aadhaar_no = decrypt(draft.aadhaar_no);
 
+    const storage = getStorageProvider();
     const imageHelper = (val) => {
       if (!val) return null;
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
       if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
-      return val;
+      return storage.getUrl(val);
     };
 
     if (draft.pfp) draft.pfp = imageHelper(draft.pfp);
@@ -57,6 +58,8 @@ export const PUT = wrapHandler({
     });
     if (!currentDraft) return apiError('Draft not found', 404);
 
+    const storage = getStorageProvider();
+
     // Handle simple status update including rejection
     if (body.status && Object.keys(body).length <= 3) {
         if (!['DRAFT', 'PROCESSED', 'FINALIZED', 'REJECTED'].includes(body.status)) {
@@ -77,8 +80,8 @@ export const PUT = wrapHandler({
             ]
           });
 
-          if (currentDraft.pfp) await deleteFromCloudinary(currentDraft.pfp);
-          if (currentDraft.signature) await deleteFromCloudinary(currentDraft.signature);
+          if (currentDraft.pfp) await storage.delete(currentDraft.pfp);
+          if (currentDraft.signature) await storage.delete(currentDraft.signature);
 
           await db.delete(studentAdmissionDrafts).where(eq(studentAdmissionDrafts.id, id));
 
@@ -93,12 +96,12 @@ export const PUT = wrapHandler({
 
     // Handle full update
     if (body.pfp && body.pfp.startsWith('data:image')) {
-      if (currentDraft?.pfp) await deleteFromCloudinary(currentDraft.pfp);
-      body.pfp = await uploadToCloudinary(body.pfp, 'admission_drafts/pfp');
+      if (currentDraft?.pfp) await storage.delete(currentDraft.pfp);
+      body.pfp = await storage.upload(body.pfp, 'admission_drafts/pfp');
     }
     if (body.signature && body.signature.startsWith('data:image')) {
-      if (currentDraft?.signature) await deleteFromCloudinary(currentDraft.signature);
-      body.signature = await uploadToCloudinary(body.signature, 'admission_drafts/signatures');
+      if (currentDraft?.signature) await storage.delete(currentDraft.signature);
+      body.signature = await storage.upload(body.signature, 'admission_drafts/signatures');
     }
 
     const allowedFields = [

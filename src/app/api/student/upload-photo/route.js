@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { students, studentImages } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 
 export async function POST(req) {
   const user = await getAuthUser('student');
@@ -22,19 +23,28 @@ export async function POST(req) {
     if (!student) return apiError('Student not found', 404);
     const studentId = student.id;
 
+    const storage = getStorageProvider();
+
     if (pfp) {
-      // NOTE: Original code converted to Buffer. If the column is TEXT, 
-      // it might be better to store as data URL or Cloudinary URL.
-      // Maintaining original logic:
-      const pfpValue = Buffer.from(pfp.split(',')[1], 'base64');
+      // 1. Upload to storage (Cloudinary or Local VPS)
+      // This returns a relative path (e.g., 'kucet/students/pfp/rollno.jpg')
+      const uploadedPath = await storage.upload(pfp, 'students/pfp', roll_no);
       
+      // 2. Store the PATH in the database (efficient)
       await db.insert(studentImages)
         .values({
           student_id: studentId,
-          pfp: pfpValue.toString('base64') // Storing as base64 string for TEXT column
+          pfp: uploadedPath
         })
-        .onDuplicateKeyUpdate({ set: { pfp: pfpValue.toString('base64') } });
+        .onDuplicateKeyUpdate({ set: { pfp: uploadedPath } });
     } else {
+      // Handle deletion
+      const existing = await db.query.studentImages.findFirst({
+        where: eq(studentImages.student_id, studentId)
+      });
+      if (existing?.pfp) {
+        await storage.delete(existing.pfp);
+      }
       await db.delete(studentImages).where(eq(studentImages.student_id, studentId));
     }
 

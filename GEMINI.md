@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** June 9, 2026 (Session 152)
+**Last Updated:** June 10, 2026 (Session 154)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -90,10 +90,18 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 8. Recent Activity Log (June 2026)
 
-#### **Session 153: Deployment Sovereignty & Asset Restoration (June 10, 2026)**
+#### **Session 154: High Availability & Sovereign Storage Overhaul (June 10, 2026)**
+- **Sovereign Storage Architecture:** Engineered a high-performance local storage system for the self-hosted environment. Transitioned from database-bloating Base64 storage to a robust filesystem-backed vault (`/app/public/uploads`).
+- **High-Performance Asset Serving:** Optimized Nginx configuration to serve user assets directly via a dedicated `/uploads/` location block, bypassing Node.js overhead and resolving critical image loading latency.
+- **Unified Storage Provider:** Developed a strategic `StorageProvider` abstraction, enabling seamless switching between Cloudinary and Local VPS storage via environment variables (`NEXT_PUBLIC_STORAGE_TYPE`).
+- **Data Integrity & Migration:** Created a surgical migration utility (`src/db/migrate-images-to-local.js`) to offload existing Base64 images from the database to the filesystem, restoring system performance.
+- **Engagement Infrastructure:** Hardened the "Always Active" experience by integrating Uptime Kuma monitoring with institutional health checks and refining the PWA's aggressive caching and zombie-connection recovery.
+
+#### **Session 153: Deployment Sovereignty, Storage Unification & Asset Restoration (June 10, 2026)**
 - **Deployment Documentation:** Engineered the `MASTER_DEPLOYMENT_GUIDE.md` for zero-ambiguity local self-hosting execution.
-- **Asset Migration Path:** Defined the "Cloudy Style" restoration workflow, enabling the transfer and extraction of Cloudinary ZIP backups into the local `/var/www/kucet-storage/public` volume.
-- **Architecture Hardening:** Formalized the local storage mapping strategy in `docker-compose.yml` to ensure separation between public assets (Nginx served) and private authenticated records.
+- **Storage Architecture Refactor:** Eliminated the dual public/private storage split. Unified all asset storage into a single robust vault (`/var/www/kucet-storage/public`), drastically simplifying permissions and volume management.
+- **Network Resilience:** Resolved a critical startup crash by removing Nginx's binding to Port 443, eliminating a direct conflict with Tailscale's local HTTPS funnel. Cloudflare Tunnel securely handles external HTTPS on Port 80.
+- **Asset Migration & Organization:** Successfully uploaded a full 68MB local backup (`kucet_full.zip`) via SCP. Extracted and systematically mapped static public assets to the vault root while mapping all user-uploaded data (`admission_drafts`, `students`, `clerks`, etc.) into a dedicated `kucet/` subdirectory to maintain Cloudinary path parity.
 - **Knowledge Persistence:** Centralized all self-hosting context into `GEMINI.md` as the primary architectural reference.
 
 #### **Session 152: Global Image Standardization (June 9, 2026)**
