@@ -97,9 +97,11 @@ export async function GET(req, context) {
         // Detect Mime Type
         let mimeType = 'image/jpeg';
         if (fileBuffer.length >= 4) {
-            if (fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50) mimeType = 'image/png';
-            else if (fileBuffer[0] === 0x52 && fileBuffer[1] === 0x49) mimeType = 'image/webp';
-            else if (fileBuffer[0] === 0x47 && fileBuffer[1] === 0x49) mimeType = 'image/gif';
+            const hex = fileBuffer.toString('hex', 0, 4).toUpperCase();
+            if (hex.startsWith('89504E47')) mimeType = 'image/png';
+            else if (fileBuffer.toString('ascii', 0, 3) === 'GIF') mimeType = 'image/gif';
+            else if (fileBuffer.toString('ascii', 0, 4) === 'RIFF' && fileBuffer.length >= 12 && fileBuffer.toString('ascii', 8, 12) === 'WEBP') mimeType = 'image/webp';
+            else if (hex.startsWith('FFD8FF')) mimeType = 'image/jpeg';
         } else {
             const ext = path.extname(resolvedPath).toLowerCase();
             if (ext === '.png') mimeType = 'image/png';

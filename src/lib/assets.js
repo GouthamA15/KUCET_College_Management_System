@@ -14,7 +14,6 @@ const STATIC_ASSETS = [
   '/assets/ku-logo.png',
   '/assets/ku-college-logo.png',
   '/assets/Naac_A+.png',
-  '/assets/Naac_A .png',
   '/assets/kakatiya-kala-thoranam.png',
   '/assets/rudramadevi_statue.jpg',
   '/assets/college-campus.jpg',

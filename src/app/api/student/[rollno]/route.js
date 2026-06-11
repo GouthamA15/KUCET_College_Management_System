@@ -10,12 +10,10 @@ export async function GET(req, context) {
     return apiError('Unauthorized', 401);
   }
 
+  let rollno = 'UNKNOWN';
   try {
     const params = await context.params;
-    let { rollno } = params;
-
-    // Normalize
-    rollno = String(rollno || '').trim().toUpperCase();
+    rollno = String(params.rollno || '').trim().toUpperCase();
 
     // SECURITY GUARD: A student can ONLY access their own profile.
     // Staff (clerk/admin) can access any profile.
@@ -34,7 +32,7 @@ export async function GET(req, context) {
 
     return apiResponse(profile);
   } catch (error) {
-    logger.error({ err: error.message, rollno: context.params?.rollno }, 'Error fetching student profile data');
+    logger.error({ err: error.message, rollno }, 'Error fetching student profile data');
     return apiError('Failed to fetch student profile data', 500, error.message);
   }
 }
