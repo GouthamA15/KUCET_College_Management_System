@@ -91,11 +91,12 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 8. Recent Activity Log (June 2026)
 
 #### **Session 157: Legacy Asset Recovery & Storage Resilience (June 11, 2026)**
+- **Certificate Engine Asset Embedding:** Fixed React-PDF generation to fetch institutional assets (Principal signature, college seal) dynamically from the local storage volume instead of strictly from the static repository `public/` directory, resolving missing images in downloaded certificates.
 - **Legacy Path Recovery:** Engineered an intelligent "Path Discovery" layer in `getAssetUrl` and `LocalStorageProvider` that automatically recovers legacy Cloudinary IDs by re-mapping them to the correct institutional folders (`kucet/students/pfp/`).
 - **Filesystem Permission Hardening:** Standardized directory (`755`) and file (`644`) permission masks in `LocalStorageProvider` to ensure cross-container Nginx readability in self-hosted environments.
 - **Environment Sanitization:** Hardened `env.js` with automatic trimming and sanitization of `LOCAL_STORAGE_PATH` to prevent service crashes caused by stray characters (spaces/dots) in institutional `.env` files.
-- **Nginx Fallback Strategy:** Implemented a robust `try_files` fallback in Nginx that attempts high-speed filesystem serving but automatically proxies to the app's internal asset API if permissions or paths fail.
-- **Asset Normalization:** Fixed naming inconsistencies for institutional static assets (NAAC logo) to ensure 100% load reliability across both local and production environments.
+- **Nginx Fallback Strategy:** Implemented a robust `try_files` fallback in Nginx that attempts high-speed filesystem serving but automatically proxies to the app's internal asset API if permissions or paths fail, and refined volume mappings explicitly using `alias`.
+- **Code Quality & Validation:** Handled trailing promises in logging, hardened magic-bytes detection for WebP and GIF formats, and fixed naming inconsistencies for institutional static assets (NAAC logo).
 
 #### **Session 156: Asset Resilience & Storage Hardening (June 11, 2026)**
 - **Global Upload Standardization:** Doubled the system-wide upload limit to **2.00MB** across all modules (Admission, Payments, Profiles, Bug Reporting) to accommodate high-resolution mobile screenshots and modern profile photos.
