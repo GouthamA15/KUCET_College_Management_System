@@ -148,17 +148,32 @@ export async function GET(request, context) {
                     imageBuffer = Buffer.from(arrayBuffer);
                 } else {
                     const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
-                    const fullPath = path.join(process.cwd(), 'public', cleanPath);
-                    if (!fs.existsSync(fullPath)) return null;
+                    
+                    // 1. Try repository static folder
+                    let fullPath = path.join(process.cwd(), 'public', cleanPath);
+                    
+                    if (!fs.existsSync(fullPath)) {
+                        // 2. Try storage volume (strip 'assets/' prefix if it's there as institutional assets are often in root of volume)
+                        const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/app/public/uploads';
+                        const volumePath = cleanPath.startsWith('assets/') ? cleanPath.substring(7) : cleanPath;
+                        fullPath = path.resolve(STORAGE_PATH, volumePath);
+                        
+                        if (!fs.existsSync(fullPath)) {
+                            // 3. Try with 'assets/' prefix in storage volume
+                            fullPath = path.resolve(STORAGE_PATH, cleanPath);
+                            if (!fs.existsSync(fullPath)) return null;
+                        }
+                    }
                     imageBuffer = fs.readFileSync(fullPath);
                 }
                 if (!imageBuffer || imageBuffer.length < 4) return null;
 
                 let mimeType = 'image/png';
-                if (imageBuffer[0] === 0xFF && imageBuffer[1] === 0xD8) mimeType = 'image/jpeg';
-                else if (imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50) mimeType = 'image/png';
-                else if (imageBuffer.slice(0,4).toString('ascii') === 'GIF8') mimeType = 'image/gif';
-                else if (imageBuffer.slice(0,4).toString('ascii') === 'RIFF') mimeType = 'image/webp';
+                const hex = imageBuffer.toString('hex', 0, 4).toUpperCase();
+                if (hex.startsWith('FFD8FF')) mimeType = 'image/jpeg';
+                else if (hex.startsWith('89504E47')) mimeType = 'image/png';
+                else if (imageBuffer.toString('ascii', 0, 3) === 'GIF') mimeType = 'image/gif';
+                else if (imageBuffer.toString('ascii', 0, 4) === 'RIFF') mimeType = 'image/webp';
 
                 return `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
             } catch (err) {
@@ -170,7 +185,10 @@ export async function GET(request, context) {
         const collegeLogoUrl = await getBase64Image(getAssetUrl('/assets/ku-college-logo.png')) || logoUrl;
         const signatureUrl = await getBase64Image(getAssetUrl('/assets/principal-sign.png'));
         const stampUrl = await getBase64Image(getAssetUrl('/assets/ku-college-seal.png'));
-        const stampSign = await getBase64Image(getAssetUrl('/assets/principal-sign-stamp.png')) || signatureUrl;
+        // Try both dash and CamelCase versions for the stamp sign
+        const stampSign = await getBase64Image(getAssetUrl('/assets/principal-signStamp.png')) || 
+                          await getBase64Image(getAssetUrl('/assets/principal-sign-stamp.png')) || 
+                          signatureUrl;
 
         const formatDate = (d) => {
             if (!d) return '';
