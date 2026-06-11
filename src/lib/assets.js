@@ -42,8 +42,8 @@ const STATIC_ASSETS = [
 export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   if (!path) return '';
   
-  // 1. Handle data URIs, absolute URLs, and local API routes
-  if (path.startsWith('data:') || path.startsWith('http') || path.startsWith('/api/')) {
+  // 1. Handle data URIs, absolute URLs, and local API routes (including resolved local storage paths)
+  if (path.startsWith('data:') || path.startsWith('http') || path.startsWith('/api/') || path.startsWith('/uploads/')) {
     return path;
   }
 
@@ -61,12 +61,14 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     if (cleanPath.startsWith('assets/')) {
         return `/${cleanPath}`;
     }
+
+    // Ensure path is normalized for local storage
+    // If it's a legacy Cloudinary-style ID without folders, we assume it's in the root of uploads
+    // unless it was migrated to a specific folder.
     
     // In production, Nginx serves /uploads/ directly. In dev, we use the proxy.
-    if (process.env.NODE_ENV === 'production') {
-        return `/uploads/${cleanPath}`;
-    }
-    return `/api/assets/view/${cleanPath}`;
+    const prefix = process.env.NODE_ENV === 'production' ? '/uploads' : '/api/assets/view';
+    return `${prefix}/${cleanPath}`;
   }
 
   // 4. Strategy: Cloudinary (client-safe)
@@ -79,7 +81,8 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     resourceType = 'raw';
   }
 
-  const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
+  // For Cloudinary, we always want the 'kucet/' prefix unless it's already there
+  const finalPath = cleanPath.includes('/') ? cleanPath : `kucet/public/${cleanPath}`;
   return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
 }
 

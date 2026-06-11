@@ -97,6 +97,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Schema Synchronization:** Integrated automatic `npm run db:push` into the deployment script to ensure database schema changes are applied immediately upon code update.
 - **Infrastructure Cleanup:** Added automatic Docker image pruning to the deployment pipeline to prevent disk space exhaustion on the self-hosted server.
 
+#### **Session 155: Auto-Deployment & Tailscale SSH Orchestration (June 10, 2026)**
+- **Tailscale SSH CI/CD Pipeline:** Successfully engineered a 100% automated deployment workflow (`.github/workflows/deploy.yml`) using Tailscale SSH.
+- **Verification Bypass:** Configured Tailscale ACLs with `action: accept` for `tag:ci` to eliminate manual browser verification links, enabling true "lights-out" automation.
+- **Identity-Based Auth:** Transitioned from manual SSH keys to Tailnet-based identity authentication, leveraging `tag:ci` for the GitHub runner and `tag:server` for the self-hosted HP Pro Tower.
+- **Docker Orchestration:** Verified the automatic pulling of code, rebuilding of containers, and database schema synchronization (`npm run db:push`) via the private tunnel.
+- **Infrastructure Documentation:** Created `DEPLOYMENT_PACKAGE/CI_CD_GUIDE.md` with the finalized Tailscale ACL JSON structure and tagging instructions.
+
 #### **Session 154: High Availability & Sovereign Storage Overhaul (June 10, 2026)**
 - **Sovereign Storage Architecture:** Engineered a high-performance local storage system for the self-hosted environment. Transitioned from database-bloating Base64 storage to a robust filesystem-backed vault (`/app/public/uploads`).
 - **High-Performance Asset Serving:** Optimized Nginx configuration to serve user assets directly via a dedicated `/uploads/` location block, bypassing Node.js overhead and resolving critical image loading latency.

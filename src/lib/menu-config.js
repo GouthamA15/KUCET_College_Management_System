@@ -45,7 +45,6 @@ export const NAV_MENU_CONFIG = {
     { label: 'DEPARTMENTS', route: '/clerk/departments' },
     { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
     { label: 'TIME TABLE', route: '/clerk/timetable' },
-    { label: 'FACULTIES', route: '/clerk/faculties' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }
@@ -60,7 +59,6 @@ export const NAV_MENU_CONFIG = {
     { label: 'VERIFICATION', route: '/clerk/scholarship/dashboard?view=certificates&scroll=1' },
     { label: 'DEPARTMENTS', route: '/clerk/departments' },
     { label: 'TIME TABLE', route: '/clerk/timetable' },
-    { label: 'FACULTIES', route: '/clerk/faculties' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }

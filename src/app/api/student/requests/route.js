@@ -226,7 +226,7 @@ export async function POST(request) {
     if (isFileValid) {
       const MAX_SIZE = 1 * 1024 * 1024;
       if (paymentScreenshotFile.size > MAX_SIZE) {
-        return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);
+        return apiError(`Screenshot too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Max 1MB allowed.`, 400);
       }
 
       const storage = getStorageProvider();

@@ -7,11 +7,33 @@ export default class LocalStorageProvider extends StorageProvider {
   constructor() {
     super();
     this.storagePath = process.env.LOCAL_STORAGE_PATH || '/app/public/uploads';
+    
+    // Perform a basic writability check on startup (server-side only)
+    if (typeof window === 'undefined') {
+        this._checkWritability();
+    }
+  }
+
+  async _checkWritability() {
+    try {
+        const testFile = path.join(this.storagePath, '.write-test');
+        await fs.mkdir(this.storagePath, { recursive: true });
+        await fs.writeFile(testFile, 'test');
+        await fs.unlink(testFile);
+        logger.info({ tag: 'STORAGE_WRITABLE', path: this.storagePath }, '✅ Local storage volume is writable');
+    } catch (e) {
+        logger.error({ 
+            tag: 'STORAGE_NOT_WRITABLE', 
+            path: this.storagePath, 
+            error: e.message,
+            instruction: 'Ensure the host directory has correct permissions: chown -R 1001:1001 /var/www/kucet-storage'
+        }, '❌ Local storage volume is NOT writable. Uploads will fail.');
+    }
   }
 
   getUrl(path) {
     if (!path) return '';
-    if (path.startsWith('data:') || path.startsWith('http') || path.startsWith('/api/')) return path;
+    if (path.startsWith('data:') || path.startsWith('http') || path.startsWith('/api/') || path.startsWith('/uploads/')) return path;
     const cleanPath = path.startsWith('/') ? path.substring(1) : path;
     
     // In production, we prefer direct /uploads/ access served by Nginx
@@ -52,9 +74,10 @@ export default class LocalStorageProvider extends StorageProvider {
         throw new Error('Unsupported file format for local storage');
       }
 
-      // SECURITY: Enforce 1MB limit for image uploads
-      if (buffer.length > 1 * 1024 * 1024) {
-        throw new Error('File too large. Maximum allowed is 1MB.');
+      // SECURITY: Enforce 1MB limit for image uploads (raised from 512KB to accommodate high-res mobile screenshots)
+      const MAX_SIZE = 1 * 1024 * 1024;
+      if (buffer.length > MAX_SIZE) {
+        throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1.00MB.`);
       }
 
       // 2. Prepare paths
@@ -68,10 +91,15 @@ export default class LocalStorageProvider extends StorageProvider {
       // 4. Write file
       await fs.writeFile(absolutePath, buffer);
 
-      logger.info({ tag: 'LOCAL_UPLOAD_SUCCESS', path: relativePath }, 'File uploaded to local storage');
+      logger.info({ tag: 'LOCAL_UPLOAD_SUCCESS', path: relativePath, absolute: absolutePath }, 'File uploaded to local storage');
       return relativePath;
     } catch (error) {
-      logger.error({ err: error, tag: 'LOCAL_UPLOAD_ERROR' }, 'Failed to upload to local storage');
+      logger.error({ 
+        err: error, 
+        tag: 'LOCAL_UPLOAD_ERROR', 
+        path: folder, 
+        storagePath: this.storagePath 
+      }, `Failed to upload to local storage: ${error.message}`);
       throw new Error(`Local storage upload failed: ${error.message}`);
     }
   }
