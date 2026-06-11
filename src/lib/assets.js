@@ -67,12 +67,17 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
         return `/${cleanPath}`;
     }
 
+    // STRIP CLOUDINARY VERSION PREFIX (e.g., v1778170721/)
+    // These are legacy version strings from migrations that don't exist in local storage.
+    let resolvedPath = cleanPath;
+    if (resolvedPath.match(/^v\d+\//)) {
+        resolvedPath = resolvedPath.replace(/^v\d+\//, '');
+    }
+
     // LEGACY CLOUDINARY ID RECOVERY
     // If the path has no slash, it's likely a legacy Cloudinary ID from a migration.
-    // In the self-host volume, these are organized under kucet/students/pfp/
-    let resolvedPath = cleanPath;
-    if (!cleanPath.includes('/')) {
-        resolvedPath = `kucet/students/pfp/${cleanPath}`;
+    if (!resolvedPath.includes('/')) {
+        resolvedPath = `kucet/students/pfp/${resolvedPath}`;
     }
 
     // In production, Nginx serves /uploads/ directly. In dev, we use the proxy.

@@ -40,7 +40,13 @@ export default class LocalStorageProvider extends StorageProvider {
         return `/${path}`;
     }
 
-    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    const rawPath = path.startsWith('/') ? path.substring(1) : path;
+    
+    // STRIP CLOUDINARY VERSION PREFIX (e.g., v1778170721/)
+    let cleanPath = rawPath;
+    if (cleanPath.match(/^v\d+\//)) {
+      cleanPath = cleanPath.replace(/^v\d+\//, '');
+    }
     
     // LEGACY CLOUDINARY ID RECOVERY (Matches getAssetUrl logic)
     // If the path has no slash, it's likely a legacy Cloudinary ID from a migration.
