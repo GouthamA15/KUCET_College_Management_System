@@ -230,7 +230,7 @@ export async function POST(request) {
       }
 
       const storage = getStorageProvider();
-      const screenshotUrl = await storage.upload(paymentScreenshotFile, "certificates/payments");
+      const screenshotUrl = await storage.upload(paymentScreenshotFile, "requests/payments");
       
       if (screenshotUrl) {
         await db.insert(studentRequestImages)

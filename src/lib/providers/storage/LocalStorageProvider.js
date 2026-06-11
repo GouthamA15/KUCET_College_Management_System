@@ -50,6 +50,7 @@ export default class LocalStorageProvider extends StorageProvider {
     
     // LEGACY CLOUDINARY ID RECOVERY (Matches getAssetUrl logic)
     // If the path has no slash, it's likely a legacy Cloudinary ID from a migration.
+    // In the self-host volume, these are organized under kucet/students/pfp/
     let resolvedPath = cleanPath;
     if (!cleanPath.includes('/')) {
         resolvedPath = `kucet/students/pfp/${cleanPath}`;
@@ -100,6 +101,7 @@ export default class LocalStorageProvider extends StorageProvider {
       }
 
       // 2. Prepare paths
+      // In the local sovereign volume, everything is grouped under 'kucet/' to mirror Cloudinary structure
       const relativePath = path.join('kucet', folder, `${filename}${extension}`).replace(/\\/g, '/');
       const absolutePath = path.join(this.storagePath, relativePath);
       const directory = path.dirname(absolutePath);
@@ -114,11 +116,16 @@ export default class LocalStorageProvider extends StorageProvider {
       return relativePath;
     } catch (error) {
       logger.error({ 
-        err: error, 
+        err: error.message, 
         tag: 'LOCAL_UPLOAD_ERROR', 
         path: folder, 
-        storagePath: this.storagePath 
+        storagePath: this.storagePath,
+        code: error.code
       }, `Failed to upload to local storage: ${error.message}`);
+      
+      if (error.code === 'EACCES' || error.code === 'EPERM') {
+          throw new Error(`Permission denied: The server (UID 1001) cannot write to ${this.storagePath}. Run: chown -R 1001:1001 /var/www/kucet-storage`);
+      }
       throw new Error(`Local storage upload failed: ${error.message}`);
     }
   }
