@@ -90,6 +90,20 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 8. Recent Activity Log (June 2026)
 
+#### **Session 157: Legacy Asset Recovery & Storage Resilience (June 11, 2026)**
+- **Legacy Path Recovery:** Engineered an intelligent "Path Discovery" layer in `getAssetUrl` and `LocalStorageProvider` that automatically recovers legacy Cloudinary IDs by re-mapping them to the correct institutional folders (`kucet/students/pfp/`).
+- **Filesystem Permission Hardening:** Standardized directory (`755`) and file (`644`) permission masks in `LocalStorageProvider` to ensure cross-container Nginx readability in self-hosted environments.
+- **Environment Sanitization:** Hardened `env.js` with automatic trimming and sanitization of `LOCAL_STORAGE_PATH` to prevent service crashes caused by stray characters (spaces/dots) in institutional `.env` files.
+- **Nginx Fallback Strategy:** Implemented a robust `try_files` fallback in Nginx that attempts high-speed filesystem serving but automatically proxies to the app's internal asset API if permissions or paths fail.
+- **Asset Normalization:** Fixed naming inconsistencies for institutional static assets (NAAC logo) to ensure 100% load reliability across both local and production environments.
+
+#### **Session 156: Asset Resilience & Storage Hardening (June 11, 2026)**
+- **Global Upload Standardization:** Doubled the system-wide upload limit to **2.00MB** across all modules (Admission, Payments, Profiles, Bug Reporting) to accommodate high-resolution mobile screenshots and modern profile photos.
+- **Storage Diagnostics:** Engineered a "Startup Health Check" in `LocalStorageProvider` that verifies volume writability on server boot, providing proactive feedback for self-hosted permission conflicts (UID 1001).
+- **Asset URL Resilience:** Hardened `getAssetUrl` with intelligent path normalization to prevent "double-prefixing" regressions during the transition to local sovereign storage.
+- **Clerk Portal Optimization:** Purged defunct navigation routes (e.g., `/clerk/faculties`) from the menu configuration to eliminate 404 dead-ends and streamline institutional workflows.
+- **Security Artifact Cleanup:** Investigated and confirmed `share-modal.js` as a legacy/cached artifact, ensuring codebase hygiene.
+
 #### **Session 155: Auto-Deployment & CI/CD Orchestration (June 10, 2026)**
 - **GitHub Actions CI/CD Pipeline:** Engineered a robust auto-deployment workflow (`.github/workflows/deploy.yml`) that triggers on pushes to the `testvanilla` branch.
 - **Secure SSH Orchestration:** Implemented the `appleboy/ssh-action` to securely log into the self-hosted server, pull the latest code, and orchestrate Docker container restarts.
@@ -123,9 +137,9 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Knowledge Persistence:** Centralized all self-hosting context into `GEMINI.md` as the primary architectural reference.
 
 #### **Session 152: Global Image Standardization (June 9, 2026)**
-- **Image Upload Hardening:** Standardized all image upload size limits to strictly **less than 1MB** project-wide. 
+- **Image Upload Hardening:** Standardized all image upload size limits to strictly **less than 2MB** project-wide. 
 - **Institutional Alignment:** Synchronized limits across the Admission Portal, Clerk Student Management, and Developer Bug Reporting modules to ensure infrastructure cost-efficiency and performance.
-- **UX & Validation:** Updated client-side validation logic and UI hints to provide immediate feedback on the new 1MB threshold, reducing server-side rejection overhead.
+- **UX & Validation:** Updated client-side validation logic and UI hints to provide immediate feedback on the new 2MB threshold, reducing server-side rejection overhead.
 
 #### **Session 151: Security Hardening & Financial Alignment (June 9, 2026)**
 - **Security Hardening:** Transitioned from insecure `Math.random()` to `crypto.getRandomValues()` for the `generateStrongPassword` utility, incorporating a secure Fisher-Yates shuffle for password permutations.

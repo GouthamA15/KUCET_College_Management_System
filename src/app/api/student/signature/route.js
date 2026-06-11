@@ -18,12 +18,19 @@ export async function GET(req) {
   if (!user) return apiError('Unauthorized', 401);
 
   try {
+    const storage = getStorageProvider();
+    
     // Helper to handle both URLs and legacy Buffer data
     const imageHelper = (val) => {
       if (!val) return null;
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
       if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
-      return val;
+      
+      try {
+        return storage.getUrl(val);
+      } catch (e) {
+        return val;
+      }
     };
     
     // 1. Fetch current signature

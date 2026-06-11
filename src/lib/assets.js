@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
   '/assets/ku-logo.png',
   '/assets/ku-college-logo.png',
   '/assets/Naac_A+.png',
+  '/assets/Naac_A .png',
   '/assets/kakatiya-kala-thoranam.png',
   '/assets/rudramadevi_statue.jpg',
   '/assets/college-campus.jpg',
@@ -47,6 +48,11 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return path;
   }
 
+  // 1.5 Handle paths that start with 'uploads/' but missing leading slash
+  if (path.startsWith('uploads/')) {
+    return `/${path}`;
+  }
+
   // 2. Normalize path and check for static assets
   const cleanPath = path.startsWith('/') ? path.substring(1) : path;
   const normalizedPath = `/${cleanPath}`;
@@ -62,13 +68,17 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
         return `/${cleanPath}`;
     }
 
-    // Ensure path is normalized for local storage
-    // If it's a legacy Cloudinary-style ID without folders, we assume it's in the root of uploads
-    // unless it was migrated to a specific folder.
-    
+    // LEGACY CLOUDINARY ID RECOVERY
+    // If the path has no slash, it's likely a legacy Cloudinary ID from a migration.
+    // In the self-host volume, these are organized under kucet/students/pfp/
+    let resolvedPath = cleanPath;
+    if (!cleanPath.includes('/')) {
+        resolvedPath = `kucet/students/pfp/${cleanPath}`;
+    }
+
     // In production, Nginx serves /uploads/ directly. In dev, we use the proxy.
     const prefix = process.env.NODE_ENV === 'production' ? '/uploads' : '/api/assets/view';
-    return `${prefix}/${cleanPath}`;
+    return `${prefix}/${resolvedPath}`;
   }
 
   // 4. Strategy: Cloudinary (client-safe)

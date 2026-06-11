@@ -34,15 +34,28 @@ export default class LocalStorageProvider extends StorageProvider {
   getUrl(path) {
     if (!path) return '';
     if (path.startsWith('data:') || path.startsWith('http') || path.startsWith('/api/') || path.startsWith('/uploads/')) return path;
+    
+    // Handle paths that start with 'uploads/' but missing leading slash
+    if (path.startsWith('uploads/')) {
+        return `/${path}`;
+    }
+
     const cleanPath = path.startsWith('/') ? path.substring(1) : path;
     
+    // LEGACY CLOUDINARY ID RECOVERY (Matches getAssetUrl logic)
+    // If the path has no slash, it's likely a legacy Cloudinary ID from a migration.
+    let resolvedPath = cleanPath;
+    if (!cleanPath.includes('/')) {
+        resolvedPath = `kucet/students/pfp/${cleanPath}`;
+    }
+
     // In production, we prefer direct /uploads/ access served by Nginx
     if (process.env.NODE_ENV === 'production') {
-      return `/uploads/${cleanPath}`;
+      return `/uploads/${resolvedPath}`;
     }
     
     // In development or as fallback, use the API proxy
-    return `/api/assets/view/${cleanPath}`;
+    return `/api/assets/view/${resolvedPath}`;
   }
 
   async upload(file, folder, publicId) {
@@ -74,7 +87,7 @@ export default class LocalStorageProvider extends StorageProvider {
         throw new Error('Unsupported file format for local storage');
       }
 
-      // SECURITY: Enforce 1MB limit for image uploads (raised from 512KB to accommodate high-res mobile screenshots)
+      // SECURITY: Enforce 1MB limit for image uploads
       const MAX_SIZE = 1 * 1024 * 1024;
       if (buffer.length > MAX_SIZE) {
         throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1.00MB.`);
@@ -85,11 +98,11 @@ export default class LocalStorageProvider extends StorageProvider {
       const absolutePath = path.join(this.storagePath, relativePath);
       const directory = path.dirname(absolutePath);
 
-      // 3. Ensure directory exists
-      await fs.mkdir(directory, { recursive: true });
+      // 3. Ensure directory exists (with 755 permissions for Nginx access)
+      await fs.mkdir(directory, { recursive: true, mode: 0o755 });
 
-      // 4. Write file
-      await fs.writeFile(absolutePath, buffer);
+      // 4. Write file (with 644 permissions for Nginx access)
+      await fs.writeFile(absolutePath, buffer, { mode: 0o644 });
 
       logger.info({ tag: 'LOCAL_UPLOAD_SUCCESS', path: relativePath, absolute: absolutePath }, 'File uploaded to local storage');
       return relativePath;
