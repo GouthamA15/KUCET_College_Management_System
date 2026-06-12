@@ -5,19 +5,19 @@ export const NAV_MENU_CONFIG = {
     { label: 'STAFF LOGIN', action: 'open-panel-clerk' }
   ],
   student: [
-    { label: 'HOME', route: '/student' },
+    // { label: 'HOME', route: '/student' },
     { label: 'PROFILE', route: '/student/profile' },
-    { label: 'ACADEMICS', route: '/student/academics' },
+    // { label: 'ACADEMICS', route: '/student/academics' },
     { label: 'FEES', route: '/student/finances' },
-    { label: 'TIME TABLE', route: '/student/timetable' },
+    // { label: 'TIME TABLE', route: '/student/timetable' },
     { label: 'REQUESTS', children: [
         { label: 'Certificates', route: '/student/requests/certificates' },
         { label: 'Profile Updates', route: '/student/requests/profile-updates' },
-        { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
+        // { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
       ]
     },
     { label: 'MENU', children: [
-        { label: 'Edit Profile', route: '/student/settings/edit-profile' },
+        // { label: 'Edit Profile', route: '/student/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/student/settings/security' }
       ]
     }

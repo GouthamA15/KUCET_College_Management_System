@@ -137,7 +137,7 @@ function buildMenuItems({ effectiveRole, studentData }) {
 
     if (!isStudentVerified) {
       return [
-        { label: 'HOME', route: '/student' },
+        // { label: 'HOME', route: '/student' },
         { label: 'PROFILE', route: '/student/profile' },
         {
           label: 'MENU',
