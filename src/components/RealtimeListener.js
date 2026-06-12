@@ -185,13 +185,13 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     console.log('📡 [Realtime Event]', event, payload);
 
     if (event === 'TIMETABLE_CHANGED') {
-      if (sData?.branch === payload.branch) {
+      if (sData?.student?.branch === payload.branch || sData?.branch === payload.branch) {
         toast.success('Your timetable has been updated!', { id: 'timetable-update' });
       }
     }
 
     if (event === 'SESSION_STARTED') {
-      if (sData?.branch === payload.branch) {
+      if (sData?.student?.branch === payload.branch || sData?.branch === payload.branch) {
         toast('🚀 New Attendance Session Started!', { icon: '📝', duration: 10000, id: payload.sessionId });
       }
     }
@@ -200,8 +200,18 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
       if (cData && payload.clerkType === cData.role) {
          toast(`New request: ${payload.certificate_type}`, { icon: '🔔' });
       }
-      if (sData && payload.student_id === sData.id) {
-         toast(`Request status updated: ${payload.certificate_type}`, { icon: '📄' });
+      if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
+         const statusMsg = payload.status === 'APPROVED' ? 'approved ✅' : 'rejected ❌';
+         toast(`Certificate ${statusMsg}: ${payload.certificate_type}`, { icon: '📄', duration: 6000 });
+      }
+    }
+
+    if (event === 'PAYMENT_RECORDED') {
+      if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
+        toast.success(`Fee Payment Recorded: ₹${payload.amount.toLocaleString()}`, { 
+          icon: '💰',
+          duration: 8000 
+        });
       }
     }
   }, []);

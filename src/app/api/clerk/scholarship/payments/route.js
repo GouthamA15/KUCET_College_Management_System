@@ -151,6 +151,19 @@ export async function POST(req) {
       await IdempotencyService.complete(idempotencyKey, 201, responseData);
     }
 
+    // REAL-TIME BROADCAST: Notify the student that a payment has been recorded
+    try {
+      const { broadcastUpdate } = await import('@/lib/sse');
+      await broadcastUpdate('PAYMENT_RECORDED', {
+        student_id: student.id,
+        academic_year: academic_year,
+        amount: amount,
+        transaction_ref: transaction_ref
+      });
+    } catch (realtimeErr) {
+      logger.error(realtimeErr, '[PAYMENT_REALTIME_ERROR]');
+    }
+
     return apiResponse(responseData, 201);
   } catch (error) {
     if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
