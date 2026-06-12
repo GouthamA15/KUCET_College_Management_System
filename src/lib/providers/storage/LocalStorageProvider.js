@@ -101,8 +101,8 @@ export default class LocalStorageProvider extends StorageProvider {
         throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed for processing is 5.00MB.`);
       }
 
-      // OPTIMIZATION: Process images using sharp if they are photos/signatures
-      if (folder.includes('pfp') || folder.includes('signatures') || folder.includes('admission_drafts')) {
+      // OPTIMIZATION: Process images using sharp if they are photos/signatures/payments
+      if (folder.includes('pfp') || folder.includes('signatures') || folder.includes('admission_drafts') || folder.includes('requests/payments')) {
         try {
           const { optimizeImage } = await import('@/lib/image-utils');
           const optimized = await optimizeImage(buffer, {
