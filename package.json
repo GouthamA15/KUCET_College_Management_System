@@ -52,6 +52,7 @@
     "react-dom": "^19.2.4",
     "react-hot-toast": "^2.6.0",
     "read-excel-file": "^6.0.3",
+    "sharp": "^0.35.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^4",

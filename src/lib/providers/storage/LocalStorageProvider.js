@@ -94,10 +94,28 @@ export default class LocalStorageProvider extends StorageProvider {
         throw new Error('Unsupported file format for local storage');
       }
 
-      // SECURITY: Enforce 1MB limit for image uploads
-      const MAX_SIZE = 1 * 1024 * 1024;
-      if (buffer.length > MAX_SIZE) {
-        throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1.00MB.`);
+      // SECURITY: Enforce a raw limit for incoming uploads (5MB)
+      // We allow larger raw files because we will optimize them down.
+      const RAW_MAX_SIZE = 5 * 1024 * 1024;
+      if (buffer.length > RAW_MAX_SIZE) {
+        throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed for processing is 5.00MB.`);
+      }
+
+      // OPTIMIZATION: Process images using sharp if they are photos/signatures
+      if (folder.includes('pfp') || folder.includes('signatures') || folder.includes('admission_drafts')) {
+        try {
+          const { optimizeImage } = await import('@/lib/image-utils');
+          const optimized = await optimizeImage(buffer, {
+            // For signatures, we might want higher contrast, but the default 1200px is safe.
+            // We use webp for best compression/quality ratio.
+            format: 'webp',
+            quality: 80
+          });
+          buffer = optimized.buffer;
+          extension = '.webp';
+        } catch (optErr) {
+          logger.warn({ err: optErr.message }, 'Image optimization failed, falling back to original');
+        }
       }
 
       // 2. Prepare paths
