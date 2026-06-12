@@ -234,7 +234,8 @@ export default async function proxy(request) {
       '/student/academics',
       '/student/timetable',
       '/student/requests/id-card',
-      '/student/settings/edit-profile'
+      '/student/settings/edit-profile',
+      '/student/requests/profile-updates'
     ];
     
     // Exact match for /student or starts with others
