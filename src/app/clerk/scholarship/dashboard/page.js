@@ -484,6 +484,7 @@ function ScholarshipDashboardContent() {
         thumb_update_available: !!thumbUpdateAvailable,
         thumb_status: thumbStatus || 'Pending',
         hardcopy_submitted: hardcopySubmitted ? 1 : 0,
+        original_version: selectedProceeding ? selectedProceeding.version : undefined
       };
 
       if (process.env.NODE_ENV === 'development') {

@@ -476,6 +476,7 @@ export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
   thumb_update_available: boolean('thumb_update_available').default(false),
   thumb_status: mysqlEnum('thumb_status', ['PENDING', 'COMPLETE']).default('PENDING'),
   hardcopy_submitted: tinyint('hardcopy_submitted').default(0),
+  version: int('version').default(1).notNull(),
 }, (table) => ({
   appYearIdx: index('idx_scholarship_app_year').on(table.application_no, table.academic_year),
   searchIdx: index('idx_scholarship_search').on(table.student_id, table.academic_year),

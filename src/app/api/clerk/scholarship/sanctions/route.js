@@ -37,14 +37,16 @@ export async function POST(req) {
       released_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().or(z.literal('')),
       thumb_update_available: z.boolean().optional(),
       thumb_status: z.enum(['PENDING', 'COMPLETED', 'FAILED']).optional(),
-      hardcopy_submitted: z.boolean().optional()
+      hardcopy_submitted: z.boolean().optional(),
+      original_version: z.number().int().positive().optional()
     });
 
     const validatedData = validationSchema.parse(json);
     const { 
       roll_no, academic_year, application_no, proceeding_no, 
       sanctioned_amount, released_amount, status, sanction_date, 
-      released_date, thumb_update_available, thumb_status, hardcopy_submitted 
+      released_date, thumb_update_available, thumb_status, hardcopy_submitted,
+      original_version
     } = validatedData;
 
     if (idempotencyKey) {
@@ -148,25 +150,40 @@ export async function POST(req) {
       let targetRowId = null;
       let isNewInsert = false;
 
+      // Optimistic Locking Helper
+      const updateRowWithLock = async (row, updateData) => {
+        // If client provided a version (for a specific proceeding edit), verify it matches
+        if (original_version !== undefined && original_version !== null && Number(row.version) !== Number(original_version)) {
+          throw new Error("Concurrency Error: Record was modified by another clerk. Please refresh and try again.");
+        }
+        const res = await tx.update(scholarshipSanctions)
+          .set({ ...updateData, version: sql`${scholarshipSanctions.version} + 1` })
+          .where(and(
+            eq(scholarshipSanctions.id, row.id),
+            eq(scholarshipSanctions.version, row.version)
+          ));
+        const header = Array.isArray(res) ? res[0] : res;
+        if ((header?.affectedRows || 0) === 0) {
+          throw new Error("Concurrency Error: Record was modified by another clerk. Please refresh and try again.");
+        }
+      };
+
       if (providedProceeding) {
         const existingRow = existing.find(r => String(r.proceeding_no || '') === providedProceeding) || null;
         if (existingRow) {
-          await tx.update(scholarshipSanctions)
-            .set({ 
+          await updateRowWithLock(existingRow, { 
               sanctioned_amount: sanctioned_amount !== null ? String(sanctioned_amount) : null, 
               sanction_date: toMySQLDate(sanction_date), 
               released_amount: released_amount !== null ? String(released_amount) : null,
               released_date: toMySQLDate(released_date),
               status: status,
               application_no: application_no || existingRow.application_no 
-            })
-            .where(eq(scholarshipSanctions.id, existingRow.id));
+          });
           targetRowId = existingRow.id;
         } else {
           const baseRow = existing.find(r => !r.proceeding_no) || null;
           if (baseRow) {
-            await tx.update(scholarshipSanctions)
-              .set({ 
+            await updateRowWithLock(baseRow, { 
                 proceeding_no: providedProceeding, 
                 sanctioned_amount: sanctioned_amount !== null ? String(sanctioned_amount) : null, 
                 sanction_date: toMySQLDate(sanction_date), 
@@ -174,8 +191,7 @@ export async function POST(req) {
                 released_date: toMySQLDate(released_date),
                 status: status,
                 application_no: application_no || baseRow.application_no 
-              })
-              .where(eq(scholarshipSanctions.id, baseRow.id));
+            });
             targetRowId = baseRow.id;
           } else {
             const [ins] = await tx.insert(scholarshipSanctions).values({
@@ -196,7 +212,7 @@ export async function POST(req) {
       } else {
         const baseRow = existing.find(r => !r.proceeding_no) || null;
         if (baseRow) {
-          if (application_no) await tx.update(scholarshipSanctions).set({ application_no: application_no, status: status }).where(eq(scholarshipSanctions.id, baseRow.id));
+          if (application_no) await updateRowWithLock(baseRow, { application_no: application_no, status: status });
           targetRowId = baseRow.id;
         } else if (existing.length > 0) {
           if (application_no) await tx.update(scholarshipSanctions).set({ application_no: application_no }).where(and(eq(scholarshipSanctions.student_id, student.id), eq(scholarshipSanctions.academic_year, academic_year)));

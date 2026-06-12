@@ -71,4 +71,22 @@ export class ScholarshipService {
       windowEndDate: windowInfo.endDate
     };
   }
+
+  /**
+   * Atomic update for scholarship sanctions with optimistic locking
+   */
+  static async updateSanctionAtomic(id, data, originalVersion, tx = db) {
+    const res = await tx.update(scholarshipSanctions)
+      .set({
+        ...data,
+        version: sql`version + 1`
+      })
+      .where(and(
+        eq(scholarshipSanctions.id, id),
+        eq(scholarshipSanctions.version, originalVersion)
+      ));
+
+    const header = Array.isArray(res) ? res[0] : res;
+    return (header?.affectedRows || 0) > 0;
+  }
 }
