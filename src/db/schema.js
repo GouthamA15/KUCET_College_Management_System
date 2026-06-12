@@ -5,6 +5,15 @@ import {
 
 // --- 1. COLLEGE CONFIGURATION ---
 
+export const systemConfigs = mysqlTable('system_configs', {
+  config_key: varchar('config_key', { length: 100 }).primaryKey().notNull(),
+  config_value: text('config_value'),
+  data_type: mysqlEnum('data_type', ['STRING', 'NUMBER', 'BOOLEAN', 'JSON']).default('STRING').notNull(),
+  description: text('description'),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+  updated_by: varchar('updated_by', { length: 255 }),
+});
+
 export const collegeInfo = mysqlTable('college_info', {
   id: int('id').autoincrement().primaryKey().notNull(),
   name: varchar('name', { length: 255 }).default('KU COLLEGE OF ENGINEERING & TECHNOLOGY'),

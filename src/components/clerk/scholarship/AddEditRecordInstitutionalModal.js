@@ -395,7 +395,8 @@ export default function AddEditRecordInstitutionalModal({
                               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition"
                             >
                               <option value="PENDING">PENDING</option>
-                              <option value="COMPLETE">COMPLETE</option>
+                              <option value="COMPLETED">COMPLETED</option>
+                              <option value="FAILED">FAILED</option>
                             </select>
                           </div>
                         )}

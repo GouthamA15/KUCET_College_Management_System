@@ -422,7 +422,7 @@ function ScholarshipDashboardContent() {
       const thumbAvailable = summaryData?.thumb_update_available === 1 || summaryData?.thumb_update_available === true;
       const thumbStatusRaw = summaryData?.thumb_status ?? 'PENDING';
       const ts = String(thumbStatusRaw).toLowerCase();
-      const completeValues = ['complete', '1', 'true', 'success', 'done'];
+      const completeValues = ['complete', 'completed', '1', 'true', 'success', 'done'];
       const thumbStatusNorm = completeValues.includes(ts) ? 'Complete' : 'Pending';
       // initialize via setFormState so modal setter API is used
       setFormState('thumbUpdateAvailable', thumbAvailable);

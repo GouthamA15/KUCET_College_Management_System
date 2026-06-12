@@ -63,6 +63,7 @@ export async function POST(req) {
         name: studentsTable.name, 
         email: studentsTable.email, 
         is_email_verified: studentsTable.is_email_verified,
+        mobile: studentsTable.mobile,
         fee_reimbursement: studentsTable.fee_reimbursement,
         category: studentPersonalDetails.category,
         religion: studentPersonalDetails.religion,
@@ -106,6 +107,9 @@ export async function POST(req) {
         console.error('[Scholarship API] Window evaluation failed:', e);
       }
 
+      const { SystemConfigService } = await import('@/services/SystemConfigService');
+      const feeConfig = await SystemConfigService.getFeeStructures();
+
       // Fetch existing rows for student + academic_year
       const existing = await tx.query.scholarshipSanctions.findMany({
         where: and(eq(scholarshipSanctions.student_id, student.id), eq(scholarshipSanctions.academic_year, academic_year))
@@ -115,8 +119,8 @@ export async function POST(req) {
 
       // FINANCIAL VALIDATION (₹35,000 CAP) - INSIDE TRANSACTION
       const course = getBranchFromRoll(roll_no);
-      const totalCourseFee = Number(getYearlyTotalFee(course) || 0);
-      const GOVT_ELIGIBLE_CAP = calculateExpectedRTF(student, totalCourseFee);
+      const totalCourseFee = Number(getYearlyTotalFee(course, feeConfig) || 0);
+      const GOVT_ELIGIBLE_CAP = calculateExpectedRTF(student, totalCourseFee, feeConfig);
 
       const existingRowForCap = providedProceeding ? existing.find(r => String(r.proceeding_no || '') === providedProceeding) : null;
       
@@ -244,15 +248,15 @@ export async function POST(req) {
       await IdempotencyService.complete(idempotencyKey, isNewInsert ? 201 : 200, responseData);
     }
 
-    // REAL-TIME BROADCAST: Notify the student that their scholarship was updated/sanctioned
+    // UNIFIED NOTIFICATIONS: Notify the student that their scholarship was updated/sanctioned
     try {
       if (status !== 'REJECTED' && (sanctioned_amount > 0 || released_amount > 0)) {
-        const { broadcastUpdate } = await import('@/lib/sse');
-        await broadcastUpdate('SCHOLARSHIP_SANCTIONED', {
-          student_id: student.id,
-          academic_year: academic_year,
-          amount: sanctioned_amount || released_amount
-        });
+        const { NotificationService } = await import('@/services/NotificationService');
+        await NotificationService.notifyScholarshipSanctioned(
+          { id: student.id },
+          sanctioned_amount || released_amount,
+          academic_year
+        );
       }
     } catch (realtimeErr) {
       logger.error(realtimeErr, '[SCHOLARSHIP_REALTIME_ERROR]');

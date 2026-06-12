@@ -181,9 +181,9 @@ function getBatchFromRoll(rollNo) {
   const admissionYearShort = parseInt(rollNo.substring(0, 2));
   const admissionYear = 2000 + admissionYearShort;
   
-  // Batch start is 1 year earlier for laterals to match their classmates (graduation cohort)
-  const batchStart = isLateral ? admissionYear - 1 : admissionYear;
-  return `${batchStart}-${batchStart + 4}`;
+  // Course Duration: 4 years for Regular, 3 years for Lateral
+  const duration = isLateral ? 3 : 4;
+  return `${admissionYear}-${admissionYear + duration}`;
 }
 
 function getEntranceExamQualified(rollNo) {

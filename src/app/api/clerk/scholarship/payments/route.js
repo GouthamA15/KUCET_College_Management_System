@@ -54,6 +54,10 @@ export async function POST(req) {
 
     const studentRows = await db.select({ 
       id: studentsTable.id,
+      name: studentsTable.name,
+      email: studentsTable.email,
+      is_email_verified: studentsTable.is_email_verified,
+      mobile: studentsTable.mobile,
       fee_reimbursement: studentsTable.fee_reimbursement,
       category: studentPersonalDetails.category,
       religion: studentPersonalDetails.religion,
@@ -87,12 +91,15 @@ export async function POST(req) {
       return apiError(conflictMsg, 409);
     }
 
+    const { SystemConfigService } = await import('@/services/SystemConfigService');
+    const feeConfig = await SystemConfigService.getFeeStructures();
+
     // TRANSACTIONAL EXECUTION
     const resultId = await db.transaction(async (tx) => {
         // FINANCIAL VALIDATION
-        const totalCourseFee = Number(getYearlyTotalFee(course) || 0);
+        const totalCourseFee = Number(getYearlyTotalFee(course, feeConfig) || 0);
         const isScholarshipStudent = reimbursementStatus === 'YES';
-        const expectedRTF = isScholarshipStudent ? calculateExpectedRTF(student, totalCourseFee) : 0;
+        const expectedRTF = isScholarshipStudent ? calculateExpectedRTF(student, totalCourseFee, feeConfig) : 0;
         
         // RELAXED LIMIT: Allow payments up to a generous threshold to accommodate miscellaneous fees or overpayments.
         // We warn but don't block at the exact 35k/70k limit to prevent clerk frustration.
@@ -151,15 +158,14 @@ export async function POST(req) {
       await IdempotencyService.complete(idempotencyKey, 201, responseData);
     }
 
-    // REAL-TIME BROADCAST: Notify the student that a payment has been recorded
+    // UNIFIED NOTIFICATIONS
     try {
-      const { broadcastUpdate } = await import('@/lib/sse');
-      await broadcastUpdate('PAYMENT_RECORDED', {
-        student_id: student.id,
-        academic_year: academic_year,
-        amount: amount,
-        transaction_ref: transaction_ref
-      });
+      const { NotificationService } = await import('@/services/NotificationService');
+      await NotificationService.notifyFeePaymentRecorded(
+        { id: student.id, name: student.name, email: student.email, is_email_verified: student.is_email_verified, mobile: student.mobile },
+        amount, 
+        academic_year
+      );
     } catch (realtimeErr) {
       logger.error(realtimeErr, '[PAYMENT_REALTIME_ERROR]');
     }
