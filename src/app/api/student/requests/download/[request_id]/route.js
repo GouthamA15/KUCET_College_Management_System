@@ -102,12 +102,9 @@ export async function GET(request, context) {
         const { yearOfStudy, semester: currentSemester } = await calculateYearAndSemesterAsync(student.roll_no, collegeInfo);
         
         const rollNo = student.roll_no;
-        const isLateral = rollNo.toUpperCase().endsWith('L');
-        const admissionYearShort = parseInt(rollNo.substring(0, 2));
-        const admissionYear = 2000 + admissionYearShort;
-        const batchStart = isLateral ? admissionYear - 1 : admissionYear;
-        const batchEnd = batchStart + 4; 
-        const batchString = `${batchStart}-${batchEnd}`;
+        const { getBatchFromRoll, getCourseDuration } = await import('@/lib/rollNumber');
+        const batchString = getBatchFromRoll(rollNo);
+        const courseDuration = getCourseDuration(rollNo);
         
         const today = await getNow();
         const yearWords = ["I (FIRST)", "II (SECOND)", "III (THIRD)", "IV (FOURTH)"];
