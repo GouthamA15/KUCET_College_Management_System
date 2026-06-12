@@ -196,13 +196,21 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
       }
     }
 
-    if (event === 'REQUEST_CREATED' || event === 'REQUEST_UPDATED') {
+    if (event === 'REQUEST_CREATED') {
       if (cData && payload.clerkType === cData.role) {
-         toast(`New request: ${payload.certificate_type}`, { icon: '🔔' });
+         toast(`New request received: ${payload.certificate_type}`, { icon: '🔔', duration: 6000 });
       }
+    }
+
+    if (event === 'REQUEST_UPDATED') {
       if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
-         const statusMsg = payload.status === 'APPROVED' ? 'approved ✅' : 'rejected ❌';
-         toast(`Certificate ${statusMsg}: ${payload.certificate_type}`, { icon: '📄', duration: 6000 });
+         if (payload.status === 'APPROVED') {
+           toast(`Your ${payload.certificate_type} is approved and ready for download! ✅`, { icon: '📄', duration: 8000 });
+         } else if (payload.status === 'REJECTED') {
+           toast(`Your ${payload.certificate_type} request was rejected. ❌`, { icon: '⚠️', duration: 8000 });
+         } else {
+           toast(`Certificate status updated: ${payload.certificate_type}`, { icon: '📄', duration: 6000 });
+         }
       }
     }
 
@@ -210,6 +218,24 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
       if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
         toast.success(`Fee Payment Recorded: ₹${payload.amount.toLocaleString()}`, { 
           icon: '💰',
+          duration: 8000 
+        });
+      }
+    }
+
+    if (event === 'SCHOLARSHIP_SANCTIONED') {
+      if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
+        toast.success(`Scholarship Update: ₹${payload.amount.toLocaleString()} for ${payload.academic_year} processed!`, { 
+          icon: '🎓',
+          duration: 10000 
+        });
+      }
+    }
+
+    if (event === 'NEW_ADMISSION_APPLICATION') {
+      if (cData && cData.role === 'admission') {
+        toast.success(`New Admission Application received for ${payload.branch} (${payload.admission_year})!`, { 
+          icon: '📥',
           duration: 8000 
         });
       }

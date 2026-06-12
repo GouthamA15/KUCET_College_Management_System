@@ -111,8 +111,10 @@ export default class LocalStorageProvider extends StorageProvider {
             format: 'webp',
             quality: 80
           });
-          buffer = optimized.buffer;
-          extension = '.webp';
+          if (optimized.info && optimized.info.format) {
+            buffer = optimized.buffer;
+            extension = `.${optimized.info.format}`;
+          }
         } catch (optErr) {
           logger.warn({ err: optErr.message }, 'Image optimization failed, falling back to original');
         }

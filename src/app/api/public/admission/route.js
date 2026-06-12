@@ -156,6 +156,18 @@ export async function POST(req) {
           permanent_address: permanent_address || null
       });
 
+      // 6. Broadcast Real-time Event
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        await broadcastUpdate('NEW_ADMISSION_APPLICATION', {
+          branch: branch,
+          name: name,
+          admission_year: admission_year
+        });
+      } catch (broadcastErr) {
+        logger.error(broadcastErr, '[ADMISSION_BROADCAST_ERROR]');
+      }
+
       return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
     } catch (e) {
       // Cleanup uploaded files on error

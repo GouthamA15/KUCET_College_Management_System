@@ -90,6 +90,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 8. Recent Activity Log (June 2026)
 
+#### **Session 158: Production Hardening, Student UX, & Concurrency (June 12, 2026)**
+- **Student Portal Focus:** Restricted student access exclusively to Profile, Finances, and Certificates. Blocked under-development routes (Dashboard, Academics, Timetable, ID Card) at the Next.js Proxy level and removed them from global navigation to prevent confusion.
+- **Real-Time Verification Toasts:** Engineered instant, WebSocket-driven toast notifications using `RealtimeListener` to alert students immediately when clerks approve their certificates or record fee payments, bypassing the need for manual page refreshes.
+- **Sovereign Image Optimization:** Integrated `sharp` into `LocalStorageProvider` to automatically downscale and compress high-resolution mobile uploads (PFPs, signatures, payment screenshots) to WebP format. Increased raw upload limits to 5MB while keeping disk storage under ~800KB per file.
+- **Lateral Entry Refactoring:** Corrected course duration and studying year logic in `rollNumber.js` for TG ECET (Lateral) students. Successfully clamped institutional batch generation (e.g., 2023-2026) and certificate rendering exclusively to 3 years.
+- **Financial Concurrency (Optimistic Locking):** Hardened the `ScholarshipService` and API routes with strict version-based guards (`original_version`) to prevent race conditions during simultaneous clerk updates to scholarship sanctions.
+- **Offline-First Admission Resilience:** Transitioned the Admission Draft auto-save mechanism from limited `localStorage` to a robust `IndexedDB` wrapper (`idb-admission.js`), ensuring students don't lose large image uploads during network drops.
+
 #### **Session 157: Legacy Asset Recovery & Storage Resilience (June 11, 2026)**
 - **Certificate Engine Asset Embedding:** Fixed React-PDF generation to fetch institutional assets (Principal signature, college seal) dynamically from the local storage volume instead of strictly from the static repository `public/` directory, resolving missing images in downloaded certificates.
 - **Legacy Path Recovery:** Engineered an intelligent "Path Discovery" layer in `getAssetUrl` and `LocalStorageProvider` that automatically recovers legacy Cloudinary IDs by re-mapping them to the correct institutional folders (`kucet/students/pfp/`).

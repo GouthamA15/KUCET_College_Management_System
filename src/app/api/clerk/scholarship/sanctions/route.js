@@ -244,6 +244,20 @@ export async function POST(req) {
       await IdempotencyService.complete(idempotencyKey, isNewInsert ? 201 : 200, responseData);
     }
 
+    // REAL-TIME BROADCAST: Notify the student that their scholarship was updated/sanctioned
+    try {
+      if (status !== 'REJECTED' && (sanctioned_amount > 0 || released_amount > 0)) {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        await broadcastUpdate('SCHOLARSHIP_SANCTIONED', {
+          student_id: student.id,
+          academic_year: academic_year,
+          amount: sanctioned_amount || released_amount
+        });
+      }
+    } catch (realtimeErr) {
+      logger.error(realtimeErr, '[SCHOLARSHIP_REALTIME_ERROR]');
+    }
+
     // EMAIL TRIGGERS (OUTSIDE TRANSACTION)
     const { windowOpen, providedHardcopyFlag, prevHardcopy, providedThumbFlag, providedThumbStatus, prevThumbAvailable, prevThumbStatus, existing } = result;
     if (windowOpen && student.email && student.is_email_verified) {

@@ -474,7 +474,7 @@ export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
   thumb_update_available: boolean('thumb_update_available').default(false),
-  thumb_status: mysqlEnum('thumb_status', ['PENDING', 'COMPLETE']).default('PENDING'),
+  thumb_status: mysqlEnum('thumb_status', ['PENDING', 'COMPLETED', 'FAILED']).default('PENDING'),
   hardcopy_submitted: tinyint('hardcopy_submitted').default(0),
   version: int('version').default(1).notNull(),
 }, (table) => ({

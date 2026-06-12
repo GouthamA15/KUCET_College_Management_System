@@ -79,7 +79,7 @@ export class ScholarshipService {
     const res = await tx.update(scholarshipSanctions)
       .set({
         ...data,
-        version: sql`version + 1`
+        version: sql`${scholarshipSanctions.version} + 1`
       })
       .where(and(
         eq(scholarshipSanctions.id, id),
