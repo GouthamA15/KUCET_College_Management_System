@@ -1,10 +1,10 @@
 import { db } from '@/db';
 import { scholarshipSanctions, students } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { wrapHandler, apiError, apiSuccess } from '@/lib/api-utils';
+import { wrapHandler, apiError, apiResponse } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import logger from '@/lib/logger';
-import { IdempotencyService } from '@/services/IdempotencyService';
+import IdempotencyService from '@/services/IdempotencyService';
 import { ScholarshipService } from '@/services/ScholarshipService';
 import { z } from 'zod';
 
@@ -172,7 +172,7 @@ export const POST = wrapHandler(async (req, { user }) => {
       }
     });
 
-    const response = apiSuccess(result, result.action === 'CREATED' ? 201 : 200);
+    const response = apiResponse(result, result.action === 'CREATED' ? 201 : 200);
     if (idempotencyKey) await IdempotencyService.complete(idempotencyKey, response);
     return response;
 
