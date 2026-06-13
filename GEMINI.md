@@ -97,8 +97,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Institutional Asset Consolidation:** Purged 30 duplicate public assets from Cloudinary and consolidated the server's sovereign storage by removing redundant copies of Git-tracked assets.
 - **Storage Hardening:** Centralized recovered assets into the sovereign vault (`/var/www/kucet-storage/public/kucet`) and strictly hardened permissions (Directories: 755, Files: 644) under UID 1001 for maximum security and Nginx performance.
 - **Sidebar Accessibility Fix:** Resolved a high-priority console warning (`aria-hidden`) in the mobile navigation drawer by ensuring active elements are blurred upon menu closure.
-- **Build & Integration Fixes:** Resolved critical build errors in the scholarship API by correcting import patterns for `IdempotencyService` (default vs named) and `apiResponse`. Fixed logic in `SystemConfigService` to prevent DB constraint violations.
-- **Validation Milestone:** Verified the entire application via `npm run build` and executed the full test suite. All **84 unit tests** PASSED, confirming zero regressions across core services (Student, Finance, Scholarship).
+- **Build & Integration Fixes:** Resolved critical build errors in the scholarship API by correcting import patterns for `IdempotencyService` and `apiResponse`. Fixed logic in `SystemConfigService` to prevent DB constraint violations.
+- **Registry & Workflow Hardening:** 
+    *   Hardened the public Admission portal with strict data-URI regex validation for PFPs and signatures.
+    *   Engineered automatic asset cleanup in the Clerk portal to prevent orphaned files when updating student images.
+    *   Fixed financial branch-detection logic in the scholarship engine to correctly identify SFC courses from numeric roll codes.
+    *   Synchronized `studentUpdateSchema` with the UI to enable full profile editing (nationality, occupation, etc.) for students.
+- **Validation Milestone:** Verified the entire application via `npm run build` and executed the full test suite. All **84 unit tests** PASSED, confirming zero regressions across core services.
 - **Cleanup & Optimization:** Purged legacy artifacts (`share-modal.js`) and temporary restoration scripts from the server, achieving a zero-error production console.
 
 #### **Session 158: Production Hardening, Student UX, & Concurrency (June 12, 2026)**

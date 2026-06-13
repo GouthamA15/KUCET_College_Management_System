@@ -21,6 +21,8 @@ export async function POST(req) {
     const json = await req.json();
 
     // --- ZERO TRUST VALIDATION ---
+    const imageSchema = z.string().regex(/^data:image\/(png|jpeg|jpg|gif|webp);base64,/, "Invalid image format. Only PNG, JPEG, JPG, GIF and WebP are allowed.").nullable().optional();
+    
     const admissionSchema = z.object({
       name: z.string().trim().min(3).max(255).regex(/^[a-zA-Z\s.]+$/),
       admission_year: z.string().regex(/^\d{4}-\d{2}$/),
@@ -52,11 +54,15 @@ export async function POST(req) {
       identification_mark_1: z.string().trim().max(500).nullable().optional(),
       identification_mark_2: z.string().trim().max(500).nullable().optional(),
       permanent_address: z.string().trim().max(1000).nullable().optional(),
-      pfp: z.string().nullable().optional(),
-      signature: z.string().nullable().optional()
+      pfp: imageSchema,
+      signature: imageSchema
     });
 
-    const validatedData = admissionSchema.parse(json);
+    const validationResult = admissionSchema.safeParse(json);
+    if (!validationResult.success) {
+      return apiError(validationResult.error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
+    const validatedData = validationResult.data;
     const { 
       name, admission_year, entrance_exam, branch, seat_allotted_category, 
       religion, mother_tongue, email, student_mobile, guardian_mobile, 

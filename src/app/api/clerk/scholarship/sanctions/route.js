@@ -112,7 +112,9 @@ export const POST = wrapHandler(async (req, { user }) => {
       const newTotal = currentSanctionedTotal + Number(sanctioned_amount || 0);
       
       // Determine max fee for student
-      const isSfc = feeConfig.SFC_COURSES?.some(c => student.roll_no.includes(c));
+      const { getBranchFromRoll } = await import('@/lib/rollNumber');
+      const studentBranch = getBranchFromRoll(student.roll_no);
+      const isSfc = feeConfig.SFC_COURSES?.some(c => String(c).toUpperCase() === String(studentBranch).toUpperCase());
       const maxFee = isSfc ? feeConfig.SFC : feeConfig.REGULAR;
 
       if (newTotal > maxFee) {

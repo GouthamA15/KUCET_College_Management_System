@@ -58,12 +58,34 @@ export async function PUT(req, context) {
     const uploadedPaths = [];
 
     if (updatedData.pfp) {
-      pfpUrl = await storage.upload(updatedData.pfp, 'students/pfp');
+      // 1. Fetch old PFP to delete later
+      const oldImg = await db.query.studentImages.findFirst({
+        columns: { pfp: true },
+        where: eq(studentImages.student_id, studentId)
+      });
+
+      pfpUrl = await storage.upload(updatedData.pfp, 'students/pfp', rollno);
       uploadedPaths.push(pfpUrl);
+      
+      // Cleanup old PFP
+      if (oldImg?.pfp) {
+        await storage.delete(oldImg.pfp);
+      }
     }
     if (updatedData.signature) {
-      sigUrl = await storage.upload(updatedData.signature, 'students/signatures');
+      // 1. Fetch old signature to delete later
+      const oldSig = await db.query.studentSignatures.findFirst({
+        columns: { signature: true },
+        where: eq(studentSignatures.student_id, studentId)
+      });
+
+      sigUrl = await storage.upload(updatedData.signature, 'students/signatures', `${rollno}-sig`);
       uploadedPaths.push(sigUrl);
+
+      // Cleanup old signature
+      if (oldSig?.signature) {
+        await storage.delete(oldSig.signature);
+      }
     }
 
     try {

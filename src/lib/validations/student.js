@@ -65,6 +65,18 @@ export const studentCreateSchema = z.object({
     .or(z.literal('')),
   address: z.string().trim().max(1000).optional().or(z.literal('')),
   qualifying_exam: z.enum(['TG EAPCET', 'TG ECET', 'PGECET', 'Other']).optional().or(z.literal('')),
+  nationality: z.string().trim().max(100).optional().or(z.literal('')),
+  mother_tongue: z.string().trim().max(100).optional().or(z.literal('')),
+  place_of_birth: z.string().trim().max(255).optional().or(z.literal('')),
+  area_status: z.enum(['Local', 'Non-Local']).optional().or(z.literal('')),
+  father_occupation: z.string().trim().max(255).optional().or(z.literal('')),
+  seat_allotted_category: z.string().trim().max(100).optional().or(z.literal('')),
+  identification_marks: z.string().trim().max(1000).optional().or(z.literal('')),
+  guardian_mobile: z.string()
+    .transform((val) => val?.replace(/\D/g, '') || '')
+    .refine((val) => val === '' || val.length === 10, "Guardian mobile must be exactly 10 digits")
+    .optional()
+    .or(z.literal('')),
 });
 
 /**
