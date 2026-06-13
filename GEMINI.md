@@ -94,6 +94,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Database Restoration (Old Backup):** Successfully restored the `college_db.sql` backup following a schema corruption event. Orchestrated the recovery via a surgical shell script (`fix_db.sh`) that re-injected the missing `version` columns and `system_configs` table without manual SQL errors.
 - **Institutional Seeding:** Programmatically restored institutional defaults (NAAC A+ accreditation, fee structures, and campus address) directly into the `system_configs` table to ensure UI consistency.
 - **Asset Recovery (Cloudinary Sync):** Recovered over **200 missing assets** (PFPs, signatures, payment proofs) from Cloudinary that were absent from the local storage migration.
+- **Institutional Asset Consolidation:** Purged 30 duplicate public assets from Cloudinary and consolidated the server's sovereign storage by removing redundant copies of Git-tracked assets.
 - **Storage Hardening:** Centralized recovered assets into the sovereign vault (`/var/www/kucet-storage/public/kucet`) and strictly hardened permissions (Directories: 755, Files: 644) under UID 1001 for maximum security and Nginx performance.
 - **Sidebar Accessibility Fix:** Resolved a high-priority console warning (`aria-hidden`) in the mobile navigation drawer by ensuring active elements are blurred upon menu closure.
 - **Cleanup & Optimization:** Purged legacy artifacts (`share-modal.js`) and temporary restoration scripts from the server, achieving a zero-error production console.
