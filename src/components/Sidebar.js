@@ -576,6 +576,17 @@ export default function Sidebar({
       style={{ top: 0, height: '100vh' }}
       aria-hidden={!isMobileOpen}
       inert={!isMobileOpen ? true : undefined}
+      onTransitionEnd={() => {
+        // Accessibility: If the menu just finished closing, ensure no descendant has focus.
+        // This prevents the "Blocked aria-hidden on an element because its descendant retained focus" warning.
+        if (!isMobileOpen && typeof document !== 'undefined') {
+          const focusedElement = document.activeElement;
+          const aside = document.querySelector('aside.lg\\:hidden');
+          if (aside && focusedElement && aside.contains(focusedElement)) {
+            focusedElement.blur();
+          }
+        }
+      }}
     >
       <div className="w-72 h-full bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff] border-r border-slate-200 backdrop-blur-md">
         <div className="p-4 flex items-center justify-between">

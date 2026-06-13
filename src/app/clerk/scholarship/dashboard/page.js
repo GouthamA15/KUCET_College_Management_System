@@ -423,13 +423,13 @@ function ScholarshipDashboardContent() {
       const thumbStatusRaw = summaryData?.thumb_status ?? 'PENDING';
       const ts = String(thumbStatusRaw).toLowerCase();
       const completeValues = ['complete', 'completed', '1', 'true', 'success', 'done'];
-      const thumbStatusNorm = completeValues.includes(ts) ? 'Complete' : 'Pending';
+      const thumbStatusNorm = completeValues.includes(ts) ? 'COMPLETED' : 'PENDING';
       // initialize via setFormState so modal setter API is used
       setFormState('thumbUpdateAvailable', thumbAvailable);
       setFormState('thumbStatus', thumbStatusNorm);
     } catch {
       setFormState('thumbUpdateAvailable', false);
-      setFormState('thumbStatus', 'Pending');
+      setFormState('thumbStatus', 'PENDING');
     }
     // Hardcopy submission flag
     try {

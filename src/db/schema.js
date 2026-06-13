@@ -1,5 +1,5 @@
 import { 
-  mysqlTable, varchar, int, boolean, datetime, text, decimal, json, timestamp, 
+  mysqlTable, varchar, int, boolean, text, decimal, json, timestamp, 
   mysqlEnum, tinyint, float, bigint, index, uniqueIndex, date
 } from 'drizzle-orm/mysql-core';
 
@@ -7,7 +7,7 @@ import {
 
 export const systemConfigs = mysqlTable('system_configs', {
   config_key: varchar('config_key', { length: 100 }).primaryKey().notNull(),
-  config_value: text('config_value'),
+  config_value: text('config_value').notNull(),
   data_type: mysqlEnum('data_type', ['STRING', 'NUMBER', 'BOOLEAN', 'JSON']).default('STRING').notNull(),
   description: text('description'),
   updated_at: timestamp('updated_at').onUpdateNow(),

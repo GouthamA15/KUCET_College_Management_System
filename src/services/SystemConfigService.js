@@ -15,6 +15,7 @@ export class SystemConfigService {
         where: eq(systemConfigs.config_key, key)
       });
       if (!config) return defaultValue;
+      if (config.config_value == null) return defaultValue;
       
       switch (config.data_type) {
         case 'NUMBER': return Number(config.config_value);
@@ -32,10 +33,19 @@ export class SystemConfigService {
    * Set or update a configuration value
    */
   static async setConfig(key, value, type = 'STRING', description = '', updatedBy = 'system') {
+    const validTypes = ['STRING', 'NUMBER', 'BOOLEAN', 'JSON'];
+    if (!validTypes.includes(type)) {
+      throw new Error(`Invalid data_type: ${type}. Must be one of ${validTypes.join(', ')}`);
+    }
+
     let stringValue = value;
-    if (type === 'JSON') stringValue = JSON.stringify(value);
-    else if (type === 'BOOLEAN') stringValue = value ? 'true' : 'false';
-    else stringValue = String(value);
+    if (type === 'JSON') {
+       stringValue = value == null ? null : JSON.stringify(value);
+    } else if (type === 'BOOLEAN') {
+       stringValue = value == null ? null : (value ? 'true' : 'false');
+    } else {
+       stringValue = value == null ? null : String(value);
+    }
 
     await db.insert(systemConfigs).values({
       config_key: key,

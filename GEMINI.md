@@ -90,7 +90,17 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 8. Recent Activity Log (June 2026)
 
+#### **Session 159: Database Restoration & Sovereign Asset Recovery (June 13, 2026)**
+- **Database Restoration (Old Backup):** Successfully restored the `college_db.sql` backup following a schema corruption event. Orchestrated the recovery via a surgical shell script (`fix_db.sh`) that re-injected the missing `version` columns and `system_configs` table without manual SQL errors.
+- **Institutional Seeding:** Programmatically restored institutional defaults (NAAC A+ accreditation, fee structures, and campus address) directly into the `system_configs` table to ensure UI consistency.
+- **Asset Recovery (Cloudinary Sync):** Recovered over **200 missing assets** (PFPs, signatures, payment proofs) from Cloudinary that were absent from the local storage migration.
+- **Storage Hardening:** Centralized recovered assets into the sovereign vault (`/var/www/kucet-storage/public/kucet`) and strictly hardened permissions (Directories: 755, Files: 644) under UID 1001 for maximum security and Nginx performance.
+- **Sidebar Accessibility Fix:** Resolved a high-priority console warning (`aria-hidden`) in the mobile navigation drawer by ensuring active elements are blurred upon menu closure.
+- **Cleanup & Optimization:** Purged legacy artifacts (`share-modal.js`) and temporary restoration scripts from the server, achieving a zero-error production console.
+
 #### **Session 158: Production Hardening, Student UX, & Concurrency (June 12, 2026)**
+- **Public Network Access (Tailscale Funnel):** Configured Tailscale Funnel to securely route public internet traffic to the Nginx container (Port 80). Resolved `ERR_NAME_NOT_RESOLVED` issues by ensuring the host node was explicitly whitelisted in the Tailscale Admin Console ACLs (`"attr": ["funnel"]`), allowing the `.ts.net` domain to resolve globally without requiring the Tailscale client app on mobile devices.
+- **Manual Schema Migration:** Bypassed `drizzle-kit push` for the `scholarship_sanctions` versioning column to avoid potential data-loss warnings. Executed a raw SQL migration directly inside the production MySQL container (`docker exec -i kucet-cms-db mysql ... ALTER TABLE`) to safely inject the `version` column, instantly resolving subsequent 500 Internal Server Errors on student profile loads.
 - **Student Portal Focus:** Restricted student access exclusively to Profile, Finances, and Certificates. Blocked under-development routes (Dashboard, Academics, Timetable, ID Card) at the Next.js Proxy level and removed them from global navigation to prevent confusion.
 - **Real-Time Verification Toasts:** Engineered instant, WebSocket-driven toast notifications using `RealtimeListener` to alert students immediately when clerks approve their certificates or record fee payments, bypassing the need for manual page refreshes.
 - **Sovereign Image Optimization:** Integrated `sharp` into `LocalStorageProvider` to automatically downscale and compress high-resolution mobile uploads (PFPs, signatures, payment screenshots) to WebP format. Increased raw upload limits to 5MB while keeping disk storage under ~800KB per file.
