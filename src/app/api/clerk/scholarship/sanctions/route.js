@@ -2,14 +2,47 @@ import { db } from '@/db';
 import { scholarshipSanctions, students } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { wrapHandler, apiError, apiSuccess } from '@/lib/api-utils';
+import { getNow } from '@/lib/clock';
 import logger from '@/lib/logger';
 import { IdempotencyService } from '@/services/IdempotencyService';
 import { ScholarshipService } from '@/services/ScholarshipService';
+import { z } from 'zod';
 
 /**
  * SCHOLARSHIP SANCTIONS API
  * Handles recording and updating institutional/gov scholarship records.
  */
+
+const optionalNullableString = z.string().trim().min(1).nullable().optional();
+const optionalNullableDate = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .nullable()
+  .optional();
+const optionalNullableAmount = z.number().nonnegative().nullable().optional();
+const booleanLike = z.preprocess((value) => {
+  if (value === 1 || value === '1') return true;
+  if (value === 0 || value === '0') return false;
+  return value;
+}, z.boolean().optional());
+
+const sanctionPayloadSchema = z.object({
+  roll_no: z.string().trim().min(1),
+  academic_year: z.string().trim().regex(/^\d{4}-\d{2}$/),
+  application_no: z.string().trim().min(1).nullable().optional(),
+  proceeding_no: optionalNullableString,
+  sanctioned_amount: optionalNullableAmount,
+  sanction_date: optionalNullableDate,
+  released_amount: optionalNullableAmount,
+  released_date: optionalNullableDate,
+  status: z.enum(['SANCTIONED', 'RELEASED', 'PENDING', 'REJECTED']).optional(),
+  thumb_update_available: booleanLike,
+  thumb_status: z.preprocess(
+    (value) => value == null ? value : String(value).trim().toUpperCase(),
+    z.enum(['PENDING', 'COMPLETED', 'FAILED']).nullable().optional()
+  ),
+  hardcopy_submitted: booleanLike,
+  original_version: z.number().int().nonnegative().optional()
+}).strict();
 
 export const POST = wrapHandler(async (req, { user }) => {
   const body = await req.json();
@@ -27,7 +60,7 @@ export const POST = wrapHandler(async (req, { user }) => {
     thumb_status,
     hardcopy_submitted,
     original_version // For Optimistic Locking
-  } = body;
+  } = sanctionPayloadSchema.parse(body);
 
   const idempotencyKey = req.headers.get('x-idempotency-key');
   let idempotencyStarted = false;
@@ -91,11 +124,6 @@ export const POST = wrapHandler(async (req, { user }) => {
       const match = existing.find(s => s.application_no === application_no);
 
       if (match) {
-        // OPTIMISTIC LOCKING CHECK
-        if (original_version !== undefined && match.version !== original_version) {
-          throw new Error('CONCURRENCY_CONFLICT: Record was modified by another user. Please refresh.');
-        }
-
         const updateData = {
           proceeding_no: proceeding_no || match.proceeding_no,
           sanctioned_amount: sanctioned_amount !== undefined ? sanctioned_amount : match.sanctioned_amount,
@@ -106,13 +134,19 @@ export const POST = wrapHandler(async (req, { user }) => {
           thumb_update_available: thumb_update_available !== undefined ? thumb_update_available : match.thumb_update_available,
           thumb_status: thumb_status || match.thumb_status,
           hardcopy_submitted: hardcopy_submitted !== undefined ? hardcopy_submitted : match.hardcopy_submitted,
-          version: match.version + 1,
-          updated_at: new Date()
+          updated_at: getNow()
         };
 
-        await tx.update(scholarshipSanctions)
-          .set(updateData)
-          .where(eq(scholarshipSanctions.id, match.id));
+        const updated = await ScholarshipService.updateSanctionAtomic(
+          match.id,
+          updateData,
+          original_version ?? match.version,
+          tx
+        );
+
+        if (!updated) {
+          throw new Error('CONCURRENCY_CONFLICT: Record was modified by another user. Please refresh.');
+        }
         
         return { id: match.id, action: 'UPDATED' };
       } else {
@@ -145,6 +179,10 @@ export const POST = wrapHandler(async (req, { user }) => {
   } catch (error) {
     if (idempotencyStarted) await IdempotencyService.fail(idempotencyKey);
     logger.error('Error inserting sanction:', error);
+
+    if (error instanceof z.ZodError) {
+      return apiError(error.issues?.[0]?.message || error.errors?.[0]?.message || 'Invalid sanction payload', 400);
+    }
     
     if (error.message.includes('CONCURRENCY_CONFLICT')) {
         return apiError(error.message, 409);

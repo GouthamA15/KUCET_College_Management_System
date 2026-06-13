@@ -75,8 +75,12 @@ const AdmissionPage = () => {
                                         Restore
                                     </button>
                                     <button 
-                                        onClick={() => {
-                                            deleteAdmissionDraft();
+                                        onClick={async () => {
+                                            try {
+                                                await deleteAdmissionDraft();
+                                            } catch (error) {
+                                                console.warn('Failed to discard saved draft', error);
+                                            }
                                             toast.dismiss(t.id);
                                         }}
                                         className="text-gray-400 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest transition-colors"
@@ -111,7 +115,11 @@ const AdmissionPage = () => {
             const hasData = form.name || form.father_name || form.student_mobile || form.email || files.pfp || files.signature;
             if (!submitted && hasData) {
                 const { saveAdmissionDraft } = await import('@/lib/idb-admission');
-                await saveAdmissionDraft({ form, admissionYear, files });
+                try {
+                    await saveAdmissionDraft({ form, admissionYear, files });
+                } catch (error) {
+                    console.warn('Admission draft autosave failed', error);
+                }
             }
         }, 1500);
         return () => clearTimeout(timeoutId);

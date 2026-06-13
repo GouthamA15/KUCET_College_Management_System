@@ -94,11 +94,11 @@ export default class LocalStorageProvider extends StorageProvider {
         throw new Error('Unsupported file format for local storage');
       }
 
-      // SECURITY: Enforce a raw limit for incoming uploads (5MB)
-      // We allow larger raw files because we will optimize them down.
-      const RAW_MAX_SIZE = 5 * 1024 * 1024;
+      // SECURITY: Enforce a raw limit for incoming uploads (2MB)
+      // We align this with the project-wide limit specified in GEMINI.md
+      const RAW_MAX_SIZE = 2 * 1024 * 1024;
       if (buffer.length > RAW_MAX_SIZE) {
-        throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed for processing is 5.00MB.`);
+        throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed for processing is 2.00MB.`);
       }
 
       // OPTIMIZATION: Process images using sharp if they are photos/signatures/payments

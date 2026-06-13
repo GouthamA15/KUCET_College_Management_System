@@ -2,6 +2,13 @@ import { broadcastUpdate } from '@/lib/sse';
 import { sendInstitutionalEmail } from '@/lib/email';
 import logger from '@/lib/logger';
 
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
 /**
  * Unified Notification Engine
  * Abstracts Realtime (Toasts), Email, and future SMS delivery to ensure
@@ -56,6 +63,9 @@ export class NotificationService {
    * Notify a student that their certificate is approved and ready for download.
    */
   static async notifyCertificateReady(student, certificateType) {
+    const safeStudentName = escapeHtml(student.name);
+    const safeCertificateType = escapeHtml(certificateType);
+
     // 1. Instant Toast
     await this.sendRealtime('REQUEST_UPDATED', {
       student_id: student.id,
@@ -69,13 +79,13 @@ export class NotificationService {
         student.email,
         `${certificateType} Approved`,
         'Certificate Ready for Download',
-        `<p>Dear ${student.name},</p><p>Your request for a <strong>${certificateType}</strong> has been approved. You can now download it directly from your dashboard.</p>`,
+        `<p>Dear ${safeStudentName},</p><p>Your request for a <strong>${safeCertificateType}</strong> has been approved. You can now download it directly from your dashboard.</p>`,
         [{ label: 'Certificate', value: certificateType }, { label: 'Status', value: 'Approved & Digitally Signed' }]
       );
     }
 
     // 3. SMS (Future)
-    if (student.mobile) {
+    if (student.mobile && (student.is_mobile_verified || student.mobile_verified)) {
       await this.sendSMS(student.mobile, `KUCET: Your ${certificateType} is approved and ready for download in your portal.`);
     }
   }
@@ -84,6 +94,9 @@ export class NotificationService {
    * Notify a student that their fee payment has been successfully recorded.
    */
   static async notifyFeePaymentRecorded(student, amount, academicYear) {
+    const safeStudentName = escapeHtml(student.name);
+    const safeAcademicYear = escapeHtml(academicYear);
+
     await this.sendRealtime('PAYMENT_RECORDED', {
       student_id: student.id,
       amount: amount,
@@ -95,7 +108,7 @@ export class NotificationService {
         student.email,
         `Fee Payment Receipt Recorded`,
         'Payment Verified',
-        `<p>Dear ${student.name},</p><p>We have successfully verified and recorded a fee payment of <strong>₹${Number(amount).toLocaleString()}</strong> for the academic year ${academicYear}.</p>`,
+        `<p>Dear ${safeStudentName},</p><p>We have successfully verified and recorded a fee payment of <strong>₹${Number(amount).toLocaleString()}</strong> for the academic year ${safeAcademicYear}.</p>`,
         [{ label: 'Amount', value: `₹${Number(amount).toLocaleString()}` }, { label: 'Year', value: academicYear }]
       );
     }

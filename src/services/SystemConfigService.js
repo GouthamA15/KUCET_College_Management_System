@@ -33,36 +33,37 @@ export class SystemConfigService {
    * Set or update a configuration value
    */
   static async setConfig(key, value, type = 'STRING', description = '', updatedBy = 'system') {
-    const validTypes = ['STRING', 'NUMBER', 'BOOLEAN', 'JSON'];
-    if (!validTypes.includes(type)) {
-      throw new Error(`Invalid data_type: ${type}. Must be one of ${validTypes.join(', ')}`);
-    }
+     const validTypes = ['STRING', 'NUMBER', 'BOOLEAN', 'JSON'];
+     if (!validTypes.includes(type)) {
+       throw new Error(`Invalid data_type: ${type}. Must be one of ${validTypes.join(', ')}`);
+     }
 
-    let stringValue = value;
-    if (type === 'JSON') {
-       stringValue = value == null ? null : JSON.stringify(value);
-    } else if (type === 'BOOLEAN') {
-       stringValue = value == null ? null : (value ? 'true' : 'false');
-    } else {
-       stringValue = value == null ? null : String(value);
-    }
+     let stringValue = '';
+     if (type === 'JSON') {
+        stringValue = value == null ? '{}' : JSON.stringify(value);
+     } else if (type === 'BOOLEAN') {
+        stringValue = value == null ? 'false' : (value ? 'true' : 'false');
+     } else {
+        stringValue = value == null ? '' : String(value);
+     }
 
-    await db.insert(systemConfigs).values({
-      config_key: key,
-      config_value: stringValue,
-      data_type: type,
-      description,
-      updated_by: updatedBy
-    }).onDuplicateKeyUpdate({
-      set: {
-        config_value: stringValue,
-        data_type: type,
-        description,
-        updated_by: updatedBy
-      }
-    });
-  }
+     await db.insert(systemConfigs).values({
+       config_key: key,
+       config_value: stringValue,
+       data_type: type,
+       description,
+       updated_by: updatedBy
+     }).onDuplicateKeyUpdate({
+       set: {
+         config_value: stringValue,
+         description: description || undefined,
+         updated_by: updatedBy,
+         updated_at: new Date()
+       }
+     });
 
+     return true;
+   }
   // --- Predefined Configurations Helpers ---
 
   static async getFeeStructures() {

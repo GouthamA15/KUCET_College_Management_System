@@ -22,6 +22,13 @@
       "when": 1780856294333,
       "tag": "0002_flat_mephistopheles",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1781452800000,
+      "tag": "0003_update_thumb_status_complete",
+      "breakpoints": true
     }
   ]
 }

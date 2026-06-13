@@ -161,7 +161,6 @@ export async function POST(req) {
         const { broadcastUpdate } = await import('@/lib/sse');
         await broadcastUpdate('NEW_ADMISSION_APPLICATION', {
           branch: branch,
-          name: name,
           admission_year: admission_year
         });
       } catch (broadcastErr) {

@@ -3,6 +3,8 @@
  * Replaces localStorage to support base64 images without QuotaExceeded errors.
  */
 
+import { getNow } from '@/lib/clock';
+
 const DB_NAME = 'KUCET_CMS_ADMISSION';
 const STORE_NAME = 'admission_draft';
 const DB_VERSION = 1;
@@ -33,14 +35,14 @@ export const saveAdmissionDraft = async (payload) => {
       const transaction = db.transaction([STORE_NAME], 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
       
-      store.put({ ...payload, id: DRAFT_KEY, timestamp: Date.now() });
+      store.put({ ...payload, id: DRAFT_KEY, timestamp: getNow() });
 
       transaction.oncomplete = () => resolve();
       transaction.onerror = (event) => reject(event.target.error);
     });
   } catch (err) {
     console.warn('IndexedDB save failed, falling back to local storage', err);
-    // Silent fallback
+    throw err;
   }
 };
 
@@ -55,7 +57,7 @@ export const getAdmissionDraft = async () => {
       request.onsuccess = () => resolve(request.result);
       request.onerror = (event) => reject(event.target.error);
     });
-  } catch (err) {
+  } catch {
     return null;
   }
 };
@@ -73,5 +75,6 @@ export const deleteAdmissionDraft = async () => {
     });
   } catch (err) {
     console.warn('IndexedDB delete failed', err);
+    throw err;
   }
 };

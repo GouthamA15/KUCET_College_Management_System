@@ -38,6 +38,11 @@ function notifyEvent(event) {
   });
 }
 
+function formatCurrencyAmount(amount) {
+  const numericAmount = Number(amount);
+  return Number.isFinite(numericAmount) ? numericAmount.toLocaleString() : 'N/A';
+}
+
 /**
  * Strategy A: VPS Mode (Socket.io)
  */
@@ -216,7 +221,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
 
     if (event === 'PAYMENT_RECORDED') {
       if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
-        toast.success(`Fee Payment Recorded: ₹${payload.amount.toLocaleString()}`, { 
+        toast.success(`Fee Payment Recorded: ₹${formatCurrencyAmount(payload?.amount)}`, { 
           icon: '💰',
           duration: 8000 
         });
@@ -225,7 +230,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
 
     if (event === 'SCHOLARSHIP_SANCTIONED') {
       if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
-        toast.success(`Scholarship Update: ₹${payload.amount.toLocaleString()} for ${payload.academic_year} processed!`, { 
+        toast.success(`Scholarship Update: ₹${formatCurrencyAmount(payload?.amount)} for ${payload.academic_year} processed!`, { 
           icon: '🎓',
           duration: 10000 
         });

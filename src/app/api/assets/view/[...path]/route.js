@@ -8,13 +8,14 @@ export async function GET(req, { params }) {
     const { path: pathSegments } = await params;
     const relativePath = pathSegments.join('/');
     
-    // Security: Prevent directory traversal
-    if (relativePath.includes('..')) {
+    const storagePath = process.env.LOCAL_STORAGE_PATH || '/app/public/uploads';
+    const absolutePath = path.resolve(storagePath, relativePath);
+
+    // Security: Ensure the resolved path is within the storage directory
+    // This prevents directory traversal via '..' or symlinks.
+    if (!absolutePath.startsWith(path.resolve(storagePath))) {
       return apiError('Invalid path', 400);
     }
-
-    const storagePath = process.env.LOCAL_STORAGE_PATH || '/app/public/uploads';
-    const absolutePath = path.join(storagePath, relativePath);
 
     try {
       const fileBuffer = await fs.readFile(absolutePath);
@@ -47,7 +48,7 @@ export async function GET(req, { params }) {
       // SECURITY: Force download for SVGs to prevent inline script execution
       if (ext === '.svg') {
         const fileName = path.basename(absolutePath);
-        headers['Content-Disposition'] = `attachment; filename="${fileName}"`;
+        headers['Content-Disposition'] = `attachment; filename=\"${fileName}\"`;
       }
 
       return new Response(fileBuffer, { headers });
