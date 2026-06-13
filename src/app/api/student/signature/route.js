@@ -198,11 +198,20 @@ export async function POST(req) {
 
         // Update existing pending request
         const updateData = {};
-        if (signatureUrl) updateData.new_signature = signatureUrl;
-        if (pfpUrl) updateData.new_pfp = pfpUrl;
+        if (signatureUrl) {
+          if (pending.new_signature) await storage.delete(pending.new_signature);
+          updateData.new_signature = signatureUrl;
+        }
+        if (pfpUrl) {
+          if (pending.new_pfp) await storage.delete(pending.new_pfp);
+          updateData.new_pfp = pfpUrl;
+        }
         if (Object.keys(mergedData).length > 0) updateData.new_data = mergedData;
-        if (proofUrl) updateData.proof_url = proofUrl; // Latest proof replaces old one
-        
+        if (proofUrl) {
+          if (pending.proof_url) await storage.delete(pending.proof_url);
+          updateData.proof_url = proofUrl; // Latest proof replaces old one
+        }
+
         await db.update(studentProfileRequests)
           .set(updateData)
           .where(eq(studentProfileRequests.id, pending.id));

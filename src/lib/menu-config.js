@@ -83,6 +83,11 @@ export const NAV_MENU_CONFIG = {
     { label: 'ADMIN DASHBOARD', route: '/admin/dashboard' },
     { label: 'MANAGE CLERKS', route: '/admin/manage-clerks' },
     { label: 'STUDENT STATS', route: '/admin/student-stats' },
+    { label: 'INFRASTRUCTURE', children: [
+        { label: 'Database (SQL)', route: '/admin/infrastructure/sql' },
+        { label: 'Storage Sync', route: '/admin/infrastructure' }
+      ]
+    },
     { label: 'MENU', children: [
         { label: 'Edit Profile', route: '/admin/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/admin/settings/security' }

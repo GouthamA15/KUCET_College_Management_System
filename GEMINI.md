@@ -100,9 +100,10 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Build & Integration Fixes:** Resolved critical build errors in the scholarship API by correcting import patterns for `IdempotencyService` and `apiResponse`. Fixed logic in `SystemConfigService` to prevent DB constraint violations.
 - **Registry & Workflow Hardening:** 
     *   Hardened the public Admission portal with strict data-URI regex validation for PFPs and signatures.
-    *   Engineered automatic asset cleanup in the Clerk portal to prevent orphaned files when updating student images.
+    *   Engineered automatic asset cleanup in both Student and Clerk portals to prevent orphaned files when updating profile photos, signatures, or proof documents.
     *   Fixed financial branch-detection logic in the scholarship engine to correctly identify SFC courses from numeric roll codes.
     *   Synchronized `studentUpdateSchema` with the UI to enable full profile editing (nationality, occupation, etc.) for students.
+- **Super Admin SQL Workbench:** Engineered a high-security 'SQL Workbench' for Super Admins, enabling direct database inspection and raw query execution. Features industrial-grade RBAC, audit logging for every command, and a modern results viewer with CSV export capabilities.
 - **Validation Milestone:** Verified the entire application via `npm run build` and executed the full test suite. All **84 unit tests** PASSED, confirming zero regressions across core services.
 - **Cleanup & Optimization:** Purged legacy artifacts (`share-modal.js`) and temporary restoration scripts from the server, achieving a zero-error production console.
 
