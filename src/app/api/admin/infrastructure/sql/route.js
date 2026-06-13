@@ -13,7 +13,31 @@ export const POST = wrapHandler({
   auth: 'admin', // Strict Super Admin Auth
   handler: async (req, { user }) => {
     try {
-      const { query } = await req.json();
+      const body = await req.json();
+
+      // Handle schema fetch request
+      if (body.action === 'fetch_schema') {
+        const schemaQuery = `
+          SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE 
+          FROM INFORMATION_SCHEMA.COLUMNS 
+          WHERE TABLE_SCHEMA = DATABASE() 
+          ORDER BY TABLE_NAME, ORDINAL_POSITION;
+        `;
+        const [rows] = await db.execute(sql.raw(schemaQuery));
+        
+        // Group by table
+        const schema = {};
+        if (Array.isArray(rows)) {
+          rows.forEach(row => {
+            if (!schema[row.TABLE_NAME]) schema[row.TABLE_NAME] = [];
+            schema[row.TABLE_NAME].push({ name: row.COLUMN_NAME, type: row.DATA_TYPE });
+          });
+        }
+        
+        return { success: true, schema };
+      }
+
+      const { query } = body;
 
       if (!query || typeof query !== 'string') {
         return apiError('Valid SQL query is required', 400);
