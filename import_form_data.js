@@ -49,20 +49,20 @@ async function startImport() {
     return;
   }
 
-  console.log('🚀 Starting Import Process...');
+  console.info('🚀 Starting Import Process...');
 
   fs.createReadStream(CSV_FILE)
     .pipe(csv())
     .on('data', (data) => results.push(data))
     .on('end', async () => {
-      console.log(`📊 Found ${results.length} records in CSV.`);
+      console.info(`📊 Found ${results.length} records in CSV.`);
 
       for (const row of results) {
         try {
           const rollNo = row['1. Roll Number']?.trim();
           if (!rollNo) continue;
 
-          console.log(`\n--- Processing: ${rollNo} ---`);
+          console.info(`\n--- Processing: ${rollNo} ---`);
 
           // 1. Upload Images
           const photoUrl = await uploadToCloudinary(row['32. Student Photograph'], 'profiles');
@@ -72,7 +72,7 @@ async function startImport() {
           const feeStatus = row['27. Fee Reimbursement Status']?.includes('YES') ? 'YES' : 
                           row['27. Fee Reimbursement Status']?.includes('GOV') ? 'GOV' : 'NO';
 
-          const studentRes = await query(
+          const _studentRes = await query(
             `INSERT INTO students (roll_no, name, email, mobile, date_of_birth, gender, fee_reimbursement, created_at) 
              VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
              ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), mobile=VALUES(mobile), fee_reimbursement=VALUES(fee_reimbursement)`,
@@ -147,13 +147,13 @@ async function startImport() {
             await query('INSERT INTO student_signatures (student_id, signature) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature=VALUES(signature)', [studentId, sigUrl]);
           }
 
-          console.log(`✅ Imported Successfully: ${rollNo}`);
+          console.info(`✅ Imported Successfully: ${rollNo}`);
 
         } catch (err) {
           console.error(`❌ Error importing student ${row['1. Roll Number']}:`, err.message);
         }
       }
-      console.log('\n🏁 Bulk Import Task Completed.');
+      console.info('\n🏁 Bulk Import Task Completed.');
     });
 }
 

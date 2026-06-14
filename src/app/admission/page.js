@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { getIntakeYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
-import { formatIndianNumber } from '@/lib/financial-utils';
 
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
@@ -43,7 +42,6 @@ const AdmissionPage = () => {
     const [files, setFiles] = useState({ pfp: null, signature: null });
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
-    const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
 
     const initialNameRef = useRef(form.name);
 
@@ -101,7 +99,7 @@ const AdmissionPage = () => {
                         });
                     }
                 } catch (e) {
-                    console.error("Failed to parse saved draft", e);
+                    console.warn("Failed to parse saved draft", e);
                 }
             }
         };

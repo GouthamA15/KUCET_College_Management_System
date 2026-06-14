@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { 
   Database, Table as TableIcon, Download, RefreshCw, 
@@ -13,8 +13,34 @@ const STORAGE_KEY = 'kucet_sql_workbench_v1';
 
 export default function AdvancedSQLWorkbench() {
   // Tabs & Queries
-  const [tabs, setTabs] = useState([{ id: 1, name: 'Query 1', content: 'SELECT * FROM students LIMIT 10;' }]);
-  const [activeTabId, setActiveTabId] = useState(1);
+  const [tabs, setTabs] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const p = JSON.parse(saved);
+          if (p.tabs?.length) return p.tabs;
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return [{ id: 1, name: 'Query 1', content: 'SELECT * FROM students LIMIT 10;' }];
+  });
+  const [activeTabId, setActiveTabId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const p = JSON.parse(saved);
+          if (p.activeTabId) return p.activeTabId;
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return 1;
+  });
   const [results, setResults] = useState({}); // TabId -> Results
   const [loading, setLoading] = useState(false);
   
@@ -25,7 +51,20 @@ export default function AdvancedSQLWorkbench() {
   
   // History & Logs
   const [actionOutput, setActionOutput] = useState([]);
-  const [queryHistory, setHistory] = useState([]);
+  const [queryHistory, setHistory] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const p = JSON.parse(saved);
+          if (p.history) return p.history;
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return [];
+  });
   
   // UI Panels
   const [activeBottomTab, setActiveBottomTab] = useState('Result Grid');
@@ -38,7 +77,7 @@ export default function AdvancedSQLWorkbench() {
 
   // --- METHODS ---
   
-  const fetchSchema = async () => {
+  const fetchSchema = useCallback(async () => {
     setSchemaLoading(true);
     try {
       const res = await fetch('/api/admin/infrastructure/sql', {
@@ -53,9 +92,9 @@ export default function AdvancedSQLWorkbench() {
     } finally {
       setSchemaLoading(false);
     }
-  };
+  }, []);
 
-  const logAction = (action, message, timeStr, isError = false) => {
+  const logAction = useCallback((action, message, timeStr, isError = false) => {
     setActionOutput(prev => [{
       id: Date.now(),
       time: new Date().toLocaleTimeString('en-US', { hour12: false }),
@@ -64,9 +103,9 @@ export default function AdvancedSQLWorkbench() {
       duration: timeStr,
       isError
     }, ...prev]);
-  };
+  }, []);
 
-  const executeQuery = async (overrideQuery = null) => {
+  const executeQuery = useCallback(async (overrideQuery = null) => {
     const currentQuery = overrideQuery || activeTab.content;
     if (!currentQuery.trim()) return toast.error('Query is empty');
 
@@ -106,27 +145,19 @@ export default function AdvancedSQLWorkbench() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab.content, activeTabId, logAction]);
 
-  const updateTabContent = (val) => {
-    setTabs(tabs.map(t => t.id === activeTabId ? { ...t, content: val } : t));
-  };
+  const updateTabContent = useCallback((val) => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, content: val } : t));
+  }, [activeTabId]);
 
   // --- INITIALIZATION ---
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const p = JSON.parse(saved);
-        if (p.tabs?.length) setTabs(p.tabs);
-        if (p.activeTabId) setActiveTabId(p.activeTabId);
-        if (p.history) setHistory(p.history);
-      } catch (e) {
-        console.error("Load state failed", e);
-      }
-    }
-    fetchSchema();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const timer = setTimeout(() => {
+      fetchSchema();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchSchema]);
 
   // --- PERSISTENCE ---
   useEffect(() => {
@@ -135,31 +166,38 @@ export default function AdvancedSQLWorkbench() {
   }, [tabs, activeTabId, queryHistory]);
 
   // --- TAB MANAGEMENT ---
-  const addTab = () => {
-    const newId = Math.max(0, ...tabs.map(t => t.id)) + 1;
-    setTabs([...tabs, { id: newId, name: `Query ${newId}`, content: '' }]);
-    setActiveTabId(newId);
-  };
+  const addTab = useCallback(() => {
+    setTabs(prev => {
+      const newId = Math.max(0, ...prev.map(t => t.id)) + 1;
+      const newTabs = [...prev, { id: newId, name: `Query ${newId}`, content: '' }];
+      setActiveTabId(newId);
+      return newTabs;
+    });
+  }, []);
 
-  const closeTab = (e, id) => {
+  const closeTab = useCallback((e, id) => {
     e.stopPropagation();
-    if (tabs.length === 1) return;
-    const newTabs = tabs.filter(t => t.id !== id);
-    setTabs(newTabs);
-    if (activeTabId === id) setActiveTabId(newTabs[newTabs.length - 1].id);
-    const newRes = { ...results };
-    delete newRes[id];
-    setResults(newRes);
-  };
+    setTabs(prev => {
+      if (prev.length === 1) return prev;
+      const newTabs = prev.filter(t => t.id !== id);
+      if (activeTabId === id) setActiveTabId(newTabs[newTabs.length - 1].id);
+      return newTabs;
+    });
+    setResults(prev => {
+      const newRes = { ...prev };
+      delete newRes[id];
+      return newRes;
+    });
+  }, [activeTabId]);
 
   // --- HELPERS ---
-  const quickQuery = (tableName) => {
+  const quickQuery = useCallback((tableName) => {
     const q = `SELECT * FROM \`${tableName}\` LIMIT 100;`;
     updateTabContent(q);
     executeQuery(q);
-  };
+  }, [updateTabContent, executeQuery]);
 
-  const insertAtCursor = (text) => {
+  const insertAtCursor = useCallback((text) => {
     const el = editorRef.current;
     if (!el) return;
     const start = el.selectionStart;
@@ -170,7 +208,7 @@ export default function AdvancedSQLWorkbench() {
       el.selectionStart = el.selectionEnd = start + text.length;
       el.focus();
     }, 0);
-  };
+  }, [activeTab.content, updateTabContent]);
 
   const exportCSV = () => {
     const cur = results[activeTabId];

@@ -31,8 +31,8 @@ export function ClerkProvider({ children }) {
         const data = await res.json();
         setCollegeInfo(data.collegeInfo);
       }
-    } catch (e) {
-      console.error('Failed to fetch college info', e);
+    } catch (_e) {
+      console.error('Failed to fetch college info', _e);
     }
   }, []);
 
@@ -47,11 +47,11 @@ export function ClerkProvider({ children }) {
         try {
           const data = await res.json();
           setError(data.error || 'Failed to fetch clerk data');
-        } catch {
+        } catch (_e2) {
           setError('Failed to fetch clerk data');
         }
       }
-    } catch (e) {
+    } catch (_e) {
       setError('Network error');
     }
     return null;
@@ -73,8 +73,8 @@ export function ClerkProvider({ children }) {
         const intJson = await intRes.json();
         setFacultyInterests(intJson.data || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch faculty data', e);
+    } catch (_e) {
+      console.error('Failed to fetch faculty data', _e);
     } finally {
       setIsLoadingFaculty(false);
     }
@@ -106,8 +106,8 @@ export function ClerkProvider({ children }) {
           officialAssignments: assignmentsJson.data
         });
       }
-    } catch (e) {
-      console.error('Failed to fetch HOD data', e);
+    } catch (_e) {
+      console.error('Failed to fetch HOD data', _e);
     } finally {
       setIsLoadingHOD(false);
     }
@@ -121,8 +121,8 @@ export function ClerkProvider({ children }) {
         const json = await res.json();
         setPendingProfileRequests(json.data || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch pending profile requests', e);
+    } catch (_e) {
+      console.error('Failed to fetch pending profile requests', _e);
     } finally {
       setIsLoadingRequests(false);
     }
@@ -137,8 +137,8 @@ export function ClerkProvider({ children }) {
         const json = await res.json();
         setPendingCertificateRequests(json.records || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch pending certificate requests', e);
+    } catch (_e) {
+      console.error('Failed to fetch pending certificate requests', _e);
     } finally {
       setIsLoadingRequests(false);
     }
@@ -152,8 +152,8 @@ export function ClerkProvider({ children }) {
       if (res.ok) {
         setAdmissionDrafts(data.data || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch admission drafts', e);
+    } catch (_e) {
+      console.error('Failed to fetch admission drafts', _e);
     } finally {
       setIsLoadingRequests(false);
     }
@@ -171,8 +171,8 @@ export function ClerkProvider({ children }) {
           allCount: json.allCount || 0
         });
       }
-    } catch (e) {
-      console.error('Failed to fetch student history', e);
+    } catch (_e) {
+      console.error('Failed to fetch student history', _e);
     } finally {
       setIsLoadingHistory(false);
     }
@@ -228,7 +228,7 @@ export function ClerkProvider({ children }) {
   const handleRealtimeUpdate = useCallback((data) => {
     if (clerkData?.is_hod && data.payload.branch === clerkData.branch) {
       if (['TIMETABLE_CHANGED', 'ATTENDANCE_SAVED', 'SESSION_STARTED', 'SESSION_ENDED'].includes(data.type)) {
-        console.log(`[HODSync] ${data.type} detected, refreshing...`);
+        console.info(`[HODSync] ${data.type} detected, refreshing...`);
         fetchHODData();
       }
     }
