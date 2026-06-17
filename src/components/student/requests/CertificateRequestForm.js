@@ -243,12 +243,12 @@ export default function CertificateRequestForm({
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Attendance</p>
                   <div className="mt-1 flex items-baseline gap-1">
                     <span className={`text-lg font-bold ${eligibility?.attendance?.isEligible ? 'text-slate-900' : 'text-rose-700'}`}>
-                      {eligibility?.attendance?.percentage !== null ? `${eligibility.attendance.percentage.toFixed(1)}%` : 'N/A'}
+                      {eligibility?.attendance?.percentage != null ? `${eligibility.attendance.percentage.toFixed(1)}%` : 'N/A'}
                     </span>
                     <span className="text-[10px] text-slate-500">min 50%</span>
                   </div>
-                  {!eligibility?.attendance?.isEligible && (
-                    <p className="text-[10px] text-rose-600 mt-1 font-medium italic">Below threshold</p>
+                  {eligibility?.attendance && !eligibility.attendance.thresholdReached && (
+                    <p className="text-[10px] text-amber-600 mt-1 font-medium italic">Institutional Waiver</p>
                   )}
                   {eligibility?.attendance?.percentage === null && (
                     <p className="text-[10px] text-slate-500 mt-1 italic">Records pending</p>
