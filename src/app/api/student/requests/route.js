@@ -82,13 +82,22 @@ export async function POST(request) {
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeRows[0], now);
 
-    // --- BONAFIDE ELIGIBILITY VALIDATION ---
-    if (certificateType === 'Bonafide Certificate') {
+    // --- PHASE 4: MODULAR CERTIFICATE ELIGIBILITY VALIDATION ---
+    const isBonafide = certificateType === 'Bonafide Certificate';
+    const isTC = certificateType === 'Transfer Certificate (TC)';
+    const isNOC = certificateType === 'No Objection Certificate';
+
+    if (isBonafide || isTC || isNOC) {
       const { StudentService } = await import('@/services/StudentService');
-      const eligibility = await StudentService.getBonafideEligibility(user.student_id, user.roll_no);
+      const eligibilityMap = await StudentService.getCertificateEligibility(user.student_id, user.roll_no);
       
-      if (!eligibility.isEligible) {
-        return apiError(eligibility.reason || "You are not eligible for a Bonafide Certificate at this time.", 403);
+      let eligibility = null;
+      if (isBonafide) eligibility = eligibilityMap.bonafide;
+      else if (isTC) eligibility = eligibilityMap.tc;
+      else if (isNOC) eligibility = eligibilityMap.noc;
+
+      if (eligibility && !eligibility.isEligible) {
+        return apiError(eligibility.reason || `You are not eligible for a ${certificateType} at this time.`, 403);
       }
     }
 

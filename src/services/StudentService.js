@@ -20,26 +20,16 @@ import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
  */
 export class StudentService {
   /**
-   * Check Bonafide certificate eligibility for a student
-   * @param {number} studentId 
-   * @param {string} rollNo 
-   * @returns {Promise<Object>} Eligibility details
+   * Specialized validator for Bonafide Certificate eligibility
    */
-  static async getBonafideEligibility(studentId, rollNo) {
-    const { calculateYearAndSemesterAsync } = await import('@/lib/academic-utils');
+  static async validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
     const { getResolvedCurrentAcademicYear, getBranchFromRoll } = await import('@/lib/rollNumber');
-    const { getNow } = await import('@/lib/clock');
+    const { calculateYearAndSemesterAsync } = await import('@/lib/academic-utils');
 
-    const now = await getNow();
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
-    const collegeInfo = collegeRows[0] || null;
-
-    const { semester } = await calculateYearAndSemesterAsync(rollNo, collegeInfo, 0);
     const academicYear = getResolvedCurrentAcademicYear(rollNo, collegeInfo, now);
     const branch = getBranchFromRoll(rollNo);
+    const { semester } = await calculateYearAndSemesterAsync(rollNo, collegeInfo, 0);
 
-    // 1. Attendance Calculation
-    // We join with faculty assignments to filter by current semester and academic year
     const attendanceStats = await db.select({
       total_classes: sql`COUNT(DISTINCT ${studentAttendance.id})`,
       attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') THEN ${studentAttendance.id} END)`
@@ -57,40 +47,94 @@ export class StudentService {
     const attended = Number(attendanceStats[0]?.attended_classes || 0);
     const attendancePercent = total > 0 ? (attended / total) * 100 : null;
 
-    // 2. Fee Reimbursement
-    const student = await db.query.students.findFirst({
-      columns: { fee_reimbursement: true },
-      where: eq(studentsTable.id, studentId)
-    });
+    const existingApproved = approvedRequests.find(r => 
+      r.certificate_type === 'Bonafide Certificate' && r.academic_year === academicYear
+    );
 
-    // 3. Existing Approved Bonafide for current year
-    const existingApproved = await db.query.studentRequests.findFirst({
-      where: and(
-        eq(studentRequests.student_id, studentId),
-        eq(studentRequests.certificate_type, 'Bonafide Certificate'),
-        eq(studentRequests.academic_year, academicYear),
-        eq(studentRequests.status, 'APPROVED')
-      )
-    });
-
-    // --- ATTENANCE VALIDATION DISABLED (Faculty Module under construction) ---
-    // const isAttendanceEligible = attendancePercent === null || attendancePercent >= 50;
-    const isAttendanceEligible = true; 
     const isAcademicYearEligible = !existingApproved;
+    const isAttendanceEligible = true; // Institutional Waiver currently active
 
     return {
       attendance: {
         total,
         attended,
         percentage: attendancePercent,
-        isEligible: isAttendanceEligible,
-        thresholdReached: attendancePercent === null || attendancePercent >= 50 // Keep track for UI but don't block
+        isEligible: true,
+        thresholdReached: attendancePercent === null || attendancePercent >= 50
       },
-      feeReimbursement: student?.fee_reimbursement || 'NO',
+      feeReimbursement: studentData?.fee_reimbursement || 'NO',
       academicYear,
       alreadyHasApproved: !!existingApproved,
-      isEligible: isAttendanceEligible && isAcademicYearEligible,
+      isEligible: isAcademicYearEligible && isAttendanceEligible,
       reason: !isAcademicYearEligible ? `You have already received an approved Bonafide for ${academicYear}.` : null
+    };
+  }
+
+  /**
+   * Specialized validator for Transfer Certificate (TC) eligibility
+   */
+  static async validateTCEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
+    const { calculateYearAndSemesterAsync } = await import('@/lib/academic-utils');
+    const { getResolvedCurrentAcademicYear } = await import('@/lib/rollNumber');
+    const { FinanceService } = await import('./FinanceService');
+
+    const academicYear = getResolvedCurrentAcademicYear(rollNo, collegeInfo, now);
+    const { year, semester } = await calculateYearAndSemesterAsync(rollNo, collegeInfo, 0);
+
+    const financialSummary = await FinanceService.getStudentFinancialSummary(studentId, academicYear, rollNo);
+    const pendingDues = financialSummary?.feeSummary?.pendingFee || 0;
+
+    const isFinalYearCompleted = year > 4 || (year === 4 && semester >= 8);
+    const hasNoDues = pendingDues <= 0;
+
+    return {
+      isFinalYearCompleted,
+      hasNoDues,
+      pendingDues,
+      isEligible: isFinalYearCompleted && hasNoDues,
+      reason: !isFinalYearCompleted 
+        ? "Final academic year not completed." 
+        : (!hasNoDues ? "Outstanding fee dues detected." : null)
+    };
+  }
+
+  /**
+   * Specialized validator for No Objection Certificate (NOC) eligibility
+   */
+  static async validateNOCEligibility() {
+    // Standard NOC rules: Must be an active student (already checked by auth)
+    return {
+      isEligible: true,
+      reason: null
+    };
+  }
+
+  /**
+   * Central orchestrator for certificate eligibility
+   */
+  static async getCertificateEligibility(studentId, rollNo) {
+    const { getNow } = await import('@/lib/clock');
+
+    const now = await getNow();
+    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
+    const collegeInfo = collegeRows[0] || null;
+
+    const studentData = await db.query.students.findFirst({
+      columns: { fee_reimbursement: true },
+      where: eq(studentsTable.id, studentId)
+    });
+
+    const approvedRequests = await db.query.studentRequests.findMany({
+      where: and(
+        eq(studentRequests.student_id, studentId),
+        eq(studentRequests.status, 'APPROVED')
+      )
+    });
+
+    return {
+      bonafide: await this.validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now),
+      tc: await this.validateTCEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now),
+      noc: await this.validateNOCEligibility()
     };
   }
 
