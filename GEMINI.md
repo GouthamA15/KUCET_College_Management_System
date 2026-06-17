@@ -85,10 +85,18 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### D. Resilience & Maintenance
 - **Auto-Recovery:** BIOS-level "Power-On" and Systemd service persistence for Docker/Cloudflared.
-- **Backups:** Nightly `docker exec` MySQL dumps stored in `/var/backups`.
+- **Backups:** Nightly `docker exec` MySQL dumps stored in `/var/kucet-db-backup`.
 - **Offsite Sync:** Rclone-driven synchronization to Google Drive/S3 at 4:00 AM daily.
 
 ## 8. Recent Activity Log (June 2026)
+
+#### **Session 160: Secure Backup Infrastructure & MySQL 8.0 Hardening (June 17, 2026)**
+- **Secure Backup Relocation:** Transitioned database backups from the public-facing storage vault to a hardened, non-public system directory (`/var/kucet-db-backup`).
+- **Permission Hardening:** Strictly enforced `700` directory permissions and `600` file permissions to ensure only root-level access to sensitive SQL dumps.
+- **MySQL 8.0 Privilege Compatibility:** Updated the `nightly-backup.sh` script with the `--no-tablespaces` flag to bypass `PROCESS` privilege requirements for standard database users.
+- **Credential Synchronization:** Synchronized production backup scripts with institutional database credentials (`kucet` user).
+- **Deployment Documentation:** Updated the `MASTER_DEPLOYMENT_GUIDE.md` and environment templates to reflect the new secure backup architecture.
+- **Automation Preparation:** Prepared crontab-ready scripts for nightly (02:00) and offsite (04:00) synchronization.
 
 #### **Session 159: Database Restoration & Sovereign Asset Recovery (June 13, 2026)**
 - **Database Restoration (Old Backup):** Successfully restored the `college_db.sql` backup following a schema corruption event. Orchestrated the recovery via a surgical shell script (`fix_db.sh`) that re-injected the missing `version` columns and `system_configs` table without manual SQL errors.

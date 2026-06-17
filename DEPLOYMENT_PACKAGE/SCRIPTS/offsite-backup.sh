@@ -2,7 +2,7 @@
 # KUCET CMS: Offsite Cloud Backup (3-2-1 Rule)
 # Uses rclone to sync secure local backups to an encrypted S3 bucket (e.g., Backblaze B2 or Google Drive)
 
-LOCAL_BACKUP_DIR="/var/backups/kucet-cms"
+LOCAL_BACKUP_DIR="/var/kucet-db-backup"
 REMOTE_NAME="kucet-offsite"  # Configure this in rclone
 REMOTE_DIR="cms-backups"
 

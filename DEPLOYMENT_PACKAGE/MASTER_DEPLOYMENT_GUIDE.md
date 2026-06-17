@@ -252,14 +252,18 @@ sudo systemctl start cloudflared
 **[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
 
 ### 7.1 Automated Secure Local Backups
-Dockerized databases must be backed up using `docker exec`. The provided script compresses and stores backups in a secure system folder (`/var/backups`), NOT the web root.
+Dockerized databases must be backed up using `docker exec`. The provided script compresses and stores backups in a dedicated secure system folder (`/var/kucet-db-backup`), NOT the web root.
 ````bash
 cd /var/www/kucet-cms
-# Make script executable
-sudo chmod +x DEPLOYMENT_PACKAGE/scripts/nightly-backup.sh
+# 1. Create the secure backup folder on host
+sudo mkdir -p /var/kucet-db-backup
+sudo chmod 700 /var/kucet-db-backup
 
-# Add to crontab to run at 2:00 AM daily
-(crontab -l 2>/dev/null; echo "0 2 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/scripts/nightly-backup.sh") | crontab -
+# 2. Make script executable
+sudo chmod +x DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh
+
+# 3. Add to crontab to run at 2:00 AM daily
+(crontab -l 2>/dev/null; echo "0 2 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh") | crontab -
 ```
 
 ### 7.2 Automated Cloud Sync (Offsite Backup)
@@ -270,16 +274,16 @@ cd /var/www/kucet-cms
 rclone config
 
 # Make script executable
-sudo chmod +x DEPLOYMENT_PACKAGE/scripts/offsite-backup.sh
+sudo chmod +x DEPLOYMENT_PACKAGE/SCRIPTS/offsite-backup.sh
 
 # Add to crontab to run at 4:00 AM daily
-(crontab -l 2>/dev/null; echo "0 4 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/scripts/offsite-backup.sh") | crontab -
+(crontab -l 2>/dev/null; echo "0 4 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/offsite-backup.sh") | crontab -
 ```
 
 ### 7.3 Restoring from a Secure Backup
 If you ever need to restore a `.sql.gz` file:
 ````bash
-cd /var/backups/kucet-cms
+cd /var/kucet-db-backup
 # 1. Unzip the backup file (replace db_backup.sql.gz with the actual filename)
 sudo gzip -d db_backup.sql.gz
 
