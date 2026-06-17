@@ -73,7 +73,9 @@ export class StudentService {
       )
     });
 
-    const isAttendanceEligible = attendancePercent === null || attendancePercent >= 50;
+    // --- ATTENANCE VALIDATION DISABLED (Faculty Module under construction) ---
+    // const isAttendanceEligible = attendancePercent === null || attendancePercent >= 50;
+    const isAttendanceEligible = true; 
     const isAcademicYearEligible = !existingApproved;
 
     return {
@@ -81,15 +83,14 @@ export class StudentService {
         total,
         attended,
         percentage: attendancePercent,
-        isEligible: isAttendanceEligible
+        isEligible: isAttendanceEligible,
+        thresholdReached: attendancePercent === null || attendancePercent >= 50 // Keep track for UI but don't block
       },
       feeReimbursement: student?.fee_reimbursement || 'NO',
       academicYear,
       alreadyHasApproved: !!existingApproved,
       isEligible: isAttendanceEligible && isAcademicYearEligible,
-      reason: !isAttendanceEligible 
-        ? 'Attendance is below 50%.' 
-        : (!isAcademicYearEligible ? `You have already received an approved Bonafide for ${academicYear}.` : null)
+      reason: !isAcademicYearEligible ? `You have already received an approved Bonafide for ${academicYear}.` : null
     };
   }
 
