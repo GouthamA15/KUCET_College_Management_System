@@ -241,9 +241,9 @@ export default function CertificateRequestForm({
     <div className="w-full">
       <div className="space-y-6">
         {/* Certificate Selection Section */}
-        <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
-          <h2 className="text-2xl font-semibold text-[#0b2447] mb-2">New Certificate Request</h2>
-          <p className="text-sm text-gray-600 mb-3">Select certificate type and proceed with payment to submit your request.</p>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">New Certificate Request</h2>
+          <p className="text-sm text-gray-600 mb-4">Select certificate type and proceed with payment to submit your request.</p>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-center">
             <div className="lg:col-span-2">
               <label htmlFor="certificate-type" className="block text-sm font-medium text-gray-700">Certificate Type</label>
@@ -251,7 +251,7 @@ export default function CertificateRequestForm({
                 id="certificate-type"
                 value={selectedCertificate}
                 onChange={(e) => setSelectedCertificate(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] sm:text-sm animate-fadeIn"
               >
                 {certificateOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -262,27 +262,27 @@ export default function CertificateRequestForm({
 
           {/* Institutional Eligibility Display */}
           {(isBonafide || isTC) && (
-            <div className="mt-4 p-4 border rounded-sm bg-slate-50 space-y-3">
+            <div className="mt-6 pt-6 border-t border-gray-100 space-y-4 animate-fadeIn">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-[#0b3578] uppercase tracking-wider">Institutional Eligibility</h4>
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Institutional Eligibility</h3>
                 {isLoadingEligibility && (
                   <span className="text-xs text-slate-400 animate-pulse">Verifying records...</span>
                 )}
               </div>
 
               {isBonafide && eligibilityMap?.bonafide && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Attendance */}
-                  <div className={`p-3 border rounded-sm ${eligibilityMap.bonafide.attendance?.isEligible ? 'bg-white border-slate-200' : 'bg-rose-50 border-rose-200'}`}>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Attendance</p>
+                  <div className={`p-4 rounded-md ${eligibilityMap.bonafide.attendance?.isEligible ? 'bg-slate-50' : 'bg-rose-50 text-rose-955'}`}>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Attendance</p>
                     <div className="mt-1 flex items-baseline gap-1">
-                      <span className={`text-lg font-bold ${eligibilityMap.bonafide.attendance?.isEligible ? 'text-slate-900' : 'text-rose-700'}`}>
+                      <span className={`text-xl font-bold ${eligibilityMap.bonafide.attendance?.isEligible ? 'text-slate-900' : 'text-rose-700'}`}>
                         {eligibilityMap.bonafide.attendance?.percentage != null ? `${eligibilityMap.bonafide.attendance.percentage.toFixed(1)}%` : 'N/A'}
                       </span>
-                      <span className="text-[10px] text-slate-500">min 50%</span>
+                      <span className="text-[10px] text-slate-500 font-medium">min 50%</span>
                     </div>
                     {eligibilityMap.bonafide.attendance && !eligibilityMap.bonafide.attendance.thresholdReached && (
-                      <p className="text-[10px] text-amber-600 mt-1 font-medium italic">Institutional Waiver</p>
+                      <p className="text-[10px] text-amber-600 mt-1 font-medium italic">Waiver Applied</p>
                     )}
                     {eligibilityMap.bonafide.attendance?.percentage === null && (
                       <p className="text-[10px] text-slate-500 mt-1 italic">Records pending</p>
@@ -290,13 +290,13 @@ export default function CertificateRequestForm({
                   </div>
 
                   {/* Academic Year */}
-                  <div className={`p-3 border rounded-sm ${!eligibilityMap.bonafide.alreadyHasApproved ? 'bg-white border-slate-200' : 'bg-rose-50 border-rose-200'}`}>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Academic Year</p>
+                  <div className={`p-4 rounded-md ${!eligibilityMap.bonafide.alreadyHasApproved ? 'bg-slate-50' : 'bg-rose-50 text-rose-955'}`}>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Academic Year</p>
                     <div className="mt-1">
-                      <span className="text-sm font-bold text-slate-900">{eligibilityMap.bonafide.academicYear || '...'}</span>
+                      <span className="text-base font-bold text-slate-900">{eligibilityMap.bonafide.academicYear || '—'}</span>
                     </div>
                     {eligibilityMap.bonafide.alreadyHasApproved && (
-                      <p className="text-[10px] text-rose-600 mt-1 font-medium italic">Already issued</p>
+                      <p className="text-[10px] text-rose-600 mt-1 font-medium italic font-semibold">Already issued</p>
                     )}
                     {!eligibilityMap.bonafide.alreadyHasApproved && (
                       <p className="text-[10px] text-emerald-600 mt-1 font-medium italic">Available</p>
@@ -304,11 +304,11 @@ export default function CertificateRequestForm({
                   </div>
 
                   {/* Fee Reimbursement */}
-                  <div className="p-3 border border-slate-200 rounded-sm bg-white">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Fee Reimbursement</p>
+                  <div className="p-4 rounded-md bg-slate-50">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Fee Reimbursement</p>
                     <div className="mt-1 flex items-center gap-1.5">
-                      <span className="text-lg font-bold text-slate-900">{eligibilityMap.bonafide.feeReimbursement || 'NO'}</span>
-                      <div className={`h-2 w-2 rounded-full ${eligibilityMap.bonafide.feeReimbursement !== 'NO' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <span className="text-xl font-bold text-slate-900">{eligibilityMap.bonafide.feeReimbursement || 'NO'}</span>
+                      <div className={`h-2.5 w-2.5 rounded-full ${eligibilityMap.bonafide.feeReimbursement !== 'NO' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1 italic">Institutional Status</p>
                   </div>
@@ -316,10 +316,10 @@ export default function CertificateRequestForm({
               )}
 
               {isTC && eligibilityMap?.tc && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Final Year Completion */}
-                  <div className={`p-3 border rounded-sm ${eligibilityMap.tc.isFinalYearCompleted ? 'bg-white border-slate-200' : 'bg-rose-50 border-rose-200'}`}>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Academic Status</p>
+                  <div className={`p-4 rounded-md ${eligibilityMap.tc.isFinalYearCompleted ? 'bg-slate-50' : 'bg-rose-50'}`}>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Academic Status</p>
                     <div className="mt-1">
                       <span className={`text-sm font-bold ${eligibilityMap.tc.isFinalYearCompleted ? 'text-emerald-700' : 'text-rose-700'}`}>
                         {eligibilityMap.tc.isFinalYearCompleted ? 'FINAL YEAR COMPLETED' : 'FINAL YEAR NOT COMPLETED'}
@@ -329,13 +329,13 @@ export default function CertificateRequestForm({
                   </div>
 
                   {/* Fee Dues */}
-                  <div className={`p-3 border rounded-sm ${eligibilityMap.tc.hasNoDues ? 'bg-white border-slate-200' : 'bg-rose-50 border-rose-200'}`}>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Financial Status</p>
+                  <div className={`p-4 rounded-md ${eligibilityMap.tc.hasNoDues ? 'bg-slate-50' : 'bg-rose-50'}`}>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Financial Status</p>
                     <div className="mt-1 flex items-baseline gap-1">
-                      <span className={`text-lg font-bold ${eligibilityMap.tc.hasNoDues ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      <span className={`text-xl font-bold ${eligibilityMap.tc.hasNoDues ? 'text-emerald-700' : 'text-rose-700'}`}>
                         {eligibilityMap.tc.hasNoDues ? 'NO DUES' : `₹${eligibilityMap.tc.pendingDues}`}
                       </span>
-                      {!eligibilityMap.tc.hasNoDues && <span className="text-[10px] text-rose-500 font-bold">OUTSTANDING</span>}
+                      {!eligibilityMap.tc.hasNoDues && <span className="text-[10px] text-rose-500 font-bold uppercase tracking-wide">Outstanding</span>}
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1 italic">Clearance Required</p>
                   </div>
@@ -346,7 +346,7 @@ export default function CertificateRequestForm({
                 (isBonafide && !eligibilityMap?.bonafide?.isEligible) || 
                 (isTC && !eligibilityMap?.tc?.isEligible)
               ) && (
-                <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-sm">
+                <div className="p-3 bg-rose-50 border-l-4 border-rose-500 rounded-md">
                   <p className="text-xs text-rose-800 font-medium">
                     <span className="font-bold">Access Blocked:</span> {isBonafide ? eligibilityMap?.bonafide?.reason : eligibilityMap?.tc?.reason}
                   </p>
@@ -356,179 +356,179 @@ export default function CertificateRequestForm({
           )}
 
           {isIncomeTax && (
-            <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-sm">
+            <div className="mt-4 p-3.5 bg-blue-50 border-l-4 border-blue-500 rounded-md animate-fadeIn">
               <h4 className="text-sm font-semibold text-blue-800">Upload College Fee Payment Proof</h4>
-              <p className="text-sm text-blue-700">Upload screenshot of college fee payment receipt.</p>
+              <p className="text-xs text-blue-700 mt-0.5">Please upload screenshot of your college fee payment receipt below.</p>
             </div>
           )}
         </div>
 
         {/* Payment & Upload Sections */}
         {showForm && (
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Payment Card */}
-            <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm">
-                {/* Removed step pills - structured single form */}
-              <PaymentSection fee={fee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />
-              <div className="mt-4">
-                {fee > 0 ? (
-                  <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-indigo-600">₹{fee}</span></p>
-                ) : (
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-700 font-semibold text-green-600">No additional payment required.</p>
-                    {isBonafide && <p className="text-xs text-gray-500 italic">Fee waived: One-time payment for Bonafide valid for entire course.</p>}
+          <form onSubmit={handleSubmit} className="mt-6 pt-6 border-t border-gray-100 animate-fadeIn">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Payment Section (Left Column) */}
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-800 mb-3 font-medium">Payment Details</h3>
+                  <PaymentSection fee={fee} selectedCertificate={selectedCertificate} upiVPA={upiVPA} />
+                </div>
+                
+                <div className="mt-4">
+                  {fee > 0 ? (
+                    <p className="text-sm text-gray-700">Payment Fee: <span className="font-semibold text-[#0b3578]">₹{fee}</span></p>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-750 font-semibold text-emerald-600">No additional payment required.</p>
+                      {isBonafide && <p className="text-xs text-gray-500 italic">Fee waived: One-time payment for Bonafide valid for entire course.</p>}
+                    </div>
+                  )}
+                </div>
+
+                {requiresTransactionId && (
+                  <div className="mt-4">
+                    <label htmlFor="transaction-id" className="block text-sm font-medium text-gray-700">Transaction ID / UTR</label>
+                    <input
+                      type="text"
+                      id="transaction-id"
+                      value={formState.transactionId}
+                      onChange={(e) => {
+                        const val = (e.target.value || '').replace(/\D/g, '').slice(0, 12);
+                        setFormState(prev => ({ ...prev, transactionId: val }));
+                      }}
+                      onPaste={(e) => {
+                        const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
+                        const digits = paste.replace(/\D/g, '');
+                        e.preventDefault();
+                        const el = e.target;
+                        const start = el.selectionStart || 0;
+                        const end = el.selectionEnd || 0;
+                        const current = (el.value || '').replace(/\D/g, '');
+                        const before = current.slice(0, start);
+                        const after = current.slice(end);
+                        const newVal = (before + digits + after).slice(0, 12);
+                        setFormState(prev => ({ ...prev, transactionId: newVal }));
+                        requestAnimationFrame(() => {
+                          const caret = Math.min((before + digits).length, 12);
+                          el.selectionStart = el.selectionEnd = caret;
+                        });
+                      }}
+                      inputMode="numeric"
+                      pattern="\d*"
+                      maxLength={12}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] sm:text-sm"
+                    />
                   </div>
                 )}
               </div>
-              {requiresTransactionId && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-600">Transaction ID / UTR</p>
-                  <input
-                    type="text"
-                    id="transaction-id"
-                    value={formState.transactionId}
-                    // Allow only digits for Transaction ID / UTR and limit to 12 chars
-                    onChange={(e) => {
-                      const val = (e.target.value || '').replace(/\D/g, '').slice(0, 12);
-                      setFormState(prev => ({ ...prev, transactionId: val }));
-                    }}
-                    onPaste={(e) => {
-                      const paste = (e.clipboardData || window.clipboardData).getData('text') || '';
-                      const digits = paste.replace(/\D/g, '');
-                      e.preventDefault();
-                      const el = e.target;
-                      const start = el.selectionStart || 0;
-                      const end = el.selectionEnd || 0;
-                      const current = (el.value || '').replace(/\D/g, '');
-                      const before = current.slice(0, start);
-                      const after = current.slice(end);
-                      const newVal = (before + digits + after).slice(0, 12);
-                      setFormState(prev => ({ ...prev, transactionId: newVal }));
-                      requestAnimationFrame(() => {
-                        const caret = Math.min((before + digits).length, 12);
-                        el.selectionStart = el.selectionEnd = caret;
-                      });
-                    }}
-                    inputMode="numeric"
-                    pattern="\d*"
-                    maxLength={12}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-                </div>
-              )}
-            </div>
 
-            {/* Upload & Submit Card */}
-            <div className="border border-gray-200 rounded-md p-4 bg-white shadow-sm flex flex-col">
-              
-              {/* 1. Upload Section (Now First) */}
-              {(requiresPayment || isIncomeTax) && !isNoObjection ? (
-                <div className="w-full mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    {requiresPayment && !isIncomeTax ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <1MB).'}
-                  </p>
+              {/* Upload & Submit Section (Right Column) */}
+              <div className="space-y-6">
+                {/* Upload Section */}
+                {(requiresPayment || isIncomeTax) && !isNoObjection ? (
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-800 mb-2">
+                      {requiresPayment && !isIncomeTax ? 'Upload UPI Payment Screenshot' : isIncomeTax ? 'Upload College Fee Payment Screenshot' : 'Upload Payment Proof'}
+                    </h3>
+                    <p className="text-xs text-gray-600 mb-3">
+                      {isIncomeTax ? 'Upload screenshot of college fee payment receipt.' : 'Upload your UPI payment screenshot (PNG/JPEG, <1MB).'}
+                    </p>
 
-                  <div className="mb-3">
-                    <div className="max-h-[250px] border-2 border-dashed border-gray-300 rounded-sm flex items-center justify-center p-4 relative">
-                      {!formState.paymentScreenshot ? (
-                        <div className="text-center text-gray-500">
-                          <div className="mb-2 font-medium">No Screenshot Selected</div>
-                          <div className="text-sm">Use the button below to upload an image</div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center relative">
-                          <Image src={formState.paymentPreviewUrl} alt="Payment Screenshot Preview" width={520} height={220} className="max-h-[220px] w-auto object-contain" unoptimized />
-                          <button type="button" onClick={handleRemoveImage} className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full p-1 text-gray-600 hover:bg-gray-100">
-                            ×
-                          </button>
-                        </div>
-                      )}
+                    <div className="mb-3">
+                      <div className="max-h-[200px] border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center p-4 relative bg-slate-50/50">
+                        {!formState.paymentScreenshot ? (
+                          <div className="text-center text-gray-400 py-6">
+                            <div className="mb-1 font-medium text-sm">No Screenshot Selected</div>
+                            <div className="text-xs">Drag & drop or use upload button</div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center relative">
+                            <Image src={formState.paymentPreviewUrl} alt="Payment Screenshot Preview" width={320} height={140} className="max-h-[140px] w-auto object-contain rounded-md" unoptimized />
+                            <button type="button" onClick={handleRemoveImage} className="absolute -top-1 -right-1 bg-white border border-gray-300 rounded-full p-1 text-gray-600 hover:bg-gray-100 shadow-sm cursor-pointer w-6 h-6 flex items-center justify-center font-bold text-sm">
+                              ×
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="mt-2 flex flex-col items-center">
-                    <input
-                      type="file"
-                      id="payment-screenshot"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      ref={fileInputRef}
-                      className="hidden"
-                    />
-                    <button type="button" onClick={handleUploadClick} className="px-4 py-2 bg-[#3258a8] text-white rounded-sm text-sm font-medium hover:bg-[#274f8f]">Upload Image</button>
-                    <div className="mt-3 text-center">
-                      {formState.paymentScreenshot ? (
-                        <>
-                          <div className="text-sm text-gray-700">{formState.paymentScreenshot.name}</div>
-                          <div className="text-xs text-green-600">Image ready ({(formState.paymentScreenshot.size / 1024).toFixed(2)} KB)</div>
-                        </>
-                      ) : (
-                        <div className="text-sm text-gray-500">No image selected</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                !isNoObjection && !isBonafide && !isTC && (
-                  <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-sm">
-                    <p className="text-sm text-green-700">This request is free. No payment screenshot required. Just click submit.</p>
-                  </div>
-                )
-              )}
-
-              {/* 2. Purpose & Dates (Now Second) */}
-              {(isNoObjection || isBonafide || isTC) && (
-                <div className="w-full">
-                  <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>
-                  <select
-                    value={formState.purposeOption}
-                    onChange={(e) => setFormState(prev => ({ 
-                      ...prev, 
-                      purposeOption: e.target.value,
-                      purposeError: e.target.value === 'Other' ? validateNocPurpose(formState.customPurpose) : ''
-                    }))}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  >
-                    <option value="Select">Select Purpose</option>
-                    {currentPurposes.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                    <option value="Other">Other (Please specify)</option>
-                  </select>
-
-                  {formState.purposeOption === 'Other' && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700">Specify Purpose <span className="text-red-500">*</span></label>
-                      <textarea
-                        rows={3}
-                        value={formState.customPurpose}
-                        onChange={(e) => {
-                          const newValue = e.target.value;
-                          setFormState(prev => ({
-                            ...prev,
-                            customPurpose: newValue,
-                            purposeError: validateNocPurpose(newValue),
-                          }));
-                        }}
-                        className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        placeholder="Ex: Internship programme in X institution, passport verification, etc."
+                    <div className="flex flex-col items-center">
+                      <input
+                        type="file"
+                        id="payment-screenshot"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        ref={fileInputRef}
+                        className="hidden"
                       />
-                      <p className="text-xs mt-1 text-gray-500">
-                        Please clearly describe the purpose (min 20 characters).
-                      </p>
+                      <button type="button" onClick={handleUploadClick} className="px-4 py-2 bg-[#0b3578] text-white rounded-md text-sm font-medium hover:bg-[#0a2d66] transition-colors cursor-pointer">Upload Image</button>
+                      {formState.paymentScreenshot && (
+                        <div className="mt-2 text-center text-xs">
+                          <span className="text-gray-700 font-medium block truncate max-w-xs">{formState.paymentScreenshot.name}</span>
+                          <span className="text-emerald-600 font-medium">Ready ({(formState.paymentScreenshot.size / 1024).toFixed(1)} KB)</span>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  !isNoObjection && !isBonafide && !isTC && (
+                    <div className="p-3 bg-emerald-50 border-l-4 border-emerald-500 rounded-md">
+                      <p className="text-xs text-emerald-800 font-semibold">This request is free. No payment screenshot required.</p>
+                    </div>
+                  )
+                )}
 
-                  {formState.purposeError && (
-                    <p className="text-xs text-red-600 mt-1">{formState.purposeError}</p>
-                  )}
+                {/* Purpose & Dates */}
+                {(isNoObjection || isBonafide || isTC) && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>
+                      <select
+                        value={formState.purposeOption}
+                        onChange={(e) => setFormState(prev => ({ 
+                          ...prev, 
+                          purposeOption: e.target.value,
+                          purposeError: e.target.value === 'Other' ? validateNocPurpose(formState.customPurpose) : ''
+                        }))}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] sm:text-sm"
+                      >
+                        <option value="Select">Select Purpose</option>
+                        {currentPurposes.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                        <option value="Other">Other (Please specify)</option>
+                      </select>
+                    </div>
 
-                  {isNoObjection && (
-                    <>
-                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {formState.purposeOption === 'Other' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Specify Purpose <span className="text-red-500">*</span></label>
+                        <textarea
+                          rows={3}
+                          value={formState.customPurpose}
+                          onChange={(e) => {
+                            const newValue = e.target.value;
+                            setFormState(prev => ({
+                              ...prev,
+                              customPurpose: newValue,
+                              purposeError: validateNocPurpose(newValue),
+                            }));
+                          }}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] sm:text-sm"
+                          placeholder="Ex: Internship programme in X institution, passport verification, etc."
+                        />
+                        <p className="text-[11px] mt-1 text-gray-500">
+                          Please clearly describe the purpose (min 20 characters).
+                        </p>
+                      </div>
+                    )}
+
+                    {formState.purposeError && (
+                      <p className="text-xs text-red-600 mt-1">{formState.purposeError}</p>
+                    )}
+
+                    {isNoObjection && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700">From Date <span className="text-red-500">*</span></label>
                           <input
@@ -542,7 +542,7 @@ export default function CertificateRequestForm({
                                 dateError: validateNocDates(val, formState.toDate),
                               }));
                             }}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] sm:text-sm"
                           />
                         </div>
                         <div>
@@ -558,55 +558,47 @@ export default function CertificateRequestForm({
                                 dateError: validateNocDates(formState.fromDate, val),
                               }));
                             }}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578] sm:text-sm"
                           />
                         </div>
                       </div>
-                      {formState.dateError && (
-                        <p className="text-xs text-red-600 mt-1">{formState.dateError}</p>
-                      )}
-                    </>
-                  )}
+                    )}
+                    {isNoObjection && formState.dateError && (
+                      <p className="text-xs text-red-600 mt-1">{formState.dateError}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Submit button wrapper */}
+                <div className="pt-4 flex justify-end">
+                  {(() => {
+                    const nocPurposeInvalid = isNoObjection && (
+                      formState.purposeOption === 'Select' || 
+                      (formState.purposeOption === 'Other' && !!validateNocPurpose(formState.customPurpose))
+                    );
+                    const nocDatesInvalid = isNoObjection && !!validateNocDates(formState.fromDate, formState.toDate);
+                    
+                    const paymentInvalid = !isNoObjection && (
+                      (requiresPayment && !isIncomeTax && (!formState.transactionId || !formState.paymentScreenshot)) ||
+                      (isIncomeTax && !formState.paymentScreenshot)
+                    );
+
+                    const bonafideInvalid = isBonafide && eligibilityMap?.bonafide && !eligibilityMap.bonafide.isEligible;
+                    const tcInvalid = isTC && eligibilityMap?.tc && !eligibilityMap.tc.isEligible;
+
+                    const isSubmitDisabled = isLoading || nocPurposeInvalid || nocDatesInvalid || paymentInvalid || bonafideInvalid || tcInvalid || ((isBonafide || isTC) && isLoadingEligibility);
+                    
+                    return (
+                      <button
+                        type="submit"
+                        disabled={isSubmitDisabled}
+                        className="w-full sm:w-auto inline-flex items-center px-6 py-2.5 rounded-md text-sm font-semibold text-white bg-[#0b3578] hover:bg-[#0a2d66] active:bg-[#092554] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0b3578] disabled:bg-gray-300 transition-colors justify-center cursor-pointer min-w-[160px]"
+                      >
+                        {isLoading ? 'Submitting...' : 'Submit Request'}
+                      </button>
+                    );
+                  })()}
                 </div>
-              )}
-
-              {/* Institutional record hint for free Bonafide/TC */}
-              {!requiresPayment && !isIncomeTax && (isBonafide || isTC) && (
-                <p className="text-xs text-gray-500 mt-2 italic">
-                  {isNoObjection ? 'No upload or payment required for No Objection certificate.' : 'Purpose is required for institutional records. No screenshot needed for free requests.'}
-                </p>
-              )}
-
-              <div className="mt-6 flex justify-center">
-                {(() => {
-                  const nocPurposeInvalid = isNoObjection && (
-                    formState.purposeOption === 'Select' || 
-                    (formState.purposeOption === 'Other' && !!validateNocPurpose(formState.customPurpose))
-                  );
-                  const nocDatesInvalid = isNoObjection && !!validateNocDates(formState.fromDate, formState.toDate);
-                  
-                  // Payment validation
-                  const paymentInvalid = !isNoObjection && (
-                    (requiresPayment && !isIncomeTax && (!formState.transactionId || !formState.paymentScreenshot)) ||
-                    (isIncomeTax && !formState.paymentScreenshot)
-                  );
-
-                  // Eligibility validation
-                  const bonafideInvalid = isBonafide && eligibilityMap?.bonafide && !eligibilityMap.bonafide.isEligible;
-                  const tcInvalid = isTC && eligibilityMap?.tc && !eligibilityMap.tc.isEligible;
-
-                  const isSubmitDisabled = isLoading || nocPurposeInvalid || nocDatesInvalid || paymentInvalid || bonafideInvalid || tcInvalid || ((isBonafide || isTC) && isLoadingEligibility);
-                  
-                  return (
-                    <button
-                      type="submit"
-                      disabled={isSubmitDisabled}
-                      className="inline-flex items-center px-6 py-2 rounded-sm text-sm font-semibold text-white bg-[#3258a8] hover:bg-[#274f8f] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3258a8] disabled:bg-gray-400 w-[220px] justify-center"
-                    >
-                      {isLoading ? 'Submitting...' : 'Submit Request'}
-                    </button>
-                  );
-                })()}
               </div>
             </div>
           </form>
