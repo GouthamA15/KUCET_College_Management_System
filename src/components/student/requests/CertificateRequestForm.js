@@ -9,7 +9,6 @@ export default function CertificateRequestForm({
   selectedCertificate,
   setSelectedCertificate,
   fee,
-  selectedOption,
   onSubmit,
   isLoading,
   upiVPA,
@@ -25,7 +24,44 @@ export default function CertificateRequestForm({
     purposeError: '',
     dateError: '',
   });
-  const commonPurposes = ['Scholarship', 'Internship', 'Education Loan', 'Higher Studies', 'Passport/Visa'];
+
+  const [eligibility, setEligibility] = useState(null);
+  const [isLoadingEligibility, setIsLoadingEligibility] = useState(false);
+
+  useEffect(() => {
+    if (selectedCertificate === 'Bonafide Certificate') {
+      const fetchEligibility = async () => {
+        setIsLoadingEligibility(true);
+        try {
+          const res = await fetch('/api/student/requests/eligibility');
+          if (res.ok) {
+            const data = await res.json();
+            setEligibility(data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch eligibility', error);
+        } finally {
+          setIsLoadingEligibility(false);
+        }
+      };
+      fetchEligibility();
+    } else {
+      // Use microtask to avoid synchronous setState in effect body
+      Promise.resolve().then(() => setEligibility(null));
+    }
+  }, [selectedCertificate]);
+
+  const commonPurposes = [
+    'Higher Education',
+    'Internship',
+    'Industrial Training',
+    'Project Work',
+    'Passport Application',
+    'Visa Application',
+    'Employment Opportunity',
+    'Competitive Examination',
+    'Research Activity'
+  ];
 
   const isIncomeTax = selectedCertificate === 'Income Tax (IT) Certificate';
   const isNoObjection = selectedCertificate === 'No Objection Certificate';
@@ -65,7 +101,9 @@ export default function CertificateRequestForm({
 
   const handleRemoveImage = () => {
     if (formState.paymentPreviewUrl) {
-      try { URL.revokeObjectURL(formState.paymentPreviewUrl); } catch (e) {}
+      try { URL.revokeObjectURL(formState.paymentPreviewUrl); } catch (error) {
+        console.error('Revoke error', error);
+      }
     }
     setFormState(prev => ({
       ...prev,
@@ -87,7 +125,9 @@ export default function CertificateRequestForm({
       }
       // revoke previous preview if present
       if (formState.paymentPreviewUrl) {
-        try { URL.revokeObjectURL(formState.paymentPreviewUrl); } catch (e) {}
+        try { URL.revokeObjectURL(formState.paymentPreviewUrl); } catch (error) {
+          console.error('Revoke error', error);
+        }
       }
       const preview = URL.createObjectURL(file);
       setFormState(prev => ({
@@ -103,39 +143,41 @@ export default function CertificateRequestForm({
   useEffect(() => {
     return () => {
       if (formState.paymentPreviewUrl) {
-        try { URL.revokeObjectURL(formState.paymentPreviewUrl); } catch (e) {}
+        try { URL.revokeObjectURL(formState.paymentPreviewUrl); } catch (error) {
+          console.error('Revoke error', error);
+        }
       }
     };
   }, [formState.paymentPreviewUrl]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Special handling for No Objection: only require a manual purpose
+    // Special handling for No Objection: requires purpose (dropdown) and dates
     if (isNoObjection) {
-      const purposeValidationError = validateNocPurpose(formState.customPurpose);
+      if (formState.purposeOption === 'Select') {
+        toast.error('Please select a purpose for the certificate.');
+        return;
+      }
+      
+      let purposeValidationError = '';
+      if (formState.purposeOption === 'Other') {
+        purposeValidationError = validateNocPurpose(formState.customPurpose);
+      }
+      
       const dateValidationError = validateNocDates(formState.fromDate, formState.toDate);
       setFormState(prev => ({
         ...prev,
         purposeError: purposeValidationError,
         dateError: dateValidationError,
       }));
+      
       if (purposeValidationError || dateValidationError) {
         toast.error('Please fix the highlighted issues before submitting.');
         return;
       }
 
-      const finalPurpose = formState.customPurpose.trim();
+      const finalPurpose = formState.purposeOption === 'Other' ? formState.customPurpose.trim() : formState.purposeOption;
       await onSubmit({ transactionId: '', paymentScreenshot: null, finalPurpose, fromDate: formState.fromDate, toDate: formState.toDate });
-      return;
-    }
-
-    // Validation for standard purpose selection
-    if (formState.purposeOption === 'Select') {
-      toast.error('Please select a purpose for the certificate.');
-      return;
-    }
-    if (formState.purposeOption === 'Other' && !formState.customPurpose.trim()) {
-      toast.error('Please specify your purpose.');
       return;
     }
 
@@ -153,8 +195,9 @@ export default function CertificateRequestForm({
         return;
       }
     }
-    const finalPurpose = formState.purposeOption === 'Other' ? formState.customPurpose.trim() : formState.purposeOption;
-    await onSubmit({ transactionId: formState.transactionId, paymentScreenshot: formState.paymentScreenshot, finalPurpose, fromDate: null, toDate: null });
+    
+    // Purpose is hidden and not required for other certificates
+    await onSubmit({ transactionId: formState.transactionId, paymentScreenshot: formState.paymentScreenshot, finalPurpose: '', fromDate: null, toDate: null });
   };
 
   return (
@@ -178,11 +221,75 @@ export default function CertificateRequestForm({
                 ))}
               </select>
             </div>
-            {/* <div className="lg:col-span-1">
-              <p className="text-sm font-medium text-gray-700">Fee</p>
-              <div className="mt-1 text-lg font-semibold text-indigo-600">₹{fee}</div>
-            </div> */}
           </div>
+
+          {/* Bonafide Eligibility Display */}
+          {isBonafide && (
+            <div className="mt-4 p-4 border rounded-sm bg-slate-50 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-[#0b3578] uppercase tracking-wider">Institutional Eligibility</h4>
+                {isLoadingEligibility ? (
+                  <span className="text-xs text-slate-400 animate-pulse">Verifying records...</span>
+                ) : (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${eligibility?.isEligible ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                    {eligibility?.isEligible ? 'ELIGIBLE' : 'INELIGIBLE'}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Attendance */}
+                <div className={`p-3 border rounded-sm ${eligibility?.attendance?.isEligible ? 'bg-white border-slate-200' : 'bg-rose-50 border-rose-200'}`}>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Attendance</p>
+                  <div className="mt-1 flex items-baseline gap-1">
+                    <span className={`text-lg font-bold ${eligibility?.attendance?.isEligible ? 'text-slate-900' : 'text-rose-700'}`}>
+                      {eligibility?.attendance?.percentage !== null ? `${eligibility.attendance.percentage.toFixed(1)}%` : 'N/A'}
+                    </span>
+                    <span className="text-[10px] text-slate-500">min 50%</span>
+                  </div>
+                  {!eligibility?.attendance?.isEligible && (
+                    <p className="text-[10px] text-rose-600 mt-1 font-medium italic">Below threshold</p>
+                  )}
+                  {eligibility?.attendance?.percentage === null && (
+                    <p className="text-[10px] text-slate-500 mt-1 italic">Records pending</p>
+                  )}
+                </div>
+
+                {/* Academic Year */}
+                <div className={`p-3 border rounded-sm ${!eligibility?.alreadyHasApproved ? 'bg-white border-slate-200' : 'bg-rose-50 border-rose-200'}`}>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Academic Year</p>
+                  <div className="mt-1">
+                    <span className="text-sm font-bold text-slate-900">{eligibility?.academicYear || '...'}</span>
+                  </div>
+                  {eligibility?.alreadyHasApproved && (
+                    <p className="text-[10px] text-rose-600 mt-1 font-medium italic">Already issued</p>
+                  )}
+                  {!eligibility?.alreadyHasApproved && (
+                    <p className="text-[10px] text-emerald-600 mt-1 font-medium italic">Available</p>
+                  )}
+                </div>
+
+                {/* Fee Reimbursement */}
+                <div className="p-3 border border-slate-200 rounded-sm bg-white">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Fee Reimbursement</p>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="text-lg font-bold text-slate-900">{eligibility?.feeReimbursement || 'NO'}</span>
+                    <div className={`h-2 w-2 rounded-full ${eligibility?.feeReimbursement !== 'NO' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1 italic">Institutional Status</p>
+                </div>
+              </div>
+
+              {!isLoadingEligibility && !eligibility?.isEligible && (
+                <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-sm">
+                  <p className="text-xs text-rose-800 font-medium">
+                    <span className="font-bold">Access Blocked:</span> {eligibility?.reason}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {isIncomeTax && (
             <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-sm">
               <h4 className="text-sm font-semibold text-blue-800">Upload College Fee Payment Proof</h4>
@@ -251,23 +358,45 @@ export default function CertificateRequestForm({
               {isNoObjection ? (
                 <div className="w-full">
                   <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>
-                  <textarea
-                    rows={3}
-                    value={formState.customPurpose}
-                    onChange={(e) => {
-                      const newValue = e.target.value;
-                      setFormState(prev => ({
-                        ...prev,
-                        customPurpose: newValue,
-                        purposeError: validateNocPurpose(newValue),
-                      }));
-                    }}
-                    className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Ex: Internship programme in X institution, passport verification, higher studies, event participation, etc."
-                  />
-                  <p className="text-xs mt-1 text-gray-500">
-                    Please clearly describe the purpose (internship, passport verification, higher studies, event participation, etc.).
-                  </p>
+                  <select
+                    value={formState.purposeOption}
+                    onChange={(e) => setFormState(prev => ({ 
+                      ...prev, 
+                      purposeOption: e.target.value,
+                      purposeError: e.target.value === 'Other' ? validateNocPurpose(formState.customPurpose) : ''
+                    }))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  >
+                    <option value="Select">Select Purpose</option>
+                    {commonPurposes.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                    <option value="Other">Other (Please specify)</option>
+                  </select>
+
+                  {formState.purposeOption === 'Other' && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700">Specify Purpose <span className="text-red-500">*</span></label>
+                      <textarea
+                        rows={3}
+                        value={formState.customPurpose}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          setFormState(prev => ({
+                            ...prev,
+                            customPurpose: newValue,
+                            purposeError: validateNocPurpose(newValue),
+                          }));
+                        }}
+                        className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        placeholder="Ex: Internship programme in X institution, passport verification, etc."
+                      />
+                      <p className="text-xs mt-1 text-gray-500">
+                        Please clearly describe the purpose (min 20 characters).
+                      </p>
+                    </div>
+                  )}
+
                   {formState.purposeError && (
                     <p className="text-xs text-red-600 mt-1">{formState.purposeError}</p>
                   )}
@@ -365,55 +494,30 @@ export default function CertificateRequestForm({
                     </>
                   ) : (
                     <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded-sm">
-                      <p className="text-sm text-green-700">This request is free. No payment screenshot required. Just select the purpose and submit.</p>
+                      <p className="text-sm text-green-700">This request is free. No payment screenshot required. Just click submit.</p>
                     </div>
                   )}
-
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700">Purpose of Certificate <span className="text-red-500">*</span></label>
-                    <select
-                      value={formState.purposeOption}
-                      onChange={(e) => setFormState(prev => ({ ...prev, purposeOption: e.target.value }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    >
-                      <option value="Select">Select</option>
-                      {commonPurposes.map((p) => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                      <option value="Other">Other (Please specify)</option>
-                    </select>
-                    {formState.purposeOption === 'Other' && (
-                      <textarea
-                        required
-                        rows={2}
-                        value={formState.customPurpose}
-                        onChange={(e) => setFormState(prev => ({ ...prev, customPurpose: e.target.value }))}
-                        className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        placeholder="Describe your purpose here..."
-                      />
-                    )}
-                  </div>
                 </>
               )}
 
               <div className="mt-6 flex justify-center">
                 {(() => {
-                  const nocPurposeInvalid = isNoObjection && !!validateNocPurpose(formState.customPurpose);
+                  const nocPurposeInvalid = isNoObjection && (
+                    formState.purposeOption === 'Select' || 
+                    (formState.purposeOption === 'Other' && !!validateNocPurpose(formState.customPurpose))
+                  );
                   const nocDatesInvalid = isNoObjection && !!validateNocDates(formState.fromDate, formState.toDate);
                   
-                  // Standard purpose validation
-                  const standardPurposeInvalid = !isNoObjection && (
-                    formState.purposeOption === 'Select' || 
-                    (formState.purposeOption === 'Other' && !formState.customPurpose.trim())
-                  );
-
                   // Payment validation
                   const paymentInvalid = !isNoObjection && (
                     (requiresPayment && !isIncomeTax && (!formState.transactionId || !formState.paymentScreenshot)) ||
                     (isIncomeTax && !formState.paymentScreenshot)
                   );
 
-                  const isSubmitDisabled = isLoading || nocPurposeInvalid || nocDatesInvalid || standardPurposeInvalid || paymentInvalid;
+                  // Bonafide eligibility validation
+                  const bonafideInvalid = isBonafide && eligibility && !eligibility.isEligible;
+
+                  const isSubmitDisabled = isLoading || nocPurposeInvalid || nocDatesInvalid || paymentInvalid || bonafideInvalid || (isBonafide && isLoadingEligibility);
                   
                   return (
                     <button

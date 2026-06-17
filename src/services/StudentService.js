@@ -6,15 +6,93 @@ import {
   studentImages,
   studentSignatures,
   scholarshipSanctions,
-  studentFeePayments
+  studentFeePayments,
+  collegeInfo as collegeInfoTable,
+  studentAttendance,
+  studentRequests,
+  facultySubjectAssignments
 } from '@/db/schema';
-import { eq, or, like, desc } from 'drizzle-orm';
+import { eq, or, like, desc, and, sql } from 'drizzle-orm';
 import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
 
 /**
  * Service for Student-related business logic
  */
 export class StudentService {
+  /**
+   * Check Bonafide certificate eligibility for a student
+   * @param {number} studentId 
+   * @param {string} rollNo 
+   * @returns {Promise<Object>} Eligibility details
+   */
+  static async getBonafideEligibility(studentId, rollNo) {
+    const { calculateYearAndSemesterAsync } = await import('@/lib/academic-utils');
+    const { getResolvedCurrentAcademicYear, getBranchFromRoll } = await import('@/lib/rollNumber');
+    const { getNow } = await import('@/lib/clock');
+
+    const now = await getNow();
+    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
+    const collegeInfo = collegeRows[0] || null;
+
+    const { semester } = await calculateYearAndSemesterAsync(rollNo, collegeInfo, 0);
+    const academicYear = getResolvedCurrentAcademicYear(rollNo, collegeInfo, now);
+    const branch = getBranchFromRoll(rollNo);
+
+    // 1. Attendance Calculation
+    // We join with faculty assignments to filter by current semester and academic year
+    const attendanceStats = await db.select({
+      total_classes: sql`COUNT(DISTINCT ${studentAttendance.id})`,
+      attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') THEN ${studentAttendance.id} END)`
+    })
+    .from(studentAttendance)
+    .innerJoin(facultySubjectAssignments, eq(studentAttendance.assignment_id, facultySubjectAssignments.id))
+    .where(and(
+      eq(studentAttendance.student_id, studentId),
+      eq(facultySubjectAssignments.branch, branch),
+      eq(facultySubjectAssignments.course_semester, semester),
+      eq(facultySubjectAssignments.academic_year, academicYear)
+    ));
+
+    const total = Number(attendanceStats[0]?.total_classes || 0);
+    const attended = Number(attendanceStats[0]?.attended_classes || 0);
+    const attendancePercent = total > 0 ? (attended / total) * 100 : null;
+
+    // 2. Fee Reimbursement
+    const student = await db.query.students.findFirst({
+      columns: { fee_reimbursement: true },
+      where: eq(studentsTable.id, studentId)
+    });
+
+    // 3. Existing Approved Bonafide for current year
+    const existingApproved = await db.query.studentRequests.findFirst({
+      where: and(
+        eq(studentRequests.student_id, studentId),
+        eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+        eq(studentRequests.academic_year, academicYear),
+        eq(studentRequests.status, 'APPROVED')
+      )
+    });
+
+    const isAttendanceEligible = attendancePercent === null || attendancePercent >= 50;
+    const isAcademicYearEligible = !existingApproved;
+
+    return {
+      attendance: {
+        total,
+        attended,
+        percentage: attendancePercent,
+        isEligible: isAttendanceEligible
+      },
+      feeReimbursement: student?.fee_reimbursement || 'NO',
+      academicYear,
+      alreadyHasApproved: !!existingApproved,
+      isEligible: isAttendanceEligible && isAcademicYearEligible,
+      reason: !isAttendanceEligible 
+        ? 'Attendance is below 50%.' 
+        : (!isAcademicYearEligible ? `You have already received an approved Bonafide for ${academicYear}.` : null)
+    };
+  }
+
   /**
    * Normalize a roll number for database operations
    * @param {string} rollNo 
