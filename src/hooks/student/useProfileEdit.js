@@ -7,10 +7,12 @@ export default function useProfileEdit(studentData = null, refreshData = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
+  const [contactAddress, setContactAddress] = useState('');
+  const [permanentAddress, setPermanentAddress] = useState('');
   const [originalMobile, setOriginalMobile] = useState('');
   const [originalEmail, setOriginalEmail] = useState('');
-  const [originalAddress, setOriginalAddress] = useState('');
+  const [originalContactAddress, setOriginalContactAddress] = useState('');
+  const [originalPermanentAddress, setOriginalPermanentAddress] = useState('');
   const [photoChanged, setPhotoChanged] = useState(false);
   const [photoProcessing, setPhotoProcessing] = useState(false);
 
@@ -21,10 +23,12 @@ export default function useProfileEdit(studentData = null, refreshData = () => {
       if (studentData) {
         setMobile(studentData.student.mobile || '');
         setEmail(studentData.student.email || '');
-        setAddress(studentData.student.personal_details?.address || '');
+        setContactAddress(studentData.student.personal_details?.contact_address || '');
+        setPermanentAddress(studentData.student.personal_details?.permanent_address || '');
         setOriginalMobile(studentData.student.mobile || '');
         setOriginalEmail(studentData.student.email || '');
-        setOriginalAddress(studentData.student.personal_details?.address || '');
+        setOriginalContactAddress(studentData.student.personal_details?.contact_address || '');
+        setOriginalPermanentAddress(studentData.student.personal_details?.permanent_address || '');
       }
     }, 0);
 
@@ -67,14 +71,20 @@ export default function useProfileEdit(studentData = null, refreshData = () => {
       const response = await fetch('/api/student/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollno, phone: sanitizeDigits(mobile, 12), address }),
+        body: JSON.stringify({ 
+          rollno, 
+          phone: sanitizeDigits(mobile, 12), 
+          contact_address: contactAddress, 
+          permanent_address: permanentAddress 
+        }),
       });
       const result = await response.json();
       if (response.ok) {
         toast.success('Profile updated successfully!');
         setIsEditing(false);
         setOriginalMobile(sanitizeDigits(mobile, 12));
-        setOriginalAddress(address);
+        setOriginalContactAddress(contactAddress);
+        setOriginalPermanentAddress(permanentAddress);
         setOriginalEmail(email);
         setPhotoChanged(false);
         refreshData();
@@ -96,11 +106,14 @@ export default function useProfileEdit(studentData = null, refreshData = () => {
     setMobile,
     email,
     setEmail,
-    address,
-    setAddress,
+    contactAddress,
+    setContactAddress,
+    permanentAddress,
+    setPermanentAddress,
     originalMobile,
     originalEmail,
-    originalAddress,
+    originalContactAddress,
+    originalPermanentAddress,
     sanitizeDigits,
     handleSave,
     photoChanged,

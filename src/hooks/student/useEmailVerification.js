@@ -9,13 +9,19 @@ export default function useEmailVerification({ rollno, newEmail, setEmail, origi
   const [isVerifying, setIsVerifying] = useState(false);
 
   const handleSendOtp = async () => {
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail || '');
+    if (!isEmailValid) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
     if (newEmail && newEmail !== originalEmail) {
       // client-side uniqueness check
       try {
         const uniquenessRes = await fetch(`/api/student/check-email-uniqueness?email=${encodeURIComponent(newEmail)}&currentRollno=${rollno}`);
         const uniquenessData = await uniquenessRes.json();
         if (!uniquenessData.isUnique) {
-          toast.error(uniquenessData.message || 'This email is already in use.');
+          toast.error(uniquenessData.error || uniquenessData.message || 'This email is already in use.');
           return;
         }
       } catch (e) {
@@ -35,7 +41,7 @@ export default function useEmailVerification({ rollno, newEmail, setEmail, origi
         toast.success(data.message);
         setIsOtpSent(true);
       } else {
-        toast.error(data.message || data.error || 'Please try again after 15 minutes.');
+        toast.error(data.error || data.message || 'Please try again after 15 minutes.');
       }
     } catch (error) {
       toast.error('Network error. Please try again.');
@@ -63,7 +69,7 @@ export default function useEmailVerification({ rollno, newEmail, setEmail, origi
           refreshData && refreshData();
         }
       } else {
-        toast.error(data.message || 'OTP verification failed.');
+        toast.error(data.error || data.message || 'OTP verification failed.');
       }
     } catch (error) {
       toast.error('Network error. Please try again.');

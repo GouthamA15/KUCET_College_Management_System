@@ -36,8 +36,16 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
     }, 1000);
   }, []);
 
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput || '');
+
   const handleSendOtp = useCallback(async () => {
     if (!emailInput || !roll_no || resendCountdown > 0) return;
+
+    if (!isEmailValid) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
     setEmailSending(true);
     try {
       const res = await fetch('/api/student/send-update-email-otp', {
@@ -51,14 +59,14 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
         setOtpSent(true);
         startCountdown();
       } else {
-        toast.error(data.message || 'Failed to send OTP');
+        toast.error(data.error || data.message || 'Failed to send OTP');
       }
     } catch {
       toast.error('Network error');
     } finally {
       setEmailSending(false);
     }
-  }, [emailInput, roll_no, resendCountdown, startCountdown]);
+  }, [emailInput, roll_no, resendCountdown, startCountdown, isEmailValid]);
 
   const handleVerifyOtp = useCallback(async () => {
     if (!otpInput || !roll_no) return;
@@ -77,7 +85,7 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
         setOtpInput('');
       } else {
         const data = await res.json();
-        toast.error(data.message || 'Verification failed');
+        toast.error(data.error || data.message || 'Verification failed');
       }
     } catch {
       toast.error('Network error');
@@ -93,6 +101,7 @@ export function useEmailVerification(roll_no, initialEmail, onVerified) {
     otpSent, setOtpSent,
     emailEditing, setEmailEditing,
     resendCountdown,
+    isEmailValid,
     handleSendOtp,
     handleVerifyOtp
   };
