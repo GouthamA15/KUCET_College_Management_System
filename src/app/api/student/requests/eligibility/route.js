@@ -9,7 +9,7 @@ export async function GET() {
       return apiError('Unauthorized', 401);
     }
 
-    const eligibility = await StudentService.getBonafideEligibility(user.student_id, user.roll_no);
+    const eligibility = await StudentService.getCertificateEligibility(user.student_id, user.roll_no);
     return apiResponse(eligibility);
   } catch (error) {
     logger.error('Error fetching Bonafide eligibility:', error);
