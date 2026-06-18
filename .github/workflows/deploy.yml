@@ -3,7 +3,7 @@ name: Auto Deploy to Self-Hosted Server
 on:
   push:
     branches:
-      - testvanilla  # Trigger only on pushes to the testvanilla branch
+      - main  # Trigger only on pushes to the testvanilla branch
 
 jobs:
   deploy:
