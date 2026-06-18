@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { students, studentImages } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 
 export async function POST(req) {
   const user = await getAuthUser('student');
@@ -22,20 +23,53 @@ export async function POST(req) {
     if (!student) return apiError('Student not found', 404);
     const studentId = student.id;
 
+    const storage = getStorageProvider();
+
     if (pfp) {
-      // NOTE: Original code converted to Buffer. If the column is TEXT, 
-      // it might be better to store as data URL or Cloudinary URL.
-      // Maintaining original logic:
-      const pfpValue = Buffer.from(pfp.split(',')[1], 'base64');
+      // SECURITY: Validate pfp is a valid data URI image
+      const dataUriRegex = /^data:image\/(png|jpeg|jpg|gif|webp);base64,/;
+      if (typeof pfp !== 'string' || !dataUriRegex.test(pfp)) {
+        return apiError('Invalid image format. Only PNG, JPEG, JPG, GIF and WebP data URIs are allowed.', 400);
+      }
+
+      // 1. Fetch old pfp to delete
+      const existing = await db.query.studentImages.findFirst({
+        where: eq(studentImages.student_id, studentId)
+      });
+
+      // 2. Upload new to storage
+      const uploadedPath = await storage.upload(pfp, 'students/pfp', roll_no);
       
+      if (typeof uploadedPath !== 'string' || uploadedPath.length === 0) {
+        logger.error({ roll_no, studentId }, 'Storage upload failed or returned invalid path');
+        return apiError('Failed to upload image', 500);
+      }
+
+      // 3. Cleanup old file
+      if (existing?.pfp) {
+        await storage.delete(existing.pfp);
+      }
+
+      // 4. Store the PATH in the database
       await db.insert(studentImages)
         .values({
           student_id: studentId,
-          pfp: pfpValue.toString('base64') // Storing as base64 string for TEXT column
+          pfp: uploadedPath
         })
-        .onDuplicateKeyUpdate({ set: { pfp: pfpValue.toString('base64') } });
+        .onDuplicateKeyUpdate({ set: { pfp: uploadedPath } });
     } else {
-      await db.delete(studentImages).where(eq(studentImages.student_id, studentId));
+      // Handle deletion in a transaction to prevent races
+      await db.transaction(async (tx) => {
+        const existing = await tx.query.studentImages.findFirst({
+          where: eq(studentImages.student_id, studentId)
+        });
+        
+        if (existing?.pfp) {
+          await storage.delete(existing.pfp);
+        }
+        
+        await tx.delete(studentImages).where(eq(studentImages.student_id, studentId));
+      });
     }
 
     return apiResponse({ success: true });

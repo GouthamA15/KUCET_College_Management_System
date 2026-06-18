@@ -1,64 +1,65 @@
-import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/api-utils';
+import { apiError } from '@/lib/api-utils';
 import logger from '@/lib/logger';
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 
-/**
- * SECURE ASSET PROXY
- * Serves files from the private VPS storage folder (/var/www/kucet-storage)
- * Only accessible to authenticated students and staff.
- */
-export async function GET(request, { params }) {
-  const { path: pathSegments } = await params;
-  const user = await getAuthUser(request);
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // Join the path segments back into a string
-  const filename = pathSegments.join('/');
-
-  // Define the base storage path (Defaults to VPS path, but can be overridden for local development)
-  const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
-  const filePath = path.join(STORAGE_PATH, filename);
-
-  // Security: Prevent Directory Traversal
-  if (!filePath.startsWith(STORAGE_PATH)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
+export async function GET(req, { params }) {
   try {
-    // Use async fs APIs
-    await fs.promises.access(filePath);
-    const fileBuffer = await fs.promises.readFile(filePath);
-    const extension = path.extname(filename).toLowerCase();
+    const { path: pathSegments } = await params;
+    const relativePath = pathSegments.join('/');
     
-    // Determine Content-Type
-    const mimeTypes = {
-      '.png': 'image/png',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.svg': 'image/svg+xml',
-      '.pdf': 'application/pdf',
-      '.mp3': 'audio/mpeg',
-      '.mp4': 'video/mp4'
-    };
+    const storagePath = process.env.LOCAL_STORAGE_PATH || '/app/public/uploads';
+    const absolutePath = path.resolve(storagePath, relativePath);
 
-    const contentType = mimeTypes[extension] || 'application/octet-stream';
-
-    return new NextResponse(fileBuffer, {
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'private, max-age=3600',
-      },
-    });
-  } catch (error) {
-    logger.error({ err: error, tag: 'STORAGE_PROXY_ERROR', filename }, 'Storage proxy error');
-    if (error.code === 'ENOENT') {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    // Security: Ensure the resolved path is within the storage directory
+    // This prevents directory traversal via '..' or symlinks.
+    if (!absolutePath.startsWith(path.resolve(storagePath))) {
+      return apiError('Invalid path', 400);
     }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+
+    try {
+      const fileBuffer = await fs.readFile(absolutePath);
+
+      // Determine content type
+      const ext = path.extname(absolutePath).toLowerCase();
+      let contentType = 'application/octet-stream';
+
+      const mimeTypes = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.svg': 'image/svg+xml',
+        '.pdf': 'application/pdf',
+        '.mp4': 'video/mp4',
+        '.mp3': 'audio/mpeg'
+      };
+
+      if (mimeTypes[ext]) {
+        contentType = mimeTypes[ext];
+      }
+
+      const headers = {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      };
+
+      // SECURITY: Force download for SVGs to prevent inline script execution
+      if (ext === '.svg') {
+        const fileName = path.basename(absolutePath);
+        headers['Content-Disposition'] = `attachment; filename=\"${fileName}\"`;
+      }
+
+      return new Response(fileBuffer, { headers });
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        return apiError('File not found', 404);
+      }
+      throw e;
+    }
+  } catch (error) {
+    logger.error({ err: error }, 'Asset Proxy Error');
+    return apiError('Internal server error', 500);
   }
 }

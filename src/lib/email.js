@@ -7,6 +7,13 @@ const TEXT_COLOR = '#111827';
 const MUTED_COLOR = '#6b7280';
 const BORDER_COLOR = '#e5e7eb';
 
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
 // Derive base URL from environment for all links
 export const getBaseUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -36,8 +43,8 @@ export const buildInstitutionalEmailHtml = ({
               <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse: collapse;">
                 ${infoRows.map(row => `
                 <tr>
-                  <td width="40%" style="padding: 4px 0; font-weight: 600; font-size: 14px; color: ${TEXT_COLOR};">${row.label}</td>
-                  <td width="60%" style="padding: 4px 0; font-size: 14px; color: ${TEXT_COLOR};">${row.value}</td>
+                  <td width="40%" style="padding: 4px 0; font-weight: 600; font-size: 14px; color: ${TEXT_COLOR};">${escapeHtml(row.label)}</td>
+                  <td width="60%" style="padding: 4px 0; font-size: 14px; color: ${TEXT_COLOR};">${escapeHtml(row.value)}</td>
                 </tr>`).join('')}
               </table>
             </td>
@@ -51,7 +58,7 @@ export const buildInstitutionalEmailHtml = ({
             <td align="center" style="padding: 16px 0 4px 0;">
               <a href="${action.url}"
                  style="background: ${PRIMARY_COLOR}; color: #ffffff; padding: 12px 24px; border-radius: 4px; text-decoration: none; display: inline-block; font-weight: 500; font-size: 14px;">
-                ${action.label}
+                ${escapeHtml(action.label)}
               </a>
             </td>
           </tr>
@@ -67,7 +74,7 @@ export const buildInstitutionalEmailHtml = ({
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
+    <title>${escapeHtml(title)}</title>
   </head>
   <body style="margin:0; padding:0; background:${BACKGROUND_COLOR}; font-family: Arial, sans-serif;">
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:${BACKGROUND_COLOR}; padding:40px 0;">
@@ -102,7 +109,7 @@ export const buildInstitutionalEmailHtml = ({
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-top: 24px;">
                   <tr>
                     <td align="center" style="font-size:20px; font-weight:600; color:${PRIMARY_COLOR};">
-                      ${title}
+                      ${escapeHtml(title)}
                     </td>
                   </tr>
                 </table>

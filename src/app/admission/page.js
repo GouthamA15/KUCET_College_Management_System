@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { getIntakeYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
-import { formatIndianNumber } from '@/lib/financial-utils';
 
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
@@ -43,73 +42,86 @@ const AdmissionPage = () => {
     const [files, setFiles] = useState({ pfp: null, signature: null });
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
-    const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
 
     const initialNameRef = useRef(form.name);
 
     // Persistence: Detect saved draft on mount
     useEffect(() => {
-        const savedDraft = localStorage.getItem('admission_form_draft');
-        if (savedDraft) {
-            try {
-                const { form: savedForm, admissionYear: savedYear } = JSON.parse(savedDraft);
-                // Only prompt if the current form is essentially empty (to avoid annoying active users)
-                if (!initialNameRef.current && savedForm?.name) {
-                    toast((t) => (
-                        <div className="flex flex-col gap-2 p-1">
-                            <p className="text-sm font-bold text-indigo-900">Restore Unsaved Progress?</p>
-                            <p className="text-xs text-gray-600">We found an incomplete application from your previous session.</p>
-                            <div className="flex items-center gap-3 mt-1">
-                                <button 
-                                    onClick={() => {
-                                        setForm(savedForm);
-                                        if (savedYear) setAdmissionYear(savedYear);
-                                        toast.dismiss(t.id);
-                                        toast.success('Progress restored successfully!');
-                                    }}
-                                    className="bg-indigo-600 text-white px-4 py-1.5 rounded text-xs font-black uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-colors"
-                                >
-                                    Restore
-                                </button>
-                                <button 
-                                    onClick={() => {
-                                        localStorage.removeItem('admission_form_draft');
-                                        toast.dismiss(t.id);
-                                    }}
-                                    className="text-gray-400 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest transition-colors"
-                                >
-                                    Discard Draft
-                                </button>
+        const loadDraft = async () => {
+            const { getAdmissionDraft, deleteAdmissionDraft } = await import('@/lib/idb-admission');
+            const savedDraft = await getAdmissionDraft();
+            if (savedDraft) {
+                try {
+                    const { form: savedForm, admissionYear: savedYear, files: savedFiles } = savedDraft;
+                    // Only prompt if the current form is essentially empty
+                    if (!initialNameRef.current && savedForm?.name) {
+                        toast((t) => (
+                            <div className="flex flex-col gap-2 p-1">
+                                <p className="text-sm font-bold text-indigo-900">Restore Unsaved Progress?</p>
+                                <p className="text-xs text-gray-600">We found an incomplete application from your previous session.</p>
+                                <div className="flex items-center gap-3 mt-1">
+                                    <button 
+                                        onClick={() => {
+                                            setForm(savedForm);
+                                            if (savedYear) setAdmissionYear(savedYear);
+                                            if (savedFiles) setFiles(savedFiles);
+                                            toast.dismiss(t.id);
+                                            toast.success('Progress restored successfully!');
+                                        }}
+                                        className="bg-indigo-600 text-white px-4 py-1.5 rounded text-xs font-black uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-colors"
+                                    >
+                                        Restore
+                                    </button>
+                                    <button 
+                                        onClick={async () => {
+                                            try {
+                                                await deleteAdmissionDraft();
+                                            } catch (error) {
+                                                console.warn('Failed to discard saved draft', error);
+                                            }
+                                            toast.dismiss(t.id);
+                                        }}
+                                        className="text-gray-400 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest transition-colors"
+                                    >
+                                        Discard Draft
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ), { 
-                        duration: 15000, 
-                        position: 'top-center',
-                        style: {
-                            border: '2px solid #e0e7ff',
-                            padding: '12px',
-                            color: '#1e1b4b',
-                            maxWidth: '350px'
-                        }
-                    });
+                        ), { 
+                            duration: 15000, 
+                            position: 'top-center',
+                            style: {
+                                border: '2px solid #e0e7ff',
+                                padding: '12px',
+                                color: '#1e1b4b',
+                                maxWidth: '350px'
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn("Failed to parse saved draft", e);
                 }
-            } catch (e) {
-                console.error("Failed to parse saved draft", e);
             }
-        }
+        };
+        loadDraft();
     }, []);
 
-    // Persistence: Debounced save to localStorage
+    // Persistence: Debounced save to IndexedDB
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
+        const timeoutId = setTimeout(async () => {
             // Only save if there's significant data and form isn't submitted
-            const hasData = form.name || form.father_name || form.student_mobile || form.email;
+            const hasData = form.name || form.father_name || form.student_mobile || form.email || files.pfp || files.signature;
             if (!submitted && hasData) {
-                localStorage.setItem('admission_form_draft', JSON.stringify({ form, admissionYear }));
+                const { saveAdmissionDraft } = await import('@/lib/idb-admission');
+                try {
+                    await saveAdmissionDraft({ form, admissionYear, files });
+                } catch (error) {
+                    console.warn('Admission draft autosave failed', error);
+                }
             }
         }, 1500);
         return () => clearTimeout(timeoutId);
-    }, [form, admissionYear, submitted]);
+    }, [form, admissionYear, files, submitted]);
 
     useEffect(() => {
         const id = setTimeout(() => {

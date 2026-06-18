@@ -38,8 +38,8 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
       if (res.ok) {
         setSemesterTimetable(data.data || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch semester timetable', e);
+    } catch (_e) {
+      console.error('Failed to fetch semester timetable', _e);
     } finally {
       setIsLoadingTimetable(false);
     }
@@ -134,7 +134,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
       } else {
         toast.error(data.error || 'Failed to update');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setIsSaving(false);
@@ -159,7 +159,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
         const data = await res.json();
         toast.error(data.error || 'Deletion failed');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setIsSaving(false);
@@ -185,7 +185,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
         const data = await res.json();
         toast.error(data.error || 'Clear failed');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setIsSaving(false);
@@ -667,7 +667,7 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
         const data = await res.json();
         toast.error(data.error || 'Failed');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setIsSaving(false);
@@ -808,7 +808,7 @@ function BranchConfig({ config, branch, refresh }) {
         toast.success('Pattern updated');
         refresh();
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Update failed');
     } finally {
       setIsSaving(false);

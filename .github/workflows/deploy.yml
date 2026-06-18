@@ -1,0 +1,32 @@
+name: Auto Deploy to Self-Hosted Server
+
+on:
+  push:
+    branches:
+      - main  # Trigger only on pushes to the testvanilla branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          # The --ssh flag must be passed via args in v3
+          args: --ssh
+
+      - name: Deploy via Tailscale SSH
+        run: |
+          # Use the MagicDNS name or the Tailscale IP
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            cd /var/www/kucet-cms
+            git pull origin testvanilla
+            docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml up -d --build
+            docker exec kucet-cms-app npm run db:push
+            docker image prune -f
+          EOF
+

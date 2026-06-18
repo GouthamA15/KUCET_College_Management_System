@@ -113,8 +113,8 @@ export default function DevelopersPage() {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1 * 1024 * 1024) {
-        toast.error('File size should be less than 1MB');
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('File size should be less than 2MB');
         return;
       }
       setScreenshot(file);

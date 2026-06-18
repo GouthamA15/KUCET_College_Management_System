@@ -136,8 +136,8 @@ export default function CertificateRequestForm({
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1 * 1024 * 1024) {
-        toast.error('File size must be less than 1MB.');
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('File size must be less than 2MB.');
         setFormState(prev => ({ ...prev, paymentScreenshot: null }));
         if (e.target) e.target.value = null;
         return;

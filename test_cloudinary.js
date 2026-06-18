@@ -9,25 +9,25 @@ cloudinary.config({
 });
 
 async function test() {
-  console.log('--- Cloudinary Connection Test ---');
-  console.log('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME);
+  console.info('--- Cloudinary Connection Test ---');
+  console.info('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME);
   
   try {
     // Upload a small 1x1 transparent pixel as a test
     const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
     
-    console.log('Attempting test upload...');
+    console.info('Attempting test upload...');
     const result = await cloudinary.uploader.upload(testImage, {
       folder: 'kucet/test',
       public_id: 'connection_test'
     });
     
-    console.log('✅ Success! Image uploaded to:', result.secure_url);
-    console.log('Your Cloudinary connection is working perfectly.');
+    console.info('✅ Success! Image uploaded to:', result.secure_url);
+    console.info('Your Cloudinary connection is working perfectly.');
   } catch (error) {
     console.error('❌ Connection Failed:', error.message);
     if (error.message.includes('Must supply')) {
-      console.log('Hint: Check if CLOUDINARY_CLOUD_NAME, API_KEY, and API_SECRET are set in .env.local');
+      console.info('Hint: Check if CLOUDINARY_CLOUD_NAME, API_KEY, and API_SECRET are set in .env.local');
     }
   }
 }
