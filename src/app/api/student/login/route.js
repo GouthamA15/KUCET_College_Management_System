@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 const loginSchema = z.object({
   rollno: z.string().trim().toUpperCase().min(10).max(12),
-  dob: z.string().trim().min(8).max(255), // Can be DOB (8-10) or Password (up to 255)
+  dob: z.string().trim().max(255), // Can be DOB (8-10) or Password (up to 255)
   rememberMe: z.boolean().default(false)
 });
 
