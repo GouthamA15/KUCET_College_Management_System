@@ -56,7 +56,7 @@ export default function SecurityCenterPage() {
   if (loading && !studentData) return <SecurityLoadingState message="Loading Security Center..." />;
   if (!student) return <div className="p-8 text-center text-red-500">Student session not found.</div>;
 
-  if (!isEmailVerified) {
+  if (!isEmailVerified || !isPasswordSet) {
     return (
       <div className="w-full max-w-6xl mx-auto space-y-6 text-sm pb-12 px-4 sm:px-0">
         <header className="mb-4">
@@ -164,12 +164,15 @@ export default function SecurityCenterPage() {
                   value={emailVerification.emailInput}
                   onChange={(e) => emailVerification.setEmailInput(e.target.value)}
                   readOnly={!emailVerification.emailEditing}
-                  className={`flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-[#0b3578] outline-none transition-colors ${!emailVerification.emailEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                  className={`flex-1 border rounded-md px-3 py-2 text-sm focus:ring-1 outline-none transition-colors ${
+                    !emailVerification.emailEditing ? 'bg-gray-50 text-gray-500 border-gray-300' : 
+                    (emailVerification.emailInput && !emailVerification.isEmailValid ? 'border-red-400 focus:ring-red-400 bg-red-50/10' : 'border-gray-300 focus:ring-[#0b3578] bg-white')
+                  }`}
                 />
                 {emailVerification.emailEditing && !emailVerification.otpSent && (
                   <button 
                     onClick={emailVerification.handleSendOtp}
-                    disabled={emailVerification.emailSending || emailVerification.emailInput === student.email}
+                    disabled={emailVerification.emailSending || !emailVerification.isEmailValid || emailVerification.emailInput === student.email}
                     className="bg-[#0b3578] text-white px-4 py-2 rounded-md font-medium hover:bg-[#0a2d66] disabled:opacity-50 text-sm"
                   >
                     {emailVerification.emailSending ? '...' : 'Verify'}

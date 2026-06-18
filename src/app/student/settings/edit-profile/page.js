@@ -155,7 +155,13 @@ export default function EditProfilePage() {
         }
     });
 
-    const spd_fields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks','blood_group'];
+    const spd_fields = [
+      'father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no',
+      'curr_house_no', 'curr_street', 'curr_apartment', 'curr_city', 'curr_state', 'curr_pincode', 'curr_country',
+      'perm_house_no', 'perm_street', 'perm_apartment', 'perm_city', 'perm_state', 'perm_pincode', 'perm_country',
+      'is_current_same_as_permanent',
+      'seat_allotted_category','identification_marks','blood_group'
+    ];
     spd_fields.forEach(field => {
         if (formData.personal[field] !== originalData.personal[field]) {
             changes[field] = formData.personal[field];
@@ -216,9 +222,15 @@ export default function EditProfilePage() {
             toast.error('Guardian mobile must be 10 digits.');
             return;
         }
-        if (changedData.address && changedData.address.length > 255) {
-            toast.error('Address too long (max 255 chars).');
-            return;
+        const addressFields = [
+            'curr_house_no', 'curr_street', 'curr_apartment', 'curr_city', 'curr_state', 'curr_pincode', 'curr_country',
+            'perm_house_no', 'perm_street', 'perm_apartment', 'perm_city', 'perm_state', 'perm_pincode', 'perm_country'
+        ];
+        for (const f of addressFields) {
+            if (changedData[f] && changedData[f].length > 255) {
+                toast.error(`Address field too long (max 255 chars).`);
+                return;
+            }
         }
         if (changedData.identification_marks && changedData.identification_marks.length > 200) {
             toast.error('Identification marks too long (max 200 chars).');
@@ -314,6 +326,39 @@ export default function EditProfilePage() {
             [field]: value
         }
     }));
+  };
+
+  const handleCheckboxChange = (checked) => {
+    setFormData(prev => {
+      const personal = { 
+        ...prev.personal, 
+        is_current_same_as_permanent: checked 
+      };
+      if (checked) {
+        personal.perm_house_no = prev.personal.curr_house_no || '';
+        personal.perm_street = prev.personal.curr_street || '';
+        personal.perm_apartment = prev.personal.curr_apartment || '';
+        personal.perm_city = prev.personal.curr_city || '';
+        personal.perm_state = prev.personal.curr_state || '';
+        personal.perm_pincode = prev.personal.curr_pincode || '';
+        personal.perm_country = prev.personal.curr_country || 'India';
+      }
+      return { ...prev, personal };
+    });
+  };
+
+  const handleAddressChange = (field, value) => {
+    setFormData(prev => {
+      const personal = { 
+        ...prev.personal, 
+        [field]: value 
+      };
+      if (prev.personal.is_current_same_as_permanent && field.startsWith('curr_')) {
+        const permField = field.replace('curr_', 'perm_');
+        personal[permField] = value;
+      }
+      return { ...prev, personal };
+    });
   };
 
   if (!studentData && contextLoading) {
@@ -512,15 +557,94 @@ export default function EditProfilePage() {
                       )}
                     </div>
                   ))}
-                  <div className="md:col-span-3 space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permanent Mailing Address</label>
-                    <textarea 
-                      value={formData.personal.address || ''}
-                      onChange={(e) => updateField('personal', 'address', e.target.value)}
-                      rows={3}
-                      maxLength={255}
-                      className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.address !== originalData?.personal.address ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`}
+                  {/* Current Address */}
+                  <div className="md:col-span-3 border-t border-slate-100 pt-4 mt-2">
+                    <h4 className="text-sm font-bold text-indigo-900 mb-2 uppercase tracking-wider">Current Address</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">House No</label>
+                        <input placeholder="House No*" value={formData.personal.curr_house_no || ''} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.curr_house_no !== originalData?.personal?.curr_house_no ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Apartment / Landmark</label>
+                        <input placeholder="Apartment / Landmark" value={formData.personal.curr_apartment || ''} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.curr_apartment !== originalData?.personal?.curr_apartment ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Street</label>
+                        <input placeholder="Street*" value={formData.personal.curr_street || ''} onChange={e => handleAddressChange('curr_street', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.curr_street !== originalData?.personal?.curr_street ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">City</label>
+                        <input placeholder="City*" value={formData.personal.curr_city || ''} onChange={e => handleAddressChange('curr_city', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.curr_city !== originalData?.personal?.curr_city ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">State</label>
+                        <input placeholder="State*" value={formData.personal.curr_state || ''} onChange={e => handleAddressChange('curr_state', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.curr_state !== originalData?.personal?.curr_state ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PIN Code</label>
+                        <input placeholder="PIN Code*" value={formData.personal.curr_pincode || ''} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.curr_pincode !== originalData?.personal?.curr_pincode ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                      </div>
+                      <div className="md:col-span-3 space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Country</label>
+                        <input placeholder="Country*" value={formData.personal.curr_country || ''} onChange={e => handleAddressChange('curr_country', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.curr_country !== originalData?.personal?.curr_country ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sync Checkbox */}
+                  <div className="md:col-span-3 flex items-center gap-2 py-2">
+                    <input 
+                      type="checkbox" 
+                      id="student_is_current_same_as_permanent" 
+                      checked={!!formData.personal.is_current_same_as_permanent} 
+                      onChange={e => handleCheckboxChange(e.target.checked)} 
+                      className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" 
                     />
+                    <label htmlFor="student_is_current_same_as_permanent" className="text-sm font-bold text-gray-700 select-none cursor-pointer">
+                      Mark as permanent address
+                    </label>
+                  </div>
+
+                  {/* Permanent Address */}
+                  <div className="md:col-span-3 border-t border-slate-100 pt-4">
+                    <h4 className="text-sm font-bold text-indigo-900 mb-2 uppercase tracking-wider">Permanent Address</h4>
+                    {!formData.personal.is_current_same_as_permanent ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">House No</label>
+                          <input placeholder="House No*" value={formData.personal.perm_house_no || ''} onChange={e => updateField('personal', 'perm_house_no', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.perm_house_no !== originalData?.personal?.perm_house_no ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Apartment / Landmark</label>
+                          <input placeholder="Apartment / Landmark" value={formData.personal.perm_apartment || ''} onChange={e => updateField('personal', 'perm_apartment', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.perm_apartment !== originalData?.personal?.perm_apartment ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Street</label>
+                          <input placeholder="Street*" value={formData.personal.perm_street || ''} onChange={e => updateField('personal', 'perm_street', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.perm_street !== originalData?.personal?.perm_street ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">City</label>
+                          <input placeholder="City*" value={formData.personal.perm_city || ''} onChange={e => updateField('personal', 'perm_city', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.perm_city !== originalData?.personal?.perm_city ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">State</label>
+                          <input placeholder="State*" value={formData.personal.perm_state || ''} onChange={e => updateField('personal', 'perm_state', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.perm_state !== originalData?.personal?.perm_state ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PIN Code</label>
+                          <input placeholder="PIN Code*" value={formData.personal.perm_pincode || ''} onChange={e => updateField('personal', 'perm_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.perm_pincode !== originalData?.personal?.perm_pincode ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                        </div>
+                        <div className="md:col-span-3 space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Country</label>
+                          <input placeholder="Country*" value={formData.personal.perm_country || ''} onChange={e => updateField('personal', 'perm_country', e.target.value)} className={`w-full border px-4 py-3 text-sm font-bold outline-none transition-all ${formData.personal.perm_country !== originalData?.personal?.perm_country ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'}`} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-100 p-3 rounded uppercase tracking-wide">
+                        Permanent address is synchronized with current address.
+                      </div>
+                    )}
                   </div>
                   <div className="md:col-span-3 space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Physical Identification Marks</label>
