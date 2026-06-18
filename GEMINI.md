@@ -2,6 +2,7 @@
 
 **Last Updated:** June 10, 2026 (Session 154)
 
+
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
 
