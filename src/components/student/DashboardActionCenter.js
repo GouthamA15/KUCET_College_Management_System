@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import useProfileActivity from '@/hooks/student/hooks/useProfileActivity';
-import useActivityDismissal from '@/hooks/student/hooks/useActivityDismissal';
+import useProfileActivity from '@/hooks/student/useProfileActivity';
+import useActivityDismissal from '@/hooks/student/useActivityDismissal';
 import { useStudent } from '@/context/StudentContext';
 
 export default function DashboardActionCenter({ student }) {
