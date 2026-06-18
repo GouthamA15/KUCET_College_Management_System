@@ -1,5 +1,6 @@
 'use client';
 import { formatDate } from '@/lib/date';
+import { getProfileDisplayAddress } from '@/lib/address-utils';
 
 // A compact student profile card for admin view
 
@@ -20,7 +21,7 @@ export default function StudentProfileCard({ student }) {
       <div><span className="font-medium">Religion:</span> {student.religion}</div>
       <div><span className="font-medium">Caste:</span> {student.caste}</div>
       <div><span className="font-medium">Sub Caste:</span> {student.sub_caste}</div>
-      <div><span className="font-medium">Address:</span> {(student.personal_details && student.personal_details.address) || student.address}</div>
+      <div><span className="font-medium">Address:</span> {getProfileDisplayAddress(student) || '-'}</div>
       <div><span className="font-medium">Email:</span> {student.email}</div>
       <div><span className="font-medium">Qualifying Exam:</span> {student.qualifying_exam}</div>
       <div><span className="font-medium">Scholarship:</span> {student.scholarship_status}</div>
@@ -28,4 +29,4 @@ export default function StudentProfileCard({ student }) {
       {/* Add more fields if needed */}
     </div>
   );
-}
+}

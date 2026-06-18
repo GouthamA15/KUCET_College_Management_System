@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useStudent } from '@/context/StudentContext';
-import useProfileActivity from '@/hooks/student/hooks/useProfileActivity';
+import useProfileActivity from '@/hooks/student/useProfileActivity';
 
 export default function NotificationDropdown({ onOpenChange }) {
   const { studentData } = useStudent();

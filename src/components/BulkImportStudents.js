@@ -15,7 +15,8 @@ const HEADERS_MAP = {
   date_of_birth: { display: 'Date of Birth', aliases: ['dob'], required: true },
   father_name: { display: 'Father Name', aliases: [], required: true },
   category: { display: 'Category', aliases: ['cast'], required: true },
-  address: { display: 'Address', aliases: ['permanent address', 'aadhar card address'], required: true },
+  permanent_address: { display: 'Permanent Address', aliases: ['permanent address', 'address', 'aadhar card address'], required: true },
+  contact_address: { display: 'Contact Address', aliases: ['contact address', 'current address', 'present address'], required: false },
 
   // Optional Fields (students table)
   mobile: { display: 'Mobile', aliases: ['mobile number', 'phone', 'phone number', 'contact number', 'student number'], required: false },
@@ -111,11 +112,18 @@ const validateRow = (rowData, excelRowNumber) => {
     validationErrors.push({ row: excelRowNumber, field: 'Category', message: `Invalid Category: ${category}` });
   }
   
-  // 7. Address
-  const address = String(rowData['address'] || '').trim();
-  if (!address) {
-    rowErrors['address'] = 'Address is required.';
-    validationErrors.push({ row: excelRowNumber, field: 'Address', message: 'Address is required.' });
+  // 7. Permanent Address
+  const permanentAddress = String(rowData['permanent_address'] || rowData['address'] || '').trim();
+  if (!permanentAddress) {
+    rowErrors['permanent_address'] = 'Permanent Address is required.';
+    validationErrors.push({ row: excelRowNumber, field: 'Permanent Address', message: 'Permanent Address is required.' });
+  }
+
+  // 8. Contact Address (Warning if empty)
+  const contactAddress = String(rowData['contact_address'] || '').trim();
+  if (!contactAddress) {
+    rowWarnings['contact_address'] = 'Contact Address is empty, will default to Permanent Address.';
+    validationErrors.push({ row: excelRowNumber, field: 'Contact Address', message: 'Contact Address is empty.', isWarning: true });
   }
 
   // --- OPTIONAL FIELDS ---
