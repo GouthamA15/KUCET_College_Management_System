@@ -4,6 +4,14 @@ import { db } from '@/db';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 
 // Mock dependencies
+vi.mock('@/lib/providers/storage/factory', () => ({
+  getStorageProvider: vi.fn(() => ({
+    upload: vi.fn().mockResolvedValue('mocked/path/file.jpg'),
+    getUrl: vi.fn((path) => `/mocked/url/${path}`),
+    delete: vi.fn().mockResolvedValue(true)
+  }))
+}));
+
 vi.mock('@/db', () => ({
   db: {
     select: vi.fn(),

@@ -1,9 +1,18 @@
 import { 
-  mysqlTable, varchar, int, boolean, datetime, text, decimal, json, timestamp, 
+  mysqlTable, varchar, int, boolean, text, decimal, json, timestamp, 
   mysqlEnum, tinyint, float, bigint, index, uniqueIndex, date
 } from 'drizzle-orm/mysql-core';
 
 // --- 1. COLLEGE CONFIGURATION ---
+
+export const systemConfigs = mysqlTable('system_configs', {
+  config_key: varchar('config_key', { length: 100 }).primaryKey().notNull(),
+  config_value: text('config_value').notNull(),
+  data_type: mysqlEnum('data_type', ['STRING', 'NUMBER', 'BOOLEAN', 'JSON']).default('STRING').notNull(),
+  description: text('description'),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+  updated_by: varchar('updated_by', { length: 255 }),
+});
 
 export const collegeInfo = mysqlTable('college_info', {
   id: int('id').autoincrement().primaryKey().notNull(),
@@ -474,8 +483,9 @@ export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
   thumb_update_available: boolean('thumb_update_available').default(false),
-  thumb_status: mysqlEnum('thumb_status', ['PENDING', 'COMPLETE']).default('PENDING'),
+  thumb_status: mysqlEnum('thumb_status', ['PENDING', 'COMPLETED', 'FAILED']).default('PENDING'),
   hardcopy_submitted: tinyint('hardcopy_submitted').default(0),
+  version: int('version').default(1).notNull(),
 }, (table) => ({
   appYearIdx: index('idx_scholarship_app_year').on(table.application_no, table.academic_year),
   searchIdx: index('idx_scholarship_search').on(table.student_id, table.academic_year),

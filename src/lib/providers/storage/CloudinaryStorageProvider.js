@@ -1,4 +1,5 @@
 import StorageProvider from './StorageProvider';
+import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
 
 export default class CloudinaryStorageProvider extends StorageProvider {
   constructor(cloudName) {
@@ -16,7 +17,7 @@ export default class CloudinaryStorageProvider extends StorageProvider {
 
     // 2. Normalize path
     const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-    const extension = cleanPath.split('.').pop().toLowerCase();
+    const extension = (cleanPath.split('.').pop() || '').toLowerCase();
     
     let resourceType = 'image';
     if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
@@ -27,5 +28,13 @@ export default class CloudinaryStorageProvider extends StorageProvider {
 
     const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
     return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
+  }
+
+  async upload(file, folder, publicId) {
+    return await uploadToCloudinary(file, folder, publicId);
+  }
+
+  async delete(path) {
+    return await deleteFromCloudinary(path);
   }
 }

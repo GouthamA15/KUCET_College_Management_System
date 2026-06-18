@@ -10,7 +10,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { getResolvedCurrentAcademicYear, getAdmissionTypeFromRoll } from "@/lib/rollNumber";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { getStorageProvider } from "@/lib/providers/storage/factory";
 import IdempotencyService from '@/services/IdempotencyService';
 import { FinanceService } from '@/services/FinanceService';
 import crypto from 'crypto';
@@ -82,6 +82,16 @@ export async function POST(request) {
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeRows[0], now);
 
+    // --- BONAFIDE ELIGIBILITY VALIDATION ---
+    if (certificateType === 'Bonafide Certificate') {
+      const { StudentService } = await import('@/services/StudentService');
+      const eligibility = await StudentService.getBonafideEligibility(user.student_id, user.roll_no);
+      
+      if (!eligibility.isEligible) {
+        return apiError(eligibility.reason || "You are not eligible for a Bonafide Certificate at this time.", 403);
+      }
+    }
+
     // Check existing
     const existing = await db.query.studentRequests.findFirst({
       where: and(
@@ -105,7 +115,7 @@ export async function POST(request) {
         )
       });
 
-      // 1. Total Limit Check (4 for Regular, 3 for Lateral)
+      // Total Limit Check (4 for Regular, 3 for Lateral) - Backup check
       const admissionType = getAdmissionTypeFromRoll(user.roll_no);
       const maxAllowed = admissionType === 'Lateral' ? 3 : 4;
 
@@ -113,13 +123,7 @@ export async function POST(request) {
         return apiError(`You have reached the maximum limit of ${maxAllowed} Bonafide Certificates for your course duration.`, 403);
       }
 
-      // 2. Per-Year Limit Check (Only one per academic year)
-      const alreadyHasYearlyBonafide = approvedRequests.some(req => req.academic_year === academicYear);
-      if (alreadyHasYearlyBonafide) {
-        return apiError(`You have already received a Bonafide Certificate for the current academic year (${academicYear}). Only one is allowed per year.`, 403);
-      }
-
-      // 3. Free for subsequent requests logic (only free if already paid once in a previous year)
+      // Free for subsequent requests logic (only free if already paid once in a previous year)
       const hasPreviousPaidBonafide = approvedRequests.some(req => req.academic_year !== academicYear && req.payment_amount > 0);
       if (hasPreviousPaidBonafide && approvedRequests.length > 0) {
         finalPaymentAmount = 0;
@@ -226,10 +230,11 @@ export async function POST(request) {
     if (isFileValid) {
       const MAX_SIZE = 1 * 1024 * 1024;
       if (paymentScreenshotFile.size > MAX_SIZE) {
-        return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);
+        return apiError(`Screenshot too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Max 1MB allowed.`, 400);
       }
 
-      const screenshotUrl = await uploadToCloudinary(paymentScreenshotFile, "certificates/payments");
+      const storage = getStorageProvider();
+      const screenshotUrl = await storage.upload(paymentScreenshotFile, "requests/payments");
       
       if (screenshotUrl) {
         await db.insert(studentRequestImages)

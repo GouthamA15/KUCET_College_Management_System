@@ -226,7 +226,6 @@ export default function CertificateRequestsPage() {
             selectedCertificate={selectedCertificate}
             setSelectedCertificate={setSelectedCertificate}
             fee={fee}
-            selectedOption={selectedOption}
             onSubmit={handleSubmit}
             upiVPA={UPI_VPA}
             isLoading={isLoading}

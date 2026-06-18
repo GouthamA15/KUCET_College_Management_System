@@ -73,7 +73,9 @@ test.describe('Attendance Marking Flow', () => {
             name: 'MOCK STUDENT',
             branch: 'CSE',
             email: 'mock@example.com',
-            pfp: null
+            pfp: null,
+            is_email_verified: 1,
+            password_hash: 'hashed_password'
           },
           scholarship: [],
           fees: []
@@ -85,7 +87,13 @@ test.describe('Attendance Marking Flow', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ data: [] }),
+        body: JSON.stringify({ 
+          data: [{
+            assignment_id: 101,
+            subject_name: 'SOFTWARE ENGINEERING',
+            subject_code: 'CS301'
+          }] 
+        }),
       });
     });
 
@@ -100,14 +108,43 @@ test.describe('Attendance Marking Flow', () => {
     // Mock image 404s to avoid noise
     await page.route('**/*.{png,jpg,jpeg,svg}', route => route.fulfill({ status: 200, body: '' }));
 
-// Go to student portal and wait for it to load
-await page.goto('/', { waitUntil: 'networkidle' });
+    await page.route('/api/student/current-activity', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ active: false }),
+      });
+    });
 
-    // Verify successful login (no redirect back to /)
-    await expect(page).toHaveURL(/\/student/);
+    await page.route(/\/api\/student\/attendance\/active-sessions.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [{
+            assignment_id: 101,
+            session_id: 202,
+            subject_name: 'SOFTWARE ENGINEERING',
+            subject_code: 'CS301',
+            faculty_name: 'DR. SMITH',
+            attendance_date: new Date().toISOString()
+          }]
+        }),
+      });
+    });
+
+    // Go to student portal and wait for it to load
+    await page.goto('/', { waitUntil: 'networkidle' });
+
+    // Verify successful login (redirects to /student/profile)
+    await expect(page).toHaveURL(/\/student\/profile/);
     
-    // Check if the greeting is visible
-    await expect(page.locator('h1')).toContainText('Welcome, MOCK');
+    // Check if the name is visible in the profile card
+    await expect(page.locator('text=MOCK STUDENT')).toBeVisible();
+
+    // Check if the attendance bar is visible
+    await expect(page.locator('text=Attendance Verification Required')).toBeVisible();
+    await expect(page.locator('text=SOFTWARE ENGINEERING')).toBeVisible();
     
     const title = await page.title();
     expect(title).toBeDefined();

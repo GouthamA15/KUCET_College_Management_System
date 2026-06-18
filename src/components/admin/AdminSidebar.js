@@ -49,6 +49,7 @@ const menuItems = [
   { label: 'Manage Clerks', route: '/admin/manage-clerks', icon: icons.manageClerks },
   { label: 'Create Clerk', route: '/admin/create-clerk', icon: icons.createClerk },
   { label: 'Infrastructure', route: '/admin/infrastructure', icon: icons.infrastructure },
+  { label: 'Database (SQL)', route: '/admin/infrastructure/sql', icon: icons.infrastructure },
   { label: 'Audit Trails', route: '/admin/audit-logs', icon: icons.auditLogs },
   { label: 'Verifications', route: '/admin/verifications', icon: icons.verifications },
 ];

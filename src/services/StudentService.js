@@ -1,4 +1,5 @@
 import { db } from '@/db';
+import logger from '@/lib/logger';
 import { 
   students as studentsTable, 
   studentPersonalDetails, 
@@ -6,15 +7,95 @@ import {
   studentImages,
   studentSignatures,
   scholarshipSanctions,
-  studentFeePayments
+  studentFeePayments,
+  collegeInfo as collegeInfoTable,
+  studentAttendance,
+  studentRequests,
+  facultySubjectAssignments
 } from '@/db/schema';
-import { eq, or, like, desc } from 'drizzle-orm';
+import { eq, or, like, desc, and, sql } from 'drizzle-orm';
 import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 
 /**
  * Service for Student-related business logic
  */
 export class StudentService {
+  /**
+   * Check Bonafide certificate eligibility for a student
+   * @param {number} studentId 
+   * @param {string} rollNo 
+   * @returns {Promise<Object>} Eligibility details
+   */
+  static async getBonafideEligibility(studentId, rollNo) {
+    const { calculateYearAndSemesterAsync } = await import('@/lib/academic-utils');
+    const { getResolvedCurrentAcademicYear, getBranchFromRoll } = await import('@/lib/rollNumber');
+    const { getNow } = await import('@/lib/clock');
+
+    const now = await getNow();
+    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
+    const collegeInfo = collegeRows[0] || null;
+
+    const { semester } = await calculateYearAndSemesterAsync(rollNo, collegeInfo, 0);
+    const academicYear = getResolvedCurrentAcademicYear(rollNo, collegeInfo, now);
+    const branch = getBranchFromRoll(rollNo);
+
+    // 1. Attendance Calculation
+    // We join with faculty assignments to filter by current semester and academic year
+    const attendanceStats = await db.select({
+      total_classes: sql`COUNT(DISTINCT ${studentAttendance.id})`,
+      attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') THEN ${studentAttendance.id} END)`
+    })
+    .from(studentAttendance)
+    .innerJoin(facultySubjectAssignments, eq(studentAttendance.assignment_id, facultySubjectAssignments.id))
+    .where(and(
+      eq(studentAttendance.student_id, studentId),
+      eq(facultySubjectAssignments.branch, branch),
+      eq(facultySubjectAssignments.course_semester, semester),
+      eq(facultySubjectAssignments.academic_year, academicYear)
+    ));
+
+    const total = Number(attendanceStats[0]?.total_classes || 0);
+    const attended = Number(attendanceStats[0]?.attended_classes || 0);
+    const attendancePercent = total > 0 ? (attended / total) * 100 : null;
+
+    // 2. Fee Reimbursement
+    const student = await db.query.students.findFirst({
+      columns: { fee_reimbursement: true },
+      where: eq(studentsTable.id, studentId)
+    });
+
+    // 3. Existing Approved Bonafide for current year
+    const existingApproved = await db.query.studentRequests.findFirst({
+      where: and(
+        eq(studentRequests.student_id, studentId),
+        eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+        eq(studentRequests.academic_year, academicYear),
+        eq(studentRequests.status, 'APPROVED')
+      )
+    });
+
+    // --- ATTENANCE VALIDATION DISABLED (Faculty Module under construction) ---
+    // const isAttendanceEligible = attendancePercent === null || attendancePercent >= 50;
+    const isAttendanceEligible = true; 
+    const isAcademicYearEligible = !existingApproved;
+
+    return {
+      attendance: {
+        total,
+        attended,
+        percentage: attendancePercent,
+        isEligible: isAttendanceEligible,
+        thresholdReached: attendancePercent === null || attendancePercent >= 50 // Keep track for UI but don't block
+      },
+      feeReimbursement: student?.fee_reimbursement || 'NO',
+      academicYear,
+      alreadyHasApproved: !!existingApproved,
+      isEligible: isAttendanceEligible && isAcademicYearEligible,
+      reason: !isAcademicYearEligible ? `You have already received an approved Bonafide for ${academicYear}.` : null
+    };
+  }
+
   /**
    * Normalize a roll number for database operations
    * @param {string} rollNo 
@@ -216,52 +297,78 @@ export class StudentService {
       inter_marks: inter_marks || null
     };
 
-    const executeUpsert = async (innerTx) => {
-      const existing = await innerTx.select({ id: studentsTable.id })
-        .from(studentsTable).where(eq(studentsTable.roll_no, roll)).limit(1);
-      
-      let studentId;
-      if (existing.length > 0) {
-        studentId = existing[0].id;
-        await innerTx.update(studentsTable).set(studentValues).where(eq(studentsTable.id, studentId));
+    const storage = getStorageProvider();
+    const uploadedPaths = [];
+
+    let pfpPath = pfp;
+    let sigPath = signature;
+
+    try {
+      // 1. Upload to storage BEFORE transaction
+      if (typeof pfp === 'string' && pfp.startsWith('data:')) {
+        pfpPath = await storage.upload(pfp, 'students/pfp', roll);
+        uploadedPaths.push(pfpPath);
+      }
+      if (typeof signature === 'string' && signature.startsWith('data:')) {
+        sigPath = await storage.upload(signature, 'students/signatures', `${roll}-sig`);
+        uploadedPaths.push(sigPath);
+      }
+
+      const executeUpsert = async (innerTx) => {
+        const existing = await innerTx.select({ id: studentsTable.id })
+          .from(studentsTable).where(eq(studentsTable.roll_no, roll)).limit(1);
+        
+        let studentId;
+        if (existing.length > 0) {
+          studentId = existing[0].id;
+          await innerTx.update(studentsTable).set(studentValues).where(eq(studentsTable.id, studentId));
+        } else {
+          const res = await innerTx.insert(studentsTable).values({ ...studentValues, added_by_clerk_id: clerkId });
+          studentId = res.insertId || res[0]?.insertId;
+          if (!studentId) throw new Error('STUDENT_ID_GENERATION_FAILED');
+        }
+
+        const existingPersonal = await innerTx.select({ id: studentPersonalDetails.id })
+          .from(studentPersonalDetails).where(eq(studentPersonalDetails.student_id, studentId)).limit(1);
+        
+        if (existingPersonal.length > 0) {
+          await innerTx.update(studentPersonalDetails).set(personalValues).where(eq(studentPersonalDetails.id, existingPersonal[0].id));
+        } else {
+          await innerTx.insert(studentPersonalDetails).values({ student_id: studentId, ...personalValues });
+        }
+
+        const existingAcademic = await innerTx.select({ id: studentAcademicBackground.id })
+          .from(studentAcademicBackground).where(eq(studentAcademicBackground.student_id, studentId)).limit(1);
+        
+        if (existingAcademic.length > 0) {
+          await innerTx.update(studentAcademicBackground).set(academicValues).where(eq(studentAcademicBackground.id, existingAcademic[0].id));
+        } else {
+          await innerTx.insert(studentAcademicBackground).values({ student_id: studentId, ...academicValues });
+        }
+
+        if (pfpPath) {
+          await innerTx.insert(studentImages).values({ student_id: studentId, pfp: pfpPath }).onDuplicateKeyUpdate({ set: { pfp: pfpPath } });
+        }
+        if (sigPath) {
+          await innerTx.insert(studentSignatures).values({ student_id: studentId, signature: sigPath }).onDuplicateKeyUpdate({ set: { signature: sigPath } });
+        }
+
+        return studentId;
+      };
+
+      if (tx) {
+        return await executeUpsert(tx);
       } else {
-        const res = await innerTx.insert(studentsTable).values({ ...studentValues, added_by_clerk_id: clerkId });
-        studentId = res.insertId || res[0]?.insertId;
-        if (!studentId) throw new Error('STUDENT_ID_GENERATION_FAILED');
+        return await db.transaction(executeUpsert);
       }
-
-      const existingPersonal = await innerTx.select({ id: studentPersonalDetails.id })
-        .from(studentPersonalDetails).where(eq(studentPersonalDetails.student_id, studentId)).limit(1);
-      
-      if (existingPersonal.length > 0) {
-        await innerTx.update(studentPersonalDetails).set(personalValues).where(eq(studentPersonalDetails.id, existingPersonal[0].id));
-      } else {
-        await innerTx.insert(studentPersonalDetails).values({ student_id: studentId, ...personalValues });
+    } catch (error) {
+      // Cleanup uploaded files on error
+      for (const path of uploadedPaths) {
+        try { await storage.delete(path); }
+        catch (delErr) { logger.error({ err: delErr, path }, 'Orphaned student asset cleanup failed'); }
       }
-
-      const existingAcademic = await innerTx.select({ id: studentAcademicBackground.id })
-        .from(studentAcademicBackground).where(eq(studentAcademicBackground.student_id, studentId)).limit(1);
-      
-      if (existingAcademic.length > 0) {
-        await innerTx.update(studentAcademicBackground).set(academicValues).where(eq(studentAcademicBackground.id, existingAcademic[0].id));
-      } else {
-        await innerTx.insert(studentAcademicBackground).values({ student_id: studentId, ...academicValues });
-      }
-
-      if (pfp) {
-        await innerTx.insert(studentImages).values({ student_id: studentId, pfp }).onDuplicateKeyUpdate({ set: { pfp } });
-      }
-      if (signature) {
-        await innerTx.insert(studentSignatures).values({ student_id: studentId, signature }).onDuplicateKeyUpdate({ set: { signature } });
-      }
-
-      return studentId;
-    };
-
-    if (tx) {
-      return await executeUpsert(tx);
-    } else {
-      return await db.transaction(executeUpsert);
+      logger.error({ err: error, roll }, 'Upsert student failed');
+      throw error;
     }
   }
 
@@ -310,35 +417,47 @@ export class StudentService {
       })
     ]);
 
+    const storage = getStorageProvider();
     const imageHelper = (val) => {
       if (!val) return null;
-      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      // 1. Data URI or Absolute URL
+      if (typeof val === 'string' && (val.startsWith('http') || /^data:[^;]+;base64,/.test(val))) return val;
+      
+      // 2. Legacy Raw Base64 Detection
+      if (typeof val === 'string' && val.length > 50) {
+        let mimeType = null;
+        if (val.startsWith('iVBORw')) mimeType = 'image/png';
+        else if (val.startsWith('/9j/')) mimeType = 'image/jpeg';
+        else if (val.startsWith('R0lGOD')) mimeType = 'image/gif';
+        else if (val.startsWith('UklGR')) mimeType = 'image/webp';
+        
+        if (mimeType) return `data:${mimeType};base64,${val}`;
+      }
+
+      // 3. Buffer Magic Byte Detection
       if (Buffer.isBuffer(val)) {
-        // Detect MIME type from magic bytes
         let mimeType = 'application/octet-stream';
         if (val.length >= 4) {
-          const header = val.slice(0, 12);
           // PNG: 89 50 4E 47
-          if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) {
-            mimeType = 'image/png';
-          }
+          if (val[0] === 0x89 && val[1] === 0x50 && val[2] === 0x4E && val[3] === 0x47) mimeType = 'image/png';
           // JPEG: FF D8 FF
-          else if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) {
-            mimeType = 'image/jpeg';
-          }
-          // GIF: 47 49 46
-          else if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46) {
-            mimeType = 'image/gif';
-          }
+          else if (val[0] === 0xFF && val[1] === 0xD8 && val[2] === 0xFF) mimeType = 'image/jpeg';
+          // GIF: 47 49 46 38
+          else if (val[0] === 0x47 && val[1] === 0x49 && val[2] === 0x46 && val[3] === 0x38) mimeType = 'image/gif';
           // WEBP: RIFF...WEBP
-          else if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46 &&
-                   header[8] === 0x57 && header[9] === 0x45 && header[10] === 0x42 && header[11] === 0x50) {
-            mimeType = 'image/webp';
-          }
+          else if (val[0] === 0x52 && val[1] === 0x49 && val[2] === 0x46 && val[3] === 0x46 &&
+                   val[8] === 0x57 && val[9] === 0x45 && val[10] === 0x42 && val[11] === 0x50) mimeType = 'image/webp';
         }
         return `data:${mimeType};base64,${val.toString('base64')}`;
       }
-      return val;
+
+      // 4. Relative Path
+      try {
+        return storage.getUrl(val);
+      } catch (e) {
+        logger.error({ err: e, val, func: 'imageHelper' }, 'Failed to resolve image URL');
+        return null;
+      }
     };
 
     return {

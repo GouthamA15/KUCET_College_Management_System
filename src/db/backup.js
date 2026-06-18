@@ -40,7 +40,7 @@ async function sendFailureEmail(errorMessage) {
     return;
   }
 
-  console.log(`Sending failure alerts to ${DEVELOPER_EMAILS.length} developers...`);
+  console.info(`Sending failure alerts to ${DEVELOPER_EMAILS.length} developers...`);
 
   try {
     const payload = {
@@ -74,7 +74,7 @@ async function sendFailureEmail(errorMessage) {
     });
 
     if (response.ok) {
-      console.log('✅ Failure emails sent successfully.');
+      console.info('✅ Failure emails sent successfully.');
     } else {
       const data = await response.json();
       console.error('❌ Failed to send failure emails:', data);
@@ -102,7 +102,7 @@ function calculateFileHash(filePath) {
  * Keeps: 30 daily, 4 weekly (Sundays), 12 monthly (1st of month)
  */
 async function pruneBackups() {
-  console.log('--- STARTING RETENTION PRUNING ---');
+  console.info('--- STARTING RETENTION PRUNING ---');
   try {
     // List all backup files in the folder
     const result = await cloudinary.api.resources_by_asset_folder('kucet/backups', {
@@ -111,7 +111,7 @@ async function pruneBackups() {
     });
 
     const backups = result.resources.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    console.log(`Found ${backups.length} total backups in Cloudinary.`);
+    console.info(`Found ${backups.length} total backups in Cloudinary.`);
 
     const toKeep = new Set();
     const now = new Date();
@@ -143,15 +143,15 @@ async function pruneBackups() {
       .map(b => b.public_id);
 
     if (toDelete.length > 0) {
-      console.log(`Pruning ${toDelete.length} expired backups...`);
+      console.info(`Pruning ${toDelete.length} expired backups...`);
       // Cloudinary allows deleting up to 100 resources at once
       for (let i = 0; i < toDelete.length; i += 100) {
         const batch = toDelete.slice(i, i + 100);
         await cloudinary.api.delete_resources(batch, { resource_type: 'raw' });
       }
-      console.log('✅ Pruning complete.');
+      console.info('✅ Pruning complete.');
     } else {
-      console.log('No backups expired yet. Skipping deletion.');
+      console.info('No backups expired yet. Skipping deletion.');
     }
   } catch (error) {
     console.warn(`⚠️ Retention pruning error: ${error.message}`);
@@ -163,10 +163,10 @@ async function runBackup() {
   const backupFilename = `kucet_db_backup_${timestamp}.sql`;
   const backupPath = path.join(os.tmpdir(), backupFilename);
 
-  console.log(`--- STARTING DATABASE BACKUP [${new Date().toLocaleString()}] ---`);
+  console.info(`--- STARTING DATABASE BACKUP [${new Date().toLocaleString()}] ---`);
 
   try {
-    console.log(`Exporting database to temporary directory: ${backupPath}...`);
+    console.info(`Exporting database to temporary directory: ${backupPath}...`);
 
     // 1. Run Pure Node Dump
     await mysqldump({
@@ -185,11 +185,11 @@ async function runBackup() {
 
     const localSize = fs.statSync(backupPath).size;
     const localHash = await calculateFileHash(backupPath);
-    console.log(`✅ Export complete. Size: ${(localSize / 1024 / 1024).toFixed(2)} MB`);
-    console.log(`Local MD5: ${localHash}`);
+    console.info(`✅ Export complete. Size: ${(localSize / 1024 / 1024).toFixed(2)} MB`);
+    console.info(`Local MD5: ${localHash}`);
 
     // 2. Upload to Cloudinary with restricted access mode
-    console.log('Uploading to Cloudinary (backups folder)...');
+    console.info('Uploading to Cloudinary (backups folder)...');
     const result = await cloudinary.uploader.upload(backupPath, {
       folder: 'kucet/backups',
       resource_type: 'raw',
@@ -200,8 +200,8 @@ async function runBackup() {
     // 3. CHECKSUM VERIFICATION (Verify ETag matches local MD5)
     // Cloudinary ETag is the MD5 of the uploaded file for raw resources
     if (result.etag === localHash) {
-      console.log('🚀 CHECKSUM VERIFIED: Backup safely stored and intact.');
-      console.log(`Cloudinary URL: ${result.secure_url}`);
+      console.info('🚀 CHECKSUM VERIFIED: Backup safely stored and intact.');
+      console.info(`Cloudinary URL: ${result.secure_url}`);
     } else {
       throw new Error(`Checksum mismatch! Local: ${localHash}, Cloudinary: ${result.etag}`);
     }
@@ -219,12 +219,12 @@ async function runBackup() {
     if (fs.existsSync(backupPath)) {
       try {
         fs.unlinkSync(backupPath);
-        console.log('Sweep: Local temporary file removed.');
+        console.info('Sweep: Local temporary file removed.');
       } catch (cleanupErr) {
         console.warn(`🧹 Warning: Failed to remove temp file: ${cleanupErr.message}`);
       }
     }
-    console.log('--- BACKUP PROCESS COMPLETE ---');
+    console.info('--- BACKUP PROCESS COMPLETE ---');
   }
 }
 

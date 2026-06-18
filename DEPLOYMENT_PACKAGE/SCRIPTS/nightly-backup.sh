@@ -1,48 +1,33 @@
 #!/bin/bash
-set -e  # Exit on any error
+# KUCET CMS: Secure Dockerized Nightly Backup
+# This script runs outside the container and triggers a dump from the MySQL container.
+# Backups are stored in a secure system directory, outside of any web root.
 
-# Configuration
-DB_NAME="kucet_cms"
-BACKUP_DIR="/var/www/backups"
-STORAGE_DIR="/var/www/kucet-storage/uploads"
-TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
-
-# Create backup dir if missing
+BACKUP_DIR="/var/kucet-db-backup"
 mkdir -p $BACKUP_DIR
+# Ensure only root can read this folder
+chmod 700 $BACKUP_DIR
 
-echo "Starting Nightly Backup: $TIMESTAMP"
+TIMESTAMP=$(date +%F_%H-%M-%S)
+CONTAINER_NAME="kucet-cms-db"
+# Using .sql.gz for better compression in the new secure location
+BACKUP_FILE="$BACKUP_DIR/kucet_db_backup_$TIMESTAMP.sql.gz"
 
-# 1. Database Dump
-# NOTE: Ensure you have a .my.cnf file in your root home with:
-# [client]
-# user=root
-# password=your_password
-DB_TEMP="$BACKUP_DIR/db_$TIMESTAMP.sql.tmp"
-if ! mysqldump $DB_NAME > "$DB_TEMP" 2>/dev/null; then
-  echo "ERROR: mysqldump failed for database $DB_NAME at $TIMESTAMP" >&2
-  rm -f "$DB_TEMP"
-  exit 1
+echo "[$(date)] Starting secure backup..."
+
+# Trigger mysqldump inside the container, stream it to host, and compress it on the fly
+docker exec $CONTAINER_NAME /usr/bin/mysqldump --no-tablespaces -u kucet -p'Kucet@official' kucet_cms | gzip > $BACKUP_FILE
+
+if [ ${PIPESTATUS[0]} -eq 0 ]; then
+    echo "[$(date)] Backup successful: $BACKUP_FILE"
+    
+    # Secure the backup file strictly
+    chmod 600 $BACKUP_FILE
+    
+    # Remove backups older than 30 days (handles both new .sql.gz and old .sql.jpg files)
+    find $BACKUP_DIR -type f -name "kucet_db_backup_*" -mtime +30 -delete
+else
+    echo "[$(date)] ERROR: Backup failed!"
+    rm -f $BACKUP_FILE # Remove corrupted/empty file
+    exit 1
 fi
-mv "$DB_TEMP" "$BACKUP_DIR/db_$TIMESTAMP.sql"
-echo "Database backup completed: $BACKUP_DIR/db_$TIMESTAMP.sql"
-
-# 2. Storage Sync (Compressing student assets)
-if [ ! -d "$STORAGE_DIR" ]; then
-  echo "ERROR: STORAGE_DIR does not exist: $STORAGE_DIR" >&2
-  exit 1
-fi
-
-if ! tar -czf "$BACKUP_DIR/assets_$TIMESTAMP.tar.gz" "$STORAGE_DIR" 2>/dev/null; then
-  echo "ERROR: tar failed for directory $STORAGE_DIR at $TIMESTAMP" >&2
-  exit 1
-fi
-echo "Assets backup completed: $BACKUP_DIR/assets_$TIMESTAMP.tar.gz"
-
-# 3. Off-site Sync (Optional: Requires Rclone configured)
-# rclone copy $BACKUP_DIR remote:kucet-backups
-
-# 4. Housekeeping (Keep only last 7 days locally, targeting only backup files)
-find $BACKUP_DIR -maxdepth 1 -type f \( -name 'db_*.sql' -o -name 'assets_*.tar.gz' \) -mtime +7 -delete
-echo "Old backups cleaned up (older than 7 days)"
-
-echo "Backup Complete."

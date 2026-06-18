@@ -10,9 +10,10 @@ export const MINORITY_RELIGIONS = ['MUSLIM', 'CHRISTIAN', 'SIKH', 'BUDDHIST', 'J
  * Calculates the expected Tuition Fee Reimbursement (RTF).
  * @param {Object} student - Unified student object containing category, religion, rank, admission_type, inter_background.
  * @param {number} collegeTuitionFee - Total fee for the year (e.g., 70000 or 35000).
+ * @param {Object} [feeConfig] - Optional dynamic config from SystemConfigService
  * @returns {number} - Expected government RTF.
  */
-export function calculateExpectedRTF(student, collegeTuitionFee) {
+export function calculateExpectedRTF(student, collegeTuitionFee, feeConfig = null) {
   // 1. Mandatory Quota Check
   // Only Convener Quota (Category-A) is eligible. 
   // Spot/Management (Category-B) or CAT-B admissions are NOT eligible.
@@ -30,8 +31,10 @@ export function calculateExpectedRTF(student, collegeTuitionFee) {
     return 0;
   }
 
-  // 2. Base Rules (Full fee if college fee is <= 35k)
-  if (collegeTuitionFee <= 35000) return collegeTuitionFee;
+  const baseCap = feeConfig?.REGULAR || 35000;
+
+  // 2. Base Rules (Full fee if college fee is <= baseCap)
+  if (collegeTuitionFee <= baseCap) return collegeTuitionFee;
 
   const category = String(student?.category || student?.caste || '').toUpperCase();
   const religion = String(student?.religion || '').toUpperCase();
@@ -52,12 +55,12 @@ export function calculateExpectedRTF(student, collegeTuitionFee) {
 
   // 5. Standard BC/EBC/OC-EWS Rank Condition
   // Below 10,000 Rank = Full Fee
-  // Above 10,000 Rank = Max 35,000 Cap
+  // Above 10,000 Rank = Max baseCap Cap
   if (rank > 0 && rank <= 10000) {
     return collegeTuitionFee;
   }
 
-  return 35000;
+  return baseCap;
 }
 
 /**

@@ -42,9 +42,14 @@ const STATIC_ASSETS = [
 export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   if (!path) return '';
   
-  // 1. Handle data URIs, absolute URLs, and local API routes
-  if (path.startsWith('data:') || (path.startsWith('http') && !path.includes('cloudinary.com')) || path.startsWith('/api/')) {
+  // 1. Handle data URIs, absolute URLs, and local API routes (including resolved local storage paths)
+  if (path.startsWith('data:') || path.startsWith('http') || path.startsWith('/api/') || path.startsWith('/uploads/')) {
     return path;
+  }
+
+  // 1.5 Handle paths that start with 'uploads/' but missing leading slash
+  if (path.startsWith('uploads/')) {
+    return `/${path}`;
   }
 
   // 2. Normalize path and check for static assets
@@ -55,9 +60,29 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return normalizedPath;
   }
 
-  // 3. Strategy: Local VPS storage proxy
+  // 3. Strategy: Local VPS storage
   if (process.env.NEXT_PUBLIC_STORAGE_TYPE === 'local') {
-    return `/api/assets/view/${cleanPath}`;
+    // If the path is a static asset (starts with 'assets/'), it should not go to /uploads/
+    if (cleanPath.startsWith('assets/')) {
+        return `/${cleanPath}`;
+    }
+
+    // STRIP CLOUDINARY VERSION PREFIX (e.g., v1778170721/)
+    // These are legacy version strings from migrations that don't exist in local storage.
+    let resolvedPath = cleanPath;
+    if (resolvedPath.match(/^v\d+\//)) {
+        resolvedPath = resolvedPath.replace(/^v\d+\//, '');
+    }
+
+    // LEGACY CLOUDINARY ID RECOVERY
+    // If the path has no slash, it's likely a legacy Cloudinary ID from a migration.
+    if (!resolvedPath.includes('/')) {
+        resolvedPath = `kucet/students/pfp/${resolvedPath}`;
+    }
+
+    // In production, Nginx serves /uploads/ directly. In dev, we use the proxy.
+    const prefix = process.env.NODE_ENV === 'production' ? '/uploads' : '/api/assets/view';
+    return `${prefix}/${resolvedPath}`;
   }
 
   // 4. Strategy: Cloudinary (client-safe)
@@ -70,7 +95,8 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     resourceType = 'raw';
   }
 
-  const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
+  // For Cloudinary, we always want the 'kucet/' prefix unless it's already there
+  const finalPath = cleanPath.includes('/') ? cleanPath : `kucet/public/${cleanPath}`;
   return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
 }
 

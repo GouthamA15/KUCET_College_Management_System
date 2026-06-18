@@ -47,8 +47,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       }));
       setBaseStudents(base);
       setAttendanceStatusMap({});
-    } catch (error) {
-      toast.error(error.message);
+    } catch (_error) {
+      toast.error(_error.message);
     } finally {
       setLoading(false);
     }
@@ -64,8 +64,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       } else {
         setActiveSession(null);
       }
-    } catch (e) {
-      console.error('Failed to fetch active session:', e);
+    } catch (_e) {
+      console.error('Failed to fetch active session:', _e);
     }
   }, [assignment]);
 
@@ -183,9 +183,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const startSession = async () => {
     if (!assignment?.id) return;
 
-    let latitude = null;
-    let longitude = null;
-    let accuracy = null;
+    let _latitude = null;
+    let _longitude = null;
+    let _accuracy = null;
 
     try {
       setSubmitting(true);
@@ -200,9 +200,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
               maximumAge: 0
             });
           });
-          latitude = pos.coords.latitude;
-          longitude = pos.coords.longitude;
-          accuracy = pos.coords.accuracy;
+          _latitude = pos.coords.latitude;
+          _longitude = pos.coords.longitude;
+          _accuracy = pos.coords.accuracy;
           toast.dismiss('geo-loading');
         } catch (geoErr) {
           toast.dismiss('geo-loading');
@@ -222,8 +222,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assignment_id: assignment.id,
-          latitude,
-          longitude,
+          latitude: _latitude,
+          longitude: _longitude,
           attendance_date: selectedDate,
           session_number: selectedSession
         }),
@@ -483,13 +483,13 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
   const handleRealtimeUpdate = useCallback((data) => {
     if (data.type === 'STUDENT_VERIFIED' && data.payload.assignment_id === assignment.id) {
-      console.log('[AttendanceSync] Student verified, refreshing...');
+      console.info('[AttendanceSync] Student verified, refreshing...');
       fetchAttendanceStatus();
     } else if (data.type === 'PROXY_ATTEMPTED' && data.payload.assignment_id === assignment.id) {
       const { attempting_roll_no, original_roll_no, original_student_id } = data.payload;
       
       toast.error(
-        (t) => (
+        (_t) => (
           <div className="flex flex-col gap-1 border-l-4 border-red-600 pl-2">
             <span className="font-black text-xs uppercase tracking-widest text-red-800">Security Breach Detected</span>
             <div className="text-[11px] font-bold text-gray-700 leading-tight">

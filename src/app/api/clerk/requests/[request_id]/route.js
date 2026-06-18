@@ -37,7 +37,11 @@ export async function PUT(request, { params }) {
             generated_certificate_id: studentRequests.generated_certificate_id,
             student_id: studentRequests.student_id,
             roll_no: students.roll_no,
-            status: studentRequests.status
+            status: studentRequests.status,
+            email: students.email,
+            is_email_verified: students.is_email_verified,
+            mobile: students.mobile,
+            name: students.name
         })
         .from(studentRequests)
         .innerJoin(students, eq(studentRequests.student_id, students.id))
@@ -98,16 +102,30 @@ export async function PUT(request, { params }) {
                 after: { status: status, reject_reason: updateData.reject_reason, cert_id: updateData.generated_certificate_id }
             });
 
-            // REAL-TIME
+            // UNIFIED NOTIFICATIONS
             try {
-                const { broadcastUpdate } = await import('@/lib/sse');
-                broadcastUpdate('REQUEST_UPDATED', {
-                    student_id: requestToUpdate.student_id,
-                    status,
-                    request_id: requestIdNum,
-                    certificate_type: requestToUpdate.certificate_type
-                });
-            } catch (e) {}
+                if (status === 'APPROVED') {
+                    const { NotificationService } = await import('@/services/NotificationService');
+                    await NotificationService.notifyCertificateReady({
+                        id: requestToUpdate.student_id,
+                        email: requestToUpdate.email,
+                        is_email_verified: requestToUpdate.is_email_verified,
+                        mobile: requestToUpdate.mobile,
+                        name: requestToUpdate.name
+                    }, requestToUpdate.certificate_type);
+                } else {
+                    // For rejections, just do real-time toast
+                    const { NotificationService } = await import('@/services/NotificationService');
+                    await NotificationService.sendRealtime('REQUEST_UPDATED', {
+                        student_id: requestToUpdate.student_id,
+                        status,
+                        request_id: requestIdNum,
+                        certificate_type: requestToUpdate.certificate_type
+                    });
+                }
+            } catch (e) {
+                logger.error(e, 'Notification error on request update');
+            }
             return apiResponse({ success: true });
         } else {
             return apiError('This request has already been processed', 409);

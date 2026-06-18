@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useContext } from 'react';
-import { useStudent, StudentContext } from '@/context/StudentContext';
-import { useClerk, ClerkContext } from '@/context/ClerkContext';
+import { StudentContext } from '@/context/StudentContext';
+import { ClerkContext } from '@/context/ClerkContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -11,7 +11,7 @@ import ClerkNotificationDropdown from './clerk/ClerkNotificationDropdown';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { logoutByRole } from '@/lib/logout';
 
-export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false, sticky = true, minimalNav = false, brandLabel = 'LOGIN PORTAL' }) {
+export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, _clerkMinimal = false, _activeTab, _setActiveTab, _isSubPage = false, sticky = true, minimalNav = false, brandLabel = 'LOGIN PORTAL' }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -26,16 +26,6 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const studentData = studentContext?.studentData;
   const clerkData = clerkContext?.clerkData;
 
-  // Get student and clerk names for greeting
-  let studentName = null;
-  let clerkName = null;
-
-  if (role === 'student' || studentProfileMode) {
-    studentName = studentData?.student?.name || studentData?.name || null;
-  }
-  if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') {
-    clerkName = clerkData?.name || null;
-  }
   // (menu definitions moved to top-level `NAV_MENU_CONFIG` for reuse)
 
   // Role selection: prefer explicit `role` prop. Fall back to studentProfileMode for backward compatibility.
@@ -65,7 +55,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   // Filter student menu if unverified
   const menuItems = (effectiveRole === 'student' && !isStudentVerified)
     ? [
-        { label: 'HOME', route: '/student' },
+        // { label: 'HOME', route: '/student' },
         { label: 'PROFILE', route: '/student/profile' },
         { label: 'MENU', children: [
             { label: 'Security & Privacy', route: '/student/settings/security' }

@@ -28,10 +28,10 @@ export default function IDCardReissueComingSoon() {
           </p>
           
           <button
-            onClick={() => router.push('/student')}
+            onClick={() => router.push('/student/profile')}
             className="px-8 py-3 bg-slate-800 text-white text-xs font-black uppercase tracking-widest hover:bg-slate-900 transition-all rounded-sm shadow-xl active:scale-95"
           >
-            ← Return to Dashboard
+            ← Return to Profile
           </button>
         </div>
       </div>
