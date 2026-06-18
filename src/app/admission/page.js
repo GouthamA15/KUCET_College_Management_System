@@ -548,32 +548,32 @@ const AdmissionPage = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
                             <div className="space-y-1">
-                                <label className={labelClasses}>House No. <span className="text-red-500">*</span></label>
-                                <input required maxLength="50" value={form.curr_house_no} onChange={e => handleAddressChange('curr_house_no', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. H.NO 1-2-3" />
+                                <label htmlFor="curr_house_no" className={labelClasses}>House No. <span className="text-red-500">*</span></label>
+                                <input id="curr_house_no" required maxLength="50" value={form.curr_house_no} onChange={e => handleAddressChange('curr_house_no', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. H.NO 1-2-3" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>Apartment / Suite / Address Line 2</label>
-                                <input maxLength="100" value={form.curr_apartment} onChange={e => handleAddressChange('curr_apartment', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. APARTMENT / AREA" />
+                                <label htmlFor="curr_apartment" className={labelClasses}>Apartment / Suite / Address Line 2</label>
+                                <input id="curr_apartment" maxLength="100" value={form.curr_apartment} onChange={e => handleAddressChange('curr_apartment', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. APARTMENT / AREA" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>Street Name <span className="text-red-500">*</span></label>
-                                <input required maxLength="100" value={form.curr_street} onChange={e => handleAddressChange('curr_street', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. STREET / ROAD" />
+                                <label htmlFor="curr_street" className={labelClasses}>Street Name <span className="text-red-500">*</span></label>
+                                <input id="curr_street" required maxLength="100" value={form.curr_street} onChange={e => handleAddressChange('curr_street', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. STREET / ROAD" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>City / Town / Village <span className="text-red-500">*</span></label>
-                                <input required maxLength="100" value={form.curr_city} onChange={e => handleAddressChange('curr_city', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. CITY" />
+                                <label htmlFor="curr_city" className={labelClasses}>City / Town / Village <span className="text-red-500">*</span></label>
+                                <input id="curr_city" required maxLength="100" value={form.curr_city} onChange={e => handleAddressChange('curr_city', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. CITY" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>State <span className="text-red-500">*</span></label>
-                                <input required maxLength="100" value={form.curr_state} onChange={e => handleAddressChange('curr_state', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. TELANGANA" />
+                                <label htmlFor="curr_state" className={labelClasses}>State <span className="text-red-500">*</span></label>
+                                <input id="curr_state" required maxLength="100" value={form.curr_state} onChange={e => handleAddressChange('curr_state', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. TELANGANA" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>PIN Code <span className="text-red-500">*</span></label>
-                                <input required pattern="[0-9]{6}" title="Enter a valid 6-digit PIN code" value={form.curr_pincode} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''), true)} maxLength={6} className={inputClasses} placeholder="e.g. 506009" />
+                                <label htmlFor="curr_pincode" className={labelClasses}>PIN Code <span className="text-red-500">*</span></label>
+                                <input id="curr_pincode" required pattern="[0-9]{6}" title="Enter a valid 6-digit PIN code" value={form.curr_pincode} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''), true)} maxLength={6} className={inputClasses} placeholder="e.g. 506009" />
                             </div>
                             <div className="space-y-1 md:col-span-2">
-                                <label className={labelClasses}>Country <span className="text-red-500">*</span></label>
-                                <input required maxLength="50" value={form.curr_country} onChange={e => handleAddressChange('curr_country', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="INDIA" />
+                                <label htmlFor="curr_country" className={labelClasses}>Country <span className="text-red-500">*</span></label>
+                                <input id="curr_country" required maxLength="50" value={form.curr_country} onChange={e => handleAddressChange('curr_country', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="INDIA" />
                             </div>
                         </div>
 
@@ -598,32 +598,32 @@ const AdmissionPage = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
                             <div className="space-y-1">
-                                <label className={labelClasses}>House No. <span className="text-red-500">*</span></label>
-                                <input required maxLength="50" disabled={form.is_current_same_as_permanent} value={form.perm_house_no} onChange={e => handleAddressChange('perm_house_no', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. H.NO 1-2-3" />
+                                <label htmlFor="perm_house_no" className={labelClasses}>House No. <span className="text-red-500">*</span></label>
+                                <input id="perm_house_no" required maxLength="50" disabled={form.is_current_same_as_permanent} value={form.perm_house_no} onChange={e => handleAddressChange('perm_house_no', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. H.NO 1-2-3" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>Apartment / Suite / Address Line 2</label>
-                                <input maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_apartment} onChange={e => handleAddressChange('perm_apartment', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. APARTMENT / AREA" />
+                                <label htmlFor="perm_apartment" className={labelClasses}>Apartment / Suite / Address Line 2</label>
+                                <input id="perm_apartment" maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_apartment} onChange={e => handleAddressChange('perm_apartment', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. APARTMENT / AREA" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>Street Name <span className="text-red-500">*</span></label>
-                                <input required maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_street} onChange={e => handleAddressChange('perm_street', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. STREET / ROAD" />
+                                <label htmlFor="perm_street" className={labelClasses}>Street Name <span className="text-red-500">*</span></label>
+                                <input id="perm_street" required maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_street} onChange={e => handleAddressChange('perm_street', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. STREET / ROAD" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>City / Town / Village <span className="text-red-500">*</span></label>
-                                <input required maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_city} onChange={e => handleAddressChange('perm_city', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. CITY" />
+                                <label htmlFor="perm_city" className={labelClasses}>City / Town / Village <span className="text-red-500">*</span></label>
+                                <input id="perm_city" required maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_city} onChange={e => handleAddressChange('perm_city', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. CITY" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>State <span className="text-red-500">*</span></label>
-                                <input required maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_state} onChange={e => handleAddressChange('perm_state', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. TELANGANA" />
+                                <label htmlFor="perm_state" className={labelClasses}>State <span className="text-red-500">*</span></label>
+                                <input id="perm_state" required maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_state} onChange={e => handleAddressChange('perm_state', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. TELANGANA" />
                             </div>
                             <div className="space-y-1">
-                                <label className={labelClasses}>PIN Code <span className="text-red-500">*</span></label>
-                                <input required pattern="[0-9]{6}" title="Enter a valid 6-digit PIN code" disabled={form.is_current_same_as_permanent} value={form.perm_pincode} onChange={e => handleAddressChange('perm_pincode', e.target.value.replace(/\D/g, ''), false)} maxLength={6} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. 506009" />
+                                <label htmlFor="perm_pincode" className={labelClasses}>PIN Code <span className="text-red-500">*</span></label>
+                                <input id="perm_pincode" required pattern="[0-9]{6}" title="Enter a valid 6-digit PIN code" disabled={form.is_current_same_as_permanent} value={form.perm_pincode} onChange={e => handleAddressChange('perm_pincode', e.target.value.replace(/\D/g, ''), false)} maxLength={6} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. 506009" />
                             </div>
                             <div className="space-y-1 md:col-span-2">
-                                <label className={labelClasses}>Country <span className="text-red-500">*</span></label>
-                                <input required maxLength="50" disabled={form.is_current_same_as_permanent} value={form.perm_country} onChange={e => handleAddressChange('perm_country', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="INDIA" />
+                                <label htmlFor="perm_country" className={labelClasses}>Country <span className="text-red-500">*</span></label>
+                                <input id="perm_country" required maxLength="50" disabled={form.is_current_same_as_permanent} value={form.perm_country} onChange={e => handleAddressChange('perm_country', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="INDIA" />
                             </div>
                         </div>
 

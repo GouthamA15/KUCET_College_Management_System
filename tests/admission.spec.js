@@ -70,7 +70,17 @@ test.describe('Student Admission Flow', () => {
     await page.getByLabel('23. Father / Guardian Mobile Number').fill('9876543211');
     
     await page.getByLabel('24. Mail ID of the Student').fill(`teststudent_${Date.now()}@example.com`);
-    await page.getByLabel('27. Permanent Address').fill('123 Test Street, College Road, City');
+    
+    // Current Address
+    await page.locator('#curr_house_no').fill('123');
+    await page.locator('#curr_street').fill('Test Street');
+    await page.locator('#curr_city').fill('City');
+    await page.locator('#curr_state').fill('Telangana');
+    await page.locator('#curr_pincode').fill('506001');
+    await page.locator('#curr_country').fill('India');
+    
+    // Mark as permanent
+    await page.getByLabel('Mark as permanent address').check();
 
     // Upload files
     const fileInputs = await page.locator('input[type="file"]');
