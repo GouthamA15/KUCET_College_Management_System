@@ -14,6 +14,7 @@ import {
 } from '@/db/schema';
 import { eq, or, like, desc, and, sql } from 'drizzle-orm';
 import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
+import { getPermanentAddressFromDetails, getContactAddressFromDetails, mapAddressStringsToFields } from '@/lib/address-utils';
 
 /**
  * Service for Student-related business logic
@@ -233,7 +234,20 @@ export class StudentService {
       annual_income: studentPersonalDetails.annual_income,
       aadhaar_no: studentPersonalDetails.aadhaar_no,
       guardian_mobile: studentPersonalDetails.guardian_mobile,
-      permanent_address: studentPersonalDetails.address,
+      perm_house_no: studentPersonalDetails.perm_house_no,
+      perm_street: studentPersonalDetails.perm_street,
+      perm_apartment: studentPersonalDetails.perm_apartment,
+      perm_city: studentPersonalDetails.perm_city,
+      perm_state: studentPersonalDetails.perm_state,
+      perm_pincode: studentPersonalDetails.perm_pincode,
+      perm_country: studentPersonalDetails.perm_country,
+      curr_house_no: studentPersonalDetails.curr_house_no,
+      curr_street: studentPersonalDetails.curr_street,
+      curr_apartment: studentPersonalDetails.curr_apartment,
+      curr_city: studentPersonalDetails.curr_city,
+      curr_state: studentPersonalDetails.curr_state,
+      curr_pincode: studentPersonalDetails.curr_pincode,
+      curr_country: studentPersonalDetails.curr_country,
       seat_allotted_category: studentPersonalDetails.seat_allotted_category,
       blood_group: studentPersonalDetails.blood_group,
       qualifying_exam: studentAcademicBackground.qualifying_exam,
@@ -254,11 +268,22 @@ export class StudentService {
       like(studentsTable.roll_no, lateralRollPattern)
     ));
 
-    return results.map(row => ({
+    // Deduplicate results by roll_no to prevent duplicates from left joins
+    const uniqueResultsMap = new Map();
+    for (const row of results) {
+      if (!uniqueResultsMap.has(row.roll_no)) {
+        uniqueResultsMap.set(row.roll_no, row);
+      }
+    }
+    const uniqueResults = Array.from(uniqueResultsMap.values());
+
+    return uniqueResults.map(row => ({
       ...row,
       mobile: row.mobile ? decrypt(row.mobile) : null,
       aadhaar_no: row.aadhaar_no ? decrypt(row.aadhaar_no) : null,
-      guardian_mobile: row.guardian_mobile ? decrypt(row.guardian_mobile) : null
+      guardian_mobile: row.guardian_mobile ? decrypt(row.guardian_mobile) : null,
+      permanent_address: getPermanentAddressFromDetails(row),
+      contact_address: getContactAddressFromDetails(row)
     }));
   }
 
@@ -274,7 +299,7 @@ export class StudentService {
       admission_no, roll_no, name, date_of_birth, gender, email, mobile,
       father_name, mother_name, nationality, religion, category, sub_caste,
       area_status, mother_tongue, place_of_birth, father_occupation, annual_income,
-      guardian_mobile, aadhaar_no, address, seat_allotted_category, blood_group,
+      guardian_mobile, aadhaar_no, address, contact_address, permanent_address, seat_allotted_category, blood_group,
       identification_marks, qualifying_exam, previous_college_details,
       medium_of_instruction, ranks, ssc_marks, inter_marks, fee_reimbursement,
       pfp, signature, admission_date
@@ -286,6 +311,33 @@ export class StudentService {
     const normMobile = this.normalizeMobile(mobile);
     const normGuardianMobile = this.normalizeMobile(guardian_mobile);
     const normAadhaar = this.normalizeAadhaar(aadhaar_no);
+
+    let addressFields = {};
+    if (data.perm_house_no !== undefined || data.curr_house_no !== undefined) {
+      addressFields = {
+        perm_house_no: data.perm_house_no || null,
+        perm_street: data.perm_street || null,
+        perm_apartment: data.perm_apartment || null,
+        perm_city: data.perm_city || null,
+        perm_state: data.perm_state || null,
+        perm_pincode: data.perm_pincode || null,
+        perm_country: data.perm_country || 'India',
+
+        curr_house_no: data.curr_house_no || null,
+        curr_street: data.curr_street || null,
+        curr_apartment: data.curr_apartment || null,
+        curr_city: data.curr_city || null,
+        curr_state: data.curr_state || null,
+        curr_pincode: data.curr_pincode || null,
+        curr_country: data.curr_country || 'India',
+
+        is_current_same_as_permanent: !!data.is_current_same_as_permanent
+      };
+    } else {
+      const finalPermAddr = permanent_address || address || '';
+      const finalContactAddr = contact_address || finalPermAddr || '';
+      addressFields = mapAddressStringsToFields(finalContactAddr, finalPermAddr);
+    }
 
     const normalizeToMySQLDate = (val) => {
       if (!val) return null;
@@ -324,7 +376,7 @@ export class StudentService {
       guardian_mobile: normGuardianMobile ? encrypt(normGuardianMobile) : null,
       aadhaar_no: normAadhaar ? encrypt(normAadhaar) : null,
       aadhaar_hash: normAadhaar ? hashForIndex(normAadhaar) : null,
-      address: address || null,
+      ...addressFields,
       seat_allotted_category: seat_allotted_category || null,
       blood_group: blood_group || null,
       identification_marks: identification_marks || null
@@ -414,6 +466,8 @@ export class StudentService {
       mobile: row.students.mobile ? decrypt(row.students.mobile) : null,
       personal_details: row.student_personal_details ? {
         ...row.student_personal_details,
+        contact_address: getContactAddressFromDetails(row.student_personal_details),
+        permanent_address: getPermanentAddressFromDetails(row.student_personal_details),
         guardian_mobile: row.student_personal_details.guardian_mobile ? decrypt(row.student_personal_details.guardian_mobile) : null,
         aadhaar_no: row.student_personal_details.aadhaar_no ? decrypt(row.student_personal_details.aadhaar_no) : null
       } : {},
