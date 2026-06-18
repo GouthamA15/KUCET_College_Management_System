@@ -75,7 +75,7 @@ export async function GET(req, context) {
         return new NextResponse('Forbidden', { status: 403 });
       }
       const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
-      const resolvedPath = path.resolve(STORAGE_PATH, relativePath);
+      const resolvedPath = path.resolve(/*turbopackIgnore: true*/ STORAGE_PATH, relativePath);
       // Verify resolved path is within storage directory
       if (!resolvedPath.startsWith(STORAGE_PATH)) {
         return new NextResponse('Forbidden', { status: 403 });
@@ -83,7 +83,7 @@ export async function GET(req, context) {
 
       try {
         await fs.promises.access(resolvedPath);
-        const fileBuffer = await fs.promises.readFile(resolvedPath);
+        const fileBuffer = await fs.promises.readFile(/*turbopackIgnore: true*/ resolvedPath);
         const ext = path.extname(resolvedPath).toLowerCase();
         const contentType = ext === '.png' ? 'image/png' : (ext === '.webp' ? 'image/webp' : 'image/jpeg');
         

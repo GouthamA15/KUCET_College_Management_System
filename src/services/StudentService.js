@@ -15,6 +15,7 @@ import {
 import { eq, or, like, desc, and, sql } from 'drizzle-orm';
 import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
 import { getPermanentAddressFromDetails, getContactAddressFromDetails, mapAddressStringsToFields } from '@/lib/address-utils';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 
 /**
  * Service for Student-related business logic
@@ -490,6 +491,13 @@ export class StudentService {
     const imageHelper = (val) => {
       if (!val) return null;
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      
+      // Resolve relative paths using Storage Provider
+      if (typeof val === 'string') {
+        const storage = getStorageProvider();
+        return storage.getUrl(val);
+      }
+
       if (Buffer.isBuffer(val)) {
         // Detect MIME type from magic bytes
         let mimeType = 'application/octet-stream';

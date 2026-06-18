@@ -13,9 +13,39 @@ import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { encrypt, hashForIndex } from '@/lib/encryption';
+import { StudentService } from '@/services/StudentService';
 
 const toNull = (value) => (value === undefined || value === '' ? null : value);
 
+/**
+ * GET /api/clerk/admission/students/[rollno]
+ * Fetch full student profile for admission clerk
+ */
+export async function GET(req, context) {
+  const user = await getAuthUser('clerk');
+  if (!user || user.role !== 'admission') {
+    return apiError('Forbidden: Only admission clerks can access this data', 403);
+  }
+
+  try {
+    const params = await context.params;
+    let { rollno } = params;
+    if (!rollno) return apiError('Missing rollno parameter', 400);
+
+    const profile = await StudentService.getStudentProfile(rollno);
+    if (!profile) return apiError('Student not found', 404);
+
+    return apiResponse(profile);
+  } catch (error) {
+    logger.error(error, 'Error fetching student profile for admission clerk');
+    return apiError('Failed to fetch student details', 500, error.message);
+  }
+}
+
+/**
+ * PUT /api/clerk/admission/students/[rollno]
+ * Update student details by admission clerk
+ */
 export async function PUT(req, context) {
   const user = await getAuthUser('clerk');
   if (!user || user.role !== 'admission') {
@@ -30,8 +60,8 @@ export async function PUT(req, context) {
     let { rollno } = params;
     if (!rollno) return apiError('Missing rollno parameter', 400);
 
-    // Invisible Normalization Hook
-    rollno = String(rollno).trim().toUpperCase();
+    // Normalize Roll Number
+    rollno = StudentService.normalizeRollNo(rollno);
 
     const updatedData = await req.json();
 
