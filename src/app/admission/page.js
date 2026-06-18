@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { getIntakeYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
-import { formatIndianNumber } from '@/lib/financial-utils';
 
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
@@ -38,8 +37,52 @@ const AdmissionPage = () => {
         fee_reimbursement: 'NO',
         identification_mark_1: '',
         identification_mark_2: '',
-        permanent_address: '',
+        curr_house_no: '',
+        curr_street: '',
+        curr_apartment: '',
+        curr_city: '',
+        curr_state: '',
+        curr_pincode: '',
+        curr_country: 'India',
+        perm_house_no: '',
+        perm_street: '',
+        perm_apartment: '',
+        perm_city: '',
+        perm_state: '',
+        perm_pincode: '',
+        perm_country: 'India',
+        is_current_same_as_permanent: false,
     });
+
+    const handleAddressChange = (field, value, isCurrent = true) => {
+        setForm(prev => {
+            const updated = { ...prev, [field]: value };
+            if (isCurrent && prev.is_current_same_as_permanent) {
+                const permField = field.replace('curr_', 'perm_');
+                updated[permField] = value;
+            }
+            return updated;
+        });
+    };
+
+    const handleCheckboxChange = (checked) => {
+        setForm(prev => {
+            const updated = {
+                ...prev,
+                is_current_same_as_permanent: checked
+            };
+            if (checked) {
+                updated.perm_house_no = prev.curr_house_no;
+                updated.perm_street = prev.curr_street;
+                updated.perm_apartment = prev.curr_apartment;
+                updated.perm_city = prev.curr_city;
+                updated.perm_state = prev.curr_state;
+                updated.perm_pincode = prev.curr_pincode;
+                updated.perm_country = prev.curr_country;
+            }
+            return updated;
+        });
+    };
     const [files, setFiles] = useState({ pfp: null, signature: null });
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -154,8 +197,27 @@ const AdmissionPage = () => {
             return;
         }
 
+        if (form.inter_diploma_marks) {
+            const num = parseFloat(form.inter_diploma_marks);
+            if (isNaN(num) || num < 0 || num > 1000) {
+                toast.error('Intermediate/Diploma marks must be between 0 and 1000.');
+                return;
+            }
+        }
+
         setLoading(true);
         const toastId = toast.loading('Submitting application...');
+
+        const formatAddressFromFields = (house, apt, street, city, state, pin, country) => {
+            return [house, apt, street, city, state, pin, country].map(v => String(v || '').trim()).filter(Boolean).join(', ');
+        };
+
+        const contact_address_str = formatAddressFromFields(
+            form.curr_house_no, form.curr_apartment, form.curr_street, form.curr_city, form.curr_state, form.curr_pincode, form.curr_country
+        );
+        const permanent_address_str = formatAddressFromFields(
+            form.perm_house_no, form.perm_apartment, form.perm_street, form.perm_city, form.perm_state, form.perm_pincode, form.perm_country
+        );
 
         const payload = {
             ...form,
@@ -164,6 +226,8 @@ const AdmissionPage = () => {
             admission_year: admissionYear,
             pfp: files.pfp,
             signature: files.signature,
+            contact_address: contact_address_str,
+            permanent_address: permanent_address_str,
         };
 
         try {
@@ -301,8 +365,8 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label htmlFor="seat-allotted" className={labelClasses}>9. Seat Allotted Category <span className="text-red-500">*</span></label>
-                            <input id="seat-allotted" required maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
+                            <label htmlFor="seat-allotted" className={labelClasses}>9. Seat Allotted Category</label>
+                            <input id="seat-allotted" maxLength="20" value={form.seat_allotted_category} onChange={e => setForm({...form, seat_allotted_category: e.target.value.toUpperCase()})} className={inputClasses} placeholder="e.g. OC_GEN_UR" />
                         </div>
 
                         <div className="space-y-1">
@@ -359,7 +423,31 @@ const AdmissionPage = () => {
 
                         <div className="space-y-1 md:col-span-2">
                             <label htmlFor="inter-marks" className={labelClasses}>17. Intermediate (for TG EAPCET) / Diploma (for TG ECET) Marks <span className="text-red-500">*</span></label>
-                            <input id="inter-marks" required type="number" min="0" value={form.inter_diploma_marks} onChange={e => setForm({...form, inter_diploma_marks: e.target.value})} className={inputClasses} placeholder="MARKS OBTAINED" />
+                            <input 
+                                id="inter-marks" 
+                                required 
+                                type="number" 
+                                min="0" 
+                                max="1000" 
+                                step="any" 
+                                value={form.inter_diploma_marks} 
+                                onChange={e => {
+                                    let val = e.target.value;
+                                    if (val !== '' && val !== '.') {
+                                        const num = parseFloat(val);
+                                        if (!isNaN(num)) {
+                                            if (num > 1000) {
+                                                val = '1000';
+                                            } else if (num < 0) {
+                                                val = '0';
+                                            }
+                                        }
+                                    }
+                                    setForm(prev => ({ ...prev, inter_diploma_marks: val }));
+                                }} 
+                                className={inputClasses} 
+                                placeholder="MARKS OBTAINED" 
+                            />
                         </div>
 
                         <div className="space-y-1">
@@ -453,9 +541,90 @@ const AdmissionPage = () => {
                             </table>
                         </div>
 
-                        <div className="md:col-span-2">
-                            <label htmlFor="permanent-address" className={labelClasses}>27. Permanent Address <span className="text-red-500">*</span></label>
-                            <textarea id="permanent-address" required rows={4} maxLength="255" value={form.permanent_address} onChange={e => setForm({...form, permanent_address: e.target.value})} className={inputClasses} placeholder="Enter full permanent residential address..."></textarea>
+                        {/* 27. Contact / Current Address */}
+                        <div className="md:col-span-2 bg-indigo-50 p-3 rounded text-sm font-bold text-indigo-900 border-l-4 border-indigo-600 mb-2 uppercase tracking-wider mt-4">
+                            Contact / Current Address
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+                            <div className="space-y-1">
+                                <label className={labelClasses}>House No. <span className="text-red-500">*</span></label>
+                                <input required maxLength="50" value={form.curr_house_no} onChange={e => handleAddressChange('curr_house_no', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. H.NO 1-2-3" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>Apartment / Suite / Address Line 2</label>
+                                <input maxLength="100" value={form.curr_apartment} onChange={e => handleAddressChange('curr_apartment', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. APARTMENT / AREA" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>Street Name <span className="text-red-500">*</span></label>
+                                <input required maxLength="100" value={form.curr_street} onChange={e => handleAddressChange('curr_street', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. STREET / ROAD" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>City / Town / Village <span className="text-red-500">*</span></label>
+                                <input required maxLength="100" value={form.curr_city} onChange={e => handleAddressChange('curr_city', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. CITY" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>State <span className="text-red-500">*</span></label>
+                                <input required maxLength="100" value={form.curr_state} onChange={e => handleAddressChange('curr_state', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="e.g. TELANGANA" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>PIN Code <span className="text-red-500">*</span></label>
+                                <input required pattern="[0-9]{6}" title="Enter a valid 6-digit PIN code" value={form.curr_pincode} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''), true)} maxLength={6} className={inputClasses} placeholder="e.g. 506009" />
+                            </div>
+                            <div className="space-y-1 md:col-span-2">
+                                <label className={labelClasses}>Country <span className="text-red-500">*</span></label>
+                                <input required maxLength="50" value={form.curr_country} onChange={e => handleAddressChange('curr_country', e.target.value.toUpperCase(), true)} className={inputClasses} placeholder="INDIA" />
+                            </div>
+                        </div>
+
+                        {/* Checkbox: Same as Permanent */}
+                        <div className="md:col-span-2 flex items-center gap-2 py-2">
+                            <input 
+                                type="checkbox" 
+                                id="is_current_same_as_permanent" 
+                                checked={form.is_current_same_as_permanent} 
+                                onChange={e => handleCheckboxChange(e.target.checked)} 
+                                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" 
+                            />
+                            <label htmlFor="is_current_same_as_permanent" className="text-sm font-bold text-gray-700 select-none cursor-pointer">
+                                Mark as permanent address
+                            </label>
+                        </div>
+
+                        {/* 28. Permanent Address */}
+                        <div className="md:col-span-2 bg-indigo-50 p-3 rounded text-sm font-bold text-indigo-900 border-l-4 border-indigo-600 mb-2 uppercase tracking-wider mt-4">
+                            Permanent Address
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+                            <div className="space-y-1">
+                                <label className={labelClasses}>House No. <span className="text-red-500">*</span></label>
+                                <input required maxLength="50" disabled={form.is_current_same_as_permanent} value={form.perm_house_no} onChange={e => handleAddressChange('perm_house_no', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. H.NO 1-2-3" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>Apartment / Suite / Address Line 2</label>
+                                <input maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_apartment} onChange={e => handleAddressChange('perm_apartment', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. APARTMENT / AREA" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>Street Name <span className="text-red-500">*</span></label>
+                                <input required maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_street} onChange={e => handleAddressChange('perm_street', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. STREET / ROAD" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>City / Town / Village <span className="text-red-500">*</span></label>
+                                <input required maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_city} onChange={e => handleAddressChange('perm_city', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. CITY" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>State <span className="text-red-500">*</span></label>
+                                <input required maxLength="100" disabled={form.is_current_same_as_permanent} value={form.perm_state} onChange={e => handleAddressChange('perm_state', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. TELANGANA" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className={labelClasses}>PIN Code <span className="text-red-500">*</span></label>
+                                <input required pattern="[0-9]{6}" title="Enter a valid 6-digit PIN code" disabled={form.is_current_same_as_permanent} value={form.perm_pincode} onChange={e => handleAddressChange('perm_pincode', e.target.value.replace(/\D/g, ''), false)} maxLength={6} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="e.g. 506009" />
+                            </div>
+                            <div className="space-y-1 md:col-span-2">
+                                <label className={labelClasses}>Country <span className="text-red-500">*</span></label>
+                                <input required maxLength="50" disabled={form.is_current_same_as_permanent} value={form.perm_country} onChange={e => handleAddressChange('perm_country', e.target.value.toUpperCase(), false)} className={inputClasses + " disabled:bg-gray-100 disabled:cursor-not-allowed"} placeholder="INDIA" />
+                            </div>
                         </div>
 
                         
