@@ -1,9 +1,18 @@
 import { 
-  mysqlTable, varchar, int, boolean, datetime, text, decimal, json, timestamp, 
+  mysqlTable, varchar, int, boolean, text, decimal, json, timestamp, 
   mysqlEnum, tinyint, float, bigint, index, uniqueIndex, date
 } from 'drizzle-orm/mysql-core';
 
 // --- 1. COLLEGE CONFIGURATION ---
+
+export const systemConfigs = mysqlTable('system_configs', {
+  config_key: varchar('config_key', { length: 100 }).primaryKey().notNull(),
+  config_value: text('config_value').notNull(),
+  data_type: mysqlEnum('data_type', ['STRING', 'NUMBER', 'BOOLEAN', 'JSON']).default('STRING').notNull(),
+  description: text('description'),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+  updated_by: varchar('updated_by', { length: 255 }),
+});
 
 export const collegeInfo = mysqlTable('college_info', {
   id: int('id').autoincrement().primaryKey().notNull(),
@@ -116,7 +125,26 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
   annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Blind Index
-  address: text('address'),
+  // Structured Address (Permanent)
+  perm_house_no: varchar('perm_house_no', { length: 255 }),
+  perm_street: varchar('perm_street', { length: 255 }),
+  perm_apartment: varchar('perm_apartment', { length: 255 }),
+  perm_city: varchar('perm_city', { length: 255 }),
+  perm_state: varchar('perm_state', { length: 255 }),
+  perm_pincode: varchar('perm_pincode', { length: 20 }),
+  perm_country: varchar('perm_country', { length: 100 }).default('India'),
+
+  // Structured Address (Current)
+  curr_house_no: varchar('curr_house_no', { length: 255 }),
+  curr_street: varchar('curr_street', { length: 255 }),
+  curr_apartment: varchar('curr_apartment', { length: 255 }),
+  curr_city: varchar('curr_city', { length: 255 }),
+  curr_state: varchar('curr_state', { length: 255 }),
+  curr_pincode: varchar('curr_pincode', { length: 20 }),
+  curr_country: varchar('curr_country', { length: 100 }).default('India'),
+
+  is_current_same_as_permanent: boolean('is_current_same_as_permanent').default(false),
+  
   seat_allotted_category: varchar('seat_allotted_category', { length: 100 }),
   identification_marks: text('identification_marks'),
   blood_group: mysqlEnum('blood_group', ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
@@ -174,7 +202,27 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO', 'GOV']),
   identification_mark_1: text('identification_mark_1'),
   identification_mark_2: text('identification_mark_2'),
-  permanent_address: text('permanent_address'),
+  
+  // Structured Address (Permanent)
+  perm_house_no: varchar('perm_house_no', { length: 255 }),
+  perm_street: varchar('perm_street', { length: 255 }),
+  perm_apartment: varchar('perm_apartment', { length: 255 }),
+  perm_city: varchar('perm_city', { length: 255 }),
+  perm_state: varchar('perm_state', { length: 255 }),
+  perm_pincode: varchar('perm_pincode', { length: 20 }),
+  perm_country: varchar('perm_country', { length: 100 }).default('India'),
+
+  // Structured Address (Current)
+  curr_house_no: varchar('curr_house_no', { length: 255 }),
+  curr_street: varchar('curr_street', { length: 255 }),
+  curr_apartment: varchar('curr_apartment', { length: 255 }),
+  curr_city: varchar('curr_city', { length: 255 }),
+  curr_state: varchar('curr_state', { length: 255 }),
+  curr_pincode: varchar('curr_pincode', { length: 20 }),
+  curr_country: varchar('curr_country', { length: 100 }).default('India'),
+
+  is_current_same_as_permanent: boolean('is_current_same_as_permanent').default(false),
+
   admission_date: date('admission_date'),
   roll_no: varchar('roll_no', { length: 255 }), // Promised/Assigned Roll Number
   created_at: timestamp('created_at').defaultNow(),
@@ -474,8 +522,9 @@ export const scholarshipSanctions = mysqlTable('scholarship_sanctions', {
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
   thumb_update_available: boolean('thumb_update_available').default(false),
-  thumb_status: mysqlEnum('thumb_status', ['PENDING', 'COMPLETE']).default('PENDING'),
+  thumb_status: mysqlEnum('thumb_status', ['PENDING', 'COMPLETED', 'FAILED']).default('PENDING'),
   hardcopy_submitted: tinyint('hardcopy_submitted').default(0),
+  version: int('version').default(1).notNull(),
 }, (table) => ({
   appYearIdx: index('idx_scholarship_app_year').on(table.application_no, table.academic_year),
   searchIdx: index('idx_scholarship_search').on(table.student_id, table.academic_year),
