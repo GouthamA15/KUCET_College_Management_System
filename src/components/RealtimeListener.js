@@ -38,6 +38,11 @@ function notifyEvent(event) {
   });
 }
 
+function formatCurrencyAmount(amount) {
+  const numericAmount = Number(amount);
+  return Number.isFinite(numericAmount) ? numericAmount.toLocaleString() : 'N/A';
+}
+
 /**
  * Strategy A: VPS Mode (Socket.io)
  */
@@ -49,7 +54,7 @@ function ensureSocketConnection() {
   const isDev = process.env.NODE_ENV === 'development';
 
   if (!isLocal) {
-    console.log('🔌 [Socket.io] Connecting to', socketUrl);
+    console.info('🔌 [Socket.io] Connecting to', socketUrl);
   }
   
   sharedSocket = io(socketUrl, {
@@ -60,7 +65,7 @@ function ensureSocketConnection() {
   });
 
   sharedSocket.on('connect', () => {
-    console.log('✅ [Socket.io] Connected');
+    console.info('✅ [Socket.io] Connected');
     notifyStatus('connected');
   });
 
@@ -125,7 +130,7 @@ function startSupabaseHeartbeat() {
 
 function recoverSupabaseConnection() {
   if (sharedSupabaseChannel) {
-    console.log('🔄 [Realtime] Re-subscribing to Supabase channel...');
+    console.info('🔄 [Realtime] Re-subscribing to Supabase channel...');
     sharedSupabaseChannel.unsubscribe();
     sharedSupabaseChannel = null;
   }
@@ -171,7 +176,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
   
   const studentDataRef = useRef(studentData);
   const clerkDataRef = useRef(clerkData);
-  const [status, setStatus] = useState(sharedStatus);
+  const [_status, setStatus] = useState(sharedStatus);
 
   useEffect(() => {
     studentDataRef.current = studentData;
@@ -182,26 +187,62 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     const sData = studentDataRef.current;
     const cData = clerkDataRef.current;
 
-    console.log('📡 [Realtime Event]', event, payload);
+    console.info('📡 [Realtime Event]', event, payload);
 
     if (event === 'TIMETABLE_CHANGED') {
-      if (sData?.branch === payload.branch) {
+      if (sData?.student?.branch === payload.branch || sData?.branch === payload.branch) {
         toast.success('Your timetable has been updated!', { id: 'timetable-update' });
       }
     }
 
     if (event === 'SESSION_STARTED') {
-      if (sData?.branch === payload.branch) {
+      if (sData?.student?.branch === payload.branch || sData?.branch === payload.branch) {
         toast('🚀 New Attendance Session Started!', { icon: '📝', duration: 10000, id: payload.sessionId });
       }
     }
 
-    if (event === 'REQUEST_CREATED' || event === 'REQUEST_UPDATED') {
+    if (event === 'REQUEST_CREATED') {
       if (cData && payload.clerkType === cData.role) {
-         toast(`New request: ${payload.certificate_type}`, { icon: '🔔' });
+         toast(`New request received: ${payload.certificate_type}`, { icon: '🔔', duration: 6000 });
       }
-      if (sData && payload.student_id === sData.id) {
-         toast(`Request status updated: ${payload.certificate_type}`, { icon: '📄' });
+    }
+
+    if (event === 'REQUEST_UPDATED') {
+      if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
+         if (payload.status === 'APPROVED') {
+           toast(`Your ${payload.certificate_type} is approved and ready for download! ✅`, { icon: '📄', duration: 8000 });
+         } else if (payload.status === 'REJECTED') {
+           toast(`Your ${payload.certificate_type} request was rejected. ❌`, { icon: '⚠️', duration: 8000 });
+         } else {
+           toast(`Certificate status updated: ${payload.certificate_type}`, { icon: '📄', duration: 6000 });
+         }
+      }
+    }
+
+    if (event === 'PAYMENT_RECORDED') {
+      if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
+        toast.success(`Fee Payment Recorded: ₹${formatCurrencyAmount(payload?.amount)}`, { 
+          icon: '💰',
+          duration: 8000 
+        });
+      }
+    }
+
+    if (event === 'SCHOLARSHIP_SANCTIONED') {
+      if (sData && (payload.student_id === sData.id || payload.student_id === sData.student?.id)) {
+        toast.success(`Scholarship Update: ₹${formatCurrencyAmount(payload?.amount)} for ${payload.academic_year} processed!`, { 
+          icon: '🎓',
+          duration: 10000 
+        });
+      }
+    }
+
+    if (event === 'NEW_ADMISSION_APPLICATION') {
+      if (cData && cData.role === 'admission') {
+        toast.success(`New Admission Application received for ${payload.branch} (${payload.admission_year})!`, { 
+          icon: '📥',
+          duration: 8000 
+        });
       }
     }
   }, []);
@@ -234,7 +275,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
       // But avoid dual connections.
       const fallbackTimer = setTimeout(() => {
         if (sharedStatus !== 'connected' && sharedStatus !== 'error') {
-          console.log('⚠️ [Realtime] Socket.io taking too long, checking Supabase availability...');
+          console.warn('⚠️ [Realtime] Socket.io taking too long, checking Supabase availability...');
           ensureSupabaseChannel();
         }
       }, 5000);
@@ -247,7 +288,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     } else {
       // In Dev/Local or if no Socket URL, go straight to Supabase
       if (shouldSkipSocket) {
-        console.log('🚀 [Realtime] Dev Mode: Prioritizing Supabase over local Socket.io');
+        console.info('🚀 [Realtime] Dev Mode: Prioritizing Supabase over local Socket.io');
       }
       ensureSupabaseChannel();
       return () => {

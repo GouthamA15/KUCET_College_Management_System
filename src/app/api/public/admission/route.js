@@ -4,10 +4,10 @@ import { studentAdmissionDrafts, students, clerks, studentPersonalDetails } from
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
-import { uploadToCloudinary } from '@/lib/cloudinary';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { z } from 'zod';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 
 export async function POST(req) {
   try {
@@ -21,6 +21,8 @@ export async function POST(req) {
     const json = await req.json();
 
     // --- ZERO TRUST VALIDATION ---
+    const imageSchema = z.string().regex(/^data:image\/(png|jpeg|jpg|gif|webp);base64,/, "Invalid image format. Only PNG, JPEG, JPG, GIF and WebP are allowed.").nullable().optional();
+    
     const admissionSchema = z.object({
       name: z.string().trim().min(3).max(255).regex(/^[a-zA-Z\s.]+$/),
       admission_year: z.string().regex(/^\d{4}-\d{2,4}$/),
@@ -84,7 +86,11 @@ export async function POST(req) {
       signature: z.string().nullable().optional()
     });
 
-    const validatedData = admissionSchema.parse(json);
+    const validationResult = admissionSchema.safeParse(json);
+    if (!validationResult.success) {
+      return apiError(validationResult.error.errors?.[0]?.message || 'Invalid input data', 400);
+    }
+    const validatedData = validationResult.data;
     const { 
       name, admission_year, entrance_exam, branch, seat_allotted_category, 
       religion, mother_tongue, email, student_mobile, guardian_mobile, 
@@ -129,22 +135,19 @@ export async function POST(req) {
         }
     }
 
-    // 4. Upload to Cloudinary
+    // 4. Upload to Storage
     let pfpUrl = null;
     let signatureUrl = null;
 
-    if (pfp) {
-      pfpUrl = await uploadToCloudinary(pfp, 'admission_drafts/pfp');
-    }
-    if (signature) {
-      signatureUrl = await uploadToCloudinary(signature, 'admission_drafts/signatures');
-    }
+    const storage = getStorageProvider();
 
-    // 5. Encrypt Sensitive Fields
-    const encryptedMobile = encrypt(student_mobile);
-    const encryptedGuardianMobile = guardian_mobile ? encrypt(guardian_mobile) : null;
-    const encryptedAadhaar = aadhaar_no ? encrypt(aadhaar_no) : null;
-    const aHash = aadhaar_no ? hashForIndex(aadhaar_no) : null;
+    try {
+      if (pfp) {
+        pfpUrl = await storage.upload(pfp, 'admission_drafts/pfp');
+      }
+      if (signature) {
+        signatureUrl = await storage.upload(signature, 'admission_drafts/signatures');
+      }
 
     let addressFields = {};
     if (json.perm_house_no !== undefined || json.curr_house_no !== undefined) {
@@ -210,7 +213,30 @@ export async function POST(req) {
         ...addressFields
     });
 
-    return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
+      // 6. Broadcast Real-time Event
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        await broadcastUpdate('NEW_ADMISSION_APPLICATION', {
+          branch: branch,
+          admission_year: admission_year
+        });
+      } catch (broadcastErr) {
+        logger.error(broadcastErr, '[ADMISSION_BROADCAST_ERROR]');
+      }
+
+      return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
+    } catch (e) {
+      // Cleanup uploaded files on error
+      if (pfpUrl) {
+        try { await storage.delete(pfpUrl); }
+        catch (delErr) { logger.error({ err: delErr, path: pfpUrl }, 'Orphaned pfp cleanup failed'); }
+      }
+      if (signatureUrl) {
+        try { await storage.delete(signatureUrl); }
+        catch (delErr) { logger.error({ err: delErr, path: signatureUrl }, 'Orphaned signature cleanup failed'); }
+      }
+      throw e;
+    }
 
   } catch (error) {
     if (error instanceof z.ZodError) {

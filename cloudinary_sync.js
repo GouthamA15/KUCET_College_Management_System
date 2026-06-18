@@ -54,7 +54,7 @@ async function downloadFile(url, dest) {
  * UPLOADS all files from local /public to Cloudinary
  */
 async function syncLocalToCloud() {
-  console.log('📤 Syncing local /public assets to Cloudinary...');
+  console.info('📤 Syncing local /public assets to Cloudinary...');
   
   // Find all files in public folder recursively
   const files = glob.sync('public/**/*', { nodir: true });
@@ -79,7 +79,7 @@ async function syncLocalToCloud() {
     }
 
     try {
-      console.log(`🚀 Uploading [${resourceType}]: ${relativePath} -> ${publicId}`);
+      console.info(`🚀 Uploading [${resourceType}]: ${relativePath} -> ${publicId}`);
       await cloudinary.uploader.upload(file, {
         public_id: publicId,
         resource_type: resourceType,
@@ -93,14 +93,14 @@ async function syncLocalToCloud() {
     }
   }
 
-  console.log(`\n✅ Sync Complete! Success: ${successCount}, Errors: ${errorCount}`);
+  console.info(`\n✅ Sync Complete! Success: ${successCount}, Errors: ${errorCount}`);
 }
 
 /**
  * RESTORES all files from Cloudinary to local /public
  */
 async function restoreCloudToLocal() {
-  console.log('📥 Restoring assets from Cloudinary to local /public...');
+  console.info('📥 Restoring assets from Cloudinary to local /public...');
   
   if (!fs.existsSync(LOCAL_PUBLIC_DIR)) {
     fs.mkdirSync(LOCAL_PUBLIC_DIR, { recursive: true });
@@ -136,7 +136,7 @@ async function restoreCloudToLocal() {
           const fullPath = path.join(LOCAL_PUBLIC_DIR, fileName);
           fs.mkdirSync(path.dirname(fullPath), { recursive: true });
 
-          console.log(`✨ Downloading: ${fileName}`);
+          console.info(`✨ Downloading: ${fileName}`);
           await downloadFile(resource.secure_url, fullPath);
           totalRestored++;
         }
@@ -148,7 +148,7 @@ async function restoreCloudToLocal() {
     } while (nextCursor);
   }
 
-  console.log(`\n✅ Restoration Complete! Total files: ${totalRestored}`);
+  console.info(`\n✅ Restoration Complete! Total files: ${totalRestored}`);
 }
 
 // --- CLI ENTRY POINT ---
@@ -159,7 +159,7 @@ if (action === 'sync') {
 } else if (action === 'restore') {
   restoreCloudToLocal();
 } else {
-  console.log(`
+  console.info(`
 KUCET Cloudinary Sync Tool
 --------------------------
 Usage: 

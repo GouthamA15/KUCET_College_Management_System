@@ -61,6 +61,15 @@ export function validateEnv() {
     if (envData.NODE_ENV) {
       envData.NODE_ENV = envData.NODE_ENV.toLowerCase().trim();
     }
+    
+    // Trim storage path to handle trailing spaces or characters like '.' in environment files
+    if (envData.LOCAL_STORAGE_PATH) {
+      envData.LOCAL_STORAGE_PATH = envData.LOCAL_STORAGE_PATH.trim().replace(/\s*\.\s*$/, '');
+    }
+
+    // Apply sanitization to process.env
+    if (envData.NODE_ENV) process.env.NODE_ENV = envData.NODE_ENV;
+    if (envData.LOCAL_STORAGE_PATH) process.env.LOCAL_STORAGE_PATH = envData.LOCAL_STORAGE_PATH;
 
     const parsed = envSchema.safeParse(envData);
 

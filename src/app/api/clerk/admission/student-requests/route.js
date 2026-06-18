@@ -10,7 +10,7 @@ import {
 } from '@/db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { deleteFromCloudinary } from '@/lib/cloudinary';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 import { decrypt, hashForIndex } from '@/lib/encryption';
 
 export async function GET(req) {
@@ -91,7 +91,12 @@ export async function GET(req) {
       if (!val) return null;
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
       if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
-      return val;
+      try {
+        return storage.getUrl(val);
+      } catch (e) {
+        logger.error({ err: e, val, func: 'imageHelper' }, 'Failed to resolve image URL');
+        return null;
+      }
     };
 
     const data = uniqueRows.map(row => {
@@ -166,13 +171,14 @@ export async function PUT(req) {
     if (!request) return apiError('Request not found or already processed', 404);
 
     const { student_id, new_signature, new_pfp, new_data, proof_url } = request;
+    const storage = getStorageProvider();
 
     if (action === 'approve') {
       await db.transaction(async (tx) => {
         // 1. Update Signature
         if (new_signature) {
           const oldSig = await tx.query.studentSignatures.findFirst({ where: eq(studentSignatures.student_id, student_id) });
-          if (oldSig?.signature) await deleteFromCloudinary(oldSig.signature);
+          if (oldSig?.signature) await storage.delete(oldSig.signature);
           await tx.insert(studentSignatures)
             .values({ student_id, signature: new_signature })
             .onDuplicateKeyUpdate({ set: { signature: new_signature } });
@@ -181,7 +187,7 @@ export async function PUT(req) {
         // 2. Update PFP
         if (new_pfp) {
           const oldPfp = await tx.query.studentImages.findFirst({ where: eq(studentImages.student_id, student_id) });
-          if (oldPfp?.pfp) await deleteFromCloudinary(oldPfp.pfp);
+          if (oldPfp?.pfp) await storage.delete(oldPfp.pfp);
           await tx.insert(studentImages)
             .values({ student_id, pfp: new_pfp })
             .onDuplicateKeyUpdate({ set: { pfp: new_pfp } });
@@ -263,9 +269,9 @@ export async function PUT(req) {
           .where(eq(studentProfileRequests.id, requestId));
       });
     } else {
-      if (new_pfp) await deleteFromCloudinary(new_pfp);
-      if (new_signature) await deleteFromCloudinary(new_signature);
-      if (proof_url) await deleteFromCloudinary(proof_url);
+      if (new_pfp) await storage.delete(new_pfp);
+      if (new_signature) await storage.delete(new_signature);
+      if (proof_url) await storage.delete(proof_url);
       await db.update(studentProfileRequests)
         .set({ status: "rejected", rejection_reason: rejectionReason || 'No reason provided', updated_at: new Date() })
         .where(eq(studentProfileRequests.id, requestId));

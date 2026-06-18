@@ -38,7 +38,7 @@ export async function GET(req) {
     let files = [];
 
     if (storageType === 'local') {
-      const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
+      const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/app/public/uploads';
       if (fs.existsSync(STORAGE_PATH)) {
         const localFiles = getAllFiles(STORAGE_PATH);
         files = localFiles.map(f => {

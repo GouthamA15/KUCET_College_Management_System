@@ -422,14 +422,14 @@ function ScholarshipDashboardContent() {
       const thumbAvailable = summaryData?.thumb_update_available === 1 || summaryData?.thumb_update_available === true;
       const thumbStatusRaw = summaryData?.thumb_status ?? 'PENDING';
       const ts = String(thumbStatusRaw).toLowerCase();
-      const completeValues = ['complete', '1', 'true', 'success', 'done'];
-      const thumbStatusNorm = completeValues.includes(ts) ? 'Complete' : 'Pending';
+      const completeValues = ['complete', 'completed', '1', 'true', 'success', 'done'];
+      const thumbStatusNorm = completeValues.includes(ts) ? 'COMPLETED' : 'PENDING';
       // initialize via setFormState so modal setter API is used
       setFormState('thumbUpdateAvailable', thumbAvailable);
       setFormState('thumbStatus', thumbStatusNorm);
     } catch {
       setFormState('thumbUpdateAvailable', false);
-      setFormState('thumbStatus', 'Pending');
+      setFormState('thumbStatus', 'PENDING');
     }
     // Hardcopy submission flag
     try {
@@ -484,6 +484,7 @@ function ScholarshipDashboardContent() {
         thumb_update_available: !!thumbUpdateAvailable,
         thumb_status: thumbStatus || 'Pending',
         hardcopy_submitted: hardcopySubmitted ? 1 : 0,
+        original_version: selectedProceeding ? selectedProceeding.version : undefined
       };
 
       if (process.env.NODE_ENV === 'development') {

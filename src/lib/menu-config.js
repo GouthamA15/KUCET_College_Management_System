@@ -5,19 +5,19 @@ export const NAV_MENU_CONFIG = {
     { label: 'STAFF LOGIN', action: 'open-panel-clerk' }
   ],
   student: [
-    { label: 'HOME', route: '/student' },
+    // { label: 'HOME', route: '/student' },
     { label: 'PROFILE', route: '/student/profile' },
-    { label: 'ACADEMICS', route: '/student/academics' },
+    // { label: 'ACADEMICS', route: '/student/academics' },
     { label: 'FEES', route: '/student/finances' },
-    { label: 'TIME TABLE', route: '/student/timetable' },
+    // { label: 'TIME TABLE', route: '/student/timetable' },
     { label: 'REQUESTS', children: [
         { label: 'Certificates', route: '/student/requests/certificates' },
-        { label: 'Profile Updates', route: '/student/requests/profile-updates' },
-        { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
+        // { label: 'Profile Updates', route: '/student/requests/profile-updates' },
+        // { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
       ]
     },
     { label: 'MENU', children: [
-        { label: 'Edit Profile', route: '/student/settings/edit-profile' },
+        // { label: 'Edit Profile', route: '/student/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/student/settings/security' }
       ]
     }
@@ -45,7 +45,6 @@ export const NAV_MENU_CONFIG = {
     { label: 'DEPARTMENTS', route: '/clerk/departments' },
     { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
     { label: 'TIME TABLE', route: '/clerk/timetable' },
-    { label: 'FACULTIES', route: '/clerk/faculties' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }
@@ -60,7 +59,6 @@ export const NAV_MENU_CONFIG = {
     { label: 'VERIFICATION', route: '/clerk/scholarship/dashboard?view=certificates&scroll=1' },
     { label: 'DEPARTMENTS', route: '/clerk/departments' },
     { label: 'TIME TABLE', route: '/clerk/timetable' },
-    { label: 'FACULTIES', route: '/clerk/faculties' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }
@@ -85,6 +83,11 @@ export const NAV_MENU_CONFIG = {
     { label: 'ADMIN DASHBOARD', route: '/admin/dashboard' },
     { label: 'MANAGE CLERKS', route: '/admin/manage-clerks' },
     { label: 'STUDENT STATS', route: '/admin/student-stats' },
+    { label: 'INFRASTRUCTURE', children: [
+        { label: 'Database (SQL)', route: '/admin/infrastructure/sql' },
+        { label: 'Storage Sync', route: '/admin/infrastructure' }
+      ]
+    },
     { label: 'MENU', children: [
         { label: 'Edit Profile', route: '/admin/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/admin/settings/security' }

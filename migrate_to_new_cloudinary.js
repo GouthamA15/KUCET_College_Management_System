@@ -67,9 +67,9 @@ function getAllFiles(dirPath, arrayOfFiles) {
 async function migrate() {
   const startTime = Date.now();
   const allFiles = getAllFiles(BACKUP_DIR);
-  console.log(`🚀 INITIALIZING FAST MIGRATION: ${allFiles.length} files in queue.`);
-  console.log(`🎯 Target Cloud: ${process.env.CLOUDINARY_CLOUD_NAME}`);
-  console.log(`⚡ Concurrency: ${CONCURRENCY_LIMIT}\n`);
+  console.info(`🚀 INITIALIZING FAST MIGRATION: ${allFiles.length} files in queue.`);
+  console.info(`🎯 Target Cloud: ${process.env.CLOUDINARY_CLOUD_NAME}`);
+  console.info(`⚡ Concurrency: ${CONCURRENCY_LIMIT}\n`);
 
   let stats = { uploaded: 0, skipped: 0, errors: 0 };
 
@@ -90,7 +90,7 @@ async function migrate() {
       if (!SKIP_EXISTENCE_CHECK) {
         try {
           await cloudinary.api.resource(publicId, { resource_type: resourceType });
-          console.log(`⏩ Skipping: ${publicId} (Exists)`);
+          console.info(`⏩ Skipping: ${publicId} (Exists)`);
           stats.skipped++;
           return;
         } catch (e) {
@@ -102,7 +102,7 @@ async function migrate() {
         }
       }
 
-      console.log(`📤 Uploading: ${publicId}${ext} ...`);
+      console.info(`📤 Uploading: ${publicId}${ext} ...`);
       const options = {
         public_id: publicId,
         resource_type: resourceType,
@@ -124,14 +124,14 @@ async function migrate() {
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
-  console.log(`\n===========================`);
-  console.log(`✨ MIGRATION COMPLETE`);
-  console.log(`✅ Newly Uploaded:  ${stats.uploaded}`);
-  console.log(`⏩ Already Present: ${stats.skipped}`);
-  console.log(`❌ Errors:          ${stats.errors}`);
-  console.log(`📦 Total Processed: ${stats.uploaded + stats.skipped + stats.errors}`);
-  console.log(`⏱️ Duration:       ${duration}s`);
-  console.log(`===========================`);
+  console.info(`\n===========================`);
+  console.info(`✨ MIGRATION COMPLETE`);
+  console.info(`✅ Newly Uploaded:  ${stats.uploaded}`);
+  console.info(`⏩ Already Present: ${stats.skipped}`);
+  console.info(`❌ Errors:          ${stats.errors}`);
+  console.info(`📦 Total Processed: ${stats.uploaded + stats.skipped + stats.errors}`);
+  console.info(`⏱️ Duration:       ${duration}s`);
+  console.info(`===========================`);
 }
 
 migrate();

@@ -29,6 +29,14 @@ const nextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/uploads/:path*',
+        destination: '/api/assets/view/:path*',
+      },
+    ];
+  },
   async headers() {
     const devConnectSrc = process.env.NODE_ENV !== 'production' ? ' localhost:4000 ws://localhost:4000' : '';
     const cspHeader = `

@@ -202,9 +202,8 @@ export default async function proxy(request) {
       return NextResponse.redirect(new URL(dashboard, request.url), 303);
     }
     if (studentPayload) {
-      // Always redirect to the main student dashboard first.
-      // The client-side StudentProvider will handle routing to /profile if needed.
-      return NextResponse.redirect(new URL('/student', request.url), 303);
+      // Redirect students to profile instead of dashboard as it's under development
+      return NextResponse.redirect(new URL('/student/profile', request.url), 303);
     }
     return response;
   }
@@ -227,9 +226,26 @@ export default async function proxy(request) {
   }
   else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);
+
+    // Block access to pages under development (Dashboard, Academics, Timetable, ID Card, Edit Profile)
+    // Redirect them to profile.
+    const disabledRoutes = [
+      '/student',
+      '/student/academics',
+      '/student/timetable',
+      '/student/requests/id-card',
+      '/student/settings/edit-profile',
+      '/student/requests/profile-updates'
+    ];
+    
+    // Exact match for /student or starts with others
+    if (pathname === '/student' || disabledRoutes.some(route => route !== '/student' && pathname.startsWith(route))) {
+      return NextResponse.redirect(new URL('/student/profile', request.url), 303);
+    }
+
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
-    const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security' || pathname === '/student/profile';
-    if (!isVerified && !allowedForUnverified) return NextResponse.redirect(new URL('/student', request.url), 303);
+    const allowedForUnverified = pathname === '/student/settings/security' || pathname === '/student/profile';
+    if (!isVerified && !allowedForUnverified) return NextResponse.redirect(new URL('/student/profile', request.url), 303);
   }
 
   return response;

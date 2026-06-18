@@ -4,20 +4,26 @@ export const SFC_COURSES = new Set(['CSD', 'IT', 'CIVIL']);
 /**
  * Resolves total fee based on branch/course
  * @param {string} course - Branch name (e.g., 'CSE', 'CSD')
+ * @param {Object} [feeConfig] - Optional dynamic config from SystemConfigService
  * @returns {number} - Total annual fee
  */
-export function getYearlyTotalFee(course) {
-  if (!course) return 35000;
-  return SFC_COURSES.has(String(course).toUpperCase()) ? 70000 : 35000;
+export function getYearlyTotalFee(course, feeConfig = null) {
+  if (!course) return feeConfig?.REGULAR || 35000;
+  
+  const sfcCoursesList = feeConfig?.SFC_COURSES || Array.from(SFC_COURSES);
+  const isSfc = sfcCoursesList.map(c => c.toUpperCase()).includes(String(course).toUpperCase());
+  
+  return isSfc ? (feeConfig?.SFC || 70000) : (feeConfig?.REGULAR || 35000);
 }
 
 /**
  * Calculates the expected scholarship amount from the government based on TG ePASS rules (including GO Rt No. 63).
  * @param {Object} student - Student details (requires fee_reimbursement, category, religion, ranks, seat_allotted_category)
  * @param {number} totalFee - The yearly total fee for the student's branch (e.g., 70000)
+ * @param {Object} [feeConfig] - Optional dynamic config from SystemConfigService
  * @returns {number} - The expected government scholarship amount (e.g., 35000 or 70000)
  */
-export function getExpectedScholarship(student, totalFee) {
+export function getExpectedScholarship(student, totalFee, feeConfig = null) {
   // 1. Mandatory Eligibility Check
   const frStatus = String(student?.fee_reimbursement || 'NO').toUpperCase();
   
@@ -33,7 +39,8 @@ export function getExpectedScholarship(student, totalFee) {
   if (isManagementOrSpot) return 0;
 
   // 3. Base Rule: If the branch fee is already at or below the base cap (35k), it's fully covered.
-  if (totalFee <= 35000) return totalFee;
+  const baseCap = feeConfig?.REGULAR || 35000;
+  if (totalFee <= baseCap) return totalFee;
 
   const category = String(student?.category || student?.caste || '').toUpperCase();
   const religion = String(student?.religion || '').toUpperCase();
@@ -59,7 +66,7 @@ export function getExpectedScholarship(student, totalFee) {
   const rank = Number(student?.ranks || student?.exam_rank || 999999);
   if (rank > 0 && rank <= 10000) return totalFee;
   
-  return 35000;
+  return baseCap;
 }
 
 /**

@@ -3,7 +3,7 @@ import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import readXlsxFile from 'read-excel-file'; // Corrected import path
 import { parseDate } from '@/lib/date';
-import { validateRollNo, branchCodes } from '@/lib/rollNumber';
+import { validateRollNo } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 // --- Constants for Client-Side Validation ---
@@ -50,7 +50,6 @@ const AREA_STATUSES = ['Local', 'Non-Local'];
 const MOBILE_REGEX = /^(\+91)?\d{10}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NUMBER_REGEX = /^\d+$/;
-const DECIMAL_REGEX = /^\d+(\.\d+)?$/;
 
 // --- Utility Functions ---
 const normalizeHeader = (header) => {
@@ -209,9 +208,9 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [previewHeaders, setPreviewHeaders] = useState([]); // Array of string (headers)
   const [clientValidationErrors, setClientValidationErrors] = useState([]); // [{ row: 1, message: '...' }]
   const [hasClientValidationErrors, setHasClientValidationErrors] = useState(false); // Only for critical errors
+  const [detectedHeaderMap, setDetectedHeaderMap] = useState({});
   const [isClientValidated, setIsClientValidated] = useState(false);
   const [isDataEdited, setIsDataEdited] = useState(false);
-  const [detectedHeaderMap, setDetectedHeaderMap] = useState({});
 
   const handleCellEdit = (rowIndex, cellKey, value) => {
     const updatedPreviewData = [...previewData];
@@ -272,7 +271,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
     // Reset all states
-    try { toast.dismiss(); } catch {}
+    try { toast.dismiss(); } catch (_err) { /* Silent */ }
     setFile(null);
     setIsLoading(false);
     setShowSummary(false);
@@ -285,8 +284,6 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
     setPreviewHeaders([]);
     setClientValidationErrors([]);
     setHasClientValidationErrors(false);
-    setIsClientValidated(false);
-    setIsDataEdited(false);
 
     if (selectedFile) {
       const validTypes = [
@@ -299,7 +296,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
         return;
       }
       setFile(selectedFile);
-      if (onReset) { try { onReset(); } catch {} }
+      if (onReset) { try { onReset(); } catch (_err) { /* Silent */ } }
 
       const rows = await readXlsxFile(selectedFile);
       if (rows.length < 2) {
@@ -420,7 +417,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
       return;
     }
 
-    try { toast.dismiss(); } catch {}
+    try { toast.dismiss(); } catch (_err) { /* Silent */ }
     setIsLoading(true);
     setImportStage('importing');
 

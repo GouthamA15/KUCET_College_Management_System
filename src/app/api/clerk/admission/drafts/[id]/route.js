@@ -1,9 +1,10 @@
 import { db } from '@/db';
+import logger from '@/lib/logger';
 import { studentAdmissionDrafts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
-import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { encrypt, decrypt } from '@/lib/encryption';
 
@@ -26,11 +27,17 @@ export const GET = wrapHandler({
     draft.guardian_mobile = decrypt(draft.guardian_mobile);
     draft.aadhaar_no = decrypt(draft.aadhaar_no);
 
+    const storage = getStorageProvider();
     const imageHelper = (val) => {
       if (!val) return null;
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
       if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
-      return val;
+      try {
+        return storage.getUrl(val);
+      } catch (e) {
+        logger.error({ err: e, val, func: 'imageHelper' }, 'Failed to resolve image URL');
+        return null;
+      }
     };
 
     if (draft.pfp) draft.pfp = imageHelper(draft.pfp);
@@ -57,6 +64,8 @@ export const PUT = wrapHandler({
     });
     if (!currentDraft) return apiError('Draft not found', 404);
 
+    const storage = getStorageProvider();
+
     // Handle simple status update including rejection
     if (body.status && Object.keys(body).length <= 3) {
         if (!['DRAFT', 'PROCESSED', 'FINALIZED', 'REJECTED'].includes(body.status)) {
@@ -77,8 +86,14 @@ export const PUT = wrapHandler({
             ]
           });
 
-          if (currentDraft.pfp) await deleteFromCloudinary(currentDraft.pfp);
-          if (currentDraft.signature) await deleteFromCloudinary(currentDraft.signature);
+          if (currentDraft.pfp) {
+            try { await storage.delete(currentDraft.pfp); }
+            catch (e) { logger.error({ err: e, id, asset: 'pfp' }, 'Best-effort pfp deletion failed'); }
+          }
+          if (currentDraft.signature) {
+            try { await storage.delete(currentDraft.signature); }
+            catch (e) { logger.error({ err: e, id, asset: 'signature' }, 'Best-effort signature deletion failed'); }
+          }
 
           await db.delete(studentAdmissionDrafts).where(eq(studentAdmissionDrafts.id, id));
 
@@ -131,13 +146,5 @@ export const PUT = wrapHandler({
             updateObj[field] = value;
         }
     }
-
-    if (Object.keys(updateObj).length === 0) return apiError('No valid fields', 400);
-
-    await db.update(studentAdmissionDrafts)
-      .set(updateObj)
-      .where(eq(studentAdmissionDrafts.id, id));
-
-    return { success: true, message: 'Draft updated successfully' };
   }
 });

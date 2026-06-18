@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { clerks } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
+import { getStorageProvider } from '@/lib/providers/storage/factory';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { clerkSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
@@ -46,25 +46,38 @@ export async function POST(req) {
       updateData.mobile_hash = hashForIndex(mobile);
     }
 
-    if (pfp && pfp.startsWith('data:image')) {
-      if (currentClerk.pfp) await deleteFromCloudinary(currentClerk.pfp);
-      updateData.pfp = await uploadToCloudinary(pfp, 'clerks/pfp');
+    const storage = getStorageProvider();
+    const uploadedPaths = [];
+
+    try {
+      if (pfp && pfp.startsWith('data:image')) {
+        if (currentClerk.pfp) await storage.delete(currentClerk.pfp);
+        updateData.pfp = await storage.upload(pfp, 'clerks/pfp');
+        uploadedPaths.push(updateData.pfp);
+      }
+
+      if (signature && signature.startsWith('data:image')) {
+        if (currentClerk.signature) await storage.delete(currentClerk.signature);
+        updateData.signature = await storage.upload(signature, 'clerks/signatures');
+        uploadedPaths.push(updateData.signature);
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return apiError('No changes detected', 400);
+      }
+
+      await db.update(clerks)
+        .set(updateData)
+        .where(eq(clerks.id, user.clerkId));
+
+      return apiResponse({ success: true, message: 'Profile updated successfully' });
+    } catch (e) {
+      for (const path of uploadedPaths) {
+        try { await storage.delete(path); }
+        catch (delErr) { logger.error({ err: delErr, path }, 'Failed to cleanup orphaned clerk profile asset'); }
+      }
+      throw e;
     }
-
-    if (signature && signature.startsWith('data:image')) {
-      if (currentClerk.signature) await deleteFromCloudinary(currentClerk.signature);
-      updateData.signature = await uploadToCloudinary(signature, 'clerks/signatures');
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return apiError('No changes detected', 400);
-    }
-
-    await db.update(clerks)
-      .set(updateData)
-      .where(eq(clerks.id, user.clerkId));
-
-    return apiResponse({ success: true, message: 'Profile updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
