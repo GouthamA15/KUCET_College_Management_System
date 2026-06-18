@@ -28,7 +28,15 @@ function calculateYearAndSemesterCore(rollNo, collegeInfo, now, offsetYears = 0)
     isOddPeriod = currentTime >= firstSemTime || currentTime < secondSemTime;
   }
 
-  const semester = isOddPeriod ? (yearOfStudy * 2) - 1 : (yearOfStudy * 2);
+  let semester = isOddPeriod ? (yearOfStudy * 2) - 1 : (yearOfStudy * 2);
+
+  // If the student entered in the current calendar year, and it is before the official start of the first semester,
+  // they are in Semester 1.
+  const entryYear = rollNo && rollNo.match(/^(\d{2})567/) ? `20${rollNo.slice(0, 2)}` : null;
+  if (entryYear && parseInt(entryYear, 10) === now.getFullYear() && currentTime < firstSemTime) {
+    semester = 1;
+  }
+
   return {
     yearOfStudy,
     semester,

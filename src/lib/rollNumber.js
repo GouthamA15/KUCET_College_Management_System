@@ -118,6 +118,12 @@ function getCurrentStudyingYear(rollNo, collegeInfo = null, now = getNowSync(), 
 
   let academicYearIndex = effectiveYear - entryYearInt + 1;
 
+  // If the student entered in the current calendar year, but the session has not officially started yet,
+  // they are in their 1st year of study.
+  if (academicYearIndex < 1 && entryYearInt === now.getFullYear()) {
+    academicYearIndex = 1;
+  }
+
   // Apply academic offset (e.g., for detentions)
   academicYearIndex -= (offsetYears || 0);
 
@@ -146,6 +152,13 @@ function getCurrentSemester(rollNo, collegeInfo = null, now = getNowSync(), offs
   const currentTotal = (now.getMonth() + 1) * 100 + now.getDate();
   const boundaryTotal = startMonth * 100 + startDay;
   const isInFirstSem = currentTotal >= boundaryTotal;
+
+  // If the student entered in the current calendar year, and it is before the official start of the first semester,
+  // they are in Semester 1.
+  const entryYear = getEntryYearFromRoll(rollNo);
+  if (entryYear && parseInt(entryYear, 10) === now.getFullYear() && currentTotal < boundaryTotal) {
+    return 1;
+  }
 
   const sem = isInFirstSem ? (2 * yearOfStudy - 1) : (2 * yearOfStudy);
   if (!Number.isInteger(sem) || sem < 1 || sem > 8) return null;
