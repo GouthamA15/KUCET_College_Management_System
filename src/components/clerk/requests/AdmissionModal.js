@@ -18,6 +18,9 @@ export const EditableField = React.memo(function EditableField({
     isEditing,
     value,
     onChange,
+    min,
+    max,
+    step,
 }) {
     const handleChange = useCallback(
         (e) => {
@@ -64,6 +67,9 @@ export const EditableField = React.memo(function EditableField({
                     disabled={!isEditing}
                     inputMode={inputMode}
                     maxLength={maxLength}
+                    min={min}
+                    max={max}
+                    step={step}
                     className={`${baseClass} ${isEditing ? activeClass : readOnlyClass}`}
                 />
             )}
@@ -223,6 +229,10 @@ export function AcademicSection({ editForm, isEditing, onFieldChange }) {
                 <EditableField
                     label="Inter / Diploma Marks"
                     name="inter_diploma_marks"
+                    type="number"
+                    min="0"
+                    max="1000"
+                    step="any"
                     value={editForm.inter_diploma_marks}
                     isEditing={isEditing}
                     onChange={onFieldChange}
@@ -279,6 +289,30 @@ export function AcademicSection({ editForm, isEditing, onFieldChange }) {
 }
 
 export function ContactSection({ editForm, isEditing, onFieldChange }) {
+    const handleCheckboxChange = (e) => {
+        const checked = e.target.checked;
+        onFieldChange('is_current_same_as_permanent', checked);
+        if (checked) {
+            onFieldChange('perm_house_no', editForm.curr_house_no || '');
+            onFieldChange('perm_street', editForm.curr_street || '');
+            onFieldChange('perm_apartment', editForm.curr_apartment || '');
+            onFieldChange('perm_city', editForm.curr_city || '');
+            onFieldChange('perm_state', editForm.curr_state || '');
+            onFieldChange('perm_pincode', editForm.curr_pincode || '');
+            onFieldChange('perm_country', editForm.curr_country || 'India');
+        }
+    };
+
+    const handleAddressFieldChange = (field, value) => {
+        onFieldChange(field, value);
+        if (editForm.is_current_same_as_permanent && field.startsWith('curr_')) {
+            const permField = field.replace('curr_', 'perm_');
+            onFieldChange(permField, value);
+        }
+    };
+
+    const isSame = !!editForm.is_current_same_as_permanent;
+
     return (
         <section className="border border-slate-200 bg-white p-6 space-y-5 shadow-sm rounded-sm">
             <div className="border-b border-slate-100 pb-2 mb-2 flex items-center gap-3">
@@ -326,15 +360,145 @@ export function ContactSection({ editForm, isEditing, onFieldChange }) {
                     isEditing={isEditing}
                     onChange={onFieldChange}
                 />
-                <EditableField
-                    label="Legal Residential Address"
-                    name="permanent_address"
-                    type="textarea"
-                    fullWidth
-                    value={editForm.permanent_address}
-                    isEditing={isEditing}
-                    onChange={onFieldChange}
+            </div>
+
+            {/* Current Address */}
+            <div className="border-t border-slate-100 pt-4">
+                <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">
+                    Current Address {isSame && "(Same as Permanent)"}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <EditableField
+                        label="House No"
+                        name="curr_house_no"
+                        value={editForm.curr_house_no}
+                        isEditing={isEditing}
+                        onChange={handleAddressFieldChange}
+                    />
+                    <EditableField
+                        label="Apartment / Landmark"
+                        name="curr_apartment"
+                        value={editForm.curr_apartment}
+                        isEditing={isEditing}
+                        onChange={handleAddressFieldChange}
+                    />
+                    <EditableField
+                        label="Street"
+                        name="curr_street"
+                        value={editForm.curr_street}
+                        isEditing={isEditing}
+                        onChange={handleAddressFieldChange}
+                    />
+                    <EditableField
+                        label="City"
+                        name="curr_city"
+                        value={editForm.curr_city}
+                        isEditing={isEditing}
+                        onChange={handleAddressFieldChange}
+                    />
+                    <EditableField
+                        label="State"
+                        name="curr_state"
+                        value={editForm.curr_state}
+                        isEditing={isEditing}
+                        onChange={handleAddressFieldChange}
+                    />
+                    <EditableField
+                        label="Pincode"
+                        name="curr_pincode"
+                        value={editForm.curr_pincode}
+                        isEditing={isEditing}
+                        onChange={handleAddressFieldChange}
+                    />
+                    <EditableField
+                        label="Country"
+                        name="curr_country"
+                        value={editForm.curr_country}
+                        isEditing={isEditing}
+                        onChange={handleAddressFieldChange}
+                        fullWidth
+                    />
+                </div>
+            </div>
+
+            {/* Sync Checkbox */}
+            <div className="flex items-center gap-2 py-2">
+                <input
+                    type="checkbox"
+                    id="modal_is_current_same_as_permanent"
+                    checked={isSame}
+                    disabled={!isEditing}
+                    onChange={handleCheckboxChange}
+                    className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed"
                 />
+                <label htmlFor="modal_is_current_same_as_permanent" className="text-xs font-bold text-slate-700 select-none cursor-pointer disabled:cursor-not-allowed">
+                    Mark as permanent address
+                </label>
+            </div>
+
+            {/* Permanent Address */}
+            <div className="border-t border-slate-100 pt-4">
+                <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">
+                    Permanent Address
+                </h4>
+                {!isSame ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <EditableField
+                            label="House No"
+                            name="perm_house_no"
+                            value={editForm.perm_house_no}
+                            isEditing={isEditing}
+                            onChange={onFieldChange}
+                        />
+                        <EditableField
+                            label="Apartment / Landmark"
+                            name="perm_apartment"
+                            value={editForm.perm_apartment}
+                            isEditing={isEditing}
+                            onChange={onFieldChange}
+                        />
+                        <EditableField
+                            label="Street"
+                            name="perm_street"
+                            value={editForm.perm_street}
+                            isEditing={isEditing}
+                            onChange={onFieldChange}
+                        />
+                        <EditableField
+                            label="City"
+                            name="perm_city"
+                            value={editForm.perm_city}
+                            isEditing={isEditing}
+                            onChange={onFieldChange}
+                        />
+                        <EditableField
+                            label="State"
+                            name="perm_state"
+                            value={editForm.perm_state}
+                            isEditing={isEditing}
+                            onChange={onFieldChange}
+                        />
+                        <EditableField
+                            label="Pincode"
+                            name="perm_pincode"
+                            value={editForm.perm_pincode}
+                            isEditing={isEditing}
+                            onChange={onFieldChange}
+                        />
+                        <EditableField
+                            label="Country"
+                            name="perm_country"
+                            value={editForm.perm_country}
+                            isEditing={isEditing}
+                            onChange={onFieldChange}
+                            fullWidth
+                        />
+                    </div>
+                ) : (
+                    <div className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-100 p-3 rounded-sm uppercase tracking-wide">
+                        Permanent address is synchronized with current address.
+                    </div>
+                )}
             </div>
         </section>
     );

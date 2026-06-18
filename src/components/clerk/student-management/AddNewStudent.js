@@ -29,8 +29,42 @@ export default function AddNewStudent() {
   const [mobileError, setMobileError] = useState('');
   const [incomeError, setIncomeError] = useState('');
   const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
-  const [personal, setPersonal] = useState({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '', guardian_mobile: '' });
+  const [personal, setPersonal] = useState({ 
+    father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', 
+    mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', 
+    curr_house_no: '', curr_street: '', curr_apartment: '', curr_city: '', curr_state: '', curr_pincode: '', curr_country: 'India',
+    perm_house_no: '', perm_street: '', perm_apartment: '', perm_city: '', perm_state: '', perm_pincode: '', perm_country: 'India',
+    is_current_same_as_permanent: false,
+    seat_allotted_category:'', identification_marks:'', blood_group: '', guardian_mobile: '' 
+  });
   const [academic, setAcademic] = useState({ qualifying_exam:'TG EAPCET', previous_college_details:'', medium_of_instruction:'English', ranks:'', ssc_marks:'', inter_marks:'' });
+
+  const handleCheckboxChange = (checked) => {
+    setPersonal(prev => {
+      const updated = { ...prev, is_current_same_as_permanent: checked };
+      if (checked) {
+        updated.perm_house_no = prev.curr_house_no;
+        updated.perm_street = prev.curr_street;
+        updated.perm_apartment = prev.curr_apartment;
+        updated.perm_city = prev.curr_city;
+        updated.perm_state = prev.curr_state;
+        updated.perm_pincode = prev.curr_pincode;
+        updated.perm_country = prev.curr_country;
+      }
+      return updated;
+    });
+  };
+
+  const handleAddressChange = (field, value) => {
+    setPersonal(prev => {
+      const updated = { ...prev, [field]: value };
+      if (prev.is_current_same_as_permanent && field.startsWith('curr_')) {
+        const permField = field.replace('curr_', 'perm_');
+        updated[permField] = value;
+      }
+      return updated;
+    });
+  };
   const [files, setFiles] = useState({ pfp: null, signature: null });
   const [addLoading, setAddLoading] = useState(false);
   const [savedRollLocked, setSavedRollLocked] = useState(false);
@@ -116,7 +150,21 @@ export default function AddNewStudent() {
         religion: personal.religion || null,
         sub_caste: personal.sub_caste || null,
         category: personal.category || null,
-        address: personal.address || null,
+        curr_house_no: personal.curr_house_no || null,
+        curr_street: personal.curr_street || null,
+        curr_apartment: personal.curr_apartment || null,
+        curr_city: personal.curr_city || null,
+        curr_state: personal.curr_state || null,
+        curr_pincode: personal.curr_pincode || null,
+        curr_country: personal.curr_country || 'India',
+        perm_house_no: personal.perm_house_no || null,
+        perm_street: personal.perm_street || null,
+        perm_apartment: personal.perm_apartment || null,
+        perm_city: personal.perm_city || null,
+        perm_state: personal.perm_state || null,
+        perm_pincode: personal.perm_pincode || null,
+        perm_country: personal.perm_country || 'India',
+        is_current_same_as_permanent: !!personal.is_current_same_as_permanent,
         mobile: basic.mobile || null,
         email: basic.email || null,
         qualifying_exam: academic.qualifying_exam || null,
@@ -124,10 +172,15 @@ export default function AddNewStudent() {
         father_occupation: personal.father_occupation || null,
         annual_income: personal.annual_income ? personal.annual_income.toString().replace(/,/g, '') : null,
         guardian_mobile: personal.guardian_mobile || null,
-        student_aadhar_no: personal.aadhaar_no || null,
+        aadhaar_no: personal.aadhaar_no || null,
         ranks: academic.ranks ? Number(academic.ranks) : null,
         ssc_marks: academic.ssc_marks || null,
         inter_marks: academic.inter_marks || null,
+        previous_college_details: academic.previous_college_details || null,
+        medium_of_instruction: academic.medium_of_instruction || null,
+        area_status: personal.area_status || null,
+        seat_allotted_category: personal.seat_allotted_category || null,
+        identification_marks: personal.identification_marks || null,
         blood_group: personal.blood_group || null,
         pfp: files.pfp,
         signature: files.signature,
@@ -141,7 +194,14 @@ export default function AddNewStudent() {
       setShowAddForm(false);
       smoothScrollToTop({ behavior: 'smooth' });
       setBasic({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', email:''});
-      setPersonal({ father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', address:'', seat_allotted_category:'', identification_marks:'', blood_group: '', guardian_mobile: '' });
+      setPersonal({ 
+        father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', 
+        mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', 
+        curr_house_no: '', curr_street: '', curr_apartment: '', curr_city: '', curr_state: '', curr_pincode: '', curr_country: 'India',
+        perm_house_no: '', perm_street: '', perm_apartment: '', perm_city: '', perm_state: '', perm_pincode: '', perm_country: 'India',
+        is_current_same_as_permanent: false,
+        seat_allotted_category:'', identification_marks:'', blood_group: '', guardian_mobile: '' 
+      });
       // reset fee_reimbursement
       setBasic(prev => ({ ...prev, fee_reimbursement: undefined }));
       setAnnualIncomeDisplay('');
@@ -273,10 +333,58 @@ export default function AddNewStudent() {
                 <option key={bg} value={bg}>{bg}</option>
               ))}
             </select>
+
+            {/* Current Address */}
+            <div className="md:col-span-3 border-t border-gray-100 pt-4 mt-2">
+              <h4 className="text-sm font-bold text-indigo-900 mb-2 uppercase tracking-wider">Current Address</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input placeholder="House No*" value={personal.curr_house_no} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="Apartment / Landmark" value={personal.curr_apartment} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="Street*" value={personal.curr_street} onChange={e => handleAddressChange('curr_street', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="City*" value={personal.curr_city} onChange={e => handleAddressChange('curr_city', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="State*" value={personal.curr_state} onChange={e => handleAddressChange('curr_state', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="PIN Code*" value={personal.curr_pincode} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className="p-2 border rounded" />
+                <input placeholder="Country*" value={personal.curr_country} onChange={e => handleAddressChange('curr_country', e.target.value)} className="p-2 border rounded md:col-span-3" />
+              </div>
+            </div>
+
+            {/* Sync Checkbox */}
+            <div className="md:col-span-3 flex items-center gap-2 py-2">
+              <input 
+                type="checkbox" 
+                id="add_is_current_same_as_permanent" 
+                checked={personal.is_current_same_as_permanent} 
+                onChange={e => handleCheckboxChange(e.target.checked)} 
+                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" 
+              />
+              <label htmlFor="add_is_current_same_as_permanent" className="text-sm font-bold text-gray-700 select-none cursor-pointer">
+                Mark as permanent address
+              </label>
+            </div>
+
+            {/* Permanent Address */}
+            <div className="md:col-span-3 border-t border-gray-100 pt-4">
+              <h4 className="text-sm font-bold text-indigo-900 mb-2 uppercase tracking-wider">Permanent Address</h4>
+              {!personal.is_current_same_as_permanent ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input placeholder="House No*" value={personal.perm_house_no} onChange={e => setPersonal({...personal, perm_house_no: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="Apartment / Landmark" value={personal.perm_apartment} onChange={e => setPersonal({...personal, perm_apartment: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="Street*" value={personal.perm_street} onChange={e => setPersonal({...personal, perm_street: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="City*" value={personal.perm_city} onChange={e => setPersonal({...personal, perm_city: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="State*" value={personal.perm_state} onChange={e => setPersonal({...personal, perm_state: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="PIN Code*" value={personal.perm_pincode} onChange={e => setPersonal({...personal, perm_pincode: e.target.value.replace(/\D/g, '')})} maxLength={6} className="p-2 border rounded" />
+                  <input placeholder="Country*" value={personal.perm_country} onChange={e => setPersonal({...personal, perm_country: e.target.value})} className="p-2 border rounded md:col-span-3" />
+                </div>
+              ) : (
+                <div className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-100 p-3 rounded uppercase tracking-wide">
+                  Permanent address is synchronized with current address.
+                </div>
+              )}
+            </div>
+
+            <textarea placeholder="Identification Marks (optional)" value={personal.identification_marks} onChange={e=>setPersonal({...personal, identification_marks:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" style={{overflow: 'hidden'}} />
+          </div>
         </div>
-        </div>
-              <textarea placeholder="Address" value={personal.address} onChange={e=>setPersonal({...personal, address:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" style={{overflow: 'hidden'}} />
-              <textarea placeholder="Identification Marks (optional)" value={personal.identification_marks} onChange={e=>setPersonal({...personal, identification_marks:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" style={{overflow: 'hidden'}} />
         <div>
           <h3 className="font-bold">Section C: Academic & Identification</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">

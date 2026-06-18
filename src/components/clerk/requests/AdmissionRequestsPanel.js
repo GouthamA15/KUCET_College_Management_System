@@ -139,7 +139,18 @@ const AdmissionRequestsPanel = () => {
 
     // Stable field change handler
     const handleFieldChange = useCallback((name, value) => {
-        setEditData(prev => ({ ...prev, [name]: value }));
+        let val = value;
+        if (name === 'inter_diploma_marks' && val !== '' && val !== '.') {
+            const num = parseFloat(val);
+            if (!isNaN(num)) {
+                if (num > 1000) {
+                    val = '1000';
+                } else if (num < 0) {
+                    val = '0';
+                }
+            }
+        }
+        setEditData(prev => ({ ...prev, [name]: val }));
     }, []);
 
     return (

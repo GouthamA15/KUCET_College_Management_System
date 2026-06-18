@@ -39,7 +39,12 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
       const res = await fetch(`/api/clerk/students/${roll}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'Student not found');
-      const student = data.student;
+      const student = {
+        ...data.student,
+        academics: data.academics,
+        fees: data.fees,
+        student_fee_details: data.student_fee_details
+      };
       setFetchedStudent(student);
       const pd = student.personal_details || {};
       setPersonalFull({
@@ -56,7 +61,21 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         annual_income: pd.annual_income || '',
         guardian_mobile: pd.guardian_mobile || '',
         aadhaar_no: pd.aadhaar_no || '',
-        address: pd.address || student.address || '',
+        curr_house_no: pd.curr_house_no || '',
+        curr_street: pd.curr_street || '',
+        curr_apartment: pd.curr_apartment || '',
+        curr_city: pd.curr_city || '',
+        curr_state: pd.curr_state || '',
+        curr_pincode: pd.curr_pincode || '',
+        curr_country: pd.curr_country || '',
+        perm_house_no: pd.perm_house_no || '',
+        perm_street: pd.perm_street || '',
+        perm_apartment: pd.perm_apartment || '',
+        perm_city: pd.perm_city || '',
+        perm_state: pd.perm_state || '',
+        perm_pincode: pd.perm_pincode || '',
+        perm_country: pd.perm_country || '',
+        is_current_same_as_permanent: !!pd.is_current_same_as_permanent,
         seat_allotted_category: pd.seat_allotted_category || '',
         identification_marks: pd.identification_marks || ''
       });
@@ -93,7 +112,21 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         course: getBranchFromRoll(student.roll_no) || null,
         mobile: sanitizeDigits(student.mobile || '' , 10) || null,
         email: student.email || null,
-        address: pd.address || student.address || null,
+        curr_house_no: pd.curr_house_no || null,
+        curr_street: pd.curr_street || null,
+        curr_apartment: pd.curr_apartment || null,
+        curr_city: pd.curr_city || null,
+        curr_state: pd.curr_state || null,
+        curr_pincode: pd.curr_pincode || null,
+        curr_country: pd.curr_country || null,
+        perm_house_no: pd.perm_house_no || null,
+        perm_street: pd.perm_street || null,
+        perm_apartment: pd.perm_apartment || null,
+        perm_city: pd.perm_city || null,
+        perm_state: pd.perm_state || null,
+        perm_pincode: pd.perm_pincode || null,
+        perm_country: pd.perm_country || null,
+        is_current_same_as_permanent: !!pd.is_current_same_as_permanent,
         father_occupation: pd.father_occupation || null,
         annual_income: sanitizeDigits(pd.annual_income || '', 12) || null
       };
@@ -114,7 +147,21 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         annual_income: pd.annual_income || null,
         guardian_mobile: pd.guardian_mobile || null,
         aadhaar_no: pd.aadhaar_no || null,
-        address: pd.address || student.address || null,
+        curr_house_no: pd.curr_house_no || null,
+        curr_street: pd.curr_street || null,
+        curr_apartment: pd.curr_apartment || null,
+        curr_city: pd.curr_city || null,
+        curr_state: pd.curr_state || null,
+        curr_pincode: pd.curr_pincode || null,
+        curr_country: pd.curr_country || null,
+        perm_house_no: pd.perm_house_no || null,
+        perm_street: pd.perm_street || null,
+        perm_apartment: pd.perm_apartment || null,
+        perm_city: pd.perm_city || null,
+        perm_state: pd.perm_state || null,
+        perm_pincode: pd.perm_pincode || null,
+        perm_country: pd.perm_country || null,
+        is_current_same_as_permanent: !!pd.is_current_same_as_permanent,
         seat_allotted_category: pd.seat_allotted_category || null,
         identification_marks: pd.identification_marks || null
       };

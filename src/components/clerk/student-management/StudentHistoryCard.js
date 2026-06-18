@@ -14,7 +14,6 @@ export default function StudentHistoryCard({ currentClerkId }) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const triggerRef = useRef(null);
   const historyCacheRef = useRef(new Map());
-  const lastRequestKeyRef = useRef(null);
 
   const myCount = historyData.myCount || 0;
   const allCount = historyData.allCount || 0;
@@ -34,9 +33,6 @@ export default function StudentHistoryCard({ currentClerkId }) {
 
   // Fetch records from backend when scope or filters change
   useEffect(() => {
-    if (lastRequestKeyRef.current === requestKey) return;
-    lastRequestKeyRef.current = requestKey;
-
     const cachedHistory = historyCacheRef.current.get(requestKey);
     if (cachedHistory) {
       setHistoryData(cachedHistory);

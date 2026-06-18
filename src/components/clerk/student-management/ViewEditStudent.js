@@ -67,7 +67,21 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       course: getBranchFromRoll(fetchedStudent.roll_no) || null,
       mobile: sanitizeDigits(fetchedStudent.mobile || '' , 10) || null,
       email: fetchedStudent.email || null,
-      address: pd.address || fetchedStudent.address || null,
+      curr_house_no: pd.curr_house_no || null,
+      curr_street: pd.curr_street || null,
+      curr_apartment: pd.curr_apartment || null,
+      curr_city: pd.curr_city || null,
+      curr_state: pd.curr_state || null,
+      curr_pincode: pd.curr_pincode || null,
+      curr_country: pd.curr_country || null,
+      perm_house_no: pd.perm_house_no || null,
+      perm_street: pd.perm_street || null,
+      perm_apartment: pd.perm_apartment || null,
+      perm_city: pd.perm_city || null,
+      perm_state: pd.perm_state || null,
+      perm_pincode: pd.perm_pincode || null,
+      perm_country: pd.perm_country || null,
+      is_current_same_as_permanent: !!pd.is_current_same_as_permanent,
       father_occupation: pd.father_occupation || null,
       annual_income: pd.annual_income || null,
       admission_date: formatDate(fetchedStudent.admission_date) || null,
@@ -90,7 +104,21 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       guardian_mobile: pd.guardian_mobile || null,
       aadhaar_no: pd.aadhaar_no || null,
       blood_group: pd.blood_group || null,
-      address: pd.address || fetchedStudent.address || null,
+      curr_house_no: pd.curr_house_no || null,
+      curr_street: pd.curr_street || null,
+      curr_apartment: pd.curr_apartment || null,
+      curr_city: pd.curr_city || null,
+      curr_state: pd.curr_state || null,
+      curr_pincode: pd.curr_pincode || null,
+      curr_country: pd.curr_country || null,
+      perm_house_no: pd.perm_house_no || null,
+      perm_street: pd.perm_street || null,
+      perm_apartment: pd.perm_apartment || null,
+      perm_city: pd.perm_city || null,
+      perm_state: pd.perm_state || null,
+      perm_pincode: pd.perm_pincode || null,
+      perm_country: pd.perm_country || null,
+      is_current_same_as_permanent: !!pd.is_current_same_as_permanent,
       seat_allotted_category: pd.seat_allotted_category || null,
       identification_marks: pd.identification_marks || null
     };
@@ -101,14 +129,31 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
     let currentRanks = initialAcademics.length > 0 ? initialAcademics[0].ranks : '';
     let currentSscMarks = initialAcademics.length > 0 ? initialAcademics[0].ssc_marks : '';
     let currentInterMarks = initialAcademics.length > 0 ? initialAcademics[0].inter_marks : '';
+    let currentMediumOfInstruction = initialAcademics.length > 0 ? initialAcademics[0].medium_of_instruction : 'English';
+    let currentPreviousCollege = initialAcademics.length > 0 ? initialAcademics[0].previous_college_details : '';
 
     if (!currentQualifyingExam) {
       currentQualifyingExam = getEntranceExamQualified(fetchedStudent.roll_no) || 'TG EAPCET';
     }
     if (initialAcademics.length === 0) {
-      initialAcademics.push({ qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks });
+      initialAcademics.push({ 
+        qualifying_exam: currentQualifyingExam, 
+        ranks: currentRanks, 
+        ssc_marks: currentSscMarks, 
+        inter_marks: currentInterMarks,
+        medium_of_instruction: currentMediumOfInstruction,
+        previous_college_details: currentPreviousCollege
+      });
     } else {
-      initialAcademics[0] = { ...initialAcademics[0], qualifying_exam: currentQualifyingExam, ranks: currentRanks, ssc_marks: currentSscMarks, inter_marks: currentInterMarks };
+      initialAcademics[0] = { 
+        ...initialAcademics[0], 
+        qualifying_exam: currentQualifyingExam, 
+        ranks: currentRanks, 
+        ssc_marks: currentSscMarks, 
+        inter_marks: currentInterMarks,
+        medium_of_instruction: currentMediumOfInstruction,
+        previous_college_details: currentPreviousCollege
+      };
     }
 
     const feesCopy = Array.isArray(fetchedStudent.fees) ? [...fetchedStudent.fees] : [];
@@ -136,6 +181,33 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
     const digits = String(val).replace(/\D/g, '').slice(0, 12);
     if (!digits) return '';
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  };
+
+  const handleCheckboxChange = (checked) => {
+    setPersonalFull(prev => {
+      const updated = { ...prev, is_current_same_as_permanent: checked };
+      if (checked) {
+        updated.perm_house_no = prev.curr_house_no;
+        updated.perm_street = prev.curr_street;
+        updated.perm_apartment = prev.curr_apartment;
+        updated.perm_city = prev.curr_city;
+        updated.perm_state = prev.curr_state;
+        updated.perm_pincode = prev.curr_pincode;
+        updated.perm_country = prev.curr_country;
+      }
+      return updated;
+    });
+  };
+
+  const handleAddressChange = (field, value) => {
+    setPersonalFull(prev => {
+      const updated = { ...prev, [field]: value };
+      if (prev.is_current_same_as_permanent && field.startsWith('curr_')) {
+        const permField = field.replace('curr_', 'perm_');
+        updated[permField] = value;
+      }
+      return updated;
+    });
   };
 
   const handleSaveEdits = async () => {
@@ -168,7 +240,21 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         academic_offset_years: editValues.academic_offset_years,
         guardian_mobile: personalFull.guardian_mobile,
         aadhaar_no: personalFull.aadhaar_no,
-        address: personalFull.address,
+        curr_house_no: personalFull.curr_house_no,
+        curr_street: personalFull.curr_street,
+        curr_apartment: personalFull.curr_apartment,
+        curr_city: personalFull.curr_city,
+        curr_state: personalFull.curr_state,
+        curr_pincode: personalFull.curr_pincode,
+        curr_country: personalFull.curr_country,
+        perm_house_no: personalFull.perm_house_no,
+        perm_street: personalFull.perm_street,
+        perm_apartment: personalFull.perm_apartment,
+        perm_city: personalFull.perm_city,
+        perm_state: personalFull.perm_state,
+        perm_pincode: personalFull.perm_pincode,
+        perm_country: personalFull.perm_country,
+        is_current_same_as_permanent: !!personalFull.is_current_same_as_permanent,
         seat_allotted_category: personalFull.seat_allotted_category,
         identification_marks: personalFull.identification_marks,
         blood_group: personalFull.blood_group,
@@ -407,7 +493,53 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                     <option key={bg} value={bg}>{bg}</option>
                   ))}
                 </select>
-                <textarea placeholder="Address" value={personalFull.address || ''} onChange={e=>setPersonalFull({...personalFull, address:e.target.value})} className="p-2 border rounded md:col-span-3 h-24 resize-none" />
+            {/* Current Address */}
+            <div className="md:col-span-3 border-t border-gray-100 pt-4 mt-2">
+              <h4 className="text-sm font-bold text-indigo-900 mb-2 uppercase tracking-wider">Current Address</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input placeholder="House No*" value={personalFull.curr_house_no || ''} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="Apartment / Landmark" value={personalFull.curr_apartment || ''} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="Street*" value={personalFull.curr_street || ''} onChange={e => handleAddressChange('curr_street', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="City*" value={personalFull.curr_city || ''} onChange={e => handleAddressChange('curr_city', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="State*" value={personalFull.curr_state || ''} onChange={e => handleAddressChange('curr_state', e.target.value)} className="p-2 border rounded" />
+                <input placeholder="PIN Code*" value={personalFull.curr_pincode || ''} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className="p-2 border rounded" />
+                <input placeholder="Country*" value={personalFull.curr_country || ''} onChange={e => handleAddressChange('curr_country', e.target.value)} className="p-2 border rounded md:col-span-3" />
+              </div>
+            </div>
+
+            {/* Sync Checkbox */}
+            <div className="md:col-span-3 flex items-center gap-2 py-2">
+              <input 
+                type="checkbox" 
+                id="edit_is_current_same_as_permanent" 
+                checked={!!personalFull.is_current_same_as_permanent} 
+                onChange={e => handleCheckboxChange(e.target.checked)} 
+                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" 
+              />
+              <label htmlFor="edit_is_current_same_as_permanent" className="text-sm font-bold text-gray-700 select-none cursor-pointer">
+                Mark as permanent address
+              </label>
+            </div>
+
+            {/* Permanent Address */}
+            <div className="md:col-span-3 border-t border-gray-100 pt-4">
+              <h4 className="text-sm font-bold text-indigo-900 mb-2 uppercase tracking-wider">Permanent Address</h4>
+              {!personalFull.is_current_same_as_permanent ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input placeholder="House No*" value={personalFull.perm_house_no || ''} onChange={e => setPersonalFull({...personalFull, perm_house_no: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="Apartment / Landmark" value={personalFull.perm_apartment || ''} onChange={e => setPersonalFull({...personalFull, perm_apartment: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="Street*" value={personalFull.perm_street || ''} onChange={e => setPersonalFull({...personalFull, perm_street: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="City*" value={personalFull.perm_city || ''} onChange={e => setPersonalFull({...personalFull, perm_city: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="State*" value={personalFull.perm_state || ''} onChange={e => setPersonalFull({...personalFull, perm_state: e.target.value})} className="p-2 border rounded" />
+                  <input placeholder="PIN Code*" value={personalFull.perm_pincode || ''} onChange={e => setPersonalFull({...personalFull, perm_pincode: e.target.value.replace(/\D/g, '')})} maxLength={6} className="p-2 border rounded" />
+                  <input placeholder="Country*" value={personalFull.perm_country || ''} onChange={e => setPersonalFull({...personalFull, perm_country: e.target.value})} className="p-2 border rounded md:col-span-3" />
+                </div>
+              ) : (
+                <div className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-100 p-3 rounded uppercase tracking-wide">
+                  Permanent address is synchronized with current address.
+                </div>
+              )}
+            </div>
                 <input placeholder="Seat Allotted Category" value={personalFull.seat_allotted_category || ''} onChange={e=>setPersonalFull({...personalFull, seat_allotted_category:e.target.value})} className="p-2 border rounded" />
                 <textarea placeholder="Identification Marks" value={personalFull.identification_marks || ''} onChange={e=>setPersonalFull({...personalFull, identification_marks:e.target.value})} className="p-2 border rounded md:col-span-3 h-20 resize-none" />
               </div>
