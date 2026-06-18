@@ -44,7 +44,20 @@ export async function GET(req) {
       current_guardian_mobile: studentPersonalDetails.guardian_mobile,
       current_annual_income: studentPersonalDetails.annual_income,
       current_aadhaar_no: studentPersonalDetails.aadhaar_no,
-      current_address: studentPersonalDetails.address,
+      current_perm_house_no: studentPersonalDetails.perm_house_no,
+      current_perm_street: studentPersonalDetails.perm_street,
+      current_perm_apartment: studentPersonalDetails.perm_apartment,
+      current_perm_city: studentPersonalDetails.perm_city,
+      current_perm_state: studentPersonalDetails.perm_state,
+      current_perm_pincode: studentPersonalDetails.perm_pincode,
+      current_perm_country: studentPersonalDetails.perm_country,
+      current_curr_house_no: studentPersonalDetails.curr_house_no,
+      current_curr_street: studentPersonalDetails.curr_street,
+      current_curr_apartment: studentPersonalDetails.curr_apartment,
+      current_curr_city: studentPersonalDetails.curr_city,
+      current_curr_state: studentPersonalDetails.curr_state,
+      current_curr_pincode: studentPersonalDetails.curr_pincode,
+      current_curr_country: studentPersonalDetails.curr_country,
       current_seat_allotted_category: studentPersonalDetails.seat_allotted_category,
       current_identification_marks: studentPersonalDetails.identification_marks,
       current_blood_group: studentPersonalDetails.blood_group,
@@ -65,6 +78,15 @@ export async function GET(req) {
     .where(eq(studentProfileRequests.status, 'pending'))
     .orderBy(desc(studentProfileRequests.created_at));
 
+    // Deduplicate rows by request ID to prevent duplicates from left joins
+    const uniqueRowsMap = new Map();
+    for (const row of rows) {
+      if (!uniqueRowsMap.has(row.id)) {
+        uniqueRowsMap.set(row.id, row);
+      }
+    }
+    const uniqueRows = Array.from(uniqueRowsMap.values());
+
     const imageHelper = (val) => {
       if (!val) return null;
       if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
@@ -72,7 +94,7 @@ export async function GET(req) {
       return val;
     };
 
-    const data = rows.map(row => {
+    const data = uniqueRows.map(row => {
       const currentValues = {};
       Object.keys(row).forEach(key => {
         if (key.startsWith('current_')) {
@@ -84,6 +106,16 @@ export async function GET(req) {
           currentValues[key.replace('current_', '')] = val;
         }
       });
+
+      const { getPermanentAddressFromDetails, getContactAddressFromDetails } = require('@/lib/address-utils');
+      const detailsObj = {};
+      Object.keys(row).forEach(key => {
+        if (key.startsWith('current_')) {
+          detailsObj[key.replace('current_', '')] = row[key];
+        }
+      });
+      currentValues['permanent_address'] = getPermanentAddressFromDetails(detailsObj);
+      currentValues['contact_address'] = getContactAddressFromDetails(detailsObj);
 
       // Decrypt new_data values
       let newData = row.new_data;
@@ -175,7 +207,7 @@ export async function PUT(req) {
           }
 
           // Personal Details Updates
-          const spd_fields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks','blood_group'];
+          const spd_fields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no','seat_allotted_category','identification_marks','blood_group'];
           const spd_data = {};
           spd_fields.forEach(f => { 
               if (data.hasOwnProperty(f)) {
@@ -186,6 +218,20 @@ export async function PUT(req) {
                   }
               }
           });
+
+          if (data.hasOwnProperty('contact_address') || data.hasOwnProperty('permanent_address')) {
+              const existingSPD = await tx.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.student_id, student_id) });
+              const { getPermanentAddressFromDetails, getContactAddressFromDetails, mapAddressStringsToFields } = await import('@/lib/address-utils');
+              
+              const existingPerm = getPermanentAddressFromDetails(existingSPD);
+              const existingContact = getContactAddressFromDetails(existingSPD);
+
+              const finalPerm = data.hasOwnProperty('permanent_address') ? data.permanent_address : existingPerm;
+              const finalContact = data.hasOwnProperty('contact_address') ? data.contact_address : existingContact;
+
+              const addressFields = mapAddressStringsToFields(finalContact, finalPerm);
+              Object.assign(spd_data, addressFields);
+          }
           
           if (Object.keys(spd_data).length > 0) {
             const existingSPD = await tx.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.student_id, student_id) });

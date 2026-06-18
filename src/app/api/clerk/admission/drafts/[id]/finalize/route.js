@@ -61,6 +61,8 @@ export const POST = wrapHandler({
         const expectedType = String(draft.entrance_exam).toUpperCase() === 'TG ECET' ? 'Lateral' : 'Regular';
         if (String(parsed.admissionType) !== expectedType) throw new Error('ROLL_TYPE_MISMATCH');
 
+        const { getPermanentAddressFromDetails, getContactAddressFromDetails } = require('@/lib/address-utils');
+
         // 2. Map draft fields to upsert data structure
         const studentData = {
           ...draft,
@@ -70,7 +72,8 @@ export const POST = wrapHandler({
           mobile: decrypt(draft.student_mobile),
           guardian_mobile: draft.guardian_mobile ? decrypt(draft.guardian_mobile) : null,
           aadhaar_no: draft.aadhaar_no ? decrypt(draft.aadhaar_no) : null,
-          address: draft.permanent_address,
+          permanent_address: getPermanentAddressFromDetails(draft),
+          contact_address: getContactAddressFromDetails(draft),
           identification_marks: `${draft.identification_mark_1 || ''}\n${draft.identification_mark_2 || ''}`.trim(),
           qualifying_exam: draft.entrance_exam,
           inter_marks: draft.inter_diploma_marks,

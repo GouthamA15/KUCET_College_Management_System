@@ -53,8 +53,17 @@ export const GET = wrapHandler({
 
     const rows = await query.where(condition).limit(100);
 
+    // Deduplicate rows by student ID (row.id) to prevent duplicate records
+    const uniqueStudentsMap = new Map();
+    for (const row of rows) {
+      if (!uniqueStudentsMap.has(row.id)) {
+        uniqueStudentsMap.set(row.id, row);
+      }
+    }
+    const uniqueRows = Array.from(uniqueStudentsMap.values());
+
     // Decrypt sensitive fields
-    const students = rows.map(row => ({
+    const students = uniqueRows.map(row => ({
       ...row,
       mobile: row.mobile ? decrypt(row.mobile) : null,
       aadhaar_no: row.aadhaar_no ? decrypt(row.aadhaar_no) : null

@@ -6,6 +6,7 @@ import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { studentUpdateSchema } from '@/lib/validations/student';
 import { z } from 'zod';
+import { getPermanentAddressFromDetails, getContactAddressFromDetails, mapAddressStringsToFields } from '@/lib/address-utils';
 
 export async function POST(req) {
   const user = await getAuthUser('student');
@@ -47,7 +48,7 @@ export async function POST(req) {
     
     // 2. Handle personal details
     const fields = [
-      'father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','annual_income','aadhaar_no','address','seat_allotted_category','identification_marks', 'guardian_mobile'
+      'father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','annual_income','aadhaar_no','seat_allotted_category','identification_marks', 'guardian_mobile'
     ];
 
     const updateObj = {};
@@ -68,10 +69,36 @@ export async function POST(req) {
       }
     });
 
+    // Handle address mappings if provided
+    if (validatedData.hasOwnProperty('contact_address') || validatedData.hasOwnProperty('permanent_address')) {
+      const currentDetails = await db.query.studentPersonalDetails.findFirst({
+        where: eq(studentPersonalDetails.student_id, student_id)
+      });
+      
+      const existingPerm = getPermanentAddressFromDetails(currentDetails);
+      const existingContact = getContactAddressFromDetails(currentDetails);
+
+      const finalPerm = validatedData.hasOwnProperty('permanent_address') ? validatedData.permanent_address : existingPerm;
+      const finalContact = validatedData.hasOwnProperty('contact_address') ? validatedData.contact_address : existingContact;
+
+      const addressFields = mapAddressStringsToFields(finalContact, finalPerm);
+      Object.assign(updateObj, addressFields);
+    }
+
     if (Object.keys(updateObj).length > 0) {
-      await db.insert(studentPersonalDetails)
-        .values({ student_id, ...updateObj })
-        .onDuplicateKeyUpdate({ set: updateObj });
+      const existing = await db.select({ id: studentPersonalDetails.id })
+        .from(studentPersonalDetails)
+        .where(eq(studentPersonalDetails.student_id, student_id))
+        .limit(1);
+
+      if (existing.length > 0) {
+        await db.update(studentPersonalDetails)
+          .set(updateObj)
+          .where(eq(studentPersonalDetails.student_id, student_id));
+      } else {
+        await db.insert(studentPersonalDetails)
+          .values({ student_id, ...updateObj });
+      }
     }
 
     return apiResponse({ success: true, message: "Profile updated successfully" });

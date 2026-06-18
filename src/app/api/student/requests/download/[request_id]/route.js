@@ -81,7 +81,13 @@ export async function GET(request, context) {
             mobile: students.mobile,
             father_name: studentPersonalDetails.father_name,
             date_of_birth: students.date_of_birth,
-            address: studentPersonalDetails.address
+            perm_house_no: studentPersonalDetails.perm_house_no,
+            perm_street: studentPersonalDetails.perm_street,
+            perm_apartment: studentPersonalDetails.perm_apartment,
+            perm_city: studentPersonalDetails.perm_city,
+            perm_state: studentPersonalDetails.perm_state,
+            perm_pincode: studentPersonalDetails.perm_pincode,
+            perm_country: studentPersonalDetails.perm_country,
         })
         .from(students)
         .leftJoin(studentPersonalDetails, eq(students.id, studentPersonalDetails.student_id))
@@ -93,7 +99,9 @@ export async function GET(request, context) {
         }
         const student = studentInfo[0];
         const mobile = decrypt(student.mobile) || 'N/A';
-        const address = student.address || 'N/A';
+        
+        const { getPermanentAddressFromDetails } = require('@/lib/address-utils');
+        const address = getPermanentAddressFromDetails(student) || 'N/A';
 
         // Fetch college info
         const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));

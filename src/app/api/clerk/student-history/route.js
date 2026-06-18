@@ -75,34 +75,72 @@ export async function GET(req) {
     }
 
     // Use a CTE or subquery for joining clerks to ensure high performance
-    const records = await db.select({
-      rollNo: activityUnion.rollNo,
-      actionType: activityUnion.actionType,
-      actionTime: activityUnion.actionTime,
-      totalRecords: activityUnion.totalRecords,
-      clerkId: activityUnion.clerkId,
-      clerkName: sql`CASE WHEN ${scope} = 'my' THEN NULL ELSE ${clerks.name} END`
-    })
-    .from(activityUnion)
-    .leftJoin(clerks, eq(activityUnion.clerkId, clerks.id))
-    .where(and(...conditions))
-    .orderBy(desc(activityUnion.actionTime))
-    .limit(100); 
+    let query;
+    if (scope === 'my') {
+      query = db.select({
+        rollNo: activityUnion.rollNo,
+        actionType: activityUnion.actionType,
+        actionTime: activityUnion.actionTime,
+        totalRecords: activityUnion.totalRecords,
+        clerkId: activityUnion.clerkId,
+        clerkName: sql`NULL`.as('clerkName')
+      })
+      .from(activityUnion);
+    } else {
+      query = db.select({
+        rollNo: activityUnion.rollNo,
+        actionType: activityUnion.actionType,
+        actionTime: activityUnion.actionTime,
+        totalRecords: activityUnion.totalRecords,
+        clerkId: activityUnion.clerkId,
+        clerkName: clerks.name
+      })
+      .from(activityUnion)
+      .leftJoin(clerks, eq(activityUnion.clerkId, clerks.id));
+    }
 
-    // 4. Counts (Centralized logic for summary statistics)
-    const countBase = (conds) => db.select({ count: sql`COUNT(*)` }).from(activityUnion).where(and(...conds));
+    const records = await query
+      .where(and(...conditions))
+      .orderBy(desc(activityUnion.actionTime))
+      .limit(100); 
 
-    let baseConds = [];
-    if (dateRange === '7') baseConds.push(sql`${activityUnion.actionTime} >= DATE_SUB(NOW(), INTERVAL 7 DAY)`);
-    else if (dateRange === '30') baseConds.push(sql`${activityUnion.actionTime} >= DATE_SUB(NOW(), INTERVAL 30 DAY)`);
+    // 4. Counts (Calculated on base tables for maximum performance and index utilization)
+    let addedConds = [isNotNull(students.added_by_clerk_id)];
+    let updatedConds = [
+      isNotNull(students.updated_by_clerk_id),
+      isNotNull(students.updated_at),
+      ne(students.updated_at, students.created_at)
+    ];
+    let importedConds = [];
 
-    const [allCountRows, myCountRows] = await Promise.all([
-      countBase(baseConds),
-      countBase([...baseConds, eq(activityUnion.clerkId, currentClerkId)])
+    if (dateRange === '7') {
+      addedConds.push(sql`${students.created_at} >= DATE_SUB(NOW(), INTERVAL 7 DAY)`);
+      updatedConds.push(sql`${students.updated_at} >= DATE_SUB(NOW(), INTERVAL 7 DAY)`);
+      importedConds.push(sql`${studentImportLogs.created_at} >= DATE_SUB(NOW(), INTERVAL 7 DAY)`);
+    } else if (dateRange === '30') {
+      addedConds.push(sql`${students.created_at} >= DATE_SUB(NOW(), INTERVAL 30 DAY)`);
+      updatedConds.push(sql`${students.updated_at} >= DATE_SUB(NOW(), INTERVAL 30 DAY)`);
+      importedConds.push(sql`${studentImportLogs.created_at} >= DATE_SUB(NOW(), INTERVAL 30 DAY)`);
+    }
+
+    const [
+      addedCountRows,
+      updatedCountRows,
+      importedCountRows,
+      myAddedCountRows,
+      myUpdatedCountRows,
+      myImportedCountRows
+    ] = await Promise.all([
+      db.select({ count: sql`COUNT(*)` }).from(students).where(and(...addedConds)),
+      db.select({ count: sql`COUNT(*)` }).from(students).where(and(...updatedConds)),
+      db.select({ count: sql`COUNT(*)` }).from(studentImportLogs).where(and(...importedConds)),
+      db.select({ count: sql`COUNT(*)` }).from(students).where(and(...addedConds, eq(students.added_by_clerk_id, currentClerkId))),
+      db.select({ count: sql`COUNT(*)` }).from(students).where(and(...updatedConds, eq(students.updated_by_clerk_id, currentClerkId))),
+      db.select({ count: sql`COUNT(*)` }).from(studentImportLogs).where(and(...importedConds, eq(studentImportLogs.clerk_id, currentClerkId)))
     ]);
 
-    const allCount = Number(allCountRows[0]?.count || 0);
-    const myCount = Number(myCountRows[0]?.count || 0);
+    const allCount = Number(addedCountRows[0]?.count || 0) + Number(updatedCountRows[0]?.count || 0) + Number(importedCountRows[0]?.count || 0);
+    const myCount = Number(myAddedCountRows[0]?.count || 0) + Number(myUpdatedCountRows[0]?.count || 0) + Number(myImportedCountRows[0]?.count || 0);
 
     return apiResponse({ records, myCount, allCount });
   } catch (error) {

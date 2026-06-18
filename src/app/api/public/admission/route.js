@@ -23,10 +23,10 @@ export async function POST(req) {
     // --- ZERO TRUST VALIDATION ---
     const admissionSchema = z.object({
       name: z.string().trim().min(3).max(255).regex(/^[a-zA-Z\s.]+$/),
-      admission_year: z.string().regex(/^\d{4}-\d{2}$/),
+      admission_year: z.string().regex(/^\d{4}-\d{2,4}$/),
       entrance_exam: z.enum(['TG EAPCET', 'TG ECET', 'PGECET', 'Other']),
       branch: z.string().trim().min(2).max(50),
-      seat_allotted_category: z.string().trim().min(1).max(50),
+      seat_allotted_category: z.string().trim().max(50).nullable().optional().or(z.literal('')),
       religion: z.string().trim().min(1).max(100),
       mother_tongue: z.string().trim().min(1).max(100),
       email: z.string().trim().email().toLowerCase().nullable().optional().or(z.literal('')),
@@ -34,15 +34,27 @@ export async function POST(req) {
       guardian_mobile: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 10).nullable().optional(),
       aadhaar_no: z.string().transform(v => v.replace(/\D/g, '')).refine(v => v === '' || v.length === 12).nullable().optional(),
       dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
+      gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'Male', 'Female', 'Other']).transform(val => val.toUpperCase()),
       father_name: z.string().trim().max(255).nullable().optional(),
       mother_name: z.string().trim().max(255).nullable().optional(),
       exam_rank: z.preprocess(v => v === '' ? null : Number(v), z.number().int().positive().nullable().optional()),
-      area_status: z.enum(['URBAN', 'RURAL', 'LOCAL', 'NON-LOCAL']).nullable().optional(),
+      area_status: z.enum(['URBAN', 'RURAL', 'LOCAL', 'NON-LOCAL', 'Local', 'Non Local', 'Urban', 'Rural'])
+        .nullable()
+        .optional()
+        .transform(val => {
+          if (!val) return val;
+          return val.toUpperCase().replace(/\s+/g, '-');
+        }),
       category: z.string().trim().max(50).nullable().optional(),
       sub_caste: z.string().trim().max(100).nullable().optional(),
       ssc_marks: z.string().trim().max(50).nullable().optional(),
-      inter_diploma_marks: z.string().trim().max(50).nullable().optional(),
+      inter_diploma_marks: z.string().trim().max(50).nullable().optional().refine(val => {
+          if (!val) return true;
+          const num = parseFloat(val);
+          return !isNaN(num) && num >= 0 && num <= 1000;
+      }, {
+          message: "Intermediate/Diploma marks must be a valid number between 0 and 1000"
+      }),
       nationality: z.string().trim().max(100).default('Indian'),
       blood_group: z.string().trim().max(20).nullable().optional(),
       place_of_birth: z.string().trim().max(255).nullable().optional(),
@@ -52,6 +64,22 @@ export async function POST(req) {
       identification_mark_1: z.string().trim().max(500).nullable().optional(),
       identification_mark_2: z.string().trim().max(500).nullable().optional(),
       permanent_address: z.string().trim().max(1000).nullable().optional(),
+      contact_address: z.string().trim().max(1000).nullable().optional(),
+      perm_house_no: z.string().trim().max(255).nullable().optional(),
+      perm_street: z.string().trim().max(255).nullable().optional(),
+      perm_apartment: z.string().trim().max(255).nullable().optional(),
+      perm_city: z.string().trim().max(255).nullable().optional(),
+      perm_state: z.string().trim().max(255).nullable().optional(),
+      perm_pincode: z.string().trim().max(20).nullable().optional(),
+      perm_country: z.string().trim().max(100).default('India'),
+      curr_house_no: z.string().trim().max(255).nullable().optional(),
+      curr_street: z.string().trim().max(255).nullable().optional(),
+      curr_apartment: z.string().trim().max(255).nullable().optional(),
+      curr_city: z.string().trim().max(255).nullable().optional(),
+      curr_state: z.string().trim().max(255).nullable().optional(),
+      curr_pincode: z.string().trim().max(20).nullable().optional(),
+      curr_country: z.string().trim().max(100).default('India'),
+      is_current_same_as_permanent: z.boolean().default(false),
       pfp: z.string().nullable().optional(),
       signature: z.string().nullable().optional()
     });
@@ -64,7 +92,10 @@ export async function POST(req) {
       area_status, category, sub_caste, ssc_marks, inter_diploma_marks,
       nationality, blood_group, place_of_birth, father_occupation, 
       annual_income, fee_reimbursement, identification_mark_1, 
-      identification_mark_2, permanent_address, pfp, signature
+      identification_mark_2, permanent_address, contact_address, 
+      perm_house_no, perm_street, perm_apartment, perm_city, perm_state, perm_pincode, perm_country,
+      curr_house_no, curr_street, curr_apartment, curr_city, curr_state, curr_pincode, curr_country,
+      is_current_same_as_permanent, pfp, signature
     } = validatedData;
     
     // 1. Email Uniqueness Check (Plain text)
@@ -115,6 +146,32 @@ export async function POST(req) {
     const encryptedAadhaar = aadhaar_no ? encrypt(aadhaar_no) : null;
     const aHash = aadhaar_no ? hashForIndex(aadhaar_no) : null;
 
+    let addressFields = {};
+    if (json.perm_house_no !== undefined || json.curr_house_no !== undefined) {
+      addressFields = {
+        perm_house_no: perm_house_no || null,
+        perm_street: perm_street || null,
+        perm_apartment: perm_apartment || null,
+        perm_city: perm_city || null,
+        perm_state: perm_state || null,
+        perm_pincode: perm_pincode || null,
+        perm_country: perm_country || 'India',
+        curr_house_no: curr_house_no || null,
+        curr_street: curr_street || null,
+        curr_apartment: curr_apartment || null,
+        curr_city: curr_city || null,
+        curr_state: curr_state || null,
+        curr_pincode: curr_pincode || null,
+        curr_country: curr_country || 'India',
+        is_current_same_as_permanent: !!is_current_same_as_permanent
+      };
+    } else {
+      const { mapAddressStringsToFields } = require('@/lib/address-utils');
+      const finalPermAddr = permanent_address || '';
+      const finalContactAddr = contact_address || finalPermAddr || '';
+      addressFields = mapAddressStringsToFields(finalContactAddr, finalPermAddr);
+    }
+
     const [result] = await db.insert(studentAdmissionDrafts).values({
         status: 'DRAFT',
         admission_year,
@@ -150,14 +207,18 @@ export async function POST(req) {
         fee_reimbursement: fee_reimbursement || null,
         identification_mark_1: identification_mark_1 || null,
         identification_mark_2: identification_mark_2 || null,
-        permanent_address: permanent_address || null
+        ...addressFields
     });
 
     return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
+      logger.warn({ errors: error.errors }, 'Validation failed for public admission request');
+      const firstError = error.errors[0];
+      const field = firstError.path.join('.');
+      const msg = field ? `${field}: ${firstError.message}` : firstError.message;
+      return apiError(msg, 400);
     }
     logger.error(error, 'Error saving admission draft');
     return apiError('Failed to submit application.', 500);

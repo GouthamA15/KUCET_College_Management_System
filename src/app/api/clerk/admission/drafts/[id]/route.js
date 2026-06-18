@@ -117,6 +117,12 @@ export const PUT = wrapHandler({
             if (field === 'dob') {
                 value = toMySQLDate(body[field]);
             } 
+            else if (field === 'inter_diploma_marks' && value !== null) {
+                const num = parseFloat(value);
+                if (isNaN(num) || num < 0 || num > 1000) {
+                    return apiError('Intermediate/Diploma marks must be between 0 and 1000.', 400);
+                }
+            }
             // Encrypt sensitive fields before saving
             else if (value && (field === 'student_mobile' || field === 'guardian_mobile' || field === 'aadhaar_no')) {
                 value = encrypt(value);

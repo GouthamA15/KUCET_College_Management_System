@@ -12,6 +12,7 @@ import { eq, desc, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
+import { getPermanentAddressFromDetails, getContactAddressFromDetails } from '@/lib/address-utils';
 
 export async function GET(req) {
   const user = await getAuthUser('student');
@@ -88,6 +89,8 @@ export async function GET(req) {
     if (personalRow) {
         personalRow.guardian_mobile = decrypt(personalRow.guardian_mobile);
         personalRow.aadhaar_no = decrypt(personalRow.aadhaar_no);
+        personalRow.contact_address = getContactAddressFromDetails(personalRow);
+        personalRow.permanent_address = getPermanentAddressFromDetails(personalRow);
     }
 
     return apiResponse({

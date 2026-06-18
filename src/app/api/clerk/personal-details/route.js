@@ -30,9 +30,19 @@ export async function POST(req) {
       dataObj[f] = body[f] || null;
     });
 
-    await db.insert(studentPersonalDetails)
-      .values({ student_id, ...dataObj })
-      .onDuplicateKeyUpdate({ set: dataObj });
+    const existing = await db.select({ id: studentPersonalDetails.id })
+      .from(studentPersonalDetails)
+      .where(eq(studentPersonalDetails.student_id, student_id))
+      .limit(1);
+
+    if (existing.length > 0) {
+      await db.update(studentPersonalDetails)
+        .set(dataObj)
+        .where(eq(studentPersonalDetails.student_id, student_id));
+    } else {
+      await db.insert(studentPersonalDetails)
+        .values({ student_id, ...dataObj });
+    }
 
     return apiResponse({ success: true, message: 'Personal details saved' });
   } catch (err) {

@@ -36,7 +36,8 @@ const ALIASES = {
     father_name: ['father_name', 'fathers_name', 'parent_name'],
     blood_group: ['blood_group', 'bloodgroup', 'bg'],
     category: ['category', 'caste_category', 'caste', 'category_cast'],
-    address: ['address', 'residential_address', 'permanent_address', 'aadhar_card_address'],
+    permanent_address: ['permanent_address', 'permanentaddress', 'address', 'residential_address', 'aadhar_card_address'],
+    contact_address: ['contact_address', 'contactaddress', 'current_address', 'currentaddress', 'present_address', 'presentaddress'],
     mother_name: ['mother_name', 'mothers_name'],
     nationality: ['nationality', 'native_country'],
     religion: ['religion'],
@@ -74,7 +75,7 @@ function buildHeaderMapping(originalHeaders) {
       if (found) break;
     }
   });
-  const requiredCanon = ['roll_no', 'name', 'gender', 'date_of_birth', 'father_name', 'category', 'address'];
+  const requiredCanon = ['roll_no', 'name', 'gender', 'date_of_birth', 'father_name', 'category', 'permanent_address'];
   const present = new Set(Object.values(mapping).map((m) => m.field));
   const missing = requiredCanon.filter((f) => !present.has(f));
   return { mapping, normalizedHeaders: normalized, missingRequired: missing };
@@ -209,16 +210,17 @@ export const POST = wrapHandler({
       const name = String(student.name || '').trim();
       const fatherName = String(personal.father_name || '').trim();
       const category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-');
-      const address = String(personal.address || '').trim();
+      const permanent_address = String(personal.permanent_address || personal.address || '').trim();
+      const contact_address = String(personal.contact_address || '').trim() || permanent_address;
 
-      if (!name || !gender || !dob || !fatherName || !category || !address || !VALID_CATEGORIES.has(category)) {
+      if (!name || !gender || !dob || !fatherName || !category || !permanent_address || !VALID_CATEGORIES.has(category)) {
         errors.push({ row: rowNumber, roll_no: roll, reason: 'Validation failed (missing or invalid fields)' });
         continue;
       }
 
       prepared.push({
         student: { ...student, roll_no: roll, name, gender, date_of_birth: dob },
-        personal: { ...personal, father_name: fatherName, category, address },
+        personal: { ...personal, father_name: fatherName, category, permanent_address, contact_address },
         academic,
         rowNumber
       });
