@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** June 9, 2026 (Session 152)
+**Last Updated:** June 20, 2026 (Session 153)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -67,6 +67,12 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
 ## 6. Recent Activity Log (May - June 2026)
+
+#### **Session 153: Admission Address Logic & Certificate Constraints (June 20, 2026)**
+- **Address System Expansion:** Integrated Current and Permanent address fields comprehensively into the DB Schema, Admission Form, Student Profile Cards, and Bulk Import logic, supported by a new `address-utils` utility.
+- **Certificate & Request Rigor:** Enhanced the Certificate Request UI and engineered strict Eligibility Constraints for dynamic server-side validation of student requests.
+- **Profile & Account Fixes:** Resolved static academic year issues, ensuring student dashboards dynamically fetch their correct year/semester contexts regardless of global calendar states.
+- **Codebase Optimization:** Consolidated redundant hooks (`hooks/student/hooks` flattened) and removed the `vite` dependency to patch a known security vulnerability.
 
 #### **Session 152: Global Image Standardization (June 9, 2026)**
 - **Image Upload Hardening:** Standardized all image upload size limits to strictly **less than 1MB** project-wide. 
