@@ -248,6 +248,49 @@ describe('SecurityService', () => {
         expect(result).toBe(true);
       });
 
+    it('should update if session ownership matches', async () => {
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            limit: vi.fn().mockResolvedValueOnce([{ user_id: 42, user_type: 'STUDENT' }])
+          })
+        })
+      });
+      const result = await SecurityService.updateSession({
+        sessionId: 1,
+        newToken: 'new-token',
+        ipAddress: '1.2.3.4',
+        userAgent: 'Chrome',
+        userId: 42,
+        userType: 'STUDENT'
+      });
+      expect(result).toBe(true);
+      expect(db.update).toHaveBeenCalledWith(userSessions);
+    });
+
+    it('should register new session if ownership mismatches', async () => {
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            limit: vi.fn().mockResolvedValueOnce([{ user_id: 42, user_type: 'STUDENT' }])
+          })
+        })
+      });
+      db.insert.mockReturnValueOnce({
+        values: vi.fn().mockResolvedValueOnce([{ insertId: 99 }])
+      });
+
+      const result = await SecurityService.updateSession({
+        sessionId: 1,
+        newToken: 'new-token',
+        ipAddress: '1.2.3.4',
+        userAgent: 'Chrome',
+        userId: 43,
+        userType: 'STUDENT'
+      });
+      expect(result).toBe(99);
+    });
+
     it('should handle update failure', async () => {
       db.update.mockImplementationOnce(() => { throw new Error('Update fail'); });
       const result = await SecurityService.updateSession({ sessionId: 1, newToken: 't', userAgent: '' });

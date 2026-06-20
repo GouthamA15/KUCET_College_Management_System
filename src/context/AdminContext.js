@@ -1,10 +1,14 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 export const AdminContext = createContext();
 
 export function AdminProvider({ children }) {
+  const lastFetchTimeRef = useRef(0);
+  const activePromiseRef = useRef(null);
+  const isInitializingRef = useRef(false);
+
   const [adminData, setAdminData] = useState(null);
   const [collegeInfo, setCollegeInfo] = useState(null);
   const [clerks, setClerks] = useState([]);
@@ -89,22 +93,121 @@ export function AdminProvider({ children }) {
   }, []);
 
   const refreshAll = useCallback(async () => {
-    if (!adminData) setLoading(true);
-    await Promise.all([
-      fetchAdminMe(),
-      fetchClerks(),
-      fetchStudentStats(),
-      fetchCollegeInfo(),
-      fetchFacultyInterests()
-    ]);
-    setLoading(false);
+    if (activePromiseRef.current) {
+      return activePromiseRef.current;
+    }
+
+    const promise = (async () => {
+      try {
+        if (!adminData) setLoading(true);
+        await Promise.all([
+          fetchAdminMe(),
+          fetchClerks(),
+          fetchStudentStats(),
+          fetchCollegeInfo(),
+          fetchFacultyInterests()
+        ]);
+        lastFetchTimeRef.current = Date.now();
+      } catch (e) {
+        console.error('Failed to refresh admin data', e);
+      } finally {
+        setLoading(false);
+        activePromiseRef.current = null;
+      }
+    })();
+
+    activePromiseRef.current = promise;
+    return promise;
   }, [fetchAdminMe, fetchClerks, fetchStudentStats, fetchCollegeInfo, fetchFacultyInterests, adminData]);
 
+  const handleResume = useCallback(async (event) => {
+    const now = Date.now();
+    const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
+    const isStuck = loading && !adminData;
+
+    // Check if we should revalidate
+    const shouldReinit = isBfcacheRestore || isStuck;
+    const throttleTime = 5000; // 5 seconds throttle
+    const isThrottled = now - lastFetchTimeRef.current < throttleTime;
+
+    if (!shouldReinit && isThrottled) {
+      return;
+    }
+
+    if (activePromiseRef.current) {
+      if (shouldReinit) {
+        setLoading(true);
+      }
+      try {
+        await activePromiseRef.current;
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    isInitializingRef.current = true;
+    if (shouldReinit) {
+      setLoading(true);
+    }
+
+    try {
+      await refreshAll();
+    } catch (e) {
+      console.error('Failed to revalidate admin data on resume', e);
+    } finally {
+      setLoading(false);
+      isInitializingRef.current = false;
+    }
+  }, [loading, adminData, refreshAll]);
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refreshAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (adminData || isInitializingRef.current) return;
+
+    let cancelled = false;
+    isInitializingRef.current = true;
+
+    const init = async () => {
+      if (!adminData) setLoading(true);
+      try {
+        await refreshAll();
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          isInitializingRef.current = false;
+        }
+      }
+    };
+    init();
+
+    return () => {
+      cancelled = true;
+      isInitializingRef.current = false;
+    };
+  }, [refreshAll, adminData]);
+
+  useEffect(() => {
+    const onResume = (e) => {
+      if (e && e.type === 'visibilitychange' && document.visibilityState !== 'visible') {
+        return;
+      }
+      handleResume(e);
+    };
+
+    window.addEventListener('pageshow', onResume);
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
+
+    if (loading && !adminData && !isInitializingRef.current) {
+      handleResume();
+    }
+
+    return () => {
+      window.removeEventListener('pageshow', onResume);
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
+    };
+  }, [handleResume, loading, adminData]);
 
   return (
     <AdminContext.Provider value={{ 

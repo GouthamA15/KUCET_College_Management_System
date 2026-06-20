@@ -1,11 +1,14 @@
 'use client';
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import RealtimeListener from '@/components/RealtimeListener';
 
 export const ClerkContext = createContext();
 
 export function ClerkProvider({ children }) {
   // ... rest of state
+  const lastFetchTimeRef = useRef(0);
+  const activePromiseRef = useRef(null);
+  const isInitializingRef = useRef(false);
 
   const [clerkData, setClerkData] = useState(null);
   const [collegeInfo, setCollegeInfo] = useState(null);
@@ -191,12 +194,12 @@ export function ClerkProvider({ children }) {
     await Promise.all(promises);
   }, [fetchPendingProfileRequests, fetchPendingCertificateRequests, fetchAdmissionDrafts, fetchStudentHistory]);
 
-  useEffect(() => {
-    const init = async () => {
-      // Only set loading if we don't have clerk data yet
-      if (!clerkData) setLoading(true);
-      setAreRequestsBootstrapping(true);
+  const refreshAllData = useCallback(async () => {
+    if (activePromiseRef.current) {
+      return activePromiseRef.current;
+    }
 
+    const promise = (async () => {
       try {
         const clerk = await fetchClerk();
         const promises = [fetchCollegeInfo()];
@@ -216,14 +219,115 @@ export function ClerkProvider({ children }) {
           promises.push(fetchPendingCertificateRequests('scholarship'));
         }
         await Promise.all(promises);
+        lastFetchTimeRef.current = Date.now();
+      } catch (e) {
+        console.error('Failed to refresh clerk data', e);
+      } finally {
+        activePromiseRef.current = null;
+      }
+    })();
+
+    activePromiseRef.current = promise;
+    return promise;
+  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests, fetchPendingCertificateRequests, fetchAdmissionDrafts, fetchHODData, fetchStudentHistory]);
+
+  const handleResume = useCallback(async (event) => {
+    const now = Date.now();
+    const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
+    const isStuck = loading && !clerkData;
+
+    // Check if we should revalidate
+    const shouldReinit = isBfcacheRestore || isStuck;
+    const throttleTime = 5000; // 5 seconds throttle
+    const isThrottled = now - lastFetchTimeRef.current < throttleTime;
+
+    if (!shouldReinit && isThrottled) {
+      return;
+    }
+
+    if (activePromiseRef.current) {
+      if (shouldReinit) {
+        setLoading(true);
+        setAreRequestsBootstrapping(true);
+      }
+      try {
+        await activePromiseRef.current;
       } finally {
         setLoading(false);
         setAreRequestsBootstrapping(false);
       }
+      return;
+    }
+
+    isInitializingRef.current = true;
+    if (shouldReinit) {
+      setLoading(true);
+      setAreRequestsBootstrapping(true);
+    }
+
+    try {
+      await refreshAllData();
+    } catch (e) {
+      console.error('Failed to revalidate clerk data on resume', e);
+    } finally {
+      setLoading(false);
+      setAreRequestsBootstrapping(false);
+      isInitializingRef.current = false;
+    }
+  }, [loading, clerkData, refreshAllData]);
+
+  useEffect(() => {
+    if (clerkData || isInitializingRef.current) return;
+
+    let cancelled = false;
+    isInitializingRef.current = true;
+
+    const id = setTimeout(() => {
+      const init = async () => {
+        if (!clerkData) setLoading(true);
+        setAreRequestsBootstrapping(true);
+        try {
+          await refreshAllData();
+        } finally {
+          if (!cancelled) {
+            setLoading(false);
+            setAreRequestsBootstrapping(false);
+            isInitializingRef.current = false;
+          }
+        }
+      };
+      init();
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      isInitializingRef.current = false;
+      clearTimeout(id);
     };
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchClerk, fetchCollegeInfo, fetchFacultyData, fetchPendingProfileRequests, fetchPendingCertificateRequests, fetchAdmissionDrafts, fetchHODData, fetchStudentHistory]);
+  }, [refreshAllData, clerkData]);
+
+  useEffect(() => {
+    const onResume = (e) => {
+      if (e && e.type === 'visibilitychange' && document.visibilityState !== 'visible') {
+        return;
+      }
+      handleResume(e);
+    };
+
+    window.addEventListener('pageshow', onResume);
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
+
+    if (loading && !clerkData && !isInitializingRef.current) {
+      handleResume();
+    }
+
+    return () => {
+      window.removeEventListener('pageshow', onResume);
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
+    };
+  }, [handleResume, loading, clerkData]);
 
   const handleRealtimeUpdate = useCallback((data) => {
     if (clerkData?.is_hod && data.payload.branch === clerkData.branch) {

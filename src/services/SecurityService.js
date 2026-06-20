@@ -498,19 +498,47 @@ export default class SecurityService {
   /**
    * Update an existing session with a new token hash and activity info
    */
-  static async updateSession({ sessionId, newToken, ipAddress, userAgent, expiresAt }) {
+  static async updateSession({ sessionId, newToken, ipAddress, userAgent, expiresAt, userId, userType }) {
     try {
       const deviceInfo = parseUA(userAgent);
       const sessionTokenHash = crypto.createHash('sha256').update(newToken).digest('hex');
       const lastSeenAt = getNow();
       const expiryDate = expiresAt ? new Date(expiresAt) : new Date(getNow().getTime() + 30 * 24 * 60 * 60 * 1000);
 
-      // Ensure only one current session per user (mirror registerSession behavior)
+      // Ensure session exists and ownership matches
       const [session] = await db
         .select({ user_id: userSessions.user_id, user_type: userSessions.user_type })
         .from(userSessions)
         .where(eq(userSessions.id, sessionId))
         .limit(1);
+
+      if (session && userId !== undefined && userType !== undefined) {
+        if (Number(session.user_id) !== Number(userId) || session.user_type !== userType.toUpperCase()) {
+          logger.warn({ sessionId, userId, userType, dbUserId: session.user_id, dbUserType: session.user_type }, '[SESSION_OWNERSHIP_MISMATCH] Registering new session');
+          const newId = await this.registerSession({
+            userId,
+            userType,
+            sessionToken: newToken,
+            ipAddress,
+            userAgent,
+            expiresAt
+          });
+          return newId;
+        }
+      }
+
+      if (!session && userId !== undefined && userType !== undefined) {
+        logger.info({ sessionId, userId, userType }, '[SESSION_NOT_FOUND] Registering new session');
+        const newId = await this.registerSession({
+          userId,
+          userType,
+          sessionToken: newToken,
+          ipAddress,
+          userAgent,
+          expiresAt
+        });
+        return newId;
+      }
 
       if (session) {
         await db
@@ -532,7 +560,8 @@ export default class SecurityService {
           ip_address: ipAddress,
           last_seen_at: lastSeenAt,
           expires_at: expiryDate,
-          is_current: true
+          is_current: true,
+          is_revoked: false
         })
         .where(eq(userSessions.id, sessionId));
 
