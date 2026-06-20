@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import Header from '@/components/Header';
+import HeaderMobileView from '@/components/Header-MobileView';
 
 export default function TimeMachine() {
   const isTesting = process.env.NEXT_PUBLIC_WORKING_ENV === 'testing';
@@ -60,6 +61,7 @@ export default function TimeMachine() {
   if (!isTesting) {
     return (
       <>
+        <HeaderMobileView />
         <Header />
         <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-6 font-sans">
           <div className="text-center">
@@ -92,6 +94,7 @@ export default function TimeMachine() {
 
   return (
     <>
+    <HeaderMobileView />
     <Header />
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 font-sans">
       <div className="bg-[#1a1a1a] p-10 rounded-[2.5rem] shadow-2xl border border-white/5 max-w-md w-full relative overflow-hidden">

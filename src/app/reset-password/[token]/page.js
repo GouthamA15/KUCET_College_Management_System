@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import HeaderMobileView from "@/components/Header-MobileView";
 import ClientShell from "@/components/ClientShell.client";
 
 export default function ResetPassword() {
@@ -107,6 +108,7 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
+      <HeaderMobileView />
       <Header />
       <ClientShell />
 
