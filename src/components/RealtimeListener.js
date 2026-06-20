@@ -49,7 +49,7 @@ function ensureSocketConnection() {
   const isDev = process.env.NODE_ENV === 'development';
 
   if (!isLocal) {
-    console.log('🔌 [Socket.io] Connecting to', socketUrl);
+    // console.log('🔌 [Socket.io] Connecting to', socketUrl);
   }
   
   sharedSocket = io(socketUrl, {
@@ -60,7 +60,7 @@ function ensureSocketConnection() {
   });
 
   sharedSocket.on('connect', () => {
-    console.log('✅ [Socket.io] Connected');
+    // console.log('✅ [Socket.io] Connected');
     notifyStatus('connected');
   });
 
@@ -71,7 +71,7 @@ function ensureSocketConnection() {
   sharedSocket.on('connect_error', (err) => {
     // Suppress logs for local failures to keep console clean
     if (!isLocal) {
-      console.warn('⚠️ [Realtime] Socket.io Error:', err.message);
+      // console.warn('⚠️ [Realtime] Socket.io Error:', err.message);
     }
     notifyStatus('error');
   });
@@ -117,7 +117,7 @@ function startSupabaseHeartbeat() {
     // 2. Check for Zombie State (No activity for 35s)
     const silentPeriod = Date.now() - lastActivity;
     if (silentPeriod > 35000) {
-      console.warn(`🧟 [Realtime] Zombie connection detected (${Math.round(silentPeriod/1000)}s silence). Forcing recovery...`);
+      // console.warn(`🧟 [Realtime] Zombie connection detected (${Math.round(silentPeriod/1000)}s silence). Forcing recovery...`);
       recoverSupabaseConnection();
     }
   }, 30000);
@@ -125,7 +125,7 @@ function startSupabaseHeartbeat() {
 
 function recoverSupabaseConnection() {
   if (sharedSupabaseChannel) {
-    console.log('🔄 [Realtime] Re-subscribing to Supabase channel...');
+    // console.log('🔄 [Realtime] Re-subscribing to Supabase channel...');
     sharedSupabaseChannel.unsubscribe();
     sharedSupabaseChannel = null;
   }
@@ -182,7 +182,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     const sData = studentDataRef.current;
     const cData = clerkDataRef.current;
 
-    console.log('📡 [Realtime Event]', event, payload);
+    // console.log('📡 [Realtime Event]', event, payload);
 
     if (event === 'TIMETABLE_CHANGED') {
       if (sData?.branch === payload.branch) {
@@ -234,7 +234,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
       // But avoid dual connections.
       const fallbackTimer = setTimeout(() => {
         if (sharedStatus !== 'connected' && sharedStatus !== 'error') {
-          console.log('⚠️ [Realtime] Socket.io taking too long, checking Supabase availability...');
+          // console.log('⚠️ [Realtime] Socket.io taking too long, checking Supabase availability...');
           ensureSupabaseChannel();
         }
       }, 5000);
@@ -247,7 +247,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     } else {
       // In Dev/Local or if no Socket URL, go straight to Supabase
       if (shouldSkipSocket) {
-        console.log('🚀 [Realtime] Dev Mode: Prioritizing Supabase over local Socket.io');
+        // console.log('🚀 [Realtime] Dev Mode: Prioritizing Supabase over local Socket.io');
       }
       ensureSupabaseChannel();
       return () => {
