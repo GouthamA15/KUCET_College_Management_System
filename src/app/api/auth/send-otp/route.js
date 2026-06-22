@@ -100,7 +100,7 @@ export async function POST(request) {
     const emailResult = await Queue.enqueueEmail(targetEmail, subject, bodyHtml);
 
     if (!emailResult || emailResult.success === false) {
-      await sendInstitutionalEmail(targetEmail, subject, bodyHtml);
+      await sendInstitutionalEmail({ to: targetEmail, subject, bodyHtml });
     }
 
     return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });

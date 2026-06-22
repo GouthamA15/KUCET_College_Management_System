@@ -157,55 +157,62 @@ export async function POST(req) {
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
 
-    // Check if there's already a pending request
-    const pending = await db.query.studentProfileRequests.findFirst({
-      where: and(
-        eq(studentProfileRequests.student_id, user.student_id),
-        eq(studentProfileRequests.status, 'pending')
-      )
-    });
-
-    if (pending) {
-      // --- ACTIVE REQUEST GUARD ---
-      const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : {};
-      const newFields = data ? Object.keys(data) : [];
-      const existingFields = Object.keys(existingData);
-      
-      const overlaps = newFields.filter(f => existingFields.includes(f));
-      
-      if (overlaps.length > 0) {
-        return apiError(`You already have a pending request for: ${overlaps.map(f => f.replace(/_/g, ' ')).join(', ')}. Please wait for clerk approval before submitting new changes for these fields.`, 400);
-      }
-
-      if (signature && pending.new_signature) {
-        return apiError('You already have a pending signature update request.', 400);
-      }
-      if (pfp && pending.new_pfp) {
-        return apiError('You already have a pending profile photo update request.', 400);
-      }
-
-      // Merge data for non-overlapping fields
-      const mergedData = { ...existingData, ...(encryptedData || {}) };
-
-      // Update existing pending request
-      const updateData = {};
-      if (signatureUrl) updateData.new_signature = signatureUrl;
-      if (pfpUrl) updateData.new_pfp = pfpUrl;
-      if (Object.keys(mergedData).length > 0) updateData.new_data = mergedData;
-      if (proofUrl) updateData.proof_url = proofUrl; // Latest proof replaces old one
-      
-      await db.update(studentProfileRequests)
-        .set(updateData)
-        .where(eq(studentProfileRequests.id, pending.id));
-    } else {
-      // Create a new request (status defaults to 'pending')
-      await db.insert(studentProfileRequests).values({
-        student_id: user.student_id,
-        new_signature: signatureUrl,
-        new_pfp: pfpUrl,
-        new_data: encryptedData || null,
-        proof_url: proofUrl
+    try {
+      // Check if there's already a pending request
+      const pending = await db.query.studentProfileRequests.findFirst({
+        where: and(
+          eq(studentProfileRequests.student_id, user.student_id),
+          eq(studentProfileRequests.status, 'pending')
+        )
       });
+
+      if (pending) {
+        // --- ACTIVE REQUEST GUARD ---
+        const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : {};
+        const newFields = data ? Object.keys(data) : [];
+        const existingFields = Object.keys(existingData);
+        
+        const overlaps = newFields.filter(f => existingFields.includes(f));
+        
+        if (overlaps.length > 0) {
+          return apiError(`You already have a pending request for: ${overlaps.map(f => f.replace(/_/g, ' ')).join(', ')}. Please wait for clerk approval before submitting new changes for these fields.`, 400);
+        }
+
+        if (signature && pending.new_signature) {
+          return apiError('You already have a pending signature update request.', 400);
+        }
+        if (pfp && pending.new_pfp) {
+          return apiError('You already have a pending profile photo update request.', 400);
+        }
+
+        // Merge data for non-overlapping fields
+        const mergedData = { ...existingData, ...(encryptedData || {}) };
+
+        // Update existing pending request
+        const updateData = {};
+        if (signatureUrl) updateData.new_signature = signatureUrl;
+        if (pfpUrl) updateData.new_pfp = pfpUrl;
+        if (Object.keys(mergedData).length > 0) updateData.new_data = mergedData;
+        if (proofUrl) updateData.proof_url = proofUrl; // Latest proof replaces old one
+        
+        await db.update(studentProfileRequests)
+          .set(updateData)
+          .where(eq(studentProfileRequests.id, pending.id));
+      } else {
+        // Create a new request (status defaults to 'pending')
+        await db.insert(studentProfileRequests).values({
+          student_id: user.student_id,
+          new_signature: signatureUrl,
+          new_pfp: pfpUrl,
+          new_data: encryptedData || null,
+          proof_url: proofUrl
+        });
+      }
+    } catch (dbError) {
+      if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Rollback signature failed'));
+      if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Rollback pfp failed'));
+      if (proofUrl) await storage.delete(proofUrl).catch(e => logger.error(e, 'Rollback proof failed'));
+      throw dbError;
     }
 
     // REAL-TIME: Broadcast to admission clerks

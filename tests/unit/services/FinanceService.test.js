@@ -28,6 +28,7 @@ describe('FinanceService', () => {
       const mockRes = [{ totalFees: '1000' }];
       const mockChain = {
         from: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         then: vi.fn((resolve) => resolve(mockRes)),
       };
@@ -41,6 +42,7 @@ describe('FinanceService', () => {
         const mockRes = [{ totalFees: '1000' }];
         const mockChain = {
           from: vi.fn().mockReturnThis(),
+          leftJoin: vi.fn().mockReturnThis(),
           where: vi.fn().mockReturnThis(),
           then: vi.fn((resolve) => resolve(mockRes)),
         };

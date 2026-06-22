@@ -1,6 +1,6 @@
-# KUCET College Management System - Technical Documentation
+﻿# KUCET College Management System - Technical Documentation
 
-**Last Updated:** June 22, 2026 (Session 155)
+**Last Updated:** June 20, 2026 (Session 153)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -67,11 +67,6 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
 ## 6. Recent Activity Log (May - June 2026)
-
-#### **Session 155: Security, Compression & Alerting Enhancements (June 2026)**
-- **Client-Side Image Compression:** Integrated the `compressImage` function across admission and profile upload forms to optimize storage and upload speeds.
-- **Session Revocation Guard:** Engineered a session revocation guard in `SecurityService.updateSession` that strictly rejects updates on already-revoked sessions.
-- **Nightly Backup Alerting:** Implemented webhook alerting via the `send_alert()` helper function to instantly notify administrators of database or asset backup failures.
 
 #### **Session 154: Universal Image Storage Abstraction & Google Drive Sync (June 22, 2026)**
 - **Unified Storage Provider:** Completed the Provider Strategy architecture by implementing a fully robust `LocalStorageProvider` alongside the legacy `CloudinaryStorageProvider`. The system can now toggle entirely between Cloudinary and Local Disk using the `NEXT_PUBLIC_STORAGE_TYPE` environment variable.

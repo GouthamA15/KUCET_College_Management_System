@@ -58,9 +58,8 @@ export default class LocalStorageProvider extends StorageProvider {
     else if (mimeType.includes('svg')) extension = '.svg';
     else extension = '.jpg';
 
-    const randomArray = new Uint32Array(1);
-    crypto.getRandomValues(randomArray);
-    const filename = publicId ? `${publicId}${extension}` : `${Date.now()}-${randomArray[0]}${extension}`;
+    const randomHex = crypto.randomBytes(4).toString('hex');
+    const filename = publicId ? `${publicId}${extension}` : `${Date.now()}-${randomHex}${extension}`;
     const targetPath = path.join(targetDir, filename);
 
     await fs.promises.writeFile(targetPath, buffer);

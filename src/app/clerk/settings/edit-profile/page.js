@@ -75,7 +75,7 @@ export default function ClerkEditProfilePage() {
         console.error('Image compression failed:', err);
       }
 
-      if (processedFile.size > 1 * 1024 * 1024) {
+      if (processedFile.size >= 1 * 1024 * 1024) {
         toast.error('File exceeds 1MB limit.');
         return;
       }

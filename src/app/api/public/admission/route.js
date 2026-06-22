@@ -185,45 +185,51 @@ export async function POST(req) {
       addressFields = mapAddressStringsToFields(finalContactAddr, finalPermAddr);
     }
 
-    const [result] = await db.insert(studentAdmissionDrafts).values({
-        status: 'DRAFT',
-        admission_year,
-        entrance_exam,
-        branch,
-        name,
-        father_name: father_name || null,
-        mother_name: mother_name || null,
-        dob: toMySQLDate(dob),
-        gender: gender || null,
-        email: email || null,
-        student_mobile: encryptedMobile,
-        mobile_hash: mobileHash,
-        guardian_mobile: encryptedGuardianMobile,
-        pfp: pfpUrl,
-        signature: signatureUrl,
-        exam_rank: exam_rank || null,
-        area_status: area_status || null,
-        category: category || null,
-        sub_caste: sub_caste || null,
-        seat_allotted_category: seat_allotted_category || null,
-        ssc_marks: ssc_marks || null,
-        inter_diploma_marks: inter_diploma_marks || null,
-        nationality: nationality || null,
-        religion: religion || null,
-        mother_tongue: mother_tongue || null,
-        blood_group: blood_group || null,
-        place_of_birth: place_of_birth || null,
-        father_occupation: father_occupation || null,
-        annual_income: annual_income || null,
-        aadhaar_no: encryptedAadhaar,
-        aadhaar_hash: aHash,
-        fee_reimbursement: fee_reimbursement || null,
-        identification_mark_1: identification_mark_1 || null,
-        identification_mark_2: identification_mark_2 || null,
-        ...addressFields
-    });
+    try {
+      const [result] = await db.insert(studentAdmissionDrafts).values({
+          status: 'DRAFT',
+          admission_year,
+          entrance_exam,
+          branch,
+          name,
+          father_name: father_name || null,
+          mother_name: mother_name || null,
+          dob: toMySQLDate(dob),
+          gender: gender || null,
+          email: email || null,
+          student_mobile: encryptedMobile,
+          mobile_hash: mobileHash,
+          guardian_mobile: encryptedGuardianMobile,
+          pfp: pfpUrl,
+          signature: signatureUrl,
+          exam_rank: exam_rank || null,
+          area_status: area_status || null,
+          category: category || null,
+          sub_caste: sub_caste || null,
+          seat_allotted_category: seat_allotted_category || null,
+          ssc_marks: ssc_marks || null,
+          inter_diploma_marks: inter_diploma_marks || null,
+          nationality: nationality || null,
+          religion: religion || null,
+          mother_tongue: mother_tongue || null,
+          blood_group: blood_group || null,
+          place_of_birth: place_of_birth || null,
+          father_occupation: father_occupation || null,
+          annual_income: annual_income || null,
+          aadhaar_no: encryptedAadhaar,
+          aadhaar_hash: aHash,
+          fee_reimbursement: fee_reimbursement || null,
+          identification_mark_1: identification_mark_1 || null,
+          identification_mark_2: identification_mark_2 || null,
+          ...addressFields
+      });
 
-    return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
+      return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
+    } catch (insertError) {
+      if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned pfp in admission draft db insert failure'));
+      if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned signature in admission draft db insert failure'));
+      throw insertError;
+    }
 
   } catch (error) {
     if (error instanceof z.ZodError) {

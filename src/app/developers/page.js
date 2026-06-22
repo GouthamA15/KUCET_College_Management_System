@@ -114,6 +114,10 @@ export default function DevelopersPage() {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type)) {
+        toast.error('File format rejected. Use JPG/PNG/WEBP.');
+        return;
+      }
       let processedFile = file;
       try {
         const { compressImage } = await import('@/lib/image-compressor');
@@ -122,7 +126,7 @@ export default function DevelopersPage() {
         console.error('Image compression failed:', err);
       }
 
-      if (processedFile.size > 1 * 1024 * 1024) {
+      if (processedFile.size >= 1 * 1024 * 1024) {
         toast.error('File size should be less than 1MB');
         return;
       }

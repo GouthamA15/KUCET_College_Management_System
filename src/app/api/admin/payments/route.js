@@ -11,7 +11,7 @@ export const GET = wrapHandler({
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const limitParam = parseInt(searchParams.get('limit') || '50');
-    const limit = Math.min(limitParam, 100);
+    const limit = Number.isNaN(limitParam) ? 50 : Math.min(limitParam, 100);
 
     const [stats, transactions] = await Promise.all([
       FinanceService.getFinancialStats({ startDate, endDate }),

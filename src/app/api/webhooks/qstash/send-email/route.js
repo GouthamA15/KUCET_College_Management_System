@@ -39,7 +39,11 @@ async function handler(req) {
     }
 
     if (messageId && redis) {
-      await redis.set(`email_job:${messageId}`, 'sent', { ex: 604800 }); // Expire in 7 days
+      try {
+        await redis.set(`email_job:${messageId}`, 'sent', { ex: 604800 }); // Expire in 7 days
+      } catch (redisError) {
+        logger.error('Failed to persist idempotency marker in Redis', redisError);
+      }
     }
 
     return NextResponse.json({ success: true });

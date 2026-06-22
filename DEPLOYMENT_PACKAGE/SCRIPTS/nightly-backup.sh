@@ -11,7 +11,8 @@ WEBHOOK_URL=${BACKUP_ALERT_WEBHOOK_URL:-""}
 send_alert() {
   local message=$1
   if [ -n "$WEBHOOK_URL" ]; then
-    curl -s -X POST -H 'Content-Type: application/json' -d "{\"text\": \"🚨 *BACKUP FAILURE*: $message\"}" "$WEBHOOK_URL" >/dev/null || true
+    local safe_payload=$(jq -n --arg msg "🚨 *BACKUP FAILURE*: $message" '{text: $msg}')
+    curl -s -X POST -H 'Content-Type: application/json' -d "$safe_payload" "$WEBHOOK_URL" >/dev/null || true
   fi
 }
 
@@ -52,7 +53,7 @@ echo "Assets backup completed: $BACKUP_DIR/assets_$TIMESTAMP.tar.gz"
 # 3. Off-site Sync to Google Drive (Requires Rclone configured)
 # To configure Google Drive, run `rclone config`, create a new remote named 'gdrive', and select 'drive' as the storage type.
 # Sync the backups folder to Google Drive
-if ! rclone copy $BACKUP_DIR gdrive:kucet-backups/archives; then
+if ! rclone copy "$BACKUP_DIR" gdrive:kucet-backups/archives; then
   echo "ERROR: rclone to Google Drive failed at $TIMESTAMP" >&2
   send_alert "rclone to Google Drive failed at $TIMESTAMP. Check OAuth Refresh Tokens (make sure OAuth consent screen is published to Production)."
   exit 1
