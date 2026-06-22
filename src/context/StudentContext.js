@@ -90,22 +90,78 @@ export function StudentProvider({ children }) {
     return null;
   }, []);
 
+  const lastFetchTimeRef = useRef(0);
+  const activePromiseRef = useRef(null);
+
   const refreshData = useCallback(async () => {
-    try {
-      const me = await fetch('/api/student/me');
-      if (me.ok) {
-        const user = await me.json();
-        await fetchCollegeInfo();
-        const profilePromise = fetchProfile(user.roll_no);
-        const academicPromise = fetchAcademicPerformance();
-        const [profile] = await Promise.all([profilePromise, academicPromise]);
-        return profile;
-      }
-    } catch (e) {
-      setError('Failed to refresh data');
+    if (activePromiseRef.current) {
+      return activePromiseRef.current;
     }
-    return null;
+
+    const promise = (async () => {
+      try {
+        const me = await fetch('/api/student/me');
+        if (me.ok) {
+          const user = await me.json();
+          await fetchCollegeInfo();
+          const profilePromise = fetchProfile(user.roll_no);
+          const academicPromise = fetchAcademicPerformance();
+          const [profile] = await Promise.all([profilePromise, academicPromise]);
+          lastFetchTimeRef.current = Date.now();
+          return profile;
+        }
+      } catch (e) {
+        setError('Failed to refresh data');
+      } finally {
+        activePromiseRef.current = null;
+      }
+      return null;
+    })();
+
+    activePromiseRef.current = promise;
+    return promise;
   }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance]);
+
+  const handleResume = useCallback(async (event) => {
+    const now = Date.now();
+    const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
+    const isStuck = loading && !studentData;
+
+    // Check if we should revalidate
+    const shouldReinit = isBfcacheRestore || isStuck;
+    const throttleTime = 5000; // 5 seconds throttle
+    const isThrottled = now - lastFetchTimeRef.current < throttleTime;
+
+    if (!shouldReinit && isThrottled) {
+      return;
+    }
+
+    if (activePromiseRef.current) {
+      if (shouldReinit) {
+        setLoading(true);
+      }
+      try {
+        await activePromiseRef.current;
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    isInitializingRef.current = true;
+    if (shouldReinit) {
+      setLoading(true);
+    }
+
+    try {
+      await refreshData();
+    } catch (e) {
+      console.error('Failed to revalidate student data on resume', e);
+    } finally {
+      setLoading(false);
+      isInitializingRef.current = false;
+    }
+  }, [loading, studentData, refreshData]);
 
   useEffect(() => {
     // Avoid a refresh loop: refreshData() sets studentData,
@@ -118,8 +174,14 @@ export function StudentProvider({ children }) {
     const id = setTimeout(() => {
       const init = async () => {
         setLoading(true);
-        await refreshData();
-        if (!cancelled) setLoading(false);
+        try {
+          await refreshData();
+        } finally {
+          if (!cancelled) {
+            setLoading(false);
+            isInitializingRef.current = false;
+          }
+        }
       };
       init();
     }, 0);
@@ -130,6 +192,29 @@ export function StudentProvider({ children }) {
       clearTimeout(id);
     };
   }, [refreshData, studentData]);
+
+  useEffect(() => {
+    const onResume = (e) => {
+      if (e && e.type === 'visibilitychange' && document.visibilityState !== 'visible') {
+        return;
+      }
+      handleResume(e);
+    };
+
+    window.addEventListener('pageshow', onResume);
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
+
+    if (loading && !studentData && !isInitializingRef.current) {
+      handleResume();
+    }
+
+    return () => {
+      window.removeEventListener('pageshow', onResume);
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
+    };
+  }, [handleResume, loading, studentData]);
 
   const resetCertificateRequests = () => {
     setCertificateRequests(null);

@@ -4,23 +4,19 @@ import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { useAssets } from '@/context/AssetContext';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { isDashboardRoot } from '@/lib/path-utils';
 
 /**
- * Institutional Mobile Header for Dashboards (Restored Original Style)
- * Shows ONLY on dashboard roots (/, /student, /clerk, /faculty, etc.)
+ * Institutional Mobile Header (Restored Original Style)
+ * Shows on all pages when viewed on mobile devices
  */
 export default function HeaderMobileView() {
   const { getAsset } = useAssets();
   const pathname = usePathname();
   const headerRef = useRef(null);
 
-  // Institutional Header should ONLY appear on dashboard root pages
-  const showHeader = isDashboardRoot(pathname);
-
   useEffect(() => {
     const el = headerRef.current;
-    if (!el || !showHeader) {
+    if (!el) {
       document.documentElement.style.setProperty('--mobile-header-height', '0px');
       return;
     }
@@ -41,14 +37,12 @@ export default function HeaderMobileView() {
       try { ro.disconnect(); } catch (e) {}
       window.removeEventListener('resize', updateHeight);
     };
-  }, [showHeader, pathname]);
-
-  if (!showHeader) return null;
+  }, [pathname]);
 
   return (
     <header 
       ref={headerRef} 
-      className="lg:hidden relative bg-linear-to-r from-blue-50 to-white py-4 px-4 w-full pt-[calc(1rem+env(safe-area-inset-top))] border-b border-slate-200 transition-colors duration-200"
+      className="md:hidden relative bg-linear-to-r from-blue-50 to-white py-4 px-4 w-full pt-[calc(1rem+env(safe-area-inset-top))] border-b border-slate-200 transition-colors duration-200"
     >
       <div className="flex flex-col items-center justify-center">
         {/* Top Row - Logos */}

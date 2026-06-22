@@ -40,7 +40,8 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
       const SecurityService = (await import('@/services/SecurityService')).default;
       const { cookies } = await import('next/headers');
       const cookieStore = await cookies();
-      const existingSessionId = cookieStore.get('session_id')?.value;
+      const sessionCookieName = `${userType}_session_id`;
+      const existingSessionId = cookieStore.get(sessionCookieName)?.value;
 
       // We need the numeric DB ID for user_sessions
       let dbId;
@@ -64,9 +65,13 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
             newToken: refreshToken,
             ipAddress: ip,
             userAgent: userAgent,
-            expiresAt: expiresAt
+            expiresAt: expiresAt,
+            userId: dbId,
+            userType: userType
           });
-          if (updated) sessionId = existingSessionId;
+          if (updated) {
+            sessionId = typeof updated === 'number' ? updated : existingSessionId;
+          }
         }
 
         // Fallback to register new if update failed or didn't exist
@@ -82,13 +87,17 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
         }
 
         if (sessionId) {
-          response.cookies.set('session_id', sessionId.toString(), {
+          response.cookies.set(sessionCookieName, sessionId.toString(), {
             httpOnly: false, // Accessible by client for realtime revocation check
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: durationDays * 24 * 60 * 60,
             path: '/',
           });
+          // Clean up legacy non-role-specific cookie if present
+          if (cookieStore.has('session_id')) {
+            response.cookies.delete('session_id');
+          }
         }
       }
     } catch (err) {

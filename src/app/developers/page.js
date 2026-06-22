@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useAssets } from '@/context/AssetContext';
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import Header from '@/components/Header';
+import HeaderMobileView from '@/components/Header-MobileView';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -304,6 +305,7 @@ export default function DevelopersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans relative">
+      <HeaderMobileView />
       <Header />
 
       <div id="main-content" className="flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">

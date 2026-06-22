@@ -2,6 +2,7 @@
 
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
+import HeaderMobileView from '@/components/Header-MobileView';
 import ClientShell from '@/components/ClientShell.client';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
@@ -84,6 +85,7 @@ function VerifyContent() {
 
   return (
    <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
+      <HeaderMobileView />
       <Header />
       <ClientShell />
 
