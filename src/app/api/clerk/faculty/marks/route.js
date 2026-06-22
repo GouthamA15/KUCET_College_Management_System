@@ -109,7 +109,10 @@ export async function GET(request) {
       eq(studentsTable.id, studentMarks.student_id),
       eq(studentMarks.assignment_id, canonicalId)
     ))
-    .where(or(...studentConditions))
+    .where(and(
+      eq(studentsTable.academic_status, 'ACTIVE'),
+      or(...studentConditions)
+    ))
     .orderBy(asc(studentsTable.roll_no));
 
     // If historical duplicates exist in student_marks, the join can yield duplicate student rows.

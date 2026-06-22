@@ -56,7 +56,7 @@ export const students = mysqlTable('students', {
   updated_at: timestamp('updated_at').onUpdateNow(),
   updated_by_clerk_id: int('updated_by_clerk_id'),
   student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED']).default('ACTIVE'),
-  academic_status: mysqlEnum('academic_status', ['REGULAR', 'DETAINED', 'DROPPED', 'GRADUATED']).default('REGULAR'),
+  academic_status: mysqlEnum('academic_status', ['ACTIVE', 'GRADUATED', 'DETAINED', 'SUSPENDED']).default('ACTIVE'),
   academic_offset_years: int('academic_offset_years').default(0),
   last_login_at: timestamp('last_login_at'),
   last_login_ip: varchar('last_login_ip', { length: 64 }),

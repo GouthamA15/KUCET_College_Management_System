@@ -109,6 +109,7 @@ export async function GET(request) {
       eq(studentMarks.assignment_id, targetAssignmentId)
     ))
     .where(and(
+      eq(studentsTable.academic_status, 'ACTIVE'),
       like(studentsTable.roll_no, `%${branchCode}%`), // Branch filter
       sql`CASE 
           WHEN ${studentsTable.roll_no} LIKE '%T%' THEN 
