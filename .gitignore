@@ -63,8 +63,3 @@ node_modules/
 .cursorrules
 .env.test.render
 thingstodoafterdeployment.txt
-DEPLOYMENT_PACKAGE/
-!DEPLOYMENT_PACKAGE/CONFIGS/nginx-config.conf
-!DEPLOYMENT_PACKAGE/CONFIGS/socket-server.js
-!DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh
-!DEPLOYMENT_PACKAGE/MASTER_DEPLOYMENT_GUIDE.md

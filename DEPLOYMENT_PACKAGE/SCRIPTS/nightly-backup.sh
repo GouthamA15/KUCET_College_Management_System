@@ -38,8 +38,13 @@ if ! tar -czf "$BACKUP_DIR/assets_$TIMESTAMP.tar.gz" "$STORAGE_DIR" 2>/dev/null;
 fi
 echo "Assets backup completed: $BACKUP_DIR/assets_$TIMESTAMP.tar.gz"
 
-# 3. Off-site Sync (Optional: Requires Rclone configured)
-# rclone copy $BACKUP_DIR remote:kucet-backups
+# 3. Off-site Sync to Google Drive (Requires Rclone configured)
+# To configure Google Drive, run `rclone config`, create a new remote named 'gdrive', and select 'drive' as the storage type.
+# Sync the backups folder to Google Drive
+rclone copy $BACKUP_DIR gdrive:kucet-backups/archives
+
+# Sync the live assets folder directly to Google Drive (optional, for continuous asset backup)
+# rclone sync $STORAGE_DIR gdrive:kucet-backups/live-assets
 
 # 4. Housekeeping (Keep only last 7 days locally, targeting only backup files)
 find $BACKUP_DIR -maxdepth 1 -type f \( -name 'db_*.sql' -o -name 'assets_*.tar.gz' \) -mtime +7 -delete

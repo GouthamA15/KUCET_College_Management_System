@@ -11,7 +11,7 @@ import { eq, sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { storage } from '@/lib/providers';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { StudentService } from '@/services/StudentService';
 
@@ -196,13 +196,13 @@ export async function PUT(req, context) {
 
       // 4. Update Images
       if (updatedData.pfp) {
-        const pfpUrl = await uploadToCloudinary(updatedData.pfp, 'students/pfp');
+        const pfpUrl = await storage.upload(updatedData.pfp, 'students/pfp');
         await tx.insert(studentImages)
           .values({ student_id: studentId, pfp: pfpUrl })
           .onDuplicateKeyUpdate({ set: { pfp: pfpUrl } });
       }
       if (updatedData.signature) {
-        const sigUrl = await uploadToCloudinary(updatedData.signature, 'students/signatures');
+        const sigUrl = await storage.upload(updatedData.signature, 'students/signatures');
         await tx.insert(studentSignatures)
           .values({ student_id: studentId, signature: sigUrl })
           .onDuplicateKeyUpdate({ set: { signature: sigUrl } });

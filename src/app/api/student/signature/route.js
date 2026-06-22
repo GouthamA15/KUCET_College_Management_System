@@ -10,7 +10,7 @@ import {
 } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { storage } from '@/lib/providers';
 import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
 import { getPermanentAddressFromDetails, getContactAddressFromDetails } from '@/lib/address-utils';
 
@@ -142,9 +142,9 @@ export async function POST(req) {
     }
     
     // Upload images to Cloudinary if provided
-    const signatureUrl = signature ? await uploadToCloudinary(signature, 'requests/signatures') : null;
-    const pfpUrl = pfp ? await uploadToCloudinary(pfp, 'requests/pfp') : null;
-    const proofUrl = proof ? await uploadToCloudinary(proof, 'requests/proofs') : null;
+    const signatureUrl = signature ? await storage.upload(signature, 'requests/signatures') : null;
+    const pfpUrl = pfp ? await storage.upload(pfp, 'requests/pfp') : null;
+    const proofUrl = proof ? await storage.upload(proof, 'requests/proofs') : null;
 
     // Check if there's already a pending request
     const pending = await db.query.studentProfileRequests.findFirst({

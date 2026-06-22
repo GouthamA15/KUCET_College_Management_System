@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { clerks } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { uploadToCloudinary, deleteFromCloudinary } from '@/lib/cloudinary';
+import { storage } from '@/lib/providers';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { clerkSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
@@ -47,13 +47,13 @@ export async function POST(req) {
     }
 
     if (pfp && pfp.startsWith('data:image')) {
-      if (currentClerk.pfp) await deleteFromCloudinary(currentClerk.pfp);
-      updateData.pfp = await uploadToCloudinary(pfp, 'clerks/pfp');
+      if (currentClerk.pfp) await storage.delete(currentClerk.pfp);
+      updateData.pfp = await storage.upload(pfp, 'clerks/pfp');
     }
 
     if (signature && signature.startsWith('data:image')) {
-      if (currentClerk.signature) await deleteFromCloudinary(currentClerk.signature);
-      updateData.signature = await uploadToCloudinary(signature, 'clerks/signatures');
+      if (currentClerk.signature) await storage.delete(currentClerk.signature);
+      updateData.signature = await storage.upload(signature, 'clerks/signatures');
     }
 
     if (Object.keys(updateData).length === 0) {

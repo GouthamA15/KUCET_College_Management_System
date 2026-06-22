@@ -28,4 +28,14 @@ export default class CloudinaryStorageProvider extends StorageProvider {
     const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
     return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
   }
+
+  async upload(file, folder, publicId = null) {
+    const { uploadToCloudinary } = await import('@/lib/cloudinary');
+    return await uploadToCloudinary(file, folder, publicId);
+  }
+
+  async delete(path) {
+    const { deleteFromCloudinary } = await import('@/lib/cloudinary');
+    return await deleteFromCloudinary(path);
+  }
 }

@@ -68,6 +68,11 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - June 2026)
 
+#### **Session 154: Universal Image Storage Abstraction & Google Drive Sync (June 22, 2026)**
+- **Unified Storage Provider:** Completed the Provider Strategy architecture by implementing a fully robust `LocalStorageProvider` alongside the legacy `CloudinaryStorageProvider`. The system can now toggle entirely between Cloudinary and Local Disk using the `NEXT_PUBLIC_STORAGE_TYPE` environment variable.
+- **Codebase Refactor:** systematically migrated 8 distinct API routes (Admissions, Bugs, Profile, Signatures) to consume the centralized `storage.upload()` and `storage.delete()` methods, eliminating scattered hardcoded Cloudinary logic.
+- **Backup Strategy Formalization:** Documented the `IMAGE_STORAGE_STRATEGY` explicitly and updated the nightly backup shell script to integrate direct `rclone` syncing with Google Drive for both databases and compressed filesystem assets.
+
 #### **Session 153: Admission Address Logic & Certificate Constraints (June 20, 2026)**
 - **Address System Expansion:** Integrated Current and Permanent address fields comprehensively into the DB Schema, Admission Form, Student Profile Cards, and Bulk Import logic, supported by a new `address-utils` utility.
 - **Certificate & Request Rigor:** Enhanced the Certificate Request UI and engineered strict Eligibility Constraints for dynamic server-side validation of student requests.

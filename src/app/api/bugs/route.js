@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { bugReports } from '@/db/schema';
 import { desc, eq, or, like, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { storage } from '@/lib/providers';
 import { checkRateLimit } from '@/lib/rate-limit';
 import crypto from 'crypto';
 
@@ -91,7 +91,7 @@ export async function POST(req) {
 
     let screenshotUrl = null;
     if (screenshot) {
-      screenshotUrl = await uploadToCloudinary(screenshot, 'bug_reports');
+      screenshotUrl = await storage.upload(screenshot, 'bug_reports');
     }
 
     let userType = 'student';
