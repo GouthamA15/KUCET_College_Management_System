@@ -10,7 +10,8 @@ export const GET = wrapHandler({
     const rollNo = searchParams.get('rollNo');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limitParam = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(limitParam, 100);
 
     const [stats, transactions] = await Promise.all([
       FinanceService.getFinancialStats({ startDate, endDate }),

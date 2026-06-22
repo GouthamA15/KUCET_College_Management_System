@@ -13,14 +13,16 @@ export async function GET(req) {
     const action = searchParams.get('action');
     const userType = searchParams.get('userType');
     const targetId = searchParams.get('targetId');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const limitParam = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(limitParam, 100);
+    const lastSeenId = searchParams.get('last_seen_id') ? parseInt(searchParams.get('last_seen_id')) : null;
 
     // Build filters
     const filters = [];
     if (action) filters.push(eq(auditLogs.action, action));
     if (userType) filters.push(eq(auditLogs.user_type, userType));
     if (targetId) filters.push(eq(auditLogs.target_id, targetId));
+    if (lastSeenId) filters.push(sql`${auditLogs.id} < ${lastSeenId}`);
 
     // Fetch logs with basic user info join
     // Note: Since user_id can refer to different tables based on user_type, 
@@ -28,9 +30,8 @@ export async function GET(req) {
     const logs = await db.select()
       .from(auditLogs)
       .where(filters.length > 0 ? and(...filters) : undefined)
-      .orderBy(desc(auditLogs.created_at))
-      .limit(limit)
-      .offset(offset);
+      .orderBy(desc(auditLogs.id))
+      .limit(limit);
 
     // Get total count for pagination
     const [countResult] = await db.select({ count: sql`count(*)` })
@@ -41,7 +42,7 @@ export async function GET(req) {
       logs, 
       total: parseInt(countResult.count),
       limit,
-      offset
+      last_seen_id: logs.length > 0 ? logs[logs.length - 1].id : null
     });
 
   } catch (error) {

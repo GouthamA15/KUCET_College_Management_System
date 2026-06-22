@@ -139,7 +139,7 @@ export class FacultyService {
         academic_year: branchTimetable.academic_year,
         room_no: branchTimetable.room_no,
         version: branchTimetable.version,
-        faculty_name: clerks.name,
+        faculty_name: sql`COALESCE(CASE WHEN ${clerks.is_active} = false THEN CONCAT('[Unassigned - Formerly ', ${clerks.name}, ']') ELSE ${clerks.name} END, '[Unassigned]')`,
         subject_name: syllabusSubjects.subject_name,
         display_name: sql`COALESCE(${syllabusSubjects.subject_name}, ${branchTimetable.subject_code})`
       })

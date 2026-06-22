@@ -30,13 +30,13 @@ export function getDb() {
       port: process.env.DB_PORT || 3306,
       dateStrings: true, // Prevent timezone conversion issues
       waitForConnections: true,
-      connectionLimit: 15, // Reduced from 25 to be more conservative in serverless spikes
+      connectionLimit: 1, // Aggressively optimized for serverless (1 connection per lambda)
       queueLimit: 0,
       // PRODUCTION HARDENING (Serverless Optimized):
       enableKeepAlive: true,
       keepAliveInitialDelay: 10000,
       idleTimeout: 30000, // Reduced to 30s to release connections faster in serverless
-      maxIdle: 15,
+      maxIdle: 0,
     };
 
     // TiDB Cloud and many production databases require SSL
