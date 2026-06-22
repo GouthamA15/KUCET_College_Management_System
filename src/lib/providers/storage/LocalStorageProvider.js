@@ -1,6 +1,7 @@
 import StorageProvider from './StorageProvider';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 export default class LocalStorageProvider extends StorageProvider {
   getUrl(assetPath) {
@@ -57,7 +58,9 @@ export default class LocalStorageProvider extends StorageProvider {
     else if (mimeType.includes('svg')) extension = '.svg';
     else extension = '.jpg';
 
-    const filename = publicId ? `${publicId}${extension}` : `${Date.now()}-${Math.round(Math.random()*1E9)}${extension}`;
+    const randomArray = new Uint32Array(1);
+    crypto.getRandomValues(randomArray);
+    const filename = publicId ? `${publicId}${extension}` : `${Date.now()}-${randomArray[0]}${extension}`;
     const targetPath = path.join(targetDir, filename);
 
     await fs.promises.writeFile(targetPath, buffer);

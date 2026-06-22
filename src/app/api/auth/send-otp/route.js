@@ -99,8 +99,10 @@ export async function POST(request) {
     const { Queue } = await import('@/lib/queue');
     const emailResult = await Queue.enqueueEmail(targetEmail, subject, bodyHtml);
 
-    // If QStash isn't configured, enqueueEmail handles the warning.
-    // We assume success for the client's perspective to avoid leaking config details.
+    if (!emailResult || emailResult.success === false) {
+      await sendInstitutionalEmail(targetEmail, subject, bodyHtml);
+    }
+
     return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });
   } catch (error) {
     logger.error('Error in send-otp API:', error);

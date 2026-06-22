@@ -35,7 +35,7 @@ export async function GET(request) {
       return apiError('Unable to determine student academic context', 400);
     }
 
-    const cacheKey = `academic_info:${studentId}:${semester}:${academicYear}`;
+    const cacheKey = `academic_info:${studentId}:${branch}:${semester}:${academicYear}`;
     
     const cachedResponse = await fetchWithSWR(cacheKey, async () => {
       // --- OPTIMIZED AGGREGATED DATA QUERY USING DRIZZLE ---

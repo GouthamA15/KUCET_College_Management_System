@@ -30,12 +30,20 @@ export default class CloudinaryStorageProvider extends StorageProvider {
   }
 
   async upload(file, folder, publicId = null) {
-    const { uploadToCloudinary } = await import('@/lib/cloudinary');
-    return await uploadToCloudinary(file, folder, publicId);
+    const { getBreaker } = await import('@/lib/utils/CircuitBreaker');
+    const cloudinaryBreaker = getBreaker('CloudinaryStorage');
+    return cloudinaryBreaker.execute(async () => {
+      const { uploadToCloudinary } = await import('@/lib/cloudinary');
+      return await uploadToCloudinary(file, folder, publicId);
+    });
   }
 
   async delete(path) {
-    const { deleteFromCloudinary } = await import('@/lib/cloudinary');
-    return await deleteFromCloudinary(path);
+    const { getBreaker } = await import('@/lib/utils/CircuitBreaker');
+    const cloudinaryBreaker = getBreaker('CloudinaryStorage');
+    return cloudinaryBreaker.execute(async () => {
+      const { deleteFromCloudinary } = await import('@/lib/cloudinary');
+      return await deleteFromCloudinary(path);
+    });
   }
 }

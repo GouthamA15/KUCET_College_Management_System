@@ -1,9 +1,13 @@
 import { Client } from "@upstash/qstash";
+import { getBreaker } from '@/lib/utils/CircuitBreaker';
+import logger from '@/lib/logger';
 
 // Initialize QStash Client
 const qstashClient = new Client({
   token: process.env.QSTASH_TOKEN || 'test_token',
 });
+
+const qstashBreaker = getBreaker('QStash');
 
 // Generic enqueue method
 export const enqueueJob = async (endpoint, payload, options = {}) => {
@@ -12,14 +16,22 @@ export const enqueueJob = async (endpoint, payload, options = {}) => {
 
   if (!process.env.QSTASH_TOKEN) {
     console.warn('QSTASH_TOKEN not found, skipping background job. In production, this would fire to', url);
-    return null;
+    return null; // Keep null for not configured state to match existing logic
   }
 
-  return await qstashClient.publishJSON({
-    url,
-    body: payload,
-    ...options
-  });
+  try {
+    const result = await qstashBreaker.execute(async () => {
+      return await qstashClient.publishJSON({
+        url,
+        body: payload,
+        ...options
+      });
+    });
+    return { success: true, data: result };
+  } catch (error) {
+    logger.error({ err: error, url }, 'Failed to enqueue QStash job');
+    return { success: false, error: error.message };
+  }
 };
 
 export const Queue = {

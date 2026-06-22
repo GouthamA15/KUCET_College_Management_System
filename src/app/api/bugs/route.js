@@ -91,7 +91,12 @@ export async function POST(req) {
 
     let screenshotUrl = null;
     if (screenshot) {
-      screenshotUrl = await storage.upload(screenshot, 'bug_reports');
+      try {
+        screenshotUrl = await storage.upload(screenshot, 'bug_reports');
+      } catch (uploadError) {
+        logger.error(uploadError, 'Error uploading bug screenshot');
+        return apiError('Failed to upload screenshot', 500);
+      }
     }
 
     let userType = 'student';
@@ -103,19 +108,26 @@ export async function POST(req) {
 
     const browserInfo = req.headers.get('user-agent') || 'Unknown';
 
-    const [result] = await db.insert(bugReports).values({
-      description,
-      screenshot_url: screenshotUrl,
-      type: reportType,
-      status: 'OPEN',
-      severity: bugSeverity,
-      submitted_by: userIdentifier,
-      user_type: userType,
-      affected_page: affected_page || null,
-      browser_info: browserInfo
-    });
+    try {
+      const [result] = await db.insert(bugReports).values({
+        description,
+        screenshot_url: screenshotUrl,
+        type: reportType,
+        status: 'OPEN',
+        severity: bugSeverity,
+        submitted_by: userIdentifier,
+        user_type: userType,
+        affected_page: affected_page || null,
+        browser_info: browserInfo
+      });
 
-    return apiResponse({ success: true, id: result.insertId });
+      return apiResponse({ success: true, id: result.insertId });
+    } catch (insertError) {
+      if (screenshotUrl) {
+        await storage.delete(screenshotUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned bug screenshot'));
+      }
+      throw insertError;
+    }
   } catch (error) {
     logger.error(error, 'Error creating report');
     return apiError('Failed to submit report', 500);

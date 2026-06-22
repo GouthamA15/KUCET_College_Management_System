@@ -233,10 +233,20 @@ export const POST = wrapHandler({
     const CHUNK_SIZE = 50; // Process 50 records per webhook invocation to prevent Vercel timeouts
     
     let queuedChunks = 0;
+    const chunkPromises = [];
     for (let i = 0; i < prepared.length; i += CHUNK_SIZE) {
       const chunk = prepared.slice(i, i + CHUNK_SIZE);
-      await Queue.enqueueBulkImportChunk(chunk, clerkId, importFileName);
-      queuedChunks++;
+      chunkPromises.push(Queue.enqueueBulkImportChunk(chunk, clerkId, importFileName));
+    }
+    
+    try {
+      const results = await Promise.all(chunkPromises);
+      if (results.some(r => !r || r.success === false)) {
+        throw new Error("One or more chunks failed to queue (QStash not configured or error)");
+      }
+      queuedChunks = chunkPromises.length;
+    } catch (enqueueError) {
+      return apiError('Failed to queue bulk import tasks: ' + enqueueError.message, 500);
     }
 
     return {

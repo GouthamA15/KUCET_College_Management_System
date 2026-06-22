@@ -142,9 +142,20 @@ export async function POST(req) {
     }
     
     // Upload images to Cloudinary if provided
-    const signatureUrl = signature ? await storage.upload(signature, 'requests/signatures') : null;
-    const pfpUrl = pfp ? await storage.upload(pfp, 'requests/pfp') : null;
-    const proofUrl = proof ? await storage.upload(proof, 'requests/proofs') : null;
+    let signatureUrl = null;
+    let pfpUrl = null;
+    let proofUrl = null;
+
+    try {
+      if (signature) signatureUrl = await storage.upload(signature, 'requests/signatures');
+      if (pfp) pfpUrl = await storage.upload(pfp, 'requests/pfp');
+      if (proof) proofUrl = await storage.upload(proof, 'requests/proofs');
+    } catch (uploadError) {
+      if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Rollback signature failed'));
+      if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Rollback pfp failed'));
+      if (proofUrl) await storage.delete(proofUrl).catch(e => logger.error(e, 'Rollback proof failed'));
+      throw new Error(`Upload failed: ${uploadError.message}`);
+    }
 
     // Check if there's already a pending request
     const pending = await db.query.studentProfileRequests.findFirst({

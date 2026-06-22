@@ -55,7 +55,8 @@ export async function GET(request, { params }) {
 
     // Prevent Stored XSS via SVG or malicious PDF by forcing download
     if (['.svg', '.pdf'].includes(extension)) {
-      headers['Content-Disposition'] = `attachment; filename="${path.basename(filename)}"`;
+      const sanitizedFilename = path.basename(filename).replace(/[\r\n"'\\/]/g, '');
+      headers['Content-Disposition'] = `attachment; filename="${sanitizedFilename}"`;
     } else {
       headers['Content-Disposition'] = 'inline';
     }

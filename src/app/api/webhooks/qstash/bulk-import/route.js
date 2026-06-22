@@ -46,6 +46,7 @@ async function handler(req) {
     let insertedCount = 0;
     let updatedCount = 0;
     const errors = [];
+    const processedEmails = new Set();
 
     await db.transaction(async (tx) => {
       for (const rec of chunk) {
@@ -62,6 +63,14 @@ async function handler(req) {
             });
             continue; 
           }
+          if (processedEmails.has(student.email)) {
+            errors.push({ 
+              row: rec.rowNumber, 
+              roll_no: student.roll_no, 
+              reason: `Email (${student.email}) is duplicated within the import file` 
+            });
+            continue;
+          }
         }
 
         const isUpdate = rollMap.has(student.roll_no);
@@ -72,6 +81,8 @@ async function handler(req) {
           ...personal,
           ...academic
         }, clerkId, tx);
+
+        if (student.email) processedEmails.add(student.email);
 
         if (isUpdate) updatedCount++;
         else insertedCount++;

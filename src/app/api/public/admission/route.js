@@ -134,10 +134,23 @@ export async function POST(req) {
     let signatureUrl = null;
 
     if (pfp) {
-      pfpUrl = await storage.upload(pfp, 'admission_drafts/pfp');
+      try {
+        pfpUrl = await storage.upload(pfp, 'admission_drafts/pfp');
+      } catch (err) {
+        logger.error(err, 'Failed to upload profile picture for admission draft');
+        return apiError('Failed to upload profile picture.', 500);
+      }
     }
     if (signature) {
-      signatureUrl = await storage.upload(signature, 'admission_drafts/signatures');
+      try {
+        signatureUrl = await storage.upload(signature, 'admission_drafts/signatures');
+      } catch (err) {
+        logger.error(err, 'Failed to upload signature for admission draft');
+        if (pfpUrl) {
+          await storage.delete(pfpUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned pfp in admission draft'));
+        }
+        return apiError('Failed to upload signature.', 500);
+      }
     }
 
     // 5. Encrypt Sensitive Fields

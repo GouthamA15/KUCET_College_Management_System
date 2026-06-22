@@ -507,10 +507,19 @@ export default class SecurityService {
 
       // Ensure session exists and ownership matches
       const [session] = await db
-        .select({ user_id: userSessions.user_id, user_type: userSessions.user_type })
+        .select({ 
+          user_id: userSessions.user_id, 
+          user_type: userSessions.user_type,
+          is_revoked: userSessions.is_revoked 
+        })
         .from(userSessions)
         .where(eq(userSessions.id, sessionId))
         .limit(1);
+
+      if (session && session.is_revoked) {
+        logger.warn({ sessionId, userId, userType }, '[SESSION_REACTIVATION_ATTEMPT] Rejected revoked session update');
+        return false;
+      }
 
       if (session && userId !== undefined && userType !== undefined) {
         if (Number(session.user_id) !== Number(userId) || session.user_type !== userType.toUpperCase()) {
@@ -560,8 +569,7 @@ export default class SecurityService {
           ip_address: ipAddress,
           last_seen_at: lastSeenAt,
           expires_at: expiryDate,
-          is_current: true,
-          is_revoked: false
+          is_current: true
         })
         .where(eq(userSessions.id, sessionId));
 
