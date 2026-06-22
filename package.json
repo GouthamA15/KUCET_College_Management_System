@@ -25,6 +25,7 @@
     "@sentry/nextjs": "^10.43.0",
     "@supabase/supabase-js": "^2.99.3",
     "@tailwindcss/postcss": "^4",
+    "@upstash/qstash": "^2.11.1",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
     "bcrypt": "^6.0.0",

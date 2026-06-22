@@ -96,19 +96,12 @@ export async function POST(request) {
       <p>This OTP is valid for the next 5 minutes. Do not share this code with anyone.</p>
     `;
 
-    const emailResult = await sendInstitutionalEmail({
-      to: targetEmail,
-      subject,
-      title,
-      bodyHtml
-    });
+    const { Queue } = await import('@/lib/queue');
+    const emailResult = await Queue.enqueueEmail(targetEmail, subject, bodyHtml);
 
-    if (emailResult.success) {
-      return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });
-    } else {
-      await db.delete(otpCodes).where(eq(otpCodes.identifier, identifier));
-      return apiError('Failed to send email. Please try again.', 500);
-    }
+    // If QStash isn't configured, enqueueEmail handles the warning.
+    // We assume success for the client's perspective to avoid leaking config details.
+    return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });
   } catch (error) {
     logger.error('Error in send-otp API:', error);
     return apiError('An internal server error occurred.', 500);

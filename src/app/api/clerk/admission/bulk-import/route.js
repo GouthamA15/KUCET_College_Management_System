@@ -228,78 +228,25 @@ export const POST = wrapHandler({
 
     if (prepared.length === 0) return { totalRows, inserted: 0, updated: 0, skipped: totalRows, errors };
 
-    const incomingRolls = prepared.map(p => p.student.roll_no);
-    const incomingEmails = prepared.map(p => p.student.email).filter(Boolean);
-
-    // 1. Fetch existing students by Roll No
-    const existingByRoll = await db.select({
-      id: studentsTable.id,
-      roll_no: studentsTable.roll_no,
-      email: studentsTable.email,
-      personal_id: studentPersonalDetails.id,
-      academic_id: studentAcademicBackground.id
-    })
-    .from(studentsTable)
-    .leftJoin(studentPersonalDetails, eq(studentsTable.id, studentPersonalDetails.student_id))
-    .leftJoin(studentAcademicBackground, eq(studentsTable.id, studentAcademicBackground.student_id))
-    .where(inArray(studentsTable.roll_no, incomingRolls));
-
-    // 2. Fetch existing students by Email (to prevent cross-collisions)
-    const existingByEmail = incomingEmails.length > 0 ? await db.select({
-      id: studentsTable.id,
-      roll_no: studentsTable.roll_no,
-      email: studentsTable.email
-    })
-    .from(studentsTable)
-    .where(inArray(studentsTable.email, incomingEmails)) : [];
-
-    const rollMap = new Map(existingByRoll.map(s => [s.roll_no, s]));
-    const emailMap = new Map(existingByEmail.map(s => [s.email, s]));
-
-    let insertedCount = 0;
-    let updatedCount = 0;
-
-    await db.transaction(async (tx) => {
-      for (const rec of prepared) {
-        const { student, personal, academic } = rec;
-        
-        // Collision Check: If email exists but belongs to a DIFFERENT roll number
-        if (student.email) {
-          const emailCollision = emailMap.get(student.email);
-          if (emailCollision && emailCollision.roll_no !== student.roll_no) {
-            errors.push({ 
-              row: rec.rowNumber, 
-              roll_no: student.roll_no, 
-              reason: `Email (${student.email}) is already assigned to student ${emailCollision.roll_no}` 
-            });
-            continue; 
-          }
-        }
-
-        const isUpdate = rollMap.has(student.roll_no);
-
-        // Perform Upsert via StudentService
-        await StudentService.upsertStudent({
-          ...student,
-          ...personal,
-          ...academic
-        }, clerkId, tx);
-
-        if (isUpdate) updatedCount++;
-        else insertedCount++;
-      }
-
-      if (insertedCount > 0) {
-        await tx.insert(studentImportLogs).values({ clerk_id: clerkId, total_records: insertedCount, file_name: importFileName });
-      }
-    });
+    // Offload to background queue (Upstash QStash)
+    const { Queue } = await import('@/lib/queue');
+    const CHUNK_SIZE = 50; // Process 50 records per webhook invocation to prevent Vercel timeouts
+    
+    let queuedChunks = 0;
+    for (let i = 0; i < prepared.length; i += CHUNK_SIZE) {
+      const chunk = prepared.slice(i, i + CHUNK_SIZE);
+      await Queue.enqueueBulkImportChunk(chunk, clerkId, importFileName);
+      queuedChunks++;
+    }
 
     return {
+      message: `Bulk import queued. ${prepared.length} records are being processed in the background across ${queuedChunks} chunks.`,
       totalRows,
-      inserted: insertedCount,
-      updated: updatedCount,
-      skipped: totalRows - insertedCount - updatedCount,
-      errors
+      queuedChunks,
+      inserted: 0, // Client should check logs later for actual inserted count
+      updated: 0,
+      skipped: 0,
+      errors // Return inline validation errors immediately
     };
   }
 });
