@@ -22,7 +22,7 @@ export async function DELETE(req, context) {
       return apiError('Clerk not found', 404);
     }
 
-    const [result] = await db.delete(clerks).where(eq(clerks.id, idNum));
+    const [result] = await db.update(clerks).set({ is_active: false }).where(eq(clerks.id, idNum));
 
     if (result.affectedRows === 0) {
       return apiError('Failed to delete clerk', 500);

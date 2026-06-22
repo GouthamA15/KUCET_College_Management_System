@@ -5,12 +5,12 @@ import { eq, and, ne } from 'drizzle-orm';
 import { sendInstitutionalEmail } from '@/lib/email';
 import crypto from 'crypto';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 
 export async function POST(req) {
   try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`otp_send:${ip}`, 5, 900); // 5 attempts per 15 min
+    const rateCheck = await checkRateLimit(getTieredKey(req, 'otp_send'), 5, 900); // 5 attempts per 15 min
     
     if (!rateCheck.success) {
       return apiError('Please try again after 15 minutes.', 429);

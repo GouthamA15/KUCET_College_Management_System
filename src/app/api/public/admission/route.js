@@ -5,14 +5,14 @@ import { eq } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
 import { storage } from '@/lib/providers';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { z } from 'zod';
 
 export async function POST(req) {
   try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`admission:${ip}`, 5, 3600); // 5 per hour
+    const rateCheck = await checkRateLimit(getTieredKey(req, 'admission'), 5, 3600); // 5 per hour
     
     if (!rateCheck.success) {
       return apiError('Too many attempts. Please try again in an hour.', 429);

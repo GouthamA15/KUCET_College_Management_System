@@ -3,12 +3,12 @@ import { db } from '@/db';
 import { students, otpCodes } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 
 export async function POST(req) {
   try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`otp_verify:${ip}`, 5, 900); // 5 attempts per 15 min
+    const rateCheck = await checkRateLimit(getTieredKey(req, 'otp_verify'), 5, 900); // 5 attempts per 15 min
     
     if (!rateCheck.success) {
       return apiError('Too many verification attempts. Please try again in 15 minutes.', 429);

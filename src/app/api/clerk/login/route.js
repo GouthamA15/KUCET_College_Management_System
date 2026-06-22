@@ -3,14 +3,14 @@ import { clerks } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { apiResponse, apiError } from '@/lib/api-utils';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import { issueClerkAuthCookie } from '@/lib/auth-utils';
 import logger from '@/lib/logger';
 
 export async function POST(request) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`login_clerk:${ip}`, 5, 900); // 5 attempts per 15 min
+    const rateCheck = await checkRateLimit(getTieredKey(request, 'login_clerk'), 5, 900); // 5 attempts per 15 min
     
     if (!rateCheck.success) {
       return apiError('Too many login attempts. Please try again later.', 429);

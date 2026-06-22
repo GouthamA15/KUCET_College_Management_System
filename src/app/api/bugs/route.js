@@ -4,7 +4,7 @@ import { bugReports } from '@/db/schema';
 import { desc, eq, or, like, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { storage } from '@/lib/providers';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import crypto from 'crypto';
 
 export async function GET(req) {
@@ -66,7 +66,7 @@ export async function POST(req) {
       }
     }
 
-    const rateCheck = await checkRateLimit(`bugs:${clientIp}`, 5, 3600);
+    const rateCheck = await checkRateLimit(getTieredKey(req, 'bugs'), 5, 3600);
     if (!rateCheck.success) {
       return apiError('Too many reports. Please try again later.', 429);
     }
