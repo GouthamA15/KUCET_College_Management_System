@@ -112,12 +112,20 @@ export default function AddNewStudent() {
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
   };
 
-  const handleFileChange = (e, type) => {
+  const handleFileChange = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    let processedFile = file;
+    try {
+      const { compressImage } = await import('@/lib/image-compressor');
+      processedFile = await compressImage(file, 1200, 1200, 0.6);
+    } catch (err) {
+      console.error('Image compression failed:', err);
+    }
+
     // 1MB limit
-    if (file.size > 1 * 1024 * 1024) {
+    if (processedFile.size > 1 * 1024 * 1024) {
       toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} file is too large. Max limit is 1MB.`);
       e.target.value = null;
       return;
@@ -127,7 +135,7 @@ export default function AddNewStudent() {
     reader.onloadend = () => {
       setFiles(prev => ({ ...prev, [type]: reader.result }));
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(processedFile);
   };
 
   const handleAddStudent = async (e) => {

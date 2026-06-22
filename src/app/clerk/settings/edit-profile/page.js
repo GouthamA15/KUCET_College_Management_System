@@ -60,13 +60,22 @@ export default function ClerkEditProfilePage() {
     return undefined;
   }, [clerk]);
 
-  const onFileSelect = (file, type) => {
+  const onFileSelect = async (file, type) => {
     if (file) {
-      if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-        toast.error('File format rejected. Use JPG/PNG.');
+      if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type)) {
+        toast.error('File format rejected. Use JPG/PNG/WEBP.');
         return;
       }
-      if (file.size > 1 * 1024 * 1024) {
+
+      let processedFile = file;
+      try {
+        const { compressImage } = await import('@/lib/image-compressor');
+        processedFile = await compressImage(file, 1200, 1200, 0.6);
+      } catch (err) {
+        console.error('Image compression failed:', err);
+      }
+
+      if (processedFile.size > 1 * 1024 * 1024) {
         toast.error('File exceeds 1MB limit.');
         return;
       }
@@ -75,7 +84,7 @@ export default function ClerkEditProfilePage() {
         if (type === 'pfp') setPfpDataUrl(reader.result);
         else if (type === 'sig') setSignatureDataUrl(reader.result);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(processedFile);
     }
   };
 

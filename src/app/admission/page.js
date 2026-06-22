@@ -172,17 +172,26 @@ const AdmissionPage = () => {
         return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
     };
 
-    const handleFileChange = (e, type) => {
+    const handleFileChange = async (e, type) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 1 * 1024 * 1024) {
+
+        let processedFile = file;
+        try {
+            const { compressImage } = await import('@/lib/image-compressor');
+            processedFile = await compressImage(file, 1200, 1200, 0.6);
+        } catch (err) {
+            console.error('Image compression failed:', err);
+        }
+
+        if (processedFile.size > 1 * 1024 * 1024) {
             toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} is too large (Max 1MB).`);
             e.target.value = null;
             return;
         }
         const reader = new FileReader();
         reader.onloadend = () => setFiles(prev => ({ ...prev, [type]: reader.result }));
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(processedFile);
     };
 
     const handleSubmit = async (e) => {

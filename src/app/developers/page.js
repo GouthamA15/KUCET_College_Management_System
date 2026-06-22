@@ -111,19 +111,27 @@ export default function DevelopersPage() {
       .catch(() => {});
   }, [fetchBugReports, activeTab, searchQuery]);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1 * 1024 * 1024) {
+      let processedFile = file;
+      try {
+        const { compressImage } = await import('@/lib/image-compressor');
+        processedFile = await compressImage(file, 1200, 1200, 0.6);
+      } catch (err) {
+        console.error('Image compression failed:', err);
+      }
+
+      if (processedFile.size > 1 * 1024 * 1024) {
         toast.error('File size should be less than 1MB');
         return;
       }
-      setScreenshot(file);
+      setScreenshot(processedFile);
       const reader = new FileReader();
       reader.onloadend = () => {
         setScreenshotPreview(reader.result);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(processedFile);
     }
   };
 
