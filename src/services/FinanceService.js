@@ -14,17 +14,15 @@ export class FinanceService {
       const schConditions = [];
 
       if (startDate) {
-        const start = new Date(startDate);
-        feeConditions.push(gte(studentFeePayments.transaction_date, start));
-        certConditions.push(gte(studentRequests.created_at, start));
-        schConditions.push(gte(scholarshipSanctions.created_at, start));
+        feeConditions.push(gte(sql`DATE(DATE_ADD(${studentFeePayments.transaction_date}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        certConditions.push(gte(sql`DATE(DATE_ADD(${studentRequests.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        schConditions.push(gte(sql`DATE(DATE_ADD(${scholarshipSanctions.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
       }
 
       if (endDate) {
-        const end = new Date(endDate + 'T23:59:59.999Z');
-        feeConditions.push(lte(studentFeePayments.transaction_date, end));
-        certConditions.push(lte(studentRequests.created_at, end));
-        schConditions.push(lte(scholarshipSanctions.created_at, end));
+        feeConditions.push(lte(sql`DATE(DATE_ADD(${studentFeePayments.transaction_date}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
+        certConditions.push(lte(sql`DATE(DATE_ADD(${studentRequests.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
+        schConditions.push(lte(sql`DATE(DATE_ADD(${scholarshipSanctions.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
       }
 
       const feeQuery = db.select({ totalFees: sql`sum(${studentFeePayments.amount})` }).from(studentFeePayments);
@@ -89,8 +87,8 @@ export class FinanceService {
 
         const conditions = [];
         if (rollNo) conditions.push(eq(students.roll_no, rollNo));
-        if (startDate) conditions.push(gte(studentFeePayments.transaction_date, new Date(startDate)));
-        if (endDate) conditions.push(lte(studentFeePayments.transaction_date, new Date(endDate + 'T23:59:59.999Z')));
+        if (startDate) conditions.push(gte(sql`DATE(DATE_ADD(${studentFeePayments.transaction_date}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        if (endDate) conditions.push(lte(sql`DATE(DATE_ADD(${studentFeePayments.transaction_date}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
         if (conditions.length > 0) feeQuery.where(and(...conditions));
 
         const feeResults = await feeQuery.orderBy(desc(studentFeePayments.transaction_date)).limit(limit);
@@ -132,8 +130,8 @@ export class FinanceService {
         const conditions = [];
         if (rollNo) conditions.push(eq(students.roll_no, rollNo));
         if (status) conditions.push(eq(studentRequests.status, status));
-        if (startDate) conditions.push(gte(studentRequests.created_at, new Date(startDate)));
-        if (endDate) conditions.push(lte(studentRequests.created_at, new Date(endDate + 'T23:59:59.999Z')));
+        if (startDate) conditions.push(gte(sql`DATE(DATE_ADD(${studentRequests.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        if (endDate) conditions.push(lte(sql`DATE(DATE_ADD(${studentRequests.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
         if (conditions.length > 0) certQuery.where(and(...conditions));
 
         const certResults = await certQuery.orderBy(desc(studentRequests.created_at)).limit(limit);
@@ -165,8 +163,8 @@ export class FinanceService {
         const conditions = [];
         if (rollNo) conditions.push(eq(students.roll_no, rollNo));
         if (status) conditions.push(eq(scholarshipSanctions.status, status));
-        if (startDate) conditions.push(gte(scholarshipSanctions.created_at, new Date(startDate)));
-        if (endDate) conditions.push(lte(scholarshipSanctions.created_at, new Date(endDate + 'T23:59:59.999Z')));
+        if (startDate) conditions.push(gte(sql`DATE(DATE_ADD(${scholarshipSanctions.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        if (endDate) conditions.push(lte(sql`DATE(DATE_ADD(${scholarshipSanctions.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
         if (conditions.length > 0) schQuery.where(and(...conditions));
 
         const schResults = await schQuery.orderBy(desc(scholarshipSanctions.created_at)).limit(limit);
