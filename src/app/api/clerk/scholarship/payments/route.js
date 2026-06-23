@@ -157,6 +157,10 @@ export async function POST(req) {
     
     logger.error('Error inserting payment:', error);
 
+    if (error?.code === 'ER_DUP_ENTRY') {
+      return apiError('Transaction Reference is already recorded in the database.', 409);
+    }
+
     if (error?.code === 'PAYMENT_LIMIT_EXCEEDED' || error?.message === 'Payment exceeds allowed payable limit.') {
       return apiError('Payment exceeds allowed payable limit.', 400);
     }
