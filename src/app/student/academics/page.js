@@ -9,7 +9,7 @@ import { AcademicsProvider, useAcademicsCache } from '@/context/AcademicsContext
 import toast from 'react-hot-toast';
 
 // Utility: derive subject metadata (kept isolated for future DB migration)
-function getSubjectMeta(subjectName) {
+function getSubjectMeta(_subjectName) {
   // Placeholder logic: always return Core, 3 credits.
   return { type: 'Core', credits: 3 };
 }
@@ -37,15 +37,15 @@ export default function AcademicsPage() {
 
 function AcademicsInner({ studentData, collegeInfo }) {
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [historySubject, setHistorySubject] = useState(null);
-  const [historyData, setHistoryData] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [_loading, setLoading] = useState(true);
+  const [_historySubject, setHistorySubject] = useState(null);
+  const [_historyData, setHistoryData] = useState([]);
+  const [_loadingHistory, setLoadingHistory] = useState(false);
   const [activeTab, setActiveTab] = useState('subjects');
   const [currentSem, setCurrentSem] = useState(null);
   const [currentYear, setCurrentYear] = useState(null);
 
-  const { cache, saveCache, isReload } = useAcademicsCache() || {};
+  const { cache, saveCache, isReload } = useAcademicsCache() || { /* empty */ };
   
   // BREAK THE LOOP: Use a ref to access the latest cache without making it a dependency of the fetch function.
   // Since fetchAcademicInfo updates the cache, having cache as a dependency creates a cycle.
@@ -78,7 +78,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
       setCurrentSem(json.semester);
       setCurrentYear(json.academicYear);
       // Save payload to session cache - this triggers a re-render but NOT a re-fetch
-      try { saveCache({ data: subjects, semester: json.semester, academicYear: json.academicYear }); } catch {}
+      try { saveCache({ data: subjects, semester: json.semester, academicYear: json.academicYear }); } catch { /* empty */ }
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -86,7 +86,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
     }
   }, [saveCache, isReload]);
 
-  const fetchHistory = async (subject) => {
+  const _fetchHistory = async (subject) => {
     setHistorySubject(subject);
     setLoadingHistory(true);
     try {
@@ -121,7 +121,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
       if (!branch && yearOfStudy !== 1) return null; // branch required except maybe first year
       if (!yearOfStudy || !semester) return null;
       return getSyllabusUrl({ course: branch, year: yearOfStudy, semester });
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }

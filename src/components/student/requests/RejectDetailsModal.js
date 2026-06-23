@@ -14,7 +14,7 @@ export default function RejectDetailsModal({ isOpen, request, onClose }) {
         formattedDate = `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // keep '-' on error
   }
 

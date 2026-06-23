@@ -52,7 +52,7 @@ export function decrypt(encryptedText) {
     decrypted += decipher.final('utf8');
     
     return decrypted;
-  } catch (error) {
+  } catch (_error) {
     return encryptedText;
   }
 }

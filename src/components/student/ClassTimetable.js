@@ -17,9 +17,9 @@ export default function ClassTimetable() {
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isMobile, setIsMobile] = useState(false);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const [dayColWidth, setDayColWidth] = useState(0);
+  const [_isMobile, setIsMobile] = useState(false);
+  const [_scrollLeft, setScrollLeft] = useState(0);
+  const [_dayColWidth, setDayColWidth] = useState(0);
 
   const scrollContainerRef = useRef(null);
   const dayHeaderRef = useRef(null);
@@ -34,7 +34,7 @@ export default function ClassTimetable() {
       } else {
         setError(data.error || 'Failed to load timetable');
       }
-    } catch (e) {
+    } catch (_e) {
       setError('Network error - could not sync timetable');
     } finally {
       setLoading(false);
@@ -65,7 +65,7 @@ export default function ClassTimetable() {
     }
   }, [loading]);
 
-  const handleScroll = (event) => {
+  const _handleScroll = (event) => {
     setScrollLeft(event.target.scrollLeft || 0);
   };
 

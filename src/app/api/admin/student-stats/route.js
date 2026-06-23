@@ -6,7 +6,7 @@ import { getBranchFromRoll, getCurrentStudyingYear, branchCodes } from '@/lib/ro
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 
-export async function GET(req) {
+export async function GET(_req) {
   const user = await getAuthUser('admin');
   if (!user) return apiError('Unauthorized', 401);
 
@@ -17,7 +17,7 @@ export async function GET(req) {
 
     const students = await db.select({ roll_no: studentsTable.roll_no }).from(studentsTable);
 
-    const stats = {};
+    const stats = { /* empty */ };
     const allBranchNames = Object.values(branchCodes);
     allBranchNames.forEach(name => {
       stats[name] = { 1: 0, 2: 0, 3: 0, 4: 0, total: 0 };

@@ -115,7 +115,7 @@ export default function ClerkEditProfilePage() {
       } else {
         toast.error(data.error || 'Failed to send OTP');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error occurred.');
     } finally {
       setSendingOtp(false);
@@ -146,7 +146,7 @@ export default function ClerkEditProfilePage() {
       } else {
         toast.error(data.error || 'Invalid OTP');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Verification failed.');
     } finally {
       setVerifyingOtp(false);
@@ -212,7 +212,7 @@ export default function ClerkEditProfilePage() {
     const toastId = toast.loading('Updating institutional records...');
 
     try {
-      const payload = {};
+      const payload = { /* empty */ };
       if (formData.name !== originalData.name) payload.name = formData.name;
       if (emailVerified && formData.email !== originalData.email) payload.email = formData.email;
       if (formData.mobile !== originalData.mobile) payload.mobile = formData.mobile;

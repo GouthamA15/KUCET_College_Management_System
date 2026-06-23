@@ -3,7 +3,7 @@ require('dotenv').config();
 require('dotenv').config({ path: '.env.local', override: true });
 
 async function renameExams() {
-  console.log('⏳ Renaming entrance exams in database...');
+  console.info('⏳ Renaming entrance exams in database...');
 
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST,
@@ -19,46 +19,46 @@ async function renameExams() {
 
   try {
     // 1. Update student_admission_drafts
-    console.log('Updating student_admission_drafts...');
+    console.info('Updating student_admission_drafts...');
     const [res1] = await connection.execute(`
       UPDATE student_admission_drafts 
       SET entrance_exam = 'TG EAPCET' 
       WHERE entrance_exam = 'EAMCET' OR entrance_exam = 'TS EAMCET'
     `);
-    console.log(`- Updated ${res1.affectedRows} rows for EAMCET/TS EAMCET.`);
+    console.info(`- Updated ${res1.affectedRows} rows for EAMCET/TS EAMCET.`);
 
     const [res2] = await connection.execute(`
       UPDATE student_admission_drafts 
       SET entrance_exam = 'TG ECET' 
       WHERE entrance_exam = 'ECET' OR entrance_exam = 'TS ECET'
     `);
-    console.log(`- Updated ${res2.affectedRows} rows for ECET/TS ECET.`);
+    console.info(`- Updated ${res2.affectedRows} rows for ECET/TS ECET.`);
 
     // 2. Update student_academic_background
-    console.log('Updating student_academic_background...');
+    console.info('Updating student_academic_background...');
     const [res3] = await connection.execute(`
       UPDATE student_academic_background 
       SET qualifying_exam = 'TG EAPCET' 
       WHERE qualifying_exam = 'EAMCET' OR qualifying_exam = 'TS EAMCET'
     `);
-    console.log(`- Updated ${res3.affectedRows} rows for EAMCET/TS EAMCET.`);
+    console.info(`- Updated ${res3.affectedRows} rows for EAMCET/TS EAMCET.`);
 
     const [res4] = await connection.execute(`
       UPDATE student_academic_background 
       SET qualifying_exam = 'TG ECET' 
       WHERE qualifying_exam = 'ECET' OR qualifying_exam = 'TS ECET'
     `);
-    console.log(`- Updated ${res4.affectedRows} rows for ECET/TS ECET.`);
+    console.info(`- Updated ${res4.affectedRows} rows for ECET/TS ECET.`);
 
     // 3. Update college_info JSON keys
-    console.log('Updating college_info entrance_codes...');
+    console.info('Updating college_info entrance_codes...');
     const [rows] = await connection.execute('SELECT id, entrance_codes FROM college_info');
     for (const row of rows) {
       if (row.entrance_codes) {
         let codes;
         try {
             codes = typeof row.entrance_codes === 'string' ? JSON.parse(row.entrance_codes) : row.entrance_codes;
-        } catch (e) {
+        } catch (_e) {
             console.error(`Failed to parse entrance_codes for ID ${row.id}:`, row.entrance_codes);
             continue;
         }
@@ -85,12 +85,12 @@ async function renameExams() {
 
         if (Object.keys(newCodes).length > 0) {
            await connection.execute('UPDATE college_info SET entrance_codes = ? WHERE id = ?', [JSON.stringify(newCodes), row.id]);
-           console.log(`- Updated entrance_codes for college_info ID ${row.id}.`);
+           console.info(`- Updated entrance_codes for college_info ID ${row.id}.`);
         }
       }
     }
 
-    console.log('✅ Database update completed successfully!');
+    console.info('✅ Database update completed successfully!');
   } catch (error) {
     console.error('❌ Database update failed:', error);
     process.exit(1);

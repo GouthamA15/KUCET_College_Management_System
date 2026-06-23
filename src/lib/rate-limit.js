@@ -6,10 +6,10 @@ import { eq, sql, lt } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
 // Initialize Redis client if environment variables are present
-let ratelimit = null;
+let _ratelimit = null;
 
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  const redis = new Redis({
+  const _redis = new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL,
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
   });

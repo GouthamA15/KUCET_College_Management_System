@@ -34,7 +34,7 @@ export function isWithinRange(facLat, facLon, studLat, studLon, radius = 50) {
   const distance = getHaversineDistance(facLat, facLon, studLat, studLon);
   const ok = distance <= radius;
   if (!ok) {
-    console.log(`[Geo] Out of range: ${distance.toFixed(2)}m (Max: ${radius}m). Faculty: ${facLat},${facLon}. Student: ${studLat},${studLon}`);
+    console.info(`[Geo] Out of range: ${distance.toFixed(2)}m (Max: ${radius}m). Faculty: ${facLat},${facLon}. Student: ${studLat},${studLon}`);
   }
   return ok;
 }

@@ -8,7 +8,7 @@ import MarksEntrySheet from '@/components/clerk/faculty/MarksEntrySheet';
 function MarksContent() {
   const searchParams = useSearchParams();
   const assignmentId = searchParams.get('id');
-  const { clerkData: clerk, loading: isLoading } = useClerk();
+  const { clerkData: _clerk, loading: _isLoading } = useClerk();
   const [assignments, setAssignments] = useState([]);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
   const [selectedAssignment, setSelectedAssignment] = useState(null);

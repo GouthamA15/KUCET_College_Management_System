@@ -29,7 +29,7 @@ export default class LocalStorageProvider extends StorageProvider {
     } 
     // Handle Base64 strings
     else if (typeof file === 'string' && file.startsWith('data:')) {
-      const matches = file.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      const matches = file.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
       if (matches && matches.length === 3) {
         mimeType = matches[1];
         buffer = Buffer.from(matches[2], 'base64');

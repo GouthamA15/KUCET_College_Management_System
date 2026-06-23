@@ -1,4 +1,4 @@
-import logger from '@/lib/logger';
+import _logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable, 

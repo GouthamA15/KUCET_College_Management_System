@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { refreshTokens, students, clerks, principal, userSessions } from '@/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, _isNull } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { 

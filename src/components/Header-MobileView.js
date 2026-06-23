@@ -25,7 +25,7 @@ export default function HeaderMobileView() {
       try {
         const h = Math.ceil(el.getBoundingClientRect().height);
         document.documentElement.style.setProperty('--mobile-header-height', `${h}px`);
-      } catch (e) {}
+      } catch (_e) { /* empty */ }
     };
 
     updateHeight();
@@ -34,7 +34,7 @@ export default function HeaderMobileView() {
     window.addEventListener('resize', updateHeight);
 
     return () => {
-      try { ro.disconnect(); } catch (e) {}
+      try { ro.disconnect(); } catch (_e) { /* empty */ }
       window.removeEventListener('resize', updateHeight);
     };
   }, [pathname]);

@@ -25,8 +25,8 @@ export default function SearchParamToast({ serverError }) {
     try {
       const url = new URL(window.location.href);
       url.searchParams.delete('error');
-      window.history.replaceState({}, document.title, url.pathname + url.search);
-    } catch (e) {
+      window.history.replaceState({ /* empty */ }, document.title, url.pathname + url.search);
+    } catch (_e) {
       // ignore
     }
   }, [serverError]);

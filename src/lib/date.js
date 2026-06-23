@@ -138,7 +138,7 @@ export function formatInstitutionalDateTime(dateInput) {
   } else {
     try {
       d = new Date(dateInput);
-    } catch (e) {
+    } catch (_e) {
       return String(dateInput);
     }
   }

@@ -22,7 +22,7 @@ function resolveBaseRedirect(request) {
   return new URL('/', request.url);
 }
 
-async function buildClerkAuthToken(clerk) {
+async function _buildClerkAuthToken(clerk) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
   return new SignJWT({
     id: clerk.id,

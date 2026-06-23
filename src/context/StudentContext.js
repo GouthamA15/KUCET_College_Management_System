@@ -84,7 +84,7 @@ export function StudentProvider({ children }) {
           setError('Failed to fetch profile');
         }
       }
-    } catch (e) {
+    } catch (_e) {
       setError('Network error');
     }
     return null;
@@ -110,7 +110,7 @@ export function StudentProvider({ children }) {
           lastFetchTimeRef.current = Date.now();
           return profile;
         }
-      } catch (e) {
+      } catch (_e) {
         setError('Failed to refresh data');
       } finally {
         activePromiseRef.current = null;

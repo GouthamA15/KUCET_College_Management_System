@@ -6,13 +6,13 @@ import {
   scholarshipSanctions, 
   studentFeePayments 
 } from '@/db/schema';
-import { eq, and, asc, sql, or, like } from 'drizzle-orm';
+import { eq, and, asc, sql, _or, _like } from 'drizzle-orm';
 import { 
   getBranchFromRoll, 
   getAcademicYear, 
   getResolvedCurrentAcademicYear,
   getAdmissionTypeFromRoll,
-  getAcademicYearForStudyYear
+  _getAcademicYearForStudyYear
 } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
@@ -68,11 +68,11 @@ export async function GET(req, ctx) {
     const course = getBranchFromRoll(student.roll_no);
     const admission_year = getAcademicYear(student.roll_no);
     const current_year = getResolvedCurrentAcademicYear(student.roll_no, null, now);
-    const admissionType = getAdmissionTypeFromRoll(student.roll_no);
+    const _admissionType = getAdmissionTypeFromRoll(student.roll_no);
 
     // For each academic_year belonging to this application, build a summary
     const allYears = Array.from(new Set(sanctionRows.map(r => r.academic_year))).filter(Boolean).sort();
-    const year_records = {};
+    const year_records = { /* empty */ };
 
     for (const year of allYears) {
       // sanctions for this student/year

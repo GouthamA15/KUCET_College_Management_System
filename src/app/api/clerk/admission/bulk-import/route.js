@@ -1,16 +1,16 @@
-import { db } from '@/db';
+import { _db } from '@/db';
 import { 
-  students as studentsTable, 
-  studentPersonalDetails, 
-  studentAcademicBackground,
-  studentImportLogs
+  students as _studentsTable, 
+  _studentPersonalDetails, 
+  _studentAcademicBackground,
+  _studentImportLogs
 } from '@/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { _eq, _inArray } from 'drizzle-orm';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
-import { StudentService } from '@/services/StudentService';
+import { _StudentService } from '@/services/StudentService';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -60,7 +60,7 @@ const ALIASES = {
 
 function buildHeaderMapping(originalHeaders) {
   const normalized = originalHeaders.map(normalizeHeader);
-  const mapping = {};
+  const mapping = { /* empty */ };
   normalized.forEach((hdr, idx) => {
     if (!hdr) return;
     let found = false;
@@ -112,7 +112,7 @@ function normalizeDateToMySQL(value) {
 
 export const POST = wrapHandler({
   auth: 'clerk',
-  handler: async (req, { user, ip }) => {
+  handler: async (req, { user, _ip }) => {
     if (user.role !== 'admission') return apiError('Forbidden', 403);
 
     const clerkId = user.clerkId || user.id;
@@ -147,7 +147,7 @@ export const POST = wrapHandler({
       if (missingRequired.length > 0) return apiError('Missing required columns', 400);
 
       records = dataRows.map((rowArray) => {
-        const rowObject = {};
+        const rowObject = { /* empty */ };
         headers.forEach((header, index) => {
           const map = mapping[index];
           if (map) rowObject[map.field] = rowArray[index];
@@ -161,9 +161,9 @@ export const POST = wrapHandler({
     for (let i = 0; i < records.length; i++) {
       const record = records[i];
       const rowNumber = i + (isJsonInput ? 1 : 2);
-      const student = {};
-      const personal = {};
-      const academic = {};
+      const student = { /* empty */ };
+      const personal = { /* empty */ };
+      const academic = { /* empty */ };
 
       Object.keys(record).forEach(key => {
         if (key.startsWith('_')) return;

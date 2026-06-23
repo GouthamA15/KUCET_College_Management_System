@@ -8,7 +8,7 @@ export default class RealtimeProvider {
    * @param {Object} payload 
    * @returns {Promise<void>}
    */
-  async broadcast(type, payload) {
+  async broadcast(_type, _payload) {
     throw new Error('Method not implemented');
   }
 }

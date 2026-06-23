@@ -24,7 +24,7 @@ export default function useEmailVerification({ rollno, newEmail, setEmail, origi
           toast.error(uniquenessData.error || uniquenessData.message || 'This email is already in use.');
           return;
         }
-      } catch (e) {
+      } catch (_e) {
         // ignore, server will validate
       }
     }
@@ -43,7 +43,7 @@ export default function useEmailVerification({ rollno, newEmail, setEmail, origi
       } else {
         toast.error(data.error || data.message || 'Please try again after 15 minutes.');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Network error. Please try again.');
     } finally {
       setIsVerifying(false);
@@ -71,7 +71,7 @@ export default function useEmailVerification({ rollno, newEmail, setEmail, origi
       } else {
         toast.error(data.error || data.message || 'OTP verification failed.');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Network error. Please try again.');
     } finally {
       setIsVerifying(false);

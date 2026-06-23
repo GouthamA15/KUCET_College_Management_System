@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Lock, Check, X } from 'lucide-react';
+import { Mail, _Lock, Check, _X } from 'lucide-react';
 import { SecurityAuthentication } from './SecurityAuthentication';
 
 export function StudentActivationUI({

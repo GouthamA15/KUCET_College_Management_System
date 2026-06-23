@@ -8,12 +8,12 @@ import {
   studentSignatures, 
   studentImages 
 } from '@/db/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, _sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { storage } from '@/lib/providers';
 import { decrypt, hashForIndex } from '@/lib/encryption';
 
-export async function GET(req) {
+export async function GET(_req) {
   const user = await getAuthUser('clerk');
   if (!user) return apiError('Unauthorized', 401);
 
@@ -95,7 +95,7 @@ export async function GET(req) {
     };
 
     const data = uniqueRows.map(row => {
-      const currentValues = {};
+      const currentValues = { /* empty */ };
       Object.keys(row).forEach(key => {
         if (key.startsWith('current_')) {
           let val = row[key];
@@ -108,7 +108,7 @@ export async function GET(req) {
       });
 
       const { getPermanentAddressFromDetails, getContactAddressFromDetails } = require('@/lib/address-utils');
-      const detailsObj = {};
+      const detailsObj = { /* empty */ };
       Object.keys(row).forEach(key => {
         if (key.startsWith('current_')) {
           detailsObj[key.replace('current_', '')] = row[key];
@@ -192,7 +192,7 @@ export async function PUT(req) {
           const data = typeof new_data === 'string' ? JSON.parse(new_data) : new_data;
           
           // Core Student Table Updates
-          const studentSets = {};
+          const studentSets = { /* empty */ };
           if (data.mobile) {
               studentSets.mobile = data.mobile; // Already encrypted in DB
               const plainMobile = decrypt(data.mobile);
@@ -208,9 +208,9 @@ export async function PUT(req) {
 
           // Personal Details Updates
           const spd_fields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no','seat_allotted_category','identification_marks','blood_group'];
-          const spd_data = {};
+          const spd_data = { /* empty */ };
           spd_fields.forEach(f => { 
-              if (data.hasOwnProperty(f)) {
+              if (Object.prototype.hasOwnProperty.call(data, f)) {
                   spd_data[f] = data[f];
                   if (f === 'aadhaar_no' && data[f]) {
                       const plainAadhaar = decrypt(data[f]);
@@ -219,15 +219,15 @@ export async function PUT(req) {
               }
           });
 
-          if (data.hasOwnProperty('contact_address') || data.hasOwnProperty('permanent_address')) {
+          if (Object.prototype.hasOwnProperty.call(data, 'contact_address') || Object.prototype.hasOwnProperty.call(data, 'permanent_address')) {
               const existingSPD = await tx.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.student_id, student_id) });
               const { getPermanentAddressFromDetails, getContactAddressFromDetails, mapAddressStringsToFields } = await import('@/lib/address-utils');
               
               const existingPerm = getPermanentAddressFromDetails(existingSPD);
               const existingContact = getContactAddressFromDetails(existingSPD);
 
-              const finalPerm = data.hasOwnProperty('permanent_address') ? data.permanent_address : existingPerm;
-              const finalContact = data.hasOwnProperty('contact_address') ? data.contact_address : existingContact;
+              const finalPerm = Object.prototype.hasOwnProperty.call(data, 'permanent_address') ? data.permanent_address : existingPerm;
+              const finalContact = Object.prototype.hasOwnProperty.call(data, 'contact_address') ? data.contact_address : existingContact;
 
               const addressFields = mapAddressStringsToFields(finalContact, finalPerm);
               Object.assign(spd_data, addressFields);
@@ -244,8 +244,8 @@ export async function PUT(req) {
 
           // Academic Background Updates
           const sab_fields = ['qualifying_exam','previous_college_details','medium_of_instruction','ranks','ssc_marks','inter_marks'];
-          const sab_data = {};
-          sab_fields.forEach(f => { if (data.hasOwnProperty(f)) sab_data[f] = data[f]; });
+          const sab_data = { /* empty */ };
+          sab_fields.forEach(f => { if (Object.prototype.hasOwnProperty.call(data, f)) sab_data[f] = data[f]; });
           
           if (Object.keys(sab_data).length > 0) {
             const existingSAB = await tx.query.studentAcademicBackground.findFirst({ where: eq(studentAcademicBackground.student_id, student_id) });
@@ -280,7 +280,7 @@ export async function PUT(req) {
         request_id: requestId,
         certificate_type: 'Profile Update'
       });
-    } catch (e) {}
+    } catch (_e) { /* empty */ }
 
     return apiResponse({ success: true });
   } catch (err) {

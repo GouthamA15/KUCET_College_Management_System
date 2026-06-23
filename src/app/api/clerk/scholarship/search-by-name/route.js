@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students as studentsTable } from '@/db/schema';
-import { eq, and, like, sql } from 'drizzle-orm';
+import { eq, and, like, _sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(req) {

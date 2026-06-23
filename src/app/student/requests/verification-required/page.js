@@ -4,8 +4,8 @@ import { useStudent } from '@/context/StudentContext';
 // No client-side routing for auth; server handles redirects
 
 export default function VerificationRequiredPage() {
-  const { studentData, loading } = useStudent();
-  const s = studentData?.student || {};
+  const { studentData, _loading } = useStudent();
+  const s = studentData?.student || { /* empty */ };
   const studentStatus = {
     email: s.email || null,
     is_email_verified: !!s.is_email_verified,

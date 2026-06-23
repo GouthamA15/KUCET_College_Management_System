@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useContext } from 'react';
-import { useStudent, StudentContext } from '@/context/StudentContext';
-import { useClerk, ClerkContext } from '@/context/ClerkContext';
+import { _useStudent, StudentContext } from '@/context/StudentContext';
+import { _useClerk, ClerkContext } from '@/context/ClerkContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -11,11 +11,11 @@ import ClerkNotificationDropdown from './clerk/ClerkNotificationDropdown';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { logoutByRole } from '@/lib/logout';
 
-export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, clerkMinimal = false, activeTab, setActiveTab, isSubPage = false, sticky = true, minimalNav = false, brandLabel = 'LOGIN PORTAL' }) {
+export default function Navbar({ activePanel, setActivePanel, role, studentProfileMode = false, onLogout, _clerkMinimal = false, _activeTab, _setActiveTab, _isSubPage = false, sticky = true, minimalNav = false, brandLabel = 'LOGIN PORTAL' }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileExpanded, setMobileExpanded] = useState({});
+  const [mobileExpanded, setMobileExpanded] = useState({ /* empty */ });
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   // Use useContext directly to avoid throwing when Provider is missing (e.g. guest home)
@@ -27,14 +27,14 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   const clerkData = clerkContext?.clerkData;
 
   // Get student and clerk names for greeting
-  let studentName = null;
-  let clerkName = null;
+  let _studentName = null;
+  let _clerkName = null;
 
   if (role === 'student' || studentProfileMode) {
-    studentName = studentData?.student?.name || studentData?.name || null;
+    _studentName = studentData?.student?.name || studentData?.name || null;
   }
   if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship') {
-    clerkName = clerkData?.name || null;
+    _clerkName = clerkData?.name || null;
   }
   // (menu definitions moved to top-level `NAV_MENU_CONFIG` for reuse)
 
@@ -209,7 +209,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                   }
                   // Otherwise render a non-navigating button (avoids showing '#' in status bar)
                   return (
-                    <button key={idx} onClick={() => {}} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group text-left`}>
+                    <button key={idx} onClick={() => { /* empty */ }} className={`text-white px-3 py-2 text-sm tracking-wide uppercase relative group text-left`}>
                       {item.label}
                       <span className="absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out w-0 group-hover:w-full"></span>
                     </button>

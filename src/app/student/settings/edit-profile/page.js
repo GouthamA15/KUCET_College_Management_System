@@ -1,7 +1,7 @@
 // src/app/student/settings/edit-profile/page.js
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, _useCallback, useRef } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -11,18 +11,18 @@ import { getAssetUrl } from '@/lib/assets';
 
 export default function EditProfilePage() {
   const router = useRouter();
-  const { studentData, loading: contextLoading, refreshData } = useStudent();
+  const { studentData, loading: contextLoading, _refreshData } = useStudent();
   
   const [formData, setFormData] = useState({
-    student: {},
-    personal: {},
-    academic: {}
+    student: { /* empty */ },
+    personal: { /* empty */ },
+    academic: { /* empty */ }
   });
   const [originalData, setOriginalData] = useState(null);
   
   const [saving, setSaving] = useState(false);
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
-  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
+  const [_profileDataLoaded, setProfileDataLoaded] = useState(false);
   
   // OTP State
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -147,7 +147,7 @@ export default function EditProfilePage() {
 
   const getChangedData = () => {
     if (!originalData) return null;
-    const changes = {};
+    const changes = { /* empty */ };
     
     ['mobile', 'email'].forEach(field => {
         if (formData.student[field] !== originalData.student[field]) {

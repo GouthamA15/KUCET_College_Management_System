@@ -47,7 +47,7 @@ const ExportStudents = () => {
 
       setPreviewData(data.students);
       toast.success(`Found ${data.students.length} student records.`);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to fetch students');
     } finally {
       setLoading(false);

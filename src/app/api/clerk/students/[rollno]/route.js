@@ -1,10 +1,10 @@
-import logger from '@/lib/logger';
+import _logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students as studentsTable
 } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { apiError, apiResponse, wrapHandler } from '@/lib/api-utils';
+import { apiError, _apiResponse, wrapHandler } from '@/lib/api-utils';
 import { StudentService } from '@/services/StudentService';
 import { studentUpdateSchema } from '@/lib/validations/student';
 import { encrypt, hashForIndex } from '@/lib/encryption';
@@ -40,7 +40,7 @@ export const PUT = wrapHandler({
 
     const { name, gender, mobile, email, date_of_birth } = data;
 
-    const updateData = {};
+    const updateData = { /* empty */ };
     if (name !== undefined) updateData.name = name;
     if (gender !== undefined) updateData.gender = gender;
     if (email !== undefined) updateData.email = email.toLowerCase();

@@ -90,7 +90,7 @@ export async function POST(request) {
     }
 
     const subject = 'KUCET One-Time Password (OTP)';
-    const title = purpose || 'OTP for Verification';
+    const _title = purpose || 'OTP for Verification';
     const bodyHtml = `
       <p>Dear User,</p>
       <p>Please use the One-Time Password (OTP) provided below to complete your verification.</p>

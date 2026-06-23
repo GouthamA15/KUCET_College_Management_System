@@ -185,7 +185,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
     let latitude = null;
     let longitude = null;
-    let accuracy = null;
+    let _accuracy = null;
 
     try {
       setSubmitting(true);
@@ -202,7 +202,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
           });
           latitude = pos.coords.latitude;
           longitude = pos.coords.longitude;
-          accuracy = pos.coords.accuracy;
+          _accuracy = pos.coords.accuracy;
           toast.dismiss('geo-loading');
         } catch (geoErr) {
           toast.dismiss('geo-loading');
@@ -263,7 +263,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         setActiveSession(null);
         toast.success('Session ended.');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to end session');
     } finally {
       setSubmitting(false);
@@ -483,13 +483,13 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
   const handleRealtimeUpdate = useCallback((data) => {
     if (data.type === 'STUDENT_VERIFIED' && data.payload.assignment_id === assignment.id) {
-      console.log('[AttendanceSync] Student verified, refreshing...');
+      console.info('[AttendanceSync] Student verified, refreshing...');
       fetchAttendanceStatus();
     } else if (data.type === 'PROXY_ATTEMPTED' && data.payload.assignment_id === assignment.id) {
       const { attempting_roll_no, original_roll_no, original_student_id } = data.payload;
       
       toast.error(
-        (t) => (
+        (_t) => (
           <div className="flex flex-col gap-1 border-l-4 border-red-600 pl-2">
             <span className="font-black text-xs uppercase tracking-widest text-red-800">Security Breach Detected</span>
             <div className="text-[11px] font-bold text-gray-700 leading-tight">

@@ -11,7 +11,7 @@ import { z } from 'zod';
 
 export async function POST(req) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
+    const _ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
     const rateCheck = await checkRateLimit(getTieredKey(req, 'admission'), 5, 3600); // 5 per hour
     
     if (!rateCheck.success) {
@@ -159,7 +159,7 @@ export async function POST(req) {
     const encryptedAadhaar = aadhaar_no ? encrypt(aadhaar_no) : null;
     const aHash = aadhaar_no ? hashForIndex(aadhaar_no) : null;
 
-    let addressFields = {};
+    let addressFields = { /* empty */ };
     if (json.perm_house_no !== undefined || json.curr_house_no !== undefined) {
       addressFields = {
         perm_house_no: perm_house_no || null,

@@ -11,7 +11,7 @@ const eslintConfig = defineConfig([
       "no-prototype-builtins": "warn",
       "no-useless-escape": "warn",
       "no-undef": "error",
-      "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+      "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
       "no-console": ["warn", { allow: ["warn", "error", "info"] }],
     },
     languageOptions: {

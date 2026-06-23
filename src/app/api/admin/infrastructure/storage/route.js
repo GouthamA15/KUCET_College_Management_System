@@ -29,7 +29,7 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
   return arrayOfFiles;
 }
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     const user = await getAuthUser('admin');
     if (!user) return apiError('Unauthorized', 401);
@@ -44,7 +44,7 @@ export async function GET(req) {
         files = localFiles.map(f => {
           const stats = fs.statSync(f);
           return {
-            name: path.relative(STORAGE_PATH, f).replace(/\\/g, '/'),
+            name: path.relative(STORAGE_PATH, f).replace(/\\\\/g, '/'),
             size: stats.size,
             created_at: stats.birthtime,
             type: 'local'

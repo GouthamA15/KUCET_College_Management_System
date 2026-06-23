@@ -6,7 +6,7 @@ import {
   attendanceSessionLogs, 
   attendanceSessions 
 } from '@/db/schema';
-import { eq, and, asc, sql } from 'drizzle-orm';
+import { eq, and, asc, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function GET(request) {

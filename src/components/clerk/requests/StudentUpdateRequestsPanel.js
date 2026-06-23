@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, _useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import _LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { getAssetUrl } from '@/lib/assets';
 
 const StudentUpdateRequestsPanel = () => {
@@ -71,7 +71,7 @@ const StudentUpdateRequestsPanel = () => {
         const data = await res.json();
         toast.error(data.error || 'Database operation failed', { id: toastId });
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('Administrative system error', { id: toastId });
     } finally {
       setProcessing(false);

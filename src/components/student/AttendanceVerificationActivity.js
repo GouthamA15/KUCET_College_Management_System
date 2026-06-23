@@ -31,7 +31,7 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
         const created = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
         localStorage.setItem('kucet_device_uuid', created);
         setDeviceId(created);
-      } catch (error) {
+      } catch (_error) {
         // ignore (localStorage can throw in some private modes)
       }
     }, 0);

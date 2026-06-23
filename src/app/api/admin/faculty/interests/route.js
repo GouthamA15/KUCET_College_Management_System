@@ -10,7 +10,7 @@ import { eq, and, desc, sql, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
-export async function GET(request) {
+export async function GET(_request) {
   try {
     const user = await getAuthUser('admin');
     if (!user) return apiError('Unauthorized', 401);

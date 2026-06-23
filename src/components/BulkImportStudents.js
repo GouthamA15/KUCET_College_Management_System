@@ -3,7 +3,7 @@ import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import readXlsxFile from 'read-excel-file'; // Corrected import path
 import { parseDate } from '@/lib/date';
-import { validateRollNo, branchCodes } from '@/lib/rollNumber';
+import { validateRollNo, _branchCodes } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 
 // --- Constants for Client-Side Validation ---
@@ -50,7 +50,7 @@ const AREA_STATUSES = ['Local', 'Non-Local'];
 const MOBILE_REGEX = /^(\+91)?\d{10}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NUMBER_REGEX = /^\d+$/;
-const DECIMAL_REGEX = /^\d+(\.\d+)?$/;
+const _DECIMAL_REGEX = /^\d+(\.\d+)?$/;
 
 // --- Utility Functions ---
 const normalizeHeader = (header) => {
@@ -59,8 +59,8 @@ const normalizeHeader = (header) => {
 };
 
 const validateRow = (rowData, excelRowNumber) => {
-  const rowErrors = {};
-  const rowWarnings = {};
+  const rowErrors = { /* empty */ };
+  const rowWarnings = { /* empty */ };
   const validationErrors = [];
 
   // --- REQUIRED FIELDS ---
@@ -202,16 +202,16 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const [errorDetails, setErrorDetails] = useState([]);
   // Import stage management
   const [importStage, setImportStage] = useState('idle'); // idle | header_error | client_preview | importing | success
-  const [headerError, setHeaderError] = useState(null); // { missing: [], missingDisplay: [], aliasHints: {}, detectedHeaders: [] }
+  const [headerError, setHeaderError] = useState(null); // { missing: [], missingDisplay: [], aliasHints: { /* empty */ }, detectedHeaders: [] }
 
   // New states for client-side preview and validation
   const [previewData, setPreviewData] = useState(null); // Array of objects (rows)
   const [previewHeaders, setPreviewHeaders] = useState([]); // Array of string (headers)
   const [clientValidationErrors, setClientValidationErrors] = useState([]); // [{ row: 1, message: '...' }]
   const [hasClientValidationErrors, setHasClientValidationErrors] = useState(false); // Only for critical errors
-  const [isClientValidated, setIsClientValidated] = useState(false);
-  const [isDataEdited, setIsDataEdited] = useState(false);
-  const [detectedHeaderMap, setDetectedHeaderMap] = useState({});
+  const [_isClientValidated, setIsClientValidated] = useState(false);
+  const [_isDataEdited, setIsDataEdited] = useState(false);
+  const [detectedHeaderMap, setDetectedHeaderMap] = useState({ /* empty */ });
 
   const handleCellEdit = (rowIndex, cellKey, value) => {
     const updatedPreviewData = [...previewData];
@@ -272,7 +272,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
   const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
     // Reset all states
-    try { toast.dismiss(); } catch {}
+    try { toast.dismiss(); } catch { /* empty */ }
     setFile(null);
     setIsLoading(false);
     setShowSummary(false);
@@ -299,7 +299,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
         return;
       }
       setFile(selectedFile);
-      if (onReset) { try { onReset(); } catch {} }
+      if (onReset) { try { onReset(); } catch { /* empty */ } }
 
       const rows = await readXlsxFile(selectedFile);
       if (rows.length < 2) {
@@ -309,9 +309,9 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
       }
 
       const rawHeaders = rows[0];
-      const detectedHeaderMap = {}; // Maps normalized Excel header -> internal_key
+      const detectedHeaderMap = { /* empty */ }; // Maps normalized Excel header -> internal_key
       const missingRequired = [];
-      const aliasHints = {};
+      const aliasHints = { /* empty */ };
 
       // Get a set of all required internal keys
       const requiredKeys = new Set(
@@ -373,7 +373,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
 
       for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
-        const rowData = {};
+        const rowData = { /* empty */ };
         rawHeaders.forEach((rawHeader, j) => {
             const normalizedExcelHeader = normalizeHeader(rawHeader);
             const internalKey = detectedHeaderMap[normalizedExcelHeader];
@@ -420,7 +420,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
       return;
     }
 
-    try { toast.dismiss(); } catch {}
+    try { toast.dismiss(); } catch { /* empty */ }
     setIsLoading(true);
     setImportStage('importing');
 

@@ -23,7 +23,7 @@ DatePickerInput.displayName = 'DatePickerInput';
 
 export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
   const MAX_MOBILE_LEN = 10;
-  const MAX_ANNUAL_INCOME = 99999999; // match AddNewStudent
+  const _MAX_ANNUAL_INCOME = 99999999; // match AddNewStudent
   const [editValues, setEditValues] = useState({});
   const [personalFull, setPersonalFull] = useState({});
   const [academicsList, setAcademicsList] = useState([]);
@@ -35,7 +35,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
   const [originalAcademicsList, setOriginalAcademicsList] = useState(null);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
-  const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
+  const [_annualIncomeDisplay, _setAnnualIncomeDisplay] = useState('');
   const [imageLoading, setImageLoading] = useState(true);
 
   const sanitizeDigits = (input, maxLen = 10) => {
@@ -298,7 +298,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       if (originalPersonalFull && JSON.stringify(originalPersonalFull) !== JSON.stringify(personalFull)) return true;
       if (originalAcademicsList && JSON.stringify(originalAcademicsList) !== JSON.stringify(academicsList)) return true;
       return false;
-    } catch (e) { return false; }
+    } catch (_e) { return false; }
   };
 
   return (

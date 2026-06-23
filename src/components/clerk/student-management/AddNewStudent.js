@@ -23,12 +23,12 @@ DatePickerInput.displayName = 'DatePickerInput';
 export default function AddNewStudent() {
   const MAX_ROLL = 10;
   const MAX_MOBILE_LEN = 10;
-  const MAX_ANNUAL_INCOME = 99999999; // adjust to DB limit if known
+  const _MAX_ANNUAL_INCOME = 99999999; // adjust to DB limit if known
 
   const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'', email:'' });
   const [mobileError, setMobileError] = useState('');
-  const [incomeError, setIncomeError] = useState('');
-  const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
+  const [incomeError, _setIncomeError] = useState('');
+  const [_annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
   const [personal, setPersonal] = useState({ 
     father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', 
     mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', 
@@ -70,7 +70,7 @@ export default function AddNewStudent() {
   const [savedRollLocked, setSavedRollLocked] = useState(false);
   const [showAddForm, setShowAddForm] = useState(true);
   const [rollNoError, setRollNoError] = useState('');
-  const [isTotalMarksAutofilled, setIsTotalMarksAutofilled] = useState(false);
+  const [_isTotalMarksAutofilled, setIsTotalMarksAutofilled] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => {

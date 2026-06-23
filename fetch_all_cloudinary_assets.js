@@ -56,16 +56,16 @@ async function downloadFile(url, dest) {
         resolve();
       });
     }).on('error', (err) => {
-      fs.unlink(dest, () => {}); 
+      fs.unlink(dest, () => { /* empty */ }); 
       reject(err);
     });
   });
 }
 
 async function fetchAndDownload(resourceType) {
-  console.log(`\n🔍 Scanning [${resourceType}]...`);
+  console.info(`\n🔍 Scanning [${resourceType}]...`);
   let nextCursor = null;
-  let stats = { downloaded: 0, skipped: 0, folders: {} };
+  let stats = { downloaded: 0, skipped: 0, folders: { /* empty */ } };
 
   do {
     try {
@@ -99,7 +99,7 @@ async function fetchAndDownload(resourceType) {
 
         try {
           await downloadFile(resource.secure_url, fullLocalPath);
-          console.log(`✅ OK: ${fileName}`);
+          console.info(`✅ OK: ${fileName}`);
           stats.downloaded++;
         } catch (e) {
           console.error(`❌ FAIL: ${fileName} (${e.message})`);
@@ -119,7 +119,7 @@ async function fetchAndDownload(resourceType) {
 
 async function run() {
   const startTime = Date.now();
-  console.log('🚀 STARTING CONCURRENCY-OPTIMIZED ASSET FETCH...');
+  console.info('🚀 STARTING CONCURRENCY-OPTIMIZED ASSET FETCH...');
   if (!fs.existsSync(LOCAL_BACKUP_DIR)) fs.mkdirSync(LOCAL_BACKUP_DIR, { recursive: true });
 
   const imgStats = await fetchAndDownload('image');
@@ -128,24 +128,24 @@ async function run() {
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
-  console.log('\n===========================================');
-  console.log('📊 DOWNLOAD SUMMARY BY FOLDER');
-  console.log('===========================================');
+  console.info('\n===========================================');
+  console.info('📊 DOWNLOAD SUMMARY BY FOLDER');
+  console.info('===========================================');
   
   const allFolders = {...imgStats.folders, ...vidStats.folders, ...rawStats.folders};
   Object.keys(allFolders).sort().forEach(folder => {
-    console.log(`📁 ${folder.padEnd(45)} : ${allFolders[folder]} files`);
+    console.info(`📁 ${folder.padEnd(45)} : ${allFolders[folder]} files`);
   });
 
   const total = imgStats.downloaded + vidStats.downloaded + rawStats.downloaded;
   const skipped = imgStats.skipped + vidStats.skipped + rawStats.skipped;
   
-  console.log('-------------------------------------------');
-  console.log(`✨ New Downloads : ${total}`);
-  console.log(`⏩ Already Local : ${skipped}`);
-  console.log(`📦 Grand Total   : ${total + skipped}`);
-  console.log(`⏱️ Duration      : ${duration}s`);
-  console.log('===========================================');
+  console.info('-------------------------------------------');
+  console.info(`✨ New Downloads : ${total}`);
+  console.info(`⏩ Already Local : ${skipped}`);
+  console.info(`📦 Grand Total   : ${total + skipped}`);
+  console.info(`⏱️ Duration      : ${duration}s`);
+  console.info('===========================================');
 }
 
 run();

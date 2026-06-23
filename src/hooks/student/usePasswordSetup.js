@@ -58,7 +58,7 @@ export default function usePasswordSetup(rollno) {
         toast.error(data.error || 'Failed to set password');
         return false;
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
       return false;
     } finally {

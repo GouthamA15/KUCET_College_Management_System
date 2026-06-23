@@ -1,11 +1,11 @@
 import { db } from '@/db';
 import { 
   students as studentsTable, 
-  studentPersonalDetails, 
-  studentAcademicBackground,
+  _studentPersonalDetails, 
+  _studentAcademicBackground,
   studentImportLogs
 } from '@/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { _eq, inArray } from 'drizzle-orm';
 import { StudentService } from '@/services/StudentService';
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { NextResponse } from 'next/server';

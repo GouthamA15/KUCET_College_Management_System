@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
+import _toast from 'react-hot-toast';
 import AttendanceVerificationActivity from './AttendanceVerificationActivity';
 import useActivityDismissal from '@/hooks/student/useActivityDismissal';
 
@@ -62,7 +62,7 @@ export default function ProfileActivityBar({ activity, student }) {
       if (!res2.ok) throw new Error(json2.error || 'Failed to fetch active attendance sessions');
 
       setAttendanceSessions(json2.data || []);
-    } catch (error) {
+    } catch (_error) {
       // Silent
     }
   }, [student]);
@@ -96,11 +96,11 @@ export default function ProfileActivityBar({ activity, student }) {
     if (typeof dismiss === 'function') dismiss();
   };
 
-  const handleReset = () => {
+  const _handleReset = () => {
     if (typeof reset === 'function') reset();
   };
 
-  const handleDownload = async () => {
+  const _handleDownload = async () => {
     if (!id) return;
     try {
       const res = await fetch(`/api/student/requests/download/${id}`, { method: 'GET', credentials: 'same-origin' });

@@ -16,7 +16,7 @@ export function AdminProvider({ children }) {
   const [facultyInterests, setFacultyInterests] = useState([]);
   const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, _setError] = useState(null);
 
   const fetchCollegeInfo = useCallback(async () => {
     try {

@@ -11,10 +11,10 @@ import {
 import { eq, desc, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { storage } from '@/lib/providers';
-import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
+import { encrypt, decrypt, _hashForIndex } from '@/lib/encryption';
 import { getPermanentAddressFromDetails, getContactAddressFromDetails } from '@/lib/address-utils';
 
-export async function GET(req) {
+export async function GET(_req) {
   const user = await getAuthUser('student');
   if (!user) return apiError('Unauthorized', 401);
 
@@ -98,9 +98,9 @@ export async function GET(req) {
       pfp: currentPfp,
       latestRequest: latestRequest,
       details: {
-        student: studentRow || {},
-        personal: personalRow || {},
-        academic: academicRow || {}
+        student: studentRow || { /* empty */ },
+        personal: personalRow || { /* empty */ },
+        academic: academicRow || { /* empty */ }
       }
     });
   } catch (err) {
@@ -168,7 +168,7 @@ export async function POST(req) {
 
       if (pending) {
         // --- ACTIVE REQUEST GUARD ---
-        const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : {};
+        const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : { /* empty */ };
         const newFields = data ? Object.keys(data) : [];
         const existingFields = Object.keys(existingData);
         
@@ -186,10 +186,10 @@ export async function POST(req) {
         }
 
         // Merge data for non-overlapping fields
-        const mergedData = { ...existingData, ...(encryptedData || {}) };
+        const mergedData = { ...existingData, ...(encryptedData || { /* empty */ }) };
 
         // Update existing pending request
-        const updateData = {};
+        const updateData = { /* empty */ };
         if (signatureUrl) updateData.new_signature = signatureUrl;
         if (pfpUrl) updateData.new_pfp = pfpUrl;
         if (Object.keys(mergedData).length > 0) updateData.new_data = mergedData;

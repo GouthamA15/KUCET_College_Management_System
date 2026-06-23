@@ -12,11 +12,11 @@ import {
   clerks, 
   studentAttendance 
 } from '@/db/schema';
-import { eq, and, min, sql, countDistinct, or } from 'drizzle-orm';
+import { eq, and, min, sql, _countDistinct, _or } from 'drizzle-orm';
 import { calculateYearAndSemesterAsync, getCollegeAcademicYear } from '@/lib/academic-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 
-export async function GET(request) {
+export async function GET(_request) {
   try {
     const user = await getAuthUser('student');
     if (!user) {

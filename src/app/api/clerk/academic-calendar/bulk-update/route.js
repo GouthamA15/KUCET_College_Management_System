@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { academicCalendar, semesters } from '@/db/schema';
-import { eq, and, between, sql, notInArray, min, max } from 'drizzle-orm';
+import { eq, and, between, sql, _notInArray, min, max } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(request) {
@@ -26,7 +26,7 @@ export async function POST(request) {
 
     const semNum = parseInt(semester);
 
-    const result = await db.transaction(async (tx) => {
+    const _result = await db.transaction(async (tx) => {
       const semesterRange = await tx.select({
         min_date: min(academicCalendar.date),
         max_date: max(academicCalendar.date)

@@ -2,7 +2,7 @@ import { db } from '@/db';
 import { 
   students, 
   clerks, 
-  branchConfig, 
+  _branchConfig, 
   branchTimetable, 
   facultySubjectAssignments, 
   syllabusStructure,

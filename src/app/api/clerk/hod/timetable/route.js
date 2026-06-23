@@ -131,7 +131,7 @@ export async function POST(req) {
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
       broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester });
-    } catch (e) {}
+    } catch (_e) { /* empty */ }
 
     return apiResponse({ success: true, message: 'Slot updated successfully' });
   } catch (error) {
@@ -190,7 +190,7 @@ export async function DELETE(req) {
     try {
       const { broadcastUpdate } = await import('@/lib/sse');
       broadcastUpdate('TIMETABLE_CHANGED', { branch: user.branch, semester: semester ? parseInt(semester) : 'ALL' });
-    } catch (e) {}
+    } catch (_e) { /* empty */ }
 
     return apiResponse({ success: true, message: 'Timetable data updated successfully' });
   } catch (error) {

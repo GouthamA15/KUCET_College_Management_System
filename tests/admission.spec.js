@@ -34,7 +34,7 @@ test.describe('Student Admission Flow', () => {
     });
 
     await page.goto('/admission');
-    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    page.on('console', msg => console.info('PAGE LOG:', msg.text()));
     await expect(page.getByRole('heading', { name: /B.TECH/ })).toBeVisible();
 
     // Fill personal information

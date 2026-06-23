@@ -22,7 +22,7 @@ export default function BackupManager() {
       } else {
         toast.error('Failed to load backups');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Connection error while fetching backups');
     } finally {
       setLoading(false);
@@ -52,7 +52,7 @@ export default function BackupManager() {
       } else {
         toast.error(`Backup failed: ${data.message || 'Unknown error'}`, { id: toastId });
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to trigger backup execution.', { id: toastId });
     } finally {
       setTriggering(false);
@@ -77,7 +77,7 @@ export default function BackupManager() {
       } else {
         toast.error(`Restoration failed: ${data.message || 'Unknown error'}`, { id: toastId });
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Critical error during restoration pipe.', { id: toastId });
     } finally {
       setRestoring(false);

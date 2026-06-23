@@ -15,7 +15,7 @@ export default function SyllabusManager({ branch }) {
       const res = await fetch(`/api/clerk/hod/syllabus?semester=${selectedSem}`);
       const data = await res.json();
       if (res.ok) setSyllabus(data.data);
-    } catch (e) {
+    } catch (_e) {
       toast.error('Failed to load syllabus');
     } finally {
       setLoading(false);
@@ -41,7 +41,7 @@ export default function SyllabusManager({ branch }) {
         toast.success('Subject removed');
         fetchSyllabus();
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Delete failed');
     }
   };
@@ -69,7 +69,7 @@ export default function SyllabusManager({ branch }) {
         setEditingSubject(null);
         fetchSyllabus();
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Save failed');
     }
   };
@@ -100,7 +100,7 @@ export default function SyllabusManager({ branch }) {
 
       <div className="grid grid-cols-1 gap-6">
         <button 
-          onClick={() => setEditingSubject({})}
+          onClick={() => setEditingSubject({ /* empty */ })}
           className="w-full py-3 border border-white/25 rounded-sm text-white font-bold uppercase tracking-[0.22em] text-[10px] bg-[#0b3578] hover:bg-blue-900 transition-colors group shadow-lg shadow-blue-100"
         >
           <span className="group-hover:scale-110 inline-block transition-transform mr-2">+</span> Add New Subject to Semester {selectedSem}

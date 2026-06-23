@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StudentService } from '@/services/StudentService';
 import { db } from '@/db';
-import { encrypt, hashForIndex } from '@/lib/encryption';
+import { _encrypt, _hashForIndex } from '@/lib/encryption';
 
 // Mock dependencies
 vi.mock('@/db', () => ({

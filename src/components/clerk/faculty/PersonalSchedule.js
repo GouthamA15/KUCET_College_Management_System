@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'react-hot-toast';
+import { _toast } from 'react-hot-toast';
 import RealtimeListener from '@/components/RealtimeListener';
 
 const INSTITUTIONAL_ACTIVITIES = [
@@ -26,7 +26,7 @@ export default function PersonalSchedule() {
       } else {
         setError(data.error || 'Failed to fetch schedule');
       }
-    } catch (e) {
+    } catch (_e) {
       setError('Network error - could not sync your schedule');
     } finally {
       setLoading(false);
@@ -42,7 +42,7 @@ export default function PersonalSchedule() {
 
   const handleRealtimeUpdate = (data) => {
     if (data.type === 'TIMETABLE_CHANGED') {
-      console.log('[FacultySchedule] Server broadcast received, syncing...');
+      console.info('[FacultySchedule] Server broadcast received, syncing...');
       fetchMySchedule();
     }
   };

@@ -6,7 +6,7 @@ require('dotenv').config();
 require('dotenv').config({ path: '.env.local', override: true });
 
 async function runMigrations() {
-  console.log('⏳ Running migrations...');
+  console.info('⏳ Running migrations...');
 
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST,
@@ -26,7 +26,7 @@ async function runMigrations() {
     await migrate(db, {
       migrationsFolder: path.join(__dirname, '../../drizzle'),
     });
-    console.log('✅ Migrations completed successfully!');
+    console.info('✅ Migrations completed successfully!');
   } catch (error) {
     console.error('❌ Migration failed:', error);
     process.exit(1);

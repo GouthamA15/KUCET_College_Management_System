@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, _useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 import { signIn } from "next-auth/react";
 
-export default function LoginPanel({ activePanel, onClose, onStudentLogin, variant = 'modal', dismissable = true }) {
+export default function LoginPanel({ activePanel, onClose, _onStudentLogin, variant = 'modal', dismissable = true }) {
   const MAX_ROLL = 10;
   const MIN_ROLL = 10;
   const [studentForm, setStudentForm] = useState({ rollNumber: '', dob: '' });
@@ -34,7 +34,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin, varia
   const [fpRollno, setFpRollno] = useState('');
   const [fpIsLoading, setFpIsLoading] = useState(false);
   const [fpIsCheckingStatus, setFpIsCheckingStatus] = useState(false);
-  const [fpIsEligibleForReset, setFpIsEligibleForReset] = useState(false);
+  const [_fpIsEligibleForReset, setFpIsEligibleForReset] = useState(false);
   const [fpShowDOBLoginMessage, setFpShowDOBLoginMessage] = useState(false);
   const [fpDisplayMessage, setFpDisplayMessage] = useState('');
   const [fpAttempted, setFpAttempted] = useState(false);
@@ -86,7 +86,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin, varia
         toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('Network error', { id: toastId });
       setStudentError('Network error');
     } finally {
@@ -208,7 +208,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin, varia
           "Password reset not available. Please login using your Date of Birth as password. If you need further assistance, contact support."
         );
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An error occurred');
       setFpDisplayMessage('An error occurred');
     } finally {
@@ -238,7 +238,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin, varia
       } else {
         toast.error(data.error || 'An error occurred');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An error occurred');
     } finally {
       setFpEmailLoading(false);
@@ -274,7 +274,7 @@ export default function LoginPanel({ activePanel, onClose, onStudentLogin, varia
         toast.error(data.error || 'Login failed', { id: toastId });
         errorSetter(data.error || 'Login failed');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An unexpected error occurred', { id: toastId });
       errorSetter('An unexpected error occurred');
     }

@@ -7,12 +7,12 @@ import {
   branchConfig, 
   collegeInfo as collegeInfoTable 
 } from '@/db/schema';
-import { eq, and, asc, desc, or, like, inArray, sql } from 'drizzle-orm';
+import { eq, and, asc, desc, or, like, inArray, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
 import { branchCodes } from '@/lib/rollNumber';
 import { FacultyService } from '@/services/FacultyService';
-import { internalMarksSchema } from '@/lib/validations/staff';
+import { _internalMarksSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
 
 export async function GET(request) {

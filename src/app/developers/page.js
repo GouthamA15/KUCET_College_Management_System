@@ -11,11 +11,11 @@ import toast from 'react-hot-toast';
 
 export default function DevelopersPage() {
   const { getAsset } = useAssets();
-  const audiosRef = useRef({});
+  const audiosRef = useRef({ /* empty */ });
   const [bugDescription, setBugDescription] = useState('');
   const [bugSeverity, setBugSeverity] = useState('MEDIUM');
   const [affectedPage, setAffectedPage] = useState('');
-  const [screenshot, setScreenshot] = useState(null);
+  const [_screenshot, setScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bugReports, setBugReports] = useState([]);
@@ -104,11 +104,11 @@ export default function DevelopersPage() {
     fetch(`/api/bugs?${params.toString()}`)
       .then(r => r.json())
       .then(data => setBugReports(data))
-      .catch(() => {});
+      .catch(() => { /* empty */ });
     fetch('/api/bugs/developer-check')
       .then(r => r.json())
       .then(data => setIsDeveloper(data.isDeveloper))
-      .catch(() => {});
+      .catch(() => { /* empty */ });
   }, [fetchBugReports, activeTab, searchQuery]);
 
   const handleFileChange = async (e) => {
@@ -295,7 +295,7 @@ export default function DevelopersPage() {
       audio.currentTime = 0;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(() => {});
+        playPromise.catch(() => { /* empty */ });
       }
     }
   };

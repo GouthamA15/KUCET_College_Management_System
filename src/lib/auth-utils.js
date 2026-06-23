@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, _jwtVerify } from 'jose';
 import crypto from 'crypto';
 import { db } from '@/db';
 import { refreshTokens, students, clerks, principal } from '@/db/schema';

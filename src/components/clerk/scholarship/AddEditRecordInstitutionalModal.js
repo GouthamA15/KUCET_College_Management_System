@@ -10,13 +10,13 @@ import {
   CheckCircle2, 
   AlertCircle,
   FileText,
-  User,
-  Calendar,
+  _User,
+  _Calendar,
   IndianRupee,
   ShieldCheck,
   TrendingUp,
   Clock,
-  ArrowRight,
+  _ArrowRight,
   Edit2,
   Save
 } from 'lucide-react';
@@ -63,9 +63,9 @@ export default function AddEditRecordInstitutionalModal({
   useEffect(() => {
     if (!open) return;
     if (isScholar) {
-      console.log('[Workflow Mode] Scholarship workflow enabled');
+      console.info('[Workflow Mode] Scholarship workflow enabled');
     } else {
-      console.log('[Workflow Mode] Non-scholarship payment-only mode enabled');
+      console.info('[Workflow Mode] Non-scholarship payment-only mode enabled');
     }
   }, [open, isScholar]);
 
@@ -88,7 +88,7 @@ export default function AddEditRecordInstitutionalModal({
     ['MUSLIM', 'CHRISTIAN', 'SIKH', 'BUDDHIST', 'JAIN', 'PARSI'].includes(religion);
   
   const GOVT_CAP = (reimbursementStatus === 'GOV' || isFullReimbursementCategory) ? totalFee : 35000;
-  const eligibleAmount = isScholar ? GOVT_CAP : 0;
+  const _eligibleAmount = isScholar ? GOVT_CAP : 0;
 
   const allowedStudentPayableLimit = isScholar ? Math.max(0, totalFee - GOVT_CAP) : totalFee;
   const remainingStudentPayable = Math.max(0, allowedStudentPayableLimit - totalStudentPaid);
@@ -109,8 +109,8 @@ export default function AddEditRecordInstitutionalModal({
     .filter(p => (!formState.selectedProceeding || p.id !== formState.selectedProceeding.id) && (p.status || 'SANCTIONED').toUpperCase() !== 'REJECTED')
     .reduce((sum, p) => sum + (Number(p.released_amount) || 0), 0);
 
-  const isOverflow = currentStatus !== 'REJECTED' && (totalExcludingCurrent + currentEntryAmt) > GOVT_CAP;
-  const isRelOverflow = currentStatus !== 'REJECTED' && (relExcludingCurrent + currentRelAmt) > GOVT_CAP;
+  const _isOverflow = currentStatus !== 'REJECTED' && (totalExcludingCurrent + currentEntryAmt) > GOVT_CAP;
+  const _isRelOverflow = currentStatus !== 'REJECTED' && (relExcludingCurrent + currentRelAmt) > GOVT_CAP;
 
   const remainingEligible = Math.max(0, GOVT_CAP - totalSanctioned);
   const balanceToRelease = Math.max(0, totalSanctioned - totalReleased);
@@ -153,12 +153,12 @@ export default function AddEditRecordInstitutionalModal({
   // Debug wrappers
   const wrapSave = (fn, label) => async () => {
     if (process.env.NODE_ENV === 'development') {
-        console.log(`[Scholarship Registry] Triggering ${label}...`);
-        console.log(`[Scholarship Registry] Current Form State:`, formState);
+        console.info(`[Scholarship Registry] Triggering ${label}...`);
+        console.info(`[Scholarship Registry] Current Form State:`, formState);
     }
     try {
         await fn();
-        if (process.env.NODE_ENV === 'development') console.log(`[Scholarship Registry] ${label} SUCCESS`);
+        if (process.env.NODE_ENV === 'development') console.info(`[Scholarship Registry] ${label} SUCCESS`);
     } catch (err) {
         if (process.env.NODE_ENV === 'development') console.error(`[Scholarship Registry] ${label} ERROR:`, err);
     }

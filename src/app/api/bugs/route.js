@@ -50,18 +50,18 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    let clientIp = 'unknown';
+    let _clientIp = 'unknown';
     if (req.ip) {
-      clientIp = req.ip;
+      _clientIp = req.ip;
     } else {
       const xForwardedFor = req.headers.get('x-forwarded-for');
       if (xForwardedFor) {
         const ips = xForwardedFor.split(',').map(ip => ip.trim());
         const firstIp = ips[0];
         if (firstIp && firstIp.length > 0) {
-          clientIp = firstIp;
+          _clientIp = firstIp;
         } else {
-          clientIp = `req-${crypto.randomBytes(8).toString('hex')}`;
+          _clientIp = `req-${crypto.randomBytes(8).toString('hex')}`;
         }
       }
     }

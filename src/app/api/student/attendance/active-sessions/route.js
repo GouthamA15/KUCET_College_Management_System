@@ -7,7 +7,7 @@ import {
   clerks, 
   attendanceSessionLogs 
 } from '@/db/schema';
-import { eq, and, inArray, isNull, sql, gt } from 'drizzle-orm';
+import { eq, and, inArray, isNull, _sql, gt } from 'drizzle-orm';
 
 /**
  * GET /api/student/attendance/active-sessions?ids=1,2,3

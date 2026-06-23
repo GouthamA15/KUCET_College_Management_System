@@ -1,13 +1,13 @@
 import { db } from '@/db';
-import { userSessions } from '@/db/schema';
-import { eq, and, gt, desc } from 'drizzle-orm';
+import { _userSessions } from '@/db/schema';
+import { _eq, _and, _gt, _desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import SecurityService from '@/services/SecurityService';
 import crypto from 'crypto';
 import logger from '@/lib/logger';
 import { cookies } from 'next/headers';
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     let user = await getAuthUser('student');
     let userType = 'STUDENT';

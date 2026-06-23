@@ -127,7 +127,7 @@ export async function POST(request) {
               roll_no: user.roll_no,
               reason: '3 failed PIN attempts'
             });
-          } catch (sseErr) {}
+          } catch (_sseErr) { /* empty */ }
           return apiError('3 failed PIN attempts. You are now locked out of this session.', 403);
         }
 
@@ -190,7 +190,7 @@ export async function POST(request) {
           original_roll_no: originalStudent.roll_no,
           original_student_id: originalStudent.student_id
         });
-      } catch (sseErr) {}
+      } catch (_sseErr) { /* empty */ }
 
       return apiError(`Proxy blocked: Student ${originalStudent.roll_no} attempted to proxy for you using their device/session. Both records have been flagged as ABSENT.`, 403);
     }
@@ -247,7 +247,7 @@ export async function POST(request) {
           original_roll_no: originalStudent.roll_no,
           original_student_id: originalStudent.student_id
         });
-      } catch (sseErr) {}
+      } catch (_sseErr) { /* empty */ }
 
       return apiError(`Proxy blocked: This network signature has already been used by student ${originalStudent.roll_no} to verify their attendance. Both records have been flagged as ABSENT.`, 403);
     }

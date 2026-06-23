@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
@@ -256,7 +256,7 @@ const FollowPreviousButton = () => {
       const statusMap = (data.data || []).reduce((acc, r) => {
         acc[r.student_id] = r.status;
         return acc;
-      }, {});
+      }, { /* empty */ });
 
       (students || []).forEach((s) => {
         setAttendanceStatus(s.id, statusMap[s.id] ?? null);

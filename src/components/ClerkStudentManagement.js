@@ -9,14 +9,14 @@ import ExportStudents from './clerk/student-management/ExportStudents';
 export default function ClerkStudentManagement() {
   const [activeAction, setActiveAction] = useState(null);
   const [fetchedStudent, setFetchedStudent] = useState(null);
-  const [personalFull, setPersonalFull] = useState({});
-  const [academicsList, setAcademicsList] = useState([]);
-  const [feesList, setFeesList] = useState([]);
-  const [feeDetails, setFeeDetails] = useState(null);
-  const [editValues, setEditValues] = useState({});
-  const [originalEditValues, setOriginalEditValues] = useState(null);
-  const [originalPersonalFull, setOriginalPersonalFull] = useState(null);
-  const [originalAcademicsList, setOriginalAcademicsList] = useState(null);
+  const [_personalFull, setPersonalFull] = useState({ /* empty */ });
+  const [_academicsList, setAcademicsList] = useState([]);
+  const [_feesList, setFeesList] = useState([]);
+  const [_feeDetails, setFeeDetails] = useState(null);
+  const [_editValues, setEditValues] = useState({ /* empty */ });
+  const [_originalEditValues, setOriginalEditValues] = useState(null);
+  const [_originalPersonalFull, setOriginalPersonalFull] = useState(null);
+  const [_originalAcademicsList, setOriginalAcademicsList] = useState(null);
 
   useEffect(() => {
     if (activeAction === null) {
@@ -36,7 +36,7 @@ export default function ClerkStudentManagement() {
       </div>
 
       {activeAction === 'add' && <AddNewStudent />}
-      {activeAction === 'import' && <BulkImportStudents onReset={() => {}} onImportSuccess={() => {}} />}
+      {activeAction === 'import' && <BulkImportStudents onReset={() => { /* empty */ }} onImportSuccess={() => { /* empty */ }} />}
       {activeAction === 'export' && <ExportStudents />}
       {activeAction === 'fetch' && <FetchStudent 
                                       setActiveAction={setActiveAction} 

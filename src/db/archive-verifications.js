@@ -1,16 +1,16 @@
 const { db } = require('./index');
 const { certificateVerifications, certificateVerificationsArchive } = require('./schema');
-const { lt, sql } = require('drizzle-orm');
+const { lt, _sql } = require('drizzle-orm');
 
 async function archiveVerifications() {
-  console.log('--- STARTING VERIFICATION ARCHIVING ---');
+  console.info('--- STARTING VERIFICATION ARCHIVING ---');
   
   try {
     // 1. Calculate date 6 months ago
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     
-    console.log(`Archiving records older than: ${sixMonthsAgo.toISOString()}`);
+    console.info(`Archiving records older than: ${sixMonthsAgo.toISOString()}`);
 
     // 2. Fetch records to archive
     const recordsToArchive = await db.select()
@@ -18,11 +18,11 @@ async function archiveVerifications() {
       .where(lt(certificateVerifications.verification_date, sixMonthsAgo));
 
     if (recordsToArchive.length === 0) {
-      console.log('No records found to archive. Skipping.');
+      console.info('No records found to archive. Skipping.');
       return;
     }
 
-    console.log(`Moving ${recordsToArchive.length} records to archive table...`);
+    console.info(`Moving ${recordsToArchive.length} records to archive table...`);
 
     // 3. Batch insert into archive and delete from main (using a transaction)
     await db.transaction(async (tx) => {
@@ -38,7 +38,7 @@ async function archiveVerifications() {
         .where(lt(certificateVerifications.verification_date, sixMonthsAgo));
     });
 
-    console.log('✅ Archiving complete. Database performance preserved.');
+    console.info('✅ Archiving complete. Database performance preserved.');
 
   } catch (error) {
     console.error('❌ Archiving Failed:', error.message);

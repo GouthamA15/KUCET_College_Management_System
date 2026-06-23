@@ -8,7 +8,7 @@ export default class StorageProvider {
    * @param {Object} options 
    * @returns {string}
    */
-  getUrl(path, options) {
+  getUrl(_path, _options) {
     throw new Error('Method not implemented');
   }
 
@@ -19,7 +19,7 @@ export default class StorageProvider {
    * @param {string} publicId - Optional public ID/filename
    * @returns {Promise<string>} - The relative path of the uploaded asset
    */
-  async upload(file, folder, publicId = null) {
+  async upload(file, folder, _publicId = null) {
     throw new Error('Method not implemented');
   }
 
@@ -27,7 +27,7 @@ export default class StorageProvider {
    * Delete an asset.
    * @param {string} path - The relative path of the asset
    */
-  async delete(path) {
+  async delete(_path) {
     throw new Error('Method not implemented');
   }
 }

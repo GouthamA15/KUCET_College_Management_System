@@ -56,7 +56,7 @@ export default function AuditLogsPage() {
     try {
       const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
       return JSON.stringify(parsed, null, 2);
-    } catch (e) {
+    } catch (_e) {
       return String(payload);
     }
   };

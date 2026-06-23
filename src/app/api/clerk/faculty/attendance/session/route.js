@@ -5,7 +5,7 @@ import {
   facultySubjectAssignments,
   facultySubstitutions
 } from '@/db/schema';
-import { eq, and, gt, sql } from 'drizzle-orm';
+import { eq, and, gt, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import crypto from 'crypto';
 

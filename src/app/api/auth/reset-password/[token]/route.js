@@ -1,15 +1,15 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { passwordResetTokens, students, clerks, principal } from '@/db/schema';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, isNull, _sql } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
 export async function GET(req, { params }) {
   try {
-    const resolved = params ? await params : {};
-    const { token } = resolved || {};
+    const resolved = params ? await params : { /* empty */ };
+    const { token } = resolved || { /* empty */ };
     if (!token) return apiError('INVALID', 400);
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -31,8 +31,8 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   try {
-    const resolved = params ? await params : {};
-    const { token } = resolved || {};
+    const resolved = params ? await params : { /* empty */ };
+    const { token } = resolved || { /* empty */ };
     const { password } = await req.json();
 
     if (!token || !password) return apiError('Missing token or password', 400);

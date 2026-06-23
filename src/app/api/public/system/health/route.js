@@ -1,5 +1,5 @@
 import { apiResponse, apiError } from "@/lib/api-utils";
-import logger from "@/lib/logger";
+import _logger from "@/lib/logger";
 import { getNow } from "@/lib/clock";
 import { HealthService } from "@/services/HealthService";
 
@@ -7,7 +7,7 @@ import { HealthService } from "@/services/HealthService";
  * Deployment Health Check API
  * Verifies critical infrastructure connections: Database, Redis, and Email Config.
  */
-export async function GET(request) {
+export async function GET(_request) {
   const dbCheck = await HealthService.checkDatabase();
   const redisCheck = await HealthService.checkRedis();
   const emailCheck = HealthService.checkEmailConfig();

@@ -13,9 +13,9 @@ import FiltersButton from "./FiltersButton";
 import { createPortal } from 'react-dom';
 
 export default function CertificateDashboard({ clerkType }) {
-  const { pendingCertificateRequests, isLoadingRequests, refreshCertificateRequests } = useClerk();
+  const { pendingCertificateRequests, _isLoadingRequests, refreshCertificateRequests } = useClerk();
   const [workspaceMode, setWorkspaceMode] = useState("active"); // "active" | "history"
-  const [selectedDate, setSelectedDate] = useState(null); // string | null
+  const [_selectedDate, setSelectedDate] = useState(null); // string | null
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [selectedRequestDetails, setSelectedRequestDetails] = useState(null);
@@ -95,7 +95,7 @@ export default function CertificateDashboard({ clerkType }) {
         const normalized = recs.map(r => ({ ...r, date: r.created_at ? String(r.created_at).split('T')[0] : r.date }));
         setRecords(normalized);
       }
-    } catch (e) {
+    } catch (_e) {
       setRecords([]);
     } finally {
       setLoadingRecords(false);
@@ -123,7 +123,7 @@ export default function CertificateDashboard({ clerkType }) {
       // Close on scroll for small screens to avoid awkward overlays
       try {
         if (showFilters && typeof window !== 'undefined' && window.innerWidth < 640) setShowFilters(false);
-      } catch {}
+      } catch { /* empty */ }
     };
 
     const onResize = () => {
@@ -150,7 +150,7 @@ export default function CertificateDashboard({ clerkType }) {
     if (showFilters) setShowFilters(false);
   }, [pathname, showFilters]);
 
-  const formatDateForDisplay = (val) => {
+  const _formatDateForDisplay = (val) => {
     if (!val) return val;
     try {
       const s = String(val);
@@ -349,7 +349,7 @@ export default function CertificateDashboard({ clerkType }) {
                         await refreshCertificateRequests(clerkType);
                         await fetchRecords();
                       }
-                    } catch {}
+                    } catch { /* empty */ }
                   }}>Approve</button>
                 </>
               ) : null}
@@ -399,7 +399,7 @@ export default function CertificateDashboard({ clerkType }) {
                     await refreshCertificateRequests(clerkType);
                     await fetchRecords();
                   }
-                } catch {}
+                } catch { /* empty */ }
               }}>Confirm Reject</button>
             </div>
           </div>

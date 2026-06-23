@@ -33,7 +33,7 @@ export default function DashboardActionCenter({ student }) {
       if (res.ok) {
         setAttendanceSessions(json.data || []);
       }
-    } catch (e) {
+    } catch (_e) {
       // Silent
     }
   }, [academicPerformance]);
@@ -56,11 +56,11 @@ export default function DashboardActionCenter({ student }) {
     return () => channel.close();
   }, [fetchAttendanceSessions]);
 
-  const handleSessionVerified = (assignmentId) => {
+  const _handleSessionVerified = (assignmentId) => {
     setAttendanceSessions((prev) => prev.filter((s) => s.assignment_id !== assignmentId));
   };
 
-  const hasAttendanceSessions = attendanceSessions.length > 0;
+  const _hasAttendanceSessions = attendanceSessions.length > 0;
 
   const scholarshipReceivedDismissal = useActivityDismissal('scholarship_received');
 

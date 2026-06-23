@@ -9,7 +9,7 @@ import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 
 export async function POST(req) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
+    const _ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
     const rateCheck = await checkRateLimit(getTieredKey(req, 'otp_send'), 5, 900); // 5 attempts per 15 min
     
     if (!rateCheck.success) {

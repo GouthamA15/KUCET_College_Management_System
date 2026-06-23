@@ -42,7 +42,7 @@ export function getDb() {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true,
       };
-      console.log('[DB] SSL/TLS Encryption enabled for database connection.');
+      console.info('[DB] SSL/TLS Encryption enabled for database connection.');
     }
 
     pool = mysql.createPool(poolConfig);

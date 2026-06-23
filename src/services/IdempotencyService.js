@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { idempotencyKeys } from '@/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, _sql } from 'drizzle-orm';
 import { getNow } from '@/lib/clock';
 
 /**

@@ -6,7 +6,7 @@ import {
   attendanceSessions,
   rateLimits 
 } from './schema.js';
-import { lt, sql } from 'drizzle-orm';
+import { lt, _sql } from 'drizzle-orm';
 import logger from '../lib/logger.js';
 import { getNow } from '../lib/clock.js';
 
@@ -54,6 +54,6 @@ async function pruneExpiredRecords() {
 // Run the pruning process
 pruneExpiredRecords()
   .then(() => process.exit(0))
-  .catch((err) => {
+  .catch((_err) => {
     process.exit(1);
   });

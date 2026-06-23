@@ -51,9 +51,9 @@ export async function POST(req) {
       'father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','annual_income','aadhaar_no','seat_allotted_category','identification_marks', 'guardian_mobile'
     ];
 
-    const updateObj = {};
+    const updateObj = { /* empty */ };
     fields.forEach(f => {
-      if (validatedData.hasOwnProperty(f)) {
+      if (Object.prototype.hasOwnProperty.call(validatedData, f)) {
         let value = validatedData[f] || null;
         
         // Encrypt sensitive fields before saving
@@ -70,7 +70,7 @@ export async function POST(req) {
     });
 
     // Handle address mappings if provided
-    if (validatedData.hasOwnProperty('contact_address') || validatedData.hasOwnProperty('permanent_address')) {
+    if (Object.prototype.hasOwnProperty.call(validatedData, 'contact_address') || Object.prototype.hasOwnProperty.call(validatedData, 'permanent_address')) {
       const currentDetails = await db.query.studentPersonalDetails.findFirst({
         where: eq(studentPersonalDetails.student_id, student_id)
       });
@@ -78,8 +78,8 @@ export async function POST(req) {
       const existingPerm = getPermanentAddressFromDetails(currentDetails);
       const existingContact = getContactAddressFromDetails(currentDetails);
 
-      const finalPerm = validatedData.hasOwnProperty('permanent_address') ? validatedData.permanent_address : existingPerm;
-      const finalContact = validatedData.hasOwnProperty('contact_address') ? validatedData.contact_address : existingContact;
+      const finalPerm = Object.prototype.hasOwnProperty.call(validatedData, 'permanent_address') ? validatedData.permanent_address : existingPerm;
+      const finalContact = Object.prototype.hasOwnProperty.call(validatedData, 'contact_address') ? validatedData.contact_address : existingContact;
 
       const addressFields = mapAddressStringsToFields(finalContact, finalPerm);
       Object.assign(updateObj, addressFields);

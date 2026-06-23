@@ -22,7 +22,7 @@ function VerifyContent() {
       return;
     }
 
-    const verify = async (locationData = {}) => {
+    const verify = async (locationData = { /* empty */ }) => {
       // Get device info from UA
       let deviceName = 'Unknown Device';
       try {
@@ -34,7 +34,7 @@ function VerifyContent() {
           deviceName = match ? `Android Device (${match[1]})` : 'Android Device';
         } else if (ua.includes('Windows')) deviceName = 'Windows PC';
         else if (ua.includes('Macintosh')) deviceName = 'MacBook/iMac';
-      } catch (e) {}
+      } catch (_e) { /* empty */ }
 
       fetch('/api/verify', {
         method: 'POST',

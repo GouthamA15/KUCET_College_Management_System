@@ -4,7 +4,7 @@ import { studentProfileRequests } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 
-export async function GET(req) {
+export async function GET(_req) {
   const user = await getAuthUser('student');
   if (!user) return apiError('Unauthorized', 401);
 

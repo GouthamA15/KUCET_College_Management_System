@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import toast from 'react-hot-toast';
+import _toast from 'react-hot-toast';
 import { formatDate } from '@/lib/date';
 import { getEntranceExamQualified, getBranchFromRoll, getAdmissionTypeFromRoll, validateRollNo } from '@/lib/rollNumber';
 

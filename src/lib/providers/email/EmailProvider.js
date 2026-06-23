@@ -11,7 +11,7 @@ export default class EmailProvider {
    * @param {string} [options.text] 
    * @returns {Promise<{success: boolean, message: string}>}
    */
-  async send(options) {
+  async send(_options) {
     throw new Error('Method not implemented');
   }
 }

@@ -28,15 +28,15 @@ const certificateOptions = [
 
 export default function CertificateRequestsPage() {
   const router = useRouter();
-  const { studentData, loading: contextLoading, certificateRequests, setCertificateRequests, certificateRequestsLoaded, setCertificateRequestsLoaded, isLoadingRequests, setIsLoadingRequests } = useStudent();
+  const { studentData, loading: _contextLoading, certificateRequests, setCertificateRequests, certificateRequestsLoaded, setCertificateRequestsLoaded, isLoadingRequests, setIsLoadingRequests } = useStudent();
   const [selectedCertificate, setSelectedCertificate] = useState(certificateOptions[0].value);
   const [downloadingId, setDownloadingId] = useState(null);
-  const [downloadErrors, setDownloadErrors] = useState({});
+  const [downloadErrors, setDownloadErrors] = useState({ /* empty */ });
   const [isMobile, setIsMobile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReq, setRejectReq] = useState(null);
-  const [historyFlash, setHistoryFlash] = useState(false);
+  const [_historyFlash, _setHistoryFlash] = useState(false);
 
   const selectedOption = certificateOptions.find(o => o.value === selectedCertificate) || certificateOptions[0];
   
@@ -64,7 +64,7 @@ export default function CertificateRequestsPage() {
       } else {
         toast.error('Failed to fetch requests.');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An error occurred while fetching requests.');
     } finally {
       setIsLoadingRequests(false);
@@ -117,7 +117,7 @@ export default function CertificateRequestsPage() {
     try {
       const res = await fetch(`/api/student/requests/download/${req.request_id}`, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+        const err = await res.json().catch(() => ({ /* empty */ }));
         throw new Error(err.error || 'Failed to generate certificate');
       }
       const blob = await res.blob();
@@ -128,15 +128,15 @@ export default function CertificateRequestsPage() {
         const filenameStarMatch = contentDisp.match(/filename\*\s*=\s*([^;]+)/i);
         if (filenameStarMatch) {
           let val = filenameStarMatch[1].trim();
-          val = val.replace(/^\"/, '').replace(/\"$/, '');
+          val = val.replace(/^"/, '').replace(/"$/, '');
           const parts = val.split("''");
           if (parts.length === 2) {
-            try { filename = decodeURIComponent(parts[1]); } catch (e) { filename = parts[1]; }
+            try { filename = decodeURIComponent(parts[1]); } catch (_e) { filename = parts[1]; }
           } else {
-            try { filename = decodeURIComponent(val); } catch (e) { filename = val; }
+            try { filename = decodeURIComponent(val); } catch (_e) { filename = val; }
           }
         } else {
-          const filenameMatch = contentDisp.match(/filename\s*=\s*\"?(.*?)\"?(?:;|$)/i);
+          const filenameMatch = contentDisp.match(/filename\s*=\s*"?(.*?)"?(?:;|$)/i);
           if (filenameMatch) filename = filenameMatch[1];
         }
       }
@@ -204,7 +204,7 @@ export default function CertificateRequestsPage() {
         const errorData = await response.json();
         toast.error(errorData.error || 'Failed to submit request.');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An error occurred while submitting the request.');
     } finally {
       setIsLoading(false);

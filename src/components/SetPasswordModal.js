@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Lock, Shield, Check, X, AlertCircle, Wand2, Copy, Share2 } from 'lucide-react';
+import { Lock, Shield, Check, _X, AlertCircle, Wand2, Copy, Share2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateStrongPassword } from '@/lib/security';
 
-const SetPasswordModal = ({ rollno, email, onPasswordSet }) => {
+const SetPasswordModal = ({ rollno, _email, onPasswordSet }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
@@ -32,7 +32,7 @@ const SetPasswordModal = ({ rollno, email, onPasswordSet }) => {
       } else {
         toast.error(data.error || 'Failed to set password');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error');
     } finally {
       setPasswordSaving(false);

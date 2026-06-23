@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { collegeInfo } from '@/db/schema';
+import { _collegeInfo } from '@/db/schema';
 import { apiResponse, apiError } from '@/lib/api-utils';
 
 export async function GET() {
@@ -10,7 +10,7 @@ export async function GET() {
     
     // Return the config, or defaults if none exists
     // The client will merge this with COLLEGE_CONFIG defaults
-    return apiResponse({ config: config || {} });
+    return apiResponse({ config: config || { /* empty */ } });
   } catch (error) {
     logger.error(error, 'Error fetching public college config');
     return apiError('Internal Server Error', 500);

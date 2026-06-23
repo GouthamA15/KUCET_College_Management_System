@@ -1,6 +1,6 @@
 "use client";
 
-export default function FiltersButton({ show, onToggle, activeCount = 0 }) {
+export default function FiltersButton({ _show, onToggle, activeCount = 0 }) {
   return (
     <div className="relative inline-block text-left">
       <button type="button" onClick={onToggle} className="inline-flex items-center gap-2 px-3 py-1.5 border rounded-md bg-white text-sm">

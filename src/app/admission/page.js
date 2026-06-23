@@ -86,7 +86,7 @@ const AdmissionPage = () => {
     const [files, setFiles] = useState({ pfp: null, signature: null });
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
-    const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
+    const [_annualIncomeDisplay, _setAnnualIncomeDisplay] = useState('');
 
     const initialNameRef = useRef(form.name);
 

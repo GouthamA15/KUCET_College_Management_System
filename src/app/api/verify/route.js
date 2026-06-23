@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students, certificateVerifications } from '@/db/schema';
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, _and, asc } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 

@@ -17,7 +17,7 @@ const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
 // Redis event handlers
 redis.on('connect', () => {
-  console.log('Redis connected');
+  console.info('Redis connected');
 });
 
 redis.on('error', (err) => {
@@ -33,7 +33,7 @@ redis.subscribe('attendance-sync', (err) => {
   if (err) {
     console.error('Failed to subscribe to attendance-sync:', err);
   } else {
-    console.log('Subscribed to attendance-sync channel');
+    console.info('Subscribed to attendance-sync channel');
   }
 });
 
@@ -54,5 +54,5 @@ const socketHost = process.env.SOCKET_HOST || '127.0.0.1';
 const socketPort = parseInt(process.env.SOCKET_PORT || '4000', 10);
 
 server.listen(socketPort, socketHost, () => {
-  console.log(`Dedicated Socket.io Server running on ${socketHost}:${socketPort}`);
+  console.info(`Dedicated Socket.io Server running on ${socketHost}:${socketPort}`);
 });

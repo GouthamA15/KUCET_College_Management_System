@@ -4,7 +4,7 @@ import { eq, sql, desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import logger from '@/lib/logger';
 
-export async function GET(request) {
+export async function GET(_request) {
     try {
         const user = await getAuthUser('admin');
         if (!user) {

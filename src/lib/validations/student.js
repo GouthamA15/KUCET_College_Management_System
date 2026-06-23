@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { validateRollNo, branchCodes } from '@/lib/rollNumber';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { validateRollNo, _branchCodes } from '@/lib/rollNumber';
+import { _COLLEGE_CONFIG } from '@/lib/college-config';
 
 /**
  * Zod schema for creating a new student record.

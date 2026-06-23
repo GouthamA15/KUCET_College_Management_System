@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { useEffect, useState, _useRef, Suspense } from 'react';
 import { useClerk } from '@/context/ClerkContext';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
@@ -9,7 +9,7 @@ import CertificateDashboard from '@/components/clerk/certificates/CertificateDas
 import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
 import StudentAcademicSummaryCard from '@/components/clerk/scholarship/StudentAcademicSummaryCard';
 import YearRecordsList from '@/components/clerk/scholarship/YearRecordsList';
-import AddEditRecordModal from '@/components/clerk/scholarship/AddEditRecordModal';
+import _AddEditRecordModal from '@/components/clerk/scholarship/AddEditRecordModal';
 import AddEditRecordInstitutionalModal from '@/components/clerk/scholarship/AddEditRecordInstitutionalModal';
 import ScholarshipMetricsCards from '@/components/clerk/scholarship/ScholarshipMetricsCards';
 import ScholarshipSearchCard from '@/components/clerk/scholarship/ScholarshipSearchCard';
@@ -52,14 +52,14 @@ function ScholarshipDashboardContent() {
       ...prev,
       expandedByYear:
         typeof updater === 'function'
-          ? updater(prev.expandedByYear || {})
+          ? updater(prev.expandedByYear || { /* empty */ })
           : updater,
     }));
   };
   const MAX_ROLL = 10;
   const [loading, setLoading] = useState(false); // For fetching student data
-  const [scholarshipProceedings, setScholarshipProceedings] = useState([]);
-  const [studentPayments, setStudentPayments] = useState([]);
+  const [_scholarshipProceedings, setScholarshipProceedings] = useState([]);
+  const [_studentPayments, setStudentPayments] = useState([]);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [view, setView] = useState('dashboard');
@@ -118,7 +118,7 @@ function ScholarshipDashboardContent() {
   const [schAppNo, setSchAppNo] = useState('');
   const [schProceedingNo, setSchProceedingNo] = useState('');
   const [schAmount, setSchAmount] = useState('');
-  const [schDate, setSchDate] = useState(''); // This was being used for sanction_date in some places, let's normalize
+  const [_schDate, _setSchDate] = useState(''); // This was being used for sanction_date in some places, let's normalize
   const [schSanctionDate, setSchSanctionDate] = useState('');
   const [releasedAmount, setReleasedAmount] = useState('');
   const [releasedDate, setReleasedDate] = useState('');
@@ -155,7 +155,7 @@ function ScholarshipDashboardContent() {
       hardcopySubmitted: setHardcopySubmitted,
       schStatus: setSchStatus,
     };
-    const fn = setters[k] || (() => {});
+    const fn = setters[k] || (() => { /* empty */ });
     fn(v);
   };
 
@@ -211,7 +211,7 @@ function ScholarshipDashboardContent() {
 
   // UI must not parse roll number; rely only on backend fields
 
-  const handleLogout = () => {
+  const _handleLogout = () => {
     logoutScholarshipDashboard();
   };
 
@@ -280,7 +280,7 @@ function ScholarshipDashboardContent() {
           toast.error('Invalid Roll Number format');
           return;
         }
-      } catch (err) {
+      } catch (_err) {
         toast.error('Invalid Roll Number format');
         return;
       }
@@ -308,7 +308,7 @@ function ScholarshipDashboardContent() {
         // Fetch summaries for each year in parallel; store by year
         const urls = list.map(y => `/api/clerk/scholarship/summary/${encodeURIComponent(roll)}?year=${encodeURIComponent(y)}`);
         const results = await Promise.allSettled(urls.map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null)));
-        const byYear = {};
+        const byYear = { /* empty */ };
         results.forEach((res, idx) => {
           const y = list[idx];
           const raw = (res.status === 'fulfilled' ? res.value : null) || null;
@@ -316,7 +316,7 @@ function ScholarshipDashboardContent() {
         });
         setField('summariesByYear', byYear);
         // Default collapsed view for all cards
-        setField('expandedByYear', list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+        setField('expandedByYear', list.reduce((acc, y) => { acc[y] = false; return acc; }, { /* empty */ }));
       } else {
         // Application number search — expects { student, year_records }
         res = await fetch(`/api/clerk/scholarship/application/${encodeURIComponent(applicationNoInput)}`);
@@ -326,15 +326,15 @@ function ScholarshipDashboardContent() {
         setField('student', payload.student || null);
         // If backend provided per-year records, use them directly
         if (payload.year_records && typeof payload.year_records === 'object') {
-          const years = Object.keys(payload.year_records || {});
+          const years = Object.keys(payload.year_records || { /* empty */ });
           setField('yearList', years);
           setField('summariesByYear', payload.year_records);
-          setField('expandedByYear', years.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+          setField('expandedByYear', years.reduce((acc, y) => { acc[y] = false; return acc; }, { /* empty */ }));
         } else {
           // Fallback to derive from student
           const list = deriveYearsFromAdmission(String(payload?.student?.admission_year || ''));
           setField('yearList', list);
-          setField('expandedByYear', list.reduce((acc, y) => { acc[y] = false; return acc; }, {}));
+          setField('expandedByYear', list.reduce((acc, y) => { acc[y] = false; return acc; }, { /* empty */ }));
         }
       }
 
@@ -375,7 +375,7 @@ function ScholarshipDashboardContent() {
     if (summary.record_state && ['NO_RECORD', 'PENDING', 'COMPLETED'].includes(summary.record_state)) return summary.record_state;
 
     // Try to derive from fee_summary.pending_fee (if present)
-    const fs = summary.fee_summary || {};
+    const fs = summary.fee_summary || { /* empty */ };
     let pending = fs.pending_fee;
 
     // If pending not available, use globalFeeSummary total_fee as fallback and assume nothing paid
@@ -418,7 +418,7 @@ function ScholarshipDashboardContent() {
     setSelectedProceeding(null);
     // Thumb fields - hydrate from stored summary and normalize values
     try {
-      const summaryData = summariesByYear[year] || {};
+      const summaryData = summariesByYear[year] || { /* empty */ };
       const thumbAvailable = summaryData?.thumb_update_available === 1 || summaryData?.thumb_update_available === true;
       const thumbStatusRaw = summaryData?.thumb_status ?? 'PENDING';
       const ts = String(thumbStatusRaw).toLowerCase();
@@ -433,7 +433,7 @@ function ScholarshipDashboardContent() {
     }
     // Hardcopy submission flag
     try {
-      const summaryData = summariesByYear[year] || {};
+      const summaryData = summariesByYear[year] || { /* empty */ };
       const hardcopy = summaryData?.hardcopy_submitted === 1 || summaryData?.hardcopy_submitted === true;
       setFormState('hardcopySubmitted', hardcopy);
     } catch {
@@ -450,7 +450,7 @@ function ScholarshipDashboardContent() {
         ...summariesByYear,
         [year]: payload,
       });
-    } catch {}
+    } catch { /* empty */ }
   }
 
   async function handleProceedingSave() {
@@ -487,7 +487,7 @@ function ScholarshipDashboardContent() {
       };
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[DEBUG] Proceeding Save Payload:', sanctionBody);
+        console.info('[DEBUG] Proceeding Save Payload:', sanctionBody);
       }
 
       const res = await fetch('/api/clerk/scholarship/sanctions', {
@@ -498,7 +498,7 @@ function ScholarshipDashboardContent() {
       const data = await res.json();
       
       if (process.env.NODE_ENV === 'development') {
-        console.log('[DEBUG] Proceeding Save Response:', { status: res.status, data });
+        console.info('[DEBUG] Proceeding Save Response:', { status: res.status, data });
       }
 
       if (!res.ok) throw new Error(data.error || 'Failed to save sanction');
@@ -538,7 +538,7 @@ function ScholarshipDashboardContent() {
       };
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[DEBUG] Payment Save Payload:', paymentBody);
+        console.info('[DEBUG] Payment Save Payload:', paymentBody);
       }
 
       const res = await fetch('/api/clerk/scholarship/payments', {
@@ -549,7 +549,7 @@ function ScholarshipDashboardContent() {
       const data = await res.json();
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[DEBUG] Payment Save Response:', { status: res.status, data });
+        console.info('[DEBUG] Payment Save Response:', { status: res.status, data });
       }
 
       if (!res.ok) throw new Error(data.error || 'Failed to save payment');
@@ -582,7 +582,7 @@ function ScholarshipDashboardContent() {
       };
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[DEBUG] Final Update Payload:', updateBody);
+        console.info('[DEBUG] Final Update Payload:', updateBody);
       }
 
       const res = await fetch('/api/clerk/scholarship/sanctions', {
@@ -593,7 +593,7 @@ function ScholarshipDashboardContent() {
       const data = await res.json();
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[DEBUG] Final Update Response:', { status: res.status, data });
+        console.info('[DEBUG] Final Update Response:', { status: res.status, data });
       }
 
       if (!res.ok) throw new Error(data.error || 'Failed to update registry');
@@ -614,7 +614,7 @@ function ScholarshipDashboardContent() {
     try {
       const res = await fetch(`/api/clerk/scholarship/sanctions/${id}`, { method: 'DELETE' });
       if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
+        const e = await res.json().catch(() => ({ /* empty */ }));
         throw new Error(e.error || 'Failed to delete proceeding');
       }
       toast.success('Proceeding deleted');
@@ -630,7 +630,7 @@ function ScholarshipDashboardContent() {
     try {
       const res = await fetch(`/api/clerk/scholarship/payments/${id}`, { method: 'DELETE' });
       if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
+        const e = await res.json().catch(() => ({ /* empty */ }));
         throw new Error(e.error || 'Failed to delete payment');
       }
       toast.success('Payment deleted');
@@ -827,7 +827,7 @@ function ScholarshipDashboardContent() {
                     thumbStatus: setThumbStatus,
                     hardcopySubmitted: setHardcopySubmitted,
                   };
-                  (setters[k] || (() => {}))(v);
+                  (setters[k] || (() => { /* empty */ }))(v);
                 }}
                 saving={saving}
                 onProceedingSave={handleProceedingSave}

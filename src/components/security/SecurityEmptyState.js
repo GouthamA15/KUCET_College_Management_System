@@ -3,7 +3,7 @@ import { Shield } from 'lucide-react';
 
 export function SecurityEmptyState({ 
   icon: Icon = Shield, 
-  title = "No data available", 
+  _title = "No data available", 
   message = "There are no records to display at this time." 
 }) {
   return (

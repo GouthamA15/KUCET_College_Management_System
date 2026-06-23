@@ -6,7 +6,7 @@ import { useStudent } from '@/context/StudentContext';
 import useProfileActivity from '@/hooks/student/useProfileActivity';
 
 export default function NotificationDropdown({ onOpenChange }) {
-  const { studentData } = useStudent();
+  const { _studentData } = useStudent();
   const activity = useProfileActivity();
   const { latestRequest, dismissCount, dismiss } = activity;
   const isProd = typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : true;

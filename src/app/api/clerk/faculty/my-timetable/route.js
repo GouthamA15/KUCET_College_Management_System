@@ -4,7 +4,7 @@ import { branchTimetable, syllabusSubjects, semesters } from '@/db/schema';
 import { eq, and, desc, sql, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     const user = await getAuthUser('clerk');
     if (!user || user.role !== 'faculty') return apiError('Unauthorized', 401);

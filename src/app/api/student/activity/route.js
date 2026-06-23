@@ -11,7 +11,7 @@ import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getCurrentAcademicYear } from '@/lib/rollNumber';
 
-export async function GET(request) {
+export async function GET(_request) {
   try {
     const user = await getAuthUser('student');
     if (!user) return apiError('Unauthorized', 401);
