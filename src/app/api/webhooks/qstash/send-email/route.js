@@ -4,7 +4,7 @@ import { sendInstitutionalEmail } from '@/lib/email';
 import logger from '@/lib/logger';
 import { Redis } from '@upstash/redis';
 
-const redis = process.env.UPSTASH_REDIS_REST_URL ? new Redis({
+const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN ? new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 }) : null;
@@ -20,10 +20,14 @@ async function handler(req) {
 
     const messageId = req.headers.get('upstash-message-id') || body.job_id;
     if (messageId && redis) {
-      const isSent = await redis.get(`email_job:${messageId}`);
-      if (isSent === 'sent') {
-        logger.info(`Skipping duplicate email job: ${messageId}`);
-        return NextResponse.json({ success: true, message: 'Already sent' });
+      try {
+        const isSent = await redis.get(`email_job:${messageId}`);
+        if (isSent === 'sent') {
+          logger.info(`Skipping duplicate email job: ${messageId}`);
+          return NextResponse.json({ success: true, message: 'Already sent' });
+        }
+      } catch (redisReadError) {
+        logger.warn('Failed to read from Redis, proceeding with email send', redisReadError);
       }
     }
 

@@ -33,10 +33,17 @@ export default class IdempotencyService {
         throw new Error('Transaction already in progress');
       }
 
-      // Reset expired/failed key
-      await db.update(idempotencyKeys)
+      // Reset expired/failed key safely handling concurrent race conditions
+      const [updateResult] = await db.update(idempotencyKeys)
         .set({ status: 'STARTED', expires_at: expiresAt, created_at: now })
-        .where(eq(idempotencyKeys.id, existing.id));
+        .where(and(
+          eq(idempotencyKeys.id, existing.id),
+          eq(idempotencyKeys.status, existing.status) // Optimistic lock
+        ));
+
+      if (updateResult.affectedRows === 0) {
+        return { isDuplicate: true, response: existing.response_body, code: existing.response_code };
+      }
 
       return { isDuplicate: false, response: null };
     }

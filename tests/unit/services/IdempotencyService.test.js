@@ -75,7 +75,46 @@ describe('IdempotencyService', () => {
       
       const result = await IdempotencyService.start('test-key');
       expect(result.isDuplicate).toBe(false);
+      expect(result.isDuplicate).toBe(false);
       expect(db.update).toHaveBeenCalled();
+    });
+
+    it('should return duplicate if update affectedRows is 0 (race condition lost)', async () => {
+      db.query.idempotencyKeys.findFirst.mockResolvedValue({
+        id: 1,
+        status: 'FAILED',
+        response_body: { old: 'data' },
+        expires_at: new Date('2026-06-01T10:00:00Z')
+      });
+      db.update.mockReturnValueOnce({
+        set: vi.fn(() => ({
+          where: vi.fn().mockResolvedValue([{ affectedRows: 0 }]),
+        })),
+      });
+      
+      const result = await IdempotencyService.start('test-key');
+      expect(result.isDuplicate).toBe(true);
+      expect(result.response).toEqual({ old: 'data' });
+    });
+
+    it('should handle ER_DUP_ENTRY on insert correctly', async () => {
+      db.query.idempotencyKeys.findFirst.mockResolvedValue(null);
+      db.insert.mockImplementationOnce(() => {
+        const err = new Error();
+        err.code = 'ER_DUP_ENTRY';
+        throw err;
+      });
+      
+      await expect(IdempotencyService.start('test-key')).rejects.toThrow('Transaction already in progress');
+    });
+
+    it('should throw generic errors during insert', async () => {
+      db.query.idempotencyKeys.findFirst.mockResolvedValue(null);
+      db.insert.mockImplementationOnce(() => {
+        throw new Error('Database Error');
+      });
+      
+      await expect(IdempotencyService.start('test-key')).rejects.toThrow('Database Error');
     });
   });
 

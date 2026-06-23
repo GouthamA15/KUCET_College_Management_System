@@ -14,7 +14,7 @@ export async function GET(req) {
     const userType = searchParams.get('userType');
     const targetId = searchParams.get('targetId');
     const limitParam = parseInt(searchParams.get('limit') || '50');
-    const limit = Number.isNaN(limitParam) ? 50 : Math.min(limitParam, 100);
+    const limit = Number.isNaN(limitParam) ? 50 : Math.max(1, Math.min(limitParam, 100));
     const lastSeenIdParam = searchParams.get('last_seen_id') ? parseInt(searchParams.get('last_seen_id')) : null;
     const lastSeenId = Number.isNaN(lastSeenIdParam) ? null : lastSeenIdParam;
 

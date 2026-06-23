@@ -27,7 +27,7 @@ export function getDb() {
       port: process.env.DB_PORT || 3306,
       dateStrings: true, // Prevent timezone conversion issues
       waitForConnections: true,
-      connectionLimit: 1, // Aggressively optimized for serverless (1 connection per lambda)
+      connectionLimit: 3, // Increased to 3 to support concurrent queries in hot paths
       queueLimit: 0,
       // PRODUCTION HARDENING (Serverless Optimized):
       enableKeepAlive: true,
