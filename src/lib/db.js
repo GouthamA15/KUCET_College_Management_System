@@ -4,15 +4,12 @@ import path from 'path';
 import fs from 'fs';
 
 // Debugging: Log paths and dotenv result
-try {
-  const envPath = path.resolve(process.cwd(), '.env.local');
-  if (fs.existsSync(fs.realpathSync(envPath))) {
-    dotenv.config({ path: envPath, override: process.env.NODE_ENV !== 'production' });
-  } else {
-    dotenv.config(); // Load .env if it exists
-  }
-} catch (e) {
-  // Silent fail
+// Debugging: Log paths and dotenv result
+const envPath = path.resolve(process.cwd(), '.env.local');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath, override: process.env.NODE_ENV !== 'production' });
+} else {
+  dotenv.config(); // Load .env if it exists
 }
 
 // Fail-fast environment validation
