@@ -18,6 +18,8 @@ export default class IdempotencyService {
 
     const now = getNow();
     
+    const expiresAt = new Date(now.getTime() + ttlMinutes * 60000);
+    
     // 1. Check if key exists
     const existing = await db.query.idempotencyKeys.findFirst({
       where: eq(idempotencyKeys.idempotency_key, key)
@@ -30,22 +32,28 @@ export default class IdempotencyService {
       if (existing.status === 'STARTED' && new Date(existing.expires_at) > now) {
         throw new Error('Transaction already in progress');
       }
-    }
 
-    // 2. Register new key or reset expired/failed
-    const expiresAt = new Date(now.getTime() + ttlMinutes * 60000);
-    
-    if (existing) {
+      // Reset expired/failed key
       await db.update(idempotencyKeys)
         .set({ status: 'STARTED', expires_at: expiresAt, created_at: now })
         .where(eq(idempotencyKeys.id, existing.id));
-    } else {
+
+      return { isDuplicate: false, response: null };
+    }
+
+    // 2. Register new key safely handling concurrent race conditions
+    try {
       await db.insert(idempotencyKeys).values({
         idempotency_key: key,
         status: 'STARTED',
         expires_at: expiresAt,
         created_at: now
       });
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') {
+        throw new Error('Transaction already in progress');
+      }
+      throw error;
     }
 
     return { isDuplicate: false, response: null };
