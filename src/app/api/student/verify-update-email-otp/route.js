@@ -31,7 +31,10 @@ export async function POST(req) {
         return apiError('Invalid or expired OTP.', 400);
       }
 
-      if (new Date() > new Date(otpData.expires_at)) {
+      const { getNow } = await import('@/lib/clock');
+      const now = getNow();
+
+      if (now > new Date(otpData.expires_at)) {
         await db.delete(otpCodes).where(eq(otpCodes.id, otpData.id));
         return apiError('OTP has expired. Please request a new one.', 400);
       }
@@ -40,7 +43,7 @@ export async function POST(req) {
         .set({ 
           email: email, 
           is_email_verified: true, 
-          email_verified_at: new Date() 
+          email_verified_at: now 
         })
         .where(eq(students.roll_no, rollno));
 

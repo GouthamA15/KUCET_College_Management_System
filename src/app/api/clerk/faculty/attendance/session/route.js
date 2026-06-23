@@ -27,6 +27,7 @@ export async function GET(request) {
       return apiError('Missing assignment_id', 400);
     }
 
+    const { getNow } = await import('@/lib/clock');
     const sessions = await db.select({
       id: attendanceSessions.id,
       session_pin: attendanceSessions.session_pin,
@@ -39,7 +40,7 @@ export async function GET(request) {
     .where(and(
       eq(attendanceSessions.assignment_id, assignment_id),
       eq(attendanceSessions.is_active, true),
-      gt(attendanceSessions.expires_at, sql`NOW()`)
+      gt(attendanceSessions.expires_at, getNow())
     ))
     .limit(1);
 
@@ -130,7 +131,9 @@ export async function POST(request) {
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
     // Session valid for 10 minutes by default
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
+    const { getNow } = await import('@/lib/clock');
+    const now = getNow();
+    const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
     // 5. Create new session
     const [result] = await db.insert(attendanceSessions).values({

@@ -19,7 +19,8 @@ export async function GET(req, { params }) {
 
     if (!tokenData) return apiError('INVALID', 400);
     if (tokenData.used_at) return apiError('USED', 409);
-    if (new Date(tokenData.expires_at) < new Date()) return apiError('EXPIRED', 410);
+    const { getNow } = await import('@/lib/clock');
+    if (getNow() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
 
     return apiResponse({ status: 'VALID' });
   } catch (err) {
@@ -43,7 +44,8 @@ export async function POST(req, { params }) {
 
     if (!tokenData) return apiError('INVALID', 400);
     if (tokenData.used_at) return apiError('USED', 409);
-    if (new Date(tokenData.expires_at) < new Date()) return apiError('EXPIRED', 410);
+    const { getNow } = await import('@/lib/clock');
+    if (getNow() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -62,7 +64,7 @@ export async function POST(req, { params }) {
 
       // 2. Mark token as used
       const [res] = await tx.update(passwordResetTokens)
-        .set({ used_at: new Date() })
+        .set({ used_at: getNow() })
         .where(and(eq(passwordResetTokens.token_hash, tokenHash), isNull(passwordResetTokens.used_at)));
       
       // Check for concurrent usage

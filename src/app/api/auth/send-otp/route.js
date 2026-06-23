@@ -73,7 +73,9 @@ export async function POST(request) {
     if (!targetEmail) return apiError('Destination email not found.', 404);
 
     const otp = generateSecureOtp();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const { getNow } = await import('@/lib/clock');
+    const now = getNow();
+    const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes
 
     try {
       await db.delete(otpCodes).where(eq(otpCodes.identifier, identifier));

@@ -43,7 +43,9 @@ export async function POST(req) {
       }
       
       const otp = crypto.randomInt(100000, 999999).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const { getNow } = await import('@/lib/clock');
+      const now = getNow();
+      const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
       try {
         await db.delete(otpCodes).where(eq(otpCodes.identifier, rollno));
