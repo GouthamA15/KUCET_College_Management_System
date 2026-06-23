@@ -142,5 +142,11 @@ A robust, production-ready web application built with **Next.js** for managing t
 #### **Session 130-134: Concurrency & Institutional Logic (May 2026)**
 - **Optimistic Locking:** Added version-based guards for Marks and Timetable updates.
 - **Referential Integrity:** Developed `ValidationService` to prevent deletion of entities with active dependencies.
-- **Minority Logic:** Aligned scholarship engine with GO Rt No. 63 for full reimbursement for Minority/SC/ST students.
 - **Roll Number Excellence:** Hardened generation logic for Lateral Entry (TG ECET) batch continuity.
+
+#### **Session 156: Comprehensive Edge Case & Concurrency Audit (June 2026)**
+- **Codebase Auditing:** Executed a system-wide audit for unhandled edge cases, identifying severe concurrency, validation, and timezone-related workflow errors.
+- **Race Condition Resolutions:** Refactored `StudentService.upsertStudent` and `IdempotencyService` to use safe `ON DUPLICATE KEY UPDATE` and structured `try/catch` wrappers instead of sequential check-then-insert flows, preventing unhandled 500 crashes during rapid multi-submission scenarios.
+- **Strict Database Uniqueness:** Upgraded database integrity by adding `uniqueIndex` constraints to `student_id` in profile tables and strictly fingerprinting `transaction_ref_no` (UTR) in `studentFeePayments` to physically prevent duplication at the storage layer.
+- **Timezone Safety (Serverless):** Resolved critical timezone logic bugs where UTC native `Date` functions incorrectly evaluated against IST `getNow()` utility functions across OTP, password resets, and proxy-free attendance modules, which previously caused instant false-expirations on globally distributed hosting.
+- **Validation Continuity:** Added missing dependency protection for `certificateVerificationsArchive` within the global `ValidationService`.
