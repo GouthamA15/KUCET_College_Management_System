@@ -11,7 +11,6 @@ export default function StudentActivityBar() {
   const { studentData, academicPerformance, loading: studentLoading } = useStudent();
   const [activeActivity, setActiveActivity] = useState(null);
   const [attendanceSessions, setAttendanceSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const lastFetchedPeriodRef = useRef(null);
   const isUnmountedRef = useRef(false);
 
@@ -31,10 +30,8 @@ export default function StudentActivityBar() {
         setActiveActivity(null);
         lastFetchedPeriodRef.current = null;
       }
-    } catch (e) {
+    } catch {
       // Silent in production or if it's a transient network error during reload
-    } finally {
-      if (!isUnmountedRef.current) setLoading(false);
     }
   }, [studentLoading, studentData]);
 
@@ -53,7 +50,7 @@ export default function StudentActivityBar() {
       if (res.ok && !isUnmountedRef.current) {
         setAttendanceSessions(json.data || []);
       }
-    } catch (e) {
+    } catch {
       // Silent
     }
   }, [academicPerformance, studentLoading, studentData]);
@@ -116,13 +113,12 @@ export default function StudentActivityBar() {
 
   const hasAttendance = attendanceSessions.length > 0;
   const isProfilePage = pathname === '/student/profile';
-  const showBar = activeActivity || (hasAttendance && !isProfilePage);
 
   const activity = activeActivity?.activity;
   const period = activeActivity?.period;
 
   return (
-    <div className="space-y-0 animate-in slide-in-from-top duration-500 shadow-md">
+    <div className="lg:hidden space-y-0 animate-in slide-in-from-top duration-500 shadow-md">
       <RealtimeListener onUpdate={handleRealtimeUpdate} />
       
       {/* 1. Main Activity Bar (Ongoing Lecture) */}

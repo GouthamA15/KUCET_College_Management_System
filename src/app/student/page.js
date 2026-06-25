@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { useStudent } from '@/context/StudentContext';
@@ -12,6 +12,15 @@ function clampNumber(value, min, max) {
   const n = Number(value);
   if (Number.isNaN(n)) return min;
   return Math.min(max, Math.max(min, n));
+}
+
+function toTitleCase(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 function getAttendancePercent(sub) {
@@ -93,6 +102,8 @@ function IconFlask({ className }) {
   );
 }
 
+// Unused icons (IconCalendar, IconGraduationCap, IconIdCard, IconChartBar) removed
+
 function pickSubjectVisual(subjectName, index) {
   const name = String(subjectName || '').toLowerCase();
 
@@ -121,10 +132,12 @@ export default function StudentHomePage() {
 
   const student = studentData?.student || null;
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
-  const { semesterLabel } = student
+  const { semesterLabel, yearOfStudy, semester } = student
     ? calculateYearAndSemester(student.roll_no, collegeInfo, student.academic_offset_years || 0)
-    : { semesterLabel: '' };
+    : { semesterLabel: '', yearOfStudy: null, semester: null };
   const academicYear = student ? getResolvedCurrentAcademicYear(student.roll_no, collegeInfo) : null;
+
+  // overallAttendance calculation removed as metrics row is removed
 
   if (contextLoading && !student) {
     return <LoadingSpinner label="Loading Records" />;
@@ -137,51 +150,81 @@ export default function StudentHomePage() {
       <div className="max-w-7xl mx-auto lg:h-full lg:min-h-0 px-4 lg:px-8 py-4 lg:py-3 animate-fadeIn antialiased text-slate-700 flex flex-col gap-4 lg:gap-3">
 
         {/* Header: text-only on mobile, card on desktop */}
-        <header className="relative shrink-0 lg:overflow-hidden lg:rounded-sm lg:border lg:border-slate-200 lg:bg-[#0b3578]">
-          <div
-            className="absolute inset-0 opacity-10 hidden lg:block"
-            style={{
-              backgroundImage:
-                'radial-gradient(900px 220px at 18% 18%, rgba(255,255,255,0.32) 0%, transparent 60%), radial-gradient(720px 220px at 92% 38%, rgba(255,255,255,0.18) 0%, transparent 58%)',
-            }}
-          />
-          <div className="relative p-0 lg:p-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
-              <div className="space-y-1 lg:space-y-0.5 text-left">
-                <h1 className="text-2xl lg:text-lg font-bold tracking-tight text-[#0b3578] lg:text-white leading-tight">
+        <header className="relative shrink-0 lg:h-auto lg:px-6 lg:py-5 lg:flex lg:items-center lg:overflow-hidden lg:rounded-sm lg:border lg:border-slate-200/80 lg:bg-[#0b3578] lg:shadow-inner">
+          <div className="absolute inset-0 hidden lg:block overflow-hidden pointer-events-none">
+            {/* Elegant deep gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0b3578] via-[#0f3d8a] to-[#1d57b8]" />
+            
+            {/* Dynamic radial highlights */}
+            <div 
+              className="absolute -right-10 -top-10 w-72 h-72 rounded-full opacity-25 mix-blend-screen transition-all duration-1000"
+              style={{
+                backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)'
+              }}
+            />
+            <div 
+              className="absolute right-1/3 -bottom-20 w-96 h-96 rounded-full opacity-20 mix-blend-screen"
+              style={{
+                backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)'
+              }}
+            />
+
+            {/* Microsoft-style glassmorphism bubble accents */}
+            <div className="absolute right-[8%] top-[12%] w-14 h-14 rounded-full bg-white/10 backdrop-blur-[1px] border border-white/20 shadow-[0_8px_32px_0_rgba(255,255,255,0.05)] transform hover:scale-105 transition-transform duration-500" />
+            <div className="absolute right-[18%] bottom-[-10%] w-20 h-20 rounded-full bg-white/5 backdrop-blur-[2px] border border-white/10 shadow-[0_8px_32px_0_rgba(255,255,255,0.03)]" />
+            <div className="absolute right-[28%] top-[35%] w-8 h-8 rounded-full bg-white/10 backdrop-blur-[1px] border border-white/25 shadow-[0_8px_32px_0_rgba(255,255,255,0.05)]" />
+            <div className="absolute right-[3%] bottom-[30%] w-10 h-10 rounded-full bg-white/5 backdrop-blur-[1px] border border-white/10 shadow-[0_8px_32px_0_rgba(255,255,255,0.03)]" />
+          </div>
+          <div className="relative w-full p-0 lg:p-0">
+            {/* Mobile Welcome Layout - Unchanged */}
+            <div className="lg:hidden flex flex-col justify-between gap-2.5">
+              <div className="space-y-1 text-left">
+                <h1 className="text-2xl font-bold tracking-tight text-[#0b3578] leading-tight">
                   Welcome, {student.name.split(' ')[0]}
                 </h1>
 
-                <div className="flex flex-wrap items-center justify-start gap-2 lg:gap-1.5 pt-1 lg:pt-0.5">
-                  <span className="text-[10px] lg:text-[8px] font-semibold uppercase tracking-wider bg-[#0b3578]/5 text-[#0b3578] border border-[#0b3578]/10 lg:bg-white/15 lg:text-white lg:border-white/20 px-1.5 py-0.5 rounded-full">
+                <div className="flex flex-wrap items-center justify-start gap-2 pt-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-[#0b3578]/5 text-[#0b3578] border border-[#0b3578]/10 px-1.5 py-0.5 rounded-full">
                     {student.roll_no}
                   </span>
-                  <span className="text-slate-300 lg:text-white/35 inline">•</span>
-                  <span className="text-[10px] lg:text-[8px] font-semibold uppercase tracking-wide text-slate-600 lg:text-white/85">
+                  <span className="text-slate-300 inline">•</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">
                     {branch} • {semesterLabel}
                   </span>
                   {academicYear ? (
                     <>
-                      <span className="text-slate-300 lg:text-white/35 inline">•</span>
-                      <span className="text-[10px] lg:text-[8px] font-semibold uppercase tracking-wide text-slate-500 lg:text-white/75">{academicYear}</span>
+                      <span className="text-slate-300 inline">•</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{academicYear}</span>
                     </>
                   ) : null}
                 </div>
               </div>
             </div>
+
+            {/* Desktop Welcome Layout - Title case name with metadata under it */}
+            <div className="hidden lg:block text-left text-white">
+              <h1 className="text-2xl font-bold tracking-tight text-white select-none">
+                Welcome back, {toTitleCase(student.name)}
+              </h1>
+              <div className="mt-2 text-xs font-medium text-blue-100/90 space-y-0.5 select-none">
+                <div>B.Tech ({branch})</div>
+                <div>Year {yearOfStudy} • Semester {semester}</div>
+                <div>Academic Year {academicYear}</div>
+              </div>
+            </div>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-3 lg:flex-1 lg:min-h-0">
+        <div className="grid grid-cols-1 lg:flex lg:flex-col lg:gap-3 lg:flex-1 lg:min-h-0">
 
-          {/* Priority Actions Card (Top on Mobile, Right on Desktop) */}
-          <div className="order-1 lg:order-2 lg:col-span-4 flex flex-col gap-3 lg:min-h-0">
-            <div className="lg:min-h-0 lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {/* Div 1: contains Priority Actions and Support (uses contents display on desktop) */}
+          <div className="order-1 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">
+            <div className="lg:order-1 lg:shrink-0 lg:min-h-0 lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <DashboardActionCenter student={student} />
             </div>
 
-            {/* Support Card (Relocated below Priority Actions) */}
-            <section className="shrink-0 rounded-sm border border-slate-200 bg-white p-4">
+            {/* Support Card */}
+            <section className="order-2 lg:order-3 lg:shrink-0 rounded-sm border border-slate-200 bg-white p-4">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.20em]">Support</p>
               <p className="text-[11.5px] text-slate-500 mt-1.5 leading-relaxed">
                 Contact the departmental clerk during office hours.
@@ -189,87 +232,84 @@ export default function StudentHomePage() {
             </section>
           </div>
 
-          {/* Academic Records Card (Middle on Mobile, Left on Desktop) */}
-          <div className="order-2 lg:order-1 lg:col-span-8 flex flex-col gap-3 lg:min-h-0">
-            {/* Course Records - compact + internally scrollable */}
-            <section className="lg:flex lg:flex-col lg:min-h-0 rounded-sm overflow-hidden border border-[#0b3578] lg:border-slate-200 bg-white">
-              <div className="bg-[#0b3578]/5 lg:bg-slate-50 px-4 py-2.5 lg:py-2 border-b border-[#0b3578] lg:border-slate-200 flex items-center justify-between shrink-0">
-                <h2 className="text-[10px] font-bold text-[#0b3578] lg:text-slate-500 uppercase tracking-[0.20em]">Academic Records</h2>
-                <Link href="/student/academics" className="text-[9px] font-bold text-[#2563EB] hover:text-blue-700 uppercase tracking-widest">Full Progress</Link>
-              </div>
+          {/* Div 2: contains Academic Records (uses contents display on desktop) */}
+          <div className="order-2 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">
+            <div className="lg:order-2 lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
+              {/* Course Records - compact + internally scrollable */}
+              <section className="lg:flex lg:flex-col lg:min-h-0 rounded-sm overflow-hidden border border-[#0b3578] lg:border-slate-200 bg-white lg:flex-1">
+                <div className="bg-[#0b3578]/5 lg:bg-slate-50 px-4 py-2.5 lg:py-2 border-b border-[#0b3578] lg:border-slate-200 flex items-center justify-between shrink-0">
+                  <h2 className="text-[10px] font-bold text-[#0b3578] lg:text-slate-500 uppercase tracking-[0.20em]">Academic Records</h2>
+                  <Link href="/student/academics" className="text-[9px] font-bold text-[#2563EB] hover:text-blue-700 uppercase tracking-widest">Full Progress</Link>
+                </div>
 
-              <div className="bg-[#0b3578]/[0.02] lg:bg-transparent lg:flex-1 lg:min-h-0 lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                {academicPerformance && academicPerformance.length > 0 ? (
-                  <div className="divide-y divide-slate-100">
-                    {academicPerformance.slice(0, 5).map((sub, i) => (
-                      (() => {
-                        const percent = getAttendancePercent(sub);
-                        const tone = getAttendanceTone(percent);
-                        const visual = pickSubjectVisual(sub.subject_name, i);
-                        const VisualIcon = visual.Icon;
+                <div className="bg-[#0b3578]/[0.02] lg:bg-transparent lg:flex-1 lg:min-h-0 lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  {academicPerformance && academicPerformance.length > 0 ? (
+                    <div className="divide-y divide-slate-100">
+                      {academicPerformance.slice(0, 5).map((sub, i) => (
+                        (() => {
+                          const percent = getAttendancePercent(sub);
+                          const tone = getAttendanceTone(percent);
+                          const visual = pickSubjectVisual(sub.subject_name, i);
+                          const VisualIcon = visual.Icon;
 
-                        return (
-                          <div
-                            key={i}
-                            className={
-                              'group flex items-center justify-between gap-4 p-3 sm:p-4 transition-all ' +
-                              'hover:bg-slate-50 ' +
-                              'border-l-0 lg:border-l-[3px] ' +
-                              'lg:' + tone.accentBorder
-                            }
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className={"h-8 w-8 shrink-0 rounded-sm ring-1 " + visual.ring + " " + visual.bg + " flex items-center justify-center"}>
-                                <VisualIcon className={"h-4 w-4 " + visual.fg} />
-                              </div>
+                          return (
+                            <div
+                              key={i}
+                              className="group flex items-center justify-between gap-4 p-3 sm:p-4 transition-all hover:bg-slate-50 lg:hover:bg-transparent lg:cursor-default"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={"h-8 w-8 shrink-0 rounded-sm ring-1 " + visual.ring + " " + visual.bg + " flex items-center justify-center"}>
+                                  <VisualIcon className={"h-4 w-4 " + visual.fg} />
+                                </div>
 
-                              <div className="min-w-0">
-                                <h4 className="text-[13px] font-bold text-slate-900 leading-tight tracking-tight truncate">
-                                  {sub.subject_name}
-                                </h4>
-                                <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wider mt-0.5 truncate">
-                                  {sub.subject_code} • {sub.faculty_name || 'TBA'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                              <div className="hidden sm:flex flex-col items-end">
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.18em]">Attendance</p>
-                                <div className={"mt-1 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 " + tone.border + ' ' + tone.bg}>
-                                  <span className={"h-1.5 w-1.5 rounded-full " + tone.dot} aria-hidden="true" />
-                                  <span className={"text-[10px] font-bold " + tone.text}>{percent.toFixed(1)}%</span>
+                                <div className="min-w-0">
+                                  <h4 className="text-[13px] font-bold text-slate-900 leading-tight tracking-tight truncate">
+                                    {sub.subject_name}
+                                  </h4>
+                                  <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wider mt-0.5 truncate">
+                                    {sub.subject_code} • {sub.faculty_name || 'TBA'}
+                                  </p>
                                 </div>
                               </div>
 
-                              <Link
-                                href="/student/academics"
-                                className="flex items-center"
-                              >
-                                <span className="hidden sm:inline text-[9px] font-bold text-slate-400 hover:text-[#2563EB] uppercase tracking-widest">
-                                  View
-                                </span>
-                                <svg 
-                                  className="sm:hidden w-5 h-5 text-[#0b3578]" 
-                                  fill="none" 
-                                  stroke="currentColor" 
-                                  viewBox="0 0 24 24"
-                                  xmlns="http://www.w3.org/2000/svg"
+                              <div className="flex items-center gap-4">
+                                <div className="hidden sm:flex flex-col items-end">
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.18em]">Attendance</p>
+                                  <div className={"mt-1 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 " + tone.border + ' ' + tone.bg}>
+                                    <span className={"h-1.5 w-1.5 rounded-full " + tone.dot} aria-hidden="true" />
+                                    <span className={"text-[10px] font-bold " + tone.text}>{percent.toFixed(1)}%</span>
+                                  </div>
+                                </div>
+
+                                <Link
+                                  href="/student/academics"
+                                  className="flex items-center lg:hidden"
                                 >
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </Link>
+                                  <span className="hidden sm:inline text-[9px] font-bold text-slate-400 hover:text-[#2563EB] uppercase tracking-widest">
+                                    View
+                                  </span>
+                                  <svg 
+                                    className="sm:hidden w-5 h-5 text-[#0b3578]" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                </Link>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })()
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.20em]">No curriculum records</div>
-                )}
-              </div>
-            </section>
+                          );
+                        })()
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.20em]">No curriculum records</div>
+                  )}
+                </div>
+              </section>
+            </div>
           </div>
 
         </div>
