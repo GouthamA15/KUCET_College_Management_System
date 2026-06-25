@@ -3,16 +3,16 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { students } from '@/db/schema';
 import { getNow } from '@/lib/clock';
-import { verifyStudentAuth } from '@/lib/auth';
+import { getAuthUser } from '@/lib/api-utils';
 
 export async function POST(req) {
   try {
-    const auth = await verifyStudentAuth(req);
-    if (!auth.isAuthenticated) {
+    const user = await getAuthUser();
+    if (!user || !user.roll_no) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const rollNo = auth.rollNo;
+    const rollNo = user.roll_no;
     const now = getNow();
 
     await db.update(students)
