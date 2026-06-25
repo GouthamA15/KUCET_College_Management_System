@@ -14,8 +14,8 @@ export default function ResetPassword() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [_message, setMessage] = useState("");
+  const [_error, setError] = useState("");
   const [redirecting, setRedirecting] = useState(false);
   const [passwordValid, setPasswordValid] = useState(false);
   const [passwordStrengthLabel, setPasswordStrengthLabel] = useState('');
@@ -38,7 +38,7 @@ export default function ResetPassword() {
       setTokenStatus('loading');
       try {
         const res = await fetch(`/api/auth/reset-password/${encodeURIComponent(token)}`);
-        const data = await res.json().catch(() => ({}));
+        const data = await res.json().catch(() => ({ /* empty */ }));
 
         let status = data.status;
         if (!status) {
@@ -52,7 +52,7 @@ export default function ResetPassword() {
           setTokenStatus(status);
           setTokenMessage(data.message || '');
         }
-      } catch (err) {
+      } catch (_err) {
         if (!cancelled) {
           setTokenStatus('INVALID');
           setTokenMessage('Invalid reset link');
@@ -85,7 +85,7 @@ export default function ResetPassword() {
         body: JSON.stringify({ password }),
       });
 
-      const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({ /* empty */ }));
 
       if (response.ok) {
         toast.success(data.message || "Password reset successful");
@@ -98,7 +98,7 @@ export default function ResetPassword() {
         toast.error(msg);
         setError(msg);
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error("An error occurred");
       setError("An error occurred");
     } finally {
@@ -146,7 +146,7 @@ export default function ResetPassword() {
                           const hasLower = /[a-z]/.test(v);
                           const hasUpper = /[A-Z]/.test(v);
                           const hasNum = /\d/.test(v);
-                          const hasSpec = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(v);
+                          const hasSpec = /[!@#$%^&*()_+\-=[\]{ /* empty */ };':"\\|,.<>/?]/.test(v);
                           const passed = v.length >= 8 && hasLower && hasUpper && hasNum && hasSpec;
                           setPasswordValid(passed);
                           if (!v) setPasswordStrengthLabel('');

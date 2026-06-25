@@ -103,7 +103,7 @@ test.describe('Attendance Marking Flow', () => {
     await page.route('**/*.{png,jpg,jpeg,svg}', route => route.fulfill({ status: 200, body: '' }));
 
 // Go to student portal and wait for it to load
-await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/');
 
     // Verify successful login (no redirect back to /)
     await expect(page).toHaveURL(/\/student/);

@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { idempotencyKeys } from '@/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, _sql } from 'drizzle-orm';
 import { getNow } from '@/lib/clock';
 
 /**
@@ -18,6 +18,8 @@ export default class IdempotencyService {
 
     const now = getNow();
     
+    const expiresAt = new Date(now.getTime() + ttlMinutes * 60000);
+    
     // 1. Check if key exists
     const existing = await db.query.idempotencyKeys.findFirst({
       where: eq(idempotencyKeys.idempotency_key, key)
@@ -30,22 +32,35 @@ export default class IdempotencyService {
       if (existing.status === 'STARTED' && new Date(existing.expires_at) > now) {
         throw new Error('Transaction already in progress');
       }
+
+      // Reset expired/failed key safely handling concurrent race conditions
+      const [updateResult] = await db.update(idempotencyKeys)
+        .set({ status: 'STARTED', expires_at: expiresAt, created_at: now })
+        .where(and(
+          eq(idempotencyKeys.id, existing.id),
+          eq(idempotencyKeys.status, existing.status) // Optimistic lock
+        ));
+
+      if (updateResult.affectedRows === 0) {
+        return { isDuplicate: true, response: existing.response_body, code: existing.response_code };
+      }
+
+      return { isDuplicate: false, response: null };
     }
 
-    // 2. Register new key or reset expired/failed
-    const expiresAt = new Date(now.getTime() + ttlMinutes * 60000);
-    
-    if (existing) {
-      await db.update(idempotencyKeys)
-        .set({ status: 'STARTED', expires_at: expiresAt, created_at: now })
-        .where(eq(idempotencyKeys.id, existing.id));
-    } else {
+    // 2. Register new key safely handling concurrent race conditions
+    try {
       await db.insert(idempotencyKeys).values({
         idempotency_key: key,
         status: 'STARTED',
         expires_at: expiresAt,
         created_at: now
       });
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') {
+        throw new Error('Transaction already in progress');
+      }
+      throw error;
     }
 
     return { isDuplicate: false, response: null };

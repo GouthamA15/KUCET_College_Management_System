@@ -18,7 +18,7 @@ export default function ConfigManager() {
       } else {
         toast.error('Failed to load institutional configuration');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Connection error while fetching settings');
     } finally {
       setLoading(false);
@@ -49,7 +49,7 @@ export default function ConfigManager() {
       } else {
         toast.error('Failed to update configuration.', { id: toastId });
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Critical error during synchronization.', { id: toastId });
     } finally {
       setSaving(false);

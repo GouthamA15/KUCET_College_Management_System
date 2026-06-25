@@ -4,15 +4,15 @@ import { studentAdmissionDrafts, students, clerks, studentPersonalDetails } from
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
-import { uploadToCloudinary } from '@/lib/cloudinary';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { storage } from '@/lib/providers';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { z } from 'zod';
 
 export async function POST(req) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`admission:${ip}`, 5, 3600); // 5 per hour
+    const _ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
+    const rateCheck = await checkRateLimit(getTieredKey(req, 'admission'), 5, 3600); // 5 per hour
     
     if (!rateCheck.success) {
       return apiError('Too many attempts. Please try again in an hour.', 429);
@@ -134,10 +134,23 @@ export async function POST(req) {
     let signatureUrl = null;
 
     if (pfp) {
-      pfpUrl = await uploadToCloudinary(pfp, 'admission_drafts/pfp');
+      try {
+        pfpUrl = await storage.upload(pfp, 'admission_drafts/pfp');
+      } catch (err) {
+        logger.error(err, 'Failed to upload profile picture for admission draft');
+        return apiError('Failed to upload profile picture.', 500);
+      }
     }
     if (signature) {
-      signatureUrl = await uploadToCloudinary(signature, 'admission_drafts/signatures');
+      try {
+        signatureUrl = await storage.upload(signature, 'admission_drafts/signatures');
+      } catch (err) {
+        logger.error(err, 'Failed to upload signature for admission draft');
+        if (pfpUrl) {
+          await storage.delete(pfpUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned pfp in admission draft'));
+        }
+        return apiError('Failed to upload signature.', 500);
+      }
     }
 
     // 5. Encrypt Sensitive Fields
@@ -146,7 +159,7 @@ export async function POST(req) {
     const encryptedAadhaar = aadhaar_no ? encrypt(aadhaar_no) : null;
     const aHash = aadhaar_no ? hashForIndex(aadhaar_no) : null;
 
-    let addressFields = {};
+    let addressFields = { /* empty */ };
     if (json.perm_house_no !== undefined || json.curr_house_no !== undefined) {
       addressFields = {
         perm_house_no: perm_house_no || null,
@@ -172,45 +185,51 @@ export async function POST(req) {
       addressFields = mapAddressStringsToFields(finalContactAddr, finalPermAddr);
     }
 
-    const [result] = await db.insert(studentAdmissionDrafts).values({
-        status: 'DRAFT',
-        admission_year,
-        entrance_exam,
-        branch,
-        name,
-        father_name: father_name || null,
-        mother_name: mother_name || null,
-        dob: toMySQLDate(dob),
-        gender: gender || null,
-        email: email || null,
-        student_mobile: encryptedMobile,
-        mobile_hash: mobileHash,
-        guardian_mobile: encryptedGuardianMobile,
-        pfp: pfpUrl,
-        signature: signatureUrl,
-        exam_rank: exam_rank || null,
-        area_status: area_status || null,
-        category: category || null,
-        sub_caste: sub_caste || null,
-        seat_allotted_category: seat_allotted_category || null,
-        ssc_marks: ssc_marks || null,
-        inter_diploma_marks: inter_diploma_marks || null,
-        nationality: nationality || null,
-        religion: religion || null,
-        mother_tongue: mother_tongue || null,
-        blood_group: blood_group || null,
-        place_of_birth: place_of_birth || null,
-        father_occupation: father_occupation || null,
-        annual_income: annual_income || null,
-        aadhaar_no: encryptedAadhaar,
-        aadhaar_hash: aHash,
-        fee_reimbursement: fee_reimbursement || null,
-        identification_mark_1: identification_mark_1 || null,
-        identification_mark_2: identification_mark_2 || null,
-        ...addressFields
-    });
+    try {
+      const [result] = await db.insert(studentAdmissionDrafts).values({
+          status: 'DRAFT',
+          admission_year,
+          entrance_exam,
+          branch,
+          name,
+          father_name: father_name || null,
+          mother_name: mother_name || null,
+          dob: toMySQLDate(dob),
+          gender: gender || null,
+          email: email || null,
+          student_mobile: encryptedMobile,
+          mobile_hash: mobileHash,
+          guardian_mobile: encryptedGuardianMobile,
+          pfp: pfpUrl,
+          signature: signatureUrl,
+          exam_rank: exam_rank || null,
+          area_status: area_status || null,
+          category: category || null,
+          sub_caste: sub_caste || null,
+          seat_allotted_category: seat_allotted_category || null,
+          ssc_marks: ssc_marks || null,
+          inter_diploma_marks: inter_diploma_marks || null,
+          nationality: nationality || null,
+          religion: religion || null,
+          mother_tongue: mother_tongue || null,
+          blood_group: blood_group || null,
+          place_of_birth: place_of_birth || null,
+          father_occupation: father_occupation || null,
+          annual_income: annual_income || null,
+          aadhaar_no: encryptedAadhaar,
+          aadhaar_hash: aHash,
+          fee_reimbursement: fee_reimbursement || null,
+          identification_mark_1: identification_mark_1 || null,
+          identification_mark_2: identification_mark_2 || null,
+          ...addressFields
+      });
 
-    return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
+      return apiResponse({ success: true, draftId: result.insertId, message: 'Your application has been submitted successfully.' });
+    } catch (insertError) {
+      if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned pfp in admission draft db insert failure'));
+      if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned signature in admission draft db insert failure'));
+      throw insertError;
+    }
 
   } catch (error) {
     if (error instanceof z.ZodError) {

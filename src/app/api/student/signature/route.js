@@ -10,11 +10,11 @@ import {
 } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { uploadToCloudinary } from '@/lib/cloudinary';
-import { encrypt, decrypt, hashForIndex } from '@/lib/encryption';
+import { storage } from '@/lib/providers';
+import { encrypt, decrypt, _hashForIndex } from '@/lib/encryption';
 import { getPermanentAddressFromDetails, getContactAddressFromDetails } from '@/lib/address-utils';
 
-export async function GET(req) {
+export async function GET(_req) {
   const user = await getAuthUser('student');
   if (!user) return apiError('Unauthorized', 401);
 
@@ -98,9 +98,9 @@ export async function GET(req) {
       pfp: currentPfp,
       latestRequest: latestRequest,
       details: {
-        student: studentRow || {},
-        personal: personalRow || {},
-        academic: academicRow || {}
+        student: studentRow || { /* empty */ },
+        personal: personalRow || { /* empty */ },
+        academic: academicRow || { /* empty */ }
       }
     });
   } catch (err) {
@@ -142,59 +142,77 @@ export async function POST(req) {
     }
     
     // Upload images to Cloudinary if provided
-    const signatureUrl = signature ? await uploadToCloudinary(signature, 'requests/signatures') : null;
-    const pfpUrl = pfp ? await uploadToCloudinary(pfp, 'requests/pfp') : null;
-    const proofUrl = proof ? await uploadToCloudinary(proof, 'requests/proofs') : null;
+    let signatureUrl = null;
+    let pfpUrl = null;
+    let proofUrl = null;
 
-    // Check if there's already a pending request
-    const pending = await db.query.studentProfileRequests.findFirst({
-      where: and(
-        eq(studentProfileRequests.student_id, user.student_id),
-        eq(studentProfileRequests.status, 'pending')
-      )
-    });
+    try {
+      if (signature) signatureUrl = await storage.upload(signature, 'requests/signatures');
+      if (pfp) pfpUrl = await storage.upload(pfp, 'requests/pfp');
+      if (proof) proofUrl = await storage.upload(proof, 'requests/proofs');
+    } catch (uploadError) {
+      if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Rollback signature failed'));
+      if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Rollback pfp failed'));
+      if (proofUrl) await storage.delete(proofUrl).catch(e => logger.error(e, 'Rollback proof failed'));
+      throw new Error(`Upload failed: ${uploadError.message}`);
+    }
 
-    if (pending) {
-      // --- ACTIVE REQUEST GUARD ---
-      const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : {};
-      const newFields = data ? Object.keys(data) : [];
-      const existingFields = Object.keys(existingData);
-      
-      const overlaps = newFields.filter(f => existingFields.includes(f));
-      
-      if (overlaps.length > 0) {
-        return apiError(`You already have a pending request for: ${overlaps.map(f => f.replace(/_/g, ' ')).join(', ')}. Please wait for clerk approval before submitting new changes for these fields.`, 400);
-      }
-
-      if (signature && pending.new_signature) {
-        return apiError('You already have a pending signature update request.', 400);
-      }
-      if (pfp && pending.new_pfp) {
-        return apiError('You already have a pending profile photo update request.', 400);
-      }
-
-      // Merge data for non-overlapping fields
-      const mergedData = { ...existingData, ...(encryptedData || {}) };
-
-      // Update existing pending request
-      const updateData = {};
-      if (signatureUrl) updateData.new_signature = signatureUrl;
-      if (pfpUrl) updateData.new_pfp = pfpUrl;
-      if (Object.keys(mergedData).length > 0) updateData.new_data = mergedData;
-      if (proofUrl) updateData.proof_url = proofUrl; // Latest proof replaces old one
-      
-      await db.update(studentProfileRequests)
-        .set(updateData)
-        .where(eq(studentProfileRequests.id, pending.id));
-    } else {
-      // Create a new request (status defaults to 'pending')
-      await db.insert(studentProfileRequests).values({
-        student_id: user.student_id,
-        new_signature: signatureUrl,
-        new_pfp: pfpUrl,
-        new_data: encryptedData || null,
-        proof_url: proofUrl
+    try {
+      // Check if there's already a pending request
+      const pending = await db.query.studentProfileRequests.findFirst({
+        where: and(
+          eq(studentProfileRequests.student_id, user.student_id),
+          eq(studentProfileRequests.status, 'pending')
+        )
       });
+
+      if (pending) {
+        // --- ACTIVE REQUEST GUARD ---
+        const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : { /* empty */ };
+        const newFields = data ? Object.keys(data) : [];
+        const existingFields = Object.keys(existingData);
+        
+        const overlaps = newFields.filter(f => existingFields.includes(f));
+        
+        if (overlaps.length > 0) {
+          return apiError(`You already have a pending request for: ${overlaps.map(f => f.replace(/_/g, ' ')).join(', ')}. Please wait for clerk approval before submitting new changes for these fields.`, 400);
+        }
+
+        if (signature && pending.new_signature) {
+          return apiError('You already have a pending signature update request.', 400);
+        }
+        if (pfp && pending.new_pfp) {
+          return apiError('You already have a pending profile photo update request.', 400);
+        }
+
+        // Merge data for non-overlapping fields
+        const mergedData = { ...existingData, ...(encryptedData || { /* empty */ }) };
+
+        // Update existing pending request
+        const updateData = { /* empty */ };
+        if (signatureUrl) updateData.new_signature = signatureUrl;
+        if (pfpUrl) updateData.new_pfp = pfpUrl;
+        if (Object.keys(mergedData).length > 0) updateData.new_data = mergedData;
+        if (proofUrl) updateData.proof_url = proofUrl; // Latest proof replaces old one
+        
+        await db.update(studentProfileRequests)
+          .set(updateData)
+          .where(eq(studentProfileRequests.id, pending.id));
+      } else {
+        // Create a new request (status defaults to 'pending')
+        await db.insert(studentProfileRequests).values({
+          student_id: user.student_id,
+          new_signature: signatureUrl,
+          new_pfp: pfpUrl,
+          new_data: encryptedData || null,
+          proof_url: proofUrl
+        });
+      }
+    } catch (dbError) {
+      if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Rollback signature failed'));
+      if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Rollback pfp failed'));
+      if (proofUrl) await storage.delete(proofUrl).catch(e => logger.error(e, 'Rollback proof failed'));
+      throw dbError;
     }
 
     // REAL-TIME: Broadcast to admission clerks

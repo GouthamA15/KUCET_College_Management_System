@@ -56,7 +56,7 @@ export const students = mysqlTable('students', {
   updated_at: timestamp('updated_at').onUpdateNow(),
   updated_by_clerk_id: int('updated_by_clerk_id'),
   student_status: mysqlEnum('student_status', ['ACTIVE', 'DISCONTINUED']).default('ACTIVE'),
-  academic_status: mysqlEnum('academic_status', ['REGULAR', 'DETAINED', 'DROPPED', 'GRADUATED']).default('REGULAR'),
+  academic_status: mysqlEnum('academic_status', ['ACTIVE', 'GRADUATED', 'DETAINED', 'SUSPENDED']).default('ACTIVE'),
   academic_offset_years: int('academic_offset_years').default(0),
   last_login_at: timestamp('last_login_at'),
   last_login_ip: varchar('last_login_ip', { length: 64 }),
@@ -150,6 +150,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
   blood_group: mysqlEnum('blood_group', ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
 }, (table) => ({
   studentIdIdx: index('idx_spd_student_id').on(table.student_id),
+  studentIdUniq: uniqueIndex('uq_spd_student_id').on(table.student_id),
   aadhaarHashIdx: index('idx_spd_aadhaar_hash').on(table.aadhaar_hash),
 }));
 
@@ -164,6 +165,7 @@ export const studentAcademicBackground = mysqlTable('student_academic_background
   inter_marks: varchar('inter_marks', { length: 50 }),
 }, (table) => ({
   studentIdIdx: index('idx_sab_student_id').on(table.student_id),
+  studentIdUniq: uniqueIndex('uq_sab_student_id').on(table.student_id),
 }));
 
 export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
@@ -551,6 +553,7 @@ export const studentFeePayments = mysqlTable('student_fee_payments', {
   created_at: timestamp('created_at').defaultNow(),
 }, (table) => ({
   studentIdx: index('idx_sfp_student').on(table.student_id),
+  transactionRefUniq: uniqueIndex('uq_sfp_transaction_ref_no').on(table.transaction_ref_no),
 }));
 
 // --- 10. REAL-TIME & SESSIONS ---

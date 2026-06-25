@@ -3,7 +3,7 @@ import React from 'react';
 
 import CommonProfileStatusBar from '@/components/profile/ProfileStatusBar';
 
-export default function ProfileStatusBar({ courseLabel, yearOfStudy, semesterLabel, currentAcademicYearLabel, batchString }) {
+export default function ProfileStatusBar({ courseLabel, _yearOfStudy, semesterLabel, currentAcademicYearLabel, batchString }) {
   const lines = currentAcademicYearLabel
     ? [
         { label: '', value: semesterLabel },

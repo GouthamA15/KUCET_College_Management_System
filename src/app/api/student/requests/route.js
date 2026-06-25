@@ -10,7 +10,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { getResolvedCurrentAcademicYear, getAdmissionTypeFromRoll } from "@/lib/rollNumber";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { storage } from '@/lib/providers';
 import IdempotencyService from '@/services/IdempotencyService';
 import { FinanceService } from '@/services/FinanceService';
 import crypto from 'crypto';
@@ -242,7 +242,7 @@ export async function POST(request) {
         return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);
       }
 
-      const screenshotUrl = await uploadToCloudinary(paymentScreenshotFile, "certificates/payments");
+      const screenshotUrl = await storage.upload(paymentScreenshotFile, "certificates/payments");
       
       if (screenshotUrl) {
         await db.insert(studentRequestImages)

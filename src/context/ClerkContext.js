@@ -54,7 +54,7 @@ export function ClerkProvider({ children }) {
           setError('Failed to fetch clerk data');
         }
       }
-    } catch (e) {
+    } catch (_e) {
       setError('Network error');
     }
     return null;
@@ -332,7 +332,7 @@ export function ClerkProvider({ children }) {
   const handleRealtimeUpdate = useCallback((data) => {
     if (clerkData?.is_hod && data.payload.branch === clerkData.branch) {
       if (['TIMETABLE_CHANGED', 'ATTENDANCE_SAVED', 'SESSION_STARTED', 'SESSION_ENDED'].includes(data.type)) {
-        console.log(`[HODSync] ${data.type} detected, refreshing...`);
+        console.info(`[HODSync] ${data.type} detected, refreshing...`);
         fetchHODData();
       }
     }

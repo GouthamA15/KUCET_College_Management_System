@@ -5,12 +5,12 @@ import { eq, and, ne } from 'drizzle-orm';
 import { sendInstitutionalEmail } from '@/lib/email';
 import crypto from 'crypto';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 
 export async function POST(req) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`otp_send:${ip}`, 5, 900); // 5 attempts per 15 min
+    const _ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
+    const rateCheck = await checkRateLimit(getTieredKey(req, 'otp_send'), 5, 900); // 5 attempts per 15 min
     
     if (!rateCheck.success) {
       return apiError('Please try again after 15 minutes.', 429);
@@ -43,7 +43,9 @@ export async function POST(req) {
       }
       
       const otp = crypto.randomInt(100000, 999999).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const { getNow } = await import('@/lib/clock');
+      const now = getNow();
+      const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
       try {
         await db.delete(otpCodes).where(eq(otpCodes.identifier, rollno));

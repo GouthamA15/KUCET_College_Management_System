@@ -28,7 +28,7 @@ function decryptOld(text, key) {
     let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
-  } catch (err) {
+  } catch (_err) {
     return null; // Failed to decrypt with old key
   }
 }
@@ -52,7 +52,7 @@ async function rotateKeys() {
     process.exit(1);
   }
 
-  console.log('--- STARTING ENCRYPTION KEY ROTATION ---');
+  console.info('--- STARTING ENCRYPTION KEY ROTATION ---');
 
   try {
     await db.transaction(async (tx) => {
@@ -61,7 +61,7 @@ async function rotateKeys() {
         .from(studentsTable)
         .where(isNotNull(studentsTable.mobile));
 
-      console.log(`📡 Processing ${students.length} student mobile numbers...`);
+      console.info(`📡 Processing ${students.length} student mobile numbers...`);
       for (const s of students) {
         const decrypted = decryptOld(s.mobile, oldKey);
         if (decrypted) {
@@ -80,7 +80,7 @@ async function rotateKeys() {
       })
       .from(studentPersonalDetails);
 
-      console.log(`📡 Processing ${details.length} personal detail records...`);
+      console.info(`📡 Processing ${details.length} personal detail records...`);
       for (const d of details) {
         const updateObj = {};
         
@@ -102,8 +102,8 @@ async function rotateKeys() {
       }
     });
 
-    console.log('✅ KEY ROTATION SUCCESSFUL');
-    console.log('⚠️ Remember to remove OLD_ENCRYPTION_KEY from your environment variables.');
+    console.info('✅ KEY ROTATION SUCCESSFUL');
+    console.info('⚠️ Remember to remove OLD_ENCRYPTION_KEY from your environment variables.');
   } catch (error) {
     logger.error('[KEY_ROTATION_ERROR] Operation failed:', error.message);
     console.error('❌ Key rotation failed. Transaction rolled back.');

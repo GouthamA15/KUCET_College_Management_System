@@ -38,7 +38,7 @@ export default class BrevoEmailProvider extends EmailProvider {
         const data = await response.json();
 
         if (response.ok) {
-          console.log('[EMAIL_SUCCESS] Message sent via Brevo API.');
+          console.info('[EMAIL_SUCCESS] Message sent via Brevo API.');
           return { success: true, message: 'Email sent successfully.' };
         } else {
           console.error('[EMAIL_FAILURE] Brevo API error:', data);

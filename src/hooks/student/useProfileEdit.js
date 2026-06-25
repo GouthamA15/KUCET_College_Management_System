@@ -58,7 +58,7 @@ export default function useProfileEdit(studentData = null, refreshData = () => {
         }
         profileImage.setPreviewPhoto(null);
         setPhotoChanged(false);
-      } catch (e) {
+      } catch (_e) {
         toast.error('Network error. Please try again.');
         setPhotoProcessing(false);
         return false;
@@ -93,7 +93,7 @@ export default function useProfileEdit(studentData = null, refreshData = () => {
         toast.error(result.error || 'Failed to update profile.');
         return false;
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Network error. Please try again.');
       return false;
     }

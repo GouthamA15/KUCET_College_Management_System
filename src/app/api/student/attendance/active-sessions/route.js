@@ -7,7 +7,7 @@ import {
   clerks, 
   attendanceSessionLogs 
 } from '@/db/schema';
-import { eq, and, inArray, isNull, sql, gt } from 'drizzle-orm';
+import { eq, and, inArray, isNull, _sql, gt } from 'drizzle-orm';
 
 /**
  * GET /api/student/attendance/active-sessions?ids=1,2,3
@@ -53,6 +53,7 @@ export async function GET(request) {
 
     // 2. Fetch ALL active sessions for these subjects in this branch/sem/year
     // AND check if this student has already verified.
+    const { getNow } = await import('@/lib/clock');
     const sessions = await db.select({
       session_id: attendanceSessions.id,
       assignment_id: attendanceSessions.assignment_id,
@@ -75,7 +76,7 @@ export async function GET(request) {
       eq(facultySubjectAssignments.course_semester, semester),
       eq(facultySubjectAssignments.academic_year, academicYear),
       eq(attendanceSessions.is_active, true),
-      gt(attendanceSessions.expires_at, sql`NOW()`),
+      gt(attendanceSessions.expires_at, getNow()),
       isNull(attendanceSessionLogs.id)
     ));
 

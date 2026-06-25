@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { COLLEGE_CONFIG } from '@/lib/college-config';
+import { _COLLEGE_CONFIG } from '@/lib/college-config';
 import { useAssets } from '@/context/AssetContext';
 import { useSystemConfig } from '@/context/SystemConfigContext';
 
@@ -26,7 +26,7 @@ export default function Header({ fixed = true }) {
           root.style.removeProperty('--site-header-height');
           root.style.removeProperty('--app-fixed-header-offset');
         }
-      } catch (e) {
+      } catch (_e) {
         // noop
       }
     };
@@ -37,14 +37,14 @@ export default function Header({ fixed = true }) {
     try {
       ro = new ResizeObserver(updateHeight);
       ro.observe(el);
-    } catch (e) {
+    } catch (_e) {
       // ResizeObserver not available (older browsers) — rely on resize fallback.
     }
 
     window.addEventListener('resize', updateHeight);
 
     return () => {
-      try { ro?.disconnect(); } catch (e) {}
+      try { ro?.disconnect(); } catch (_e) { /* empty */ }
       window.removeEventListener('resize', updateHeight);
     };
   }, []);

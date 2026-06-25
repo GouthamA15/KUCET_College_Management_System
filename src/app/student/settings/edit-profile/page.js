@@ -1,7 +1,7 @@
 // src/app/student/settings/edit-profile/page.js
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, _useCallback, useRef } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -11,18 +11,18 @@ import { getAssetUrl } from '@/lib/assets';
 
 export default function EditProfilePage() {
   const router = useRouter();
-  const { studentData, loading: contextLoading, refreshData } = useStudent();
+  const { studentData, loading: contextLoading, _refreshData } = useStudent();
   
   const [formData, setFormData] = useState({
-    student: {},
-    personal: {},
-    academic: {}
+    student: { /* empty */ },
+    personal: { /* empty */ },
+    academic: { /* empty */ }
   });
   const [originalData, setOriginalData] = useState(null);
   
   const [saving, setSaving] = useState(false);
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
-  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
+  const [_profileDataLoaded, setProfileDataLoaded] = useState(false);
   
   // OTP State
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -147,7 +147,7 @@ export default function EditProfilePage() {
 
   const getChangedData = () => {
     if (!originalData) return null;
-    const changes = {};
+    const changes = { /* empty */ };
     
     ['mobile', 'email'].forEach(field => {
         if (formData.student[field] !== originalData.student[field]) {
@@ -292,18 +292,27 @@ export default function EditProfilePage() {
     }
   };
 
-  const onFileSelect = (file, type) => {
+  const onFileSelect = async (file, type) => {
     if (latestRequest && latestRequest.status === 'pending') {
       toast.error('Pending request exists. System locked.');
       return;
     }
 
     if (file) {
-      if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-        toast.error('File format rejected. Use JPG/PNG.');
+      if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type)) {
+        toast.error('File format rejected. Use JPG/PNG/WEBP.');
         return;
       }
-      if (file.size > 1 * 1024 * 1024) {
+
+      let processedFile = file;
+      try {
+        const { compressImage } = await import('@/lib/image-compressor');
+        processedFile = await compressImage(file, 1200, 1200, 0.6);
+      } catch (err) {
+        console.error('Image compression failed:', err);
+      }
+
+      if (processedFile.size > 1 * 1024 * 1024) {
         toast.error('File exceeds 1MB limit.');
         return;
       }
@@ -313,7 +322,7 @@ export default function EditProfilePage() {
         else if (type === 'sig') setSignatureDataUrl(reader.result);
         else if (type === 'proof') setProofDataUrl(reader.result);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(processedFile);
     }
     if (type === 'pfp') setPhotoMenuOpen(false);
   };

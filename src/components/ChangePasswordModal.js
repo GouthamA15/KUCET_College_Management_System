@@ -33,7 +33,7 @@ export default function ChangePasswordModal({ show, onClose, apiEndpoint }) {
       } else {
         toast.error(data.error || 'An error occurred');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An error occurred');
     } finally {
       setIsLoading(false);

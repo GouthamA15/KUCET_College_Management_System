@@ -3,10 +3,10 @@ import {
   students as studentsTable, 
   studentMarks,
   facultySubstitutions,
-  collegeInfo as collegeInfoTable
+  collegeInfo as _collegeInfoTable
 } from '@/db/schema';
 import { db } from '@/db';
-import { eq, and, asc, sql, or, like } from 'drizzle-orm';
+import { eq, and, asc, sql, _or, like } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { branchCodes } from '@/lib/rollNumber';
 import logger from '@/lib/logger';
@@ -109,6 +109,7 @@ export async function GET(request) {
       eq(studentMarks.assignment_id, targetAssignmentId)
     ))
     .where(and(
+      eq(studentsTable.academic_status, 'ACTIVE'),
       like(studentsTable.roll_no, `%${branchCode}%`), // Branch filter
       sql`CASE 
           WHEN ${studentsTable.roll_no} LIKE '%T%' THEN 

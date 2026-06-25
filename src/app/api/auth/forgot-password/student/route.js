@@ -64,7 +64,9 @@ export async function POST(req) {
     // Generate raw token and store only its SHA-256 hash in DB
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const expires_at = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    const { getNow } = await import('@/lib/clock');
+    const now = getNow();
+    const expires_at = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes from now
 
     await db.insert(passwordResetTokens).values({
       token_hash: tokenHash,

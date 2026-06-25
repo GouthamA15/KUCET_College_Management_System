@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { ClerkContext } from '@/context/ClerkContext';
 import { StudentContext } from '@/context/StudentContext';
-import { Home, User, Book, Calendar, FileText, Settings, LogOut, Plus, Wallet, ChevronDown } from 'lucide-react';
+import { Home, User, Book, Calendar, FileText, Settings, LogOut, _Plus, Wallet, ChevronDown } from 'lucide-react';
 
 const ICON_MAP = {
   'HOME': Home,
@@ -24,18 +24,18 @@ const ICON_MAP = {
   'MATERIALS': Book,
 };
 
-export default function Sidebar({ role: initialRole = 'student', isMobileOpen = false, setIsMobileOpen = () => {}, onLogout }) {
+export default function Sidebar({ role: initialRole = 'student', isMobileOpen = false, setIsMobileOpen = () => { /* empty */ }, onLogout }) {
   const pathname = usePathname();
   const router = useRouter();
   const clerkContext = useContext(ClerkContext);
   const studentContext = useContext(StudentContext);
   const clerkData = clerkContext?.clerkData;
-  const studentData = studentContext?.studentData;
+  const _studentData = studentContext?.studentData;
   const isClerkLoading = clerkContext?.loading;
   
   const [expanded, setExpanded] = useState(false);
-  const [mobileExpanded, setMobileExpanded] = useState({});
-  const [desktopExpanded, setDesktopExpanded] = useState({});
+  const [mobileExpanded, setMobileExpanded] = useState({ /* empty */ });
+  const [desktopExpanded, setDesktopExpanded] = useState({ /* empty */ });
 
   // Determine effective role for menu mapping
   let role = initialRole;
@@ -92,14 +92,14 @@ export default function Sidebar({ role: initialRole = 'student', isMobileOpen = 
     if (action === 'logout') {
       // Allow parent to override logout behaviour
       if (role === 'student' && typeof onLogout === 'function') {
-        try { await onLogout(); return; } catch (e) {}
+        try { await onLogout(); return; } catch (_e) { /* empty */ }
       }
       try {
         const endpoint = role === 'student' ? '/api/student/logout' : (role && String(role).startsWith('clerk') ? '/api/clerk/logout' : '/api/auth/logout');
         await fetch(endpoint, { method: 'POST' });
-      } catch (e) {}
-      try { localStorage.removeItem('logged_in_student'); } catch (e) {}
-      try { sessionStorage.clear(); } catch (e) {}
+      } catch (_e) { /* empty */ }
+      try { localStorage.removeItem('logged_in_student'); } catch (_e) { /* empty */ }
+      try { sessionStorage.clear(); } catch (_e) { /* empty */ }
       window.location.replace('/');
       return;
     }

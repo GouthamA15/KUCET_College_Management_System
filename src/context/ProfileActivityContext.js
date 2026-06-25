@@ -82,7 +82,7 @@ export function ProfileActivityProvider({ children }) {
         } else {
           if (mounted) setLatestRequest(null);
         }
-      } catch (e) {
+      } catch (_e) {
         if (mounted) setLatestRequest(null);
       }
     };
@@ -120,7 +120,7 @@ export function ProfileActivityProvider({ children }) {
         setScholarshipHardcopyPending(data?.scholarshipHardcopyPending || { active: false });
         setScholarshipApplicationReceived(data?.scholarshipApplicationReceived || { active: false });
         setScholarshipApplicationsOpen(data?.scholarshipApplicationsOpen || { active: false });
-      } catch (e) {
+      } catch (_e) {
         if (mounted) {
           setScholarshipThumbUpdate({ active: false });
           setScholarshipHardcopyPending({ active: false });
@@ -141,7 +141,7 @@ export function ProfileActivityProvider({ children }) {
       const next = Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0') + 1;
       localStorage.setItem(STORAGE_COUNT_KEY, String(next));
       setDismissCount(next);
-    } catch (e) {}
+    } catch (_e) { /* empty */ }
   };
 
   const dismiss = () => {
@@ -149,7 +149,7 @@ export function ProfileActivityProvider({ children }) {
       const next = Number(localStorage.getItem(STORAGE_COUNT_KEY) || '0') + 1;
       localStorage.setItem(STORAGE_COUNT_KEY, String(next));
       setDismissCount(next);
-    } catch (e) {}
+    } catch (_e) { /* empty */ }
   };
 
   const reset = () => {
@@ -157,7 +157,7 @@ export function ProfileActivityProvider({ children }) {
       localStorage.removeItem(STORAGE_COUNT_KEY);
       localStorage.removeItem(STORAGE_SEEN_ID_KEY);
       localStorage.removeItem(STORAGE_SEEN_STATUS_KEY);
-    } catch (e) {}
+    } catch (_e) { /* empty */ }
     setDismissCount(0);
     setSeenRequestId(null);
     setSeenStatus(null);

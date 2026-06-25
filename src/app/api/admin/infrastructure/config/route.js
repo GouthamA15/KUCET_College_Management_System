@@ -5,7 +5,7 @@ import { getAuthUser, apiError, apiResponse } from '@/lib/api-utils';
 import { eq } from 'drizzle-orm';
 import { ValidationService } from '@/services/ValidationService';
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     const user = await getAuthUser('admin');
     if (!user) return apiError('Unauthorized', 401);

@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { students as studentsTable, studentAdmissionDrafts } from '@/db/schema';
+import { students as studentsTable, studentAdmissionDrafts, branchConfig } from '@/db/schema';
 import { inArray, eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { buildRollNumber, getAdmissionSymbol, getBranchCodeFromName, getNextSerialNumber, validateGeneratedRollNumber } from '@/lib/autoGenerateRollNumber';
@@ -36,6 +36,14 @@ export async function POST(req) {
       const admissionSymbol = getAdmissionSymbol(examType);
       const branchCode = getBranchCodeFromName(branch);
       if (!branchCode) throw new Error(`Unknown branch: ${branch}`);
+      
+      // Acquire a DB-level row lock on branch_config to serialize roll number generation
+      await tx.select()
+        .from(branchConfig)
+        .where(eq(branchConfig.branch, branch))
+        .limit(1)
+        .for('update');
+
       const startSerial = await getNextSerialNumber(tx, { branch, joiningYear, admissionSymbol });
 
       const rollNumbers = [];

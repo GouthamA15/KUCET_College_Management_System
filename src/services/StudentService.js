@@ -393,36 +393,26 @@ export class StudentService {
     };
 
     const executeUpsert = async (innerTx) => {
+      // 1. Upsert Student
+      await innerTx.insert(studentsTable)
+        .values({ ...studentValues, added_by_clerk_id: clerkId })
+        .onDuplicateKeyUpdate({ set: studentValues });
+
       const existing = await innerTx.select({ id: studentsTable.id })
         .from(studentsTable).where(eq(studentsTable.roll_no, roll)).limit(1);
       
-      let studentId;
-      if (existing.length > 0) {
-        studentId = existing[0].id;
-        await innerTx.update(studentsTable).set(studentValues).where(eq(studentsTable.id, studentId));
-      } else {
-        const res = await innerTx.insert(studentsTable).values({ ...studentValues, added_by_clerk_id: clerkId });
-        studentId = res.insertId || res[0]?.insertId;
-        if (!studentId) throw new Error('STUDENT_ID_GENERATION_FAILED');
-      }
+      let studentId = existing[0]?.id;
+      if (!studentId) throw new Error('STUDENT_ID_GENERATION_FAILED');
 
-      const existingPersonal = await innerTx.select({ id: studentPersonalDetails.id })
-        .from(studentPersonalDetails).where(eq(studentPersonalDetails.student_id, studentId)).limit(1);
-      
-      if (existingPersonal.length > 0) {
-        await innerTx.update(studentPersonalDetails).set(personalValues).where(eq(studentPersonalDetails.id, existingPersonal[0].id));
-      } else {
-        await innerTx.insert(studentPersonalDetails).values({ student_id: studentId, ...personalValues });
-      }
+      // 2. Upsert Personal Details
+      await innerTx.insert(studentPersonalDetails)
+        .values({ student_id: studentId, ...personalValues })
+        .onDuplicateKeyUpdate({ set: personalValues });
 
-      const existingAcademic = await innerTx.select({ id: studentAcademicBackground.id })
-        .from(studentAcademicBackground).where(eq(studentAcademicBackground.student_id, studentId)).limit(1);
-      
-      if (existingAcademic.length > 0) {
-        await innerTx.update(studentAcademicBackground).set(academicValues).where(eq(studentAcademicBackground.id, existingAcademic[0].id));
-      } else {
-        await innerTx.insert(studentAcademicBackground).values({ student_id: studentId, ...academicValues });
-      }
+      // 3. Upsert Academic Background
+      await innerTx.insert(studentAcademicBackground)
+        .values({ student_id: studentId, ...academicValues })
+        .onDuplicateKeyUpdate({ set: academicValues });
 
       if (pfp) {
         await innerTx.insert(studentImages).values({ student_id: studentId, pfp }).onDuplicateKeyUpdate({ set: { pfp } });

@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { getStudentEmail } from '@/lib/student-utils';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 
 function generateSecureOtp() {
   const length = 6;
@@ -56,7 +56,7 @@ export async function POST(request) {
     }
 
     // Then check IP-based rate limit
-    const rateCheck = await checkRateLimit(`send_otp:${clientIp}`, 5, 900); // 5 attempts per 15 min
+    const rateCheck = await checkRateLimit(getTieredKey(request, 'send_otp'), 5, 900); // 5 attempts per 15 min
     if (!rateCheck.success) {
       const retryAfter = rateCheck.resetIn || rateCheck.ttl || rateCheck.reset || 900;
       return NextResponse.json(
@@ -73,7 +73,9 @@ export async function POST(request) {
     if (!targetEmail) return apiError('Destination email not found.', 404);
 
     const otp = generateSecureOtp();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const { getNow } = await import('@/lib/clock');
+    const now = getNow();
+    const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes
 
     try {
       await db.delete(otpCodes).where(eq(otpCodes.identifier, identifier));
@@ -88,7 +90,7 @@ export async function POST(request) {
     }
 
     const subject = 'KUCET One-Time Password (OTP)';
-    const title = purpose || 'OTP for Verification';
+    const _title = purpose || 'OTP for Verification';
     const bodyHtml = `
       <p>Dear User,</p>
       <p>Please use the One-Time Password (OTP) provided below to complete your verification.</p>
@@ -96,19 +98,14 @@ export async function POST(request) {
       <p>This OTP is valid for the next 5 minutes. Do not share this code with anyone.</p>
     `;
 
-    const emailResult = await sendInstitutionalEmail({
-      to: targetEmail,
-      subject,
-      title,
-      bodyHtml
-    });
+    const { Queue } = await import('@/lib/queue');
+    const emailResult = await Queue.enqueueEmail(targetEmail, subject, bodyHtml);
 
-    if (emailResult.success) {
-      return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });
-    } else {
-      await db.delete(otpCodes).where(eq(otpCodes.identifier, identifier));
-      return apiError('Failed to send email. Please try again.', 500);
+    if (!emailResult || emailResult.success === false) {
+      await sendInstitutionalEmail({ to: targetEmail, subject, bodyHtml });
     }
+
+    return apiResponse({ success: true, message: 'OTP sent successfully to your email.' });
   } catch (error) {
     logger.error('Error in send-otp API:', error);
     return apiError('An internal server error occurred.', 500);

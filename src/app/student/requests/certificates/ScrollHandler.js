@@ -40,7 +40,7 @@ export default function ScrollHandler() {
           // clean URL param without triggering navigation
           try {
             router.replace('/student/requests/certificates', { scroll: false });
-          } catch (e) {
+          } catch (_e) {
             // ignore
           }
         }
@@ -48,7 +48,7 @@ export default function ScrollHandler() {
     } else {
       try {
         router.replace('/student/requests/certificates', { scroll: false });
-      } catch (e) {}
+      } catch (_e) { /* empty */ }
     }
 
     return () => {

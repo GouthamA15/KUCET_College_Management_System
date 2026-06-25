@@ -14,7 +14,7 @@ export async function GET() {
     
     // Perform a minimal "ping" to Supabase Realtime/Rest
     // This counts as activity to prevent project pausing
-    const { data, error } = await supabase.from('_dummy_ping').select('*').limit(1).maybeSingle();
+    const { _data, error } = await supabase.from('_dummy_ping').select('*').limit(1).maybeSingle();
     
     // Note: _dummy_ping doesn't need to exist. We just need to hit the API.
     

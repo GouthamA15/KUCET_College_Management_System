@@ -74,7 +74,7 @@ export async function POST(req) {
         logger.error(`Failed to start mysql restore process: ${err.message}`);
         // Clean up on error
         if (fs.existsSync(tempFilePath)) {
-          try { fs.unlinkSync(tempFilePath); } catch (e) {}
+          try { fs.unlinkSync(tempFilePath); } catch (_e) { /* empty */ }
         }
         resolve(apiError('Failed to initiate mysql restoration.', 500));
       });
@@ -90,7 +90,7 @@ export async function POST(req) {
       mysqlProcess.on('close', (code) => {
         // Cleanup
         if (fs.existsSync(tempFilePath)) {
-          try { fs.unlinkSync(tempFilePath); } catch (e) {}
+          try { fs.unlinkSync(tempFilePath); } catch (_e) { /* empty */ }
         }
         fileStream.destroy();
 

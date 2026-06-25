@@ -20,7 +20,7 @@ export default function FacultyActivityBar() {
       } else {
         setActiveActivity(null);
       }
-    } catch (e) {
+    } catch (_e) {
       console.error('Failed to sync current activity');
     } finally {
       if (!isUnmountedRef.current) setLoading(false);
@@ -62,7 +62,7 @@ export default function FacultyActivityBar() {
 
   const handleRealtimeUpdate = useCallback((data) => {
     if (data.type === 'TIMETABLE_CHANGED') {
-      console.log('[ActivityBar] Timetable changed, refreshing...');
+      console.info('[ActivityBar] Timetable changed, refreshing...');
       fetchActivity();
     }
   }, [fetchActivity]);

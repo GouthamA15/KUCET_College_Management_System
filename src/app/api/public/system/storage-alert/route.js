@@ -15,7 +15,7 @@ cloudinary.config({
  * GET /api/public/system/storage-alert
  * Automated check for Cloudinary storage limits.
  */
-export async function GET(request) {
+export async function GET(_request) {
   // Developer emails from shared config
   const developerEmails = DEVELOPER_EMAILS;
 
@@ -24,7 +24,7 @@ export async function GET(request) {
   try {
     // Fetch Cloudinary Usage
     const usageData = await cloudinary.api.usage();
-    const storage = usageData.storage || {};
+    const storage = usageData.storage || { /* empty */ };
     
     const usageBytes = storage.usage || 0;
     const limitBytes = storage.limit || (25 * 1024 * 1024 * 1024);

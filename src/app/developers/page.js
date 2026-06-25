@@ -11,11 +11,11 @@ import toast from 'react-hot-toast';
 
 export default function DevelopersPage() {
   const { getAsset } = useAssets();
-  const audiosRef = useRef({});
+  const audiosRef = useRef({ /* empty */ });
   const [bugDescription, setBugDescription] = useState('');
   const [bugSeverity, setBugSeverity] = useState('MEDIUM');
   const [affectedPage, setAffectedPage] = useState('');
-  const [screenshot, setScreenshot] = useState(null);
+  const [_screenshot, setScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bugReports, setBugReports] = useState([]);
@@ -104,26 +104,38 @@ export default function DevelopersPage() {
     fetch(`/api/bugs?${params.toString()}`)
       .then(r => r.json())
       .then(data => setBugReports(data))
-      .catch(() => {});
+      .catch(() => { /* empty */ });
     fetch('/api/bugs/developer-check')
       .then(r => r.json())
       .then(data => setIsDeveloper(data.isDeveloper))
-      .catch(() => {});
+      .catch(() => { /* empty */ });
   }, [fetchBugReports, activeTab, searchQuery]);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1 * 1024 * 1024) {
+      if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type)) {
+        toast.error('File format rejected. Use JPG/PNG/WEBP.');
+        return;
+      }
+      let processedFile = file;
+      try {
+        const { compressImage } = await import('@/lib/image-compressor');
+        processedFile = await compressImage(file, 1200, 1200, 0.6);
+      } catch (err) {
+        console.error('Image compression failed:', err);
+      }
+
+      if (processedFile.size >= 1 * 1024 * 1024) {
         toast.error('File size should be less than 1MB');
         return;
       }
-      setScreenshot(file);
+      setScreenshot(processedFile);
       const reader = new FileReader();
       reader.onloadend = () => {
         setScreenshotPreview(reader.result);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(processedFile);
     }
   };
 
@@ -283,7 +295,7 @@ export default function DevelopersPage() {
       audio.currentTime = 0;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(() => {});
+        playPromise.catch(() => { /* empty */ });
       }
     }
   };

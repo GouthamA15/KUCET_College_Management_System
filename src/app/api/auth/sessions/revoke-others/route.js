@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import logger from '@/lib/logger';
 import { cookies } from 'next/headers';
 
-export async function POST(req) {
+export async function POST(_req) {
   try {
     let user = await getAuthUser('student');
     let userType = 'STUDENT';

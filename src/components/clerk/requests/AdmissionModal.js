@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, _useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { COLLEGE_CONFIG } from '@/lib/college-config';

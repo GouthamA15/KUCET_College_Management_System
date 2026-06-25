@@ -14,30 +14,37 @@ export class FinanceService {
       const schConditions = [];
 
       if (startDate) {
-        const start = new Date(startDate);
-        feeConditions.push(gte(studentFeePayments.transaction_date, start));
-        certConditions.push(gte(studentRequests.created_at, start));
-        schConditions.push(gte(scholarshipSanctions.created_at, start));
+        feeConditions.push(gte(sql`DATE(DATE_ADD(${studentFeePayments.transaction_date}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        certConditions.push(gte(sql`DATE(DATE_ADD(${studentRequests.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        schConditions.push(gte(sql`DATE(DATE_ADD(${scholarshipSanctions.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
       }
 
       if (endDate) {
-        const end = new Date(endDate + 'T23:59:59.999Z');
-        feeConditions.push(lte(studentFeePayments.transaction_date, end));
-        certConditions.push(lte(studentRequests.created_at, end));
-        schConditions.push(lte(scholarshipSanctions.created_at, end));
+        feeConditions.push(lte(sql`DATE(DATE_ADD(${studentFeePayments.transaction_date}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
+        certConditions.push(lte(sql`DATE(DATE_ADD(${studentRequests.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
+        schConditions.push(lte(sql`DATE(DATE_ADD(${scholarshipSanctions.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
       }
 
-      const feeQuery = db.select({ totalFees: sql`sum(${studentFeePayments.amount})` }).from(studentFeePayments);
-      if (feeConditions.length > 0) feeQuery.where(and(...feeConditions));
+      let feeQuery = db.select({ totalFees: sql`sum(${studentFeePayments.amount})` })
+        .from(studentFeePayments)
+        .leftJoin(students, eq(studentFeePayments.student_id, students.id));
+      if (!startDate && !endDate) feeConditions.push(eq(students.academic_status, 'ACTIVE'));
+      if (feeConditions.length > 0) feeQuery = feeQuery.where(and(...feeConditions));
 
-      const certQuery = db.select({ totalCertFees: sql`sum(${studentRequests.payment_amount})` }).from(studentRequests);
-      certQuery.where(and(...certConditions));
+      let certQuery = db.select({ totalCertFees: sql`sum(${studentRequests.payment_amount})` })
+        .from(studentRequests)
+        .leftJoin(students, eq(studentRequests.student_id, students.id));
+      if (!startDate && !endDate) certConditions.push(eq(students.academic_status, 'ACTIVE'));
+      if (certConditions.length > 0) certQuery = certQuery.where(and(...certConditions));
 
-      const schQuery = db.select({ 
+      let schQuery = db.select({ 
         totalSanctioned: sql`sum(${scholarshipSanctions.sanctioned_amount})`,
         totalReleased: sql`sum(${scholarshipSanctions.released_amount})`
-      }).from(scholarshipSanctions);
-      if (schConditions.length > 0) schQuery.where(and(...schConditions));
+      })
+      .from(scholarshipSanctions)
+      .leftJoin(students, eq(scholarshipSanctions.student_id, students.id));
+      if (!startDate && !endDate) schConditions.push(eq(students.academic_status, 'ACTIVE'));
+      if (schConditions.length > 0) schQuery = schQuery.where(and(...schConditions));
 
       const [feeRes, certRes, scholarshipRes] = await Promise.all([feeQuery, certQuery, schQuery]);
 
@@ -68,7 +75,7 @@ export class FinanceService {
 
       // 1. Fee Payments
       if (!type || type === 'FEE') {
-        const feeQuery = db.select({
+        let feeQuery = db.select({
           id: studentFeePayments.id,
           type: sql`'FEE'`,
           studentId: studentFeePayments.student_id,
@@ -89,9 +96,9 @@ export class FinanceService {
 
         const conditions = [];
         if (rollNo) conditions.push(eq(students.roll_no, rollNo));
-        if (startDate) conditions.push(gte(studentFeePayments.transaction_date, new Date(startDate)));
-        if (endDate) conditions.push(lte(studentFeePayments.transaction_date, new Date(endDate + 'T23:59:59.999Z')));
-        if (conditions.length > 0) feeQuery.where(and(...conditions));
+        if (startDate) conditions.push(gte(sql`DATE(DATE_ADD(${studentFeePayments.transaction_date}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        if (endDate) conditions.push(lte(sql`DATE(DATE_ADD(${studentFeePayments.transaction_date}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
+        if (conditions.length > 0) feeQuery = feeQuery.where(and(...conditions));
 
         const feeResults = await feeQuery.orderBy(desc(studentFeePayments.transaction_date)).limit(limit);
         transactions.push(...feeResults);
@@ -99,7 +106,7 @@ export class FinanceService {
 
       // 2. Certificate Payments
       if (!type || type === 'CERTIFICATE') {
-        const certQuery = db.select({
+        let certQuery = db.select({
           id: studentRequests.request_id,
           type: sql`'CERTIFICATE'`,
           studentId: studentRequests.student_id,
@@ -132,9 +139,9 @@ export class FinanceService {
         const conditions = [];
         if (rollNo) conditions.push(eq(students.roll_no, rollNo));
         if (status) conditions.push(eq(studentRequests.status, status));
-        if (startDate) conditions.push(gte(studentRequests.created_at, new Date(startDate)));
-        if (endDate) conditions.push(lte(studentRequests.created_at, new Date(endDate + 'T23:59:59.999Z')));
-        if (conditions.length > 0) certQuery.where(and(...conditions));
+        if (startDate) conditions.push(gte(sql`DATE(DATE_ADD(${studentRequests.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        if (endDate) conditions.push(lte(sql`DATE(DATE_ADD(${studentRequests.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
+        if (conditions.length > 0) certQuery = certQuery.where(and(...conditions));
 
         const certResults = await certQuery.orderBy(desc(studentRequests.created_at)).limit(limit);
         transactions.push(...certResults);
@@ -142,7 +149,7 @@ export class FinanceService {
 
       // 3. Scholarship Sanctions
       if (!type || type === 'SCHOLARSHIP') {
-        const schQuery = db.select({
+        let schQuery = db.select({
           id: scholarshipSanctions.id,
           type: sql`'SCHOLARSHIP'`,
           studentId: scholarshipSanctions.student_id,
@@ -165,9 +172,9 @@ export class FinanceService {
         const conditions = [];
         if (rollNo) conditions.push(eq(students.roll_no, rollNo));
         if (status) conditions.push(eq(scholarshipSanctions.status, status));
-        if (startDate) conditions.push(gte(scholarshipSanctions.created_at, new Date(startDate)));
-        if (endDate) conditions.push(lte(scholarshipSanctions.created_at, new Date(endDate + 'T23:59:59.999Z')));
-        if (conditions.length > 0) schQuery.where(and(...conditions));
+        if (startDate) conditions.push(gte(sql`DATE(DATE_ADD(${scholarshipSanctions.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, startDate));
+        if (endDate) conditions.push(lte(sql`DATE(DATE_ADD(${scholarshipSanctions.created_at}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
+        if (conditions.length > 0) schQuery = schQuery.where(and(...conditions));
 
         const schResults = await schQuery.orderBy(desc(scholarshipSanctions.created_at)).limit(limit);
         transactions.push(...schResults);

@@ -23,12 +23,12 @@ DatePickerInput.displayName = 'DatePickerInput';
 export default function AddNewStudent() {
   const MAX_ROLL = 10;
   const MAX_MOBILE_LEN = 10;
-  const MAX_ANNUAL_INCOME = 99999999; // adjust to DB limit if known
+  const _MAX_ANNUAL_INCOME = 99999999; // adjust to DB limit if known
 
   const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'', email:'' });
   const [mobileError, setMobileError] = useState('');
-  const [incomeError, setIncomeError] = useState('');
-  const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
+  const [incomeError, _setIncomeError] = useState('');
+  const [_annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
   const [personal, setPersonal] = useState({ 
     father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', 
     mother_tongue:'', place_of_birth:'', father_occupation:'', annual_income:'', aadhaar_no:'', 
@@ -70,7 +70,7 @@ export default function AddNewStudent() {
   const [savedRollLocked, setSavedRollLocked] = useState(false);
   const [showAddForm, setShowAddForm] = useState(true);
   const [rollNoError, setRollNoError] = useState('');
-  const [isTotalMarksAutofilled, setIsTotalMarksAutofilled] = useState(false);
+  const [_isTotalMarksAutofilled, setIsTotalMarksAutofilled] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -112,12 +112,20 @@ export default function AddNewStudent() {
     return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
   };
 
-  const handleFileChange = (e, type) => {
+  const handleFileChange = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    let processedFile = file;
+    try {
+      const { compressImage } = await import('@/lib/image-compressor');
+      processedFile = await compressImage(file, 1200, 1200, 0.6);
+    } catch (err) {
+      console.error('Image compression failed:', err);
+    }
+
     // 1MB limit
-    if (file.size > 1 * 1024 * 1024) {
+    if (processedFile.size > 1 * 1024 * 1024) {
       toast.error(`${type === 'pfp' ? 'Photo' : 'Signature'} file is too large. Max limit is 1MB.`);
       e.target.value = null;
       return;
@@ -127,7 +135,7 @@ export default function AddNewStudent() {
     reader.onloadend = () => {
       setFiles(prev => ({ ...prev, [type]: reader.result }));
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(processedFile);
   };
 
   const handleAddStudent = async (e) => {

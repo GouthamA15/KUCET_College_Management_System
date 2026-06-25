@@ -2,7 +2,7 @@ import { db } from '@/db';
 import { 
   students, 
   clerks, 
-  branchConfig, 
+  _branchConfig, 
   branchTimetable, 
   facultySubjectAssignments, 
   syllabusStructure,
@@ -78,6 +78,21 @@ export class ValidationService {
     const draftCount = Number(draftRows[0]?.count || 0);
     if (draftCount > 0) {
       return { canDelete: false, reason: `Cannot delete: There are ${draftCount} pending admission drafts for this branch.` };
+    }
+
+    // 7. Check Certificate Verifications Archive
+    const { certificateVerificationsArchive, studentRequests } = await import('@/db/schema');
+    const archiveRows = await db.select({ count: sql`count(*)` })
+      .from(certificateVerificationsArchive)
+      .innerJoin(studentRequests, eq(certificateVerificationsArchive.request_id, studentRequests.request_id))
+      .innerJoin(students, eq(studentRequests.student_id, students.id))
+      .where(or(
+        like(students.roll_no, `%567T${branchCode}%`),
+        like(students.roll_no, `%567${branchCode}%L`)
+      ));
+    const archiveCount = Number(archiveRows[0]?.count || 0);
+    if (archiveCount > 0) {
+      return { canDelete: false, reason: `Cannot delete: There are ${archiveCount} archived certificate verifications linked to this branch.` };
     }
 
     return { canDelete: true, reason: null };

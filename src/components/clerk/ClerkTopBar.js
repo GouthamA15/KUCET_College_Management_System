@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useClerk } from '@/context/ClerkContext';
-import Image from 'next/image';
+import _Image from 'next/image';
 import Link from 'next/link';
 import ClerkNotificationDropdown from './ClerkNotificationDropdown';
 

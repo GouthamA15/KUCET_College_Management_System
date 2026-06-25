@@ -6,7 +6,7 @@ import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req) {
+export async function GET(_req) {
   let user;
   try {
     user = await getAuthUser('clerk');

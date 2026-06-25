@@ -17,7 +17,7 @@ export default function VerificationsDashboard() {
                 } else {
                     toast.error(data.message || 'Failed to load stats');
                 }
-            } catch (err) {
+            } catch (_err) {
                 toast.error('Connection error');
             } finally {
                 setLoading(false);

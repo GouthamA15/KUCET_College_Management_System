@@ -34,6 +34,7 @@ test.describe('Student Admission Flow', () => {
     });
 
     await page.goto('/admission');
+    page.on('console', msg => console.info('PAGE LOG:', msg.text()));
     await expect(page.getByRole('heading', { name: /B.TECH/ })).toBeVisible();
 
     // Fill personal information
@@ -44,6 +45,9 @@ test.describe('Student Admission Flow', () => {
     // Selection
     await page.getByLabel('4. Entrance Exam & Branch').first().selectOption('TG EAPCET');
     await page.getByLabel('Branch', { exact: true }).selectOption({ label: 'CSE' });
+    
+    await page.getByLabel('7. Category').selectOption('OC');
+    await page.getByLabel('11. Gender').selectOption('Male');
     
     await page.getByLabel('5. TG ECET / TG EAPCET Rank Details').fill('1234');
     await page.getByLabel('8. Sub Caste').fill('TEST CASTE');
@@ -87,16 +91,14 @@ test.describe('Student Admission Flow', () => {
     await fileInputs.first().setInputFiles(mockImagePath); // PFP
     await fileInputs.last().setInputFiles(mockImagePath); // Signature
 
-    // Wait for internal state update (FileReader)
-    await page.waitForTimeout(500);
+    // Wait for internal state update (FileReader) to finish compressing images
+    await page.waitForTimeout(1000);
 
     // Submit the form
     await page.getByRole('button', { name: 'Submit Application' }).click();
 
-    // Wait for success message (use accessible role-based selectors)
-    await expect(
-      page.getByRole('heading', { name: 'Success!' })
-    ).toBeVisible({ timeout: 15000 });
+    // Wait for success message
+    await expect(page.getByRole('heading', { name: 'Success!' })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Your admission request has been submitted')).toBeVisible();
   });
 });

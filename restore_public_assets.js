@@ -32,7 +32,7 @@ async function downloadFile(url, dest) {
         resolve();
       });
     }).on('error', (err) => {
-      fs.unlink(dest, () => {}); // Delete temp file
+      fs.unlink(dest, () => { /* empty */ }); // Delete temp file
       reject(err);
     });
   });
@@ -42,7 +42,7 @@ async function downloadFile(url, dest) {
  * Fetches and downloads all resources of a specific type
  */
 async function fetchAndDownload(resourceType) {
-  console.log(`\n📂 Scanning Cloudinary for [${resourceType}] files...`);
+  console.info(`\n📂 Scanning Cloudinary for [${resourceType}] files...`);
   let nextCursor = null;
   let count = 0;
 
@@ -77,7 +77,7 @@ async function fetchAndDownload(resourceType) {
           fs.mkdirSync(localDir, { recursive: true });
         }
 
-        console.log(`🚀 Downloading: ${fileName}`);
+        console.info(`🚀 Downloading: ${fileName}`);
         await downloadFile(resource.secure_url, fullLocalPath);
         count++;
       }
@@ -93,7 +93,7 @@ async function fetchAndDownload(resourceType) {
 }
 
 async function restore() {
-  console.log('🏗️ Starting Asset Restoration from Cloudinary...');
+  console.info('🏗️ Starting Asset Restoration from Cloudinary...');
   
   if (!fs.existsSync(LOCAL_TARGET)) {
     fs.mkdirSync(LOCAL_TARGET, { recursive: true });
@@ -104,12 +104,12 @@ async function restore() {
     const videoCount = await fetchAndDownload('video'); // Cloudinary treats Audio as Video type
     const rawCount = await fetchAndDownload('raw');     // PDFs, CSVs, etc.
 
-    console.log('\n✨ Restoration Complete!');
-    console.log(`------------------------`);
-    console.log(`📸 Images: ${imageCount}`);
-    console.log(`🎵 Audio/Video: ${videoCount}`);
-    console.log(`📄 Raw Files: ${rawCount}`);
-    console.log(`✅ Total: ${imageCount + videoCount + rawCount} files restored to /public folder.`);
+    console.info('\n✨ Restoration Complete!');
+    console.info(`------------------------`);
+    console.info(`📸 Images: ${imageCount}`);
+    console.info(`🎵 Audio/Video: ${videoCount}`);
+    console.info(`📄 Raw Files: ${rawCount}`);
+    console.info(`✅ Total: ${imageCount + videoCount + rawCount} files restored to /public folder.`);
   } catch (err) {
     console.error('\n💥 Critical failure:', err.message);
   }

@@ -15,7 +15,7 @@ export function AcademicsProvider({ children, roll }) {
         const parsed = JSON.parse(raw);
         setTimeout(() => setCache(parsed), 0);
       }
-    } catch (e) {
+    } catch (_e) {
       // ignore parse errors
       setTimeout(() => setCache(null), 0);
     }
@@ -28,14 +28,14 @@ export function AcademicsProvider({ children, roll }) {
       const data = { payload, ts: Date.now() };
       sessionStorage.setItem(key, JSON.stringify(data));
       setCache(data);
-    } catch (e) {
+    } catch (_e) {
       // ignore storage errors
     }
   }, [roll]);
 
   const clearCache = React.useCallback(() => {
     if (!roll) return;
-    try { sessionStorage.removeItem(`academics_cache_${roll}`); } catch {}
+    try { sessionStorage.removeItem(`academics_cache_${roll}`); } catch { /* empty */ }
     setCache(null);
   }, [roll]);
 
@@ -44,7 +44,7 @@ export function AcademicsProvider({ children, roll }) {
     try {
       const nav = performance.getEntriesByType('navigation')?.[0];
       return nav ? nav.type === 'reload' : false;
-    } catch (e) { return false; }
+    } catch (_e) { return false; }
   })();
 
   return (

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Info, X } from 'lucide-react';
 
-export default function CertificatePageLayout({ title = "Certificate Requests", left, right, bottom, children }) {
+export default function CertificatePageLayout({ title = "Certificate Requests", left, _right, bottom, _children }) {
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);

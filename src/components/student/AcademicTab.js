@@ -104,7 +104,7 @@ export default function AcademicTab() {
   const [activeSessions, setActiveSessions] = useState([]);
   const [verifiedMessages, setVerifiedMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [_submitting, _setSubmitting] = useState(false);
   const [historySubject, setHistorySubject] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -144,7 +144,7 @@ export default function AcademicTab() {
           if (ar.status === 401 || ar.status === 403) return;
           const jr = await ar.json();
           if (ar.ok) setActiveSessions(jr.data || []);
-        } catch (e) {
+        } catch (_e) {
           // Silent
         }
       } else {

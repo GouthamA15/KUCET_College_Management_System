@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { clerks } from '@/db/schema';
-import { eq, and, ne, sql } from 'drizzle-orm';
+import { eq, and, ne, _sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { clerkSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
@@ -22,7 +22,7 @@ export async function DELETE(req, context) {
       return apiError('Clerk not found', 404);
     }
 
-    const [result] = await db.delete(clerks).where(eq(clerks.id, idNum));
+    const [result] = await db.update(clerks).set({ is_active: false }).where(eq(clerks.id, idNum));
 
     if (result.affectedRows === 0) {
       return apiError('Failed to delete clerk', 500);
@@ -91,7 +91,7 @@ export async function PUT(req, context) {
       }
     }
 
-    const updatePayload = {};
+    const updatePayload = { /* empty */ };
     if (name !== undefined) updatePayload.name = name;
     if (email !== undefined) updatePayload.email = email.toLowerCase();
     if (employee_id !== undefined) updatePayload.employee_id = employee_id;

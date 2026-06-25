@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { clerks } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { _eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';

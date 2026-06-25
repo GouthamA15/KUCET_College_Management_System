@@ -16,7 +16,7 @@ import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import { getNow } from '@/lib/clock';
 import { getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 import { decrypt } from '@/lib/encryption';
-import { studentImages } from '@/db/schema';
+import { _studentImages } from '@/db/schema';
 
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
@@ -98,14 +98,14 @@ export async function GET(request, context) {
             return apiError('Student details not found', 404);
         }
         const student = studentInfo[0];
-        const mobile = decrypt(student.mobile) || 'N/A';
+        const _mobile = decrypt(student.mobile) || 'N/A';
         
         const { getPermanentAddressFromDetails } = require('@/lib/address-utils');
-        const address = getPermanentAddressFromDetails(student) || 'N/A';
+        const _address = getPermanentAddressFromDetails(student) || 'N/A';
 
         // Fetch college info
         const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
-        const collegeInfo = collegeRows[0] || {};
+        const collegeInfo = collegeRows[0] || { /* empty */ };
 
         const { yearOfStudy, semester: currentSemester } = await calculateYearAndSemesterAsync(student.roll_no, collegeInfo);
         
@@ -169,13 +169,13 @@ export async function GET(request, context) {
                 else if (imageBuffer.slice(0,4).toString('ascii') === 'RIFF') mimeType = 'image/webp';
 
                 return `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
-            } catch (err) {
+            } catch (_err) {
                 return null;
             }
         };
 
         const logoUrl = await getBase64Image(getAssetUrl('/assets/ku-logo.png'));
-        const collegeLogoUrl = await getBase64Image(getAssetUrl('/assets/ku-college-logo.png')) || logoUrl;
+        const _collegeLogoUrl = await getBase64Image(getAssetUrl('/assets/ku-college-logo.png')) || logoUrl;
         const signatureUrl = await getBase64Image(getAssetUrl('/assets/principal-sign.png'));
         const stampUrl = await getBase64Image(getAssetUrl('/assets/ku-college-seal.png'));
         const stampSign = await getBase64Image(getAssetUrl('/assets/principal-sign-stamp.png')) || signatureUrl;

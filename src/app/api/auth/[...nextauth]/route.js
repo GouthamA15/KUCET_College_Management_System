@@ -64,7 +64,7 @@ export const authOptions = {
         return '/api/auth/error?error=SignInError';
       }
     },
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, _user, account, profile }) {
       // This is called after a successful sign-in
       try {
         if (account?.provider === "google" && profile) {

@@ -3,18 +3,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import useProfileActivity from '@/hooks/student/useProfileActivity';
-import Image from 'next/image';
+import _Image from 'next/image';
 import Link from 'next/link';
 import { useAssets } from '@/context/AssetContext';
 import { usePathname, useRouter } from 'next/navigation';
-import { logoutByRole } from '@/lib/logout';
+import { _logoutByRole } from '@/lib/logout';
 import { getPortalTitle } from '@/lib/path-utils';
 
 export default function StudentTopBar({ onMenuClick }) {
   const { studentData } = useStudent();
-  const student = studentData?.student;
-  const { getAsset } = useAssets();
-  const router = useRouter();
+  const _student = studentData?.student;
+  const { _getAsset } = useAssets();
+  const _router = useRouter();
   const pathname = usePathname();
   
   const activity = useProfileActivity();

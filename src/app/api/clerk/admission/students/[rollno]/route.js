@@ -7,11 +7,11 @@ import {
   studentImages,
   studentSignatures
 } from '@/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, _sql } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { storage } from '@/lib/providers';
 import { encrypt, hashForIndex } from '@/lib/encryption';
 import { StudentService } from '@/services/StudentService';
 
@@ -84,7 +84,7 @@ export async function PUT(req, context) {
 
     await db.transaction(async (tx) => {
       // 1. Update Core Students
-      const studentUpdate = {};
+      const studentUpdate = { /* empty */ };
       if (updatedData.name !== undefined) studentUpdate.name = toNull(updatedData.name);
       if (updatedData.admission_no !== undefined) studentUpdate.admission_no = toNull(updatedData.admission_no);
       if (updatedData.admission_date !== undefined) studentUpdate.admission_date = toMySQLDate(updatedData.admission_date) ? new Date(toMySQLDate(updatedData.admission_date)) : null;
@@ -121,7 +121,7 @@ export async function PUT(req, context) {
         'curr_house_no', 'curr_street', 'curr_apartment', 'curr_city', 'curr_state', 'curr_pincode', 'curr_country',
         'is_current_same_as_permanent'
       ];
-      const personalUpdate = {};
+      const personalUpdate = { /* empty */ };
       personalFields.forEach(col => {
         if (updatedData[col] !== undefined) {
           let val = toNull(updatedData[col]);
@@ -173,7 +173,7 @@ export async function PUT(req, context) {
 
       // 3. Update Academic Background
       const academicFields = ['qualifying_exam', 'previous_college_details', 'medium_of_instruction', 'ranks', 'ssc_marks', 'inter_marks'];
-      const academicUpdate = {};
+      const academicUpdate = { /* empty */ };
       academicFields.forEach(col => {
         if (updatedData[col] !== undefined) academicUpdate[col] = toNull(updatedData[col]);
       });
@@ -196,13 +196,13 @@ export async function PUT(req, context) {
 
       // 4. Update Images
       if (updatedData.pfp) {
-        const pfpUrl = await uploadToCloudinary(updatedData.pfp, 'students/pfp');
+        const pfpUrl = await storage.upload(updatedData.pfp, 'students/pfp');
         await tx.insert(studentImages)
           .values({ student_id: studentId, pfp: pfpUrl })
           .onDuplicateKeyUpdate({ set: { pfp: pfpUrl } });
       }
       if (updatedData.signature) {
-        const sigUrl = await uploadToCloudinary(updatedData.signature, 'students/signatures');
+        const sigUrl = await storage.upload(updatedData.signature, 'students/signatures');
         await tx.insert(studentSignatures)
           .values({ student_id: studentId, signature: sigUrl })
           .onDuplicateKeyUpdate({ set: { signature: sigUrl } });

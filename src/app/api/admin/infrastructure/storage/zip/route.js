@@ -11,7 +11,7 @@ cloudinary.config({
   secure: true,
 });
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     const user = await getAuthUser('admin');
     if (!user) return apiError('Unauthorized', 401);

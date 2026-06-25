@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 
-export default function useProfileImage(initialSrc = null) {
+export default function useProfileImage(_initialSrc = null) {
   const [imageLoading, setImageLoading] = useState(true);
   const [previewPhoto, setPreviewPhoto] = useState(null);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);

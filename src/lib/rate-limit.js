@@ -6,10 +6,10 @@ import { eq, sql, lt } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
 // Initialize Redis client if environment variables are present
-let ratelimit = null;
+let _ratelimit = null;
 
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  const redis = new Redis({
+  const _redis = new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL,
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
   });
@@ -98,4 +98,28 @@ export async function checkRateLimit(key, limit, windowSeconds) {
     logger.error(dbError, '[RATE_LIMIT_DB_ERROR]');
     return { success: true, remaining: 1 }; // Fail open
   }
+}
+
+
+import crypto from 'crypto';
+
+/**
+ * Generates a Tiered Rate Limit Key combining IP and User-Agent.
+ * Prevents locking out an entire campus sharing a single NAT IP.
+ */
+export function getTieredKey(req, prefix) {
+  let clientIp = 'unknown_ip';
+  if (req.ip) {
+    clientIp = req.ip;
+  } else {
+    const xForwardedFor = req.headers.get('x-forwarded-for');
+    if (xForwardedFor) {
+      clientIp = xForwardedFor.split(',')[0].trim();
+    }
+  }
+
+  const userAgent = req.headers.get('user-agent') || 'unknown_ua';
+  const deviceHash = crypto.createHash('md5').update(`${clientIp}-${userAgent}`).digest('hex');
+  
+  return `${prefix}:${deviceHash}`;
 }

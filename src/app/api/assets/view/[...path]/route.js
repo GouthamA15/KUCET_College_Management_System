@@ -48,12 +48,20 @@ export async function GET(request, { params }) {
 
     const contentType = mimeTypes[extension] || 'application/octet-stream';
 
-    return new NextResponse(fileBuffer, {
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'private, max-age=3600',
-      },
-    });
+    const headers = {
+      'Content-Type': contentType,
+      'Cache-Control': 'private, max-age=3600',
+    };
+
+    // Prevent Stored XSS via SVG or malicious PDF by forcing download
+    if (['.svg', '.pdf'].includes(extension)) {
+      const sanitizedFilename = path.basename(filename).replace(/[\r\n"'\\/]/g, '');
+      headers['Content-Disposition'] = `attachment; filename="${sanitizedFilename}"`;
+    } else {
+      headers['Content-Disposition'] = 'inline';
+    }
+
+    return new NextResponse(fileBuffer, { headers });
   } catch (error) {
     logger.error({ err: error, tag: 'STORAGE_PROXY_ERROR', filename }, 'Storage proxy error');
     if (error.code === 'ENOENT') {

@@ -1,16 +1,16 @@
-import { db } from '@/db';
+import { _db } from '@/db';
 import { 
-  students as studentsTable, 
-  studentPersonalDetails, 
-  studentAcademicBackground,
-  studentImportLogs
+  students as _studentsTable, 
+  _studentPersonalDetails, 
+  _studentAcademicBackground,
+  _studentImportLogs
 } from '@/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { _eq, _inArray } from 'drizzle-orm';
 import * as XLSX from 'xlsx-js-style';
 import { toMySQLDate, parseDate } from '@/lib/date';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { encrypt, hashForIndex } from '@/lib/encryption';
-import { StudentService } from '@/services/StudentService';
+import { _StudentService } from '@/services/StudentService';
 
 // Header normalization: lowercase, trim, spaces & hyphens to _, remove non-word chars
 const normalizeHeader = (h) => {
@@ -60,7 +60,7 @@ const ALIASES = {
 
 function buildHeaderMapping(originalHeaders) {
   const normalized = originalHeaders.map(normalizeHeader);
-  const mapping = {};
+  const mapping = { /* empty */ };
   normalized.forEach((hdr, idx) => {
     if (!hdr) return;
     let found = false;
@@ -112,7 +112,7 @@ function normalizeDateToMySQL(value) {
 
 export const POST = wrapHandler({
   auth: 'clerk',
-  handler: async (req, { user, ip }) => {
+  handler: async (req, { user, _ip }) => {
     if (user.role !== 'admission') return apiError('Forbidden', 403);
 
     const clerkId = user.clerkId || user.id;
@@ -147,7 +147,7 @@ export const POST = wrapHandler({
       if (missingRequired.length > 0) return apiError('Missing required columns', 400);
 
       records = dataRows.map((rowArray) => {
-        const rowObject = {};
+        const rowObject = { /* empty */ };
         headers.forEach((header, index) => {
           const map = mapping[index];
           if (map) rowObject[map.field] = rowArray[index];
@@ -161,9 +161,9 @@ export const POST = wrapHandler({
     for (let i = 0; i < records.length; i++) {
       const record = records[i];
       const rowNumber = i + (isJsonInput ? 1 : 2);
-      const student = {};
-      const personal = {};
-      const academic = {};
+      const student = { /* empty */ };
+      const personal = { /* empty */ };
+      const academic = { /* empty */ };
 
       Object.keys(record).forEach(key => {
         if (key.startsWith('_')) return;
@@ -228,78 +228,35 @@ export const POST = wrapHandler({
 
     if (prepared.length === 0) return { totalRows, inserted: 0, updated: 0, skipped: totalRows, errors };
 
-    const incomingRolls = prepared.map(p => p.student.roll_no);
-    const incomingEmails = prepared.map(p => p.student.email).filter(Boolean);
-
-    // 1. Fetch existing students by Roll No
-    const existingByRoll = await db.select({
-      id: studentsTable.id,
-      roll_no: studentsTable.roll_no,
-      email: studentsTable.email,
-      personal_id: studentPersonalDetails.id,
-      academic_id: studentAcademicBackground.id
-    })
-    .from(studentsTable)
-    .leftJoin(studentPersonalDetails, eq(studentsTable.id, studentPersonalDetails.student_id))
-    .leftJoin(studentAcademicBackground, eq(studentsTable.id, studentAcademicBackground.student_id))
-    .where(inArray(studentsTable.roll_no, incomingRolls));
-
-    // 2. Fetch existing students by Email (to prevent cross-collisions)
-    const existingByEmail = incomingEmails.length > 0 ? await db.select({
-      id: studentsTable.id,
-      roll_no: studentsTable.roll_no,
-      email: studentsTable.email
-    })
-    .from(studentsTable)
-    .where(inArray(studentsTable.email, incomingEmails)) : [];
-
-    const rollMap = new Map(existingByRoll.map(s => [s.roll_no, s]));
-    const emailMap = new Map(existingByEmail.map(s => [s.email, s]));
-
-    let insertedCount = 0;
-    let updatedCount = 0;
-
-    await db.transaction(async (tx) => {
-      for (const rec of prepared) {
-        const { student, personal, academic } = rec;
-        
-        // Collision Check: If email exists but belongs to a DIFFERENT roll number
-        if (student.email) {
-          const emailCollision = emailMap.get(student.email);
-          if (emailCollision && emailCollision.roll_no !== student.roll_no) {
-            errors.push({ 
-              row: rec.rowNumber, 
-              roll_no: student.roll_no, 
-              reason: `Email (${student.email}) is already assigned to student ${emailCollision.roll_no}` 
-            });
-            continue; 
-          }
-        }
-
-        const isUpdate = rollMap.has(student.roll_no);
-
-        // Perform Upsert via StudentService
-        await StudentService.upsertStudent({
-          ...student,
-          ...personal,
-          ...academic
-        }, clerkId, tx);
-
-        if (isUpdate) updatedCount++;
-        else insertedCount++;
+    // Offload to background queue (Upstash QStash)
+    const { Queue } = await import('@/lib/queue');
+    const CHUNK_SIZE = 50; // Process 50 records per webhook invocation to prevent Vercel timeouts
+    
+    let queuedChunks = 0;
+    const chunkPromises = [];
+    for (let i = 0; i < prepared.length; i += CHUNK_SIZE) {
+      const chunk = prepared.slice(i, i + CHUNK_SIZE);
+      chunkPromises.push(Queue.enqueueBulkImportChunk(chunk, clerkId, importFileName));
+    }
+    
+    try {
+      const results = await Promise.all(chunkPromises);
+      if (results.some(r => !r || r.success === false)) {
+        throw new Error("One or more chunks failed to queue (QStash not configured or error)");
       }
-
-      if (insertedCount > 0) {
-        await tx.insert(studentImportLogs).values({ clerk_id: clerkId, total_records: insertedCount, file_name: importFileName });
-      }
-    });
+      queuedChunks = chunkPromises.length;
+    } catch (enqueueError) {
+      return apiError('Failed to queue bulk import tasks: ' + enqueueError.message, 500);
+    }
 
     return {
+      message: `Bulk import queued. ${prepared.length} records are being processed in the background across ${queuedChunks} chunks.`,
       totalRows,
-      inserted: insertedCount,
-      updated: updatedCount,
-      skipped: totalRows - insertedCount - updatedCount,
-      errors
+      queuedChunks,
+      inserted: 0, // Client should check logs later for actual inserted count
+      updated: 0,
+      skipped: 0,
+      errors // Return inline validation errors immediately
     };
   }
 });

@@ -1,6 +1,6 @@
 const React = require('react');
 const ReactPDF = require('@react-pdf/renderer');
-const { Document, Page, Text, View, StyleSheet, Font } = ReactPDF;
+const { Document, Page, Text, View, StyleSheet, _Font } = ReactPDF;
 
 const styles = StyleSheet.create({
   page: { padding: 30, fontSize: 9, fontFamily: 'Helvetica', color: '#333' },
@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
 });
 
 const Proposal = () => (
-  React.createElement(Document, {},
+  React.createElement(Document, { /* empty */ },
     React.createElement(Page, { size: "A4", style: styles.page },
       React.createElement(View, { style: styles.header },
         React.createElement(Text, { style: styles.title }, "Infrastructure Cost & Feature Analysis"),
@@ -141,7 +141,7 @@ const Proposal = () => (
 async function generate() {
   try {
     await ReactPDF.renderToFile(React.createElement(Proposal), `${process.cwd()}/Infrastructure_Proposal_KUCET.pdf`);
-    console.log('PDF generated successfully.');
+    console.info('PDF generated successfully.');
   } catch (err) {
     console.error('Error:', err);
   }

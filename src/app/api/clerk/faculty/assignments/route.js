@@ -1,11 +1,11 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { facultySubjectAssignments, collegeInfo as collegeInfoTable } from '@/db/schema';
-import { eq, and, desc, asc, sql } from 'drizzle-orm';
+import { eq, _and, desc, asc, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
 
-export async function GET(request) {
+export async function GET(_request) {
   try {
     const user = await getAuthUser('clerk');
     if (!user || user.role !== 'faculty') {

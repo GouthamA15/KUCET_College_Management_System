@@ -26,7 +26,7 @@ export default function StudentProfileNew() {
   // Feature hooks (call unconditionally to preserve hook order)
   const password = usePasswordSetup(studentData?.student?.roll_no);
   const profileEdit = useProfileEdit(studentData, refreshData);
-  const emailVerify = useEmailVerification({
+  const _emailVerify = useEmailVerification({
     rollno: studentData?.student?.roll_no,
     newEmail: profileEdit.email,
     setEmail: profileEdit.setEmail,
@@ -43,7 +43,7 @@ export default function StudentProfileNew() {
 
   const branch = getBranchFromRoll(student.roll_no);
   const courseLabel = branch ? `B. Tech (${branch})` : 'B. Tech';
-  const { yearOfStudy, semester, semesterLabel } = calculateYearAndSemester(student.roll_no, collegeInfo, student.academic_offset_years || 0);
+  const { yearOfStudy, _semester, semesterLabel } = calculateYearAndSemester(student.roll_no, collegeInfo, student.academic_offset_years || 0);
   const currentAcademicYearLabel = (() => { try { return getResolvedCurrentAcademicYear(student.roll_no, collegeInfo); } catch { return null; } })();
   const batchString = (() => { try { return getBatchFromRoll(student.roll_no); } catch { return null; } })();
 

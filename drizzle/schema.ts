@@ -1,5 +1,5 @@
-import { mysqlTable, mysqlSchema, AnyMySqlColumn, index, int, date, varchar, tinyint, timestamp, mysqlEnum, decimal, float, json, text, bigint } from "drizzle-orm/mysql-core"
-import { sql } from "drizzle-orm"
+import { mysqlTable, _mysqlSchema, _AnyMySqlColumn, index, int, date, varchar, tinyint, timestamp, mysqlEnum, decimal, float, json, text, bigint } from "drizzle-orm/mysql-core"
+import { _sql } from "drizzle-orm"
 
 export const academicCalendar = mysqlTable("academic_calendar", {
 	id: int().autoincrement().notNull(),

@@ -25,7 +25,7 @@ export default function StorageExplorer() {
       } else {
         toast.error('Failed to load storage files');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Connection error while exploring bucket');
     } finally {
       setLoading(false);

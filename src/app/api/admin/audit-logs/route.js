@@ -1,6 +1,6 @@
 import { db } from '@/db';
-import { auditLogs, clerks, principal } from '@/db/schema';
-import { eq, and, desc, like, sql, or } from 'drizzle-orm';
+import { auditLogs, _clerks, _principal } from '@/db/schema';
+import { eq, and, desc, _like, sql, _or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import logger from '@/lib/logger';
 
@@ -13,35 +13,39 @@ export async function GET(req) {
     const action = searchParams.get('action');
     const userType = searchParams.get('userType');
     const targetId = searchParams.get('targetId');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const limitParam = parseInt(searchParams.get('limit') || '50');
+    const limit = Number.isNaN(limitParam) ? 50 : Math.max(1, Math.min(limitParam, 100));
+    const lastSeenIdParam = searchParams.get('last_seen_id') ? parseInt(searchParams.get('last_seen_id')) : null;
+    const lastSeenId = Number.isNaN(lastSeenIdParam) ? null : lastSeenIdParam;
 
     // Build filters
-    const filters = [];
-    if (action) filters.push(eq(auditLogs.action, action));
-    if (userType) filters.push(eq(auditLogs.user_type, userType));
-    if (targetId) filters.push(eq(auditLogs.target_id, targetId));
+    const baseFilters = [];
+    if (action) baseFilters.push(eq(auditLogs.action, action));
+    if (userType) baseFilters.push(eq(auditLogs.user_type, userType));
+    if (targetId) baseFilters.push(eq(auditLogs.target_id, targetId));
+
+    const dataFilters = [...baseFilters];
+    if (lastSeenId) dataFilters.push(sql`${auditLogs.id} < ${lastSeenId}`);
 
     // Fetch logs with basic user info join
     // Note: Since user_id can refer to different tables based on user_type, 
     // we'll fetch raw logs first and then decorate if needed, or just return raw for now.
     const logs = await db.select()
       .from(auditLogs)
-      .where(filters.length > 0 ? and(...filters) : undefined)
-      .orderBy(desc(auditLogs.created_at))
-      .limit(limit)
-      .offset(offset);
+      .where(dataFilters.length > 0 ? and(...dataFilters) : undefined)
+      .orderBy(desc(auditLogs.id))
+      .limit(limit);
 
     // Get total count for pagination
     const [countResult] = await db.select({ count: sql`count(*)` })
       .from(auditLogs)
-      .where(filters.length > 0 ? and(...filters) : undefined);
+      .where(baseFilters.length > 0 ? and(...baseFilters) : undefined);
 
     return apiResponse({ 
       logs, 
       total: parseInt(countResult.count),
       limit,
-      offset
+      last_seen_id: logs.length > 0 ? logs[logs.length - 1].id : null
     });
 
   } catch (error) {

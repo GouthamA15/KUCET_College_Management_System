@@ -8,7 +8,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [midMax, setMidMax] = useState(20);
-  const [recommendedMidMax, setRecommendedMidMax] = useState(null);
+  const [_recommendedMidMax, setRecommendedMidMax] = useState(null);
   const [subjectType, setSubjectType] = useState('theory'); // 'theory' | 'lab'
   const [marksMode, setMarksMode] = useState('overview'); // 'overview' | 'mid1' | 'mid2' | 'assignment'
   const [isMobile, setIsMobile] = useState(false);

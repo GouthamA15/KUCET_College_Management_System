@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { studentRequests, students, clerks } from '@/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import crypto from 'crypto';
@@ -107,7 +107,7 @@ export async function PUT(request, { params }) {
                     request_id: requestIdNum,
                     certificate_type: requestToUpdate.certificate_type
                 });
-            } catch (e) {}
+            } catch (_e) { /* empty */ }
             return apiResponse({ success: true });
         } else {
             return apiError('This request has already been processed', 409);

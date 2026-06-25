@@ -9,7 +9,7 @@ import {
   scholarshipSanctions, 
   studentFeePayments 
 } from '@/db/schema';
-import { eq, asc, desc } from 'drizzle-orm';
+import { eq, asc, _desc } from 'drizzle-orm';
 import { getBranchFromRoll, getAdmissionTypeFromRoll, getAcademicYear as computeAcademicYear } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { decrypt } from '@/lib/encryption';
@@ -62,7 +62,7 @@ export async function GET(req, context) {
       ...row.student_personal_details,
       guardian_mobile: decrypt(row.student_personal_details.guardian_mobile), // Decrypt guardian mobile
       aadhaar_no: decrypt(row.student_personal_details.aadhaar_no) // Decrypt Aadhaar
-    } : {};
+    } : { /* empty */ };
     
     const academics = row.student_academic_background ? [row.student_academic_background] : [];
     

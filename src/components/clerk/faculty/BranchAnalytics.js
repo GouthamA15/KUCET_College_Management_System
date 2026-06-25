@@ -16,7 +16,7 @@ export default function BranchAnalytics({ branch }) {
       if (res.ok) {
         setRiskData(data.data || []);
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Failed to load branch analytics');
     } finally {
       setLoading(false);

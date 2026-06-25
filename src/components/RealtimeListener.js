@@ -49,7 +49,7 @@ function ensureSocketConnection() {
   const isDev = process.env.NODE_ENV === 'development';
 
   if (!isLocal) {
-    // console.log('🔌 [Socket.io] Connecting to', socketUrl);
+    // console.info('🔌 [Socket.io] Connecting to', socketUrl);
   }
   
   sharedSocket = io(socketUrl, {
@@ -60,7 +60,7 @@ function ensureSocketConnection() {
   });
 
   sharedSocket.on('connect', () => {
-    // console.log('✅ [Socket.io] Connected');
+    // console.info('✅ [Socket.io] Connected');
     notifyStatus('connected');
   });
 
@@ -68,7 +68,7 @@ function ensureSocketConnection() {
     notifyEvent({ type: data.type, payload: data });
   });
 
-  sharedSocket.on('connect_error', (err) => {
+  sharedSocket.on('connect_error', (_err) => {
     // Suppress logs for local failures to keep console clean
     if (!isLocal) {
       // console.warn('⚠️ [Realtime] Socket.io Error:', err.message);
@@ -112,7 +112,7 @@ function startSupabaseHeartbeat() {
       type: 'broadcast',
       event: 'PING',
       payload: { timestamp: Date.now() }
-    }).catch(() => {});
+    }).catch(() => { /* empty */ });
     
     // 2. Check for Zombie State (No activity for 35s)
     const silentPeriod = Date.now() - lastActivity;
@@ -125,7 +125,7 @@ function startSupabaseHeartbeat() {
 
 function recoverSupabaseConnection() {
   if (sharedSupabaseChannel) {
-    // console.log('🔄 [Realtime] Re-subscribing to Supabase channel...');
+    // console.info('🔄 [Realtime] Re-subscribing to Supabase channel...');
     sharedSupabaseChannel.unsubscribe();
     sharedSupabaseChannel = null;
   }
@@ -166,12 +166,12 @@ function ensureSupabaseChannel() {
 }
 
 export default function RealtimeListener({ onUpdate, enableNotifications = false }) {
-  const { studentData } = useContext(StudentContext) || {};
-  const { clerkData } = useContext(ClerkContext) || {};
+  const { studentData } = useContext(StudentContext) || { /* empty */ };
+  const { clerkData } = useContext(ClerkContext) || { /* empty */ };
   
   const studentDataRef = useRef(studentData);
   const clerkDataRef = useRef(clerkData);
-  const [status, setStatus] = useState(sharedStatus);
+  const [_status, setStatus] = useState(sharedStatus);
 
   useEffect(() => {
     studentDataRef.current = studentData;
@@ -182,7 +182,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     const sData = studentDataRef.current;
     const cData = clerkDataRef.current;
 
-    // console.log('📡 [Realtime Event]', event, payload);
+    // console.info('📡 [Realtime Event]', event, payload);
 
     if (event === 'TIMETABLE_CHANGED') {
       if (sData?.branch === payload.branch) {
@@ -210,7 +210,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     const statusHandler = (nextStatus) => setStatus(nextStatus);
     const eventHandler = ({ type, payload }) => {
       if (typeof onUpdate === 'function') onUpdate({ type, payload });
-      if (enableNotifications) handleNotification(type, payload || {});
+      if (enableNotifications) handleNotification(type, payload || { /* empty */ });
     };
 
     statusSubscribers.add(statusHandler);
@@ -234,7 +234,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
       // But avoid dual connections.
       const fallbackTimer = setTimeout(() => {
         if (sharedStatus !== 'connected' && sharedStatus !== 'error') {
-          // console.log('⚠️ [Realtime] Socket.io taking too long, checking Supabase availability...');
+          // console.info('⚠️ [Realtime] Socket.io taking too long, checking Supabase availability...');
           ensureSupabaseChannel();
         }
       }, 5000);
@@ -247,7 +247,7 @@ export default function RealtimeListener({ onUpdate, enableNotifications = false
     } else {
       // In Dev/Local or if no Socket URL, go straight to Supabase
       if (shouldSkipSocket) {
-        // console.log('🚀 [Realtime] Dev Mode: Prioritizing Supabase over local Socket.io');
+        // console.info('🚀 [Realtime] Dev Mode: Prioritizing Supabase over local Socket.io');
       }
       ensureSupabaseChannel();
       return () => {

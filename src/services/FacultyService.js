@@ -1,3 +1,4 @@
+import { fetchWithSWR } from '@/lib/cache';
 import { db } from '@/db';
 import { 
   semesters, 
@@ -127,26 +128,29 @@ export class FacultyService {
       whereClause.push(eq(branchTimetable.section, section));
     }
 
-    return await db.select({
-      id: branchTimetable.id,
-      day_of_week: branchTimetable.day_of_week,
-      period_number: branchTimetable.period_number,
-      subject_code: branchTimetable.subject_code,
-      faculty_id: branchTimetable.faculty_id,
-      academic_year: branchTimetable.academic_year,
-      room_no: branchTimetable.room_no,
-      version: branchTimetable.version,
-      faculty_name: clerks.name,
-      subject_name: syllabusSubjects.subject_name,
-      display_name: sql`COALESCE(${syllabusSubjects.subject_name}, ${branchTimetable.subject_code})`
-    })
-    .from(branchTimetable)
-    .leftJoin(clerks, eq(branchTimetable.faculty_id, clerks.id))
-    .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
-    .where(and(...whereClause))
-    .orderBy(
-      asc(sql`FIELD(${branchTimetable.day_of_week}, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT')`),
-      asc(branchTimetable.period_number)
-    );
+    const cacheKey = `timetable:${branch}:${semester}:${systemYear}:${section || 'all'}`;
+    return await fetchWithSWR(cacheKey, async () => {
+      return await db.select({
+        id: branchTimetable.id,
+        day_of_week: branchTimetable.day_of_week,
+        period_number: branchTimetable.period_number,
+        subject_code: branchTimetable.subject_code,
+        faculty_id: branchTimetable.faculty_id,
+        academic_year: branchTimetable.academic_year,
+        room_no: branchTimetable.room_no,
+        version: branchTimetable.version,
+        faculty_name: sql`COALESCE(CASE WHEN ${clerks.is_active} = false THEN CONCAT('[Unassigned - Formerly ', ${clerks.name}, ']') ELSE ${clerks.name} END, '[Unassigned]')`,
+        subject_name: syllabusSubjects.subject_name,
+        display_name: sql`COALESCE(${syllabusSubjects.subject_name}, ${branchTimetable.subject_code})`
+      })
+      .from(branchTimetable)
+      .leftJoin(clerks, eq(branchTimetable.faculty_id, clerks.id))
+      .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
+      .where(and(...whereClause))
+      .orderBy(
+        asc(sql`FIELD(${branchTimetable.day_of_week}, 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT')`),
+        asc(branchTimetable.period_number)
+      );
+    }, 60, 3600);
   }
 }

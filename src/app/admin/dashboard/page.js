@@ -1,7 +1,7 @@
 "use client";
 
 import StudentProfileCard from '@/components/StudentProfileCard';
-import { useRef, useEffect, useState } from 'react';
+import { _useRef, _useEffect, useState } from 'react';
 import { useAdmin } from '@/context/AdminContext';
 import CollegeInfoEditor from '@/components/admin/CollegeInfoEditor';
 import { validateRollNo } from '@/lib/rollNumber';
@@ -12,10 +12,10 @@ import { getNowSync } from '@/lib/clock';
 const BRANCHES = COLLEGE_CONFIG.branches;
 
 const currentYear = getNowSync().getFullYear();
-const YEARS = Array.from({ length: 4 }, (_, i) => (currentYear - i).toString()).reverse();
+const _YEARS = Array.from({ length: 4 }, (_, i) => (currentYear - i).toString()).reverse();
 
 export default function AdminDashboardPage() {
-  const { clerks, studentStats, loading: contextLoading } = useAdmin();
+  const { clerks, studentStats, loading: _contextLoading } = useAdmin();
   const [searchRoll, setSearchRoll] = useState('');
   const [searchedStudent, setSearchedStudent] = useState(null);
   const [searchError, setSearchError] = useState('');

@@ -23,7 +23,7 @@ DatePickerInput.displayName = 'DatePickerInput';
 
 export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
   const MAX_MOBILE_LEN = 10;
-  const MAX_ANNUAL_INCOME = 99999999; // match AddNewStudent
+  const _MAX_ANNUAL_INCOME = 99999999; // match AddNewStudent
   const [editValues, setEditValues] = useState({});
   const [personalFull, setPersonalFull] = useState({});
   const [academicsList, setAcademicsList] = useState([]);
@@ -35,7 +35,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
   const [originalAcademicsList, setOriginalAcademicsList] = useState(null);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
-  const [annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
+  const [_annualIncomeDisplay, _setAnnualIncomeDisplay] = useState('');
   const [imageLoading, setImageLoading] = useState(true);
 
   const sanitizeDigits = (input, maxLen = 10) => {
@@ -85,7 +85,8 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       father_occupation: pd.father_occupation || null,
       annual_income: pd.annual_income || null,
       admission_date: formatDate(fetchedStudent.admission_date) || null,
-      academic_status: fetchedStudent.academic_status || 'REGULAR',
+      student_status: fetchedStudent.student_status || 'ACTIVE',
+      academic_status: fetchedStudent.academic_status || 'ACTIVE',
       academic_offset_years: fetchedStudent.academic_offset_years || 0
     };
 
@@ -236,6 +237,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
         father_occupation: personalFull.father_occupation,
         annual_income: personalFull.annual_income ? personalFull.annual_income.toString().replace(/,/g, '') : null,
         admission_date: editValues.admission_date,
+        student_status: editValues.student_status,
         academic_status: editValues.academic_status,
         academic_offset_years: editValues.academic_offset_years,
         guardian_mobile: personalFull.guardian_mobile,
@@ -296,7 +298,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
       if (originalPersonalFull && JSON.stringify(originalPersonalFull) !== JSON.stringify(personalFull)) return true;
       if (originalAcademicsList && JSON.stringify(originalAcademicsList) !== JSON.stringify(academicsList)) return true;
       return false;
-    } catch (e) { return false; }
+    } catch (_e) { return false; }
   };
 
   return (
@@ -417,12 +419,15 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   />
                 </div>
                 <input type="email" placeholder="Email" value={editValues.email || ''} onChange={e=>setEditValues({...editValues, email:e.target.value})} className="p-2 border rounded" />
-                <select value={editValues.academic_status || 'REGULAR'} onChange={e=>setEditValues({...editValues, academic_status:e.target.value})} className="p-2 border rounded">
-                  <option value="REGULAR">Status: REGULAR</option>
-                  <option value="DETAINED">Status: DETAINED</option>
-                  <option value="DROPPED">Status: DROPPED</option>
-                  <option value="GRADUATED">Status: GRADUATED</option>
+                <div>
+                <label className="block text-sm font-medium text-gray-700">Academic Status</label>
+                <select value={editValues.academic_status || 'ACTIVE'} onChange={e=>setEditValues({...editValues, academic_status:e.target.value})} className="p-2 border rounded">
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="GRADUATED">GRADUATED</option>
+                  <option value="DETAINED">DETAINED</option>
+                  <option value="SUSPENDED">SUSPENDED</option>
                 </select>
+              </div>
                 <div className="flex items-center">
                   <span className="px-3 py-2 border border-r-0 bg-gray-100 text-xs font-bold text-gray-500">OFFSET</span>
                   <input 

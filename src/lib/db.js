@@ -4,15 +4,12 @@ import path from 'path';
 import fs from 'fs';
 
 // Debugging: Log paths and dotenv result
-try {
-  const envPath = path.resolve(process.cwd(), '.env.local');
-  if (fs.existsSync(fs.realpathSync(envPath))) {
-    dotenv.config({ path: envPath, override: process.env.NODE_ENV !== 'production' });
-  } else {
-    dotenv.config(); // Load .env if it exists
-  }
-} catch (e) {
-  // Silent fail
+// Debugging: Log paths and dotenv result
+const envPath = path.resolve(process.cwd(), '.env.local');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath, override: process.env.NODE_ENV !== 'production' });
+} else {
+  dotenv.config(); // Load .env if it exists
 }
 
 // Fail-fast environment validation
@@ -30,13 +27,13 @@ export function getDb() {
       port: process.env.DB_PORT || 3306,
       dateStrings: true, // Prevent timezone conversion issues
       waitForConnections: true,
-      connectionLimit: 15, // Reduced from 25 to be more conservative in serverless spikes
+      connectionLimit: 3, // Increased to 3 to support concurrent queries in hot paths
       queueLimit: 0,
       // PRODUCTION HARDENING (Serverless Optimized):
       enableKeepAlive: true,
       keepAliveInitialDelay: 10000,
       idleTimeout: 30000, // Reduced to 30s to release connections faster in serverless
-      maxIdle: 15,
+      maxIdle: 0,
     };
 
     // TiDB Cloud and many production databases require SSL
@@ -45,7 +42,7 @@ export function getDb() {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true,
       };
-      console.log('[DB] SSL/TLS Encryption enabled for database connection.');
+      console.info('[DB] SSL/TLS Encryption enabled for database connection.');
     }
 
     pool = mysql.createPool(poolConfig);

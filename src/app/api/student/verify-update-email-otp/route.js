@@ -3,12 +3,12 @@ import { db } from '@/db';
 import { students, otpCodes } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 
 export async function POST(req) {
   try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(`otp_verify:${ip}`, 5, 900); // 5 attempts per 15 min
+    const rateCheck = await checkRateLimit(getTieredKey(req, 'otp_verify'), 5, 900); // 5 attempts per 15 min
     
     if (!rateCheck.success) {
       return apiError('Too many verification attempts. Please try again in 15 minutes.', 429);
@@ -31,7 +31,10 @@ export async function POST(req) {
         return apiError('Invalid or expired OTP.', 400);
       }
 
-      if (new Date() > new Date(otpData.expires_at)) {
+      const { getNow } = await import('@/lib/clock');
+      const now = getNow();
+
+      if (now > new Date(otpData.expires_at)) {
         await db.delete(otpCodes).where(eq(otpCodes.id, otpData.id));
         return apiError('OTP has expired. Please request a new one.', 400);
       }
@@ -40,7 +43,7 @@ export async function POST(req) {
         .set({ 
           email: email, 
           is_email_verified: true, 
-          email_verified_at: new Date() 
+          email_verified_at: now 
         })
         .where(eq(students.roll_no, rollno));
 

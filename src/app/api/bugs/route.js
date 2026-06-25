@@ -3,8 +3,8 @@ import { db } from '@/db';
 import { bugReports } from '@/db/schema';
 import { desc, eq, or, like, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { uploadToCloudinary } from '@/lib/cloudinary';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { storage } from '@/lib/providers';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import crypto from 'crypto';
 
 export async function GET(req) {
@@ -50,23 +50,23 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    let clientIp = 'unknown';
+    let _clientIp = 'unknown';
     if (req.ip) {
-      clientIp = req.ip;
+      _clientIp = req.ip;
     } else {
       const xForwardedFor = req.headers.get('x-forwarded-for');
       if (xForwardedFor) {
         const ips = xForwardedFor.split(',').map(ip => ip.trim());
         const firstIp = ips[0];
         if (firstIp && firstIp.length > 0) {
-          clientIp = firstIp;
+          _clientIp = firstIp;
         } else {
-          clientIp = `req-${crypto.randomBytes(8).toString('hex')}`;
+          _clientIp = `req-${crypto.randomBytes(8).toString('hex')}`;
         }
       }
     }
 
-    const rateCheck = await checkRateLimit(`bugs:${clientIp}`, 5, 3600);
+    const rateCheck = await checkRateLimit(getTieredKey(req, 'bugs'), 5, 3600);
     if (!rateCheck.success) {
       return apiError('Too many reports. Please try again later.', 429);
     }
@@ -91,7 +91,12 @@ export async function POST(req) {
 
     let screenshotUrl = null;
     if (screenshot) {
-      screenshotUrl = await uploadToCloudinary(screenshot, 'bug_reports');
+      try {
+        screenshotUrl = await storage.upload(screenshot, 'bug_reports');
+      } catch (uploadError) {
+        logger.error(uploadError, 'Error uploading bug screenshot');
+        return apiError('Failed to upload screenshot', 500);
+      }
     }
 
     let userType = 'student';
@@ -103,19 +108,26 @@ export async function POST(req) {
 
     const browserInfo = req.headers.get('user-agent') || 'Unknown';
 
-    const [result] = await db.insert(bugReports).values({
-      description,
-      screenshot_url: screenshotUrl,
-      type: reportType,
-      status: 'OPEN',
-      severity: bugSeverity,
-      submitted_by: userIdentifier,
-      user_type: userType,
-      affected_page: affected_page || null,
-      browser_info: browserInfo
-    });
+    try {
+      const [result] = await db.insert(bugReports).values({
+        description,
+        screenshot_url: screenshotUrl,
+        type: reportType,
+        status: 'OPEN',
+        severity: bugSeverity,
+        submitted_by: userIdentifier,
+        user_type: userType,
+        affected_page: affected_page || null,
+        browser_info: browserInfo
+      });
 
-    return apiResponse({ success: true, id: result.insertId });
+      return apiResponse({ success: true, id: result.insertId });
+    } catch (insertError) {
+      if (screenshotUrl) {
+        await storage.delete(screenshotUrl).catch(e => logger.error(e, 'Failed to cleanup orphaned bug screenshot'));
+      }
+      throw insertError;
+    }
   } catch (error) {
     logger.error(error, 'Error creating report');
     return apiError('Failed to submit report', 500);

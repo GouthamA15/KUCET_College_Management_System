@@ -1,16 +1,16 @@
 import { db } from './index.js';
 import { students, studentPersonalDetails, studentAdmissionDrafts } from './schema.js';
 import { encrypt, hashForIndex } from '../lib/encryption.js';
-import { eq, isNull, or, isNotNull } from 'drizzle-orm';
-import logger from '../lib/logger.js';
+import { eq, isNull, _or, _isNotNull } from 'drizzle-orm';
+import _logger from '../lib/logger.js';
 
 async function migrate() {
-  console.log('🚀 Starting Data Encryption Migration...');
+  console.info('🚀 Starting Data Encryption Migration...');
 
   try {
     // 1. Migrate Students Table (Mobile)
     const studentsToFix = await db.select().from(students).where(isNull(students.mobile_hash));
-    console.log(`Found ${studentsToFix.length} students to encrypt.`);
+    console.info(`Found ${studentsToFix.length} students to encrypt.`);
     
     for (const student of studentsToFix) {
       if (student.mobile && !student.mobile.includes(':')) {
@@ -25,7 +25,7 @@ async function migrate() {
 
     // 2. Migrate Personal Details (Aadhaar & Guardian Mobile)
     const detailsToFix = await db.select().from(studentPersonalDetails).where(isNull(studentPersonalDetails.aadhaar_hash));
-    console.log(`Found ${detailsToFix.length} personal records to encrypt.`);
+    console.info(`Found ${detailsToFix.length} personal records to encrypt.`);
 
     for (const detail of detailsToFix) {
       const updates = {};
@@ -46,7 +46,7 @@ async function migrate() {
 
     // 3. Migrate Admission Drafts
     const draftsToFix = await db.select().from(studentAdmissionDrafts).where(isNull(studentAdmissionDrafts.mobile_hash));
-    console.log(`Found ${draftsToFix.length} drafts to encrypt.`);
+    console.info(`Found ${draftsToFix.length} drafts to encrypt.`);
 
     for (const draft of draftsToFix) {
       const updates = {};
@@ -69,7 +69,7 @@ async function migrate() {
       }
     }
 
-    console.log('✅ Migration Complete! All sensitive data is now encrypted and hashed.');
+    console.info('✅ Migration Complete! All sensitive data is now encrypted and hashed.');
     process.exit(0);
   } catch (error) {
     console.error('❌ Migration Failed:', error);

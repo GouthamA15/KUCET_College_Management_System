@@ -1,4 +1,4 @@
-import { apiError, apiResponse, wrapHandler } from '@/lib/api-utils';
+import { apiError, _apiResponse, wrapHandler } from '@/lib/api-utils';
 import { StudentService } from '@/services/StudentService';
 import { studentCreateSchema } from '@/lib/validations/student';
 

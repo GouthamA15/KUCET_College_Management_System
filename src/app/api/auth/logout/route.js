@@ -25,7 +25,7 @@ export async function GET(request) {
   return Response.redirect(new URL('/', request.url));
 }
 
-export async function POST(request) {
+export async function POST(_request) {
   const response = apiResponse({ success: true, message: 'Logged out' });
   
   const cookiesToClear = [

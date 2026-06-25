@@ -60,13 +60,22 @@ export default function ClerkEditProfilePage() {
     return undefined;
   }, [clerk]);
 
-  const onFileSelect = (file, type) => {
+  const onFileSelect = async (file, type) => {
     if (file) {
-      if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-        toast.error('File format rejected. Use JPG/PNG.');
+      if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type)) {
+        toast.error('File format rejected. Use JPG/PNG/WEBP.');
         return;
       }
-      if (file.size > 1 * 1024 * 1024) {
+
+      let processedFile = file;
+      try {
+        const { compressImage } = await import('@/lib/image-compressor');
+        processedFile = await compressImage(file, 1200, 1200, 0.6);
+      } catch (err) {
+        console.error('Image compression failed:', err);
+      }
+
+      if (processedFile.size >= 1 * 1024 * 1024) {
         toast.error('File exceeds 1MB limit.');
         return;
       }
@@ -75,7 +84,7 @@ export default function ClerkEditProfilePage() {
         if (type === 'pfp') setPfpDataUrl(reader.result);
         else if (type === 'sig') setSignatureDataUrl(reader.result);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(processedFile);
     }
   };
 
@@ -106,7 +115,7 @@ export default function ClerkEditProfilePage() {
       } else {
         toast.error(data.error || 'Failed to send OTP');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Network error occurred.');
     } finally {
       setSendingOtp(false);
@@ -137,7 +146,7 @@ export default function ClerkEditProfilePage() {
       } else {
         toast.error(data.error || 'Invalid OTP');
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error('Verification failed.');
     } finally {
       setVerifyingOtp(false);
@@ -203,7 +212,7 @@ export default function ClerkEditProfilePage() {
     const toastId = toast.loading('Updating institutional records...');
 
     try {
-      const payload = {};
+      const payload = { /* empty */ };
       if (formData.name !== originalData.name) payload.name = formData.name;
       if (emailVerified && formData.email !== originalData.email) payload.email = formData.email;
       if (formData.mobile !== originalData.mobile) payload.mobile = formData.mobile;

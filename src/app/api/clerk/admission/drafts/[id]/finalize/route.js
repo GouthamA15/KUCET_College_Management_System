@@ -123,6 +123,6 @@ export const POST = wrapHandler({
   audit: {
     action: 'FINALIZE_ADMISSION',
     getTargetId: (data, result) => result.studentId,
-    getAfter: (data, result) => ({ roll_no: data.roll_no })
+    getAfter: (data, _result) => ({ roll_no: data.roll_no })
   }
 });

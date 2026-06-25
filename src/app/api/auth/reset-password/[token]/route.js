@@ -1,15 +1,15 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { passwordResetTokens, students, clerks, principal } from '@/db/schema';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, isNull, _sql } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
 export async function GET(req, { params }) {
   try {
-    const resolved = params ? await params : {};
-    const { token } = resolved || {};
+    const resolved = params ? await params : { /* empty */ };
+    const { token } = resolved || { /* empty */ };
     if (!token) return apiError('INVALID', 400);
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -19,7 +19,8 @@ export async function GET(req, { params }) {
 
     if (!tokenData) return apiError('INVALID', 400);
     if (tokenData.used_at) return apiError('USED', 409);
-    if (new Date(tokenData.expires_at) < new Date()) return apiError('EXPIRED', 410);
+    const { getNow } = await import('@/lib/clock');
+    if (getNow() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
 
     return apiResponse({ status: 'VALID' });
   } catch (err) {
@@ -30,8 +31,8 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   try {
-    const resolved = params ? await params : {};
-    const { token } = resolved || {};
+    const resolved = params ? await params : { /* empty */ };
+    const { token } = resolved || { /* empty */ };
     const { password } = await req.json();
 
     if (!token || !password) return apiError('Missing token or password', 400);
@@ -43,7 +44,8 @@ export async function POST(req, { params }) {
 
     if (!tokenData) return apiError('INVALID', 400);
     if (tokenData.used_at) return apiError('USED', 409);
-    if (new Date(tokenData.expires_at) < new Date()) return apiError('EXPIRED', 410);
+    const { getNow } = await import('@/lib/clock');
+    if (getNow() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -62,7 +64,7 @@ export async function POST(req, { params }) {
 
       // 2. Mark token as used
       const [res] = await tx.update(passwordResetTokens)
-        .set({ used_at: new Date() })
+        .set({ used_at: getNow() })
         .where(and(eq(passwordResetTokens.token_hash, tokenHash), isNull(passwordResetTokens.used_at)));
       
       // Check for concurrent usage
