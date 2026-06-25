@@ -73,7 +73,9 @@ test.describe('Attendance Marking Flow', () => {
             name: 'MOCK STUDENT',
             branch: 'CSE',
             email: 'mock@example.com',
-            pfp: null
+            pfp: null,
+            is_email_verified: 1,
+            password_hash: 'mock_hash'
           },
           scholarship: [],
           fees: []
@@ -107,7 +109,7 @@ await page.goto('/', { waitUntil: 'networkidle' });
     await expect(page).toHaveURL(/\/student/);
     
     // Check if the greeting is visible
-    await expect(page.locator('h1')).toContainText('Welcome, MOCK');
+    await expect(page.locator('h1').first()).toContainText('Welcome, MOCK');
     
     const title = await page.title();
     expect(title).toBeDefined();
