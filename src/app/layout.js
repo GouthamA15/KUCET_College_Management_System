@@ -4,6 +4,7 @@ import AuthProvider from "./components/AuthProvider";
 import { AssetProvider } from "@/context/AssetContext";
 import { SystemConfigProvider } from "@/context/SystemConfigContext";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
+import CookieBanner from "@/components/CookieBanner";
 import { Inter } from 'next/font/google';
 
 const inter = Inter({
@@ -40,6 +41,7 @@ export default function RootLayout({ children }) {
               <AuthProvider>
                 <Toaster position="top-center" reverseOrder={false} />
                 {children}
+                <CookieBanner />
               </AuthProvider>
             </AssetProvider>
           </MaintenanceGuard>

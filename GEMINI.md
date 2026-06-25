@@ -158,3 +158,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Global Code Cleanup:** Programmatically and manually cleaned unused variables, removed extraneous `console.log` statements, and fixed regex escape syntax errors across 165+ component and API route files.
 - **Strict Compliance:** Configured `caughtErrorsIgnorePattern` to safely allow `_e` exception handling variables while maintaining strict variable usage policies project-wide.
 - **Validation Excellence:** Maintained 100% passing unit tests (103/103) and high branch coverage (>80%) following massive codebase refactoring.
+
+#### **Session 158: Session Integrity & Mobile Header Expansion (June 20, 2026)**
+- **Session Continuity (GouthamA15):** Resolved random logout bugs and session mismatch errors by heavily refactoring `AdminContext`, `ClerkContext`, and `StudentContext` with robust state-sync tracking and lifecycle management (`activePromiseRef`, bfcache restoration). Added `SecurityService` session verification to strictly reject already-revoked tokens.
+- **Mobile Navigation (GouthamA15):** Integrated the responsive `Header-MobileView` across previously orphaned global routes (`/dev`, `/developers`, `/verify`, and `/reset-password`), unifying the institution's mobile aesthetic.
+- **Continuous Integration (GouthamA15):** Hardened the `admission.spec.js` Playwright tests to align with recent multi-step form schema changes.
+- **Console Log Cleanup (GouthamA15):** Purged debugging `console.log` statements from `RealtimeListener.js` to prevent memory leaks and noise in production consoles.
+
+#### **Session 159: Universal Legal Compliance & GPS Privacy Controls (June 25, 2026)**
+- **Legal Architecture:** Engineered strict `/privacy-policy` and `/terms` public pages governing data retention, AES-256-GCM encryption transparency, and location access rules. Integrated them into the global institutional `Footer`.
+- **Zero-Trust Admission Consent:** Hardened the `/admission` pipeline with a mandatory `legal_consent` Zod validation constraint and UI checkbox. Automatically records `data_policy_consented_at` timestamps using precise IST clocks (`getNow()`) directly into the Drizzle ORM registry.
+- **Just-In-Time GPS Privacy:** Re-architected the `AttendanceVerificationActivity` to strictly prompt for explicit Location Tracking Consent *before* executing the `navigator.geolocation` API. Consent is verified against `localStorage` and centrally logged to the `students` DB table (`gps_consent_granted_at`) via a new `POST /api/student/consent/gps` endpoint.
+- **Transparent Cookie Policy:** Built a universally rendering `CookieBanner` injected directly into the Next.js `layout.js`, providing clear UX communication regarding the use of HTTP-only session cookies and offline-first LocalStorage.

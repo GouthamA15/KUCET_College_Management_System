@@ -4,6 +4,7 @@ import { studentAdmissionDrafts, students, clerks, studentPersonalDetails } from
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
+import { getNow } from '@/lib/clock';
 import { storage } from '@/lib/providers';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import { encrypt, hashForIndex } from '@/lib/encryption';
@@ -81,7 +82,8 @@ export async function POST(req) {
       curr_country: z.string().trim().max(100).default('India'),
       is_current_same_as_permanent: z.boolean().default(false),
       pfp: z.string().nullable().optional(),
-      signature: z.string().nullable().optional()
+      signature: z.string().nullable().optional(),
+      legal_consent: z.literal(true, { errorMap: () => ({ message: "You must agree to the Terms & Conditions and Privacy Policy to proceed." }) })
     });
 
     const validatedData = admissionSchema.parse(json);
@@ -95,7 +97,7 @@ export async function POST(req) {
       identification_mark_2, permanent_address, contact_address, 
       perm_house_no, perm_street, perm_apartment, perm_city, perm_state, perm_pincode, perm_country,
       curr_house_no, curr_street, curr_apartment, curr_city, curr_state, curr_pincode, curr_country,
-      is_current_same_as_permanent, pfp, signature
+      is_current_same_as_permanent, pfp, signature, legal_consent: _legal_consent
     } = validatedData;
     
     // 1. Email Uniqueness Check (Plain text)
@@ -221,6 +223,7 @@ export async function POST(req) {
           fee_reimbursement: fee_reimbursement || null,
           identification_mark_1: identification_mark_1 || null,
           identification_mark_2: identification_mark_2 || null,
+          data_policy_consented_at: getNow(),
           ...addressFields
       });
 

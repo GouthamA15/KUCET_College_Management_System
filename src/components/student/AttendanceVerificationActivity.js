@@ -2,8 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useStudent } from '@/context/StudentContext';
 
 export default function AttendanceVerificationActivity({ sessions, onSessionVerified }) {
+  const { studentData } = useStudent();
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [pendingSession, setPendingSession] = useState(null);
+  const [isConsenting, setIsConsenting] = useState(false);
   const [pinByAssignment, setPinByAssignment] = useState({});
   const [submittingId, setSubmittingId] = useState(null);
   const [statusByAssignment, setStatusByAssignment] = useState({});
@@ -60,6 +65,43 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
       return;
     }
 
+    // Check GPS Consent
+    const hasConsented = studentData?.student?.gps_consent_granted_at || localStorage.getItem('kucet_gps_consent');
+    if (!hasConsented) {
+      setPendingSession(session);
+      setShowConsentModal(true);
+      return;
+    }
+
+    executeVerification(session, pin);
+  };
+
+  const handleGrantConsent = async () => {
+    setIsConsenting(true);
+    try {
+      const res = await fetch('/api/student/consent/gps', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to record consent');
+      
+      localStorage.setItem('kucet_gps_consent', 'true');
+      if (studentData && studentData.student) {
+        // ESLint: Avoid modifying context state directly.
+        // We rely on localStorage for immediate UI unblocking.
+      }
+      
+      setShowConsentModal(false);
+      if (pendingSession) {
+        const pin = pinByAssignment[pendingSession.assignment_id];
+        executeVerification(pendingSession, pin);
+      }
+    } catch (_error) {
+      toast.error('Could not record consent. Please check your connection.');
+    } finally {
+      setIsConsenting(false);
+    }
+  };
+
+  const executeVerification = async (session, pin) => {
+    const assignmentId = session.assignment_id;
     setSubmittingId(assignmentId);
     setStatusByAssignment((prev) => {
       const { [assignmentId]: _discard, ...rest } = prev;
@@ -170,6 +212,51 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
   };
 
   return (
+    <>
+    {showConsentModal && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 p-6">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-[#0b3578]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-slate-800">Location Access Required</h2>
+            <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+              To prevent proxy attendance, we need to verify you are physically present in the classroom.
+            </p>
+          </div>
+          
+          <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 mb-6">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Privacy Guarantee</h3>
+            <ul className="text-xs text-slate-600 space-y-2 list-disc pl-4">
+              <li>Your location is <strong>only</strong> checked exactly when you click &quot;Mark Present&quot;.</li>
+              <li>We do <strong>not</strong> track you continuously in the background.</li>
+              <li>Location data is used solely for institutional verification.</li>
+            </ul>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => { setShowConsentModal(false); setPendingSession(null); }}
+              className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-slate-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleGrantConsent}
+              disabled={isConsenting}
+              className="flex-1 py-3 bg-[#0b3578] text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#0a2d66] disabled:opacity-50 transition-colors shadow-lg shadow-blue-900/20"
+            >
+              {isConsenting ? 'Processing...' : 'I Agree'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <div className="space-y-3">
       {sessions.map((session) => {
         const assignmentId = session.assignment_id;
@@ -273,5 +360,6 @@ export default function AttendanceVerificationActivity({ sessions, onSessionVeri
         );
       })}
     </div>
+    </>
   );
 }

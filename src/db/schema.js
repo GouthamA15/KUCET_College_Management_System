@@ -61,6 +61,8 @@ export const students = mysqlTable('students', {
   last_login_at: timestamp('last_login_at'),
   last_login_ip: varchar('last_login_ip', { length: 64 }),
   password_changed_at: timestamp('password_changed_at'),
+  data_policy_consented_at: timestamp('data_policy_consented_at'),
+  gps_consent_granted_at: timestamp('gps_consent_granted_at'),
 }, (table) => ({
   rollNoIdx: index('idx_roll_no').on(table.roll_no),
   rollNoUniq: uniqueIndex('uq_students_roll_no').on(table.roll_no),
@@ -226,6 +228,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   is_current_same_as_permanent: boolean('is_current_same_as_permanent').default(false),
 
   admission_date: date('admission_date'),
+  data_policy_consented_at: timestamp('data_policy_consented_at'),
   roll_no: varchar('roll_no', { length: 255 }), // Promised/Assigned Roll Number
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),

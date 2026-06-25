@@ -52,6 +52,7 @@ const AdmissionPage = () => {
         perm_pincode: '',
         perm_country: 'India',
         is_current_same_as_permanent: false,
+        legal_consent: false,
     });
 
     const handleAddressChange = (field, value, isCurrent = true) => {
@@ -198,6 +199,11 @@ const AdmissionPage = () => {
         e.preventDefault();
         if (!files.pfp || !files.signature) {
             toast.error('Photograph and Signature are both required.');
+            return;
+        }
+
+        if (!form.legal_consent) {
+            toast.error('You must agree to the Terms & Conditions and Privacy Policy to proceed.');
             return;
         }
 
@@ -636,12 +642,30 @@ const AdmissionPage = () => {
                             </div>
                         </div>
 
-                        
+                        {/* Legal Consent Checkbox */}
+                        <div className="md:col-span-2 mt-6 p-4 bg-indigo-50/50 border border-indigo-100 rounded-lg">
+                            <div className="flex items-start gap-3">
+                                <div className="flex items-center h-5 mt-1">
+                                    <input 
+                                        type="checkbox" 
+                                        id="legal_consent" 
+                                        required
+                                        checked={form.legal_consent} 
+                                        onChange={e => setForm({...form, legal_consent: e.target.checked})} 
+                                        className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" 
+                                    />
+                                </div>
+                                <label htmlFor="legal_consent" className="text-sm text-gray-700 select-none cursor-pointer leading-relaxed">
+                                    <span className="font-bold text-gray-900 block mb-1">Declaration & Consent <span className="text-red-500">*</span></span>
+                                    I hereby declare that the information provided is accurate. I consent to the collection, secure storage, and processing of my Personal Identifiable Information (PII), including my Aadhaar number, for institutional, academic, and governmental verification purposes. I agree to the <a href="/terms" target="_blank" className="text-indigo-600 underline font-medium hover:text-indigo-800">Terms & Conditions</a> and <a href="/privacy-policy" target="_blank" className="text-indigo-600 underline font-medium hover:text-indigo-800">Privacy Policy</a>.
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Final Actions */}
                     <div className="pt-8 flex justify-end border-t border-gray-200">
-<button type="submit" disabled={loading} className="bg-indigo-700 text-white font-bold py-3 px-8 rounded-md hover:bg-indigo-800 disabled:bg-gray-400 transition-all text-lg shadow-lg">
+                        <button type="submit" disabled={loading || !form.legal_consent} className="bg-indigo-700 text-white font-bold py-3 px-8 rounded-md hover:bg-indigo-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-lg shadow-lg">
                             {loading ? 'Submitting...' : 'Submit Application'}
                         </button>
                     </div>
