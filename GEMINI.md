@@ -26,6 +26,11 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### A. Database & Type Safety
 - **Drizzle ORM:** Centralized schema in `src/db/schema.js`. Uses versioned migrations (`drizzle-kit`).
+  - **Safe Database Updates (Data Loss Prevention):** NEVER use `npm run db:push` to update the database schema, as it may drop tables or columns and cause data loss. ALWAYS use the safe migration workflow:
+    1. Update `src/db/schema.js`.
+    2. Run `npm run db:generate` to generate a `.sql` migration file in `drizzle/`.
+    3. Manually review the `.sql` file to ensure no unintended `DROP` statements exist (e.g., if renaming a column, change `DROP` + `ADD` to `RENAME COLUMN`).
+    4. Run `npm run db:migrate` to safely apply the changes.
 - **Zero-Trust Validation:** Strict Zod schema enforcement on all API boundaries via a unified `wrapHandler`.
 
 ### B. Service & Provider Layer
