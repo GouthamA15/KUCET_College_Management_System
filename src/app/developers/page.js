@@ -261,7 +261,7 @@ export default function DevelopersPage() {
     {
       name: 'Uzair',
       role: 'System Interface and API designer',
-      image: getAsset('/assets/DevPics/Dev3.jpeg'),
+      image: getAsset('/assets/DevPics/Dev3.jpg'),
       audio: getAsset('/assets/DevPics/Dev3.mp3'),
       delay: '0.4s',
     },
