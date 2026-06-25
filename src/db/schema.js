@@ -127,7 +127,7 @@ export const studentPersonalDetails = mysqlTable('student_personal_details', {
   annual_income: varchar('annual_income', { length: 50 }),
   aadhaar_no: varchar('aadhaar_no', { length: 255 }), // Encrypted
   aadhaar_hash: varchar('aadhaar_hash', { length: 64 }), // Searchable Blind Index
-  address: text('address'), // Retained to prevent data loss
+  //address: text('address'), // Retained to prevent data loss
   // Structured Address (Permanent)
   perm_house_no: varchar('perm_house_no', { length: 255 }),
   perm_street: varchar('perm_street', { length: 255 }),
@@ -207,7 +207,7 @@ export const studentAdmissionDrafts = mysqlTable('student_admission_drafts', {
   fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO', 'GOV']),
   identification_mark_1: text('identification_mark_1'),
   identification_mark_2: text('identification_mark_2'),
-  permanent_address: text('permanent_address'), // Retained to prevent data loss
+  //permanent_address: text('permanent_address'), // Retained to prevent data loss
   
   // Structured Address (Permanent)
   perm_house_no: varchar('perm_house_no', { length: 255 }),
