@@ -94,6 +94,9 @@ test.describe('Student Admission Flow', () => {
     // Wait for internal state update (FileReader) to finish compressing images
     await page.waitForTimeout(1000);
 
+    // Accept legal consent
+    await page.locator('#legal_consent').check();
+
     // Submit the form
     await page.getByRole('button', { name: 'Submit Application' }).click();
 
