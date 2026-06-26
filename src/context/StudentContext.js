@@ -30,6 +30,10 @@ export function StudentProvider({ children }) {
       }
     } catch (e) {
       console.error('Failed to fetch college info', e);
+    } finally {
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[StudentContext] fetchCollegeInfo() completed');
+      }
     }
   }, []);
 
@@ -46,6 +50,9 @@ export function StudentProvider({ children }) {
       console.error('Failed to fetch academic performance', e);
     } finally {
       setIsLoadingAcademic(false);
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[StudentContext] fetchAcademicPerformance() completed');
+      }
     }
     return null;
   }, []);
@@ -86,6 +93,10 @@ export function StudentProvider({ children }) {
       }
     } catch (_e) {
       setError('Network error');
+    } finally {
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[StudentContext] fetchProfile() completed');
+      }
     }
     return null;
   }, []);
@@ -94,13 +105,22 @@ export function StudentProvider({ children }) {
   const activePromiseRef = useRef(null);
 
   const refreshData = useCallback(async () => {
+    if (process.env.NODE_ENV === 'development') {
+      console.info('[StudentContext] refreshData() started');
+    }
     if (activePromiseRef.current) {
       return activePromiseRef.current;
     }
 
     const promise = (async () => {
       try {
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[StudentContext] /api/student/me request started');
+        }
         const me = await fetch('/api/student/me');
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[StudentContext] /api/student/me request completed');
+        }
         if (me.ok) {
           const user = await me.json();
           await fetchCollegeInfo();
@@ -123,6 +143,10 @@ export function StudentProvider({ children }) {
   }, [fetchProfile, fetchCollegeInfo, fetchAcademicPerformance]);
 
   const handleResume = useCallback(async (event) => {
+    if (process.env.NODE_ENV === 'development') {
+      const trigger = event?.type || 'initial mount';
+      console.info(`[StudentContext] handleResume() invoked. Triggered by: ${trigger}`);
+    }
     const now = Date.now();
     const isBfcacheRestore = event?.type === 'pageshow' && event.persisted;
     const isStuck = loading && !studentData;
@@ -215,6 +239,18 @@ export function StudentProvider({ children }) {
       window.removeEventListener('focus', onResume);
     };
   }, [handleResume, loading, studentData]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.info('[StudentContext] StudentContext mounted');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.info(`[StudentContext] loading=${loading}`);
+    }
+  }, [loading]);
 
   const resetCertificateRequests = () => {
     setCertificateRequests(null);

@@ -14,6 +14,10 @@ export async function GET(_req) {
     }
     if (!user) return apiError('Unauthorized', 401);
 
+    if (userType === 'STUDENT') {
+      return apiResponse({ notifications: [] });
+    }
+
     let dbId;
     if (userType === 'STUDENT') {
       const student = await db.query.students.findFirst({
@@ -58,6 +62,10 @@ export async function PATCH(req) {
       userType = 'CLERK';
     }
     if (!user) return apiError('Unauthorized', 401);
+
+    if (userType === 'STUDENT') {
+      return apiResponse({ success: true });
+    }
 
     let dbId;
     if (userType === 'STUDENT') {

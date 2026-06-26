@@ -12,7 +12,8 @@ export function SecurityCenter({
   alertsContent,
   activityContent,
   sessionsContent,
-  authContent
+  authContent,
+  userType = 'clerk'
 }) {
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm pb-12 px-4 sm:px-0 md:p-8">
@@ -28,6 +29,7 @@ export function SecurityCenter({
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         unreadCount={unreadCount} 
+        userType={userType}
       />
 
       {activeTab === 'overview' && overviewContent}

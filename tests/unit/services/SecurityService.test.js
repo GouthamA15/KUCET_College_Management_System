@@ -62,7 +62,7 @@ describe('SecurityService', () => {
   describe('logEvent', () => {
     it('should insert a security event', async () => {
       await SecurityService.logEvent({
-        userType: 'student',
+        userType: 'clerk',
         userId: 1,
         eventType: 'LOGIN',
         ipAddress: '1.2.3.4'
@@ -72,7 +72,7 @@ describe('SecurityService', () => {
 
     it('should handle log failure', async () => {
       db.insert.mockImplementationOnce(() => { throw new Error('Fail'); });
-      await SecurityService.logEvent({ userType: 'student' });
+      await SecurityService.logEvent({ userType: 'clerk' });
       const logger = (await import('@/lib/logger')).default;
       expect(logger.error).toHaveBeenCalledWith(expect.any(Error), '[SECURITY_EVENT_LOG_FAILED]');
     });
@@ -90,7 +90,7 @@ describe('SecurityService', () => {
   describe('createNotification', () => {
     it('should insert notification and broadcast', async () => {
       await SecurityService.createNotification({
-        userType: 'student',
+        userType: 'clerk',
         userId: 1,
         title: 'Alert',
         message: 'Msg'
@@ -178,7 +178,7 @@ describe('SecurityService', () => {
               })
             })
           });
-          const isNew = await SecurityService.detectNewDevice(1, 'STUDENT', { browser: 'Firefox', operatingSystem: 'Windows' });
+          const isNew = await SecurityService.detectNewDevice(1, 'CLERK', { browser: 'Firefox', operatingSystem: 'Windows' });
           expect(isNew).toBe(true);
     });
 
@@ -190,7 +190,7 @@ describe('SecurityService', () => {
               })
             })
           });
-          const isNew = await SecurityService.detectNewDevice(1, 'STUDENT', { browser: 'Chrome', operatingSystem: 'Windows' });
+          const isNew = await SecurityService.detectNewDevice(1, 'CLERK', { browser: 'Chrome', operatingSystem: 'Windows' });
           expect(isNew).toBe(false);
     });
   });
@@ -198,14 +198,14 @@ describe('SecurityService', () => {
   describe('registerSession', () => {
     it('should register a new session with default expiry', async () => {
       db.select.mockReturnValue({ from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue([{ id: 1 }]) });
-      const result = await SecurityService.registerSession({ userId: 1, userType: 'STUDENT', sessionToken: 't', ipAddress: '1', userAgent: 'Chrome' });
+      const result = await SecurityService.registerSession({ userId: 1, userType: 'CLERK', sessionToken: 't', ipAddress: '1', userAgent: 'Chrome' });
       expect(result).toBe(1);
     });
 
     it('should register a new session with custom expiry', async () => {
         db.select.mockReturnValue({ from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue([{ id: 1 }]) });
         const expiresAt = new Date(Date.now() + 10000).toISOString();
-        await SecurityService.registerSession({ userId: 1, userType: 'STUDENT', sessionToken: 't', ipAddress: '1', userAgent: 'Chrome', expiresAt });
+        await SecurityService.registerSession({ userId: 1, userType: 'CLERK', sessionToken: 't', ipAddress: '1', userAgent: 'Chrome', expiresAt });
         expect(db.insert).toHaveBeenCalled();
     });
   });
@@ -252,7 +252,7 @@ describe('SecurityService', () => {
       db.select.mockReturnValueOnce({
         from: vi.fn().mockReturnValueOnce({
           where: vi.fn().mockReturnValueOnce({
-            limit: vi.fn().mockResolvedValueOnce([{ user_id: 42, user_type: 'STUDENT' }])
+            limit: vi.fn().mockResolvedValueOnce([{ user_id: 42, user_type: 'CLERK' }])
           })
         })
       });
@@ -262,7 +262,7 @@ describe('SecurityService', () => {
         ipAddress: '1.2.3.4',
         userAgent: 'Chrome',
         userId: 42,
-        userType: 'STUDENT'
+        userType: 'CLERK'
       });
       expect(result).toBe(true);
       expect(db.update).toHaveBeenCalledWith(userSessions);
@@ -272,7 +272,7 @@ describe('SecurityService', () => {
       db.select.mockReturnValueOnce({
         from: vi.fn().mockReturnValueOnce({
           where: vi.fn().mockReturnValueOnce({
-            limit: vi.fn().mockResolvedValueOnce([{ user_id: 42, user_type: 'STUDENT' }])
+            limit: vi.fn().mockResolvedValueOnce([{ user_id: 42, user_type: 'CLERK' }])
           })
         })
       });
@@ -286,7 +286,7 @@ describe('SecurityService', () => {
         ipAddress: '1.2.3.4',
         userAgent: 'Chrome',
         userId: 43,
-        userType: 'STUDENT'
+        userType: 'CLERK'
       });
       expect(result).toBe(99);
     });

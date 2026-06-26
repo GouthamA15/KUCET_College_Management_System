@@ -34,8 +34,8 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
     path: '/',
   });
 
-  // Register or Update session if tracking info provided
-  if (ip && userAgent) {
+  // Register or Update session if tracking info provided (skip for students)
+  if (ip && userAgent && userType !== 'student') {
     try {
       const SecurityService = (await import('@/services/SecurityService')).default;
       const { cookies } = await import('next/headers');

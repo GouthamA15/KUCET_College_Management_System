@@ -21,6 +21,10 @@ export async function GET(_req) {
       return apiError('Unauthorized', 401);
     }
 
+    if (userType === 'STUDENT') {
+      return apiResponse({ sessions: [] });
+    }
+
     let dbId;
     if (userType === 'STUDENT') {
       const student = await db.query.students.findFirst({
@@ -65,6 +69,10 @@ export async function DELETE(req) {
       userType = 'CLERK';
     }
     if (!user) return apiError('Unauthorized', 401);
+
+    if (userType === 'STUDENT') {
+      return apiError('Forbidden', 403);
+    }
 
     let dbId;
     if (userType === 'STUDENT') {

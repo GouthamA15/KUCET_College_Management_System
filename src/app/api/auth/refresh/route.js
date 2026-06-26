@@ -96,7 +96,7 @@ export async function POST(req) {
 
     // Task 5: Verify Session Lookup (always load user_sessions.id == student_session_id / clerk_session_id / admin_session_id cookie)
     let sessionRecord = null;
-    if (sessionCookieId) {
+    if (type !== 'student' && sessionCookieId) {
       sessionRecord = await db.query.userSessions.findFirst({
         where: eq(userSessions.id, sessionCookieId)
       });

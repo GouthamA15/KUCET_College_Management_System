@@ -99,8 +99,8 @@ describe('/api/auth/refresh API Route', () => {
   it('should return 401 if the session is revoked in user_sessions', async () => {
     mockCookies.mockResolvedValue({
       get: vi.fn().mockImplementation((name) => {
-        if (name === 'student_refresh_token') return { value: 'some-token' };
-        if (name === 'student_session_id') return { value: '123' };
+        if (name === 'clerk_refresh_token') return { value: 'some-token' };
+        if (name === 'clerk_session_id') return { value: '123' };
         return undefined;
       }),
     });
@@ -108,8 +108,8 @@ describe('/api/auth/refresh API Route', () => {
     const tokenRecord = {
       id: 1,
       token_hash: 'hash',
-      user_id: 'STUDENT001',
-      user_type: 'student',
+      user_id: 'clerk@kucet.com',
+      user_type: 'clerk',
       expires_at: new Date('2026-06-10T10:00:00Z'),
       revoked_at: null,
     };
@@ -123,7 +123,15 @@ describe('/api/auth/refresh API Route', () => {
     };
     db.query.userSessions.findFirst.mockResolvedValue(sessionRecord);
 
-    const req = makeMockRequest({ type: 'student' });
+    const clerkRecord = {
+      id: 10,
+      email: 'clerk@kucet.com',
+      role: 'clerk',
+      is_active: true
+    };
+    db.query.clerks.findFirst.mockResolvedValue(clerkRecord);
+
+    const req = makeMockRequest({ type: 'clerk' });
     const res = await POST(req);
     expect(res.status).toBe(401);
     const data = await res.json();

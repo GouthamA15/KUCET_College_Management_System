@@ -7,17 +7,13 @@ import { formatInstitutionalDate, formatInstitutionalDateTime } from '@/lib/date
 import { formatIPAddress } from '@/lib/security';
 import { 
   useSecurityEvents, 
-  useSecuritySessions, 
-  useSecurityNotifications, 
   usePasswordManagement,
   useEmailVerification
 } from '@/hooks/security';
 import {
   SecurityCenter,
   SecurityOverview,
-  SecurityAlerts,
   SecurityActivity,
-  SecuritySessions,
   SecurityAuthentication,
   SecurityStatusItem,
   StudentActivationUI,
@@ -33,14 +29,6 @@ export default function SecurityCenterPage() {
   const isPasswordSet = !!student?.password_hash;
 
   const { securityEvents, eventsLoading, fetchEvents } = useSecurityEvents(student?.roll_no, isEmailVerified);
-  const { sessions, sessionsLoading, handleRevokeSession, handleRevokeOtherSessions } = useSecuritySessions(activeTab);
-  const { 
-    notifications, 
-    notifsLoading, 
-    unreadCount, 
-    handleMarkAsRead, 
-    handleMarkAllAsRead 
-  } = useSecurityNotifications();
 
   const emailVerification = useEmailVerification(student?.roll_no, student?.email, refreshData);
   const passwordMgmt = usePasswordManagement({
@@ -85,9 +73,10 @@ export default function SecurityCenterPage() {
 
   return (
     <SecurityCenter
+      userType="student"
       activeTab={activeTab}
       setActiveTab={setActiveTab}
-      unreadCount={unreadCount}
+      unreadCount={0}
       overviewContent={
         <SecurityOverview title="Security Health Overview" description="Core security status of your institutional account.">
           <SecurityStatusItem 
@@ -124,24 +113,7 @@ export default function SecurityCenterPage() {
           )}
         </SecurityOverview>
       }
-      alertsContent={
-        <SecurityAlerts
-          notifications={notifications}
-          notifsLoading={notifsLoading}
-          unreadCount={unreadCount}
-          onMarkAsRead={handleMarkAsRead}
-          onMarkAllAsRead={handleMarkAllAsRead}
-        />
-      }
       activityContent={<SecurityActivity securityEvents={securityEvents} eventsLoading={eventsLoading} />}
-      sessionsContent={
-        <SecuritySessions
-          sessions={sessions}
-          sessionsLoading={sessionsLoading}
-          onRevokeSession={handleRevokeSession}
-          onRevokeOtherSessions={() => handleRevokeOtherSessions(fetchEvents)}
-        />
-      }
       authContent={
         <div className="space-y-6">
           <section className="border border-gray-300 rounded-md bg-white p-4 sm:p-6">

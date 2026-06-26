@@ -32,6 +32,13 @@ export default class SecurityService {
    */
   static async logEvent({ userType, userId, eventType, ipAddress, details = {} }) {
     try {
+      const upperType = userType ? userType.toUpperCase() : '';
+      if (upperType === 'STUDENT') {
+        const allowed = ['LOGIN_SUCCESS', 'PASSWORD_CHANGED', 'PASSWORD_CREATED', 'EMAIL_CHANGED', 'EMAIL_VERIFIED'];
+        if (!allowed.includes(eventType)) {
+          return;
+        }
+      }
       await db.insert(securityEvents).values({
         user_type: userType.toUpperCase(),
         user_id: userId,
@@ -189,6 +196,10 @@ export default class SecurityService {
    */
   static async createNotification({ userType, userId, title, message, severity = 'INFO' }) {
     try {
+      const upperType = userType ? userType.toUpperCase() : '';
+      if (upperType === 'STUDENT') {
+        return;
+      }
       await db.insert(securityNotifications).values({
         user_type: userType.toUpperCase(),
         user_id: userId,
@@ -401,6 +412,10 @@ export default class SecurityService {
    */
   static async detectNewDevice(userId, userType, deviceInfo, ipAddress) {
     try {
+      const upperType = userType ? userType.toUpperCase() : '';
+      if (upperType === 'STUDENT') {
+        return false;
+      }
       const { browser, operatingSystem } = deviceInfo;
 
       // Check for existing sessions with similar characteristics
@@ -447,6 +462,10 @@ export default class SecurityService {
    */
   static async registerSession({ userId, userType, sessionToken, ipAddress, userAgent, expiresAt }) {
     try {
+      const upperType = userType ? userType.toUpperCase() : '';
+      if (upperType === 'STUDENT') {
+        return null;
+      }
       const deviceInfo = parseUA(userAgent);
       const sessionTokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
 
@@ -500,6 +519,10 @@ export default class SecurityService {
    */
   static async updateSession({ sessionId, newToken, ipAddress, userAgent, expiresAt, userId, userType }) {
     try {
+      const upperType = userType ? userType.toUpperCase() : '';
+      if (upperType === 'STUDENT') {
+        return false;
+      }
       const deviceInfo = parseUA(userAgent);
       const sessionTokenHash = crypto.createHash('sha256').update(newToken).digest('hex');
       const lastSeenAt = getNow();

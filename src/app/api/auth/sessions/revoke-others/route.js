@@ -15,6 +15,10 @@ export async function POST(_req) {
     }
     if (!user) return apiError('Unauthorized', 401);
 
+    if (userType === 'STUDENT') {
+      return apiError('Forbidden', 403);
+    }
+
     let dbId;
     if (userType === 'STUDENT') {
       const student = await db.query.students.findFirst({
