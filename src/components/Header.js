@@ -57,7 +57,7 @@ export default function Header({ fixed = true }) {
   const positionClass = fixed ? 'fixed top-0 left-0 right-0 z-40' : 'relative z-20';
 
   return (
-    <header ref={headerRef} className={`hidden md:block ${positionClass} bg-gradient-to-r from-blue-50 to-white py-4 px-4 md:px-6 w-full pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4 border-b border-slate-200 transition-colors duration-200`}>
+    <header ref={headerRef} className={`hidden lg:block ${positionClass} bg-gradient-to-r from-blue-50 to-white py-4 px-4 md:px-6 w-full pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4 border-b border-slate-200 transition-colors duration-200`}>
       <div className="flex items-center justify-between h-full">
 
         {/* Left Section with Logos */}

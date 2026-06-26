@@ -41,11 +41,20 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
   // Role selection: prefer explicit `role` prop. Fall back to studentProfileMode for backward compatibility.
   let effectiveRole = role || (studentProfileMode ? 'student' : 'guest');
 
-  // Map specific clerk sub-roles to their distinct menu variants
+  // Map specific clerk sub-roles and admin to their distinct menu variants
   if (effectiveRole === 'admission') {
     effectiveRole = 'clerkAdmission';
   } else if (effectiveRole === 'scholarship') {
     effectiveRole = 'clerkScholarship';
+  } else if (effectiveRole === 'admin') {
+    effectiveRole = 'superAdmin';
+  }
+
+  // If a clerk is logged in, refine based on stored clerk role
+  if (effectiveRole === 'clerk' && clerkData?.role) {
+    if (clerkData.role === 'admission') effectiveRole = 'clerkAdmission';
+    else if (clerkData.role === 'scholarship') effectiveRole = 'clerkScholarship';
+    else if (clerkData.role === 'faculty') effectiveRole = 'faculty';
   }
 
   // Determine if student is fully verified to control menu visibility
@@ -130,14 +139,14 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
     <>
       <nav className={`bg-[#0b3578] shadow-lg ${sticky ? 'sticky z-50' : 'relative z-20'} pt-[env(safe-area-inset-top)]`} style={sticky ? { top: 'var(--site-header-height, 72px)' } : undefined}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`flex items-center h-13 ${minimalNav ? 'justify-start' : 'justify-between'}`}>
+          <div className={`flex items-center h-11 ${minimalNav ? 'justify-start' : 'justify-between'}`}>
             <div className={`flex items-center gap-4 ${minimalNav ? 'pl-2 sm:pl-4' : 'shrink-0'}`}>
-              <span className="text-white text-lg font-bold tracking-wide uppercase">{brandLabel}</span>
+              <span className="text-white text-sm font-bold tracking-wide uppercase">{brandLabel}</span>
             </div>
 
             {/* Desktop Menu */}
             {!minimalNav && (
-            <div className="hidden md:flex items-center gap-6">
+            <div className="hidden lg:flex items-center gap-6">
               <div className="flex items-center gap-4">
                 {(menuItems || []).map((item, idx) => {
                   const hasChildren = Array.isArray(item.children) && item.children.length > 0;
@@ -228,11 +237,29 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                   <ClerkNotificationDropdown />
                 </div>
               )}
+
+              {/* Dedicated Desktop Logout Button */}
+              {effectiveRole !== 'guest' && (
+                <div className="border-l border-white/10 pl-4">
+                  <button
+                    onClick={() => performAction('logout')}
+                    className="text-white hover:text-red-400 p-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-semibold tracking-wide uppercase cursor-pointer"
+                    title="Logout"
+                  >
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.4 7.2V6.6c0-1 .8-1.8 1.8-1.8h5c1 0 1.8.8 1.8 1.8v10.8c0 1-.8 1.8-1.8 1.8h-5c-1 0-1.8-.8-1.8-1.8v-.6" />
+                      <path d="M11.6 12H4.8" />
+                      <path d="M7 9.7 4.8 12 7 14.3" />
+                    </svg>
+                    <span className="hidden xl:inline">LOGOUT</span>
+                  </button>
+                </div>
+              )}
             </div>
             )}
             {/* Mobile Menu Button (single element morphing hamburger -> X) */}
             {!minimalNav && (
-            <div className="md:hidden">
+            <div className="lg:hidden">
               <button
                 onClick={() => setMobileMenuOpen(prev => !prev)}
                 className="text-white focus:outline-none p-2"
@@ -257,7 +284,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
         {/* Mobile Menu */}
         {!minimalNav && (
         <div
-          className={`md:hidden bg-[#0a2d66] overflow-hidden shadow-sm ${mobileMenuOpen ? 'opacity-100' : 'opacity-0'}`}
+          className={`lg:hidden bg-[#0a2d66] overflow-hidden shadow-sm ${mobileMenuOpen ? 'opacity-100' : 'opacity-0'}`}
           style={{
             transform: mobileMenuOpen ? 'translateY(0)' : 'translateY(-10px)',
             transitionProperty: 'transform, opacity, max-height',
@@ -297,7 +324,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                   {/* Mobile children container: smooth ease-in expand with slight translate */}
                   {hasChildren && (
                     <div
-                      className="pl-4 bg-white/5 overflow-hidden"
+                      className="overflow-hidden bg-black/10 rounded-r-md border-l border-white/10 ml-6 pl-3"
                       style={{
                         maxHeight: expanded ? `${item.children.length * 44}px` : '0px',
                         opacity: expanded ? 1 : 0,
@@ -312,7 +339,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                           <button
                             key={cidx}
                             onClick={() => handleMobileNavigate(child)}
-                            className={`w-full text-left block px-3 py-2 text-sm ${childActive ? 'bg-white/5 rounded text-white' : 'text-white/95'}`}
+                            className={`w-full text-left block px-3 py-2 text-sm ${childActive ? 'bg-[#0b3578] border-l-2 border-white text-white font-bold' : 'text-white/95'}`}
                             style={{ transition: 'opacity 180ms ease-in-out', transitionDelay: `${(cidx + 1) * 40}ms` }}
                           >
                             {child.label}
@@ -325,6 +352,28 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                 </div>
               );
             })}
+
+            {/* Dedicated Logout Button inside Mobile Menu */}
+            {effectiveRole !== 'guest' && (
+              <div className="mt-2 pt-2 border-t border-white/10">
+                <button
+                  onClick={() => handleMobileNavigate({ action: 'logout' })}
+                  className="w-full flex items-center justify-between px-3 py-3 text-red-400 hover:text-red-300 font-bold text-sm rounded bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.4 7.2V6.6c0-1 .8-1.8 1.8-1.8h5c1 0 1.8.8 1.8 1.8v10.8c0 1-.8 1.8-1.8 1.8h-5c-1 0-1.8-.8-1.8-1.8v-.6" />
+                      <path d="M11.6 12H4.8" />
+                      <path d="M7 9.7 4.8 12 7 14.3" />
+                    </svg>
+                    <span>LOGOUT</span>
+                  </span>
+                  <svg className="w-4 h-4 text-red-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.1" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </div>
         )}

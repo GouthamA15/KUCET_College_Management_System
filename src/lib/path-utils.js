@@ -64,7 +64,7 @@ export function getPortalTitle(pathname) {
   if (pathname.startsWith('/clerk/scholarship')) return 'Scholarship Portal';
   if (pathname.startsWith('/clerk/faculty')) return 'Faculty Portal';
   if (pathname.startsWith('/faculty')) return 'Faculty Portal';
-  if (pathname.startsWith('/admin')) return 'Admin Panel';
+  if (pathname.startsWith('/admin')) return 'Admin Portal';
 
   if (pathname.startsWith('/clerk')) return 'Clerk Portal';
   

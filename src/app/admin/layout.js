@@ -6,10 +6,16 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import HeaderMobileView from '@/components/Header-MobileView';
+import Navbar from '@/components/Navbar';
 import MobileTopbar from '@/components/MobileTopbar';
+import { usePathname } from 'next/navigation';
+import { getPortalTitle } from '@/lib/path-utils';
+import { MOBILE_NAV_MODE } from '@/lib/college-config';
 
 export default function AdminLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const resolvedTitle = getPortalTitle(pathname);
 
   return (
     <AdminProvider>
@@ -17,22 +23,32 @@ export default function AdminLayout({ children }) {
         <div className="flex-1 flex">
         
         {/* Sidebar */}
-        <AdminSidebar 
-          isMobileOpen={isMobileMenuOpen} 
-          setIsMobileOpen={setIsMobileMenuOpen} 
-        />
-
-        {/* Institutional Mobile Header */}
-        
+        {MOBILE_NAV_MODE === 'sidebar' ? (
+          <AdminSidebar 
+            isMobileOpen={isMobileMenuOpen} 
+            setIsMobileOpen={setIsMobileMenuOpen} 
+          />
+        ) : (
+          <div className="hidden lg:block">
+            <AdminSidebar 
+              isMobileOpen={isMobileMenuOpen} 
+              setIsMobileOpen={setIsMobileMenuOpen} 
+            />
+          </div>
+        )}
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-h-0 relative lg:pt-(--site-header-height,72px) lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
 
-          {/* Institutional Mobile Header (non-sticky) */}
-          <HeaderMobileView />
-
-          {/* Compact Sticky Mobile Topbar */}
-          <MobileTopbar onMenuClick={() => setIsMobileMenuOpen(true)} />
+          {/* Mobile Navigation */}
+          <div className="lg:hidden">
+            <HeaderMobileView />
+            {MOBILE_NAV_MODE === 'sidebar' ? (
+              <MobileTopbar onMenuClick={() => setIsMobileMenuOpen(true)} title={resolvedTitle} />
+            ) : (
+              <Navbar role="admin" brandLabel={resolvedTitle} />
+            )}
+          </div>
 
           {/* Content Wrapper (keep overflow rules away from sticky topbar) */}
           <div className="flex-1 flex flex-col min-h-0 relative overflow-x-hidden">
@@ -50,9 +66,9 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* Mobile Overlay */}
-        {isMobileMenuOpen && (
+        {MOBILE_NAV_MODE === 'sidebar' && isMobileMenuOpen && (
           <div 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 lg:hidden transition-all duration-300"
+            className="fixed inset-0 bg-slate-900/25 backdrop-blur-[1.5px] z-50 lg:hidden transition-all duration-300"
             onClick={() => setIsMobileMenuOpen(false)}
           />
         )}

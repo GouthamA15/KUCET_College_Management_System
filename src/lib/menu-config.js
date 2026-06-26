@@ -81,14 +81,12 @@ export const NAV_MENU_CONFIG = {
     }
   ],
   superAdmin: [
-    { label: 'HOME', route: '/' },
-    { label: 'ADMIN DASHBOARD', route: '/admin/dashboard' },
+    { label: 'DASHBOARD', route: '/admin/dashboard' },
+    { label: 'PAYMENTS', route: '/admin/payments' },
     { label: 'MANAGE CLERKS', route: '/admin/manage-clerks' },
-    { label: 'STUDENT STATS', route: '/admin/student-stats' },
-    { label: 'MENU', children: [
-        { label: 'Edit Profile', route: '/admin/settings/edit-profile' },
-        { label: 'Security & Privacy', route: '/admin/settings/security' }
-      ]
-    }
+    { label: 'CREATE CLERK', route: '/admin/create-clerk' },
+    { label: 'INFRASTRUCTURE', route: '/admin/infrastructure' },
+    { label: 'AUDIT TRAILS', route: '/admin/audit-logs' },
+    { label: 'VERIFICATIONS', route: '/admin/verifications' },
   ]
 };

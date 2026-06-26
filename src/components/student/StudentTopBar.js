@@ -64,12 +64,14 @@ export default function StudentTopBar({ onMenuClick }) {
   };
 
   return (
-    <header className="h-14 lg:h-20 flex items-center px-4 lg:px-8 bg-transparent relative">
+    <header className="h-11 lg:h-20 flex items-center px-4 lg:px-8 bg-[#0b3578] lg:bg-transparent relative">
+      {/* MOBILE ONLY LAYOUT */}
       {/* Left: Mobile Menu Toggle */}
-      <div className="flex-1 flex items-center justify-start">
+      <div className="flex-1 flex items-center justify-start lg:hidden">
         <button 
           onClick={onMenuClick}
-          className="lg:hidden p-2 text-white/70 hover:text-white rounded-lg transition-colors"
+          className="p-2 text-white/70 hover:text-white rounded-lg transition-colors"
+          aria-label="Open menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -77,11 +79,22 @@ export default function StudentTopBar({ onMenuClick }) {
         </button>
       </div>
 
-      {/* Right Side: Notifications & Portal Title */}
-      <div className="flex-1 flex items-center justify-end gap-3 lg:gap-5">
-        
+      {/* Center: Portal Title for Mobile */}
+      <div className="flex-1 flex justify-center lg:hidden">
+        <span className="text-[11px] font-bold text-white tracking-widest uppercase whitespace-nowrap">
+          {getPortalTitle(pathname)}
+        </span>
+      </div>
+
+      {/* Right: Spacer for Mobile to keep title centered */}
+      <div className="flex-1 flex items-center justify-end lg:hidden">
+        {/* spacer */}
+      </div>
+
+      {/* DESKTOP ONLY LAYOUT */}
+      <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-5">
         {/* Desktop Bell - Hidden on Mobile */}
-        <div className="relative hidden lg:block" ref={desktopDropdownRef}>
+        <div className="relative" ref={desktopDropdownRef}>
           <button 
             onClick={() => setNotifOpen(!notifOpen)}
             className={`p-2 transition-colors rounded-lg relative ${notifOpen ? 'text-[#0b3578] bg-blue-50' : 'text-slate-400 hover:text-[#0b3578] hover:bg-slate-50'}`}
@@ -159,13 +172,6 @@ export default function StudentTopBar({ onMenuClick }) {
               </Link>
             </div>
           )}
-        </div>
-
-        {/* Portal Title for Mobile */}
-        <div className="lg:hidden pr-2">
-          <span className="text-[11px] font-bold text-white/90 tracking-widest uppercase">
-            {getPortalTitle(pathname)}
-          </span>
         </div>
       </div>
     </header>

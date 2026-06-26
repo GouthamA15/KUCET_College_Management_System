@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { logoutByRole } from '@/lib/logout';
+import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 
 const icons = {
   dashboard: (
@@ -43,15 +44,25 @@ const icons = {
   )
 };
 
-const menuItems = [
-  { label: 'Dashboard', route: '/admin/dashboard', icon: icons.dashboard },
-  { label: 'Payments', route: '/admin/payments', icon: icons.payments },
-  { label: 'Manage Clerks', route: '/admin/manage-clerks', icon: icons.manageClerks },
-  { label: 'Create Clerk', route: '/admin/create-clerk', icon: icons.createClerk },
-  { label: 'Infrastructure', route: '/admin/infrastructure', icon: icons.infrastructure },
-  { label: 'Audit Trails', route: '/admin/audit-logs', icon: icons.auditLogs },
-  { label: 'Verifications', route: '/admin/verifications', icon: icons.verifications },
-];
+const labelToIcon = {
+  'DASHBOARD': icons.dashboard,
+  'PAYMENTS': icons.payments,
+  'MANAGE CLERKS': icons.manageClerks,
+  'CREATE CLERK': icons.createClerk,
+  'INFRASTRUCTURE': icons.infrastructure,
+  'AUDIT TRAILS': icons.auditLogs,
+  'VERIFICATIONS': icons.verifications,
+};
+
+const menuItems = NAV_MENU_CONFIG.superAdmin.map(item => ({
+  label: item.label.charAt(0) + item.label.slice(1).toLowerCase(),
+  route: item.route,
+  icon: labelToIcon[item.label]
+}));
+
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
 
 export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
   const pathname = usePathname();
@@ -61,7 +72,7 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
     await logoutByRole({ role: 'admin' });
   };
 
-  const isExpanded = isHovered || isMobileOpen;
+  const isExpanded = isHovered;
 
   const DESKTOP_COLLAPSED_W = 64; 
   const DESKTOP_EXPANDED_W = 240; 
@@ -77,12 +88,11 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
     };
   }, [isExpanded]);
 
-  return (
+  const DesktopNav = (
     <aside 
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`fixed left-0 bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff] flex flex-col z-60 transition-all duration-300 ease-in-out shadow-sm overflow-hidden rounded-tr-2xl rounded-br-2xl border border-slate-200/70 
-        ${isMobileOpen ? 'w-64 translate-x-0' : '-translate-x-full lg:translate-x-0'} 
+      className={`hidden lg:flex fixed left-0 bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff] flex-col z-60 transition-all duration-300 ease-in-out shadow-sm overflow-hidden rounded-tr-2xl rounded-br-2xl border border-slate-200/70 
         ${isExpanded ? 'lg:w-[240px]' : 'lg:w-16'}
       `}
       style={{
@@ -103,23 +113,11 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
         <div className={`flex flex-col min-w-0 transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
             <span className="text-slate-900 font-bold text-sm tracking-tight">
               ADMIN PANEL
-           </span>
+            </span>
             <span className="text-blue-800/50 text-[9px] font-black uppercase tracking-widest mt-0.5">
               CENTRAL CONTROL
-           </span>
+            </span>
         </div>
-        
-        {/* Close Button - Mobile Only */}
-        {isMobileOpen && (
-          <button 
-            onClick={() => setIsMobileOpen(false)}
-            className="lg:hidden ml-auto text-slate-500 hover:text-slate-900"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
       </div>
 
       {/* Navigation */}
@@ -131,7 +129,6 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
             <Link
               key={item.label}
               href={item.route}
-              onClick={() => setIsMobileOpen(false)}
               className={`flex items-center rounded-xl transition-all duration-200 group relative overflow-hidden h-12 ${
                 isActive 
                   ? 'bg-white/70 text-slate-900 font-semibold' 
@@ -173,5 +170,111 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
         </button>
       </div>
     </aside>
+  );
+
+  const MobileNav = (
+    <aside
+      className={cn(
+        'lg:hidden fixed left-0 top-0 z-50 h-full w-72',
+        'bg-gradient-to-b from-white via-slate-50/95 to-blue-50/70 backdrop-blur-md border-r border-slate-200/60 shadow-2xl',
+        'transform transition-transform duration-300 ease-in-out',
+        isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+      )}
+    >
+      <div className="flex flex-col h-full">
+        {/* Header Section */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 bg-linear-to-b from-blue-50/30 to-transparent">
+          <div className="flex flex-col">
+            <span className="text-[#002A5C] font-extrabold text-[13px] tracking-wider uppercase">
+              Admin Portal
+            </span>
+            <span className="text-[9.5px] text-[#002A5C]/50 font-black uppercase tracking-widest mt-0.5">
+              Menu Navigation
+            </span>
+          </div>
+          <button
+            onClick={() => setIsMobileOpen(false)}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors focus:outline-none"
+            aria-label="Close menu"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.1" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Navigation list */}
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
+          {menuItems.map((item) => {
+            const isActive = pathname === item.route || (item.route !== '/admin/dashboard' && pathname.startsWith(item.route));
+
+            const commonRow = cn(
+              'group w-full rounded-xl transition-all duration-200',
+              'h-11 flex items-center gap-3 px-2.5',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60',
+              isActive ? 'bg-blue-50/40 ring-1 ring-[#002A5C]/5' : 'bg-transparent hover:bg-slate-100/40'
+            );
+
+            return (
+              <Link
+                key={item.label}
+                href={item.route}
+                onClick={() => setIsMobileOpen(false)}
+                className={commonRow}
+              >
+                <div className="shrink-0">
+                  <div
+                    className={cn(
+                      'h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-200 [&>svg]:w-[18px] [&>svg]:h-[18px]',
+                      isActive
+                        ? 'bg-[#002A5C] text-white shadow-md shadow-[#002A5C]/15 ring-1 ring-[#002A5C]/10'
+                        : 'bg-transparent text-slate-600 group-hover:bg-slate-100 group-hover:text-[#002A5C]'
+                    )}
+                  >
+                    {item.icon}
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    'text-[13.5px] font-semibold tracking-tight transition-colors truncate',
+                    isActive ? 'text-[#002A5C]' : 'text-slate-700 group-hover:text-[#002A5C]'
+                  )}
+                >
+                  {item.label}
+                </div>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Logout (bottom) */}
+        <div className="border-t border-slate-100 p-3.5 bg-linear-to-t from-blue-50/30 to-transparent">
+          <button
+            type="button"
+            onClick={async () => {
+              setIsMobileOpen(false);
+              await logoutByRole({ role: 'admin' });
+            }}
+            className="w-full flex items-center justify-center px-3 py-2.5 text-red-600 hover:text-red-700 hover:bg-red-50/50 font-bold text-[12.5px] tracking-wide rounded-lg transition-all focus:outline-none"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.4 7.2V6.6c0-1 .8-1.8 1.8-1.8h5c1 0 1.8.8 1.8 1.8v10.8c0 1-.8 1.8-1.8 1.8h-5c-1 0-1.8-.8-1.8-1.8v-.6" />
+                <path d="M11.6 12H4.8" />
+                <path d="M7 9.7 4.8 12 7 14.3" />
+              </svg>
+              <span>LOGOUT</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+
+  return (
+    <>
+      {DesktopNav}
+      {MobileNav}
+    </>
   );
 }

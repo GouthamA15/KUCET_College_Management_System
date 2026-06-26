@@ -7,6 +7,7 @@ import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { ClerkContext } from '@/context/ClerkContext';
 import { StudentContext } from '@/context/StudentContext';
 import { logoutByRole } from '@/lib/logout';
+import { getPortalTitle } from '@/lib/path-utils';
 
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -217,8 +218,8 @@ async function performAction({ action, effectiveRole, onLogout, router, setActiv
 
 export default function Sidebar({
   role: roleProp = 'student',
-  isMobileOpen = false,
-  setIsMobileOpen = () => {},
+  isMobileOpen: _isMobileOpen = false,
+  setIsMobileOpen: _setIsMobileOpen = () => {},
   onLogout,
   // Optional: support guest home "open-panel-*" actions if a caller provides them
   activePanel,
@@ -244,8 +245,8 @@ export default function Sidebar({
   }, [effectiveRole, isClerkLoading, studentData]);
 
   const [expanded, setExpanded] = useState(false);
-  const [mobileExpanded, setMobileExpanded] = useState({});
   const [desktopExpanded, setDesktopExpanded] = useState({});
+  const [mobileExpanded, setMobileExpanded] = useState({});
 
   const DESKTOP_COLLAPSED_W = 69; // px (matches layouts using lg:ml-16)
   const DESKTOP_EXPANDED_W = 264; // px
@@ -565,27 +566,39 @@ export default function Sidebar({
     </aside>
   );
 
-  // Mobile drawer: preserve existing behavior/structure (drawer + expand/collapse for child menus)
   const MobileNav = (
     <aside
       className={cn(
-        'lg:hidden fixed left-0 z-50 transform',
-        isMobileOpen ? 'translate-x-0' : '-translate-x-full',
-        'transition-transform duration-300'
+        'lg:hidden fixed left-0 top-0 z-50 h-full w-72',
+        'bg-gradient-to-b from-white via-slate-50/95 to-blue-50/70 backdrop-blur-md border-r border-slate-200/60 shadow-2xl',
+        'transform transition-transform duration-300 ease-in-out',
+        _isMobileOpen ? 'translate-x-0' : '-translate-x-full'
       )}
-      style={{ top: 0, height: '100vh' }}
-      aria-hidden={!isMobileOpen}
-      inert={!isMobileOpen ? true : undefined}
     >
-      <div className="w-72 h-full bg-linear-to-b from-[#f8fbff] via-white to-[#eef5ff] border-r border-slate-200 backdrop-blur-md">
-        <div className="p-4 flex items-center justify-between">
-          <div className="text-lg font-bold text-slate-800 font-institutional">Menu</div>
-          <button onClick={() => setIsMobileOpen(false)} className="p-2 text-slate-700" aria-label="Close menu">
-            <span className="text-xl leading-none">×</span>
+      <div className="flex flex-col h-full">
+        {/* Header Section */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 bg-linear-to-b from-blue-50/30 to-transparent">
+          <div className="flex flex-col">
+            <span className="text-[#002A5C] font-extrabold text-[13px] tracking-wider uppercase">
+              {effectiveRole === 'superAdmin' ? 'Admin Portal' : getPortalTitle(pathname)}
+            </span>
+            <span className="text-[9.5px] text-[#002A5C]/50 font-black uppercase tracking-widest mt-0.5">
+              Menu Navigation
+            </span>
+          </div>
+          <button
+            onClick={() => _setIsMobileOpen(false)}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors focus:outline-none"
+            aria-label="Close menu"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.1" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
-        <nav className="px-2 py-2">
+        {/* Navigation list */}
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
           {menu.map((item, idx) => {
             const displayLabel = getDisplayLabel({ effectiveRole, label: item.label });
             const iconKey = pickIconKey(displayLabel);
@@ -598,35 +611,88 @@ export default function Sidebar({
               item.children.some((c) => c.route && isActiveRoute({ pathname, route: c.route, exact: false }));
             const active = !!(selfActive || childActive);
 
+            const commonRow = cn(
+              'group w-full rounded-xl transition-all duration-200',
+              'h-11 flex items-center gap-3 px-2.5',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60',
+              active ? 'bg-blue-50/40 ring-1 ring-[#002A5C]/5' : 'bg-transparent hover:bg-slate-100/40'
+            );
+
+            const iconBlock = (
+              <div className="shrink-0">
+                <div
+                  className={cn(
+                    'h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-200',
+                    active
+                      ? 'bg-[#002A5C] text-white shadow-md shadow-[#002A5C]/15 ring-1 ring-[#002A5C]/10'
+                      : 'bg-transparent text-slate-600 group-hover:bg-slate-100 group-hover:text-[#002A5C]'
+                  )}
+                >
+                  <Icon size={17} />
+                </div>
+              </div>
+            );
+
+            const labelBlock = (
+              <div
+                className={cn(
+                  'text-[13.5px] font-semibold tracking-tight transition-colors truncate',
+                  active ? 'text-[#002A5C]' : 'text-slate-700 group-hover:text-[#002A5C]'
+                )}
+              >
+                {displayLabel}
+              </div>
+            );
+
             if (Array.isArray(item.children) && item.children.length > 0) {
               const open = !!mobileExpanded[idx];
               return (
-                <div key={idx} className="my-1">
+                <div key={idx} className="space-y-1">
                   <button
                     type="button"
+                    className={cn(commonRow, 'justify-between')}
                     onClick={() => setMobileExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }))}
-                    className={cn(
-                      'w-full flex items-center gap-3 p-2 rounded-md transition-colors',
-                      active ? 'bg-slate-100' : 'hover:bg-slate-50'
-                    )}
+                    aria-expanded={open}
                   >
-                    <span className={cn('text-slate-700', active ? 'text-blue-800' : '')}>
-                      <Icon size={20} />
-                    </span>
-                    <div className="text-sm text-slate-700 flex-1 text-left font-medium">{displayLabel}</div>
-                    <span className={cn('text-slate-500 transition-transform', open ? 'rotate-90' : 'rotate-0')}>
-                      <Icons.chevron size={18} />
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {iconBlock}
+                      {labelBlock}
+                    </div>
+                    <div
+                      className={cn(
+                        'h-8 w-8 rounded-lg flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]',
+                        open ? 'rotate-90' : 'rotate-0',
+                        'text-slate-400 group-hover:text-slate-600'
+                      )}
+                    >
+                      <Icons.chevron size={15} />
+                    </div>
                   </button>
 
-                  <div className={cn('pl-8 overflow-hidden transition-all', open ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0')}>
+                  <div 
+                    className="ml-6 pl-4 border-l-2 border-[#002A5C]/10 bg-[#002A5C]/3 rounded-r-xl overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+                    style={{
+                      maxHeight: open ? `${item.children.length * 36 + 8}px` : '0px',
+                      opacity: open ? 1 : 0,
+                      paddingTop: open ? '4px' : '0px',
+                      paddingBottom: open ? '4px' : '0px',
+                    }}
+                  >
                     {item.children.map((c, ci) => {
                       const childIsActive = c.route && isActiveRoute({ pathname, route: c.route, exact: false });
+                      const dotIcon = (
+                        <span className={cn(
+                          "w-1.5 h-1.5 rounded-full shrink-0 transition-all duration-200",
+                          childIsActive ? "bg-white scale-110" : "bg-slate-400/80 group-hover:bg-[#002A5C]"
+                        )} />
+                      );
+                      
                       const childClass = cn(
-                        'w-full text-left block px-2 py-2 rounded-md text-sm transition-colors',
+                        'group block w-full text-left rounded-lg px-2.5 py-1.5 flex items-center gap-2.5',
+                        'text-[12px] font-semibold transition-all duration-200',
                         childIsActive
-                          ? 'bg-blue-50 text-blue-900 font-semibold'
-                          : 'text-slate-600 hover:bg-slate-50'
+                          ? 'bg-[#002A5C] text-white shadow-xs'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
                       );
 
                       if (c.action) {
@@ -634,8 +700,9 @@ export default function Sidebar({
                           <button
                             key={ci}
                             type="button"
+                            className={childClass}
                             onClick={() => {
-                              setIsMobileOpen(false);
+                              _setIsMobileOpen(false);
                               performAction({
                                 action: c.action,
                                 effectiveRole,
@@ -645,9 +712,9 @@ export default function Sidebar({
                                 activePanel,
                               });
                             }}
-                            className={childClass}
                           >
-                            {c.label}
+                            {dotIcon}
+                            <span>{c.label}</span>
                           </button>
                         );
                       }
@@ -657,17 +724,19 @@ export default function Sidebar({
                           <Link
                             key={ci}
                             href={c.route}
-                            onClick={() => setIsMobileOpen(false)}
+                            onClick={() => _setIsMobileOpen(false)}
                             className={childClass}
                           >
-                            {c.label}
+                            {dotIcon}
+                            <span>{c.label}</span>
                           </Link>
                         );
                       }
 
                       return (
-                        <div key={ci} className="px-2 py-2 text-sm text-slate-600">
-                          {c.label}
+                        <div key={ci} className="px-2.5 py-1.5 text-[12px] text-slate-400 flex items-center gap-2.5">
+                          {dotIcon}
+                          <span>{c.label}</span>
                         </div>
                       );
                     })}
@@ -681,8 +750,9 @@ export default function Sidebar({
                 <button
                   key={idx}
                   type="button"
+                  className={commonRow}
                   onClick={() => {
-                    setIsMobileOpen(false);
+                    _setIsMobileOpen(false);
                     performAction({
                       action: item.action,
                       effectiveRole,
@@ -692,17 +762,9 @@ export default function Sidebar({
                       activePanel,
                     });
                   }}
-                  className={cn(
-                    'w-full my-1 p-2 rounded-md text-left transition-colors',
-                    active ? 'bg-slate-100' : 'hover:bg-slate-50'
-                  )}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className={cn('text-slate-700', active ? 'text-blue-800' : '')}>
-                      <Icon size={20} />
-                    </span>
-                    <div className="text-sm text-slate-700 font-medium">{displayLabel}</div>
-                  </div>
+                  {iconBlock}
+                  {labelBlock}
                 </button>
               );
             }
@@ -711,43 +773,39 @@ export default function Sidebar({
               <Link
                 key={idx}
                 href={item.route || '#'}
-                onClick={() => setIsMobileOpen(false)}
-                className={cn('block my-1 p-2 rounded-md transition-colors', active ? 'bg-slate-100' : 'hover:bg-slate-50')}
+                onClick={() => _setIsMobileOpen(false)}
+                className={commonRow}
               >
-                <div className="flex items-center gap-3">
-                  <span className={cn('text-slate-700', active ? 'text-blue-800' : '')}>
-                    <Icon size={20} />
-                  </span>
-                  <div className="text-sm text-slate-700 font-medium">{displayLabel}</div>
-                </div>
+                {iconBlock}
+                {labelBlock}
               </Link>
             );
           })}
-
-          {/* Mobile Logout */}
-          <div className="mt-3 pt-3 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={() => {
-                setIsMobileOpen(false);
-                performAction({
-                  action: 'logout',
-                  effectiveRole,
-                  onLogout,
-                  router,
-                  setActivePanel,
-                  activePanel,
-                });
-              }}
-              className="w-full p-2 rounded-md text-left hover:bg-red-50 transition-colors"
-            >
-              <div className="flex items-center gap-3 text-red-700">
-                <Icons.logout size={20} />
-                <div className="text-sm font-semibold">Logout</div>
-              </div>
-            </button>
-          </div>
         </nav>
+
+        {/* Logout (bottom) */}
+        <div className="border-t border-slate-100 p-3.5 bg-linear-to-t from-blue-50/30 to-transparent">
+          <button
+            type="button"
+            onClick={() => {
+              _setIsMobileOpen(false);
+              performAction({
+                action: 'logout',
+                effectiveRole,
+                onLogout,
+                router,
+                setActivePanel,
+                activePanel,
+              });
+            }}
+            className="w-full flex items-center justify-center px-3 py-2.5 text-red-600 hover:text-red-700 hover:bg-red-50/50 font-bold text-[12.5px] tracking-wide rounded-lg transition-all focus:outline-none"
+          >
+            <span className="flex items-center gap-2">
+              <Icons.logout size={17} />
+              <span>LOGOUT</span>
+            </span>
+          </button>
+        </div>
       </div>
     </aside>
   );

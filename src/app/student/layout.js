@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StudentProvider } from '@/context/StudentContext';
 import { ProfileActivityProvider } from '@/context/ProfileActivityContext';
 import StudentActivityBar from '@/components/student/StudentActivityBar';
@@ -8,11 +8,13 @@ import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import HeaderMobileView from '@/components/Header-MobileView';
-import MobileTopbar from '@/components/MobileTopbar';
+import Navbar from '@/components/Navbar';
+import StudentTopBar from '@/components/student/StudentTopBar';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { getPortalTitle } from '@/lib/path-utils';
+import { MOBILE_NAV_MODE } from '@/lib/college-config';
 
 function ActivationGuard({ children }) {
   const { studentData, loading } = useStudent();
@@ -44,6 +46,8 @@ function ActivationGuard({ children }) {
 
 export default function StudentLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const resolvedTitle = getPortalTitle(pathname);
 
   return (
     <StudentProvider>
@@ -51,19 +55,37 @@ export default function StudentLayout({ children }) {
         <div className="min-h-screen flex flex-col font-sans">
           <div className="flex-1 flex">
           
-          {/* Sidebar - Always present, handles its own desktop/mobile visibility */}
-          <Sidebar role="student" isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen} />
+          {/* Sidebar */}
+          {MOBILE_NAV_MODE === 'sidebar' ? (
+            <Sidebar 
+              role="student" 
+              isMobileOpen={isMobileMenuOpen} 
+              setIsMobileOpen={setIsMobileMenuOpen} 
+            />
+          ) : (
+            <div className="hidden lg:block">
+              <Sidebar 
+                role="student" 
+                isMobileOpen={isMobileMenuOpen} 
+                setIsMobileOpen={setIsMobileMenuOpen} 
+              />
+            </div>
+          )}
 
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col min-h-0 relative lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
 
-            {/* Institutional Mobile Header (non-sticky) */}
-            <HeaderMobileView />
+            {/* Mobile Navigation */}
+            <div className="lg:hidden">
+              <HeaderMobileView />
+              {MOBILE_NAV_MODE === 'sidebar' ? (
+                <StudentTopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
+              ) : (
+                <Navbar role="student" brandLabel={resolvedTitle} />
+              )}
+            </div>
 
-            {/* Compact Sticky Mobile Topbar */}
-            <MobileTopbar onMenuClick={() => setIsMobileMenuOpen(true)} />
-
-            {/* Content Wrapper (keep overflow rules away from sticky topbar) */}
+            {/* Content Wrapper */}
             <div className="flex-1 flex flex-col min-h-0 relative overflow-x-hidden">
               {/* Global header only on desktop */}
               <div className="hidden lg:block">
@@ -87,10 +109,10 @@ export default function StudentLayout({ children }) {
             </div>
           </div>
 
-          {/* Mobile Overlay (below sidebar, above content) */}
-          {isMobileMenuOpen && (
+          {/* Mobile Overlay for Sidebar Mode */}
+          {MOBILE_NAV_MODE === 'sidebar' && isMobileMenuOpen && (
             <div 
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden transition-all duration-300"
+              className="fixed inset-0 bg-slate-900/25 backdrop-blur-[1.5px] z-40 lg:hidden transition-all duration-300"
               onClick={() => setIsMobileMenuOpen(false)}
             />
           )}

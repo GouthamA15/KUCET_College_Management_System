@@ -42,3 +42,6 @@ export const COLLEGE_CONFIG = {
     'Above 8,00,000'
   ],
 };
+
+export const MOBILE_NAV_MODE = 'sidebar'; // 'sidebar' | 'navbar'
+

@@ -42,7 +42,7 @@ export default function HeaderMobileView() {
   return (
     <header 
       ref={headerRef} 
-      className="md:hidden relative bg-linear-to-r from-blue-50 to-white py-4 px-4 w-full pt-[calc(1rem+env(safe-area-inset-top))] border-b border-slate-200 transition-colors duration-200"
+      className="lg:hidden relative bg-linear-to-r from-blue-50 to-white py-4 px-4 w-full pt-[calc(1rem+env(safe-area-inset-top))] border-b border-slate-200 transition-colors duration-200"
     >
       <div className="flex flex-col items-center justify-center">
         {/* Top Row - Logos */}
