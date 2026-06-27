@@ -43,8 +43,8 @@ export default function ClerkLayout({ children }) {
         <div className="flex-1 flex flex-col min-h-0 relative lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
 
           {/* Mobile Navigation */}
-          <div className="lg:hidden">
-            <HeaderMobileView />
+          <HeaderMobileView />
+          <div className="lg:hidden sticky top-0 z-30">
             {MOBILE_NAV_MODE === 'sidebar' ? (
               <MobileTopbar onMenuClick={() => setIsMobileMenuOpen(true)} title={resolvedTitle} />
             ) : (
