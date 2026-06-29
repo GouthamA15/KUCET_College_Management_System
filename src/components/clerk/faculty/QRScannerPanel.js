@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 export default function QRScannerPanel({ onScanSuccess }) {
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanned, setLastScanned] = useState(null);
+  const [scannerError, setScannerError] = useState(null);
   
   // Keep the latest callback in a ref to avoid re-triggering useEffect
   const onScanSuccessRef = useRef(onScanSuccess);
@@ -26,7 +27,7 @@ export default function QRScannerPanel({ onScanSuccess }) {
           }
         });
         
-        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+        const qrCodeSuccessCallback = (decodedText) => {
           // Parse logic:
           // Type 1: Just roll number: '23567T0942'
           // Type 2: Detailed text containing 'HT-No : 245670967L' or 'HT-no : ...'
@@ -53,7 +54,16 @@ export default function QRScannerPanel({ onScanSuccess }) {
         html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
           .catch((err) => {
             console.error("QR Scanner startup error:", err);
-            toast.error("Camera access denied or unavailable.");
+            
+            let errMsg = "Camera access denied or unavailable.";
+            if (typeof window !== 'undefined' && !window.isSecureContext) {
+              errMsg = "Camera requires HTTPS. If testing on a phone over local WiFi, use ngrok or enable 'Insecure origins treated as secure' in chrome://flags.";
+            } else if (err?.name === 'NotAllowedError' || (typeof err === 'string' && err.includes('NotAllowedError'))) {
+              errMsg = "Camera permission denied. Please allow camera access in your browser settings (Site Settings > Camera) and try again.";
+            }
+            
+            setScannerError(errMsg);
+            toast.error(errMsg, { duration: 6000 });
             setIsScanning(false);
           });
       }, 100);
@@ -94,7 +104,10 @@ export default function QRScannerPanel({ onScanSuccess }) {
         </div>
         
         <button
-          onClick={() => setIsScanning(!isScanning)}
+          onClick={() => {
+            if (!isScanning) setScannerError(null);
+            setIsScanning(!isScanning);
+          }}
           className={`px-4 py-2 font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-all active:scale-95 ${
             isScanning 
               ? 'bg-red-600 text-white hover:bg-red-700' 
@@ -104,6 +117,18 @@ export default function QRScannerPanel({ onScanSuccess }) {
           {isScanning ? 'Stop Scanner' : 'Start Camera'}
         </button>
       </div>
+
+      {scannerError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <p className="font-bold flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            Camera Error
+          </p>
+          <p className="mt-1 ml-7">{scannerError}</p>
+        </div>
+      )}
 
       {isScanning && (
         <div className="flex flex-col md:flex-row gap-6">
