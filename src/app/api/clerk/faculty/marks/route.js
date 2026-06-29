@@ -110,7 +110,7 @@ export async function GET(request) {
       eq(studentMarks.assignment_id, canonicalId)
     ))
     .where(and(
-      eq(studentsTable.academic_status, 'ACTIVE'),
+      eq(studentsTable.student_status, 'ACTIVE'),
       or(...studentConditions)
     ))
     .orderBy(asc(studentsTable.roll_no));

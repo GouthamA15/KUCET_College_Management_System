@@ -3,6 +3,12 @@ import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
+import dynamic from 'next/dynamic';
+
+const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
+  ssr: false,
+  loading: () => <div className="p-4 text-center text-emerald-600 bg-emerald-50 rounded-lg mb-4 text-sm font-bold">Loading camera module...</div>
+});
 
 const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -167,7 +173,7 @@ const MobilePendingSyncIndicator = () => {
   );
 };
 
-export default function MobileAttendanceSheet({ onBack }) {
+export default function MobileAttendanceSheet({ onBack, mode }) {
   const {
     assignment,
     students,
@@ -186,8 +192,30 @@ export default function MobileAttendanceSheet({ onBack }) {
     handleCalendarSelect,
     toggleAttendanceStatus,
     setAllAttendanceStatus,
-    verifiedStudentIds
+    verifiedStudentIds,
+    setVerifiedStudentIds
   } = useFacultyAttendance();
+
+  const handleQRScan = (rollNo) => {
+    if (!selectedDate || !dateValidation?.isValid) {
+      toast.error('Select a valid WORKING day from the calendar first.', { id: 'qr-error' });
+      return;
+    }
+    const student = students.find(s => s.roll_no === rollNo);
+    if (student) {
+      setAttendanceStatus(student.id, 'PRESENT');
+      if (setVerifiedStudentIds) {
+        setVerifiedStudentIds(prev => {
+          const next = new Set(prev);
+          next.add(student.id);
+          return next;
+        });
+      }
+      toast.success(`Marked ${rollNo} present!`, { id: 'qr-success-mobile' });
+    } else {
+      toast.error(`Student with Roll No ${rollNo} not found in this class.`);
+    }
+  };
 
   return (
     <div className="pb-24">
@@ -203,8 +231,9 @@ export default function MobileAttendanceSheet({ onBack }) {
       {/* Subject Identity Panel */}
       <MobileSubjectIdentityPanel />
 
-      {/* SECURE SESSION PANEL (MOBILE) */}
-      {assignment.is_active && <MobileSessionControlPanel />}
+      {/* MODE SPECIFIC PANELS (MOBILE) */}
+      {assignment.is_active && mode === 'gps' && <MobileSessionControlPanel />}
+      {assignment.is_active && mode === 'qr' && <QRScannerPanel onScanSuccess={handleQRScan} />}
 
       {/* FACULTY ACADEMIC CALENDAR (MOBILE) */}
       <FacultyAcademicCalendar

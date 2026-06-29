@@ -47,7 +47,7 @@ export async function GET(req) {
     .innerJoin(studentAttendance, eq(students.id, studentAttendance.student_id))
     .innerJoin(facultySubjectAssignments, eq(studentAttendance.assignment_id, facultySubjectAssignments.id))
     .where(and(
-        eq(students.academic_status, 'ACTIVE'),
+        eq(students.student_status, 'ACTIVE'),
         eq(facultySubjectAssignments.branch, user.branch),
         eq(facultySubjectAssignments.course_semester, semester),
         or(

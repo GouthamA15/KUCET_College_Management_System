@@ -181,3 +181,8 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Navigation & Layout Unification:** Re-architected the global navigation framework, standardizing `AdminSidebar`, `Sidebar`, and `Navbar` components across all roles (Admin, Clerk, Student) for improved mobile responsiveness and architectural consistency.
 - **Contextual State Enrichment:** Upgraded `StudentContext` to deeply integrate with the new security notification APIs, ensuring immediate client-side awareness of session revocations and critical security events.
 - **Testing Integrity:** Expanded unit testing suite (`SecurityService.test.js`, `refresh.test.js`) to strictly validate the new session management logic and ensure uninterrupted authentication flows.
+
+#### **Session 161: QR Attendance Enhancements & SSR Fixes (June 29, 2026)**
+- **Camera Resource Safety:** Refactored QRScannerPanel rendering in page.js to conditionally mount based on window.innerWidth, preventing dual instances in DOM from crashing the html5-qrcode library and causing Illegal constructor errors.
+- **QR Validation Integrity:** Hardened handleQRScan across Desktop and Mobile attendance sheets with strict working-date/session precondition checks, preventing faculty from marking QR attendance prior to selecting valid dates.
+- **UI Completeness:** Resolved missing History icon import in AttendanceHistoryViewer for correct icon rendering.

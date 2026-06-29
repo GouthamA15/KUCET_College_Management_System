@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { useClerk } from '@/context/ClerkContext';
 import AttendanceSheet from '@/components/clerk/faculty/AttendanceSheet';
 import MobileAttendanceSheet from '@/components/clerk/faculty/MobileAttendanceSheet';
+import AttendanceModeSelector from '@/components/clerk/faculty/AttendanceModeSelector';
+import AttendanceHistoryViewer from '@/components/clerk/faculty/AttendanceHistoryViewer';
 import { FacultyAttendanceProvider } from '@/context/FacultyAttendanceContext';
 
 function AttendanceContent() {
@@ -14,6 +16,15 @@ function AttendanceContent() {
   const [assignments, setAssignments] = useState([]);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [attendanceMode, setAttendanceMode] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -48,6 +59,11 @@ function AttendanceContent() {
 
   const resetSelection = () => {
     setSelectedAssignment(null);
+    setAttendanceMode(null);
+  };
+
+  const backToModeSelection = () => {
+    setAttendanceMode(null);
   };
 
   const SubjectCard = ({ assignment, onSelect }) => {
@@ -156,14 +172,24 @@ function AttendanceContent() {
             <p className="text-gray-500 mt-2">You are not assigned to any subjects for attendance management.</p>
           </div>
         )
+      ) : attendanceMode === null ? (
+        <AttendanceModeSelector
+          assignment={selectedAssignment}
+          onSelectMode={setAttendanceMode}
+          onBack={resetSelection}
+        />
+      ) : attendanceMode === 'view' ? (
+        <AttendanceHistoryViewer
+          assignment={selectedAssignment}
+          onBack={backToModeSelection}
+        />
       ) : (
         <FacultyAttendanceProvider assignment={selectedAssignment}>
-          <div className="hidden md:block">
-            <AttendanceSheet onBack={resetSelection} />
-          </div>
-          <div className="block md:hidden">
-            <MobileAttendanceSheet onBack={resetSelection} />
-          </div>
+          {isMobile ? (
+            <MobileAttendanceSheet onBack={backToModeSelection} mode={attendanceMode} />
+          ) : (
+            <AttendanceSheet onBack={backToModeSelection} mode={attendanceMode} />
+          )}
         </FacultyAttendanceProvider>
       )}
     </>

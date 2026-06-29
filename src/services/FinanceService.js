@@ -28,13 +28,13 @@ export class FinanceService {
       let feeQuery = db.select({ totalFees: sql`sum(${studentFeePayments.amount})` })
         .from(studentFeePayments)
         .leftJoin(students, eq(studentFeePayments.student_id, students.id));
-      if (!startDate && !endDate) feeConditions.push(eq(students.academic_status, 'ACTIVE'));
+      if (!startDate && !endDate) feeConditions.push(eq(students.student_status, 'ACTIVE'));
       if (feeConditions.length > 0) feeQuery = feeQuery.where(and(...feeConditions));
 
       let certQuery = db.select({ totalCertFees: sql`sum(${studentRequests.payment_amount})` })
         .from(studentRequests)
         .leftJoin(students, eq(studentRequests.student_id, students.id));
-      if (!startDate && !endDate) certConditions.push(eq(students.academic_status, 'ACTIVE'));
+      if (!startDate && !endDate) certConditions.push(eq(students.student_status, 'ACTIVE'));
       if (certConditions.length > 0) certQuery = certQuery.where(and(...certConditions));
 
       let schQuery = db.select({ 
@@ -43,7 +43,7 @@ export class FinanceService {
       })
       .from(scholarshipSanctions)
       .leftJoin(students, eq(scholarshipSanctions.student_id, students.id));
-      if (!startDate && !endDate) schConditions.push(eq(students.academic_status, 'ACTIVE'));
+      if (!startDate && !endDate) schConditions.push(eq(students.student_status, 'ACTIVE'));
       if (schConditions.length > 0) schQuery = schQuery.where(and(...schConditions));
 
       const [feeRes, certRes, scholarshipRes] = await Promise.all([feeQuery, certQuery, schQuery]);

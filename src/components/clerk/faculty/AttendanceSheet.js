@@ -3,6 +3,12 @@ import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
+import dynamic from 'next/dynamic';
+
+const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
+  ssr: false,
+  loading: () => <div className="p-6 text-center text-emerald-600 bg-emerald-50 rounded-xl mb-6">Loading camera module...</div>
+});
 
 const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -422,8 +428,30 @@ const PendingSyncIndicator = () => {
   );
 };
 
-export default function AttendanceSheet({ onBack }) {
-  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect } = useFacultyAttendance();
+export default function AttendanceSheet({ onBack, mode }) {
+  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, verifiedStudentIds, setVerifiedStudentIds } = useFacultyAttendance();
+
+  const handleQRScan = (rollNo) => {
+    if (!selectedDate || !dateValidation?.isValid) {
+      toast.error('Select a valid WORKING day from the calendar first.', { id: 'qr-error' });
+      return;
+    }
+    const student = students.find(s => s.roll_no === rollNo);
+    if (student) {
+      setAttendanceStatus(student.id, 'PRESENT');
+      // optionally add them to verified list to show visual feedback
+      if (setVerifiedStudentIds) {
+        setVerifiedStudentIds(prev => {
+          const next = new Set(prev);
+          next.add(student.id);
+          return next;
+        });
+      }
+      toast.success(`Marked ${rollNo} present!`, { id: 'qr-success' });
+    } else {
+      toast.error(`Student with Roll No ${rollNo} not found in this class.`);
+    }
+  };
 
   if (loading && !students.length) return <div className="text-center py-4">Loading students...</div>;
 
@@ -441,8 +469,9 @@ export default function AttendanceSheet({ onBack }) {
       {/* Subject Identity Panel */}
       <SubjectIdentityPanel assignment={assignment} />
 
-      {/* SECURE SESSION PANEL */}
-      {assignment.is_active && <SessionControlPanel />}
+      {/* MODE SPECIFIC PANELS */}
+      {assignment.is_active && mode === 'gps' && <SessionControlPanel />}
+      {assignment.is_active && mode === 'qr' && <QRScannerPanel onScanSuccess={handleQRScan} />}
 
       {/* FACULTY ACADEMIC CALENDAR */}
       <FacultyAcademicCalendar
