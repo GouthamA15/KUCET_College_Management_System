@@ -55,6 +55,11 @@ const envSchema = z.object({
  * Throws an informative error if any required variables are missing or invalid.
  */
 export function validateEnv() {
+  // Allow GitHub Actions and CI environments to bypass strict validation during static builds
+  if (process.env.CI === 'true' || process.env.SKIP_ENV_VALIDATION === 'true') {
+    return;
+  }
+  
   try {
     const envData = { ...process.env };
     // Force NODE_ENV to lowercase and trim to handle potential OS/Environment inconsistencies
