@@ -37,10 +37,32 @@ export default function QRScannerPanel({ onScanSuccess }) {
           isStartingRef.current = true;
           
           const qrCodeSuccessCallback = (decodedText) => {
-            let rollNo = decodedText.trim();
-            const match = rollNo.match(/HT-No\s*:\s*([A-Za-z0-9]+)/i);
-            if (match) rollNo = match[1].trim();
-            rollNo = rollNo.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            let extractedRoll = null;
+            
+            // 1. Try to find common ID labels
+            const labelMatch = decodedText.match(/(?:HT[-.\s]*No|Hall\s*Ticket(?:[-.\s]*No)?|Roll[-.\s]*No(?:umber)?|ID[-.\s]*No)\s*[:=-]\s*([A-Za-z0-9]+)/i);
+            
+            if (labelMatch) {
+              extractedRoll = labelMatch[1].trim();
+            } else {
+              // 2. Fallback: Search the entire text for anything that looks like a KUCET roll number
+              // Format: YY567TBBSS (Regular) or YY567BBSSL (Lateral)
+              const rollPatternMatch = decodedText.match(/\b(\d{2}567T?\d{2}[A-Za-z0-9]{2,3})\b/i);
+              if (rollPatternMatch) {
+                extractedRoll = rollPatternMatch[1].trim();
+              } else {
+                // If it's a huge block of text and no roll number was found, don't concatenate it.
+                if (decodedText.length < 25) {
+                   extractedRoll = decodedText.trim();
+                } else {
+                   // Log internally and ignore to prevent polluting the scanner with giant strings
+                   console.warn("Could not find a valid Roll Number in QR code:", decodedText);
+                   return;
+                }
+              }
+            }
+            
+            const rollNo = extractedRoll.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             
             if (rollNo) {
               setLastScanned(rollNo);
