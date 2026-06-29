@@ -6,7 +6,7 @@ import {
   collegeInfo as _collegeInfoTable
 } from '@/db/schema';
 import { db } from '@/db';
-import { eq, and, asc, sql, _or, like } from 'drizzle-orm';
+import { eq, and, asc, sql, or, like } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { branchCodes } from '@/lib/rollNumber';
 import logger from '@/lib/logger';
@@ -110,7 +110,10 @@ export async function GET(request) {
     ))
     .where(and(
       eq(studentsTable.student_status, 'ACTIVE'),
-      like(studentsTable.roll_no, `%${branchCode}%`), // Branch filter
+      or(
+        like(studentsTable.roll_no, `%567T${branchCode}%`),
+        like(studentsTable.roll_no, `%567${branchCode}%L`)
+      ), // Exact branch pattern matching
       sql`CASE 
           WHEN ${studentsTable.roll_no} LIKE '%T%' THEN 
             (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 1) - ${studentsTable.academic_offset_years}

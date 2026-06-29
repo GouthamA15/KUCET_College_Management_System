@@ -7,7 +7,7 @@ import {
   branchConfig, 
   collegeInfo as collegeInfoTable 
 } from '@/db/schema';
-import { eq, and, asc, desc, or, like, inArray, _sql } from 'drizzle-orm';
+import { eq, and, asc, desc, or, like, inArray, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { isSemesterActive } from '@/lib/academic-utils';
 import { branchCodes } from '@/lib/rollNumber';
@@ -72,21 +72,24 @@ export async function GET(request) {
     // --- PRECISE SEMESTER-AWARE STUDENT FILTERING ---
     const startYear = parseInt(academic_year.split('-')[0]);
     const studyingYear = Math.ceil(course_semester / 2);
-    const entryYearRegular = (startYear - (studyingYear - 1)).toString().slice(-2);
-    const entryYearLateral = (startYear - (studyingYear - 2)).toString().slice(-2);
 
     const branchCode = Object.keys(branchCodes).find(key => branchCodes[key] === branch);
     if (!branchCode) {
       return apiError('Invalid branch in assignment', 400);
     }
 
-    const regularPattern = `${entryYearRegular}567T${branchCode}%`;
-    const lateralPattern = `${entryYearLateral}567${branchCode}%L`;
+    const studentConditions = [
+      like(studentsTable.roll_no, `%567T${branchCode}%`),
+      like(studentsTable.roll_no, `%567${branchCode}%L`)
+    ];
 
-    const studentConditions = [like(studentsTable.roll_no, regularPattern)];
-    if (studyingYear >= 2) {
-      studentConditions.push(like(studentsTable.roll_no, lateralPattern));
-    }
+    const dynamicYearCondition = sql`CASE 
+        WHEN ${studentsTable.roll_no} LIKE '%T%' THEN 
+          (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 1) - ${studentsTable.academic_offset_years}
+        WHEN ${studentsTable.roll_no} LIKE '%L' THEN 
+          (${startYear} - CAST(CONCAT('20', SUBSTRING(${studentsTable.roll_no}, 1, 2)) AS SIGNED) + 2) - ${studentsTable.academic_offset_years}
+        ELSE 0
+      END = ${studyingYear}`;
 
     const students = await db.select({
       id: studentsTable.id,
@@ -111,7 +114,8 @@ export async function GET(request) {
     ))
     .where(and(
       eq(studentsTable.student_status, 'ACTIVE'),
-      or(...studentConditions)
+      or(...studentConditions),
+      dynamicYearCondition
     ))
     .orderBy(asc(studentsTable.roll_no));
 
