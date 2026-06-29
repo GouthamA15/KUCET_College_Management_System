@@ -7,7 +7,7 @@ const { chromium } = require('@playwright/test');
   page.on('console', msg => console.log('BROWSER CONSOLE:', msg.text()));
   page.on('pageerror', err => console.log('BROWSER ERROR:', err));
   
-  await page.goto('http://localhost:3000');
+  await page.goto('https://kucet-new.onrender.com/');
   
   console.log("Page loaded");
   await new Promise(r => setTimeout(r, 2000));
