@@ -38,4 +38,5 @@ jobs:
       env:
         # Mock env vars if needed during static build phase
         NEXT_PUBLIC_WORKING_ENV: testing
+        SKIP_ENV_VALIDATION: 'true'
 
