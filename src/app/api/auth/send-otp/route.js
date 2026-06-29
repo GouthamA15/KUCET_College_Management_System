@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sendInstitutionalEmail } from '@/lib/email';
 import { getStudentEmail } from '@/lib/student-utils';
-import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 function generateSecureOtp() {
   const length = 6;
@@ -46,7 +46,7 @@ export async function POST(request) {
     }
 
     // Check identifier-based rate limit FIRST to avoid charging IP counter when identifier is blocked
-    const identifierRateCheck = await checkRateLimit(`send_otp_id:${identifier}`, 5, 900); // 5 attempts per 15 min
+    const identifierRateCheck = await checkRateLimit(`send_otp_id:${identifier}`, 3, 600); // 3 attempts per 10 min
     if (!identifierRateCheck.success) {
       const retryAfter = identifierRateCheck.resetIn || identifierRateCheck.ttl || identifierRateCheck.reset || 900;
       return NextResponse.json(
@@ -56,7 +56,7 @@ export async function POST(request) {
     }
 
     // Then check IP-based rate limit
-    const rateCheck = await checkRateLimit(getTieredKey(request, 'send_otp'), 5, 900); // 5 attempts per 15 min
+    const rateCheck = await checkRateLimit(`send_otp_ip:${clientIp}`, 3, 600); // Strict 3 attempts per 10 min per IP
     if (!rateCheck.success) {
       const retryAfter = rateCheck.resetIn || rateCheck.ttl || rateCheck.reset || 900;
       return NextResponse.json(
