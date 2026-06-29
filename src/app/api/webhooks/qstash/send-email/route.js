@@ -12,7 +12,7 @@ const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_RE
 async function handler(req) {
   try {
     const body = await req.json();
-    const { to, subject, html } = body;
+    const { to, subject, html, title, infoRows } = body;
 
     if (!to || !subject || !html) {
       return NextResponse.json({ success: false, message: 'Missing parameters' }, { status: 400 });
@@ -34,7 +34,9 @@ async function handler(req) {
     const emailResult = await sendInstitutionalEmail({
       to,
       subject,
-      bodyHtml: html
+      title: title || 'KUCET Notification',
+      bodyHtml: html,
+      infoRows: Array.isArray(infoRows) ? infoRows : undefined
     });
 
     if (!emailResult.success) {

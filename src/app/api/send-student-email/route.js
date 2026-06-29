@@ -4,6 +4,7 @@ import { sendInstitutionalEmail } from '@/lib/email';
 import { db } from '@/db';
 import { students } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { Queue } from '@/lib/queue';
 
 export async function POST(request) {
   try {
@@ -47,19 +48,26 @@ export async function POST(request) {
       return apiError('Student email is not verified. Email not sent.', 403);
     }
 
-    const emailResult = await sendInstitutionalEmail({
-      to: studentEmail,
-      subject,
-      title: title || 'KUCET Notification',
-      bodyHtml: html,
-      // bodyText: optional, fallback will be derived from HTML
-      infoRows: Array.isArray(infoRows) ? infoRows : undefined
-    });
+    const emailResult = await Queue.enqueueEmail(studentEmail, subject, html, title || 'KUCET Notification', Array.isArray(infoRows) ? infoRows : undefined);
 
-    if (emailResult.success) {
-      return apiResponse({ success: true, message: 'Email sent successfully.' });
+    if (emailResult && emailResult.success) {
+      return apiResponse({ success: true, message: 'Email queued for sending.' });
+    } else if (emailResult === null) {
+      // Fallback if QStash is not configured (e.g. local dev without token)
+      const directResult = await sendInstitutionalEmail({
+        to: studentEmail,
+        subject,
+        title: title || 'KUCET Notification',
+        bodyHtml: html,
+        infoRows: Array.isArray(infoRows) ? infoRows : undefined
+      });
+      if (directResult.success) {
+        return apiResponse({ success: true, message: 'Email sent successfully directly.' });
+      } else {
+        return apiError(directResult.message || 'Failed to send email directly.', 500);
+      }
     } else {
-      return apiError(emailResult.message || 'Failed to send email.', 500);
+      return apiError(emailResult.error || 'Failed to queue email.', 500);
     }
   } catch (error) {
     logger.error('Error in send-student-email API:', error);
