@@ -64,10 +64,16 @@ export default function QRScannerPanel({ onScanSuccess }) {
               console.error("QR Scanner startup error (both cameras failed):", fallbackErr);
               
               let errMsg = "Camera access denied or unavailable.";
-              if (typeof window !== 'undefined' && !window.isSecureContext) {
+              
+              const ua = navigator.userAgent || navigator.vendor || window.opera;
+              const isWebView = (ua.indexOf('FBAN') > -1) || (ua.indexOf('FBAV') > -1) || (ua.indexOf('Instagram') > -1) || (ua.indexOf('WhatsApp') > -1) || (ua.indexOf('wv') > -1);
+              
+              if (isWebView) {
+                errMsg = "You are using an In-App Browser (like WhatsApp or Instagram) which blocks camera access. Please tap the top right menu and select 'Open in Chrome/Safari'.";
+              } else if (typeof window !== 'undefined' && !window.isSecureContext) {
                 errMsg = "Camera requires HTTPS. If testing locally, use localhost or ngrok.";
               } else if (fallbackErr?.name === 'NotAllowedError' || (typeof fallbackErr === 'string' && fallbackErr.includes('NotAllowedError'))) {
-                errMsg = "Camera permission blocked. Click the 'Lock' icon next to the URL in your browser and allow Camera access.";
+                errMsg = "Camera permission blocked. Click the 'Lock' or settings icon next to the URL in your browser and allow Camera access.";
               }
               
               setScannerError(errMsg);
