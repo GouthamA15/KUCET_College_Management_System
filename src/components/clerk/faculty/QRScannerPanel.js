@@ -73,7 +73,9 @@ export default function QRScannerPanel({ onScanSuccess }) {
               } else if (typeof window !== 'undefined' && !window.isSecureContext) {
                 errMsg = "Camera requires HTTPS. If testing locally, use localhost or ngrok.";
               } else if (fallbackErr?.name === 'NotAllowedError' || (typeof fallbackErr === 'string' && fallbackErr.includes('NotAllowedError'))) {
-                errMsg = "Camera permission blocked. Click the 'Lock' or settings icon next to the URL in your browser and allow Camera access.";
+                errMsg = "Camera permission blocked. 1) Click the settings icon next to the URL to allow Camera. 2) Check Windows/Mac Settings -> Privacy -> Camera to ensure browsers are allowed to use the camera.";
+              } else if (fallbackErr?.name === 'NotFoundError') {
+                errMsg = "No camera found. Please ensure your camera is connected and not disabled by a hardware switch.";
               }
               
               setScannerError(errMsg);
