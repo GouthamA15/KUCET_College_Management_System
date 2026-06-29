@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 export default function QRScannerPanel({ onScanSuccess }) {
   const [isScanning, setIsScanning] = useState(false);
+  const [selectedCameraId, setSelectedCameraId] = useState(null);
   const [lastScanned, setLastScanned] = useState(null);
   const [scannerError, setScannerError] = useState(null);
   
@@ -51,41 +52,21 @@ export default function QRScannerPanel({ onScanSuccess }) {
 
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
         
-        const startCamera = async () => {
-          try {
-            // First try rear camera (ideal for phones)
-            await html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback);
-          } catch (err) {
-            console.warn("Environment camera failed, trying user camera...", err);
-            try {
-              // Fallback to front camera (ideal for laptops)
-              await html5QrCode.start({ facingMode: "user" }, config, qrCodeSuccessCallback);
-            } catch (fallbackErr) {
-              console.error("QR Scanner startup error (both cameras failed):", fallbackErr);
-              
-              let errMsg = "Camera access denied or unavailable.";
-              
-              const ua = navigator.userAgent || navigator.vendor || window.opera;
-              const isWebView = (ua.indexOf('FBAN') > -1) || (ua.indexOf('FBAV') > -1) || (ua.indexOf('Instagram') > -1) || (ua.indexOf('WhatsApp') > -1) || (ua.indexOf('wv') > -1);
-              
-              if (isWebView) {
-                errMsg = "You are using an In-App Browser (like WhatsApp or Instagram) which blocks camera access. Please tap the top right menu and select 'Open in Chrome/Safari'.";
-              } else if (typeof window !== 'undefined' && !window.isSecureContext) {
-                errMsg = "Camera requires HTTPS. If testing locally, use localhost or ngrok.";
-              } else if (fallbackErr?.name === 'NotAllowedError' || (typeof fallbackErr === 'string' && fallbackErr.includes('NotAllowedError'))) {
-                errMsg = "Camera permission blocked. 1) Click the settings icon next to the URL to allow Camera. 2) Check Windows/Mac Settings -> Privacy -> Camera to ensure browsers are allowed to use the camera.";
-              } else if (fallbackErr?.name === 'NotFoundError') {
-                errMsg = "No camera found. Please ensure your camera is connected and not disabled by a hardware switch.";
-              }
-              
-              setScannerError(errMsg);
-              toast.error(errMsg, { duration: 6000 });
+        if (selectedCameraId) {
+          html5QrCode.start(selectedCameraId, config, qrCodeSuccessCallback)
+            .catch(err => {
+              console.error("Failed to start camera feed:", err);
+              setScannerError("Failed to start camera feed. It might be in use by another app.");
               setIsScanning(false);
-            }
-          }
-        };
-
-        startCamera();
+            });
+        } else {
+          // Fallback if no ID was selected for some reason
+          html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+            .catch(err => {
+              setScannerError("Camera initialization failed.");
+              setIsScanning(false);
+            });
+        }
       }, 100);
       
       return () => {
@@ -124,9 +105,49 @@ export default function QRScannerPanel({ onScanSuccess }) {
         </div>
         
         <button
-          onClick={() => {
-            if (!isScanning) setScannerError(null);
-            setIsScanning(!isScanning);
+          onClick={async () => {
+            if (isScanning) {
+              setIsScanning(false);
+              setScannerError(null);
+              return;
+            }
+            
+            setScannerError(null);
+            
+            try {
+              // Request permission directly in the onClick user-gesture!
+              const cameras = await Html5Qrcode.getCameras();
+              
+              if (cameras && cameras.length > 0) {
+                // Find rear camera first, otherwise fallback to first available (laptop webcam)
+                const backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('environment'));
+                const targetCamera = backCamera || cameras[0];
+                
+                setSelectedCameraId(targetCamera.id);
+                setIsScanning(true); // Mounts the #qr-reader div and triggers useEffect
+              } else {
+                setScannerError("No cameras found on your device.");
+              }
+            } catch (err) {
+              console.error("Permission error during getCameras:", err);
+              let errMsg = "Camera access denied or unavailable.";
+              
+              const ua = navigator.userAgent || navigator.vendor || window.opera;
+              const isWebView = (ua.indexOf('FBAN') > -1) || (ua.indexOf('FBAV') > -1) || (ua.indexOf('Instagram') > -1) || (ua.indexOf('WhatsApp') > -1) || (ua.indexOf('wv') > -1);
+              
+              if (isWebView) {
+                errMsg = "You are using an In-App Browser (like WhatsApp or Instagram) which blocks camera access. Please tap the top right menu and select 'Open in Chrome/Safari'.";
+              } else if (typeof window !== 'undefined' && !window.isSecureContext) {
+                errMsg = "Camera requires HTTPS. If testing locally, use localhost or ngrok.";
+              } else if (err?.name === 'NotAllowedError' || (typeof err === 'string' && err.includes('NotAllowedError'))) {
+                errMsg = "Camera permission blocked. 1) Click the settings icon next to the URL. 2) Check Windows/Mac Privacy settings.";
+              } else if (err?.name === 'NotFoundError') {
+                errMsg = "No camera found. Ensure it's not disabled by a hardware switch.";
+              }
+              
+              setScannerError(errMsg);
+              toast.error(errMsg, { duration: 6000 });
+            }
           }}
           className={`px-4 py-2 font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-all active:scale-95 ${
             isScanning 
