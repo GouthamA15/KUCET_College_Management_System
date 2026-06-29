@@ -351,19 +351,6 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Console Log Cleanup (GouthamA15):** Purged debugging `console.log` statements from `RealtimeListener.js` to prevent memory leaks and noise in production consoles.
 
 #### **Session 159: Universal Legal Compliance & GPS Privacy Controls (June 25, 2026)**
-- **Legal Architecture:** Engineered strict `/privacy-policy` and `/terms` public pages governing data retention, AES-256-GCM encryption transparency, and location access rules. Integrated them into the global institutional `Footer`.
-- **Zero-Trust Admission Consent:** Hardened the `/admission` pipeline with a mandatory `legal_consent` Zod validation constraint and UI checkbox. Automatically records `data_policy_consented_at` timestamps using precise IST clocks (`getNow()`) directly into the Drizzle ORM registry.
-- **Just-In-Time GPS Privacy:** Re-architected the `AttendanceVerificationActivity` to strictly prompt for explicit Location Tracking Consent *before* executing the `navigator.geolocation` API. Consent is verified against `localStorage` and centrally logged to the `students` DB table (`gps_consent_granted_at`) via a new `POST /api/student/consent/gps` endpoint.
-- **Transparent Cookie Policy:** Built a universally rendering `CookieBanner` injected directly into the Next.js `layout.js`, providing clear UX communication regarding the use of HTTP-only session cookies and offline-first LocalStorage.
-
-#### **Session 160: Navigation & Advanced Session Management (June 29, 2026)**
-- **Security & Session Sovereignty:** Engineered advanced API routes (`/api/auth/sessions/revoke-others`) and enhanced `SecurityService` to allow users to remotely revoke active sessions on other devices. Implemented a robust `SecurityCenter` UI to visualize and manage active sessions.
-- **Navigation & Layout Unification:** Re-architected the global navigation framework, standardizing `AdminSidebar`, `Sidebar`, and `Navbar` components across all roles (Admin, Clerk, Student) for improved mobile responsiveness and architectural consistency.
-- **Contextual State Enrichment:** Upgraded `StudentContext` to deeply integrate with the new security notification APIs, ensuring immediate client-side awareness of session revocations and critical security events.
-- **Testing Integrity:** Expanded unit testing suite (`SecurityService.test.js`, `refresh.test.js`) to strictly validate the new session management logic and ensure uninterrupted authentication flows.
-
-#### **Session 161: QR Attendance Enhancements & SSR Fixes (June 29, 2026)**
-- **Camera Resource Safety:** Refactored QRScannerPanel rendering in page.js to conditionally mount based on window.innerWidth, preventing dual instances in DOM from crashing the html5-qrcode library and causing Illegal constructor errors.
 - **QR Validation Integrity:** Hardened handleQRScan across Desktop and Mobile attendance sheets with strict working-date/session precondition checks, preventing faculty from marking QR attendance prior to selecting valid dates.
 - **UI Completeness:** Resolved missing History icon import in AttendanceHistoryViewer for correct icon rendering.
 
