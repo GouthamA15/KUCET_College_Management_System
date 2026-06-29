@@ -32,15 +32,9 @@ export default function QRScannerPanel({ onScanSuccess }) {
           // Type 2: Detailed text containing 'HT-No : 245670967L' or 'HT-no : ...'
           let rollNo = decodedText.trim();
           
-          if (rollNo.includes('HT-No') || rollNo.includes('HT-no')) {
-            const lines = rollNo.split('\n');
-            const htLine = lines.find(l => l.toUpperCase().includes('HT-NO'));
-            if (htLine) {
-              const parts = htLine.split(':');
-              if (parts.length > 1) {
-                rollNo = parts[1].trim();
-              }
-            }
+          const match = rollNo.match(/HT-No\s*:\s*([A-Za-z0-9]+)/i);
+          if (match) {
+            rollNo = match[1].trim();
           }
           
           // Basic cleanup - remove any non-alphanumeric just in case

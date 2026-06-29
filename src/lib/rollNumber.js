@@ -20,16 +20,19 @@ function validateRollNo(rollNo) {
   if (typeof rollNo !== 'string' || rollNo.trim() === '') {
     return { isValid: false };
   }
-  const regularPattern = /^(\d{2})567T(\d{2})(\d{2})$/;
-  const lateralPattern = /^(\d{2})567(\d{2})(\d{2})L$/;
+  
+  const cleanRollNo = rollNo.trim().toUpperCase();
+  // Support alphanumeric serial numbers (e.g., A1, B2) common in large batches
+  const regularPattern = /^(\d{2})567T(\d{2})([A-Z0-9]{2})$/;
+  const lateralPattern = /^(\d{2})567T?(\d{2})([A-Z0-9]{2})L$/;
 
-  const regularMatch = rollNo.match(regularPattern);
-  const lateralMatch = rollNo.match(lateralPattern);
+  const regularMatch = cleanRollNo.match(regularPattern);
+  const lateralMatch = cleanRollNo.match(lateralPattern);
 
   if (regularMatch) {
     const [, year, branchCode, serial] = regularMatch;
     const branch = branchCodes[branchCode];
-    if (branch && parseInt(serial) >= 1 && parseInt(serial) <= 99) {
+    if (branch) {
       return {
         isValid: true,
         entryYear: `20${year}`,
@@ -42,7 +45,7 @@ function validateRollNo(rollNo) {
   if (lateralMatch) {
     const [, year, branchCode, serial] = lateralMatch;
     const branch = branchCodes[branchCode];
-    if (branch && parseInt(serial) >= 1 && parseInt(serial) <= 99) {
+    if (branch) {
       return {
         isValid: true,
         entryYear: `20${year}`,
