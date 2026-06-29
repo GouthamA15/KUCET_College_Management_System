@@ -5,9 +5,10 @@ import {
   facultySubjectAssignments,
   facultySubstitutions
 } from '@/db/schema';
-import { eq, and, gt, _sql } from 'drizzle-orm';
+import { eq, and, gt } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import crypto from 'crypto';
+import { getNow } from '@/lib/clock';
 
 /**
  * GET /api/clerk/faculty/attendance/session?assignment_id=X
@@ -26,8 +27,6 @@ export async function GET(request) {
     if (!assignment_id) {
       return apiError('Missing assignment_id', 400);
     }
-
-    const { getNow } = await import('@/lib/clock');
     const sessions = await db.select({
       id: attendanceSessions.id,
       session_pin: attendanceSessions.session_pin,
@@ -131,7 +130,6 @@ export async function POST(request) {
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
     // Session valid for 10 minutes by default
-    const { getNow } = await import('@/lib/clock');
     const now = getNow();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
