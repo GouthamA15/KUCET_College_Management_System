@@ -9,6 +9,10 @@ export default function QRScannerPanel({ onScanSuccess }) {
   const [lastScanned, setLastScanned] = useState(null);
   const [scannerError, setScannerError] = useState(null);
   
+  // Use refs to track scanner state across rapid re-renders (Strict Mode)
+  const scannerRef = useRef(null);
+  const isStartingRef = useRef(false);
+
   // Keep the latest callback in a ref to avoid re-triggering useEffect
   const onScanSuccessRef = useRef(onScanSuccess);
   useEffect(() => {
@@ -16,77 +20,103 @@ export default function QRScannerPanel({ onScanSuccess }) {
   }, [onScanSuccess]);
 
   useEffect(() => {
-    let html5QrCode;
+    let isMounted = true;
     
     if (isScanning) {
-      // Need a small timeout to ensure the DOM element is fully rendered before mounting scanner
-      const timer = setTimeout(() => {
-        html5QrCode = new Html5Qrcode("qr-reader", {
-          formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: false
-          }
-        });
-        
-        const qrCodeSuccessCallback = (decodedText) => {
-          // Parse logic:
-          // Type 1: Just roll number: '23567T0942'
-          // Type 2: Detailed text containing 'HT-No : 245670967L' or 'HT-no : ...'
-          let rollNo = decodedText.trim();
-          
-          const match = rollNo.match(/HT-No\s*:\s*([A-Za-z0-9]+)/i);
-          if (match) {
-            rollNo = match[1].trim();
+      const initScanner = async () => {
+        try {
+          if (!scannerRef.current) {
+            scannerRef.current = new Html5Qrcode("qr-reader", {
+              formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
+              experimentalFeatures: {
+                useBarCodeDetectorIfSupported: false
+              }
+            });
           }
           
-          // Basic cleanup - remove any non-alphanumeric just in case
-          rollNo = rollNo.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+          isStartingRef.current = true;
           
-          if (rollNo) {
-            setLastScanned(rollNo);
-            if (onScanSuccessRef.current) {
-              onScanSuccessRef.current(rollNo);
+          const qrCodeSuccessCallback = (decodedText) => {
+            let rollNo = decodedText.trim();
+            const match = rollNo.match(/HT-No\s*:\s*([A-Za-z0-9]+)/i);
+            if (match) rollNo = match[1].trim();
+            rollNo = rollNo.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            
+            if (rollNo) {
+              setLastScanned(rollNo);
+              if (onScanSuccessRef.current) {
+                onScanSuccessRef.current(rollNo);
+              }
+            }
+          };
+
+          const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+          
+          if (selectedCameraId) {
+            await scannerRef.current.start(selectedCameraId, config, qrCodeSuccessCallback);
+          } else {
+            await scannerRef.current.start({ facingMode: "environment" }, config, qrCodeSuccessCallback);
+          }
+          
+          isStartingRef.current = false;
+          
+          // If component unmounted while we were waiting for the camera to start
+          if (!isMounted) {
+            try {
+              if (scannerRef.current && scannerRef.current.isScanning) {
+                await scannerRef.current.stop();
+              }
+              if (scannerRef.current) {
+                scannerRef.current.clear();
+                scannerRef.current = null;
+              }
+            } catch (e) {
+              console.error("Late cleanup error:", e);
             }
           }
-        };
-
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-        
-        if (selectedCameraId) {
-          html5QrCode.start(selectedCameraId, config, qrCodeSuccessCallback)
-            .catch(err => {
-              console.error("Failed to start camera feed:", err);
-              setScannerError("Failed to start camera feed. It might be in use by another app.");
-              setIsScanning(false);
-            });
-        } else {
-          // Fallback if no ID was selected for some reason
-          html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
-            .catch(err => {
-              setScannerError("Camera initialization failed.");
-              setIsScanning(false);
-            });
+        } catch (err) {
+          isStartingRef.current = false;
+          if (isMounted) {
+            console.error("Failed to start camera feed:", err);
+            setScannerError("Failed to start camera feed. It might be in use by another app.");
+            setIsScanning(false);
+          }
         }
+      };
+
+      // Ensure the DOM has painted the div
+      const timer = setTimeout(() => {
+        if (isMounted) initScanner();
       }, 100);
       
       return () => {
+        isMounted = false;
         clearTimeout(timer);
-        if (html5QrCode) {
-          try {
-            if (html5QrCode.isScanning) {
-              html5QrCode.stop().then(() => {
-                html5QrCode.clear();
-              }).catch(console.error);
-            } else {
-              html5QrCode.clear();
+        
+        if (scannerRef.current) {
+          if (isStartingRef.current) {
+            // Cannot stop while starting. The promise resolution above will handle it.
+          } else {
+            try {
+              if (scannerRef.current.isScanning) {
+                scannerRef.current.stop().then(() => {
+                  if (scannerRef.current) {
+                    scannerRef.current.clear();
+                    scannerRef.current = null;
+                  }
+                }).catch(console.error);
+              } else {
+                scannerRef.current.clear();
+                scannerRef.current = null;
+              }
+            } catch (e) {
+              console.error("Cleanup error", e);
             }
-          } catch (e) {
-            console.error("Cleanup error", e);
           }
         }
       };
     }
-  }, [isScanning]);
+  }, [isScanning, selectedCameraId]);
 
   return (
     <div className="bg-emerald-50 border-2 border-emerald-200 p-4 rounded-xl mb-6 shadow-sm">
@@ -171,10 +201,10 @@ export default function QRScannerPanel({ onScanSuccess }) {
         </div>
       )}
 
-      {isScanning && (
+      <div className={isScanning ? 'block' : 'hidden'}>
         <div className="flex flex-col md:flex-row gap-6">
-          <div className="w-full md:w-1/2 max-w-sm mx-auto md:mx-0 overflow-hidden rounded-xl border-2 border-emerald-300 bg-black">
-            <div id="qr-reader" className="w-full"></div>
+          <div className="w-full md:w-1/2 max-w-sm mx-auto md:mx-0 overflow-hidden rounded-xl border-2 border-emerald-300 bg-black min-h-[250px]">
+            <div id="qr-reader" className="w-full min-h-[250px]"></div>
           </div>
           
           <div className="flex-1 flex flex-col justify-center items-center bg-white p-6 rounded-xl border border-emerald-100 shadow-inner">
@@ -191,7 +221,7 @@ export default function QRScannerPanel({ onScanSuccess }) {
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
