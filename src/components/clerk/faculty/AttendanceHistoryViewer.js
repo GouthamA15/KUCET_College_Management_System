@@ -208,6 +208,14 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                                           <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                                             PRESENT
                                           </span>
+                                        ) : record.status === 'NCC' ? (
+                                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                            NCC
+                                          </span>
+                                        ) : record.status === 'MEDICAL' ? (
+                                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                            MEDICAL
+                                          </span>
                                         ) : (
                                           <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
                                             ABSENT

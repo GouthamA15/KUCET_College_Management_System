@@ -186,3 +186,10 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Camera Resource Safety:** Refactored QRScannerPanel rendering in page.js to conditionally mount based on window.innerWidth, preventing dual instances in DOM from crashing the html5-qrcode library and causing Illegal constructor errors.
 - **QR Validation Integrity:** Hardened handleQRScan across Desktop and Mobile attendance sheets with strict working-date/session precondition checks, preventing faculty from marking QR attendance prior to selecting valid dates.
 - **UI Completeness:** Resolved missing History icon import in AttendanceHistoryViewer for correct icon rendering.
+
+#### **Session 162: Attendance Status Enhancements & API Typo Fixes (June 29, 2026)**
+- **API Refactoring:** Fixed a critical typo across students/route.js, marks/route.js, FinanceService.js, and ttendance-analytics/route.js where cademic_status was incorrectly compared against 'ACTIVE' instead of student_status.
+- **History View:** Upgraded AttendanceHistoryViewer to support NCC and MEDICAL statuses with distinct color rendering alongside standard PRESENT and ABSENT statuses.
+- **Detailed Expansion:** Enhanced AttendanceHistoryViewer with an interactive dropdown table allowing faculty to instantly view student-by-student roll calls per session.
+- **API Payload Normalization:** Modified /api/clerk/faculty/attendance/full-history to explicitly join the students table to fetch oll_no and 
+ame without client-side waterfalls, and wrapped the payload in standard { data: ... } struct for frontend type-safety.
