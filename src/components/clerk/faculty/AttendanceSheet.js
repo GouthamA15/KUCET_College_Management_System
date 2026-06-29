@@ -453,6 +453,19 @@ export default function AttendanceSheet({ onBack, mode }) {
     }
   };
 
+  const handleQRStop = () => {
+    let changed = false;
+    (students || []).forEach(s => {
+      if (s.status === null) {
+        setAttendanceStatus(s.id, 'ABSENT');
+        changed = true;
+      }
+    });
+    if (changed) {
+      toast.success('Scanner stopped. Remaining students marked as ABSENT.', { id: 'qr-stop' });
+    }
+  };
+
   if (loading && !students.length) return <div className="text-center py-4">Loading students...</div>;
 
   return (
@@ -471,7 +484,7 @@ export default function AttendanceSheet({ onBack, mode }) {
 
       {/* MODE SPECIFIC PANELS */}
       {assignment.is_active && mode === 'gps' && <SessionControlPanel />}
-      {assignment.is_active && mode === 'qr' && <QRScannerPanel onScanSuccess={handleQRScan} />}
+      {assignment.is_active && mode === 'qr' && <QRScannerPanel onScanSuccess={handleQRScan} onScannerStop={handleQRStop} />}
 
       {/* FACULTY ACADEMIC CALENDAR */}
       <FacultyAcademicCalendar

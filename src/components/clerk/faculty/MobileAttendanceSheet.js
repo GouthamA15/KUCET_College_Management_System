@@ -217,6 +217,19 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
     }
   };
 
+  const handleQRStop = () => {
+    let changed = false;
+    (students || []).forEach(s => {
+      if (s.status === null) {
+        setAttendanceStatus(s.id, 'ABSENT');
+        changed = true;
+      }
+    });
+    if (changed) {
+      toast.success('Scanner stopped. Remaining students marked as ABSENT.', { id: 'qr-stop-mobile' });
+    }
+  };
+
   return (
     <div className="pb-24">
       {/* Back Button */}
@@ -233,7 +246,7 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
 
       {/* MODE SPECIFIC PANELS (MOBILE) */}
       {assignment.is_active && mode === 'gps' && <MobileSessionControlPanel />}
-      {assignment.is_active && mode === 'qr' && <QRScannerPanel onScanSuccess={handleQRScan} />}
+      {assignment.is_active && mode === 'qr' && <QRScannerPanel onScanSuccess={handleQRScan} onScannerStop={handleQRStop} />}
 
       {/* FACULTY ACADEMIC CALENDAR (MOBILE) */}
       <FacultyAcademicCalendar

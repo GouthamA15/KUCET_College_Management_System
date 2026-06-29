@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import toast from 'react-hot-toast';
 
-export default function QRScannerPanel({ onScanSuccess }) {
+export default function QRScannerPanel({ onScanSuccess, onScannerStop }) {
   const [isScanning, setIsScanning] = useState(false);
   const [selectedCameraId, setSelectedCameraId] = useState(null);
   const [lastScanned, setLastScanned] = useState(null);
@@ -161,6 +161,9 @@ export default function QRScannerPanel({ onScanSuccess }) {
             if (isScanning) {
               setIsScanning(false);
               setScannerError(null);
+              if (onScannerStop) {
+                onScannerStop();
+              }
               return;
             }
             
