@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { studentAttendance } from '@/db/schema';
+import { studentAttendance, students } from '@/db/schema';
 import { eq, and, asc, desc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
@@ -39,11 +39,14 @@ export async function GET(request) {
     // If no student_id, fetch FULL GRID DATA for all students in this assignment
     const attendance = await db.select({
       student_id: studentAttendance.student_id,
+      roll_no: students.roll_no,
+      name: students.name,
       date: sql`DATE_FORMAT(${studentAttendance.date}, '%Y-%m-%d')`,
       session: studentAttendance.session,
       status: studentAttendance.status
     })
     .from(studentAttendance)
+    .innerJoin(students, eq(studentAttendance.student_id, students.id))
     .where(eq(studentAttendance.assignment_id, assignment_id))
     .orderBy(asc(studentAttendance.date), asc(studentAttendance.session));
 
@@ -58,8 +61,10 @@ export async function GET(request) {
     .orderBy(asc(studentAttendance.date), asc(studentAttendance.session));
 
     return apiResponse({ 
-      attendance, 
-      uniqueDates 
+      data: {
+        attendance, 
+        uniqueDates 
+      }
     });
   } catch (error) {
     logger.error('Attendance Full History Error:', error);

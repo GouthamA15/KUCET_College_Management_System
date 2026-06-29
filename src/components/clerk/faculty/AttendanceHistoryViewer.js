@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Calendar, Users, Activity, History } from 'lucide-react';
 
@@ -7,6 +7,15 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
   const [historyData, setHistoryData] = useState([]);
   const [uniqueSessions, setUniqueSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedSession, setExpandedSession] = useState(null);
+
+  const toggleSession = (sessionKey) => {
+    if (expandedSession === sessionKey) {
+      setExpandedSession(null);
+    } else {
+      setExpandedSession(sessionKey);
+    }
+  };
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -148,31 +157,72 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                   const totalCount = sessionRecords.length;
                   const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
                   
+                  const sessionKey = `${session.date}-${session.session}-${idx}`;
+                  const isExpanded = expandedSession === sessionKey;
+                  
                   return (
-                    <tr key={`${session.date}-${session.session}-${idx}`} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                        {session.date}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="bg-gray-100 text-gray-800 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-gray-200">
-                          S{session.session}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-emerald-600">
-                        {presentCount}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">
-                        {totalCount}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                            <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${percentage}%` }}></div>
+                    <Fragment key={sessionKey}>
+                      <tr onClick={() => toggleSession(sessionKey)} className="hover:bg-gray-50 transition-colors cursor-pointer">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {session.date}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="bg-gray-100 text-gray-800 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-gray-200">
+                            S{session.session}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-emerald-600">
+                          {presentCount}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">
+                          {totalCount}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                              <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${percentage}%` }}></div>
+                            </div>
+                            <span className="text-xs font-bold text-gray-700 w-8">{percentage}%</span>
                           </div>
-                          <span className="text-xs font-bold text-gray-700 w-8">{percentage}%</span>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan="5" className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <div className="max-h-64 overflow-y-auto pr-2 rounded border border-gray-200 bg-white shadow-inner">
+                              <table className="min-w-full divide-y divide-gray-100 text-sm">
+                                <thead className="bg-gray-100 sticky top-0">
+                                  <tr>
+                                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Roll No</th>
+                                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Name</th>
+                                    <th className="px-4 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                  {sessionRecords.sort((a, b) => (a.roll_no || '').localeCompare(b.roll_no || '')).map(record => (
+                                    <tr key={record.student_id} className="hover:bg-gray-50">
+                                      <td className="px-4 py-2 font-mono font-bold text-gray-700">{record.roll_no}</td>
+                                      <td className="px-4 py-2 font-medium text-gray-600">{record.name}</td>
+                                      <td className="px-4 py-2 text-center">
+                                        {record.status === 'PRESENT' ? (
+                                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                            PRESENT
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                                            ABSENT
+                                          </span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>
