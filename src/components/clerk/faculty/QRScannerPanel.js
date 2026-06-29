@@ -50,22 +50,34 @@ export default function QRScannerPanel({ onScanSuccess }) {
         };
 
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-        html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
-          .catch((err) => {
-            console.error("QR Scanner startup error:", err);
-            
-            let errMsg = "Camera access denied or unavailable.";
-            if (typeof window !== 'undefined' && !window.isSecureContext) {
-              errMsg = "Camera requires HTTPS. If testing on a phone over local WiFi, use ngrok or enable 'Insecure origins treated as secure' in chrome://flags.";
-            } else if (err?.name === 'NotAllowedError' || (typeof err === 'string' && err.includes('NotAllowedError'))) {
-              errMsg = "Camera permission denied. Please allow camera access in your browser settings (Site Settings > Camera) and try again.";
+        
+        const startCamera = async () => {
+          try {
+            // First try rear camera (ideal for phones)
+            await html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback);
+          } catch (err) {
+            console.warn("Environment camera failed, trying user camera...", err);
+            try {
+              // Fallback to front camera (ideal for laptops)
+              await html5QrCode.start({ facingMode: "user" }, config, qrCodeSuccessCallback);
+            } catch (fallbackErr) {
+              console.error("QR Scanner startup error (both cameras failed):", fallbackErr);
+              
+              let errMsg = "Camera access denied or unavailable.";
+              if (typeof window !== 'undefined' && !window.isSecureContext) {
+                errMsg = "Camera requires HTTPS. If testing locally, use localhost or ngrok.";
+              } else if (fallbackErr?.name === 'NotAllowedError' || (typeof fallbackErr === 'string' && fallbackErr.includes('NotAllowedError'))) {
+                errMsg = "Camera permission blocked. Click the 'Lock' icon next to the URL in your browser and allow Camera access.";
+              }
+              
+              setScannerError(errMsg);
+              toast.error(errMsg, { duration: 6000 });
+              setIsScanning(false);
             }
-            
-            setScannerError(errMsg);
-            toast.error(errMsg, { duration: 6000 });
-            setIsScanning(false);
-          });
+          }
+        };
+
+        startCamera();
       }, 100);
       
       return () => {
