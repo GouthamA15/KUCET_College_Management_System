@@ -29,7 +29,7 @@ export default function QRScannerPanel({ onScanSuccess, onScannerStop }) {
             scannerRef.current = new Html5Qrcode("qr-reader", {
               formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
               experimentalFeatures: {
-                useBarCodeDetectorIfSupported: false
+                useBarCodeDetectorIfSupported: true
               }
             });
           }
@@ -66,7 +66,7 @@ export default function QRScannerPanel({ onScanSuccess, onScannerStop }) {
             }
           };
 
-          const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+          const config = { fps: 25, qrbox: { width: 250, height: 250 } };
           
           if (selectedCameraId) {
             await scannerRef.current.start(selectedCameraId, config, qrCodeSuccessCallback);
