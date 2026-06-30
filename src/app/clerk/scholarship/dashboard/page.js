@@ -648,42 +648,49 @@ function ScholarshipDashboardContent() {
   if (!clerk) return null;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12 pb-20 px-4 animate-fadeIn font-sans antialiased text-slate-600">
-      <header id="scholarship-dashboard-top" className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 gap-5">
-        <div className="space-y-1">
-          <p className="text-[#0b3578] text-[10px] font-bold uppercase tracking-[0.22em] opacity-90">Scholarship Operations</p>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-800">Welcome, {firstName}</h1>
-          <div className="flex items-center gap-3 mt-2 text-slate-600">
-            <span className="text-[12px] font-semibold bg-slate-50 border border-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">{employeeId}</span>
-            <span className="text-slate-200">|</span>
-            <span className="text-xs font-medium uppercase tracking-tight">{roleLabel}</span>
-          </div>
+    <div className="max-w-7xl mx-auto space-y-8 pb-16 px-4 md:px-8 animate-fadeIn font-sans antialiased text-slate-600">
+      {/* Welcome Banner */}
+      <div id="scholarship-dashboard-top" className="relative bg-gradient-to-r from-[#002A5C] via-[#0b3578] to-[#002A5C] rounded-xl px-6 py-6 text-white shadow-md overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        {/* Soft decorative background shapes/patterns */}
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-white/10 to-transparent pointer-events-none opacity-40 z-0" />
+        <div className="absolute left-10 -bottom-10 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none" />
+        
+        <div className="relative z-10 space-y-1">
+          <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest">Workspace Hero</p>
+          <h1 className="text-2xl md:text-3xl font-normal tracking-tight">Welcome, {firstName}</h1>
+          <p className="text-blue-100/90 text-xs font-medium tracking-wide mt-1">
+            {employeeId} &bull; Scholarship Clerk
+          </p>
         </div>
 
-        {view === 'certificates' ? (
-          <button
-            type="button"
-            onClick={backToDashboard}
-            className="px-6 py-2.5 bg-white text-slate-700 text-[12px] font-black uppercase tracking-widest rounded-md border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
-          >
-            Back to Dashboard
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={openProfile}
-            className="px-6 py-2.5 bg-[#0b3578] text-white text-[12px] font-black uppercase tracking-widest rounded-md shadow-lg shadow-[#0b3578]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all"
-          >
-            Open Profile
-          </button>
-        )}
-      </header>
+        <div className="relative z-10 shrink-0">
+          {view === 'certificates' ? (
+            <button
+              type="button"
+              onClick={backToDashboard}
+              className="px-5 py-2.5 bg-white text-[#002A5C] hover:bg-blue-50 text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm hover:shadow transition-all cursor-pointer active:scale-98"
+            >
+              Back to Dashboard
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                smoothScrollToId('search-section', { behavior: 'smooth', block: 'start' });
+              }}
+              className="px-5 py-2.5 bg-white text-[#002A5C] hover:bg-blue-50 text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm hover:shadow transition-all cursor-pointer active:scale-98"
+            >
+              Open Scholarship Workspace
+            </button>
+          )}
+        </div>
+      </div>
 
       {view === 'certificates' ? (
-        <section id="certificate-section" className="space-y-6">
+        <section id="certificate-section" className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Certificate Queue</h2>
-            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Operational module</span>
+            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Operational Module</span>
           </div>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-3 sm:p-6">
             <CertificateDashboard clerkType="scholarship" />
@@ -691,18 +698,18 @@ function ScholarshipDashboardContent() {
         </section>
       ) : (
         <>
-          <section className="space-y-6">
+          <section className="space-y-4">
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Queue Pulse</h2>
-              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Live status</span>
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Operational Metrics</h2>
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Live Status</span>
             </div>
             <ScholarshipMetricsCards refreshToken={metricsRefreshToken} />
           </section>
 
-          <section className="space-y-6">
+          <section id="search-section" className="space-y-4">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Primary Operations</h2>
-              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Search • window • queue</span>
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Search &bull; Window &bull; Queue</span>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

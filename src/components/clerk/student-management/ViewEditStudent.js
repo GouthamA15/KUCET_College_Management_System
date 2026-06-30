@@ -21,7 +21,7 @@ const DatePickerInput = forwardRef(({ value, onClick, ...props }, ref) => (
   ));
 DatePickerInput.displayName = 'DatePickerInput';
 
-export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
+export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, setActiveAction }) {
   const MAX_MOBILE_LEN = 10;
   const _MAX_ANNUAL_INCOME = 99999999; // match AddNewStudent
   const [editValues, setEditValues] = useState({});
@@ -311,7 +311,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
               <h4 className="font-semibold mb-3 text-indigo-700">Profile Sidebar</h4>
               <div className="space-y-6">
                 <div>
-                  <div className="text-xs font-bold text-gray-500 mb-2 uppercase">Profile Photo</div>
+                  <div className="text-xs font-bold text-gray-500 mb-2 ">Profile Photo</div>
                   <div className="w-28 h-28 rounded-full bg-gray-100 overflow-hidden mb-3 flex items-center justify-center relative border-2 border-indigo-100">
                     {(() => {
                       const p = fetchedStudent.pfp;
@@ -346,7 +346,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 </div>
 
                 <div>
-                  <div className="text-xs font-bold text-gray-500 mb-2 uppercase">Signature</div>
+                  <div className="text-xs font-bold text-gray-500 mb-2 ">Signature</div>
                   <div className="w-32 h-12 bg-white rounded border border-gray-200 overflow-hidden mb-1 flex items-center justify-center">
                     {fetchedStudent.signature ? (
                       <Image
@@ -500,7 +500,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                 </select>
             {/* Current Address */}
             <div className="md:col-span-3 border-t border-gray-100 pt-4 mt-2">
-              <h4 className="text-sm font-bold text-indigo-900 mb-2 uppercase tracking-wider">Current Address</h4>
+              <h4 className="text-sm font-bold text-indigo-900 mb-2 ">Current Address</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <input placeholder="House No*" value={personalFull.curr_house_no || ''} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="p-2 border rounded" />
                 <input placeholder="Apartment / Landmark" value={personalFull.curr_apartment || ''} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="p-2 border rounded" />
@@ -528,7 +528,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
 
             {/* Permanent Address */}
             <div className="md:col-span-3 border-t border-gray-100 pt-4">
-              <h4 className="text-sm font-bold text-indigo-900 mb-2 uppercase tracking-wider">Permanent Address</h4>
+              <h4 className="text-sm font-bold text-indigo-900 mb-2 ">Permanent Address</h4>
               {!personalFull.is_current_same_as_permanent ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <input placeholder="House No*" value={personalFull.perm_house_no || ''} onChange={e => setPersonalFull({...personalFull, perm_house_no: e.target.value})} className="p-2 border rounded" />
@@ -540,7 +540,7 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
                   <input placeholder="Country*" value={personalFull.perm_country || ''} onChange={e => setPersonalFull({...personalFull, perm_country: e.target.value})} className="p-2 border rounded md:col-span-3" />
                 </div>
               ) : (
-                <div className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-100 p-3 rounded uppercase tracking-wide">
+                <div className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-100 p-3 rounded tracking-wide">
                   Permanent address is synchronized with current address.
                 </div>
               )}
@@ -607,9 +607,18 @@ export default function ViewEditStudent({ fetchedStudent, setActiveAction }) {
             </div>
           </div>
           <div className="flex justify-end space-x-2">
-            <button onClick={()=>{ setActiveAction(null); }} className="px-3 py-2 bg-gray-100 rounded cursor-pointer hover:shadow-sm transition">Collapse</button>
+            <button 
+              onClick={() => {
+                if (setFetchedStudent) setFetchedStudent(null);
+                setActiveAction('fetch');
+              }} 
+              className="px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded cursor-pointer hover:bg-red-100 transition text-sm font-medium"
+            >
+              Clear Record
+            </button>
+            <button onClick={()=>{ setActiveAction(null); }} className="px-3 py-2 bg-gray-100 border border-gray-300 rounded cursor-pointer hover:bg-gray-200 transition text-sm font-medium">Collapse</button>
               {hasEdits() && (
-                <button onClick={handleSaveEdits} disabled={saving} className={`px-4 py-2 bg-indigo-600 text-white rounded ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-md transition'}`}>{saving? 'Saving...':'Save Changes'}</button>
+                <button onClick={handleSaveEdits} disabled={saving} className={`px-4 py-2 bg-[#0b3578] text-white rounded text-sm font-medium ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-[#082654] hover:shadow-md transition'}`}>{saving? 'Saving...':'Save Changes'}</button>
               )}
           </div>
         </div>

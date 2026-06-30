@@ -66,23 +66,25 @@ export default function ScholarshipMetricsCards({ refreshToken = 0 }) {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {items.map((item) => (
         <div
           key={item.key}
-          className={`bg-white p-6 rounded-2xl border border-slate-200 border-l-4 ${item.accent} shadow-[0_2px_10px_rgba(0,0,0,0.02)]`}
+          className={`bg-white p-4 px-5 rounded-xl border border-slate-200 border-l-4 ${item.accent} shadow-sm flex flex-col justify-between h-24`}
         >
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{item.label}</p>
-          <div className={`text-3xl font-semibold mt-3 tracking-tight ${item.valueTone || 'text-slate-800'}`}>
-            {loading ? (
-              <span className="inline-block h-7 w-20 bg-slate-50 rounded animate-pulse" />
-            ) : (
-              item.value
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</p>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className={`text-2xl font-extrabold tracking-tight ${item.valueTone || 'text-slate-800'}`}>
+              {loading ? (
+                <span className="inline-block h-6 w-12 bg-slate-50 rounded animate-pulse" />
+              ) : (
+                item.value
+              )}
+            </span>
+            {item.suffix && !loading && (
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{item.suffix}</span>
             )}
           </div>
-          {item.suffix && !loading && (
-            <p className="text-[10px] text-slate-400 mt-3 uppercase tracking-wider">{item.suffix}</p>
-          )}
         </div>
       ))}
     </div>

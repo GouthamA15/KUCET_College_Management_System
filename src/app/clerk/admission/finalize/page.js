@@ -225,61 +225,58 @@ function FinalizeAdmissionContent() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-10 pb-20 px-4 md:px-8 animate-fadeIn font-sans antialiased text-slate-600">
-            <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 gap-5 pb-4">
-                <div className="space-y-1">
-                    <p className="text-[#0b3578] text-[10px] font-bold uppercase tracking-[0.25em] opacity-90">Registry Command</p>
-                    <h1 className="text-3xl font-black tracking-tight text-slate-800 uppercase">Finalize Admissions</h1>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
-                        Institutional Roll Number Assignment
-                    </p>
+        <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+            <header className="mb-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-semibold text-gray-800">Finalize Admissions</h1>
+                    <p className="text-sm text-gray-600 mt-1">Generate roll numbers and confirm final admissions</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div>
                     <button
                         type="button"
                         onClick={() => router.push('/clerk/admission/dashboard')}
-                        className="px-6 py-2 border-2 border-slate-200 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-slate-50 transition-all shadow-sm"
+                        className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                     >
-                        ← Return to Dashboard
+                        <span>&larr;</span> <span>Return to Dashboard</span>
                     </button>
                 </div>
             </header>
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 border border-slate-200 rounded-sm shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 border border-gray-300 rounded-md shadow-sm">
                 <div>
-                  <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Workspace Filter</h2>
-                  <p className="text-[10px] text-slate-500 font-medium uppercase mt-1 tracking-wider">Select target branch and intake examination</p>
+                  <h2 className="text-sm font-semibold text-gray-700 ">Workspace Filter</h2>
+                  <p className="text-sm text-gray-500 mt-1 ">Select target branch and intake examination</p>
                 </div>
                 
                 <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3">
                     <div className="flex-1 sm:w-40">
-                      <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Intake Exam</label>
+                      <label className="block text-sm font-medium text-gray-400 mb-1.5 ">Intake Exam</label>
                       <select 
                           value={selectedExam} 
                           onChange={e => setSelectedExam(e.target.value)} 
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-black text-[#0b3578] uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-sm transition-all"
+                          className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all"
                       >
                           <option value="TG EAPCET">TG EAPCET</option>
                           <option value="TG ECET">TG ECET</option>
                       </select>
                     </div>
                     <div className="flex-1 sm:w-60">
-                      <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Target Branch</label>
+                      <label className="block text-sm font-medium text-gray-400 mb-1.5 ">Target Branch</label>
                       <select 
                           value={selectedBranch} 
                           onChange={e => setSelectedBranch(e.target.value)} 
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-black text-[#0b3578] uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-sm transition-all"
+                          className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all"
                       >
                           {COLLEGE_CONFIG.branches.map(b => <option key={b.code} value={b.name}>{b.name.toUpperCase()}</option>)}
                       </select>
                     </div>
                     <div className="flex-1 sm:w-32">
-                      <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Entry Year</label>
+                      <label className="block text-sm font-medium text-gray-400 mb-1.5 ">Entry Year</label>
                       <input 
                           type="number"
                           value={joiningYear} 
                           onChange={e => setJoiningYear(e.target.value)} 
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-black text-[#0b3578] uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-sm transition-all"
+                          className="w-full px-4 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-[#0b3578] focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-md transition-all"
                           placeholder="e.g. 2026"
                       />
                     </div>
@@ -288,7 +285,7 @@ function FinalizeAdmissionContent() {
                             type="button"
                             onClick={handleGenerateRollNumbers}
                             disabled={loading || generating || drafts.length === 0}
-                            className="w-full px-6 py-2 border-2 border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
+                            className="w-full px-6 py-2 border-2 border-gray-200 text-gray-600 text-sm font-medium rounded-md hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
                         >
                             {generating ? 'Generating...' : 'Generate Roll Numbers'}
                         </button>
@@ -296,28 +293,28 @@ function FinalizeAdmissionContent() {
                 </div>
             </div>
 
-            <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden min-h-[400px]">
+            <div className="bg-white border border-gray-200 shadow-sm rounded-md overflow-hidden min-h-[400px]">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                    <div className="flex flex-col items-center justify-center py-24 text-gray-400">
                         <div className="animate-spin h-6 w-6 border-2 border-[#0b3578] border-t-transparent rounded-full mb-4"></div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest">Accessing {selectedExam} Queue...</p>
+                        <p className="text-[10px] font-bold ">Accessing {selectedExam} Queue...</p>
                     </div>
                 ) : drafts.length === 0 ? (
-                    <div className="text-center py-24 text-slate-400">
+                    <div className="text-center py-24 text-gray-400">
                       <span className="text-5xl block mb-6 opacity-20">📂</span>
-                      <h3 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">No {selectedExam} drafts found</h3>
-                      <p className="text-[10px] font-medium text-slate-500 mt-2 uppercase tracking-tighter max-w-xs mx-auto">Verify new applications in the Requests Center to populate this registry.</p>
+                      <h3 className="text-[10px] font-bold text-gray-800 ">No {selectedExam} drafts found</h3>
+                      <p className="text-[10px] font-medium text-gray-500 mt-2 max-w-xs mx-auto">Verify new applications in the Requests Center to populate this registry.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-left border-collapse text-[11px]">
-                            <thead className="bg-slate-50 text-slate-500 font-black uppercase tracking-wider border-b border-slate-200">
+                            <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
                                 <tr>
-                                    <th className="px-6 py-5 w-16 border-r border-slate-200">ID</th>
-                                    <th className="px-6 py-5 border-r border-slate-200">Applicant Identity</th>
-                                    <th className="px-6 py-5 border-r border-slate-200">Merit Rank</th>
-                                    <th className="px-6 py-5 w-72 border-r border-slate-200">Institutional Roll Number</th>
-                                    <th className="px-6 py-5 text-right uppercase tracking-widest">Operational Actions</th>
+                                    <th className="px-6 py-5 w-16 border-r border-gray-200">ID</th>
+                                    <th className="px-6 py-5 border-r border-gray-200">Applicant Identity</th>
+                                    <th className="px-6 py-5 border-r border-gray-200">Merit Rank</th>
+                                    <th className="px-6 py-5 w-72 border-r border-gray-200">Institutional Roll Number</th>
+                                    <th className="px-6 py-5 text-right ">Operational Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-sm">
@@ -326,33 +323,33 @@ function FinalizeAdmissionContent() {
                                     const hasValue = !!rollNumbers[draft.id];
 
                                     return (
-                                        <tr key={draft.id} className="hover:bg-slate-50 transition-colors group">
-                                            <td className="px-6 py-4 text-slate-400 font-bold border-r border-slate-100">{index + 1}</td>
-                                            <td className="px-6 py-4 font-black text-slate-800 uppercase border-r border-slate-100 tracking-tight">
+                                        <tr key={draft.id} className="hover:bg-gray-50 transition-colors group">
+                                            <td className="px-6 py-4 text-gray-400 font-bold border-r border-gray-100">{index + 1}</td>
+                                            <td className="px-6 py-4 font-medium text-gray-800 border-r border-gray-100 ">
                                                 <div className="flex flex-col">
                                                     <span>{draft.name}</span>
-                                                    <span className="text-[9px] text-slate-400 font-medium lowercase tracking-normal mt-0.5">{draft.email}</span>
+                                                    <span className="text-[9px] text-gray-400 font-medium lowercase mt-0.5">{draft.email}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 border-r border-slate-100">
-                                                <span className="bg-blue-50 text-[#0b3578] border border-blue-100 px-3 py-1 rounded-sm text-[10px] font-black shadow-sm">
+                                            <td className="px-6 py-4 border-r border-gray-100">
+                                                <span className="bg-blue-50 text-[#0b3578] border border-blue-100 px-3 py-1 rounded-md text-sm font-medium shadow-sm">
                                                     RANK {draft.exam_rank}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 border-r border-slate-100">
+                                            <td className="px-6 py-4 border-r border-gray-100">
                                                 <div className="space-y-1.5">
                                                     <input 
                                                         type="text"
                                                         placeholder={draft.entrance_exam === 'TG ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
                                                         value={rollNumbers[draft.id] || ''}
                                                         onChange={e => handleRollNumberChange(draft.id, e.target.value)}
-                                                        className={`block w-full px-3 py-2 border-2 text-xs font-black tracking-widest focus:outline-none transition-all rounded-sm uppercase ${
-                                                            !hasValue ? 'border-slate-100 bg-slate-50' :
+                                                        className={`block w-full px-3 py-2 border-2 text-sm font-medium focus:outline-none transition-all rounded-md ${
+                                                            !hasValue ? 'border-gray-100 bg-gray-50' :
                                                             validation.isValid ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
                                                         }`}
                                                     />
                                                     {hasValue && !validation.isValid && (
-                                                        <div className="text-[9px] text-rose-600 font-black uppercase tracking-tight px-1 flex items-center gap-1">
+                                                        <div className="text-[9px] text-rose-600 font-medium px-1 flex items-center gap-1">
                                                             ⚠️ {validation.error}
                                                         </div>
                                                     )}
@@ -363,14 +360,14 @@ function FinalizeAdmissionContent() {
                                                     <button 
                                                         onClick={() => fetchDetail(draft.id)}
                                                         disabled={fetchingDetail}
-                                                        className="px-3 py-2 border-2 border-slate-800 text-slate-800 text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 rounded-sm transition-all"
+                                                        className="px-3 py-2 border-2 border-gray-800 text-gray-800 text-sm font-medium hover:bg-gray-50 rounded-md transition-all"
                                                     >
                                                         {selectedDraftId === draft.id && fetchingDetail ? '...' : 'View/Edit'}
                                                     </button>
                                                     <button 
                                                         onClick={() => handleFinalize(draft.id)} 
                                                         disabled={!validation.isValid || finalizingId === draft.id} 
-                                                        className="px-6 py-2 bg-[#0b3578] text-white rounded-sm font-black text-[10px] uppercase tracking-widest hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
+                                                        className="px-6 py-2 bg-[#0b3578] text-white rounded-md font-medium text-[10px] hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
                                                     >
                                                         {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
                                                     </button>

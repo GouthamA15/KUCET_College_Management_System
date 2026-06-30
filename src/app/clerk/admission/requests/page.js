@@ -30,28 +30,27 @@ function RequestsCenterContent() {
     const certificatePendingCount = Array.isArray(pendingCertificateRequests) ? pendingCertificateRequests.length : 0;
 
     return (
-        <div className="max-w-7xl mx-auto space-y-10 pb-20 px-4 md:px-8 animate-fadeIn font-sans antialiased">
-            <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 gap-5">
-                <div className="space-y-1 pb-4">
-                    <p className="text-[#0b3578] text-[10px] font-bold uppercase tracking-[0.25em] opacity-90">Operational Command</p>
-                    <h1 className="text-3xl font-black tracking-tight text-slate-800 uppercase">Request Operations Center</h1>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
-                        Institutional Verification & Approval Hub
+        <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+            <header className="mb-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-2xl font-semibold text-gray-800">Requests Operations</h1>
                         {isLoadingRequests && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>}
-                    </p>
+                    </div>
+                    <p className="text-sm text-gray-500">Manage admission intake, verify certificates, and approve profile updates.</p>
                 </div>
-                <div className="flex items-center gap-3 pb-4">
+                <div>
                     <button
                         type="button"
                         onClick={() => router.push('/clerk/admission/dashboard')}
-                        className="px-6 py-2 border-2 border-slate-200 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-slate-50 transition-all shadow-sm"
+                        className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                     >
-                        ← Return to Dashboard
+                        <span>&larr;</span> <span>Return to Dashboard</span>
                     </button>
                 </div>
             </header>
 
-            <section className="space-y-8">
+            <section className="space-y-4">
                 <RequestTabs 
                     activeTab={activeTab} 
                     onTabChange={handleTabChange}
@@ -61,7 +60,7 @@ function RequestsCenterContent() {
                     }}
                 />
 
-                <div className="min-h-[400px]">
+                <div className="border border-gray-300 rounded-md bg-white p-4">
                     {activeTab === 'admissions' && <AdmissionRequestsPanel />}
                     {activeTab === 'certificates' && <CertificateRequestsPanel />}
                     {activeTab === 'updates' && <StudentUpdateRequestsPanel />}

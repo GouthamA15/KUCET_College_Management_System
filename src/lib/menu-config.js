@@ -25,10 +25,7 @@ export const NAV_MENU_CONFIG = {
   clerk: [
     { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
     { label: 'PROFILE', route: '/clerk/admission/profile' },
-    { label: 'DEPARTMENTS', route: '/clerk/departments' },
     { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
-    { label: 'TIME TABLE', route: '/clerk/timetable' },
-    { label: 'FACULTIES', route: '/clerk/faculties' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }
@@ -39,13 +36,13 @@ export const NAV_MENU_CONFIG = {
   clerkAdmission: [
     { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
     { label: 'PROFILE', route: '/clerk/admission/profile' },
-    { label: 'STUDENT RECORDS', route: '/clerk/admission/student-management' },
-    { label: 'REQUESTS', route: '/clerk/admission/requests' },
-    { label: 'FINALIZE', route: '/clerk/admission/finalize' },
-    { label: 'DEPARTMENTS', route: '/clerk/departments' },
+    { label: 'STUDENT RECORDS', children: [
+        { label: 'Student Registry', route: '/clerk/admission/student-management' },
+        { label: 'Student Requests', route: '/clerk/admission/requests' },
+        { label: 'Finalize', route: '/clerk/admission/finalize' }
+      ]
+    },
     { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
-    { label: 'TIME TABLE', route: '/clerk/timetable' },
-    { label: 'FACULTIES', route: '/clerk/faculties' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }
@@ -58,9 +55,6 @@ export const NAV_MENU_CONFIG = {
     { label: 'PROFILE', route: '/clerk/scholarship/profile' },
     { label: 'REQUESTS', route: '/clerk/scholarship/dashboard?view=requests&scroll=1' },
     { label: 'VERIFICATION', route: '/clerk/scholarship/dashboard?view=certificates&scroll=1' },
-    { label: 'DEPARTMENTS', route: '/clerk/departments' },
-    { label: 'TIME TABLE', route: '/clerk/timetable' },
-    { label: 'FACULTIES', route: '/clerk/faculties' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }

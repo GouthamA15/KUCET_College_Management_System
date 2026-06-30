@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClerk } from '@/context/ClerkContext';
 import toast from 'react-hot-toast';
@@ -12,7 +12,8 @@ function ClerkDashboardContent() {
     loading: isLoading, 
     pendingProfileRequests, 
     pendingCertificateRequests,
-    isLoadingRequests
+    isLoadingRequests,
+    studentHistory
   } = useClerk();
 
   const firstName = clerk?.name?.split(' ')[0] || 'Clerk';
@@ -20,6 +21,15 @@ function ClerkDashboardContent() {
   const profilePendingCount = Array.isArray(pendingProfileRequests) ? pendingProfileRequests.length : 0;
   const certificatePendingCount = Array.isArray(pendingCertificateRequests) ? pendingCertificateRequests.length : 0;
   const totalPending = profilePendingCount + certificatePendingCount;
+
+  const completedTodayCount = useMemo(() => {
+    if (!studentHistory?.records) return 0;
+    const todayStr = new Date().toDateString();
+    return studentHistory.records.filter(r => {
+      if (!r.actionTime) return false;
+      return new Date(r.actionTime).toDateString() === todayStr;
+    }).length;
+  }, [studentHistory]);
 
   useEffect(() => {
     if (!isLoading && clerk && clerk.role !== 'admission') {
@@ -34,25 +44,6 @@ function ClerkDashboardContent() {
   if (!clerk) return null;
   
   const actionCards = [
-    {
-      key: 'student',
-      label: 'Student Management',
-      description: 'Onboard, edit, and validate student records.',
-      icon: '🎓',
-      tone: 'bg-indigo-50 text-indigo-700',
-      accent: 'border-t-indigo-400',
-      path: '/clerk/admission/student-management'
-    },
-    {
-      key: 'certificates',
-      label: 'Certificates',
-      description: 'Clear certificate and ID requests quickly.',
-      icon: '📜',
-      tone: 'bg-emerald-50 text-emerald-700',
-      accent: 'border-t-emerald-400',
-      path: '/clerk/admission/requests?tab=certificates',
-      badge: certificatePendingCount
-    },
     {
       key: 'requests',
       label: 'Admission Intake',
@@ -72,122 +63,163 @@ function ClerkDashboardContent() {
       path: '/clerk/admission/finalize'
     },
     {
-      key: 'updates',
-      label: 'Update Requests',
-      description: 'Approve profile change requests.',
-      icon: '✍️',
-      tone: 'bg-orange-50 text-orange-700',
-      accent: 'border-t-orange-400',
-      path: '/clerk/admission/requests?tab=updates',
-      badge: profilePendingCount
+      key: 'combined-requests',
+      label: 'Certificates & Requests',
+      description: 'Approve profile changes and certificate requests.',
+      icon: '📑',
+      tone: 'bg-emerald-50 text-emerald-700',
+      accent: 'border-t-emerald-400',
+      path: profilePendingCount > certificatePendingCount ? '/clerk/admission/requests?tab=updates' : '/clerk/admission/requests?tab=certificates',
+      badge: profilePendingCount + certificatePendingCount
     }
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12 pb-20 px-4 md:px-8 animate-fadeIn font-sans antialiased text-slate-600">
-      <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 gap-5 pb-4">
-        <div className="space-y-1">
-          <p className="text-[#0b3578] text-[10px] font-bold uppercase tracking-[0.22em] opacity-90">Admission Command</p>
-          <h1 className="text-3xl font-black tracking-tight text-slate-800 uppercase">Welcome, {firstName}</h1>
-          <div className="flex items-center gap-3 mt-2 text-slate-600">
-            <span className="text-[12px] font-semibold bg-slate-50 border border-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">{employeeLabel}</span>
-            <span className="text-slate-200">|</span>
-            <span className="text-xs font-medium uppercase tracking-tight">Institutional Admission Clerk</span>
-          </div>
+    <div className="max-w-7xl mx-auto space-y-8 pb-16 px-4 md:px-8 animate-fadeIn font-sans antialiased text-gray-600">
+      {/* Welcome Banner */}
+      <div className="relative bg-gradient-to-r from-[#002A5C] via-[#0b3578] to-[#002A5C] rounded-md px-6 py-6 text-white shadow-sm overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        {/* Soft decorative background shapes/patterns */}
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-white/10 to-transparent pointer-events-none opacity-40 z-0" />
+        <div className="absolute left-10 -bottom-10 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none" />
+        
+        <div className="relative z-10 space-y-1">
+          <p className="text-blue-200 text-sm font-medium ">Workspace Hero</p>
+          <h1 className="text-2xl md:text-3xl font-normal tracking-tight">Welcome, {firstName}</h1>
+          <p className="text-blue-100/90 text-xs font-medium mt-1">
+            {employeeLabel} &bull; Admission Clerk
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={() => router.push('/clerk/admission/requests')}
-          className="px-6 py-2.5 bg-[#0b3578] text-white text-[10px] font-black uppercase tracking-widest rounded-sm shadow-lg shadow-blue-100 hover:scale-105 transition-all active:scale-95"
-        >
-          Open Operational Queue
-        </button>
-      </header>
 
-      <section className="space-y-6">
+        <div className="relative z-10 shrink-0">
+          <button
+            type="button"
+            onClick={() => router.push('/clerk/admission/requests')}
+            className="px-5 py-2.5 bg-white text-[#002A5C] hover:bg-blue-50 text-sm font-medium rounded-lg shadow-sm hover:shadow transition-all cursor-pointer active:scale-98"
+          >
+            Open Operational Queue
+          </button>
+        </div>
+      </div>
+
+      {/* Operational Metrics */}
+      <section className="space-y-4">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Queue Pulse</h2>
-          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-            {isLoadingRequests ? 'Syncing...' : 'Live System Status'}
+          <h2 className="text-sm font-medium text-gray-700 tracking-[0.2em]">Operational Metrics</h2>
+          <span className="text-sm font-medium text-gray-500 ">
+            {isLoadingRequests ? 'Syncing...' : 'Live Status'}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-sm border border-slate-200 shadow-sm flex flex-col justify-between h-32">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aggregate Queue</p>
-            <div className="flex items-end justify-between">
-              <p className="text-4xl font-black text-slate-800">{totalPending}</p>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Items pending</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Total Pending Requests Card */}
+          <button
+            type="button"
+            onClick={() => router.push('/clerk/admission/requests')}
+            className="group text-left bg-white py-4 px-5 rounded-md border border-gray-200 border-l-4 border-l-amber-500 shadow-sm flex flex-col justify-between h-24 transition-all hover:shadow-sm cursor-pointer"
+          >
+            <p className="text-sm font-medium text-gray-400 ">Total Pending Requests</p>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-semibold tracking-tight text-gray-800">
+                {totalPending}
+              </span>
+              <span className="text-xs font-medium text-gray-400 ">Requests</span>
             </div>
-          </div>
+          </button>
 
-          <div className="bg-white p-6 rounded-sm border border-slate-200 border-l-4 border-l-amber-400 shadow-sm flex flex-col justify-between h-32">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Profile Modifications</p>
-            <div className="flex items-end justify-between">
-              <p className="text-4xl font-black text-slate-800">{profilePendingCount}</p>
-              <button 
-                onClick={() => router.push('/clerk/admission/requests?tab=updates')}
-                className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mb-1 hover:underline"
-              >
-                View Workspace →
-              </button>
+          {/* Profile Updates Card */}
+          <button
+            type="button"
+            onClick={() => router.push('/clerk/admission/requests?tab=updates')}
+            className="group text-left bg-white py-4 px-5 rounded-md border border-gray-200 border-l-4 border-l-orange-500 shadow-sm flex flex-col justify-between h-24 transition-all hover:shadow-sm cursor-pointer"
+          >
+            <p className="text-sm font-medium text-gray-400 ">Profile Updates</p>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-semibold tracking-tight text-gray-800">
+                {profilePendingCount}
+              </span>
+              <span className="text-xs font-medium text-gray-400 ">Updates</span>
             </div>
-          </div>
+          </button>
 
-          <div className="bg-white p-6 rounded-sm border border-slate-200 border-l-4 border-l-rose-400 shadow-sm flex flex-col justify-between h-32">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Certificate Requests</p>
-            <div className="flex items-end justify-between">
-              <p className="text-4xl font-black text-slate-800">{certificatePendingCount}</p>
-              <button 
-                onClick={() => router.push('/clerk/admission/requests?tab=certificates')}
-                className="text-[9px] font-bold text-rose-600 uppercase tracking-widest mb-1 hover:underline"
-              >
-                View Workspace →
-              </button>
+          {/* Certificate Requests Card */}
+          <button
+            type="button"
+            onClick={() => router.push('/clerk/admission/requests?tab=certificates')}
+            className="group text-left bg-white py-4 px-5 rounded-md border border-gray-200 border-l-4 border-l-blue-600 shadow-sm flex flex-col justify-between h-24 transition-all hover:shadow-sm cursor-pointer"
+          >
+            <p className="text-sm font-medium text-gray-400 ">Certificate Requests</p>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-semibold tracking-tight text-gray-800">
+                {certificatePendingCount}
+              </span>
+              <span className="text-xs font-medium text-gray-400 ">Requests</span>
+            </div>
+          </button>
+
+          {/* Completed Today Card */}
+          <div
+            className="bg-white py-4 px-5 rounded-md border border-gray-200 border-l-4 border-l-emerald-500 shadow-sm flex flex-col justify-between h-24"
+          >
+            <p className="text-sm font-medium text-gray-400 ">Completed Today</p>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-semibold tracking-tight text-gray-800">
+                {completedTodayCount}
+              </span>
+              <span className="text-xs font-medium text-gray-400 ">Processed</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="space-y-6">
+      {/* Primary Operations */}
+      <section className="space-y-4">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Workstreams</h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select an operational module</p>
+          <h2 className="text-sm font-medium text-gray-700 tracking-[0.2em]">Primary Operations</h2>
+          <p className="text-sm font-medium text-gray-400 ">Select an operational module</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {actionCards.map((card) => (
-            <button
-              key={card.key}
-              type="button"
-              onClick={() => router.push(card.path)}
-              className={`text-left bg-white p-6 rounded-sm border border-slate-200 border-t-4 ${card.accent} shadow-sm hover:shadow-md transition-all group relative overflow-hidden h-44 flex flex-col justify-between`}
-            >
-              <div className="flex items-start justify-between relative z-10">
-                <div className={`w-12 h-12 rounded-sm flex items-center justify-center text-xl ${card.tone} shadow-sm border border-black/5`}>
-                  {card.icon}
-                </div>
-                {card.badge > 0 && (
-                  <span className="text-[9px] font-black text-white bg-rose-600 px-2.5 py-1 rounded-full uppercase tracking-[0.1em] shadow-sm">
-                    {card.badge} Action
-                  </span>
-                )}
-              </div>
-              
-              <div className="mt-4 space-y-1 relative z-10">
-                <h3 className="text-base font-black text-slate-800 tracking-tight uppercase group-hover:text-[#0b3578] transition-colors">
-                  {card.label}
-                </h3>
-                <p className="text-[11px] font-medium text-slate-500 leading-relaxed uppercase tracking-tight opacity-80">{card.description}</p>
-              </div>
+          {actionCards.map((card) => {
+            const sweepColorMap = {
+              'border-t-indigo-400': 'bg-indigo-500',
+              'border-t-emerald-400': 'bg-emerald-500',
+              'border-t-purple-400': 'bg-purple-500',
+              'border-t-blue-400': 'bg-blue-500',
+              'border-t-orange-400': 'bg-orange-500'
+            };
+            const sweepColor = sweepColorMap[card.accent] || 'bg-blue-600';
 
-              <div className="absolute bottom-4 right-6 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0">
-                <span className="text-[10px] font-black text-[#0b3578] uppercase tracking-widest flex items-center gap-1">
-                  Launch Module <span className="text-sm">→</span>
-                </span>
-              </div>
-            </button>
-          ))}
+            return (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => router.push(card.path)}
+                className="group text-left bg-white p-5 rounded-md border border-gray-200 shadow-sm hover:shadow-sm transition-all duration-300 hover:scale-[1.02] relative overflow-hidden h-36 flex flex-col justify-between cursor-pointer"
+              >
+                <div className="absolute top-0 left-0 right-0 h-[3px] bg-gray-100 overflow-hidden">
+                  <div className={`h-full ${sweepColor} w-0 group-hover:w-full transition-all duration-500 ease-out`} />
+                </div>
+
+                <div className="flex items-start justify-between w-full relative z-10">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${card.tone} shadow-sm border border-black/5`}>
+                    {card.icon}
+                  </div>
+                  {card.badge > 0 && (
+                    <span className="text-xs font-medium text-white bg-rose-600 px-2.5 py-1 rounded-full shadow-sm">
+                      {card.badge} Action
+                    </span>
+                  )}
+                </div>
+                
+                <div className="space-y-1 relative z-10">
+                  <h3 className="text-base font-medium text-gray-800 transition-colors">
+                    {card.label}
+                  </h3>
+                  <p className="text-sm text-gray-500 tracking-tight opacity-75">{card.description}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
     </div>

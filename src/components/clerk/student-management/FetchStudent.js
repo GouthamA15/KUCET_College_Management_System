@@ -212,58 +212,117 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div className="space-y-4 animate-fadeIn text-sm">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
+          <label className="text-sm font-medium text-gray-700 block mb-1">Roll Number</label>
           <input
-            placeholder="Roll Number"
+            placeholder="e.g. 21B81A0501"
             value={fetchRoll}
             onChange={(e) => {
               const v = sanitizeRoll(e.target.value);
               setFetchRoll(v);
               if (v.length > 0 && v.length === MAX_ROLL) {
                 const { isValid } = validateRollNo(v);
-                if (!isValid) {
-                  setFetchRollNoError('Invalid Roll Number format.');
-                } else {
-                  setFetchRollNoError('');
-                }
+                if (!isValid) setFetchRollNoError('Invalid format.');
+                else setFetchRollNoError('');
               } else if (v.length > 0 && v.length !== MAX_ROLL) {
-                setFetchRollNoError(`Roll Number must be ${MAX_ROLL} characters long.`);
-              } else {
-                setFetchRollNoError('');
-              }
+                setFetchRollNoError(`Must be ${MAX_ROLL} chars.`);
+              } else setFetchRollNoError('');
             }}  
-            className="w-full p-2 border rounded"
+            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578] uppercase"
             maxLength={MAX_ROLL}
           />
-          {fetchRollNoError && <div className="text-red-600 text-sm mt-1">{fetchRollNoError}</div>}
+          {fetchRollNoError && <div className="text-red-600 text-xs mt-1">{fetchRollNoError}</div>}
         </div>
-        <input placeholder="Admission Number" value={fetchAdmission} onChange={e=>setFetchAdmission(e.target.value)} className="w-full p-2 border rounded" />
-        <input placeholder="Student Name" value={fetchName} onChange={e=>setFetchName(e.target.value)} className="w-full p-2 border rounded" />
+        
+        <div>
+          <label className="text-sm font-medium text-gray-700 block mb-1">Admission Number</label>
+          <input 
+            placeholder="e.g. ADM2023001" 
+            value={fetchAdmission} 
+            onChange={e=>setFetchAdmission(e.target.value)} 
+            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578] uppercase" 
+          />
+        </div>
+        
+        <div>
+          <label className="text-sm font-medium text-gray-700 block mb-1">Student Name</label>
+          <input 
+            placeholder="Enter full or partial name" 
+            value={fetchName} 
+            onChange={e=>setFetchName(e.target.value)} 
+            className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578]" 
+          />
+        </div>
       </div>
-      <div className="flex space-x-2">
+
+      <div className="flex items-center justify-end gap-2 pt-2">
+        <button 
+          onClick={()=>{setFetchRoll(''); setFetchAdmission(''); setFetchName(''); setFetchError(''); setFetchRollNoError('');}} 
+          className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+        >
+          Clear
+        </button>
         <button
           onClick={handleFetch}
           disabled={!canFetch() || fetchLoading || !!fetchRollNoError}
-          className={`px-4 py-2 bg-green-600 text-white rounded ${(!canFetch() || fetchLoading || !!fetchRollNoError) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-lg hover:ring-2 hover:ring-green-300 transition duration-150'}`}
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${
+            (!canFetch() || fetchLoading || !!fetchRollNoError) 
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
+              : 'bg-[#0b3578] text-white hover:bg-[#082654] border border-[#0b3578] shadow-sm'
+          }`}
         >
-          {fetchLoading? 'Fetching...':'Fetch'}
+          {fetchLoading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <span>Searching...</span>
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <span>Search Records</span>
+            </>
+          )}
         </button>
-        <button onClick={()=>{setFetchRoll(''); setFetchAdmission(''); setFetchName(''); setFetchError(''); setFetchRollNoError('');}} className="px-4 py-2 bg-gray-100 rounded">Clear</button>
       </div>
-      {fetchError && <div className="text-red-600">{fetchError}</div>}
+
+      {fetchError && (
+        <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-200 flex items-center gap-2 mt-4">
+          <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          {fetchError}
+        </div>
+      )}
+
       {fetchedList && fetchedList.length > 1 && (
-        <div className="mt-3 bg-gray-50 p-3 rounded">
-          <div className="text-sm font-medium mb-2">Multiple results — click to open</div>
-          <div className="space-y-2">
+        <div className="mt-6 bg-white border border-gray-300 rounded-md overflow-hidden">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <span className="bg-[#0b3578] text-white px-2 py-0.5 rounded-full text-xs">{fetchedList.length}</span>
+              Multiple Results Found
+            </h3>
+          </div>
+          <div className="divide-y divide-gray-200">
             {fetchedList.map(s => (
-              <div key={s.roll_no} className="flex items-center justify-between p-2 bg-white rounded shadow-sm">
-                <div>
-                  <div className="font-medium">{s.name}</div>
-                  <div className="text-xs text-gray-500">Roll: {s.roll_no} • Adm: {s.admission_no || 'N/A'}</div>
+              <div key={s.roll_no} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium text-sm">
+                    {s.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-800 text-sm">{s.name}</div>
+                    <div className="text-xs text-gray-500 mt-0.5 flex gap-3">
+                      <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{s.roll_no}</span>
+                      <span>Adm: {s.admission_no || 'N/A'}</span>
+                    </div>
+                  </div>
                 </div>
-                <button onClick={()=>loadFullProfileByRoll(s.roll_no)} className="px-3 py-1 bg-indigo-600 text-white rounded text-sm cursor-pointer hover:shadow-sm transition">Open</button>
+                <button 
+                  onClick={()=>loadFullProfileByRoll(s.roll_no)} 
+                  className="px-3 py-1.5 bg-white border border-gray-300 text-[#0b3578] hover:bg-gray-50 rounded-md text-xs font-medium transition-colors cursor-pointer"
+                >
+                  Open Profile
+                </button>
               </div>
             ))}
           </div>

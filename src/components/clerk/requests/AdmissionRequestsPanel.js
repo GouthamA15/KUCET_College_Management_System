@@ -157,59 +157,50 @@ const AdmissionRequestsPanel = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center px-1">
                 <div>
-                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Admission Queue</h2>
-                  <p className="text-[10px] text-slate-500 font-medium uppercase mt-1 tracking-wider">Review new intake applications</p>
+                  <h2 className="text-lg font-semibold text-gray-800">Admission Queue</h2>
+                  <p className="text-sm text-gray-500 mt-1">Review new intake applications</p>
                 </div>
-                                <button onClick={refreshAdmissionDrafts} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 transition-all rounded-sm shadow-sm">
+                <button onClick={refreshAdmissionDrafts} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors rounded-md shadow-sm">
                     <span className={`${loading ? 'animate-spin' : ''}`}>↻</span> Sync
                 </button>
             </div>
 
-            <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
+            <div className="space-y-4">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                         <div className="animate-spin h-6 w-6 border-2 border-[#0b3578] border-t-transparent rounded-full mb-4"></div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest">Accessing Intake Records...</p>
+                        <p className="text-sm font-medium">Accessing Intake Records...</p>
                     </div>
                 ) : drafts.length === 0 ? (
-                    <div className="text-center py-20 text-slate-400">
-                      <span className="text-4xl block mb-4 opacity-20">📂</span>
-                      <p className="text-[10px] font-bold uppercase tracking-widest">No pending intake applications found</p>
+                    <div className="text-center py-20 text-gray-500 border border-gray-200 rounded-md bg-white">
+                        <p className="text-sm font-medium">No pending intake applications found</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-left border-collapse text-[11px]">
-                        <thead className="bg-slate-50 text-slate-500 font-black uppercase tracking-wider border-b border-slate-200">
-                            <tr>
-                                <th className="px-6 py-4 border-r border-slate-200">Applicant Name</th>
-                                <th className="px-6 py-4 border-r border-slate-200">Father&apos;s Designation</th>
-                                <th className="px-6 py-4 border-r border-slate-200">Entrance Credentials</th>
-                                <th className="px-6 py-4 text-right uppercase tracking-widest">Operational Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {drafts.map(draft => (
-                                <tr key={draft.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4 border-r border-slate-100 font-bold text-slate-900 uppercase">{draft.name}</td>
-                                    <td className="px-6 py-4 border-r border-slate-100 font-medium text-slate-600 uppercase">{draft.father_name}</td>
-                                    <td className="px-6 py-4 border-r border-slate-100 text-slate-600 font-bold">
-                                        <span className="mr-2 uppercase tracking-tight">{draft.entrance_exam}</span>
-                                        <span className="text-[#0b3578] bg-blue-50 px-2 py-0.5 border border-blue-100 rounded-full">RANK {draft.exam_rank}</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button 
-                                            onClick={() => fetchDetail(draft.id)}
-                                            disabled={fetchingDetail}
-                                            className="px-4 py-1.5 border-2 border-slate-800 bg-slate-800 text-white text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-60 transition-all rounded-sm shadow-sm"
-                                        >
-                                            {selectedDraftId === draft.id && fetchingDetail ? 'AUDITING...' : 'VIEW & VERIFY'}
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                    <div className="grid grid-cols-1 gap-4">
+                        {drafts.map(draft => (
+                            <div key={draft.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 border border-gray-300 rounded-md bg-white hover:border-gray-400 transition-colors gap-4">
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 text-base">{draft.name}</h3>
+                                    <p className="text-sm text-gray-600">Father: {draft.father_name}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-700 font-medium">{draft.entrance_exam}</p>
+                                    <span className="text-xs bg-blue-50 text-[#0b3578] px-2 py-1 rounded-md border border-blue-100 font-medium">
+                                        Rank {draft.exam_rank}
+                                    </span>
+                                </div>
+                                <div className="flex justify-end">
+                                    <button 
+                                        onClick={() => fetchDetail(draft.id)}
+                                        disabled={fetchingDetail}
+                                        className="px-4 py-2 bg-gray-100 border border-gray-300 text-gray-800 text-sm font-medium hover:bg-gray-200 disabled:opacity-60 transition-colors rounded-md cursor-pointer"
+                                    >
+                                        {selectedDraftId === draft.id && fetchingDetail ? 'Auditing...' : 'View & Verify'}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
 

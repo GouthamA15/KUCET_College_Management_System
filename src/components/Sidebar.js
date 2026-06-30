@@ -569,30 +569,39 @@ export default function Sidebar({
   const MobileNav = (
     <aside
       className={cn(
-        'lg:hidden fixed left-0 top-0 z-50 h-full w-72',
-        'bg-gradient-to-b from-white via-slate-50/95 to-blue-50/70 backdrop-blur-md border-r border-slate-200/60 shadow-2xl',
+        'lg:hidden fixed left-0 top-0 z-50 h-full w-[280px]',
+        'bg-gradient-to-b from-white via-blue-50/15 to-blue-50/35 backdrop-blur-md border-r border-slate-200/50 shadow-2xl',
         'transform transition-transform duration-300 ease-in-out',
         _isMobileOpen ? 'translate-x-0' : '-translate-x-full'
       )}
     >
-      <div className="flex flex-col h-full">
+      {/* Institutional Identity Watermark */}
+      <div className="absolute bottom-16 right-4 opacity-[0.02] pointer-events-none select-none z-0">
+        <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#002A5C" strokeWidth="1.2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
+        </svg>
+      </div>
+
+      <div className="flex flex-col h-full relative z-10">
         {/* Header Section */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 bg-linear-to-b from-blue-50/30 to-transparent">
-          <div className="flex flex-col">
-            <span className="text-[#002A5C] font-extrabold text-[13px] tracking-wider uppercase">
+        <div className="h-16 flex items-center justify-between px-4.5 border-b border-slate-200/50 bg-gradient-to-b from-blue-50/40 via-white to-transparent">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[#002A5C] font-black text-[13px] tracking-wide uppercase truncate">
               {effectiveRole === 'superAdmin' ? 'Admin Portal' : getPortalTitle(pathname)}
             </span>
-            <span className="text-[9.5px] text-[#002A5C]/50 font-black uppercase tracking-widest mt-0.5">
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
               Menu Navigation
             </span>
           </div>
           <button
             onClick={() => _setIsMobileOpen(false)}
-            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors focus:outline-none"
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-100"
             aria-label="Close menu"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.1" d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -613,22 +622,22 @@ export default function Sidebar({
 
             const commonRow = cn(
               'group w-full rounded-xl transition-all duration-200',
-              'h-11 flex items-center gap-3 px-2.5',
+              'h-10 flex items-center gap-3 px-3',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60',
-              active ? 'bg-blue-50/40 ring-1 ring-[#002A5C]/5' : 'bg-transparent hover:bg-slate-100/40'
+              active ? 'bg-blue-50/60 ring-1 ring-blue-100/50' : 'bg-transparent hover:bg-slate-100/40'
             );
 
             const iconBlock = (
               <div className="shrink-0">
                 <div
                   className={cn(
-                    'h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-200',
+                    'h-8 w-8 rounded-lg flex items-center justify-center transition-all duration-200',
                     active
                       ? 'bg-[#002A5C] text-white shadow-md shadow-[#002A5C]/15 ring-1 ring-[#002A5C]/10'
                       : 'bg-transparent text-slate-600 group-hover:bg-slate-100 group-hover:text-[#002A5C]'
                   )}
                 >
-                  <Icon size={17} />
+                  <Icon size={16} />
                 </div>
               </div>
             );
@@ -636,7 +645,7 @@ export default function Sidebar({
             const labelBlock = (
               <div
                 className={cn(
-                  'text-[13.5px] font-semibold tracking-tight transition-colors truncate',
+                  'text-[13px] font-semibold tracking-tight transition-colors truncate',
                   active ? 'text-[#002A5C]' : 'text-slate-700 group-hover:text-[#002A5C]'
                 )}
               >
@@ -660,7 +669,7 @@ export default function Sidebar({
                     </div>
                     <div
                       className={cn(
-                        'h-8 w-8 rounded-lg flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]',
+                        'h-8 w-8 rounded-lg flex items-center justify-center transition-transform duration-250 ease-out',
                         open ? 'rotate-90' : 'rotate-0',
                         'text-slate-400 group-hover:text-slate-600'
                       )}
@@ -670,7 +679,7 @@ export default function Sidebar({
                   </button>
 
                   <div 
-                    className="ml-6 pl-4 border-l-2 border-[#002A5C]/10 bg-[#002A5C]/3 rounded-r-xl overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+                    className="ml-8 mr-2 pl-3 bg-blue-50/30 border-l border-blue-200/80 rounded-r-lg space-y-0.5 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
                     style={{
                       maxHeight: open ? `${item.children.length * 36 + 8}px` : '0px',
                       opacity: open ? 1 : 0,
@@ -681,17 +690,19 @@ export default function Sidebar({
                     {item.children.map((c, ci) => {
                       const childIsActive = c.route && isActiveRoute({ pathname, route: c.route, exact: false });
                       const dotIcon = (
-                        <span className={cn(
-                          "w-1.5 h-1.5 rounded-full shrink-0 transition-all duration-200",
-                          childIsActive ? "bg-white scale-110" : "bg-slate-400/80 group-hover:bg-[#002A5C]"
-                        )} />
+                        <svg className={cn(
+                          "w-1.5 h-1.5 shrink-0 transition-all duration-200",
+                          childIsActive ? "text-[#002A5C]" : "text-slate-400 group-hover:text-slate-600"
+                        )} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <circle cx="12" cy="12" r="4" fill="currentColor" />
+                        </svg>
                       );
                       
                       const childClass = cn(
-                        'group block w-full text-left rounded-lg px-2.5 py-1.5 flex items-center gap-2.5',
+                        'group w-full text-left rounded-md px-2.5 py-1.5 flex items-center gap-2.5',
                         'text-[12px] font-semibold transition-all duration-200',
                         childIsActive
-                          ? 'bg-[#002A5C] text-white shadow-xs'
+                          ? 'bg-[#002A5C]/5 text-[#002A5C]'
                           : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
                       );
 
@@ -784,7 +795,7 @@ export default function Sidebar({
         </nav>
 
         {/* Logout (bottom) */}
-        <div className="border-t border-slate-100 p-3.5 bg-linear-to-t from-blue-50/30 to-transparent">
+        <div className="border-t border-slate-200/50 px-4 py-3 bg-transparent">
           <button
             type="button"
             onClick={() => {
@@ -798,12 +809,12 @@ export default function Sidebar({
                 activePanel,
               });
             }}
-            className="w-full flex items-center justify-center px-3 py-2.5 text-red-600 hover:text-red-700 hover:bg-red-50/50 font-bold text-[12.5px] tracking-wide rounded-lg transition-all focus:outline-none"
+            className="w-full flex items-center gap-3 px-3 h-10 text-red-600 hover:text-red-700 hover:bg-red-50/60 rounded-xl font-semibold text-[13px] transition-all focus:outline-none focus:ring-2 focus:ring-red-100"
           >
-            <span className="flex items-center gap-2">
+            <div className="shrink-0 flex items-center justify-center h-8 w-8 text-red-500 hover:text-red-600">
               <Icons.logout size={17} />
-              <span>LOGOUT</span>
-            </span>
+            </div>
+            <span className="tracking-wide">LOGOUT</span>
           </button>
         </div>
       </div>

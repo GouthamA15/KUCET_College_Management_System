@@ -68,7 +68,7 @@ export default function AdminLayout({ children }) {
         {/* Mobile Overlay */}
         {MOBILE_NAV_MODE === 'sidebar' && isMobileMenuOpen && (
           <div 
-            className="fixed inset-0 bg-slate-900/25 backdrop-blur-[1.5px] z-50 lg:hidden transition-all duration-300"
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-[2.5px] z-50 lg:hidden transition-all duration-300"
             onClick={() => setIsMobileMenuOpen(false)}
           />
         )}
