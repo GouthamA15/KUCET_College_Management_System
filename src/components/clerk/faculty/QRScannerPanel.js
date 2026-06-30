@@ -39,26 +39,20 @@ export default function QRScannerPanel({ onScanSuccess, onScannerStop }) {
           const qrCodeSuccessCallback = (decodedText) => {
             let extractedRoll = null;
             
-            // 1. Try to find common ID labels
-            const labelMatch = decodedText.match(/(?:HT[-.\s]*No|Hall\s*Ticket(?:[-.\s]*No)?|Roll[-.\s]*No(?:umber)?|ID[-.\s]*No)\s*[:=-]\s*([A-Za-z0-9]+)/i);
+            // 1. Direct Regex Search: Look for the specific KUCET roll number pattern anywhere in the text
+            // Format: YY567TBBSS (Regular) or YY567BBSSL (Lateral)
+            const rollPatternMatch = decodedText.match(/\b(\d{2}567(?:T(?:09|30|15|12|00|18|03)[A-Za-z0-9]{2,3}|(?:09|30|15|12|00|18|03)[A-Za-z0-9]{1,3}L))\b/i);
             
-            if (labelMatch) {
-              extractedRoll = labelMatch[1].trim();
+            if (rollPatternMatch) {
+              extractedRoll = rollPatternMatch[1].trim();
             } else {
-              // 2. Fallback: Search the entire text for anything that looks like a KUCET roll number
-              // Format: YY567TBBSS (Regular) or YY567BBSSL (Lateral)
-              const rollPatternMatch = decodedText.match(/\b(\d{2}567T?\d{2}[A-Za-z0-9]{2,3})\b/i);
-              if (rollPatternMatch) {
-                extractedRoll = rollPatternMatch[1].trim();
+              // 2. Fallback: If it's a very short string, assume the entire QR is just a raw roll number
+              if (decodedText.length < 25) {
+                 extractedRoll = decodedText.trim();
               } else {
-                // If it's a huge block of text and no roll number was found, don't concatenate it.
-                if (decodedText.length < 25) {
-                   extractedRoll = decodedText.trim();
-                } else {
-                   // Log internally and ignore to prevent polluting the scanner with giant strings
-                   console.warn("Could not find a valid Roll Number in QR code:", decodedText);
-                   return;
-                }
+                 // Log internally and ignore to prevent polluting the scanner with giant strings
+                 console.warn("Could not find a valid Roll Number in QR code:", decodedText);
+                 return;
               }
             }
             
