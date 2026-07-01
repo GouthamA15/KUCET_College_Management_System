@@ -219,7 +219,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
           </button>
         </div>
 
-        <div className="flex gap-2 mt-6 overflow-x-auto pb-1 no-scrollbar border-t border-white/5 pt-4">
+        <div className="flex gap-2 mt-6 overflow-x-auto pb-2 no-scrollbar border-t border-white/5 pt-4 px-1">
           {[
             { id: 'workload', label: 'Faculty Load', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
             { id: 'timetable', label: 'Edit Timetable', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z' },
@@ -229,12 +229,12 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
             { id: 'config', label: 'Department Config', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
             { id: 'interests', label: 'Faculty Interests', icon: 'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z' }
           ].map(tab => ( activeSubTab === tab.id ? (
-            <button key={tab.id} className={`flex items-center gap-2 px-4 py-2 bg-white text-[#0b3578] font-bold border-t-2 border-amber-400 whitespace-nowrap ${tab.id === 'allocation' ? 'text-[11px]' : 'text-[10px]'} uppercase tracking-widest transition-all`}>
+            <button key={tab.id} className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-white text-[#0b3578] rounded-full font-bold whitespace-nowrap text-[10px] sm:text-[10px] uppercase tracking-widest shadow-sm transition-all flex-shrink-0`}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
               {tab.label}
             </button>
           ) : (
-            <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} className="flex items-center gap-2 px-4 py-2 text-blue-100 hover:text-white hover:bg-white/5 whitespace-nowrap text-[10px] uppercase tracking-widest font-medium transition-all">
+            <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 text-blue-100 hover:text-white bg-white/10 hover:bg-white/20 rounded-full whitespace-nowrap text-[10px] uppercase tracking-widest font-medium transition-all flex-shrink-0`}>
               <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
               {tab.label}
             </button>
@@ -474,38 +474,40 @@ function WorkloadView({ data, branch }) {
       
       <div className="grid grid-cols-1 gap-4">
         {data.map(f => (
-          <div key={f.id} className="bg-white border border-slate-200 p-4 sm:p-6 hover:border-[#0b3578] transition-all group">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+          <div key={f.id} className="bg-white border border-slate-200 p-4 sm:p-5 hover:border-[#0b3578] transition-all group rounded-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
               
-              <div className="flex items-start sm:items-center gap-3 sm:gap-5 min-w-0">
-                <div className="w-12 h-12 bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-[#0b3578] text-xl group-hover:bg-[#0b3578] group-hover:text-white transition-all flex-shrink-0">
-                  {f.name.charAt(0)}
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-slate-800 group-hover:text-[#0b3578] transition-colors uppercase tracking-wider">{f.name}</h4>
-                  <p className="text-[10px] text-slate-400 font-medium tracking-widest uppercase mt-0.5">{f.email}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                     {f.subjects ? f.subjects.split(', ').map(s => (
-                       <span key={s} className="text-[8px] font-bold bg-slate-50 text-slate-500 px-2 py-0.5 border border-slate-200 uppercase tracking-tighter">{s}</span>
-                     )) : <span className="text-[8px] font-medium text-slate-300 italic">No Official Authorization</span>}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full md:w-auto">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-[#0b3578] text-lg sm:text-xl group-hover:bg-[#0b3578] group-hover:text-white transition-all flex-shrink-0 rounded-sm">
+                    {f.name.charAt(0)}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-sm text-slate-800 group-hover:text-[#0b3578] transition-colors uppercase tracking-wider truncate">{f.name}</h4>
+                    <p className="text-[10px] text-slate-400 font-medium tracking-widest uppercase mt-0.5 truncate">{f.email}</p>
+                  </div>
+                </div>
+                <div className="mt-2 sm:mt-0 flex flex-wrap gap-1.5 w-full sm:w-auto">
+                   {f.subjects ? f.subjects.split(', ').map(s => (
+                     <span key={s} className="text-[9px] sm:text-[8px] font-bold bg-slate-50 text-slate-500 px-2 py-1 sm:py-0.5 border border-slate-200 uppercase tracking-tighter rounded-sm break-all">{s}</span>
+                   )) : <span className="text-[9px] sm:text-[8px] font-medium text-slate-300 italic">No Official Authorization</span>}
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 w-full lg:w-auto">
-                 <div className="bg-slate-50 border border-slate-100 p-3 text-center">
-                    <div className="text-lg font-bold text-slate-800">{f.scheduled_weekly}</div>
-                    <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Weekly / Sch</div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full md:w-auto mt-2 md:mt-0">
+                 <div className="bg-slate-50 border border-slate-100 p-2 sm:p-3 text-center rounded-sm">
+                    <div className="text-base sm:text-lg font-bold text-slate-800">{f.scheduled_weekly}</div>
+                    <div className="text-[8px] sm:text-[7px] font-bold text-slate-400 uppercase tracking-widest">Weekly / Sch</div>
                  </div>
-                 <div className="bg-slate-50 border border-slate-100 p-3 text-center">
-                    <div className="text-lg font-bold text-slate-800">{f.total_conducted}</div>
-                    <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Sem / Reg</div>
+                 <div className="bg-slate-50 border border-slate-100 p-2 sm:p-3 text-center rounded-sm">
+                    <div className="text-base sm:text-lg font-bold text-slate-800">{f.total_conducted}</div>
+                    <div className="text-[8px] sm:text-[7px] font-bold text-slate-400 uppercase tracking-widest">Sem / Reg</div>
                  </div>
-                 <div className="bg-[#0b3578]/5 border border-[#0b3578]/10 p-3 text-center">
-                    <div className="text-lg font-bold text-[#0b3578]">
+                 <div className="bg-[#0b3578]/5 border border-[#0b3578]/10 p-2 sm:p-3 text-center rounded-sm">
+                    <div className="text-base sm:text-lg font-bold text-[#0b3578]">
                        {f.scheduled_weekly > 0 ? Math.min(Math.round((f.total_conducted / (f.scheduled_weekly * 4)) * 100), 100) : 0}%
                     </div>
-                    <div className="text-[7px] font-bold text-[#0b3578]/60 uppercase tracking-widest">Performance</div>
+                    <div className="text-[8px] sm:text-[7px] font-bold text-[#0b3578]/60 uppercase tracking-widest">Performance</div>
                  </div>
               </div>
 

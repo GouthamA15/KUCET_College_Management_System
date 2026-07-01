@@ -248,6 +248,42 @@ describe('SecurityService', () => {
         expect(result).toBe(true);
       });
 
+    it('should reject update if session is revoked', async () => {
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            limit: vi.fn().mockResolvedValueOnce([{ is_revoked: true, user_id: 42, user_type: 'CLERK' }])
+          })
+        })
+      });
+      const result = await SecurityService.updateSession({
+        sessionId: 1,
+        newToken: 'new-token'
+      });
+      expect(result).toBe(false);
+    });
+
+    it('should register new session if session not found', async () => {
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          where: vi.fn().mockReturnValueOnce({
+            limit: vi.fn().mockResolvedValueOnce([])
+          })
+        })
+      });
+      db.insert.mockReturnValueOnce({
+        values: vi.fn().mockResolvedValueOnce([{ insertId: 99 }])
+      });
+
+      const result = await SecurityService.updateSession({
+        sessionId: 999,
+        newToken: 'new-token',
+        userId: 42,
+        userType: 'CLERK'
+      });
+      expect(result).toBe(99);
+    });
+
     it('should update if session ownership matches', async () => {
       db.select.mockReturnValueOnce({
         from: vi.fn().mockReturnValueOnce({

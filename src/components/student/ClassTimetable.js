@@ -27,6 +27,36 @@ export default function ClassTimetable() {
     return todayName !== 'SUN' ? todayName : 'MON';
   });
 
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEndHandler = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe || isRightSwipe) {
+      const daysList = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      const currentIndex = daysList.indexOf(activeMobileDay);
+      if (isLeftSwipe && currentIndex < daysList.length - 1) {
+        setActiveMobileDay(daysList[currentIndex + 1]);
+      } else if (isRightSwipe && currentIndex > 0) {
+        setActiveMobileDay(daysList[currentIndex - 1]);
+      }
+    }
+  };
+
   const scrollContainerRef = useRef(null);
   const dayHeaderRef = useRef(null);
 
@@ -251,7 +281,12 @@ export default function ClassTimetable() {
           </div>
         </div>
 
-        <div className="md:hidden p-4 space-y-4 bg-slate-50/50">
+        <div 
+          className="md:hidden p-4 space-y-4 bg-slate-50/50"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEndHandler}
+        >
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#0b3578]"></span>

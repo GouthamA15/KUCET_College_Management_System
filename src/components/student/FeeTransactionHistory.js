@@ -117,80 +117,71 @@ export default function FeeTransactionHistory({ feeRecords = [], student = null,
       </div>
 
       {/* Mobile Stacked Cards */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-4">
         {feeRecords.map((payment, idx) => {
           const pId = payment.id || idx;
-          const isExpanded = expandedId === pId;
           const formattedDate = payment.transaction_date ? formatDate(payment.transaction_date) : '—';
 
           return (
-            <div key={pId} className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                <span className="font-mono font-extrabold text-xs text-indigo-700">{payment.transaction_ref_no || `TRX-${idx + 100}`}</span>
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  Verified
-                </span>
-              </div>
-
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Amount Paid</span>
-                  <span className="font-mono font-black text-emerald-700 text-lg">₹ {Number(payment.amount || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Academic Year</span>
-                  <span className="font-bold text-slate-800 text-sm">{payment.academic_year || '—'}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
-                <div>
-                  <span className="text-slate-400 block text-[10px]">Payment Mode</span>
-                  <span className="font-semibold text-slate-700">{payment.payment_mode || 'ONLINE'} {payment.bank_name && `(${payment.bank_name})`}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-slate-400 block text-[10px]">Date</span>
-                  <span className="font-mono text-slate-600">{formattedDate}</span>
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => toggleExpand(pId)}
-                  className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1"
-                >
-                  {isExpanded ? 'Hide Details ▲' : 'View Details ▼'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedReceipt(payment)}
-                  className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-2xs"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Receipt
-                </button>
-              </div>
-
-              {isExpanded && (
-                <div className="mt-2 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-medium">Bank Institution:</span>
-                    <span className="font-bold text-slate-700">{payment.bank_name || 'Not Specified'}</span>
+            <div key={pId} className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
+               {/* Header / Receipt Top */}
+               <div className="bg-[#0b3578] text-white p-5 pb-6 relative">
+                 <div className="flex justify-between items-start mb-2">
+                   <span className="font-mono text-[10px] font-bold text-blue-200 uppercase tracking-widest">
+                     Receipt No.
+                   </span>
+                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[9px] font-black bg-emerald-400 text-emerald-900 uppercase tracking-wider shadow-sm">
+                     <span className="w-1 h-1 rounded-full bg-emerald-800"></span>
+                     Verified
+                   </span>
+                 </div>
+                 <div className="font-mono text-sm font-bold tracking-tight mb-4 opacity-90">
+                   {payment.transaction_ref_no || `TRX-${idx + 100}`}
+                 </div>
+                 <div className="text-3xl font-black tracking-tight">
+                   ₹ {Number(payment.amount || 0).toLocaleString('en-IN')}
+                 </div>
+                 {/* Zigzag bottom edge effect for receipt feel */}
+                 <div className="absolute -bottom-2 left-0 right-0 h-4 bg-white" style={{ clipPath: 'polygon(0 100%, 100% 100%, 100% 50%, 95% 100%, 90% 50%, 85% 100%, 80% 50%, 75% 100%, 70% 50%, 65% 100%, 60% 50%, 55% 100%, 50% 50%, 45% 100%, 40% 50%, 35% 100%, 30% 50%, 25% 100%, 20% 50%, 15% 100%, 10% 50%, 5% 100%, 0 50%)' }}></div>
+               </div>
+               
+               {/* Details */}
+               <div className="p-5 pt-6 space-y-4 bg-white relative">
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-widest">Academic Year</span>
+                      <span className="font-bold text-slate-800 text-sm mt-0.5 block">{payment.academic_year || '—'}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-widest">Payment Date</span>
+                      <span className="font-mono font-bold text-slate-700 mt-0.5 block">{formattedDate}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-medium">Full UTR / Ref:</span>
-                    <span className="font-mono text-slate-800 font-semibold break-all">{payment.transaction_ref_no || 'N/A'}</span>
+                  
+                  <div className="border-t border-dashed border-slate-200 pt-4 grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-widest">Payment Mode</span>
+                      <span className="font-semibold text-slate-800 uppercase mt-0.5 block">{payment.payment_mode || 'ONLINE'}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-widest">Bank Details</span>
+                      <span className="font-semibold text-slate-700 mt-0.5 block">{payment.bank_name || 'N/A'}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-medium">Verification Status:</span>
-                    <span className="text-emerald-700 font-bold">Verified & Posted</span>
+
+                  <div className="pt-4 flex items-center justify-between border-t border-dashed border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReceipt(payment)}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-4 py-3 rounded-lg transition-all"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      View Official Receipt
+                    </button>
                   </div>
-                </div>
-              )}
+               </div>
             </div>
           );
         })}
