@@ -317,18 +317,18 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3">
-                    {isLoadingTimetable && <div className="w-4 h-4 border-2 border-[#0b3578] border-t-transparent animate-spin"></div>}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                    {isLoadingTimetable && <div className="w-4 h-4 border-2 border-[#0b3578] border-t-transparent animate-spin self-center"></div>}
                     <button 
                       onClick={() => handleClearTimetable('clearSemester')}
-                      className="px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-bold uppercase tracking-widest hover:bg-amber-100 transition-all flex items-center gap-2"
+                      className="w-full sm:w-auto justify-center px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-bold uppercase tracking-widest hover:bg-amber-100 transition-all flex items-center gap-2"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       Clear Sem {selectedSem}
                     </button>
                     <button 
                       onClick={() => handleClearTimetable('clearAll')}
-                      className="px-3 py-2 bg-red-50 text-red-700 border border-red-200 text-[9px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
+                      className="w-full sm:w-auto justify-center px-3 py-2 bg-red-50 text-red-700 border border-red-200 text-[9px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                       Wipe Departmental Timetable
@@ -474,11 +474,11 @@ function WorkloadView({ data, branch }) {
       
       <div className="grid grid-cols-1 gap-4">
         {data.map(f => (
-          <div key={f.id} className="bg-white border border-slate-200 p-6 hover:border-[#0b3578] transition-all group">
+          <div key={f.id} className="bg-white border border-slate-200 p-4 sm:p-6 hover:border-[#0b3578] transition-all group">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
               
-              <div className="flex items-center gap-5">
-                <div className="w-12 h-12 bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-[#0b3578] text-xl group-hover:bg-[#0b3578] group-hover:text-white transition-all">
+              <div className="flex items-start sm:items-center gap-3 sm:gap-5 min-w-0">
+                <div className="w-12 h-12 bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-[#0b3578] text-xl group-hover:bg-[#0b3578] group-hover:text-white transition-all flex-shrink-0">
                   {f.name.charAt(0)}
                 </div>
                 <div>
@@ -817,12 +817,12 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
 
            <div className="grid grid-cols-1 gap-3">
               {filteredAssignments.map(a => (
-                <div key={a.id} className="bg-white border border-slate-200 p-5 flex justify-between items-center group hover:border-[#0b3578] transition-all shadow-sm">
-                   <div className="flex items-center gap-5">
-                      <div className="w-10 h-10 bg-slate-50 border border-slate-100 flex items-center justify-center text-sm group-hover:bg-blue-50 transition-colors">🎓</div>
-                      <div>
-                         <h5 className="font-bold text-slate-800 tracking-wider text-[11px] leading-tight mb-1 uppercase">{a.subject_name}</h5>
-                         <div className="flex items-center gap-3">
+                <div key={a.id} className="bg-white border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 group hover:border-[#0b3578] transition-all shadow-sm">
+                   <div className="flex items-start sm:items-center gap-3 sm:gap-5 min-w-0 flex-1">
+                      <div className="w-10 h-10 bg-slate-50 border border-slate-100 flex items-center justify-center text-sm group-hover:bg-blue-50 transition-colors flex-shrink-0">🎓</div>
+                      <div className="min-w-0">
+                         <h5 className="font-bold text-slate-800 tracking-wider text-[11px] leading-tight mb-1 uppercase truncate">{a.subject_name}</h5>
+                         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                             <span className="text-[8px] font-bold text-[#0b3578] border border-[#0b3578]/20 bg-blue-50 px-2 py-0.5 uppercase tracking-widest">{a.subject_code}</span>
                             <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Handler: <span className="text-slate-600 underline underline-offset-2 decoration-slate-300">{a.faculty_name}</span></span>
                          </div>
@@ -830,7 +830,7 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
                    </div>
                    <button 
                      onClick={() => handleRevoke(a.id)}
-                     className="p-2.5 text-slate-300 hover:bg-red-500 hover:text-white border border-transparent hover:border-red-600 transition-all opacity-0 group-hover:opacity-100"
+                     className="self-end sm:self-center p-2.5 text-slate-400 hover:bg-red-500 hover:text-white border border-slate-200 sm:border-transparent sm:hover:border-red-600 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 rounded"
                      title="Revoke Registry Authorization"
                    >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -998,18 +998,18 @@ export function FacultyInterestsView({ refreshHOD }) {
       ) : (
         <div className="space-y-4">
           {interests.map(interest => (
-            <div key={interest.id} className="bg-white border border-slate-200 p-4 flex items-center justify-between shadow-sm">
-              <div>
-                <div className="flex gap-2 items-center mb-1">
+            <div key={interest.id} className="bg-white border border-slate-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+              <div className="min-w-0">
+                <div className="flex flex-wrap gap-2 items-center mb-1">
                   <span className="font-bold text-slate-800 text-sm uppercase">{interest.subject_code}</span>
-                  <span className="text-slate-500 text-xs">- {interest.subject_name}</span>
+                  <span className="text-slate-500 text-xs truncate">- {interest.subject_name}</span>
                 </div>
                 <div className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
                   Faculty: <span className="text-blue-700">{interest.faculty_name}</span> | Sem: {interest.semester} | {interest.academic_year}
                 </div>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 self-end sm:self-center">
                 <div className="text-[10px] font-bold px-2 py-1 bg-slate-100 uppercase tracking-widest text-slate-600 border border-slate-200">
                   {interest.status}
                 </div>

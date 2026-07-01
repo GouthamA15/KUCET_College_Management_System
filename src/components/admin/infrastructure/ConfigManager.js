@@ -70,10 +70,10 @@ export default function ConfigManager() {
       
       {/* 1. Core Identity */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
-        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200">
+        <div className="bg-slate-50 px-4 sm:px-6 md:px-8 py-4 border-b border-slate-200">
            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Institutional Identity</span>
         </div>
-        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-4 sm:p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full College Name</label>
             <input 
@@ -106,10 +106,10 @@ export default function ConfigManager() {
 
       {/* 2. Localization & Contact */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
-        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200">
+        <div className="bg-slate-50 px-4 sm:px-6 md:px-8 py-4 border-b border-slate-200">
            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Localization & Reach</span>
         </div>
-        <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="p-4 sm:p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">City / Location</label>
             <input 
@@ -142,10 +142,10 @@ export default function ConfigManager() {
 
       {/* 3. Entrance Codes (JSON) */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
-        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200">
+        <div className="bg-slate-50 px-4 sm:px-6 md:px-8 py-4 border-b border-slate-200">
            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Institutional Entrance Codes</span>
         </div>
-        <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="p-4 sm:p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
            {['tgpgecet', 'tgeapcet', 'tgecet'].map(exam => (
              <div key={exam} className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{exam} Code</label>
@@ -165,11 +165,11 @@ export default function ConfigManager() {
 
       {/* 4. Safety & Maintenance */}
       <div className="bg-rose-50 border border-rose-100 shadow-sm rounded-sm overflow-hidden">
-        <div className="bg-rose-100 px-8 py-4 border-b border-rose-200 flex justify-between items-center">
+        <div className="bg-rose-100 px-4 sm:px-6 md:px-8 py-4 border-b border-rose-200 flex justify-between items-center gap-2">
            <span className="text-[10px] font-black text-rose-700 uppercase tracking-widest">System Governance</span>
-           <span className="px-2 py-0.5 bg-rose-600 text-white text-[8px] font-black rounded-full uppercase tracking-tighter">High Privilege</span>
+           <span className="px-2 py-0.5 bg-rose-600 text-white text-[8px] font-black rounded-full uppercase tracking-tighter whitespace-nowrap">High Privilege</span>
         </div>
-        <div className="p-8 flex items-center justify-between">
+        <div className="p-4 sm:p-6 md:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
            <div className="space-y-1">
              <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Institutional Maintenance Mode</p>
              <p className="text-xs text-slate-500 font-medium">When active, the portal becomes read-only for students and staff. Only Super Admins can make modifications.</p>
@@ -177,7 +177,7 @@ export default function ConfigManager() {
            <button
              type="button"
              onClick={() => setConfig({...config, maintenance_mode: !config.maintenance_mode})}
-             className={`w-16 h-8 rounded-full p-1 transition-all duration-300 ${config.maintenance_mode ? 'bg-rose-600' : 'bg-slate-300'}`}
+             className={`w-16 h-8 rounded-full p-1 transition-all duration-300 flex-shrink-0 ${config.maintenance_mode ? 'bg-rose-600' : 'bg-slate-300'}`}
            >
              <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-all duration-300 ${config.maintenance_mode ? 'translate-x-8' : 'translate-x-0'}`}></div>
            </button>
@@ -189,7 +189,7 @@ export default function ConfigManager() {
          <button
            type="submit"
            disabled={saving}
-           className="px-10 h-14 bg-slate-800 text-white text-xs font-black uppercase tracking-[0.2em] rounded-sm hover:bg-slate-900 transition-all shadow-xl disabled:bg-slate-300 flex items-center gap-4"
+           className="w-full sm:w-auto px-10 h-14 bg-slate-800 text-white text-xs font-black uppercase tracking-[0.2em] rounded-sm hover:bg-slate-900 transition-all shadow-xl disabled:bg-slate-300 flex items-center justify-center gap-4"
          >
            {saving ? (
              <>

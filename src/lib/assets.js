@@ -43,7 +43,7 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   if (!path) return '';
   
   // 1. Handle data URIs, absolute URLs, and local API routes
-  if (path.startsWith('data:') || (path.startsWith('http') && !path.includes('cloudinary.com')) || path.startsWith('/api/')) {
+  if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/api/')) {
     return path;
   }
 

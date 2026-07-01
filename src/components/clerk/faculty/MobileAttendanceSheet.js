@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
@@ -383,8 +384,15 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                   </div>
                   {students.map(student => (
                     <div key={student.id} className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-sm">
-                      <div className="flex justify-between items-center">
-                        <div className="flex-1 pr-3">
+                      <div className="flex justify-between items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 flex-shrink-0">
+                          {student.pfp ? (
+                            <img src={student.pfp} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
+                          ) : (
+                            student.name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="flex-1 pr-1">
                           <div className="font-mono text-gray-800 text-[11px] font-black tracking-wide mb-1 flex items-center gap-2">
                             {student.roll_no}
                             {verifiedStudentIds.has(student.id) && (

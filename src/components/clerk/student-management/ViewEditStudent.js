@@ -336,6 +336,7 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
                                     onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(getAssetUrl(String(p))); setImagePreviewOpen(true); }} 
                                     className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                                     onLoad={() => setImageLoading(false)}
+                                    onError={() => setImageLoading(false)}
                                 />
                             </>
                         );

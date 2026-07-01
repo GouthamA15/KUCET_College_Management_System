@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
@@ -324,19 +325,28 @@ const AttendanceGrid = () => {
       <div className="md:hidden flex flex-col gap-3">
         {students.map((student) => (
           <div key={student.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-mono font-bold text-slate-800">{student.roll_no}</span>
-                  {verifiedStudentIds.has(student.id) && (
-                    <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 flex-shrink-0">
+                  {student.pfp ? (
+                    <img src={student.pfp} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
+                  ) : (
+                    student.name.charAt(0).toUpperCase()
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{student.name}</span>
-                  {verifiedStudentIds.has(student.id) && (
-                    <span className="text-[8px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
-                  )}
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-mono font-bold text-slate-800">{student.roll_no}</span>
+                    {verifiedStudentIds.has(student.id) && (
+                      <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{student.name}</span>
+                    {verifiedStudentIds.has(student.id) && (
+                      <span className="text-[8px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -377,6 +387,7 @@ const AttendanceGrid = () => {
         <table className="min-w-full divide-y-2 divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-16">Photo</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Roll No</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
               <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -415,6 +426,15 @@ const AttendanceGrid = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {students.map((student) => (
               <tr key={student.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500">
+                    {student.pfp ? (
+                      <img src={student.pfp} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
+                    ) : (
+                      student.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">
                   <div className="flex items-center gap-2">
                     {student.roll_no}

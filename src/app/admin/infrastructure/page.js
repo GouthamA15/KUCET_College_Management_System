@@ -23,7 +23,7 @@ export default function InfrastructurePage() {
         <div className="flex border-b border-slate-200 mb-8 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('config')}
-            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${
+            className={`px-4 sm:px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${
               activeTab === 'config'
                 ? 'border-blue-600 text-blue-600 bg-blue-50/50'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -33,7 +33,7 @@ export default function InfrastructurePage() {
           </button>
           <button
             onClick={() => setActiveTab('backups')}
-            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${
+            className={`px-4 sm:px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${
               activeTab === 'backups'
                 ? 'border-blue-600 text-blue-600 bg-blue-50/50'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -43,7 +43,7 @@ export default function InfrastructurePage() {
           </button>
           <button
             onClick={() => setActiveTab('storage')}
-            className={`px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${
+            className={`px-4 sm:px-8 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 whitespace-nowrap ${
               activeTab === 'storage'
                 ? 'border-blue-600 text-blue-600 bg-blue-50/50'
                 : 'border-transparent text-slate-400 hover:text-slate-600'

@@ -3,6 +3,7 @@ import {
   students as studentsTable, 
   studentMarks,
   facultySubstitutions,
+  studentImages,
   collegeInfo as _collegeInfoTable
 } from '@/db/schema';
 import { db } from '@/db';
@@ -99,11 +100,13 @@ export async function GET(request) {
       roll_no: studentsTable.roll_no,
       name: studentsTable.name,
       academic_offset_years: studentsTable.academic_offset_years,
+      has_pfp: studentImages.pfp,
       mid1_marks: studentMarks.mid1_marks,
       mid2_marks: studentMarks.mid2_marks,
       assignment_marks: studentMarks.assignment_marks
     })
     .from(studentsTable)
+    .leftJoin(studentImages, eq(studentsTable.id, studentImages.student_id))
     .leftJoin(studentMarks, and(
       eq(studentsTable.id, studentMarks.student_id),
       eq(studentMarks.assignment_id, targetAssignmentId)
@@ -124,7 +127,12 @@ export async function GET(request) {
     ))
     .orderBy(asc(studentsTable.roll_no));
 
-    return apiResponse({ data: students, sessions: [] });
+    const formattedStudents = students.map(s => ({
+      ...s,
+      pfp: s.has_pfp ? `/api/student/image/${s.roll_no}` : null
+    }));
+
+    return apiResponse({ data: formattedStudents, sessions: [] });
   } catch (error) {
     logger.error('Students Fetch Error:', error);
     return apiError('Internal Server Error', 500);

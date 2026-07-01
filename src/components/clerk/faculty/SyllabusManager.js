@@ -85,12 +85,12 @@ export default function SyllabusManager({ branch }) {
           <p className="text-[10px] text-slate-700 font-bold uppercase mt-1 tracking-[0.22em]">Branch: {branch}</p>
         </div>
         
-        <div className="flex gap-1 bg-slate-50 border border-slate-300 p-1 rounded-sm shadow-sm">
+        <div className="flex flex-wrap gap-1 bg-slate-50 border border-slate-300 p-1 rounded-sm shadow-sm max-w-full">
           {[1,2,3,4,5,6,7,8].map(s => (
             <button 
               key={s} 
               onClick={() => setSelectedSem(s)}
-              className={`w-10 h-10 rounded-sm font-bold text-[10px] uppercase tracking-widest transition-colors ${selectedSem === s ? 'bg-[#0b3578] text-white shadow-sm' : 'text-slate-700 hover:bg-white'}`}
+              className={`w-8 sm:w-10 h-8 sm:h-10 rounded-sm font-bold text-[10px] uppercase tracking-widest transition-colors ${selectedSem === s ? 'bg-[#0b3578] text-white shadow-sm' : 'text-slate-700 hover:bg-white'}`}
             >
               S{s}
             </button>
@@ -113,9 +113,9 @@ export default function SyllabusManager({ branch }) {
         ) : (
           syllabus.map(sub => (
             <div key={sub.subject_code} className="bg-white border border-slate-300 rounded-sm overflow-hidden group hover:border-slate-400 transition-colors shadow-sm">
-              <div className="p-5 flex justify-between items-start gap-4 bg-slate-50">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
+              <div className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className="text-[10px] font-bold bg-blue-100/70 text-[#0b3578] border border-[#0b3578]/20 px-2 py-0.5 rounded-sm uppercase tracking-widest">
                       {sub.subject_code}
                     </span>
@@ -123,10 +123,10 @@ export default function SyllabusManager({ branch }) {
                       {sub.subject_type}
                     </span>
                   </div>
-                  <h4 className="text-base font-bold text-slate-900 uppercase tracking-wide leading-snug">{sub.subject_name}</h4>
+                  <h4 className="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-wide leading-snug break-words">{sub.subject_name}</h4>
                 </div>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => setEditingSubject(sub)} className="px-3 py-2 bg-slate-50 border border-slate-200 text-slate-700 hover:text-[#0b3578] rounded-sm transition-colors text-[10px] font-bold uppercase tracking-widest">
+                <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity self-end sm:self-center">
+                  <button onClick={() => setEditingSubject(sub)} className="px-3 py-2 bg-white sm:bg-slate-50 border border-slate-200 text-slate-700 hover:text-[#0b3578] rounded-sm transition-colors text-[10px] font-bold uppercase tracking-widest">
                     Edit
                   </button>
                   <button onClick={() => handleDeleteSubject(sub.subject_code)} className="px-3 py-2 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 rounded-sm transition-colors text-[10px] font-bold uppercase tracking-widest">

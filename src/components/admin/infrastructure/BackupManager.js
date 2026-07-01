@@ -96,7 +96,7 @@ export default function BackupManager() {
     <div className="space-y-8 animate-fadeIn">
       
       {/* Action Bar */}
-      <div className="flex justify-between items-center bg-white p-6 border border-slate-200 shadow-sm rounded-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 sm:p-6 border border-slate-200 shadow-sm rounded-sm gap-4">
         <div>
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Database Control</h3>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Manual system snapshots and disaster recovery.</p>
@@ -104,7 +104,7 @@ export default function BackupManager() {
         <button
           onClick={handleManualBackup}
           disabled={triggering || loading}
-          className="px-6 h-12 bg-slate-800 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-sm hover:bg-slate-900 transition-all shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-3"
+          className="w-full sm:w-auto px-6 h-12 bg-slate-800 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-sm hover:bg-slate-900 transition-all shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-3"
         >
           {triggering ? (
             <>
@@ -119,7 +119,7 @@ export default function BackupManager() {
 
       {/* Backups List */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
-        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200">
+        <div className="bg-slate-50 px-4 sm:px-6 md:px-8 py-4 border-b border-slate-200">
            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cloud Storage History (kucet/backups)</span>
         </div>
         
@@ -240,16 +240,16 @@ export default function BackupManager() {
 
       {/* Restore Confirmation Modal */}
       {restoreModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white max-w-lg w-full shadow-2xl rounded-sm overflow-hidden border border-rose-200 animate-slideUp">
-            <div className="p-8 space-y-6">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+          <div className="bg-white max-w-lg w-full shadow-2xl rounded-sm overflow-hidden border border-rose-200 animate-slideUp my-auto">
+            <div className="p-4 sm:p-6 md:p-8 space-y-6">
               <div className="flex items-center gap-4 text-rose-600">
-                <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center flex-shrink-0">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-black uppercase tracking-tight">Critical Warning</h3>
+                <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight">Critical Warning</h3>
               </div>
 
               <div className="space-y-4">
@@ -277,18 +277,18 @@ export default function BackupManager() {
                 </p>
               </div>
 
-              <div className="flex gap-4 pt-4 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100">
                 <button
                   disabled={restoring}
                   onClick={() => { setRestoreModal(null); setConfirmString(''); }}
-                  className="flex-1 h-12 border border-slate-200 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-sm hover:bg-slate-50 transition-all disabled:opacity-50"
+                  className="w-full sm:flex-1 h-12 border border-slate-200 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-sm hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   disabled={restoring || confirmString !== 'RESTORE_DATABASE'}
                   onClick={handleRestore}
-                  className="flex-2 h-12 bg-rose-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/20 flex items-center justify-center gap-3 disabled:bg-rose-300 disabled:shadow-none"
+                  className="w-full sm:flex-2 h-12 bg-rose-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-600/20 flex items-center justify-center gap-3 disabled:bg-rose-300 disabled:shadow-none"
                 >
                   {restoring ? (
                     <>

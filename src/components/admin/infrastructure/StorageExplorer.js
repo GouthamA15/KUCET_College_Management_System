@@ -150,7 +150,7 @@ export default function StorageExplorer() {
           </div>
         </div>
         
-        <div className="flex items-center gap-4 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
             <input 
               type="text" 
@@ -163,7 +163,7 @@ export default function StorageExplorer() {
           <button
             onClick={handleZipDownload}
             disabled={zipping || loading}
-            className="px-6 h-11 bg-[#0b3578] text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-sm hover:bg-blue-900 transition-all shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-3 whitespace-nowrap"
+            className="w-full sm:w-auto justify-center px-6 h-11 bg-[#0b3578] text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-sm hover:bg-blue-900 transition-all shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-3 whitespace-nowrap"
           >
             {zipping ? (
               <>
@@ -184,7 +184,7 @@ export default function StorageExplorer() {
 
       {/* Structured View Grid/Table */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
-        <div className="bg-slate-50 px-8 py-4 border-b border-slate-200 flex justify-between items-center">
+        <div className="bg-slate-50 px-4 sm:px-6 md:px-8 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
              {viewData.isSearch ? 'Search Results' : (currentPath || 'Root Directory')}
              {!viewData.isSearch && <span className="ml-2 opacity-60">({viewData.folders.length} folders, {viewData.items.length} files)</span>}
