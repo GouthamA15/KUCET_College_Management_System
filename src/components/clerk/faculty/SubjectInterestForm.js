@@ -3,8 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { getNowSync } from '@/lib/clock';
+import { useClerk } from '@/context/ClerkContext';
 
 export default function SubjectInterestForm({ onInterestSubmitted }) {
+  const { facultyInterests = [], isLoadingFaculty, refreshFaculty } = useClerk();
   const [branches] = useState(COLLEGE_CONFIG.branches);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
@@ -12,21 +14,26 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
   const [loadingSyllabus, setLoadingSyllabus] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [academicYear, setAcademicYear] = useState('');
-  const [existingInterests, setExistingInterests] = useState([]);
+  const [localInterests, setLocalInterests] = useState([]);
 
-
-  // Fetch existing interests
-  const fetchExistingInterests = async () => {
-    try {
-      const res = await fetch('/api/clerk/faculty/interests');
-      const data = await res.json();
-      if (res.ok) {
-        setExistingInterests(data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch existing interests:', error);
+  useEffect(() => {
+    if ((!facultyInterests || facultyInterests.length === 0) && !isLoadingFaculty) {
+      const fetchExistingInterests = async () => {
+        try {
+          const res = await fetch('/api/clerk/faculty/interests');
+          const data = await res.json();
+          if (res.ok) {
+            setLocalInterests(data.data || []);
+          }
+        } catch (error) {
+          console.error('Failed to fetch existing interests:', error);
+        }
+      };
+      fetchExistingInterests();
     }
-  };
+  }, [facultyInterests, isLoadingFaculty]);
+
+  const effectiveInterests = (facultyInterests && facultyInterests.length > 0) ? facultyInterests : localInterests;
 
   // Set default academic year (current)
   useEffect(() => {
@@ -41,7 +48,6 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
         yearStr = `${currentYear - 1}-${currentYear.toString().slice(-2)}`;
       }
       setAcademicYear(yearStr);
-      fetchExistingInterests();
     }, 0);
 
     return () => clearTimeout(id);
@@ -87,7 +93,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit interest');
       toast.success('Interest submitted successfully');
-      fetchExistingInterests();
+      if (refreshFaculty) refreshFaculty();
       if (onInterestSubmitted) onInterestSubmitted();
     } catch (error) {
       toast.error(error.message);
@@ -97,7 +103,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
   };
 
   const getInterestStatus = (subjectCode) => {
-    return existingInterests.find(i => 
+    return effectiveInterests.find(i => 
       i.subject_code === subjectCode && 
       i.branch === selectedBranch && 
       i.semester === parseInt(selectedSemester) &&

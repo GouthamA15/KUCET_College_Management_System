@@ -1,10 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { useClerk } from '@/context/ClerkContext';
 
 export default function InterestStatusList() {
-  const [interests, setInterests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { facultyInterests = [], isLoadingFaculty } = useClerk();
+  const [fetchedInterests, setFetchedInterests] = useState(null);
+  const [isFetching, setIsFetching] = useState(false);
+
+  const interests = fetchedInterests !== null ? fetchedInterests : facultyInterests;
+  const loading = fetchedInterests === null ? (isFetching || isLoadingFaculty) : (isFetching && interests.length === 0);
 
   const formatIstDate = (value) => {
     if (!value) return '';
@@ -24,26 +29,28 @@ export default function InterestStatusList() {
     }
   };
 
-  const fetchInterests = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/clerk/faculty/interests');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch interests');
-      setInterests(data.data || []);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    const id = setTimeout(() => {
+    if (facultyInterests && facultyInterests.length > 0) {
+      return;
+    }
+    if (!isLoadingFaculty && fetchedInterests === null && !isFetching) {
+      const fetchInterests = async () => {
+        setIsFetching(true);
+        try {
+          const res = await fetch('/api/clerk/faculty/interests');
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to fetch interests');
+          setFetchedInterests(data.data || []);
+        } catch (error) {
+          toast.error(error.message);
+          setFetchedInterests([]);
+        } finally {
+          setIsFetching(false);
+        }
+      };
       fetchInterests();
-    }, 0);
-    return () => clearTimeout(id);
-  }, []);
+    }
+  }, [facultyInterests, isLoadingFaculty, fetchedInterests, isFetching]);
 
   if (loading) {
     return (

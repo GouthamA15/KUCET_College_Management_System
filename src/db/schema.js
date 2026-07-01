@@ -324,6 +324,7 @@ export const branchTimetable = mysqlTable('branch_timetable', {
 }, (table) => ({
   timetableLookupIdx: index('idx_timetable_lookup').on(table.branch, table.semester, table.academic_year),
   dayPeriodIdx: index('idx_bt_day_period').on(table.day_of_week, table.period_number),
+  facultyIdx: index('idx_bt_faculty').on(table.faculty_id),
   uqTimetableSlot: uniqueIndex('uq_timetable_slot').on(table.branch, table.semester, table.section, table.day_of_week, table.period_number, table.academic_year),
 }));
 
@@ -582,6 +583,7 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   assignmentActiveIdx: index('idx_assignment_active').on(table.assignment_id, table.is_active),
   sessionsActiveIdx: index('idx_sessions_active').on(table.is_active, table.expires_at),
   tokenIdx: index('idx_session_token').on(table.session_token),
+  facultyIdx: index('idx_as_faculty').on(table.faculty_id),
 }));
 
 export const idempotencyKeys = mysqlTable('idempotency_keys', {

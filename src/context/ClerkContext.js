@@ -206,7 +206,8 @@ export function ClerkProvider({ children }) {
         if (clerk?.role === 'faculty') {
           promises.push(fetchFacultyData());
           if (clerk?.is_hod) {
-            promises.push(fetchHODData());
+            // Trigger HOD data fetch in the background without blocking initial dashboard rendering
+            fetchHODData();
           }
         }
         if (clerk?.role === 'admission') {

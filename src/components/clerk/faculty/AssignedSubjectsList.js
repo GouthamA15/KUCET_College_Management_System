@@ -1,33 +1,36 @@
 'use client';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { useClerk } from '@/context/ClerkContext';
 
 export default function AssignedSubjectsList({ onSelectAssignment = () => {}, showActions = true }) {
-  const [assignments, setAssignments] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchAssignments = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/clerk/faculty/assignments');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
-      setAssignments(data.data || []);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { facultyAssignments = [], isLoadingFaculty } = useClerk();
+  const [localAssignments, setLocalAssignments] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const id = setTimeout(() => {
+    if ((!facultyAssignments || facultyAssignments.length === 0) && !isLoadingFaculty) {
+      const fetchAssignments = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch('/api/clerk/faculty/assignments');
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
+          setLocalAssignments(data.data || []);
+        } catch (error) {
+          toast.error(error.message);
+        } finally {
+          setLoading(false);
+        }
+      };
       fetchAssignments();
-    }, 0);
-    return () => clearTimeout(id);
-  }, []);
+    }
+  }, [facultyAssignments, isLoadingFaculty]);
 
-  if (loading) return <div className="text-center py-4">Loading assignments...</div>;
+  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : localAssignments;
+  const isLoading = isLoadingFaculty || loading;
+
+  if (isLoading) return <div className="text-center py-4">Loading assignments...</div>;
 
   const activeAssignments = assignments.filter(a => a.is_active);
   const historicalAssignments = assignments.filter(a => !a.is_active);

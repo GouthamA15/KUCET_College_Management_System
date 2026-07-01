@@ -2,10 +2,12 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useClerk } from '@/context/ClerkContext';
 
 export default function ClassList() {
-  const [assignments, setAssignments] = useState([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const { facultyAssignments = [], isLoadingFaculty } = useClerk();
+  const [localAssignments, setLocalAssignments] = useState([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [searchRoll, setSearchRoll] = useState('');
@@ -16,21 +18,25 @@ export default function ClassList() {
   const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
 
   useEffect(() => {
-    const fetchAssignments = async () => {
-      setLoadingAssignments(true);
-      try {
-        const res = await fetch('/api/clerk/faculty/assignments');
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
-        setAssignments(data.data || []);
-      } catch (e) {
-        toast.error(e.message);
-      } finally {
-        setLoadingAssignments(false);
-      }
-    };
-    fetchAssignments();
-  }, []);
+    if ((!facultyAssignments || facultyAssignments.length === 0) && !isLoadingFaculty) {
+      const fetchAssignments = async () => {
+        setLoadingAssignments(true);
+        try {
+          const res = await fetch('/api/clerk/faculty/assignments');
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
+          setLocalAssignments(data.data || []);
+        } catch (e) {
+          toast.error(e.message);
+        } finally {
+          setLoadingAssignments(false);
+        }
+      };
+      fetchAssignments();
+    }
+  }, [facultyAssignments, isLoadingFaculty]);
+
+  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : localAssignments;
 
   const years = useMemo(() => Array.from(new Set(assignments.map(a => a.academic_year))).sort((a,b)=> b.localeCompare(a)), [assignments]);
   const branches = useMemo(() => Array.from(new Set(assignments.filter(a => (!selectedAY || a.academic_year === selectedAY)).map(a => a.branch))).sort(), [assignments, selectedAY]);

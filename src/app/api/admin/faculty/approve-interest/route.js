@@ -4,7 +4,7 @@ import {
   facultySubjectInterests, 
   facultySubjectAssignments 
 } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(request) {
