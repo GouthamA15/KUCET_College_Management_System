@@ -5,7 +5,6 @@ import { AdminProvider } from '@/context/AdminContext';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
-import HeaderMobileView from '@/components/Header-MobileView';
 import Navbar from '@/components/Navbar';
 import MobileTopbar from '@/components/MobileTopbar';
 import { usePathname } from 'next/navigation';
@@ -41,8 +40,7 @@ export default function AdminLayout({ children }) {
         <div className="flex-1 flex flex-col min-h-0 relative lg:pt-(--site-header-height,72px) lg:ml-(--desktop-sidebar-offset,64px) transition-[margin-left] duration-220 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
 
           {/* Mobile Navigation */}
-          <HeaderMobileView />
-          <div className="lg:hidden sticky top-0 z-30">
+          <div className="lg:hidden sticky top-0 z-30 shadow-sm">
             {MOBILE_NAV_MODE === 'sidebar' ? (
               <MobileTopbar onMenuClick={() => setIsMobileMenuOpen(true)} title={resolvedTitle} />
             ) : (
@@ -68,7 +66,7 @@ export default function AdminLayout({ children }) {
         {/* Mobile Overlay */}
         {MOBILE_NAV_MODE === 'sidebar' && isMobileMenuOpen && (
           <div 
-            className="fixed inset-0 bg-slate-950/40 backdrop-blur-[2.5px] z-50 lg:hidden transition-all duration-300"
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-40 lg:hidden transition-opacity duration-300"
             onClick={() => setIsMobileMenuOpen(false)}
           />
         )}

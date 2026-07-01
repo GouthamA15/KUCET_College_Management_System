@@ -213,3 +213,6 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Strict Format Constraints:** Engineered a bifurcated regex architecture that physically guarantees extraction integrity. The pattern strictly mandates either the presence of a `T` immediately following the college code (for Regular students) or an `L` suffix (for Lateral students). This completely eliminates the possibility of the scanner falsely recognizing phone numbers or unformatted strings as attendance identifiers.
 - **Scanner Hardware Acceleration:** Optimized QR recognition speeds by enabling `useBarCodeDetectorIfSupported: true` to leverage native mobile hardware decoding (bypassing JS/WASM overhead).
 - **Boosted Capture Frequency:** Upgraded scanner configuration from 10 FPS to 25 FPS, resulting in significantly snappier frame processing and near-instantaneous QR extraction.
+
+#### **Session 167: UI Refactor – HOD Dashboard Separation (July 1, 2026)**
+- Removed HOD dashboard links from Faculty dashboard and added a dedicated HOD menu entry in the sidebar.
