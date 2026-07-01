@@ -271,8 +271,14 @@ function getResolvedCurrentAcademicYear(rollNo, collegeInfo = null, now = getNow
   return `${startYear}-${String(endYear).slice(-2)}`;
 }
 
+function canonicalizeRollNo(rollNo) {
+  if (typeof rollNo !== 'string') return '';
+  return rollNo.trim().toUpperCase().replace(/^(\d{2}567)T?/i, '$1T');
+}
+
 export {
   validateRollNo,
+  canonicalizeRollNo,
   getEntryYearFromRoll,
   getBranchFromRoll,
   getAdmissionTypeFromRoll,

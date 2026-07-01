@@ -972,9 +972,9 @@ export function FacultyInterestsView({ refreshHOD }) {
       if (!res.ok) throw new Error(data.error || 'Failed to process request');
       
       toast.success(`Interest ${status.toLowerCase()} successfully`);
-      fetchInterests();
+      await fetchInterests();
       if (status === 'APPROVED' && refreshHOD) {
-        refreshHOD();
+        await refreshHOD();
       }
     } catch (error) {
       toast.error(error.message);

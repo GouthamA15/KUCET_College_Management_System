@@ -7,12 +7,18 @@ import {
   facultySubjectAssignments 
 } from '@/db/schema';
 import { eq, and, desc, sql, or } from 'drizzle-orm';
-import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { apiResponse, apiError, wrapHandler } from '@/lib/api-utils';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
+import { z } from 'zod';
 
-export async function GET(_request) {
-  try {
-    const user = await getAuthUser('clerk');
+const interestUpdateSchema = z.object({
+  interest_id: z.coerce.number().int().positive(),
+  status: z.enum(['APPROVED', 'REJECTED'])
+});
+
+export const GET = wrapHandler({
+  auth: 'clerk',
+  handler: async (_request, { user }) => {
     if (!user || user.role !== 'faculty' || !user.is_hod) {
       return apiError('Unauthorized - HOD Access Required', 401);
     }
@@ -30,6 +36,7 @@ export async function GET(_request) {
     })
     .from(facultySubjectAssignments)
     .innerJoin(clerks, eq(facultySubjectAssignments.faculty_id, clerks.id))
+    .where(eq(facultySubjectAssignments.is_active, true))
     .groupBy(
       facultySubjectAssignments.subject_code,
       facultySubjectAssignments.branch,
@@ -71,58 +78,44 @@ export async function GET(_request) {
     .orderBy(desc(sql`${facultySubjectInterests.status} = 'PENDING'`), desc(facultySubjectInterests.created_at));
 
     return apiResponse({ data: interests });
-  } catch (error) {
-    logger.error('HOD Interests Fetch Error:', error);
-    return apiError('Internal Server Error', 500);
   }
-}
+});
 
-export async function POST(request) {
-  try {
-    const user = await getAuthUser('clerk');
+export const POST = wrapHandler({
+  auth: 'clerk',
+  schema: interestUpdateSchema,
+  handler: async (_request, { user, data }) => {
     if (!user || user.role !== 'faculty' || !user.is_hod) {
       return apiError('Unauthorized - HOD Access Required', 401);
     }
 
-    const body = await request.json();
-    const { interest_id, status } = body;
+    const { interest_id, status } = data;
 
-    if (!interest_id || !status) return apiError('Missing required fields', 400);
-    if (!['APPROVED', 'REJECTED'].includes(status)) return apiError('Invalid status', 400);
-
-    await db.transaction(async (tx) => {
-      const interest = await tx.query.facultySubjectInterests.findFirst({
-        where: eq(facultySubjectInterests.id, interest_id)
-      });
-
-      if (!interest) {
-        throw new Error('NOT_FOUND');
-      }
-
-      if (interest.branch !== user.branch) {
-        throw new Error('NOT_AUTHORIZED');
-      }
-
-      await tx.update(facultySubjectInterests)
-        .set({ status })
-        .where(eq(facultySubjectInterests.id, interest_id));
-
-      if (status === 'APPROVED') {
-        const academicTerm = interest.semester % 2 === 0 ? 2 : 1;
-        
-        // Prevent duplicate insertions since there is no unique constraint
-        const existing = await tx.query.facultySubjectAssignments.findFirst({
-          where: and(
-            eq(facultySubjectAssignments.faculty_id, interest.faculty_id),
-            eq(facultySubjectAssignments.subject_code, interest.subject_code),
-            eq(facultySubjectAssignments.branch, interest.branch),
-            eq(facultySubjectAssignments.course_semester, interest.semester),
-            eq(facultySubjectAssignments.academic_year, interest.academic_year),
-            eq(facultySubjectAssignments.is_active, true)
-          )
+    try {
+      await db.transaction(async (tx) => {
+        const interest = await tx.query.facultySubjectInterests.findFirst({
+          where: eq(facultySubjectInterests.id, interest_id)
         });
 
-        if (!existing) {
+        if (!interest) {
+          const err = new Error('Interest not found');
+          err.status = 404;
+          throw err;
+        }
+
+        if (interest.branch !== user.branch) {
+          const err = new Error('Not authorized for this branch');
+          err.status = 403;
+          throw err;
+        }
+
+        await tx.update(facultySubjectInterests)
+          .set({ status })
+          .where(eq(facultySubjectInterests.id, interest_id));
+
+        if (status === 'APPROVED') {
+          const academicTerm = interest.semester % 2 === 0 ? 2 : 1;
+          
           await tx.insert(facultySubjectAssignments).values({
             faculty_id: interest.faculty_id,
             subject_code: interest.subject_code,
@@ -132,16 +125,29 @@ export async function POST(request) {
             academic_term: academicTerm,
             academic_year: interest.academic_year,
             is_active: true
+          }).onDuplicateKeyUpdate({
+            set: { is_active: true }
           });
+        } else if (status === 'REJECTED') {
+          await tx.update(facultySubjectAssignments)
+            .set({ is_active: false })
+            .where(and(
+              eq(facultySubjectAssignments.faculty_id, interest.faculty_id),
+              eq(facultySubjectAssignments.subject_code, interest.subject_code),
+              eq(facultySubjectAssignments.branch, interest.branch),
+              eq(facultySubjectAssignments.course_semester, interest.semester),
+              eq(facultySubjectAssignments.academic_year, interest.academic_year),
+              eq(facultySubjectAssignments.is_active, true)
+            ));
         }
-      }
-    });
+      });
 
-    return apiResponse({ message: `Interest ${status.toLowerCase()} successfully` });
-  } catch (error) {
-    if (error.message === 'NOT_FOUND') return apiError('Interest not found', 404);
-    if (error.message === 'NOT_AUTHORIZED') return apiError('Not authorized for this branch', 403);
-    logger.error('HOD Approve Interest Error:', error);
-    return apiError('Internal Server Error', 500);
+      return apiResponse({ message: `Interest ${status.toLowerCase()} successfully` });
+    } catch (error) {
+      if (error.status === 404 || error.message === 'Interest not found') return apiError('Interest not found', 404);
+      if (error.status === 403 || error.message === 'Not authorized for this branch') return apiError('Not authorized for this branch', 403);
+      logger.error('HOD Approve Interest Error:', error);
+      throw error;
+    }
   }
-}
+});

@@ -9,7 +9,7 @@ import { useAssets } from '@/context/AssetContext';
 import { usePathname, useRouter } from 'next/navigation';
 import { _logoutByRole } from '@/lib/logout';
 
-export default function StudentTopBar({ _onMenuClick }) {
+export default function StudentTopBar({ title, subtitle, breadcrumb, onMenuClick }) {
   const { studentData } = useStudent();
   const _student = studentData?.student;
   const { _getAsset } = useAssets();

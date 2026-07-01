@@ -27,7 +27,7 @@ export default function AddNewStudent() {
 
   const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'', email:'' });
   const [mobileError, setMobileError] = useState('');
-  const [_incomeError, _setIncomeError] = useState('');
+  const [incomeError, setIncomeError] = useState('');
   const [_annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
   const [personal, setPersonal] = useState({ 
     father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', 
@@ -213,6 +213,7 @@ export default function AddNewStudent() {
       // reset fee_reimbursement
       setBasic(prev => ({ ...prev, fee_reimbursement: undefined }));
       setAnnualIncomeDisplay('');
+      setIncomeError('');
       setAcademic({ qualifying_exam:'TG EAPCET', previous_college_details:'', medium_of_instruction:'English', ranks:'', ssc_marks:'', inter_marks:'' });
       setFiles({ pfp: null, signature: null });
       setSavedRollLocked(false);
@@ -451,11 +452,16 @@ export default function AddNewStudent() {
                 value={personal.annual_income} 
                 onChange={e => {
                   const raw = e.target.value.replace(/\D/g, '');
-                  if (raw && parseInt(raw) > 2000000) return;
+                  if (raw && parseInt(raw) > 2000000) {
+                    setIncomeError('Annual income exceeds max limit of 2,000,000');
+                  } else {
+                    setIncomeError('');
+                  }
                   setPersonal({...personal, annual_income: formatIndianNumber(raw)});
                 }} 
-                className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578]"
+                className={`w-full p-2 text-sm border ${incomeError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:border-[#0b3578]`}
               />
+              {incomeError && <div className="text-[10px] text-red-500 mt-0.5">{incomeError}</div>}
             </div>
             <div className="md:col-span-2">
               <label className="text-sm font-medium text-gray-700 block mb-1">Guardian Mobile</label>

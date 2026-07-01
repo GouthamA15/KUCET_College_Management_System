@@ -3,6 +3,7 @@ import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
+import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
@@ -516,7 +517,8 @@ export default function AttendanceSheet({ onBack, mode }) {
       toast.error('Select a valid WORKING day from the calendar first.', { id: 'qr-error' });
       return;
     }
-    const student = students.find(s => s.roll_no === rollNo || s.roll_no.replace('T', '') === rollNo.replace('T', ''));
+    const targetRoll = canonicalizeRollNo(rollNo);
+    const student = students.find(s => canonicalizeRollNo(s.roll_no) === targetRoll);
     if (student) {
       setAttendanceStatus(student.id, 'PRESENT');
       // optionally add them to verified list to show visual feedback

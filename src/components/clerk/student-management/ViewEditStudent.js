@@ -609,6 +609,7 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
           <div className="flex justify-end space-x-2">
             <button 
               onClick={() => {
+                if (hasEdits() && !window.confirm('You have unsaved changes. Discard changes and clear record?')) return;
                 if (setFetchedStudent) setFetchedStudent(null);
                 setActiveAction('fetch');
               }} 

@@ -343,6 +343,7 @@ export const facultySubjectAssignments = mysqlTable('faculty_subject_assignments
   branchIdx: index('idx_faculty_subject_active').on(table.branch, table.is_active),
   fsaBranchSemIdx: index('idx_fsa_branch_sem').on(table.branch, table.course_semester),
   facultyIdx: index('idx_fsa_faculty').on(table.faculty_id),
+  uqFacultySubjectAssignment: uniqueIndex('uq_faculty_subject_assignment').on(table.faculty_id, table.subject_code, table.branch, table.course_semester, table.academic_year, table.is_active),
 }));
 
 // --- 5. SYLLABUS & CURRICULUM ---

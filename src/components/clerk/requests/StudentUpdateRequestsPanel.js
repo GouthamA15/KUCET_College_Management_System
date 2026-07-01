@@ -82,6 +82,8 @@ const StudentUpdateRequestsPanel = () => {
     return str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
+  const renderValue = (val) => (val !== null && val !== undefined ? String(val) : 'Null');
+
   if (isContextLoading || (loading && requests.length === 0)) {
     return (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
@@ -201,12 +203,12 @@ const StudentUpdateRequestsPanel = () => {
                                             <div className="font-medium text-gray-700 text-sm break-words border-b md:border-0 pb-2 md:pb-0">{formatLabel(field)}</div>
                                             <div className="md:text-center md:border-l border-gray-100 md:px-2 break-words flex flex-row items-center justify-between md:block">
                                                 <span className="md:hidden text-xs text-gray-400 uppercase tracking-wider font-semibold">Current:</span>
-                                                <span className="text-sm text-gray-500 italic">{req.current_values?.[field] || 'Null'}</span>
+                                                <span className="text-sm text-gray-500 italic">{renderValue(req.current_values?.[field])}</span>
                                             </div>
                                             <div className="md:text-center md:border-l border-gray-100 md:px-2 break-words flex flex-row items-center justify-between md:block">
                                                 <span className="md:hidden text-xs text-gray-400 uppercase tracking-wider font-semibold">Requested:</span>
                                                 <span className="font-semibold text-[#0b3578] bg-blue-50 px-3 py-1 border border-blue-100 rounded-md inline-block">
-                                                  {value || 'Null'}
+                                                  {renderValue(value)}
                                                 </span>
                                             </div>
                                         </div>
