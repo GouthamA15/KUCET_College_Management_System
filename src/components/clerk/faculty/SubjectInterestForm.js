@@ -14,26 +14,33 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
   const [loadingSyllabus, setLoadingSyllabus] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [academicYear, setAcademicYear] = useState('');
-  const [localInterests, setLocalInterests] = useState([]);
+  const [localInterests, setLocalInterests] = useState(null);
+  const [isFetchingLocal, setIsFetchingLocal] = useState(false);
 
   useEffect(() => {
-    if ((!facultyInterests || facultyInterests.length === 0) && !isLoadingFaculty) {
+    if ((!facultyInterests || facultyInterests.length === 0) && !isLoadingFaculty && localInterests === null && !isFetchingLocal) {
       const fetchExistingInterests = async () => {
+        setIsFetchingLocal(true);
         try {
           const res = await fetch('/api/clerk/faculty/interests');
           const data = await res.json();
           if (res.ok) {
             setLocalInterests(data.data || []);
+          } else {
+            setLocalInterests([]);
           }
         } catch (error) {
           console.error('Failed to fetch existing interests:', error);
+          setLocalInterests([]);
+        } finally {
+          setIsFetchingLocal(false);
         }
       };
       fetchExistingInterests();
     }
-  }, [facultyInterests, isLoadingFaculty]);
+  }, [facultyInterests, isLoadingFaculty, localInterests, isFetchingLocal]);
 
-  const effectiveInterests = (facultyInterests && facultyInterests.length > 0) ? facultyInterests : localInterests;
+  const effectiveInterests = (facultyInterests && facultyInterests.length > 0) ? facultyInterests : (localInterests || []);
 
   // Set default academic year (current)
   useEffect(() => {

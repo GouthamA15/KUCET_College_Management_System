@@ -5,11 +5,11 @@ import { useClerk } from '@/context/ClerkContext';
 
 export default function AssignedSubjectsList({ onSelectAssignment = () => {}, showActions = true }) {
   const { facultyAssignments = [], isLoadingFaculty } = useClerk();
-  const [localAssignments, setLocalAssignments] = useState([]);
+  const [localAssignments, setLocalAssignments] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if ((!facultyAssignments || facultyAssignments.length === 0) && !isLoadingFaculty) {
+    if ((!facultyAssignments || facultyAssignments.length === 0) && !isLoadingFaculty && localAssignments === null && !loading) {
       const fetchAssignments = async () => {
         setLoading(true);
         try {
@@ -19,15 +19,16 @@ export default function AssignedSubjectsList({ onSelectAssignment = () => {}, sh
           setLocalAssignments(data.data || []);
         } catch (error) {
           toast.error(error.message);
+          setLocalAssignments([]);
         } finally {
           setLoading(false);
         }
       };
       fetchAssignments();
     }
-  }, [facultyAssignments, isLoadingFaculty]);
+  }, [facultyAssignments, isLoadingFaculty, localAssignments, loading]);
 
-  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : localAssignments;
+  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : (localAssignments || []);
   const isLoading = isLoadingFaculty || loading;
 
   if (isLoading) return <div className="text-center py-4">Loading assignments...</div>;

@@ -6,7 +6,7 @@ import { useClerk } from '@/context/ClerkContext';
 
 export default function ClassList() {
   const { facultyAssignments = [], isLoadingFaculty } = useClerk();
-  const [localAssignments, setLocalAssignments] = useState([]);
+  const [localAssignments, setLocalAssignments] = useState(null);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -18,7 +18,7 @@ export default function ClassList() {
   const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
 
   useEffect(() => {
-    if ((!facultyAssignments || facultyAssignments.length === 0) && !isLoadingFaculty) {
+    if ((!facultyAssignments || facultyAssignments.length === 0) && !isLoadingFaculty && localAssignments === null && !loadingAssignments) {
       const fetchAssignments = async () => {
         setLoadingAssignments(true);
         try {
@@ -28,15 +28,16 @@ export default function ClassList() {
           setLocalAssignments(data.data || []);
         } catch (e) {
           toast.error(e.message);
+          setLocalAssignments([]);
         } finally {
           setLoadingAssignments(false);
         }
       };
       fetchAssignments();
     }
-  }, [facultyAssignments, isLoadingFaculty]);
+  }, [facultyAssignments, isLoadingFaculty, localAssignments, loadingAssignments]);
 
-  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : localAssignments;
+  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : (localAssignments || []);
 
   const years = useMemo(() => Array.from(new Set(assignments.map(a => a.academic_year))).sort((a,b)=> b.localeCompare(a)), [assignments]);
   const branches = useMemo(() => Array.from(new Set(assignments.filter(a => (!selectedAY || a.academic_year === selectedAY)).map(a => a.branch))).sort(), [assignments, selectedAY]);
