@@ -187,7 +187,7 @@ export default function FacultyDashboardOverview() {
               </button>
             </div>
 
-            <div className="p-4 md:p-6 overflow-x-auto">
+            <div className="p-4 md:p-6">
               {activeSection === 'subjects' && !selectedAssignment ? (
                 <AssignedSubjectsList onSelectAssignment={handleSelectAssignment} />
               ) : null}

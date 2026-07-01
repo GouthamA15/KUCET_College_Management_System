@@ -380,14 +380,14 @@ export default function AddNewStudent() {
               {/* Current Address */}
               <div>
                 <h4 className="text-[10px] font-bold text-gray-500 mb-2 ">Current Address</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <input placeholder="House No*" value={personal.curr_house_no} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="Apartment / Landmark" value={personal.curr_apartment} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="Street*" value={personal.curr_street} onChange={e => handleAddressChange('curr_street', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-2" />
-                  <input placeholder="City*" value={personal.curr_city} onChange={e => handleAddressChange('curr_city', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="State*" value={personal.curr_state} onChange={e => handleAddressChange('curr_state', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="PIN Code*" value={personal.curr_pincode} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="Country*" value={personal.curr_country} onChange={e => handleAddressChange('curr_country', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input placeholder="House No*" value={personal.curr_house_no} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="Apartment / Landmark" value={personal.curr_apartment} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="Street*" value={personal.curr_street} onChange={e => handleAddressChange('curr_street', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-2" />
+                  <input placeholder="City*" value={personal.curr_city} onChange={e => handleAddressChange('curr_city', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="State*" value={personal.curr_state} onChange={e => handleAddressChange('curr_state', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="PIN Code*" value={personal.curr_pincode} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="Country*" value={personal.curr_country} onChange={e => handleAddressChange('curr_country', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
                 </div>
                 <div className="flex items-center gap-2 mt-3">
                   <input 
@@ -407,14 +407,14 @@ export default function AddNewStudent() {
               <div>
                 <h4 className="text-[10px] font-bold text-gray-500 mb-2 ">Permanent Address</h4>
                 {!personal.is_current_same_as_permanent ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <input placeholder="House No*" value={personal.perm_house_no} onChange={e => setPersonal({...personal, perm_house_no: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="Apartment / Landmark" value={personal.perm_apartment} onChange={e => setPersonal({...personal, perm_apartment: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="Street*" value={personal.perm_street} onChange={e => setPersonal({...personal, perm_street: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-2" />
-                    <input placeholder="City*" value={personal.perm_city} onChange={e => setPersonal({...personal, perm_city: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="State*" value={personal.perm_state} onChange={e => setPersonal({...personal, perm_state: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="PIN Code*" value={personal.perm_pincode} onChange={e => setPersonal({...personal, perm_pincode: e.target.value.replace(/\D/g, '')})} maxLength={6} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="Country*" value={personal.perm_country} onChange={e => setPersonal({...personal, perm_country: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input placeholder="House No*" value={personal.perm_house_no} onChange={e => setPersonal({...personal, perm_house_no: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="Apartment / Landmark" value={personal.perm_apartment} onChange={e => setPersonal({...personal, perm_apartment: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="Street*" value={personal.perm_street} onChange={e => setPersonal({...personal, perm_street: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-2" />
+                    <input placeholder="City*" value={personal.perm_city} onChange={e => setPersonal({...personal, perm_city: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="State*" value={personal.perm_state} onChange={e => setPersonal({...personal, perm_state: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="PIN Code*" value={personal.perm_pincode} onChange={e => setPersonal({...personal, perm_pincode: e.target.value.replace(/\D/g, '')})} maxLength={6} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="Country*" value={personal.perm_country} onChange={e => setPersonal({...personal, perm_country: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-24 bg-gray-100/50 border border-gray-300 border-dashed rounded-md">

@@ -66,9 +66,9 @@ function ScholarshipDashboardContent() {
 
   const firstName = clerk?.name?.split(' ')[0] || 'Clerk';
   const employeeId = clerk?.employee_id || (clerk?.role ? String(clerk.role).toUpperCase() : 'SCHOLARSHIP');
-  const roleLabel = 'Scholarship Clerk';
+  const _roleLabel = 'Scholarship Clerk';
 
-  const openProfile = () => {
+  const _openProfile = () => {
     try {
       router.push('/clerk/scholarship/profile');
     } catch {

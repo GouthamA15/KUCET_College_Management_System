@@ -123,69 +123,119 @@ export default function BackupManager() {
            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cloud Storage History (kucet/backups)</span>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-slate-100 bg-white">
-                <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Filename / ID</th>
-                <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
-                <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">File Size</th>
-                <th className="px-8 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Operations</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {loading ? (
-                <tr>
-                  <td colSpan="4" className="px-8 py-20 text-center">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-10 h-10 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanning cloud registry...</span>
-                    </div>
-                  </td>
+        <>
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 bg-white">
+                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Filename / ID</th>
+                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
+                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">File Size</th>
+                  <th className="px-8 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Operations</th>
                 </tr>
-              ) : backups.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-8 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No previous backups detected.</td>
-                </tr>
-              ) : (
-                backups.map((b) => (
-                  <tr key={b.name} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-8 py-5">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black text-slate-700">{b.name}</span>
-                        <span className="text-[9px] font-mono text-slate-400 mt-1 uppercase">MD5: {b.etag}</span>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  <tr>
+                    <td colSpan="4" className="px-8 py-20 text-center">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="w-10 h-10 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanning cloud registry...</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5">
-                       <span className="text-xs font-bold text-slate-600">{formatDate(b.created_at)}</span>
-                    </td>
-                    <td className="px-8 py-5">
-                       <span className="text-xs font-bold text-slate-600">{formatBytes(b.size)}</span>
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                       <div className="flex items-center justify-end gap-3">
-                          <a
-                            href={`/api/admin/infrastructure/backups/download/${b.name}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2 border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-white hover:shadow-sm transition-all rounded-sm"
-                          >
-                            Download
-                          </a>
-                          <button
-                            onClick={() => setRestoreModal(b)}
-                            className="px-4 py-2 bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all rounded-sm"
-                          >
-                            Restore
-                          </button>
-                       </div>
-                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : backups.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-8 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No previous backups detected.</td>
+                  </tr>
+                ) : (
+                  backups.map((b) => (
+                    <tr key={b.name} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-8 py-5">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black text-slate-700">{b.name}</span>
+                          <span className="text-[9px] font-mono text-slate-400 mt-1 uppercase">MD5: {b.etag}</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                         <span className="text-xs font-bold text-slate-600">{formatDate(b.created_at)}</span>
+                      </td>
+                      <td className="px-8 py-5">
+                         <span className="text-xs font-bold text-slate-600">{formatBytes(b.size)}</span>
+                      </td>
+                      <td className="px-8 py-5 text-right">
+                         <div className="flex items-center justify-end gap-3">
+                            <a
+                              href={`/api/admin/infrastructure/backups/download/${b.name}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-white hover:shadow-sm transition-all rounded-sm"
+                            >
+                              Download
+                            </a>
+                            <button
+                              onClick={() => setRestoreModal(b)}
+                              className="px-4 py-2 bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all rounded-sm"
+                            >
+                              Restore
+                            </button>
+                         </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="md:hidden flex flex-col gap-4 p-4 bg-slate-50">
+            {loading ? (
+              <div className="py-10 text-center flex flex-col items-center gap-4">
+                <div className="w-8 h-8 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanning cloud registry...</span>
+              </div>
+            ) : backups.length === 0 ? (
+              <div className="py-10 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No previous backups detected.</div>
+            ) : (
+              backups.map((b) => (
+                <div key={b.name} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex flex-col gap-3">
+                  <div className="flex flex-col border-b border-slate-100 pb-2">
+                    <span className="text-xs font-black text-slate-700 break-all">{b.name}</span>
+                    <span className="text-[9px] font-mono text-slate-400 mt-1 uppercase">MD5: {b.etag}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-xs text-slate-600">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</span>
+                      <span>{formatDate(b.created_at)}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 items-end">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Size</span>
+                      <span className="font-bold text-slate-700">{formatBytes(b.size)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100 mt-1">
+                    <a
+                      href={`/api/admin/infrastructure/backups/download/${b.name}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-center px-4 py-2 border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all rounded-sm"
+                    >
+                      Download
+                    </a>
+                    <button
+                      onClick={() => setRestoreModal(b)}
+                      className="flex-1 px-4 py-2 bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all rounded-sm"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
       </div>
 
       {/* Restore Confirmation Modal */}

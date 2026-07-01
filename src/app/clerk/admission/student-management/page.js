@@ -8,7 +8,7 @@ import StudentHistoryCard from '@/components/clerk/student-management/StudentHis
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function StudentManagementPage() {
-    const router = useRouter();
+    const _router = useRouter();
     const { clerkData: clerk, loading: isLoading } = useClerk();
 
     if (isLoading && !clerk) {

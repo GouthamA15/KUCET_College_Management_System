@@ -118,7 +118,8 @@ export default function ClassList() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border border-slate-200 rounded-sm">
+      {/* Desktop Table */}
+      <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-sm">
         {loadingStudents ? (
           <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest">Loading students…</div>
         ) : (
@@ -143,6 +144,32 @@ export default function ClassList() {
               )}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* Mobile Card Layout */}
+      <div className="md:hidden flex flex-col gap-3">
+        {loadingStudents ? (
+          <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest bg-slate-50 rounded-lg">Loading students…</div>
+        ) : (
+          <>
+            {visibleStudents.map((s) => (
+              <div key={s.id} className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm flex items-center justify-between gap-4">
+                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-black text-sm">
+                  {s.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-sm text-slate-800">{s.name}</div>
+                  <div className="text-[11px] font-mono font-bold text-indigo-600 mt-1">{s.roll_no}</div>
+                </div>
+              </div>
+            ))}
+            {visibleStudents.length === 0 && (
+              <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest bg-slate-50 rounded-lg">
+                No students found.
+              </div>
+            )}
+          </>
         )}
       </div>
       </div>

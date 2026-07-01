@@ -266,107 +266,192 @@ export default function AcademicTab() {
       </div>
 
       {data.length > 0 ? (
-        <div className="overflow-x-auto border rounded-xl shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-bold text-gray-600">Subject</th>
-                <th className="px-4 py-3 text-center font-bold text-gray-600">Attendance</th>
-                <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-I / Execution</th>
-                <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-II / Writing</th>
-                <th className="px-4 py-3 text-center font-bold text-gray-600">Assign. / Record</th>
-                <th className="px-4 py-3 text-center font-bold text-indigo-600 bg-indigo-50">Total Marks</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
-              {data.map((sub) => {
-                const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
-                const isLab = sub.subject_type === 'lab';
-                
-                // Max Mark Calculation
-                const m1m = isLab ? 10 : (sub.mid_max || 20);
-                const m2m = isLab ? 10 : (sub.mid_max || 20);
-                const am = isLab ? 5 : (sub.mid_max === 25 ? 5 : 10);
-                const totalMax = isLab ? 25 : 30;
-                
-                // Mark labels
-                const l1 = isLab ? 'Execution' : 'Mid-I';
-                const l2 = isLab ? 'Writing' : 'Mid-II';
-                const l3 = isLab ? 'Record' : 'Assign.';
+        <>
+          <div className="hidden md:block overflow-x-auto border rounded-xl shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-bold text-gray-600">Subject</th>
+                  <th className="px-4 py-3 text-center font-bold text-gray-600">Attendance</th>
+                  <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-I / Execution</th>
+                  <th className="px-4 py-3 text-center font-bold text-gray-600">Mid-II / Writing</th>
+                  <th className="px-4 py-3 text-center font-bold text-gray-600">Assign. / Record</th>
+                  <th className="px-4 py-3 text-center font-bold text-indigo-600 bg-indigo-50">Total Marks</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {data.map((sub) => {
+                  const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+                  const isLab = sub.subject_type === 'lab';
+                  
+                  // Max Mark Calculation
+                  const m1m = isLab ? 10 : (sub.mid_max || 20);
+                  const m2m = isLab ? 10 : (sub.mid_max || 20);
+                  const am = isLab ? 5 : (sub.mid_max === 25 ? 5 : 10);
+                  const totalMax = isLab ? 25 : 30;
+                  
+                  // Mark labels
+                  const l1 = isLab ? 'Execution' : 'Mid-I';
+                  const l2 = isLab ? 'Writing' : 'Mid-II';
+                  const l3 = isLab ? 'Record' : 'Assign.';
 
-                // Calculate Internal Total
-                const m1 = sub.mid1_marks !== null ? parseFloat(sub.mid1_marks) : null;
-                const m2 = sub.mid2_marks !== null ? parseFloat(sub.mid2_marks) : null;
-                const assgn = sub.assignment_marks !== null ? parseFloat(sub.assignment_marks) : 0;
-                
-                let internalTotal = null;
-                if (isLab) {
-                  // Lab: sum of everything
-                  internalTotal = (m1 ?? 0) + (m2 ?? 0) + (assgn ?? 0);
-                } else {
-                  // Theory: Best of mid + assignment
-                  if (m1 !== null || m2 !== null) {
-                    const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
-                    internalTotal = bestMid + assgn;
+                  // Calculate Internal Total
+                  const m1 = sub.mid1_marks !== null ? parseFloat(sub.mid1_marks) : null;
+                  const m2 = sub.mid2_marks !== null ? parseFloat(sub.mid2_marks) : null;
+                  const assgn = sub.assignment_marks !== null ? parseFloat(sub.assignment_marks) : 0;
+                  
+                  let internalTotal = null;
+                  if (isLab) {
+                    // Lab: sum of everything
+                    internalTotal = (m1 ?? 0) + (m2 ?? 0) + (assgn ?? 0);
+                  } else {
+                    // Theory: Best of mid + assignment
+                    if (m1 !== null || m2 !== null) {
+                      const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
+                      internalTotal = bestMid + assgn;
+                    }
                   }
-                }
 
-                return (
-                  <tr key={sub.assignment_id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="font-bold text-gray-900">{sub.subject_name}</div>
+                  return (
+                    <tr key={sub.assignment_id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="font-bold text-gray-900">{sub.subject_name}</div>
+                          {isLab && <span className="text-[8px] bg-amber-50 text-amber-600 border border-amber-100 px-1 rounded font-black uppercase">Lab</span>}
+                        </div>
+                        <div className="text-[10px] text-gray-400 font-mono">{sub.subject_code} • {sub.faculty_name}</div>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <button 
+                          onClick={() => fetchHistory(sub)}
+                          className={`inline-flex flex-col items-center px-3 py-1 rounded-lg border transition-all hover:shadow-md active:scale-95 ${getPercentageColor(pct)}`}
+                        >
+                          <span className="text-sm font-black">{pct.toFixed(1)}%</span>
+                          <span className="text-[9px] opacity-70 font-bold uppercase">{sub.attended_classes}/{sub.total_classes}</span>
+                        </button>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-mono font-bold ${sub.mid1_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {sub.mid1_marks ?? '--'}
+                          </span>
+                          <span className="text-[8px] text-gray-400 font-bold uppercase">{l1} Max: {m1m}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-mono font-bold ${sub.mid2_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {sub.mid2_marks ?? '--'}
+                          </span>
+                          <span className="text-[8px] text-gray-400 font-bold uppercase">{l2} Max: {m2m}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-mono font-bold ${sub.assignment_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {sub.assignment_marks ?? '--'}
+                          </span>
+                          <span className="text-[8px] text-gray-400 font-bold uppercase">{l3} Max: {am}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-center bg-indigo-50/30">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-mono font-black text-lg ${internalTotal === null ? 'text-gray-300' : 'text-indigo-700'}`}>
+                            {internalTotal !== null ? internalTotal.toFixed(1) : '--'}
+                          </span>
+                          <span className="text-[9px] text-indigo-400 font-bold uppercase">Out of {totalMax}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="md:hidden flex flex-col gap-4">
+            {data.map((sub) => {
+              const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+              const isLab = sub.subject_type === 'lab';
+              
+              // Max Mark Calculation
+              const m1m = isLab ? 10 : (sub.mid_max || 20);
+              const m2m = isLab ? 10 : (sub.mid_max || 20);
+              const am = isLab ? 5 : (sub.mid_max === 25 ? 5 : 10);
+              const totalMax = isLab ? 25 : 30;
+              
+              // Mark labels
+              const l1 = isLab ? 'Execution' : 'Mid-I';
+              const l2 = isLab ? 'Writing' : 'Mid-II';
+              const l3 = isLab ? 'Record' : 'Assign.';
+
+              // Calculate Internal Total
+              const m1 = sub.mid1_marks !== null ? parseFloat(sub.mid1_marks) : null;
+              const m2 = sub.mid2_marks !== null ? parseFloat(sub.mid2_marks) : null;
+              const assgn = sub.assignment_marks !== null ? parseFloat(sub.assignment_marks) : 0;
+              
+              let internalTotal = null;
+              if (isLab) {
+                // Lab: sum of everything
+                internalTotal = (m1 ?? 0) + (m2 ?? 0) + (assgn ?? 0);
+              } else {
+                // Theory: Best of mid + assignment
+                if (m1 !== null || m2 !== null) {
+                  const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
+                  internalTotal = bestMid + assgn;
+                }
+              }
+
+              return (
+                <div key={sub.assignment_id} className="bg-white border rounded-xl shadow-sm p-4 flex flex-col gap-3">
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="font-bold text-gray-900 text-sm">{sub.subject_name}</div>
                         {isLab && <span className="text-[8px] bg-amber-50 text-amber-600 border border-amber-100 px-1 rounded font-black uppercase">Lab</span>}
                       </div>
-                      <div className="text-[10px] text-gray-400 font-mono">{sub.subject_code} • {sub.faculty_name}</div>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <button 
-                        onClick={() => fetchHistory(sub)}
-                        className={`inline-flex flex-col items-center px-3 py-1 rounded-lg border transition-all hover:shadow-md active:scale-95 ${getPercentageColor(pct)}`}
-                      >
-                        <span className="text-sm font-black">{pct.toFixed(1)}%</span>
-                        <span className="text-[9px] opacity-70 font-bold uppercase">{sub.attended_classes}/{sub.total_classes}</span>
-                      </button>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <div className="flex flex-col items-center">
-                        <span className={`font-mono font-bold ${sub.mid1_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
-                          {sub.mid1_marks ?? '--'}
-                        </span>
-                        <span className="text-[8px] text-gray-400 font-bold uppercase">{l1} Max: {m1m}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <div className="flex flex-col items-center">
-                        <span className={`font-mono font-bold ${sub.mid2_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
-                          {sub.mid2_marks ?? '--'}
-                        </span>
-                        <span className="text-[8px] text-gray-400 font-bold uppercase">{l2} Max: {m2m}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <div className="flex flex-col items-center">
-                        <span className={`font-mono font-bold ${sub.assignment_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
-                          {sub.assignment_marks ?? '--'}
-                        </span>
-                        <span className="text-[8px] text-gray-400 font-bold uppercase">{l3} Max: {am}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-center bg-indigo-50/30">
-                      <div className="flex flex-col items-center">
-                        <span className={`font-mono font-black text-lg ${internalTotal === null ? 'text-gray-300' : 'text-indigo-700'}`}>
-                          {internalTotal !== null ? internalTotal.toFixed(1) : '--'}
-                        </span>
-                        <span className="text-[9px] text-indigo-400 font-bold uppercase">Out of {totalMax}</span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <div className="text-[10px] text-gray-500 font-mono">{sub.subject_code} • {sub.faculty_name}</div>
+                    </div>
+                    <button 
+                      onClick={() => fetchHistory(sub)}
+                      className={`inline-flex flex-col items-center px-2 py-1 rounded-lg border transition-all hover:shadow-md active:scale-95 flex-shrink-0 ${getPercentageColor(pct)}`}
+                    >
+                      <span className="text-sm font-black">{pct.toFixed(1)}%</span>
+                      <span className="text-[9px] opacity-70 font-bold uppercase">{sub.attended_classes}/{sub.total_classes}</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2 pt-3 border-t border-gray-100">
+                    <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                      <span className={`font-mono font-bold text-sm ${sub.mid1_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {sub.mid1_marks ?? '--'}
+                      </span>
+                      <span className="text-[8px] text-gray-400 font-bold uppercase mt-1 text-center leading-tight">{l1} <br/>(Max {m1m})</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                      <span className={`font-mono font-bold text-sm ${sub.mid2_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {sub.mid2_marks ?? '--'}
+                      </span>
+                      <span className="text-[8px] text-gray-400 font-bold uppercase mt-1 text-center leading-tight">{l2} <br/>(Max {m2m})</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                      <span className={`font-mono font-bold text-sm ${sub.assignment_marks === null ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {sub.assignment_marks ?? '--'}
+                      </span>
+                      <span className="text-[8px] text-gray-400 font-bold uppercase mt-1 text-center leading-tight">{l3} <br/>(Max {am})</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-2 bg-indigo-50 border border-indigo-100 rounded-lg">
+                      <span className={`font-mono font-black text-sm ${internalTotal === null ? 'text-gray-400' : 'text-indigo-700'}`}>
+                        {internalTotal !== null ? internalTotal.toFixed(1) : '--'}
+                      </span>
+                      <span className="text-[8px] text-indigo-500 font-bold uppercase mt-1 text-center leading-tight">Total <br/>(Max {totalMax})</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       ) : (
         <div className="py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center">
           <p className="text-gray-500 font-medium">No subjects found for the current semester.</p>

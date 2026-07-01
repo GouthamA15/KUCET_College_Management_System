@@ -22,18 +22,16 @@ export default function VerificationRequiredPage() {
         <p className="mt-2 text-gray-800">You must verify your email and set a password before requesting certificates.</p>
 
         <div className="mt-6">
-          <table className="w-full border border-gray-300 text-sm">
-            <tbody>
-              <tr className="border-t">
-                <td className="px-4 py-2 font-medium text-gray-700">Email Status</td>
-                <td className="px-4 py-2 text-gray-900">{emailStatus}</td>
-              </tr>
-              <tr className="border-t">
-                <td className="px-4 py-2 font-medium text-gray-700">Password Status</td>
-                <td className="px-4 py-2 text-gray-900">{passwordStatus}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="flex flex-col gap-3 border border-gray-200 rounded-sm p-4 bg-gray-50">
+            <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+              <span className="font-medium text-gray-700 text-sm">Email Status</span>
+              <span className="text-gray-900 font-semibold text-sm">{emailStatus}</span>
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="font-medium text-gray-700 text-sm">Password Status</span>
+              <span className="text-gray-900 font-semibold text-sm">{passwordStatus}</span>
+            </div>
+          </div>
         </div>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">

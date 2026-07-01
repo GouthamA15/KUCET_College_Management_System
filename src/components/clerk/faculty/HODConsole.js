@@ -555,7 +555,8 @@ function TimetableManager({ data, onEditSlot }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-slate-200">
+      {/* Desktop Matrix Layout */}
+      <div className="hidden md:block overflow-x-auto border border-slate-200">
         <table className="w-full border-collapse text-xs min-w-[1000px]">
           <thead>
             <tr>
@@ -616,6 +617,68 @@ function TimetableManager({ data, onEditSlot }) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card Layout */}
+      <div className="md:hidden flex flex-col divide-y divide-slate-100 bg-slate-50 border border-slate-200">
+        {days.map(day => (
+          <div key={day} className="p-4">
+            <h3 className="font-bold text-slate-800 mb-3 uppercase tracking-widest text-sm flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+              {day}
+            </h3>
+            <div className="flex flex-col gap-3">
+              {periods.map(p => {
+                const slot = getSlot(day, p);
+                const isActivity = slot && INSTITUTIONAL_ACTIVITIES.some(a => a.code === slot.subject_code);
+                
+                let timeStr = '';
+                if (p === 1) timeStr = '09:30 - 10:20';
+                else if (p === 2) timeStr = '10:20 - 11:10';
+                else if (p === 3) timeStr = '11:20 - 12:10';
+                else if (p === 4) timeStr = '12:10 - 01:00';
+                else if (p === 5) timeStr = '02:00 - 02:50';
+                else if (p === 6) timeStr = '02:50 - 03:40';
+                else if (p === 7) timeStr = '03:40 - 04:30';
+
+                return (
+                  <div 
+                    key={`${day}-${p}`} 
+                    onClick={() => onEditSlot(day, p, slot)}
+                    className={`flex rounded-lg border shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-transform ${slot ? (isActivity ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200') : 'bg-slate-50 border-dashed border-slate-300'}`}
+                  >
+                    {/* Period indicator */}
+                    <div className={`w-16 flex flex-col justify-center items-center py-2 px-1 border-r ${slot ? (isActivity ? 'bg-amber-100/50 border-amber-200' : 'bg-slate-50 border-slate-200') : 'bg-slate-100/50 border-slate-200'}`}>
+                      <span className="text-xs font-black text-slate-700">P{p}</span>
+                      <span className="text-[8px] font-bold text-slate-400 mt-0.5 text-center leading-tight">{timeStr}</span>
+                    </div>
+                    {/* Details */}
+                    <div className="flex-1 p-3 flex flex-col justify-center">
+                      {slot ? (
+                        <>
+                          <div className={`font-bold text-xs uppercase leading-snug mb-1 ${isActivity ? 'text-amber-800' : 'text-[#0b3578]'}`}>
+                            {isActivity ? INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code)?.name : (slot.subject_name || slot.subject_code)}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-bold mb-2 line-clamp-1">{slot.faculty_name || (isActivity ? 'N/A' : 'NOT ASSIGNED')}</div>
+                          <div>
+                            <span className={`text-[9px] px-2 py-0.5 border font-bold uppercase tracking-widest rounded ${isActivity ? 'bg-amber-100/50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                              {slot.room_no || 'TBD'}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2 opacity-50">
+                          <div className="w-5 h-5 border border-dashed border-[#0b3578] flex items-center justify-center rounded-full text-[#0b3578]">+</div>
+                          <span className="text-[10px] font-bold text-[#0b3578] uppercase tracking-widest">Available</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
       
       <div className="mt-8 flex flex-wrap gap-8 items-center justify-center bg-slate-50 p-5 border border-slate-200">

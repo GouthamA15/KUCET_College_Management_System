@@ -201,7 +201,7 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
       toast.error('Select a valid WORKING day from the calendar first.', { id: 'qr-error' });
       return;
     }
-    const student = students.find(s => s.roll_no === rollNo);
+    const student = students.find(s => s.roll_no === rollNo || s.roll_no.replace('T', '') === rollNo.replace('T', ''));
     if (student) {
       setAttendanceStatus(student.id, 'PRESENT');
       if (setVerifiedStudentIds) {
@@ -371,78 +371,69 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
               {loading && students.length === 0 ? (
                 <div className="text-center py-4 text-gray-500 text-xs">Loading students...</div>
               ) : students.length > 0 ? (
-                <table className="w-full table-fixed border-collapse">
-                  <colgroup>
-                    <col style={{ width: '28%' }} />
-                    <col style={{ width: '52%' }} />
-                    <col style={{ width: '20%' }} />
-                  </colgroup>
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="px-3 py-2 text-left font-semibold text-gray-600 text-[12px]">Roll No</th>
-                      <th className="px-3 py-2 text-left font-semibold text-gray-600 text-[12px]">Name</th>
-                      <th className="px-3 py-2 text-center font-semibold text-gray-600 text-[12px]">
-                        <span className="inline-flex items-center justify-center gap-1">
-                          <span>Status</span>
-                          {statusLoading && (
-                            <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                          )}
-                        </span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {students.map(student => (
-                      <tr key={student.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 align-middle font-mono text-gray-800 text-[12px] font-semibold">
-                          <div className="flex items-center gap-1">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-1 mb-2">
+                    <span className="text-xs font-semibold text-gray-500">Student List</span>
+                    {statusLoading && (
+                      <span className="inline-flex items-center gap-2 text-xs text-gray-500">
+                        <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                        Updating...
+                      </span>
+                    )}
+                  </div>
+                  {students.map(student => (
+                    <div key={student.id} className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <div className="flex-1 pr-3">
+                          <div className="font-mono text-gray-800 text-[11px] font-black tracking-wide mb-1 flex items-center gap-2">
                             {student.roll_no}
                             {verifiedStudentIds.has(student.id) && (
-                              <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                              <span className="flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                                <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                <span className="text-[9px] font-black text-green-700 uppercase tracking-widest">Verified</span>
+                              </span>
                             )}
                           </div>
-                        </td>
-                        <td className="px-3 py-2 align-middle text-gray-800 text-[13px] font-medium break-words">
-                          {student.name}
-                          {verifiedStudentIds.has(student.id) && (
-                            <div className="text-[8px] font-black text-green-600 uppercase">Verified</div>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 align-middle text-center">
+                          <div className="text-gray-900 text-sm font-bold leading-tight">
+                            {student.name}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
                           {statusLoading ? (
-                            <span className="inline-block h-6 w-6 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                            <div className="w-[84px] h-[36px] bg-gray-100 rounded-lg flex items-center justify-center">
+                              <span className="inline-block h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                            </div>
                           ) : (
                             <button
                               type="button"
                               onClick={() => assignment.is_active && dateValidation.isValid && toggleAttendanceStatus(student.id)}
                               disabled={!assignment.is_active || !dateValidation.isValid}
-                              style={{ width: '56px', height: '32px', textAlign: 'center', fontWeight: 700, fontSize: '12px', borderRadius: '6px' }}
-                              className={`${
+                              className={`w-[84px] h-[36px] flex items-center justify-center text-xs font-black rounded-lg transition-colors border-2 uppercase tracking-wide ${
                                 student.status === null 
-                                  ? 'bg-gray-100 text-gray-700' 
+                                  ? 'bg-gray-50 text-gray-600 border-gray-200' 
                                   : student.status === 'PRESENT' 
-                                  ? 'bg-green-100 text-green-800' 
+                                  ? 'bg-green-50 text-green-700 border-green-200' 
                                   : student.status === 'ABSENT' 
-                                  ? 'bg-red-100 text-red-800'
+                                  ? 'bg-red-50 text-red-700 border-red-200'
                                   : student.status === 'NCC'
-                                  ? 'bg-blue-100 text-blue-800'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
                                   : student.status === 'MEDICAL'
-                                  ? 'bg-purple-100 text-purple-800'
-                                  : 'bg-gray-100 text-gray-700'
-                              } ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
+                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                  : 'bg-gray-50 text-gray-600 border-gray-200'
+                              } ${(!assignment.is_active || !dateValidation.isValid) ? 'cursor-default opacity-50' : 'cursor-pointer active:scale-95'}`}
                             >
                               {student.status === null ? 'N/A' : 
-                               student.status === 'PRESENT' ? 'P' : 
-                               student.status === 'ABSENT' ? 'A' :
+                               student.status === 'PRESENT' ? 'PRESENT' : 
+                               student.status === 'ABSENT' ? 'ABSENT' :
                                student.status === 'NCC' ? 'NCC' :
-                               student.status === 'MEDICAL' ? 'M' : '?'}
+                               student.status === 'MEDICAL' ? 'MEDICAL' : '?'}
                             </button>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="text-center py-4 text-gray-500 text-xs">No students found.</div>
               )}

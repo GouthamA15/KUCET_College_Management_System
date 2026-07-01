@@ -142,31 +142,53 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="w-full mb-4 overflow-x-auto">
+            <div className="w-full mb-4">
               <h2 className="text-sm font-bold text-[#0b3578] mb-4 uppercase tracking-wider">Student Statistics</h2>
               {studentStats ? (
-                <table className="min-w-full bg-white border border-slate-200">
-                  <thead>
-                    <tr className="bg-slate-50">
-                      <th className="py-2 px-4 border-b border-slate-200 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Branch</th>
-                      {studyYears.map(year => (
-                        <th key={year} className="py-2 px-4 border-b border-slate-200 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Year {year}</th>
-                      ))}
-                      <th className="py-2 px-4 border-b border-slate-200 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.keys(studentStats).sort().map(branch => (
-                      <tr key={branch} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2 px-4 border-b border-slate-100 text-xs text-slate-800 font-bold uppercase">{branch}</td>
-                        {studyYears.map(year => (
-                          <td key={year} className="py-2 px-4 border-b border-slate-100 text-center text-xs text-slate-600">{studentStats[branch][year]}</td>
+                <>
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="min-w-full bg-white border border-slate-200">
+                      <thead>
+                        <tr className="bg-slate-50">
+                          <th className="py-2 px-4 border-b border-slate-200 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Branch</th>
+                          {studyYears.map(year => (
+                            <th key={year} className="py-2 px-4 border-b border-slate-200 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Year {year}</th>
+                          ))}
+                          <th className="py-2 px-4 border-b border-slate-200 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.keys(studentStats).sort().map(branch => (
+                          <tr key={branch} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-2 px-4 border-b border-slate-100 text-xs text-slate-800 font-bold uppercase">{branch}</td>
+                            {studyYears.map(year => (
+                              <td key={year} className="py-2 px-4 border-b border-slate-100 text-center text-xs text-slate-600">{studentStats[branch][year]}</td>
+                            ))}
+                            <td className="py-2 px-4 border-b border-slate-100 text-center text-xs text-slate-900 font-black">{studentStats[branch].total}</td>
+                          </tr>
                         ))}
-                        <td className="py-2 px-4 border-b border-slate-100 text-center text-xs text-slate-900 font-black">{studentStats[branch].total}</td>
-                      </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="md:hidden flex flex-col gap-3">
+                    {Object.keys(studentStats).sort().map(branch => (
+                      <div key={branch} className="bg-white border border-slate-200 p-3 rounded-lg flex flex-col gap-2 shadow-sm">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                          <span className="text-xs text-slate-800 font-bold uppercase tracking-wider">{branch}</span>
+                          <span className="bg-blue-50 text-[#0b3578] font-black px-2 py-0.5 rounded text-xs border border-blue-100">Total: {studentStats[branch].total}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          {studyYears.map(year => (
+                            <div key={year} className="flex justify-between items-center bg-slate-50 px-2 py-1.5 rounded">
+                              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Year {year}</span>
+                              <span className="text-xs font-semibold text-slate-700">{studentStats[branch][year]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </>
               ) : (
                 <p className="text-xs text-slate-500 italic">Loading student stats...</p>
               )}

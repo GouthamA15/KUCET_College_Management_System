@@ -154,34 +154,55 @@ function AcademicsInner({ studentData, collegeInfo }) {
               </p>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-0 table-auto">
-                <thead className="bg-gray-100 text-sm font-medium text-gray-700">
-                  <tr>
-                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Code</th>
-                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Subject Name</th>
-                    <th className="text-left py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Type</th>
-                    <th className="text-right py-2.5 px-2 w-16 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Credits</th>
-                    <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Faculty</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((sub) => {
-                    const meta = getSubjectMeta(sub.subject_name);
-                    const code = sub.subject_code || '—';
-                    return (
-                      <tr key={sub.subject_code} className="border-b">
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{code}</td>
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.subject_name}</td>
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{meta.type}</td>
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{meta.credits}</td>
-                        <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.faculty_name || '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full min-w-0 table-auto">
+                  <thead className="bg-gray-100 text-sm font-medium text-gray-700">
+                    <tr>
+                      <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Code</th>
+                      <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Subject Name</th>
+                      <th className="text-left py-2.5 px-2 w-20 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Type</th>
+                      <th className="text-right py-2.5 px-2 w-16 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Credits</th>
+                      <th className="text-left py-2.5 px-2 text-[11px] sm:text-sm whitespace-normal wrap-break-word">Faculty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.map((sub) => {
+                      const meta = getSubjectMeta(sub.subject_name);
+                      const code = sub.subject_code || '—';
+                      return (
+                        <tr key={sub.subject_code} className="border-b">
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{code}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.subject_name}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{meta.type}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{meta.credits}</td>
+                          <td className="py-2.5 px-2 text-[11px] sm:text-sm text-gray-700 whitespace-normal wrap-break-word">{sub.faculty_name || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="md:hidden flex flex-col gap-3">
+                {data.map((sub) => {
+                  const meta = getSubjectMeta(sub.subject_name);
+                  const code = sub.subject_code || '—';
+                  return (
+                    <div key={sub.subject_code} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-semibold text-gray-800 text-xs">{code}</div>
+                        <div className="bg-white border text-xs px-2 py-0.5 rounded text-gray-600">{meta.type}</div>
+                      </div>
+                      <div className="font-medium text-gray-800 mb-2">{sub.subject_name}</div>
+                      <div className="flex justify-between items-center text-xs text-gray-600">
+                        <div><span className="font-semibold">Faculty:</span> {sub.faculty_name || '—'}</div>
+                        <div><span className="font-semibold">Credits:</span> {meta.credits}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
 
             <div className="mt-4 text-right space-y-1">
               {syllabusUrl ? (
@@ -204,32 +225,54 @@ function AcademicsInner({ studentData, collegeInfo }) {
               <p className="text-xs sm:text-sm text-gray-600">Conducted and attended classes (shortcut codes)</p>
             </div>
 
-            <div>
-              <table className="w-full table-auto">
-                <thead className="bg-gray-100 text-xs sm:text-sm font-medium text-gray-700">
-                  <tr>
-                    <th className="text-left py-2.5 px-2 text-xs sm:text-sm">Subject</th>
-                    <th className="text-right py-2.5 px-2 w-20 text-xs sm:text-sm">Conducted</th>
-                    <th className="text-right py-2.5 px-2 w-20 text-xs sm:text-sm">Attended</th>
-                    <th className="text-right py-2.5 px-2 w-20 text-xs sm:text-sm">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((sub) => {
-                    const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
-                    const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
-                    return (
-                      <tr key={`att-${sub.subject_code}`} className="border-b">
-                        <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-800">{short}</td>
-                        <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{sub.total_classes ?? '--'}</td>
-                        <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{sub.attended_classes ?? '--'}</td>
-                        <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{pct.toFixed(1)}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full table-auto">
+                  <thead className="bg-gray-100 text-xs sm:text-sm font-medium text-gray-700">
+                    <tr>
+                      <th className="text-left py-2.5 px-2 text-xs sm:text-sm">Subject</th>
+                      <th className="text-right py-2.5 px-2 w-20 text-xs sm:text-sm">Conducted</th>
+                      <th className="text-right py-2.5 px-2 w-20 text-xs sm:text-sm">Attended</th>
+                      <th className="text-right py-2.5 px-2 w-20 text-xs sm:text-sm">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.map((sub) => {
+                      const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+                      const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                      return (
+                        <tr key={`att-${sub.subject_code}`} className="border-b">
+                          <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-800">{short}</td>
+                          <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{sub.total_classes ?? '--'}</td>
+                          <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{sub.attended_classes ?? '--'}</td>
+                          <td className="py-2.5 px-2 text-xs sm:text-sm text-gray-700 text-right">{pct.toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="md:hidden flex flex-col gap-3">
+                {data.map((sub) => {
+                  const pct = sub.total_classes > 0 ? (sub.attended_classes / sub.total_classes) * 100 : 100;
+                  const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                  return (
+                    <div key={`att-${sub.subject_code}`} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm flex justify-between items-center">
+                      <div className="font-medium text-gray-800">{short}</div>
+                      <div className="flex gap-4 items-center">
+                        <div className="text-right">
+                          <div className="text-[10px] text-gray-500 font-semibold uppercase">Attended / Total</div>
+                          <div className="text-xs text-gray-800">{sub.attended_classes ?? '--'} / {sub.total_classes ?? '--'}</div>
+                        </div>
+                        <div className={`font-bold ${pct < 75 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {pct.toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
             </section>
           )}
 
@@ -248,41 +291,71 @@ function AcademicsInner({ studentData, collegeInfo }) {
                       </h2>
                       <p className="text-sm text-gray-600">Mid examinations and assignment marks for theory subjects.</p>
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-0 table-auto text-sm">
-                        <thead className="bg-gray-100 font-medium text-gray-700">
-                          <tr>
-                            <th className="text-left py-2 px-2 text-xs sm:text-sm whitespace-normal wrap-break-word">Subject</th>
-                            <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Mid I</th>
-                            <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Mid II</th>
-                            <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Assignment</th>
-                            <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {theorySubjects.map((sub) => {
-                            const m1 = sub.mid1_marks !== null ? parseFloat(sub.mid1_marks) : null;
-                            const m2 = sub.mid2_marks !== null ? parseFloat(sub.mid2_marks) : null;
-                            const assgn = sub.assignment_marks !== null ? parseFloat(sub.assignment_marks) : null;
-                            let total = null;
-                            if (m1 !== null || m2 !== null || assgn !== null) {
-                              const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
-                              total = bestMid + (assgn ?? 0);
-                            }
-                            const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
-                            return (
-                              <tr key={`theory-${sub.subject_code}`} className="border-b">
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{m1 !== null ? m1 : '--'}</td>
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{m2 !== null ? m2 : '--'}</td>
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{assgn !== null ? assgn : '--'}</td>
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{total !== null ? total.toFixed(1) : '--'}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                    <>
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full min-w-0 table-auto text-sm">
+                          <thead className="bg-gray-100 font-medium text-gray-700">
+                            <tr>
+                              <th className="text-left py-2 px-2 text-xs sm:text-sm whitespace-normal wrap-break-word">Subject</th>
+                              <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Mid I</th>
+                              <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Mid II</th>
+                              <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Assignment</th>
+                              <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {theorySubjects.map((sub) => {
+                              const m1 = sub.mid1_marks !== null ? parseFloat(sub.mid1_marks) : null;
+                              const m2 = sub.mid2_marks !== null ? parseFloat(sub.mid2_marks) : null;
+                              const assgn = sub.assignment_marks !== null ? parseFloat(sub.assignment_marks) : null;
+                              let total = null;
+                              if (m1 !== null || m2 !== null || assgn !== null) {
+                                const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
+                                total = bestMid + (assgn ?? 0);
+                              }
+                              const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                              return (
+                                <tr key={`theory-${sub.subject_code}`} className="border-b">
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{m1 !== null ? m1 : '--'}</td>
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{m2 !== null ? m2 : '--'}</td>
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{assgn !== null ? assgn : '--'}</td>
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word font-bold">{total !== null ? total.toFixed(1) : '--'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="md:hidden flex flex-col gap-3">
+                        {theorySubjects.map((sub) => {
+                          const m1 = sub.mid1_marks !== null ? parseFloat(sub.mid1_marks) : null;
+                          const m2 = sub.mid2_marks !== null ? parseFloat(sub.mid2_marks) : null;
+                          const assgn = sub.assignment_marks !== null ? parseFloat(sub.assignment_marks) : null;
+                          let total = null;
+                          if (m1 !== null || m2 !== null || assgn !== null) {
+                            const bestMid = Math.max(m1 ?? 0, m2 ?? 0);
+                            total = bestMid + (assgn ?? 0);
+                          }
+                          const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                          return (
+                            <div key={`theory-${sub.subject_code}`} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm flex flex-col gap-2">
+                              <div className="font-semibold text-gray-800">{short}</div>
+                              <div className="flex justify-between items-center text-xs">
+                                <div className="flex gap-3 text-gray-600">
+                                  <div><span className="font-semibold">Mid I:</span> {m1 !== null ? m1 : '--'}</div>
+                                  <div><span className="font-semibold">Mid II:</span> {m2 !== null ? m2 : '--'}</div>
+                                  <div><span className="font-semibold">Assgn:</span> {assgn !== null ? assgn : '--'}</div>
+                                </div>
+                                <div className="font-bold text-gray-800 bg-white border px-2 py-1 rounded">
+                                  Total: {total !== null ? total.toFixed(1) : '--'}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
                   </div>
                 );
               })()}
@@ -297,40 +370,69 @@ function AcademicsInner({ studentData, collegeInfo }) {
                       <h2 className="text-sm font-semibold text-gray-800">Lab Evaluation</h2>
                       <p className="text-sm text-gray-600">Execution, writing, and record/observation marks for lab subjects.</p>
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-0 table-auto text-sm">
-                        <thead className="bg-gray-100 font-medium text-gray-700">       
-                          <tr>
-                            <th className="text-left py-2 px-2 text-xs sm:text-sm whitespace-normal wrap-break-word">Subject</th>
-                            <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Execution</th>
-                            <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Writing</th>
-                            <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Record/Obs</th>
-                            <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {labSubjects.map((sub) => {
-                            const th = sub.lab_theory_marks !== null ? parseFloat(sub.lab_theory_marks) : null;
-                            const ex = sub.lab_execution_marks !== null ? parseFloat(sub.lab_execution_marks) : null;
-                            const rec = sub.lab_record_marks !== null ? parseFloat(sub.lab_record_marks) : null;
-                            let total = null;
-                            if (th !== null || ex !== null || rec !== null) {
-                              total = (th ?? 0) + (ex ?? 0) + (rec ?? 0);
-                            }
-                            const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
-                            return (
-                              <tr key={`lab-${sub.subject_code}`} className="border-b">
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{ex !== null ? ex : '--'}</td>
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{th !== null ? th : '--'}</td>
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{rec !== null ? rec : '--'}</td>
-                                <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{total !== null ? total.toFixed(1) : '--'}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                    <>
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full min-w-0 table-auto text-sm">
+                          <thead className="bg-gray-100 font-medium text-gray-700">       
+                            <tr>
+                              <th className="text-left py-2 px-2 text-xs sm:text-sm whitespace-normal wrap-break-word">Subject</th>
+                              <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Execution</th>
+                              <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Writing</th>
+                              <th className="text-right py-2 px-2 w-24 text-xs sm:text-sm whitespace-normal wrap-break-word">Record/Obs</th>
+                              <th className="text-right py-2 px-2 w-20 text-xs sm:text-sm whitespace-normal wrap-break-word">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {labSubjects.map((sub) => {
+                              const th = sub.lab_theory_marks !== null ? parseFloat(sub.lab_theory_marks) : null;
+                              const ex = sub.lab_execution_marks !== null ? parseFloat(sub.lab_execution_marks) : null;
+                              const rec = sub.lab_record_marks !== null ? parseFloat(sub.lab_record_marks) : null;
+                              let total = null;
+                              if (th !== null || ex !== null || rec !== null) {
+                                total = (th ?? 0) + (ex ?? 0) + (rec ?? 0);
+                              }
+                              const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                              return (
+                                <tr key={`lab-${sub.subject_code}`} className="border-b">
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-800 whitespace-normal wrap-break-word">{short}</td>
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{ex !== null ? ex : '--'}</td>
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{th !== null ? th : '--'}</td>
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word">{rec !== null ? rec : '--'}</td>
+                                  <td className="py-2 px-2 text-xs sm:text-sm text-gray-700 text-right whitespace-normal wrap-break-word font-bold">{total !== null ? total.toFixed(1) : '--'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="md:hidden flex flex-col gap-3">
+                        {labSubjects.map((sub) => {
+                          const th = sub.lab_theory_marks !== null ? parseFloat(sub.lab_theory_marks) : null;
+                          const ex = sub.lab_execution_marks !== null ? parseFloat(sub.lab_execution_marks) : null;
+                          const rec = sub.lab_record_marks !== null ? parseFloat(sub.lab_record_marks) : null;
+                          let total = null;
+                          if (th !== null || ex !== null || rec !== null) {
+                            total = (th ?? 0) + (ex ?? 0) + (rec ?? 0);
+                          }
+                          const short = deriveShortName(sub.subject_name) || sub.subject_code || '—';
+                          return (
+                            <div key={`lab-${sub.subject_code}`} className="bg-gray-50 border border-gray-200 rounded p-3 text-sm flex flex-col gap-2">
+                              <div className="font-semibold text-gray-800">{short}</div>
+                              <div className="flex justify-between items-center text-xs">
+                                <div className="flex gap-3 text-gray-600">
+                                  <div><span className="font-semibold">Exec:</span> {ex !== null ? ex : '--'}</div>
+                                  <div><span className="font-semibold">Writ:</span> {th !== null ? th : '--'}</div>
+                                  <div><span className="font-semibold">Rec/Obs:</span> {rec !== null ? rec : '--'}</div>
+                                </div>
+                                <div className="font-bold text-gray-800 bg-white border px-2 py-1 rounded">
+                                  Total: {total !== null ? total.toFixed(1) : '--'}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
                   </div>
                 );
               })()}            </section>

@@ -83,7 +83,8 @@ export default function PersonalSchedule() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop Matrix Layout */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full border-collapse min-w-[800px]">
             <thead>
               <tr>
@@ -139,6 +140,69 @@ export default function PersonalSchedule() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Day-by-Day Card Layout */}
+        <div className="md:hidden flex flex-col divide-y divide-slate-100 bg-slate-50">
+          {days.map(day => {
+            const daySlots = periods.map(p => ({ p, slot: getSlot(day, p) })).filter(item => item.slot);
+            if (daySlots.length === 0) return null; // hide empty days
+
+            return (
+              <div key={day} className="p-4">
+                <h3 className="font-bold text-slate-800 mb-3 uppercase tracking-widest text-sm flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                  {day}
+                </h3>
+                <div className="flex flex-col gap-3">
+                  {daySlots.map(({ p, slot }) => {
+                    const activity = INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code);
+                    const isActivity = !!activity;
+                    
+                    let timeStr = '';
+                    if (p === 1) timeStr = '09:30 - 10:20';
+                    else if (p === 2) timeStr = '10:20 - 11:10';
+                    else if (p === 3) timeStr = '11:20 - 12:10';
+                    else if (p === 4) timeStr = '12:10 - 01:00';
+                    else if (p === 5) timeStr = '02:00 - 02:50';
+                    else if (p === 6) timeStr = '02:50 - 03:40';
+                    else if (p === 7) timeStr = '03:40 - 04:30';
+
+                    return (
+                      <div key={p} className={`flex rounded-lg border shadow-sm overflow-hidden ${isActivity ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+                        {/* Period/Time indicator on left */}
+                        <div className={`w-16 flex flex-col justify-center items-center py-2 px-1 border-r ${isActivity ? 'bg-amber-100/50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+                          <span className="text-xs font-black text-slate-700">P{p}</span>
+                          <span className="text-[8px] font-bold text-slate-400 mt-0.5 text-center leading-tight">{timeStr}</span>
+                        </div>
+                        {/* Slot details */}
+                        <div className="flex-1 p-3 flex flex-col justify-center">
+                          <div className={`font-bold text-xs uppercase leading-snug mb-1 ${isActivity ? 'text-amber-800' : 'text-[#0b3578]'}`}>
+                            {activity ? activity.name : (slot.display_name || slot.subject_code)}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded">
+                              {slot.branch} &bull; S{slot.semester}
+                            </span>
+                            {slot.room_no && (
+                              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
+                                Room {slot.room_no}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {days.every(day => !periods.some(p => getSlot(day, p))) && (
+             <div className="p-8 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                No classes scheduled for this week.
+             </div>
+          )}
         </div>
 
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap gap-6 justify-center items-center">

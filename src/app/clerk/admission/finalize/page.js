@@ -306,79 +306,139 @@ function FinalizeAdmissionContent() {
                       <p className="text-[10px] font-medium text-gray-500 mt-2 max-w-xs mx-auto">Verify new applications in the Requests Center to populate this registry.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-left border-collapse text-[11px]">
-                            <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
-                                <tr>
-                                    <th className="px-6 py-5 w-16 border-r border-gray-200">ID</th>
-                                    <th className="px-6 py-5 border-r border-gray-200">Applicant Identity</th>
-                                    <th className="px-6 py-5 border-r border-gray-200">Merit Rank</th>
-                                    <th className="px-6 py-5 w-72 border-r border-gray-200">Institutional Roll Number</th>
-                                    <th className="px-6 py-5 text-right ">Operational Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-sm">
-                                {drafts.map((draft, index) => {
-                                    const validation = getRollValidation(rollNumbers[draft.id], draft);
-                                    const hasValue = !!rollNumbers[draft.id];
+                    <>
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="min-w-full text-left border-collapse text-[11px]">
+                                <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
+                                    <tr>
+                                        <th className="px-6 py-5 w-16 border-r border-gray-200">ID</th>
+                                        <th className="px-6 py-5 border-r border-gray-200">Applicant Identity</th>
+                                        <th className="px-6 py-5 border-r border-gray-200">Merit Rank</th>
+                                        <th className="px-6 py-5 w-72 border-r border-gray-200">Institutional Roll Number</th>
+                                        <th className="px-6 py-5 text-right ">Operational Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-sm">
+                                    {drafts.map((draft, index) => {
+                                        const validation = getRollValidation(rollNumbers[draft.id], draft);
+                                        const hasValue = !!rollNumbers[draft.id];
 
-                                    return (
-                                        <tr key={draft.id} className="hover:bg-gray-50 transition-colors group">
-                                            <td className="px-6 py-4 text-gray-400 font-bold border-r border-gray-100">{index + 1}</td>
-                                            <td className="px-6 py-4 font-medium text-gray-800 border-r border-gray-100 ">
-                                                <div className="flex flex-col">
-                                                    <span>{draft.name}</span>
-                                                    <span className="text-[9px] text-gray-400 font-medium lowercase mt-0.5">{draft.email}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 border-r border-gray-100">
-                                                <span className="bg-blue-50 text-[#0b3578] border border-blue-100 px-3 py-1 rounded-md text-sm font-medium shadow-sm">
-                                                    RANK {draft.exam_rank}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 border-r border-gray-100">
-                                                <div className="space-y-1.5">
-                                                    <input 
-                                                        type="text"
-                                                        placeholder={draft.entrance_exam === 'TG ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
-                                                        value={rollNumbers[draft.id] || ''}
-                                                        onChange={e => handleRollNumberChange(draft.id, e.target.value)}
-                                                        className={`block w-full px-3 py-2 border-2 text-sm font-medium focus:outline-none transition-all rounded-md ${
-                                                            !hasValue ? 'border-gray-100 bg-gray-50' :
-                                                            validation.isValid ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
-                                                        }`}
-                                                    />
-                                                    {hasValue && !validation.isValid && (
-                                                        <div className="text-[9px] text-rose-600 font-medium px-1 flex items-center gap-1">
-                                                            ⚠️ {validation.error}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button 
-                                                        onClick={() => fetchDetail(draft.id)}
-                                                        disabled={fetchingDetail}
-                                                        className="px-3 py-2 border-2 border-gray-800 text-gray-800 text-sm font-medium hover:bg-gray-50 rounded-md transition-all"
-                                                    >
-                                                        {selectedDraftId === draft.id && fetchingDetail ? '...' : 'View/Edit'}
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleFinalize(draft.id)} 
-                                                        disabled={!validation.isValid || finalizingId === draft.id} 
-                                                        className="px-6 py-2 bg-[#0b3578] text-white rounded-md font-medium text-[10px] hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
-                                                    >
-                                                        {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                        return (
+                                            <tr key={draft.id} className="hover:bg-gray-50 transition-colors group">
+                                                <td className="px-6 py-4 text-gray-400 font-bold border-r border-gray-100">{index + 1}</td>
+                                                <td className="px-6 py-4 font-medium text-gray-800 border-r border-gray-100 ">
+                                                    <div className="flex flex-col">
+                                                        <span>{draft.name}</span>
+                                                        <span className="text-[9px] text-gray-400 font-medium lowercase mt-0.5">{draft.email}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 border-r border-gray-100">
+                                                    <span className="bg-blue-50 text-[#0b3578] border border-blue-100 px-3 py-1 rounded-md text-sm font-medium shadow-sm">
+                                                        RANK {draft.exam_rank}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 border-r border-gray-100">
+                                                    <div className="space-y-1.5">
+                                                        <input 
+                                                            type="text"
+                                                            placeholder={draft.entrance_exam === 'TG ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
+                                                            value={rollNumbers[draft.id] || ''}
+                                                            onChange={e => handleRollNumberChange(draft.id, e.target.value)}
+                                                            className={`block w-full px-3 py-2 border-2 text-sm font-medium focus:outline-none transition-all rounded-md ${
+                                                                !hasValue ? 'border-gray-100 bg-gray-50' :
+                                                                validation.isValid ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
+                                                            }`}
+                                                        />
+                                                        {hasValue && !validation.isValid && (
+                                                            <div className="text-[9px] text-rose-600 font-medium px-1 flex items-center gap-1">
+                                                                ⚠️ {validation.error}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button 
+                                                            onClick={() => fetchDetail(draft.id)}
+                                                            disabled={fetchingDetail}
+                                                            className="px-3 py-2 border-2 border-gray-800 text-gray-800 text-sm font-medium hover:bg-gray-50 rounded-md transition-all"
+                                                        >
+                                                            {selectedDraftId === draft.id && fetchingDetail ? '...' : 'View/Edit'}
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleFinalize(draft.id)} 
+                                                            disabled={!validation.isValid || finalizingId === draft.id} 
+                                                            className="px-6 py-2 bg-[#0b3578] text-white rounded-md font-medium text-[10px] hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
+                                                        >
+                                                            {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div className="md:hidden flex flex-col gap-4 p-4 bg-slate-50/50">
+                            {drafts.map((draft, _index) => {
+                                const validation = getRollValidation(rollNumbers[draft.id], draft);
+                                const hasValue = !!rollNumbers[draft.id];
+                                return (
+                                    <div key={draft.id} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex flex-col gap-3">
+                                        <div className="flex justify-between items-start border-b border-slate-100 pb-2">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-gray-800 text-sm">{draft.name}</span>
+                                                <span className="text-[10px] text-gray-400 font-medium lowercase mt-0.5">{draft.email}</span>
+                                            </div>
+                                            <span className="bg-blue-50 text-[#0b3578] border border-blue-100 px-2 py-0.5 rounded text-xs font-medium">
+                                                RANK {draft.exam_rank}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Institutional Roll Number</label>
+                                            <div className="space-y-1.5">
+                                                <input 
+                                                    type="text"
+                                                    placeholder={draft.entrance_exam === 'TG ECET' ? "e.g. 235670901L" : "e.g. 23567T0901"}
+                                                    value={rollNumbers[draft.id] || ''}
+                                                    onChange={e => handleRollNumberChange(draft.id, e.target.value)}
+                                                    className={`block w-full px-3 py-2 border-2 text-sm font-medium focus:outline-none transition-all rounded-md ${
+                                                        !hasValue ? 'border-gray-100 bg-gray-50' :
+                                                        validation.isValid ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
+                                                    }`}
+                                                />
+                                                {hasValue && !validation.isValid && (
+                                                    <div className="text-[9px] text-rose-600 font-medium px-1 flex items-center gap-1">
+                                                        ⚠️ {validation.error}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex gap-2 pt-2 border-t border-slate-100 mt-1">
+                                            <button 
+                                                onClick={() => fetchDetail(draft.id)}
+                                                disabled={fetchingDetail}
+                                                className="flex-1 py-2 border-2 border-gray-800 text-gray-800 text-xs font-bold hover:bg-gray-50 rounded-md transition-all uppercase"
+                                            >
+                                                {selectedDraftId === draft.id && fetchingDetail ? '...' : 'View/Edit'}
+                                            </button>
+                                            <button 
+                                                onClick={() => handleFinalize(draft.id)} 
+                                                disabled={!validation.isValid || finalizingId === draft.id} 
+                                                className="flex-1 py-2 bg-[#0b3578] text-white rounded-md font-bold text-xs uppercase hover:bg-blue-900 shadow-lg shadow-blue-100 disabled:opacity-50 transition-all active:scale-95"
+                                            >
+                                                {finalizingId === draft.id ? 'Finalizing...' : 'Finalize'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
                 )}
             </div>
 

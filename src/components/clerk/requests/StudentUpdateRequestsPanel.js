@@ -190,19 +190,21 @@ const StudentUpdateRequestsPanel = () => {
                                 Proposed Data Modifications
                             </h3>
                             <div className="border border-gray-200 rounded-md overflow-hidden shadow-sm bg-white divide-y divide-gray-100">
-                                <div className="grid grid-cols-3 bg-gray-50 border-b border-gray-200 p-4">
+                                <div className="hidden md:grid grid-cols-3 bg-gray-50 border-b border-gray-200 p-4">
                                     <div className="font-semibold text-gray-500 text-xs">Field</div>
                                     <div className="font-semibold text-gray-500 text-xs text-center border-l border-gray-200">Current Record</div>
                                     <div className="font-semibold text-[#0b3578] text-xs text-center border-l border-gray-200">Requested Change</div>
                                 </div>
                                 <div className="divide-y divide-gray-100">
                                     {Object.entries(typeof req.new_data === 'string' ? JSON.parse(req.new_data) : req.new_data).map(([field, value]) => (
-                                        <div key={field} className="grid grid-cols-3 hover:bg-gray-50 transition-colors p-4 items-center">
-                                            <div className="font-medium text-gray-700 text-sm break-words">{formatLabel(field)}</div>
-                                            <div className="text-center border-l border-gray-100 px-2 break-words">
+                                        <div key={field} className="grid grid-cols-1 md:grid-cols-3 hover:bg-gray-50 transition-colors p-4 md:items-center gap-3 md:gap-0">
+                                            <div className="font-medium text-gray-700 text-sm break-words border-b md:border-0 pb-2 md:pb-0">{formatLabel(field)}</div>
+                                            <div className="md:text-center md:border-l border-gray-100 md:px-2 break-words flex flex-row items-center justify-between md:block">
+                                                <span className="md:hidden text-xs text-gray-400 uppercase tracking-wider font-semibold">Current:</span>
                                                 <span className="text-sm text-gray-500 italic">{req.current_values?.[field] || 'Null'}</span>
                                             </div>
-                                            <div className="text-center border-l border-gray-100 px-2 break-words">
+                                            <div className="md:text-center md:border-l border-gray-100 md:px-2 break-words flex flex-row items-center justify-between md:block">
+                                                <span className="md:hidden text-xs text-gray-400 uppercase tracking-wider font-semibold">Requested:</span>
                                                 <span className="font-semibold text-[#0b3578] bg-blue-50 px-3 py-1 border border-blue-100 rounded-md inline-block">
                                                   {value || 'Null'}
                                                 </span>

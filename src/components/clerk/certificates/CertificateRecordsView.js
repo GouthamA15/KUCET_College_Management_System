@@ -67,7 +67,7 @@ export default function CertificateRecordsView({ records = [], onViewDetails, gr
           {sortedKeys.map((k) => (
             <div key={k} className="">
               <div className="mb-2 font-semibold text-gray-800">{formatDateForDisplay(k)}</div>
-              <div className="overflow-x-auto border rounded-md">
+              <div className="hidden md:block overflow-x-auto border rounded-md">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -111,6 +111,37 @@ export default function CertificateRecordsView({ records = [], onViewDetails, gr
                   </tbody>
                 </table>
               </div>
+              
+              <div className="md:hidden flex flex-col gap-3">
+                {groups[k].map((r, i) => (
+                  <div key={r.request_id ?? i} className="bg-white border rounded-lg p-4 shadow-sm flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-800">{r.roll_number ?? r.roll}</span>
+                        {r.is_flagged && (
+                          <span className="text-rose-500 animate-pulse" title="Flagged: Duplicate Proof Detected">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+                      <span className={statusClass(r.status)}>{r.status}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <div className="text-sm font-medium text-gray-700">{r.certificate_type ?? r.type}</div>
+                      <div className="text-xs text-gray-500">Date: {formatDateForDisplay(r.date)}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="w-full py-2 mt-2 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold text-sm transition-colors cursor-pointer"
+                      onClick={() => onViewDetails && onViewDetails(r)}
+                    >
+                      View Details
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -123,7 +154,7 @@ export default function CertificateRecordsView({ records = [], onViewDetails, gr
       <div className="p-4 border-b">
         <h3 className="text-lg font-semibold text-gray-800">Certificate Records</h3>
       </div>
-      <div className="overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -177,6 +208,46 @@ export default function CertificateRecordsView({ records = [], onViewDetails, gr
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="md:hidden flex flex-col gap-3 p-4 bg-slate-50">
+        {loading ? (
+          <div className="py-12 text-center text-gray-600 bg-white rounded-lg border shadow-sm">
+            <div className="flex flex-col items-center">
+              <div className="animate-spin h-7 w-7 border-4 border-t-transparent border-indigo-600 rounded-full" />
+              <div className="mt-2 text-sm">Loading history...</div>
+            </div>
+          </div>
+        ) : (
+          records.map((r, i) => (
+            <div key={r.request_id ?? i} className="bg-white border rounded-lg p-4 shadow-sm flex flex-col gap-3">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-gray-800">{r.roll_number ?? r.roll}</span>
+                  {r.is_flagged && (
+                    <span className="text-rose-500 animate-pulse" title="Flagged: Duplicate Proof Detected">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+                <span className={statusClass(r.status)}>{r.status}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="text-sm font-medium text-gray-700">{r.certificate_type ?? r.type}</div>
+                <div className="text-xs text-gray-500">Date: {formatDateForDisplay(r.date)}</div>
+              </div>
+              <button
+                type="button"
+                className="w-full py-2 mt-2 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold text-sm transition-colors cursor-pointer"
+                onClick={() => onViewDetails && onViewDetails(r)}
+              >
+                View Details
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </section>
   );

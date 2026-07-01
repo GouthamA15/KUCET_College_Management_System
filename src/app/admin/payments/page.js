@@ -189,70 +189,121 @@ export default function AdminPaymentsPage() {
         </div>
 
         {/* Transactions Table */}
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Student</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Amount</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Reference</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Action</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-100">
-              {loading ? (
+        <>
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
                 <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-sm text-slate-400 animate-pulse italic">Loading transactions...</td>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Student</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Amount</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Reference</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">Action</th>
                 </tr>
-              ) : transactions.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-sm text-slate-400 italic">No transactions found matching your filters.</td>
-                </tr>
-              ) : (
-                transactions.map((tx, idx) => (
-                  <tr key={`${tx.type}-${tx.id}-${idx}`} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{formatDate(tx.date)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-900">{tx.studentName}</span>
-                        <span className="text-[10px] text-slate-500 font-mono tracking-tighter">{tx.rollNo}</span>
+              </thead>
+              <tbody className="bg-white divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan="7" className="px-4 py-8 text-center text-sm text-slate-400 animate-pulse italic">Loading transactions...</td>
+                  </tr>
+                ) : transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-4 py-8 text-center text-sm text-slate-400 italic">No transactions found matching your filters.</td>
+                  </tr>
+                ) : (
+                  transactions.map((tx, idx) => (
+                    <tr key={`${tx.type}-${tx.id}-${idx}`} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{formatDate(tx.date)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-slate-900">{tx.studentName}</span>
+                          <span className="text-[10px] text-slate-500 font-mono tracking-tighter">{tx.rollNo}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                          tx.type === 'FEE' ? 'bg-green-50 text-green-700 border-green-200' :
+                          tx.type === 'SCHOLARSHIP' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                          'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}>
+                          {tx.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900">
+                        ₹{formatIndianNumber(tx.amount)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-[10px] font-mono text-slate-500 uppercase truncate max-w-[120px]" title={tx.reference}>
+                        {tx.reference || 'N/A'}
+                      </td>
+                      <td className={`px-4 py-3 whitespace-nowrap text-[10px] uppercase tracking-wider ${getStatusColor(tx.status, tx.type)}`}>
+                        {tx.status}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                         <button 
+                           className="text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase tracking-widest cursor-pointer"
+                           onClick={() => handleViewDetails(tx)}
+                         >
+                           Details
+                         </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden flex flex-col gap-4 p-2 bg-slate-50/50">
+            {loading ? (
+              <div className="py-8 text-center text-sm text-slate-400 animate-pulse italic">Loading transactions...</div>
+            ) : transactions.length === 0 ? (
+              <div className="py-8 text-center text-sm text-slate-400 italic">No transactions found matching your filters.</div>
+            ) : (
+              transactions.map((tx, idx) => (
+                <div key={`${tx.type}-${tx.id}-${idx}`} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex flex-col gap-3">
+                  <div className="flex justify-between items-start border-b border-slate-100 pb-2">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">{tx.studentName}</h3>
+                      <div className="text-xs text-slate-500 font-mono tracking-tighter">{tx.rollNo}</div>
+                    </div>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${
+                      tx.type === 'FEE' ? 'bg-green-50 text-green-700 border-green-200' :
+                      tx.type === 'SCHOLARSHIP' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                      'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}>
+                      {tx.type}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-end">
+                    <div className="flex flex-col gap-1">
+                      <div className="text-xs text-slate-500">Date: {formatDate(tx.date)}</div>
+                      <div className="text-[10px] font-mono text-slate-500 max-w-[180px] truncate" title={tx.reference}>
+                        Ref: {tx.reference || 'N/A'}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
-                        tx.type === 'FEE' ? 'bg-green-50 text-green-700 border-green-200' :
-                        tx.type === 'SCHOLARSHIP' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                        'bg-blue-50 text-blue-700 border-blue-200'
-                      }`}>
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900">
-                      ₹{formatIndianNumber(tx.amount)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-[10px] font-mono text-slate-500 uppercase truncate max-w-[120px]" title={tx.reference}>
-                      {tx.reference || 'N/A'}
-                    </td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-[10px] uppercase tracking-wider ${getStatusColor(tx.status, tx.type)}`}>
-                      {tx.status}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                       <button 
-                         className="text-blue-600 hover:text-blue-800 text-[10px] font-bold uppercase tracking-widest cursor-pointer"
+                      <div className={`text-[10px] font-black uppercase tracking-wider ${getStatusColor(tx.status, tx.type)}`}>
+                        Status: {tx.status}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-slate-900">₹{formatIndianNumber(tx.amount)}</div>
+                      <button 
+                         className="mt-2 text-[#0b3578] bg-blue-50 hover:bg-blue-100 border border-blue-100 px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors"
                          onClick={() => handleViewDetails(tx)}
                        >
-                         Details
+                         View Details
                        </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
       </div>
       
       {/* Details Modal */}
