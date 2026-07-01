@@ -257,3 +257,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 input:focus {
   outline: none;
 }
+
+html, body, #__next, main { width: 100%; max-width: 100%; overflow-x: hidden; }
+* { min-width: 0; }
