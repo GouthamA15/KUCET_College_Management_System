@@ -2,7 +2,7 @@
 
 import { useClerk } from '@/context/ClerkContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import HODConsole from '@/components/clerk/faculty/HODConsole';
 
 export default function HODDashboardPage() {
@@ -34,7 +34,9 @@ export default function HODDashboardPage() {
         </div>
       </div>
 
-      <HODConsole />
+      <Suspense fallback={<div className="flex justify-center p-10"><div className="w-8 h-8 border-2 border-[#0b3578] border-t-transparent animate-spin rounded-full"></div></div>}>
+        <HODConsole />
+      </Suspense>
     </div>
   );
 }

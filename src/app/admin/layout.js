@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AdminProvider } from '@/context/AdminContext';
-import AdminSidebar from '@/components/admin/AdminSidebar';
+import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
@@ -23,13 +23,15 @@ export default function AdminLayout({ children }) {
         
         {/* Sidebar */}
         {MOBILE_NAV_MODE === 'sidebar' ? (
-          <AdminSidebar 
+          <Sidebar 
+            role="admin"
             isMobileOpen={isMobileMenuOpen} 
             setIsMobileOpen={setIsMobileMenuOpen} 
           />
         ) : (
           <div className="hidden lg:block">
-            <AdminSidebar 
+            <Sidebar 
+              role="admin"
               isMobileOpen={isMobileMenuOpen} 
               setIsMobileOpen={setIsMobileMenuOpen} 
             />

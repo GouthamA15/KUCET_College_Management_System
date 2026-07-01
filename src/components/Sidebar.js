@@ -1,8 +1,8 @@
 'use client';
 
-import { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { ClerkContext } from '@/context/ClerkContext';
 import { StudentContext } from '@/context/StudentContext';
@@ -153,7 +153,18 @@ function buildMenuItems({ effectiveRole, studentData, clerkData }) {
     // Clone array to avoid mutating the constant menu config
     const enhancedMenu = [...menuItemsRaw];
     // Insert after DASHBOARD (index 1)
-    enhancedMenu.splice(1, 0, { label: 'HOD DASHBOARD', route: '/clerk/hod/dashboard' });
+    enhancedMenu.splice(1, 0, { 
+      label: 'HOD DASHBOARD', 
+      children: [
+        { label: 'Faculty Load', route: '/clerk/hod/dashboard?tab=workload' },
+        { label: 'Edit Timetable', route: '/clerk/hod/dashboard?tab=timetable' },
+        { label: 'Assignment Registry', route: '/clerk/hod/dashboard?tab=allocation' },
+        { label: 'Branch Syllabus', route: '/clerk/hod/dashboard?tab=syllabus' },
+        { label: 'Data Analytics', route: '/clerk/hod/dashboard?tab=analytics' },
+        { label: 'Department Config', route: '/clerk/hod/dashboard?tab=config' },
+        { label: 'Faculty Interests', route: '/clerk/hod/dashboard?tab=interests' }
+      ]
+    });
     return enhancedMenu;
   }
 
@@ -175,10 +186,25 @@ function isDashboardLike({ label, route }) {
   return String(route).endsWith('/dashboard');
 }
 
-function isActiveRoute({ pathname, route, exact }) {
+function isActiveRoute({ pathname, searchParams, route, exact }) {
   if (!pathname || !route) return false;
-  if (exact) return pathname === route;
-  return pathname.startsWith(route);
+  
+  const [routePath, routeQuery] = route.split('?');
+  
+  if (exact) {
+    if (pathname !== routePath) return false;
+  } else {
+    if (!pathname.startsWith(routePath)) return false;
+  }
+  
+  if (routeQuery && searchParams) {
+    const params = new URLSearchParams(routeQuery);
+    for (const [key, value] of params.entries()) {
+      if (searchParams.get(key) !== value) return false;
+    }
+  }
+  
+  return true;
 }
 
 function pickIconKey(label) {
@@ -225,7 +251,7 @@ async function performAction({ action, effectiveRole, onLogout, router, setActiv
   }
 }
 
-export default function Sidebar({
+function SidebarInner({
   role: roleProp = 'student',
   isMobileOpen: _isMobileOpen = false,
   setIsMobileOpen: _setIsMobileOpen = () => {},
@@ -235,6 +261,7 @@ export default function Sidebar({
   setActivePanel,
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
 
   const clerkContext = useContext(ClerkContext);
@@ -336,10 +363,10 @@ export default function Sidebar({
               const Icon = Icons[iconKey] || Icons.requests;
 
               const exact = isDashboardLike({ label: displayLabel, route: item.route });
-              const selfActive = item.route && isActiveRoute({ pathname, route: item.route, exact });
+              const selfActive = item.route && isActiveRoute({ pathname, searchParams, route: item.route, exact });
               const childActive =
                 Array.isArray(item.children) &&
-                item.children.some((c) => c.route && isActiveRoute({ pathname, route: c.route, exact: false }));
+                item.children.some((c) => c.route && isActiveRoute({ pathname, searchParams, route: c.route, exact: false }));
               const active = !!(selfActive || childActive);
 
               const commonRow = cn(
@@ -420,7 +447,7 @@ export default function Sidebar({
                     {expanded && open && (
                       <div className="mt-1 ml-11 pl-3 border-l border-slate-200 space-y-1">
                         {item.children.map((c, ci) => {
-                          const childIsActive = c.route && isActiveRoute({ pathname, route: c.route, exact: false });
+                          const childIsActive = c.route && isActiveRoute({ pathname, searchParams, route: c.route, exact: false });
                           const childClass = cn(
                             'block w-full text-left rounded-lg px-2.5 py-2',
                             'text-[13px] font-medium transition-colors',
@@ -623,10 +650,10 @@ export default function Sidebar({
             const Icon = Icons[iconKey] || Icons.requests;
 
             const exact = isDashboardLike({ label: displayLabel, route: item.route });
-            const selfActive = item.route && isActiveRoute({ pathname, route: item.route, exact });
+            const selfActive = item.route && isActiveRoute({ pathname, searchParams, route: item.route, exact });
             const childActive =
               Array.isArray(item.children) &&
-              item.children.some((c) => c.route && isActiveRoute({ pathname, route: c.route, exact: false }));
+              item.children.some((c) => c.route && isActiveRoute({ pathname, searchParams, route: c.route, exact: false }));
             const active = !!(selfActive || childActive);
 
             const commonRow = cn(
@@ -697,7 +724,7 @@ export default function Sidebar({
                     }}
                   >
                     {item.children.map((c, ci) => {
-                      const childIsActive = c.route && isActiveRoute({ pathname, route: c.route, exact: false });
+                      const childIsActive = c.route && isActiveRoute({ pathname, searchParams, route: c.route, exact: false });
                       const dotIcon = (
                         <svg className={cn(
                           "w-1.5 h-1.5 shrink-0 transition-all duration-200",
@@ -835,5 +862,13 @@ export default function Sidebar({
       {DesktopNav}
       {MobileNav}
     </>
+  );
+}
+
+export default function Sidebar(props) {
+  return (
+    <Suspense fallback={<div className="w-64 bg-[#0b3578] h-full"></div>}>
+      <SidebarInner {...props} />
+    </Suspense>
   );
 }

@@ -73,6 +73,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - June 2026)
 
+#### **Session 174: Global Navigation Unification (July 2, 2026)**
+- **Sidebar Consolidation:** Integrated Admin Infrastructure and HOD Dashboard navigation into the primary `Sidebar.js` pattern, deprecating ad-hoc navigation arrays, page-level drawer modals, and in-page horizontal scroll tabs.
+- **Deep Linking Integration:** Converted HOD and Admin UI states to utilize Next.js `useSearchParams()` natively, enabling browser history retention and direct deep-linking (e.g. `?tab=config`) without sacrificing client-side rendering speed.
+- **UX Standardization:** Established a singular, institution-wide nested navigation pattern that naturally expands and highlights active child paths, completely eradicating disjointed mobile bottom-sheets across clerk and admin roles.
+
+#### **Session 173: Final Mobile Navigation Refactor (July 2, 2026)**
+- **Unified Sidebar Navigation Pattern:** Refactored the HOD Dashboard and Admin Infrastructure mobile views to completely eliminate horizontal scrolling tabs and bottom-sheet drawers. Replaced them with a collapsible sub-navigation drawer mirroring the Student Sidebar interaction pattern (Chevron expand/collapse animations, indented submenu items). This unifies the mobile experience and removes lingering desktop-layout structures.
+- **Global Overflow Eradication Verification:** Verified the successful eradication of strict 100vw layout properties across mobile components to guarantee absolute prevention of horizontal scrolling.
+
 #### **Session 172: Final Mobile UX & UI Polish Sprint (July 1, 2026)**
 - **Mobile Drawer Architecture:** Redesigned the `Admin Infrastructure` and `HOD Dashboard` page layouts, replacing overflowing horizontal tabs and chips with dedicated, native-feeling Mobile Section Drawers.
 - **Stacked Faculty Cards:** Removed rigid width constraints from HOD Faculty Workload cards, allowing them to stack naturally and responsively on mobile viewports.
