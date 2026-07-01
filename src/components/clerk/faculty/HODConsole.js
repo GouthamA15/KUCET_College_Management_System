@@ -226,7 +226,8 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
             { id: 'allocation', label: 'Assignment Registry', icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' },
             { id: 'syllabus', label: 'Branch Syllabus', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
             { id: 'analytics', label: 'Data Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-            { id: 'config', label: 'Department Config', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
+            { id: 'config', label: 'Department Config', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
+            { id: 'interests', label: 'Faculty Interests', icon: 'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z' }
           ].map(tab => ( activeSubTab === tab.id ? (
             <button key={tab.id} className={`flex items-center gap-2 px-4 py-2 bg-white text-[#0b3578] font-bold border-t-2 border-amber-400 whitespace-nowrap ${tab.id === 'allocation' ? 'text-[11px]' : 'text-[10px]'} uppercase tracking-widest transition-all`}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
@@ -352,6 +353,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
             {activeSubTab === 'syllabus' && <SyllabusManager branch={clerkData.branch} />}
             {activeSubTab === 'analytics' && <BranchAnalytics branch={clerkData.branch} />}
             {activeSubTab === 'config' && <BranchConfig config={hodBranchData?.config} branch={clerkData.branch} refresh={refreshHOD} />}
+            {activeSubTab === 'interests' && <FacultyInterestsView refreshHOD={refreshHOD} />}
           </div>
         )}
       </div>
@@ -869,6 +871,109 @@ function BranchConfig({ config, branch, refresh }) {
            </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function FacultyInterestsView({ refreshHOD }) {
+  const [interests, setInterests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null);
+
+  useEffect(() => {
+    fetchInterests();
+  }, []);
+
+  async function fetchInterests() {
+    try {
+      const res = await fetch('/api/clerk/hod/faculty-interests');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch interests');
+      setInterests(data.data || []);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAction = async (interestId, status) => {
+    setProcessingId(interestId);
+    try {
+      const res = await fetch('/api/clerk/hod/faculty-interests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interest_id: interestId, status })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to process request');
+      
+      toast.success(`Interest ${status.toLowerCase()} successfully`);
+      fetchInterests();
+      if (status === 'APPROVED' && refreshHOD) {
+        refreshHOD();
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500 font-bold text-xs uppercase tracking-widest">Loading interests...</div>;
+  }
+
+  return (
+    <div className="animate-in fade-in duration-500">
+      <h3 className="text-sm font-bold text-slate-800 mb-6 uppercase tracking-wider">Faculty Subject Interests</h3>
+      
+      {interests.length === 0 ? (
+        <div className="bg-slate-50 border border-slate-200 p-12 text-center text-slate-500 text-xs font-bold uppercase tracking-widest">
+          No faculty interests pending for your branch.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {interests.map(interest => (
+            <div key={interest.id} className="bg-white border border-slate-200 p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <div className="flex gap-2 items-center mb-1">
+                  <span className="font-bold text-slate-800 text-sm uppercase">{interest.subject_code}</span>
+                  <span className="text-slate-500 text-xs">- {interest.subject_name}</span>
+                </div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                  Faculty: <span className="text-blue-700">{interest.faculty_name}</span> | Sem: {interest.semester} | {interest.academic_year}
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="text-[10px] font-bold px-2 py-1 bg-slate-100 uppercase tracking-widest text-slate-600 border border-slate-200">
+                  {interest.status}
+                </div>
+                
+                {interest.status === 'PENDING' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAction(interest.id, 'REJECTED')}
+                      disabled={processingId === interest.id}
+                      className="px-3 py-1.5 border border-red-200 text-red-700 bg-red-50 text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleAction(interest.id, 'APPROVED')}
+                      disabled={processingId === interest.id}
+                      className="px-3 py-1.5 border border-[#0b3578] text-white bg-[#0b3578] text-[10px] font-bold uppercase tracking-widest hover:bg-blue-900 disabled:opacity-50"
+                    >
+                      {processingId === interest.id ? 'Processing...' : 'Approve'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

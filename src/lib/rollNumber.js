@@ -30,7 +30,7 @@ function validateRollNo(rollNo) {
   const lateralMatch = cleanRollNo.match(lateralPattern);
 
   if (regularMatch) {
-    const [, year, branchCode, serial] = regularMatch;
+    const [, year, branchCode, _serial] = regularMatch;
     const branch = branchCodes[branchCode];
     if (branch) {
       return {
@@ -43,7 +43,7 @@ function validateRollNo(rollNo) {
   }
 
   if (lateralMatch) {
-    const [, year, branchCode, serial] = lateralMatch;
+    const [, year, branchCode, _serial] = lateralMatch;
     const branch = branchCodes[branchCode];
     if (branch) {
       return {

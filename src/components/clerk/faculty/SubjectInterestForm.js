@@ -13,16 +13,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
   const [submitting, setSubmitting] = useState(false);
   const [academicYear, setAcademicYear] = useState('');
   const [existingInterests, setExistingInterests] = useState([]);
-  const [collegeInfo, setCollegeInfo] = useState(null);
 
-  // Fetch college info
-  const fetchCollegeInfo = async () => {
-    try {
-      const res = await fetch('/api/public/college-info');
-      const data = await res.json();
-      if (res.ok) setCollegeInfo(data);
-    } catch (e) { console.error(e); }
-  };
 
   // Fetch existing interests
   const fetchExistingInterests = async () => {
@@ -51,37 +42,11 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
       }
       setAcademicYear(yearStr);
       fetchExistingInterests();
-      fetchCollegeInfo();
     }, 0);
 
     return () => clearTimeout(id);
   }, []);
 
-  const isSemesterAllowed = (sem) => {
-    if (!collegeInfo) return true; // Default to allow if not loaded
-    const now = getNowSync();
-    const currentMonth = now.getMonth() + 1;
-    const currentDay = now.getDate();
-    const currentTime = currentMonth * 100 + currentDay;
-
-    const firstSemStartMonth = parseInt(collegeInfo.first_sem_start_month) || 6;
-    const firstSemStartDay = parseInt(collegeInfo.first_sem_start_day) || 1;
-    const firstSemTime = firstSemStartMonth * 100 + firstSemStartDay;
-
-    const secondSemStartMonth = parseInt(collegeInfo.second_sem_start_month) || 1;
-    const secondSemStartDay = parseInt(collegeInfo.second_sem_start_day) || 15;
-    const secondSemTime = secondSemStartMonth * 100 + secondSemStartDay;
-
-    let isOddPeriod = false;
-    if (firstSemTime < secondSemTime) {
-      isOddPeriod = currentTime >= firstSemTime && currentTime < secondSemTime;
-    } else {
-      isOddPeriod = currentTime >= firstSemTime || currentTime < secondSemTime;
-    }
-
-    const isOddSemester = parseInt(sem) % 2 !== 0;
-    return isOddSemester === isOddPeriod;
-  };
 
   const fetchSyllabus = useCallback(async () => {
     if (!selectedBranch || !selectedSemester) return;
@@ -171,8 +136,8 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
           >
             <option value="">Select Semester</option>
             {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
-              <option key={s} value={s} disabled={!isSemesterAllowed(s)}>
-                Semester {s} {!isSemesterAllowed(s) ? '(Inactive)' : ''}
+              <option key={s} value={s}>
+                Semester {s}
               </option>
             ))}
           </select>
@@ -189,12 +154,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
           </div>
         </div>
 
-        {selectedSemester && !isSemesterAllowed(selectedSemester) && (
-          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-sm text-[11px] font-medium">
-            Semester {selectedSemester} is not currently active. You can view subjects but cannot express interest until the next session starts.
-          </div>
-        )}
-
+        {/* Removed semester restriction warning */}
         {loadingSyllabus ? (
           <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest">Loading subjects…</div>
         ) : syllabus.length > 0 ? (
@@ -268,7 +228,7 @@ export default function SubjectInterestForm({ onInterestSubmitted }) {
                       ) : (
                         <button
                           onClick={() => handleSubmitInterest(subject)}
-                          disabled={submitting || !isSemesterAllowed(selectedSemester)}
+                          disabled={submitting}
                           className="text-[10px] font-black uppercase tracking-widest text-[#0b3578] border border-slate-200 px-3 py-2 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Express Interest

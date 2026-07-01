@@ -124,7 +124,7 @@ function normalizeRole({ roleProp, clerkData }) {
   return effectiveRole;
 }
 
-function buildMenuItems({ effectiveRole, studentData }) {
+function buildMenuItems({ effectiveRole, studentData, clerkData }) {
   const menuItemsRaw = NAV_MENU_CONFIG[effectiveRole] || NAV_MENU_CONFIG['guest'] || [
     { label: 'ADMISSION', route: '/admission' },
     { label: 'STUDENT LOGIN', action: 'open-panel-student' },
@@ -146,6 +146,15 @@ function buildMenuItems({ effectiveRole, studentData }) {
         },
       ];
     }
+  }
+
+  // Add HOD Dashboard dynamically
+  if (effectiveRole === 'faculty' && clerkData?.is_hod) {
+    // Clone array to avoid mutating the constant menu config
+    const enhancedMenu = [...menuItemsRaw];
+    // Insert after DASHBOARD (index 1)
+    enhancedMenu.splice(1, 0, { label: 'HOD DASHBOARD', route: '/clerk/hod/dashboard' });
+    return enhancedMenu;
   }
 
   return menuItemsRaw;
@@ -241,8 +250,8 @@ export default function Sidebar({
 
   const menu = useMemo(() => {
     if (effectiveRole === 'clerk' && isClerkLoading) return [];
-    return buildMenuItems({ effectiveRole, studentData });
-  }, [effectiveRole, isClerkLoading, studentData]);
+    return buildMenuItems({ effectiveRole, studentData, clerkData });
+  }, [effectiveRole, isClerkLoading, studentData, clerkData]);
 
   const [expanded, setExpanded] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState({});

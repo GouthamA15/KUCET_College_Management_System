@@ -429,7 +429,7 @@ const PendingSyncIndicator = () => {
 };
 
 export default function AttendanceSheet({ onBack, mode }) {
-  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, verifiedStudentIds, setVerifiedStudentIds } = useFacultyAttendance();
+  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, verifiedStudentIds: _verifiedStudentIds, setVerifiedStudentIds } = useFacultyAttendance();
 
   const handleQRScan = (rollNo) => {
     if (!selectedDate || !dateValidation?.isValid) {

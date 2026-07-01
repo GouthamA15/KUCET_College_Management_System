@@ -4,7 +4,7 @@ import {
   facultySubjectInterests, 
   facultySubjectAssignments 
 } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(request) {
@@ -33,16 +33,31 @@ export async function POST(request) {
 
       if (status === 'APPROVED') {
         const academicTerm = interest.semester % 2 === 0 ? 2 : 1;
-        await tx.insert(facultySubjectAssignments).values({
-          faculty_id: interest.faculty_id,
-          subject_code: interest.subject_code,
-          subject_name: interest.subject_name,
-          branch: interest.branch,
-          course_semester: interest.semester,
-          academic_term: academicTerm,
-          academic_year: interest.academic_year,
-          is_active: true
+        
+        // Prevent duplicate insertions
+        const existing = await tx.query.facultySubjectAssignments.findFirst({
+          where: and(
+            eq(facultySubjectAssignments.faculty_id, interest.faculty_id),
+            eq(facultySubjectAssignments.subject_code, interest.subject_code),
+            eq(facultySubjectAssignments.branch, interest.branch),
+            eq(facultySubjectAssignments.course_semester, interest.semester),
+            eq(facultySubjectAssignments.academic_year, interest.academic_year),
+            eq(facultySubjectAssignments.is_active, true)
+          )
         });
+
+        if (!existing) {
+          await tx.insert(facultySubjectAssignments).values({
+            faculty_id: interest.faculty_id,
+            subject_code: interest.subject_code,
+            subject_name: interest.subject_name,
+            branch: interest.branch,
+            course_semester: interest.semester,
+            academic_term: academicTerm,
+            academic_year: interest.academic_year,
+            is_active: true
+          });
+        }
       }
     });
 

@@ -40,14 +40,17 @@ export default function QRScannerPanel({ onScanSuccess, onScannerStop }) {
             let extractedRoll = null;
             
             // 1. Direct Regex Search: Look for the specific KUCET roll number pattern anywhere in the text
-            // Format: YY567TBBSS (Regular) or YY567BBSSL (Lateral)
-            const rollPatternMatch = decodedText.match(/\b(\d{2}567(?:T(?:09|30|15|12|00|18|03)[A-Za-z0-9]{2,3}|(?:09|30|15|12|00|18|03)[A-Za-z0-9]{1,3}L))\b/i);
+            // Note: Removed word boundaries (\b) and restricted serial to exactly 2 chars to extract safely from squashed text (e.g. 255671862LNAME)
+            const rollPatternMatch = decodedText.match(/(\d{2}567T(?:09|30|15|12|00|18|03)[A-Za-z0-9]{2}|\d{2}567T?(?:09|30|15|12|00|18|03)[A-Za-z0-9]{2}L)/i);
             
             if (rollPatternMatch) {
               extractedRoll = rollPatternMatch[1].trim();
             } else {
-              // 2. Fallback: If it's a very short string, assume the entire QR is just a raw roll number
-              if (decodedText.length < 25) {
+              // Fallback: If it's formatted weirdly but has a clear label, extract exactly 10 characters (KUCET roll length)
+              const labelMatch = decodedText.match(/(?:HALL-TICKET-NO|HT-No|HT NO|ROLL NO)\s*[:-]?\s*([A-Za-z0-9]{10})/i);
+              if (labelMatch) {
+                 extractedRoll = labelMatch[1].trim();
+              } else if (decodedText.length < 10) {
                  extractedRoll = decodedText.trim();
               } else {
                  // Log internally and ignore to prevent polluting the scanner with giant strings
