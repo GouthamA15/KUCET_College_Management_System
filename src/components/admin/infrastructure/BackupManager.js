@@ -128,16 +128,16 @@ export default function BackupManager() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 bg-white">
-                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Filename / ID</th>
-                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
-                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">File Size</th>
-                  <th className="px-8 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Operations</th>
+                  <th className="px-4 sm:px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Filename / ID</th>
+                  <th className="px-4 sm:px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
+                  <th className="px-4 sm:px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">File Size</th>
+                  <th className="px-4 sm:px-8 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Operations</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan="4" className="px-8 py-20 text-center">
+                    <td colSpan="4" className="px-4 sm:px-8 py-20 text-center">
                       <div className="flex flex-col items-center gap-4">
                         <div className="w-10 h-10 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scanning cloud registry...</span>
@@ -146,24 +146,24 @@ export default function BackupManager() {
                   </tr>
                 ) : backups.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-8 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No previous backups detected.</td>
+                    <td colSpan="4" className="px-4 sm:px-8 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No previous backups detected.</td>
                   </tr>
                 ) : (
                   backups.map((b) => (
                     <tr key={b.name} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-8 py-5">
+                      <td className="px-4 sm:px-8 py-5">
                         <div className="flex flex-col">
                           <span className="text-xs font-black text-slate-700">{b.name}</span>
                           <span className="text-[9px] font-mono text-slate-400 mt-1 uppercase">MD5: {b.etag}</span>
                         </div>
                       </td>
-                      <td className="px-8 py-5">
+                      <td className="px-4 sm:px-8 py-5">
                          <span className="text-xs font-bold text-slate-600">{formatDate(b.created_at)}</span>
                       </td>
-                      <td className="px-8 py-5">
+                      <td className="px-4 sm:px-8 py-5">
                          <span className="text-xs font-bold text-slate-600">{formatBytes(b.size)}</span>
                       </td>
-                      <td className="px-8 py-5 text-right">
+                      <td className="px-4 sm:px-8 py-5 text-right">
                          <div className="flex items-center justify-end gap-3">
                             <a
                               href={`/api/admin/infrastructure/backups/download/${b.name}`}

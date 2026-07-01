@@ -167,7 +167,7 @@ export default function AddEditRecordInstitutionalModal({
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 overflow-hidden">
       {!isDesktop ? (
-        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center space-y-4">
+        <div className="bg-white rounded-xl shadow-2xl p-4 sm:p-8 max-w-md w-full text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-600">
             <Info size={32} />
           </div>

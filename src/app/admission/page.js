@@ -271,7 +271,7 @@ const AdmissionPage = () => {
         return (
             <>
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="max-w-md w-full bg-white rounded-xl shadow-2xl p-8 text-center border-t-8 border-green-500">
+                <div className="max-w-md w-full bg-white rounded-xl shadow-2xl p-4 sm:p-8 text-center border-t-8 border-green-500">
                     <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-4xl mb-6">✓</div>
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">Success!</h2>
                     <p className="text-gray-600 mb-8">Your admission request has been submitted. The administration will verify your details and contact you for further steps.</p>
@@ -288,7 +288,7 @@ const AdmissionPage = () => {
             <div className="max-w-5xl mx-auto bg-white shadow-2xl rounded-sm overflow-hidden border border-gray-300">
                 
                 {/* Formal Header */}
-                <div className="p-8 border-b-2 border-double border-gray-400 text-center bg-white">
+                <div className="p-4 sm:p-8 border-b-2 border-double border-gray-400 text-center bg-white">
                     <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900">{admissionYear} of B.TECH</h1>
                     <p className="mt-2 text-lg font-bold text-indigo-800 uppercase underline decoration-2 underline-offset-4">
                         For Admission into I - Year B.Tech / M.Tech Branch
@@ -296,7 +296,7 @@ const AdmissionPage = () => {
                     <p className="text-xs font-bold text-gray-500 mt-1">(CSE, CSD, ECE, EEE, CIVIL, IT or MECH)</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-8 space-y-10">
+                <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-10">
                     
                     {/* Top Upload Section */}
                     <div className="flex flex-col md:flex-row justify-between items-start gap-8 bg-gray-50 p-6 rounded-lg border border-gray-200">
@@ -304,7 +304,7 @@ const AdmissionPage = () => {
                             <label className={labelClasses + " mb-2"}>Photograph <span className="text-red-500">*</span></label>
                             <div className="flex flex-col items-center">
                                 <div className="w-32 h-40 border-2 border-dashed border-gray-400 bg-white flex items-center justify-center overflow-hidden mb-3">
-                                    {files.pfp ? <Image src={files.pfp} alt="Student Photo" className="w-full h-full object-cover" width={128} height={160} unoptimized /> : <span className="text-[10px] text-gray-400 uppercase font-bold text-center p-2">Student Photo</span>}
+                                    {files.pfp ? <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={files.pfp} alt="Student Photo" className="w-full h-full object-cover" width={128} height={160} unoptimized /> : <span className="text-[10px] text-gray-400 uppercase font-bold text-center p-2">Student Photo</span>}
                                 </div>
                                 <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="text-xs file:bg-indigo-50 file:text-indigo-700 file:border-0 file:rounded-full file:px-4 file:py-1 hover:file:bg-indigo-100" />
                             </div>
@@ -313,7 +313,7 @@ const AdmissionPage = () => {
                             <label className={labelClasses + " mb-2"}>Signature Photo <span className="text-red-500">*</span></label>
                             <div className="flex flex-col items-center">
                                 <div className="w-56 h-20 border-2 border-dashed border-gray-400 bg-white flex items-center justify-center overflow-hidden mb-3">
-                                    {files.signature ? <Image src={files.signature} alt="Signature Preview" className="w-full h-full object-contain" width={224} height={80} unoptimized /> : <span className="text-[10px] text-gray-400 uppercase font-bold">Signature Preview</span>}
+                                    {files.signature ? <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={files.signature} alt="Signature Preview" className="w-full h-full object-contain" width={224} height={80} unoptimized /> : <span className="text-[10px] text-gray-400 uppercase font-bold">Signature Preview</span>}
                                 </div>
                                 <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="text-xs file:bg-indigo-50 file:text-indigo-700 file:border-0 file:rounded-full file:px-4 file:py-1 hover:file:bg-indigo-100" />
                             </div>
@@ -665,7 +665,7 @@ const AdmissionPage = () => {
 
                     {/* Final Actions */}
                     <div className="pt-8 flex justify-end border-t border-gray-200">
-                        <button type="submit" disabled={loading || !form.legal_consent} className="bg-indigo-700 text-white font-bold py-3 px-8 rounded-md hover:bg-indigo-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-lg shadow-lg">
+                        <button type="submit" disabled={loading || !form.legal_consent} className="bg-indigo-700 text-white font-bold py-3 px-4 sm:px-8 rounded-md hover:bg-indigo-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-lg shadow-lg">
                             {loading ? 'Submitting...' : 'Submit Application'}
                         </button>
                     </div>

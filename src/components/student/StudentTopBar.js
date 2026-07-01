@@ -63,7 +63,7 @@ export default function StudentTopBar({ title: _title, subtitle: _subtitle, brea
   };
 
   return (
-    <div className="hidden lg:flex lg:h-16 lg:items-center lg:justify-end lg:gap-5 px-8 absolute top-4 right-4 z-40">
+    <div className="hidden lg:flex lg:h-16 lg:items-center lg:justify-end lg:gap-5 px-4 sm:px-8 absolute top-4 right-4 z-40">
       {/* Desktop Bell - Hidden on Mobile */}
         <div className="relative" ref={desktopDropdownRef}>
           <button 

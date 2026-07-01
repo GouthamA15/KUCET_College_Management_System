@@ -418,7 +418,7 @@ export default function EditProfilePage() {
                 <div className="relative inline-block">
                   <div className={`w-48 h-48 border-2 ${pfpDataUrl ? 'border-[#0b3578]' : 'border-slate-200'} bg-slate-50 overflow-hidden flex items-center justify-center`}>
                     {displayedPhoto ? (
-                      <Image src={displayedPhoto} alt="Profile" width={192} height={192} unoptimized className="object-cover w-full h-full" />
+                      <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={displayedPhoto} alt="Profile" width={192} height={192} unoptimized className="object-cover w-full h-full" />
                     ) : (
                       <span className="text-slate-300 font-bold uppercase text-[9px]">No Record Found</span>
                     )}
@@ -446,7 +446,7 @@ export default function EditProfilePage() {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Digital Signature Record</label>
                 <div className={`w-full h-20 border-2 ${signatureDataUrl ? 'border-[#0b3578] bg-blue-50/20' : 'border-dashed border-slate-200 bg-slate-50'} flex items-center justify-center relative group overflow-hidden`}>
                   {displayedSignature ? (
-                    <Image src={displayedSignature} alt="Signature" width={200} height={80} unoptimized className="object-contain w-full h-full p-2" />
+                    <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={displayedSignature} alt="Signature" width={200} height={80} unoptimized className="object-contain w-full h-full p-2" />
                   ) : <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Unrecorded</span>}
                   <button onClick={() => signatureInputRef.current.click()} className="absolute inset-0 bg-[#0b3578]/90 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold uppercase tracking-widest">Update Signature</button>
                 </div>
@@ -712,7 +712,7 @@ export default function EditProfilePage() {
                 <div className="flex flex-col md:flex-row items-start gap-8">
                   <div className={`w-full md:w-80 aspect-video border-2 ${proofDataUrl ? 'border-[#0b3578] bg-white' : 'border-dashed border-slate-300 bg-white'} flex items-center justify-center relative group overflow-hidden`}>
                     {proofDataUrl ? (
-                      <Image src={proofDataUrl} alt="Proof" width={320} height={180} unoptimized className="object-contain w-full h-full p-1" />
+                      <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={proofDataUrl} alt="Proof" width={320} height={180} unoptimized className="object-contain w-full h-full p-1" />
                     ) : (
                       <div className="flex flex-col items-center gap-2">
                         <span className="text-2xl opacity-20">📄</span>
@@ -745,14 +745,14 @@ export default function EditProfilePage() {
               <div className="pt-8 flex flex-col-reverse md:flex-row items-center justify-end gap-4 border-t border-slate-200">
                 <button 
                   onClick={() => router.back()} 
-                  className="w-full md:w-auto px-8 py-3 bg-slate-100 text-slate-600 font-bold uppercase tracking-widest hover:bg-slate-200 transition-all text-[10px]"
+                  className="w-full md:w-auto px-4 sm:px-8 py-3 bg-slate-100 text-slate-600 font-bold uppercase tracking-widest hover:bg-slate-200 transition-all text-[10px]"
                 >
                   Dismiss Changes
                 </button>
                 <button 
                   disabled={saving || (!changedData && !pfpDataUrl && !signatureDataUrl)} 
                   onClick={onSave}
-                  className="w-full md:w-auto px-10 py-3 bg-[#0b3578] text-white font-bold uppercase tracking-widest hover:bg-blue-900 disabled:opacity-30 disabled:grayscale transition-all text-[10px] shadow-md"
+                  className="w-full md:w-auto px-4 sm:px-10 py-3 bg-[#0b3578] text-white font-bold uppercase tracking-widest hover:bg-blue-900 disabled:opacity-30 disabled:grayscale transition-all text-[10px] shadow-md"
                 >
                   {saving ? 'Processing Application...' : 'Authenticate & Submit Modification Request'}
                 </button>

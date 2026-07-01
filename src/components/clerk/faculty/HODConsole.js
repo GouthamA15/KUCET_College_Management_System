@@ -841,7 +841,7 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
               ))}
 
               {filteredAssignments.length === 0 && (
-                <div className="bg-slate-50 border border-dashed border-slate-300 py-20 flex flex-col items-center justify-center text-center px-10">
+                <div className="bg-slate-50 border border-dashed border-slate-300 py-20 flex flex-col items-center justify-center text-center px-4 sm:px-10">
                    <div className="text-3xl mb-4 opacity-20">🔐</div>
                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">No Faculty Authorized for Semester {selectedSem} Registry</p>
                    <p className="text-[8px] text-slate-400 mt-2 max-w-xs uppercase tracking-tighter opacity-60">Authorized personnel will be granted system access to manage student academic records for this semester.</p>
@@ -918,7 +918,7 @@ function BranchConfig({ config, branch, refresh }) {
         </div>
 
         <div className="space-y-6">
-           <div className="bg-[#0b3578] p-8 text-white border border-[#0b3578]">
+           <div className="bg-[#0b3578] p-4 sm:p-8 text-white border border-[#0b3578]">
               <h4 className="font-bold text-[10px] mb-2 uppercase tracking-[0.3em] text-blue-300 opacity-80">University Affiliate Branch</h4>
               <div className="text-3xl font-bold mb-1 tracking-tight">{branch}</div>
               <div className="text-[9px] font-bold text-blue-200/60 uppercase tracking-widest mb-8 border-b border-white/10 pb-4">Engineering Department Control Unit</div>
@@ -986,7 +986,7 @@ export function FacultyInterestsView({ refreshHOD }) {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 font-bold text-xs uppercase tracking-widest">Loading interests...</div>;
+    return <div className="p-4 sm:p-8 text-center text-slate-500 font-bold text-xs uppercase tracking-widest">Loading interests...</div>;
   }
 
   return (

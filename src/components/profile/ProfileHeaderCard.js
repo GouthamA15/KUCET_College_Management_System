@@ -37,7 +37,7 @@ export default function ProfileHeaderCard({
                 <span className="text-xs text-gray-500 font-medium">Image is loading...</span>
               </div>
             )}
-            <Image
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={resolvedPhotoUrl}
               alt="Profile Photo"
               width={160}

@@ -504,7 +504,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
           onDragOver={handleDragOver}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
-          className={`mx-auto max-w-2xl p-8 border-2 rounded-lg text-center transition cursor-pointer select-none
+          className={`mx-auto max-w-2xl p-4 sm:p-8 border-2 rounded-lg text-center transition cursor-pointer select-none
             ${isDragging ? 'border-blue-400 bg-blue-50' : 'border-dashed border-gray-300 hover:border-blue-300 hover:bg-gray-50'}`}
         >
           <div className="text-3xl mb-2">📄</div>

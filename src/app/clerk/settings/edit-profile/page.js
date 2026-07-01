@@ -271,7 +271,7 @@ export default function ClerkEditProfilePage() {
                 <div className="relative inline-block group">
                   <div className={`w-44 h-44 rounded-full border-4 ${pfpDataUrl ? 'border-[#0b3578]' : 'border-slate-100'} bg-slate-50 overflow-hidden flex items-center justify-center shadow-inner`}>
                     {(pfpDataUrl || clerk?.pfp) ? (
-                      <Image 
+                      <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                         src={pfpDataUrl || getAssetUrl(clerk?.pfp)} 
                         alt="Profile" 
                         width={176} 
@@ -302,7 +302,7 @@ export default function ClerkEditProfilePage() {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Verification Signature</label>
                 <div className={`w-full h-24 border-2 ${signatureDataUrl ? 'border-[#0b3578] bg-blue-50/20' : 'border-dashed border-slate-200 bg-slate-50'} flex items-center justify-center relative group overflow-hidden rounded-sm`}>
                   {(signatureDataUrl || clerk?.signature) ? (
-                    <Image 
+                    <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                       src={signatureDataUrl || getAssetUrl(clerk?.signature)} 
                       alt="Signature" 
                       width={200} 
@@ -485,14 +485,14 @@ export default function ClerkEditProfilePage() {
                 <button 
                   type="button"
                   onClick={() => router.back()} 
-                  className="px-8 py-3 bg-slate-50 text-slate-500 font-bold uppercase tracking-widest hover:bg-slate-100 transition-all text-[10px]"
+                  className="px-4 sm:px-8 py-3 bg-slate-50 text-slate-500 font-bold uppercase tracking-widest hover:bg-slate-100 transition-all text-[10px]"
                 >
                   Cancel
                 </button>
                 <button 
                   disabled={saving || !hasChanges()} 
                   onClick={onSave}
-                  className="px-10 py-3 bg-[#0b3578] text-white font-bold uppercase tracking-widest hover:bg-blue-900 disabled:opacity-30 disabled:grayscale transition-all text-[10px] shadow-sm"
+                  className="px-4 sm:px-10 py-3 bg-[#0b3578] text-white font-bold uppercase tracking-widest hover:bg-blue-900 disabled:opacity-30 disabled:grayscale transition-all text-[10px] shadow-sm"
                 >
                   {saving ? 'Processing...' : 'Apply Modifications'}
                 </button>

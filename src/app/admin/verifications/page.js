@@ -28,13 +28,13 @@ export default function VerificationsDashboard() {
 
     if (loading) {
         return (
-            <div className="p-8 flex justify-center items-center min-h-screen">
+            <div className="p-4 sm:p-8 flex justify-center items-center min-h-screen">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
             </div>
         );
     }
 
-    if (!stats) return <div className="p-8 text-center text-red-600">Failed to load dashboard data.</div>;
+    if (!stats) return <div className="p-4 sm:p-8 text-center text-red-600">Failed to load dashboard data.</div>;
 
     return (
         <div className="p-4 sm:p-8 bg-slate-50 min-h-screen font-sans">

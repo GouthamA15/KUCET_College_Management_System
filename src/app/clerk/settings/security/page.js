@@ -41,7 +41,7 @@ export default function ClerkSecurityPage() {
   });
 
   if (loading && !clerkData) return <SecurityLoadingState message="Loading Security Center..." />;
-  if (!clerkData) return <div className="p-8 text-center text-red-500">Clerk session not found.</div>;
+  if (!clerkData) return <div className="p-4 sm:p-8 text-center text-red-500">Clerk session not found.</div>;
 
   return (
     <SecurityCenter

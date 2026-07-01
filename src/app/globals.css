@@ -61,6 +61,19 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* Global Layout Rules to prevent horizontal scroll */
+html,
+body,
+main {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Ensure flex children and cards do not break container bounds */
+* {
+  min-width: 0;
+}
+
 /* Institutional background (performance-first): pure CSS gradients, low repaint cost */
 .bg-institutional {
   background-color: var(--bg-body);

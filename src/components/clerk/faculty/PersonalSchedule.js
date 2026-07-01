@@ -199,7 +199,7 @@ export default function PersonalSchedule() {
             );
           })}
           {days.every(day => !periods.some(p => getSlot(day, p))) && (
-             <div className="p-8 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+             <div className="p-4 sm:p-8 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
                 No classes scheduled for this week.
              </div>
           )}

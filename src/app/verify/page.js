@@ -98,7 +98,7 @@ function VerifyContent() {
               <p className="text-white text-xl font-semibold tracking-tight uppercase">Document Verification</p>
             </div>
 
-            <div className="p-8">
+            <div className="p-4 sm:p-8">
               {showLoadingUI && (
                 <div className="flex flex-col items-center py-10">
                   <div className="w-12 h-12 border-4 border-[#0b3578] border-t-transparent rounded-full animate-spin"></div>

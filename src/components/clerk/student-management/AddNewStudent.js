@@ -535,14 +535,14 @@ export default function AddNewStudent() {
               <label className="text-sm font-medium text-gray-700 block mb-1">Student Photo (Max 1MB)</label>
               <div className="flex items-center gap-4">
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="p-1.5 text-xs border border-gray-300 rounded-md w-full bg-white" />
-                {files.pfp && <Image src={files.pfp} alt="Preview" className="h-10 w-10 object-cover border border-gray-300 rounded-full" width={40} height={40} unoptimized />}
+                {files.pfp && <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={files.pfp} alt="Preview" className="h-10 w-10 object-cover border border-gray-300 rounded-full" width={40} height={40} unoptimized />}
               </div>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Signature (Max 1MB)</label>
               <div className="flex items-center gap-4">
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="p-1.5 text-xs border border-gray-300 rounded-md w-full bg-white" />
-                {files.signature && <Image src={files.signature} alt="Preview" className="h-10 w-24 object-contain border border-gray-300 rounded-md bg-white p-1" width={96} height={40} unoptimized />}
+                {files.signature && <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={files.signature} alt="Preview" className="h-10 w-24 object-contain border border-gray-300 rounded-md bg-white p-1" width={96} height={40} unoptimized />}
               </div>
             </div>
           </div>

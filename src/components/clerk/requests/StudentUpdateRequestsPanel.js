@@ -117,7 +117,7 @@ const StudentUpdateRequestsPanel = () => {
             <div key={req.id} className="bg-white border border-gray-200 shadow-sm rounded-md overflow-hidden animate-fadeIn">
               
               {/* Formal Header: Application Identifier */}
-              <div className="bg-[#0b3578] px-8 py-5 flex flex-col md:flex-row md:items-center md:justify-between text-white border-b border-blue-900 gap-4">
+              <div className="bg-[#0b3578] px-4 sm:px-8 py-5 flex flex-col md:flex-row md:items-center md:justify-between text-white border-b border-blue-900 gap-4">
                 <div>
                   <div className="text-lg font-semibold">{req.name}</div>
                   <div className="text-[10px] text-blue-200 font-bold mt-1">Roll No: {req.roll_no} — Application Identifier #{req.id}</div>
@@ -127,7 +127,7 @@ const StudentUpdateRequestsPanel = () => {
                 </div>
               </div>
 
-              <div className="p-8 lg:p-10 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-12">
+              <div className="p-4 sm:p-8 lg:p-10 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-12">
                 
                 {/* Left Side: Audit of Proposed Modifications */}
                 <div className="space-y-12">
@@ -145,14 +145,14 @@ const StudentUpdateRequestsPanel = () => {
                                         <div className="text-center space-y-3 flex-1">
                                             <span className="block text-[9px] font-semibold text-gray-400 ">College Record</span>
                                             <div className="w-full aspect-square bg-white border border-gray-200 flex items-center justify-center overflow-hidden shadow-inner">
-                                                {req.old_pfp ? <Image src={getAssetUrl(req.old_pfp)} alt="Old" width={150} height={150} unoptimized className="object-cover w-full h-full" /> : <span className="text-[9px] text-gray-300 font-bold ">No Record</span>}
+                                                {req.old_pfp ? <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAssetUrl(req.old_pfp)} alt="Old" width={150} height={150} unoptimized className="object-cover w-full h-full" /> : <span className="text-[9px] text-gray-300 font-bold ">No Record</span>}
                                             </div>
                                         </div>
                                         <div className="text-gray-300 font-semibold text-xl">→</div>
                                         <div className="text-center space-y-3 flex-1">
                                             <span className="block text-[9px] font-semibold text-[#0b3578] ">Proposed New</span>
                                             <button onClick={() => setViewingImage(req.new_pfp)} className="w-full aspect-square bg-white border-2 border-blue-200 flex items-center justify-center overflow-hidden hover:border-blue-500 transition-all cursor-zoom-in shadow-sm">
-                                                <Image src={getAssetUrl(req.new_pfp)} alt="New" width={150} height={150} unoptimized className="object-cover w-full h-full" />
+                                                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAssetUrl(req.new_pfp)} alt="New" width={150} height={150} unoptimized className="object-cover w-full h-full" />
                                             </button>
                                         </div>
                                     </div>
@@ -168,14 +168,14 @@ const StudentUpdateRequestsPanel = () => {
                                         <div className="text-center space-y-3 flex-1">
                                             <span className="block text-[9px] font-semibold text-gray-400 ">College Record</span>
                                             <div className="w-full h-24 bg-white border border-gray-200 flex items-center justify-center overflow-hidden shadow-inner">
-                                                {req.old_signature ? <Image src={getAssetUrl(req.old_signature)} alt="Old" width={150} height={80} unoptimized className="object-contain" /> : <span className="text-[9px] text-gray-300 font-bold ">No Record</span>}
+                                                {req.old_signature ? <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAssetUrl(req.old_signature)} alt="Old" width={150} height={80} unoptimized className="object-contain" /> : <span className="text-[9px] text-gray-300 font-bold ">No Record</span>}
                                             </div>
                                         </div>
                                         <div className="text-gray-300 font-semibold text-xl">→</div>
                                         <div className="text-center space-y-3 flex-1">
                                             <span className="block text-[9px] font-semibold text-amber-600 ">Proposed New</span>
                                             <button onClick={() => setViewingImage(req.new_signature)} className="w-full h-24 bg-white border-2 border-amber-200 flex items-center justify-center overflow-hidden hover:border-amber-500 transition-all cursor-zoom-in shadow-sm">
-                                                <Image src={getAssetUrl(req.new_signature)} alt="New" width={150} height={80} unoptimized className="object-contain" />
+                                                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAssetUrl(req.new_signature)} alt="New" width={150} height={80} unoptimized className="object-contain" />
                                             </button>
                                         </div>
                                     </div>
@@ -230,7 +230,7 @@ const StudentUpdateRequestsPanel = () => {
                                         onClick={() => setViewingImage(req.proof_url)}
                                         className="w-full aspect-4/3 bg-white border-2 border-gray-200 overflow-hidden shadow-sm hover:shadow-sm hover:border-blue-300 transition-all group relative rounded-md"
                                     >
-                                        <Image src={getAssetUrl(req.proof_url)} alt="Proof" fill unoptimized className="object-contain" />
+                                        <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAssetUrl(req.proof_url)} alt="Proof" fill unoptimized className="object-contain" />
                                         <div className="absolute inset-0 bg-gray-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <span className="text-[10px] font-semibold text-white bg-gray-800 px-5 py-2 shadow-2xl rounded-md">Audit Document</span>
                                         </div>
@@ -278,13 +278,13 @@ const StudentUpdateRequestsPanel = () => {
             onClick={() => setViewingImage(null)}
           >
             <div className="relative w-full h-full flex flex-col items-center justify-center">
-              <div className="absolute top-0 right-0 p-8">
+              <div className="absolute top-0 right-0 p-4 sm:p-8">
                 <button className="text-white text-3xl font-light hover:scale-110 transition-transform flex items-center gap-3">
                  <span className="text-xs font-semibold tracking-[0.3em]">DISMISS AUDIT</span> ×
                 </button>
               </div>
               <div className="relative max-w-6xl max-h-[85vh] w-full h-full flex items-center justify-center border-8 border-gray-800 shadow-2xl bg-white rounded-md overflow-hidden">
-                <Image src={getAssetUrl(viewingImage)} alt="Audit Preview" fill unoptimized className="object-contain" />
+                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAssetUrl(viewingImage)} alt="Audit Preview" fill unoptimized className="object-contain" />
               </div>
               <div className="mt-8 text-gray-500 text-[10px] font-semibold tracking-[0.4em] animate-pulse">Digital Forensic Environment • High-Resolution View</div>
             </div>
@@ -298,11 +298,11 @@ const StudentUpdateRequestsPanel = () => {
         (
           <div className="fixed inset-0 z-[150] flex items-center justify-center bg-gray-900/70 p-6 backdrop-blur-md animate-fadeIn">
             <div className="bg-white rounded-md shadow-2xl max-w-md w-full border border-gray-300 overflow-hidden animate-fadeInUp">
-              <div className="bg-[#0b3578] px-8 py-5 text-white">
+              <div className="bg-[#0b3578] px-4 sm:px-8 py-5 text-white">
                   <h2 className="text-lg font-semibold">Administrative Rejection Memo</h2>
               </div>
               
-              <div className="p-8">
+              <div className="p-4 sm:p-8">
                   <p className="text-[11px] text-gray-500 mb-6 font-bold leading-relaxed ">
                     Specify formal rationale for rejection of record modification application for student <span className="text-blue-700 underline underline-offset-4 font-semibold">{rejectingRequest.name}</span>.
                   </p>

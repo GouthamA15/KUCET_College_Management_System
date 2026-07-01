@@ -34,7 +34,7 @@ export default function MobileTopbar({ onMenuClick, title }) {
         {/* Center: Branding & Role Portal Title */}
         <div className="flex-1 flex items-center justify-center gap-2.5">
           <div className="flex shrink-0 items-center justify-center bg-blue-50 p-1.5 rounded-lg border border-blue-100">
-            <Image 
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={getAsset('/assets/ku-college-logo.png')} 
               alt="KUCET Logo" 
               width={28} height={28}

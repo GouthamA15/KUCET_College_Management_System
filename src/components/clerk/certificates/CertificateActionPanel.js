@@ -173,7 +173,7 @@ export default function CertificateActionPanel({ request }) {
                         <span className="text-xs text-gray-500 font-medium">Image is loading...</span>
                     </div>
                 )}
-                <Image 
+                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                     src={screenshotSrc} 
                     alt="Payment Screenshot" 
                     width={500} 

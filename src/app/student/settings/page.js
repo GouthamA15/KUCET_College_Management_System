@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 export default function StudentSettingsLanding() {
   return (
-    <div className="w-full max-w-5xl mx-auto bg-white shadow-xl rounded-lg p-8">
+    <div className="w-full max-w-5xl mx-auto bg-white shadow-xl rounded-lg p-4 sm:p-8">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Edit Profile Card */}

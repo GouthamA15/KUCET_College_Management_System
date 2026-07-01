@@ -48,7 +48,7 @@ export default function HeaderMobileView() {
         {/* Top Row - Logos */}
         <div className="flex items-center justify-center gap-2 mb-1.5">
           <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={getAsset('/assets/Naac_A+.png')} 
               alt="NAAC Logo" 
               width={40} height={40}
@@ -57,7 +57,7 @@ export default function HeaderMobileView() {
             />
           </div>
           <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={getAsset('/assets/ku-logo.png')} 
               alt="KU Logo" 
               width={40} height={40}
@@ -65,7 +65,7 @@ export default function HeaderMobileView() {
             />
           </div>
           <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={getAsset('/assets/ku-college-logo.png')} 
               alt="College Logo" 
               width={40} height={40}

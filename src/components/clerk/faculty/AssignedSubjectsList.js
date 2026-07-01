@@ -105,7 +105,7 @@ export default function AssignedSubjectsList({ onSelectAssignment = () => {}, sh
             ))}
           </div>
         ) : (
-          <div className="bg-slate-50 p-10 border border-dashed border-slate-200 text-center">
+          <div className="bg-slate-50 p-4 sm:p-10 border border-dashed border-slate-200 text-center">
             <div className="text-3xl mb-3 opacity-20">📭</div>
             <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">No active instructional assignments found</p>
             <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-tighter italic">Official assignments will be displayed here once verified by the department registry.</p>

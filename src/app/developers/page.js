@@ -335,7 +335,7 @@ export default function DevelopersPage() {
             {developers.map((dev, index) => (
               <div
                 key={index}
-                className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border border-gray-100 flex flex-col items-center p-8 text-center animate-fade-in-up"
+                className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden border border-gray-100 flex flex-col items-center p-4 sm:p-8 text-center animate-fade-in-up"
                 style={{ animationDelay: dev.delay, animationFillMode: 'both' }}
                 onMouseEnter={() => handleMouseEnter(dev)}
                 onMouseLeave={() => handleMouseLeave(dev)}
@@ -343,7 +343,7 @@ export default function DevelopersPage() {
                 <div className="relative w-40 h-40 mb-6">
                   <div className="absolute inset-0 bg-blue-100 rounded-full scale-0 group-hover:scale-110 transition-transform duration-500 ease-out"></div>
                   <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-white shadow-md group-hover:border-blue-50 transition-colors duration-300">
-                    <Image src={dev.image} alt={dev.name} fill className="object-cover" />
+                    <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={dev.image} alt={dev.name} fill className="object-cover" />
                   </div>
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-2 group-hover:text-[#0b3578] transition-colors duration-300">
@@ -373,7 +373,7 @@ export default function DevelopersPage() {
           <div className="max-w-5xl mx-auto text-center animate-fade-in-up" style={{ animationDelay: '0.6s', animationFillMode: 'both' }}>
             <h2 className="text-3xl font-bold text-[#0b3578] mb-8">Team &quot;Homeless Soon&quot;</h2>
             <div className="relative w-full rounded-2xl overflow-hidden shadow-xl border-4 border-white group">
-               <Image
+               <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                   src={getAsset('/assets/DevPics/Group.jpg')}
                   alt="Team Group Photo"
                   width={3096}
@@ -516,7 +516,7 @@ export default function DevelopersPage() {
 
                         {report.screenshot_url && (
                           <div className="relative h-40 w-full rounded-lg overflow-hidden bg-gray-100 cursor-pointer group mb-3" onClick={() => window.open(getAsset(report.screenshot_url), '_blank')}>
-                            <Image src={getAsset(report.screenshot_url)} alt="Screenshot" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={getAsset(report.screenshot_url)} alt="Screenshot" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <span className="text-white text-sm font-bold bg-black/40 px-3 py-1 rounded-lg">View Full Image</span>
                             </div>
@@ -592,7 +592,7 @@ export default function DevelopersPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitReport} className="p-8">
+              <form onSubmit={handleSubmitReport} className="p-4 sm:p-8">
                 <div className="mb-6">
                   <label className="block text-gray-700 font-bold mb-2">
                     {reportType === 'FEATURE_REQUEST' ? 'Feature Description' : 'Problem Description'}
@@ -601,8 +601,8 @@ export default function DevelopersPage() {
                     value={bugDescription}
                     onChange={(e) => setBugDescription(e.target.value)}
                     placeholder={reportType === 'FEATURE_REQUEST'
-                      ? 'Describe the feature you\'d like to see. What problem would it solve?'
-                      : 'Please describe the issue in detail. What were you doing? What went wrong?'}
+                      ? "Describe the feature you'd like to see. What problem would it solve?"
+                      : "Please describe the issue in detail. What were you doing? What went wrong?"}
                     className="w-full h-32 px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-[#0b3578] focus:outline-none transition-colors resize-none"
                     required
                   />
@@ -649,7 +649,7 @@ export default function DevelopersPage() {
                     </div>
                   ) : (
                     <div className="relative h-48 rounded-xl overflow-hidden shadow-md">
-                      <Image src={screenshotPreview} alt="Preview" fill className="object-cover" />
+                      <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={screenshotPreview} alt="Preview" fill className="object-cover" />
                       <button type="button" onClick={() => { setScreenshot(null); setScreenshotPreview(null); }}
                         className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -684,7 +684,7 @@ export default function DevelopersPage() {
                 <h2 className="text-xl font-bold">Login Required</h2>
                 <p className="text-white/80 mt-2">Please log in to submit your report or suggestion.</p>
               </div>
-              <div className="p-8 text-center">
+              <div className="p-4 sm:p-8 text-center">
                 <p className="text-gray-600 mb-2">Your draft has been saved.</p>
                 <p className="text-sm text-gray-500 mb-4">After logging in, visit this page again and your submission will be completed automatically.</p>
                 <p className="text-xs text-gray-400 mb-6">Developers: Sign in with <strong>Google</strong> using your registered email.</p>

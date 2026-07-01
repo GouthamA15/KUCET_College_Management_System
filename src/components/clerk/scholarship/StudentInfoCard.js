@@ -49,7 +49,7 @@ export default function StudentInfoCard({ student, onImageClick }) {
                 className="w-full h-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0b3578]"
                 aria-label="Open student profile image preview"
               >
-                <Image
+                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                   src={String(p)}
                   alt="Student photo"
                   width={128}

@@ -202,7 +202,7 @@ const ExportStudents = () => {
           <button 
             onClick={handleFetch}
             disabled={loading}
-            className={`w-full md:w-auto h-12 px-8 bg-slate-800 text-white text-[11px] font-black tracking-[0.2em] rounded-sm hover:bg-slate-900 transition-all shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
+            className={`w-full md:w-auto h-12 px-4 sm:px-8 bg-slate-800 text-white text-[11px] font-black tracking-[0.2em] rounded-sm hover:bg-slate-900 transition-all shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
           >
             {loading ? (
               <>
@@ -224,7 +224,7 @@ const ExportStudents = () => {
       {/* 2. Preview Section */}
       {previewData && (
         <div className="bg-white rounded-sm border border-gray-300 shadow-sm overflow-hidden animate-slideUp">
-          <div className="bg-gray-50 px-8 py-4 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="bg-gray-50 px-4 sm:px-8 py-4 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
              <div className="flex items-center gap-4">
                 <span className="text-[10px] font-black bg-indigo-600 text-white px-2 py-1 rounded-sm ">{previewData.length} Records</span>
                 <p className="text-xs font-bold text-gray-500 tracking-tight">Previewing {branchCodes[branch]} Registry for Batch {year}</p>

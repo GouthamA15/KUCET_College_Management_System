@@ -197,16 +197,16 @@ export default function StorageExplorer() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 bg-white sticky top-0 z-10">
-                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</th>
-                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Asset Name</th>
-                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Size</th>
-                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Created At</th>
+                  <th className="px-4 sm:px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                  <th className="px-4 sm:px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Asset Name</th>
+                  <th className="px-4 sm:px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Size</th>
+                  <th className="px-4 sm:px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Created At</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan="4" className="px-8 py-20 text-center">
+                    <td colSpan="4" className="px-4 sm:px-8 py-20 text-center">
                       <div className="flex flex-col items-center gap-4">
                         <div className="w-10 h-10 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Synchronizing cloud files...</span>
@@ -215,7 +215,7 @@ export default function StorageExplorer() {
                   </tr>
                 ) : (viewData.folders.length === 0 && viewData.items.length === 0) ? (
                   <tr>
-                    <td colSpan="4" className="px-8 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">Directory is empty.</td>
+                    <td colSpan="4" className="px-4 sm:px-8 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">Directory is empty.</td>
                   </tr>
                 ) : (
                   <>
@@ -226,31 +226,31 @@ export default function StorageExplorer() {
                         onClick={() => setCurrentPath(currentPath ? `${currentPath}/${folder}` : folder)}
                         className="group hover:bg-blue-50/50 cursor-pointer transition-colors"
                       >
-                        <td className="px-8 py-4">
+                        <td className="px-4 sm:px-8 py-4">
                            <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-sm flex items-center justify-center text-amber-500 shadow-sm group-hover:bg-amber-100 transition-colors">
                               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                                  <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                               </svg>
                            </div>
                         </td>
-                        <td className="px-8 py-4">
+                        <td className="px-4 sm:px-8 py-4">
                           <div className="flex flex-col">
                              <span className="text-xs font-black text-slate-700 uppercase tracking-widest group-hover:text-blue-700">{folder}</span>
                              <span className="text-[8px] font-bold text-slate-400 mt-0.5 uppercase tracking-tighter">Directory</span>
                           </div>
                         </td>
-                        <td className="px-8 py-4 text-slate-400 text-[10px] font-black">—</td>
-                        <td className="px-8 py-4 text-slate-400 text-[10px] font-black">—</td>
+                        <td className="px-4 sm:px-8 py-4 text-slate-400 text-[10px] font-black">—</td>
+                        <td className="px-4 sm:px-8 py-4 text-slate-400 text-[10px] font-black">—</td>
                       </tr>
                     ))}
 
                     {/* FILES SECOND */}
                     {viewData.items.map((f, i) => (
                       <tr key={f.name + i} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-8 py-3">
+                        <td className="px-4 sm:px-8 py-3">
                            <div className="w-10 h-10 bg-white border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center relative shadow-sm">
                               {f.secure_url || storageType === 'local' ? (
-                                <Image 
+                                <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                                   src={f.secure_url || getAssetUrl(f.name)} 
                                   alt="Asset" 
                                   width={40} 
@@ -264,7 +264,7 @@ export default function StorageExplorer() {
                               )}
                            </div>
                         </td>
-                        <td className="px-8 py-3">
+                        <td className="px-4 sm:px-8 py-3">
                           <div className="flex flex-col max-w-md">
                             <span className="text-xs font-black text-slate-700 truncate" title={f.name}>
                               {viewData.isSearch ? f.name : f.name.split('/').pop()}
@@ -274,10 +274,10 @@ export default function StorageExplorer() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-8 py-3">
+                        <td className="px-4 sm:px-8 py-3">
                            <span className="text-xs font-bold text-slate-600">{formatBytes(f.size)}</span>
                         </td>
-                        <td className="px-8 py-3">
+                        <td className="px-4 sm:px-8 py-3">
                            <span className="text-xs font-bold text-slate-500 whitespace-nowrap">{formatDate(f.created_at)}</span>
                         </td>
                       </tr>
@@ -323,7 +323,7 @@ export default function StorageExplorer() {
                     <div className="flex gap-3 items-center">
                       <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center relative shadow-sm flex-shrink-0">
                         {f.secure_url || storageType === 'local' ? (
-                          <Image 
+                          <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                             src={f.secure_url || getAssetUrl(f.name)} 
                             alt="Asset" 
                             width={48} 

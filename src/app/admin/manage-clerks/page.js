@@ -74,7 +74,7 @@ export default function ManageClerksPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="w-full max-w-6xl mx-auto bg-white border border-slate-200 shadow-sm p-8 text-center">
+        <div className="w-full max-w-6xl mx-auto bg-white border border-slate-200 shadow-sm p-4 sm:p-8 text-center">
           <p className="text-slate-500 animate-pulse uppercase text-xs font-bold tracking-widest">Loading clerks...</p>
         </div>
       </div>

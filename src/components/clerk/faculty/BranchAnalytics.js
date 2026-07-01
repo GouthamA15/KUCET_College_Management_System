@@ -67,7 +67,7 @@ export default function BranchAnalytics({ branch }) {
                    <p className="text-rose-800/60 font-medium max-w-md text-xs sm:text-sm">The following students have fallen below the mandatory 75% attendance threshold for Semester {selectedSem}.</p>
                 </div>
              </div>
-             <div className="bg-white px-8 py-4 rounded-2xl border border-rose-100 text-center w-full sm:w-auto">
+             <div className="bg-white px-4 sm:px-8 py-4 rounded-2xl border border-rose-100 text-center w-full sm:w-auto">
                 <div className="text-3xl font-black text-rose-600">{riskData.length}</div>
                 <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">High Risk Students</div>
              </div>
@@ -108,7 +108,7 @@ export default function BranchAnalytics({ branch }) {
              ))}
 
              {riskData.length === 0 && (
-               <div className="bg-emerald-50 border-2 border-dashed border-emerald-100 rounded-3xl py-20 flex flex-col items-center justify-center text-center px-10">
+               <div className="bg-emerald-50 border-2 border-dashed border-emerald-100 rounded-3xl py-20 flex flex-col items-center justify-center text-center px-4 sm:px-10">
                   <div className="text-4xl mb-4">🎉</div>
                   <p className="text-emerald-600 font-black uppercase tracking-widest text-sm">Excellent! No students at risk.</p>
                   <p className="text-[10px] text-emerald-800/50 mt-2 max-w-xs font-medium">Every student in {branch} Semester {selectedSem} is currently above the 75% threshold.</p>
