@@ -217,22 +217,14 @@ export default function StudentHomePage() {
 
         <div className="grid grid-cols-1 lg:flex lg:flex-col lg:gap-3 lg:flex-1 lg:min-h-0">
 
-          {/* Div 1: contains Priority Actions and Support (uses contents display on desktop) */}
+          {/* Div 1: contains Priority Actions (uses contents display on desktop) */}
           <div className="order-1 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">
             <div className="lg:order-1 lg:shrink-0 lg:min-h-0 lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <DashboardActionCenter student={student} />
             </div>
-
-            {/* Support Card */}
-            <section className="order-2 lg:order-3 lg:shrink-0 rounded-sm border border-slate-200 bg-white p-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.20em]">Support</p>
-              <p className="text-[11.5px] text-slate-500 mt-1.5 leading-relaxed">
-                Contact the departmental clerk during office hours.
-              </p>
-            </section>
           </div>
 
-          {/* Div 2: contains Academic Records (uses contents display on desktop) */}
+          {/* Div 2: contains Academic Records and Support (uses contents display on desktop) */}
           <div className="order-2 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">
             <div className="lg:order-2 lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
               {/* Course Records - compact + internally scrollable */}
@@ -310,6 +302,14 @@ export default function StudentHomePage() {
                 </div>
               </section>
             </div>
+
+            {/* Support Card */}
+            <section className="order-2 lg:order-3 lg:shrink-0 rounded-sm border border-slate-200 bg-white p-4">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.20em]">Support</p>
+              <p className="text-[11.5px] text-slate-500 mt-1.5 leading-relaxed">
+                Contact the departmental clerk during office hours.
+              </p>
+            </section>
           </div>
 
         </div>

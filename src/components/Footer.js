@@ -22,20 +22,20 @@ export default function Footer() {
         {/* <div className="border-t border-blue-700 my-6"></div> */}
 
         <div className="text-center">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mt-2">
-              <span className="text-slate-50/95 text-sm">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 mt-1 sm:mt-2">
+              <span className="text-slate-50/95 text-xs sm:text-sm">
                 © {getNowSync().getFullYear()}. All rights reserved. Developed by the Department of Computer Science & Engineering.
               </span>
-              <div className="flex items-center gap-3">
-                <Link href="/developers" className="text-sm underline hover:text-white transition-colors duration-200 text-blue-200">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Link href="/developers" className="text-xs sm:text-sm underline hover:text-white transition-colors duration-200 text-blue-200">
                   Developers
                 </Link>
                 <span className="text-blue-300/50">•</span>
-                <Link href="/privacy-policy" className="text-sm underline hover:text-white transition-colors duration-200 text-blue-200">
+                <Link href="/privacy-policy" className="text-xs sm:text-sm underline hover:text-white transition-colors duration-200 text-blue-200">
                   Privacy Policy
                 </Link>
                 <span className="text-blue-300/50">•</span>
-                <Link href="/terms" className="text-sm underline hover:text-white transition-colors duration-200 text-blue-200">
+                <Link href="/terms" className="text-xs sm:text-sm underline hover:text-white transition-colors duration-200 text-blue-200">
                   Terms of Service
                 </Link>
               </div>
