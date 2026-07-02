@@ -129,7 +129,7 @@ export async function POST(req) {
     if (authToken) {
       try {
         jwtPayload = decodeJwt(authToken);
-      } catch (err) {
+      } catch (_err) {
         // Suppress parsing errors on expired / malformed JWTs during refresh
       }
     }

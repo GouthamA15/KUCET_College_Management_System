@@ -53,7 +53,7 @@ export default function ImagePreviewModal({ src, alt = '', open, onClose }) {
           ✕
         </button>
         <div className="max-w-full max-h-full rounded shadow-lg overflow-hidden">
-          <Image src={src} alt={alt} width={800} height={800} onClick={(e)=>e.stopPropagation()} className="block max-w-[90vw] max-h-[90vh] object-contain bg-black" />
+          <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={src} alt={alt} width={800} height={800} onClick={(e)=>e.stopPropagation()} className="block max-w-[90vw] max-h-[90vh] object-contain bg-black" />
         </div>
       </div>
     </div>

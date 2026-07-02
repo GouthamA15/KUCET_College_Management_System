@@ -202,7 +202,7 @@ const ExportStudents = () => {
           <button 
             onClick={handleFetch}
             disabled={loading}
-            className={`w-full md:w-auto h-12 px-8 bg-slate-800 text-white text-[11px] font-black tracking-[0.2em] rounded-sm hover:bg-slate-900 transition-all shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
+            className={`w-full md:w-auto h-12 px-4 sm:px-8 bg-slate-800 text-white text-[11px] font-black tracking-[0.2em] rounded-sm hover:bg-slate-900 transition-all shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
           >
             {loading ? (
               <>
@@ -224,7 +224,7 @@ const ExportStudents = () => {
       {/* 2. Preview Section */}
       {previewData && (
         <div className="bg-white rounded-sm border border-gray-300 shadow-sm overflow-hidden animate-slideUp">
-          <div className="bg-gray-50 px-8 py-4 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="bg-gray-50 px-4 sm:px-8 py-4 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
              <div className="flex items-center gap-4">
                 <span className="text-[10px] font-black bg-indigo-600 text-white px-2 py-1 rounded-sm ">{previewData.length} Records</span>
                 <p className="text-xs font-bold text-gray-500 tracking-tight">Previewing {branchCodes[branch]} Registry for Batch {year}</p>
@@ -241,7 +241,8 @@ const ExportStudents = () => {
              </button>
           </div>
           
-          <div className="overflow-x-auto max-h-[500px]">
+          {/* Desktop Table Layout */}
+          <div className="hidden md:block overflow-x-auto max-h-[500px]">
             <table className="w-full border-collapse">
               <thead className="sticky top-0 bg-white shadow-sm">
                 <tr className="border-b-2 border-slate-100">
@@ -284,6 +285,41 @@ const ExportStudents = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card Layout */}
+          <div className="md:hidden flex flex-col gap-3 p-4 bg-slate-50">
+            {previewData.map((student, index) => (
+              <div key={`${student.roll_no}-${index}`} className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-sm font-black text-gray-800">{student.roll_no}</span>
+                    <span className="ml-2 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded tracking-tight">{getBatchFromRoll(student.roll_no)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {isValidImageUrl(getAssetUrl(student.photo)) ? (
+                      <div className="w-8 h-8 rounded-full border-2 border-indigo-100 overflow-hidden bg-gray-100">
+                         <Image src={getAssetUrl(student.photo)} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized onError={() => {}} />
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">NA</div>
+                    )}
+                    {student.signature && (
+                      <div className="h-8 w-12 bg-gray-50 border border-slate-100 p-1 flex items-center justify-center">
+                         <Image src={getAssetUrl(student.signature)} width={48} height={24} className="h-full object-contain" alt="SIG" unoptimized />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-gray-700">{student.name}</div>
+                  <div className="text-[10px] text-gray-500 mt-1 flex flex-col gap-0.5">
+                    <span className="font-mono">Aadhaar: {maskAadhaar(student.aadhaar_no)}</span>
+                    <span className="font-mono">Mobile: {maskMobile(student.mobile)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

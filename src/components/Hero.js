@@ -28,8 +28,8 @@ export default function Hero() {
         <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent"></div>
         
         {/* Overlay Text with gray transparent background - only show on md+ screens */}
-        <div className={`hidden md:block absolute bottom-0 left-0 right-0 p-10 transition-all duration-700 ease-out ${imageLoaded ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-          <div className="inline-block bg-gray-900/60 backdrop-blur-sm rounded-lg px-8 py-5">
+        <div className={`hidden md:block absolute bottom-0 left-0 right-0 p-4 sm:p-10 transition-all duration-700 ease-out ${imageLoaded ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+          <div className="inline-block bg-gray-900/60 backdrop-blur-sm rounded-lg px-4 sm:px-8 py-5">
             <h1 className="text-4xl lg:text-5xl font-bold text-white drop-shadow-lg">
               Welcome to KUCET
             </h1>

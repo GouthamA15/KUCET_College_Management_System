@@ -155,8 +155,9 @@ export default function StudentHistoryCard({ _currentClerkId }) {
   return (
     <div className="border border-gray-300 rounded-md bg-white overflow-hidden transition-all duration-300">
       {/* Header / Toggle */}
-      <div 
-        className="px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors gap-4"
+      <button 
+        type="button"
+        className="w-full text-left px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors gap-4"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div>
@@ -173,7 +174,7 @@ export default function StudentHistoryCard({ _currentClerkId }) {
             </svg>
           </div>
         </div>
-      </div>
+      </button>
 
       {/* Expanded Content */}
       {isExpanded && (

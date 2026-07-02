@@ -42,7 +42,7 @@ export default function SecurityCenterPage() {
   });
 
   if (loading && !studentData) return <SecurityLoadingState message="Loading Security Center..." />;
-  if (!student) return <div className="p-8 text-center text-red-500">Student session not found.</div>;
+  if (!student) return <div className="p-4 sm:p-8 text-center text-red-500">Student session not found.</div>;
 
   if (!isEmailVerified || !isPasswordSet) {
     return (

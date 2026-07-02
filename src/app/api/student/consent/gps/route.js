@@ -5,7 +5,7 @@ import { students } from '@/db/schema';
 import { getNow } from '@/lib/clock';
 import { getAuthUser } from '@/lib/api-utils';
 
-export async function POST(req) {
+export async function POST(_req) {
   try {
     const user = await getAuthUser();
     if (!user || !user.roll_no) {

@@ -5,7 +5,9 @@ import {
   clerks, 
   branchTimetable,
   studentMarks,
-  syllabusSubjects
+  syllabusSubjects,
+  attendanceSessions,
+  facultySubjectAssignments
 } from '@/db/schema';
 import { eq, and, desc, asc, sql, like, or } from 'drizzle-orm';
 
@@ -31,42 +33,74 @@ export class FacultyService {
    * @returns {Promise<Array>} List of faculty with their workload metrics
    */
   static async getFacultyLoad(academicYear) {
-    const yearPattern = `%${academicYear.substring(0, 4)}%`;
+    const yearPattern = `${academicYear.substring(0, 4)}%`;
 
-    const scheduledWeeklyExpr = sql`(
-        SELECT COUNT(*) 
-        FROM branch_timetable 
-        WHERE branch_timetable.faculty_id = clerks.id 
-        AND (branch_timetable.academic_year LIKE ${yearPattern} OR branch_timetable.academic_year = ${academicYear})
-      )`.mapWith(Number);
+    const [facultyList, scheduledRows, conductedRows, subjectsRows] = await Promise.all([
+      db.select({
+        id: clerks.id,
+        name: clerks.name,
+        email: clerks.email,
+        home_branch: clerks.branch
+      })
+      .from(clerks)
+      .where(eq(clerks.role, 'faculty')),
 
-    const totalConductedExpr = sql`(
-        SELECT COUNT(DISTINCT ads.id)
-        FROM attendance_sessions ads
-        JOIN faculty_subject_assignments fsa ON ads.assignment_id = fsa.id
-        WHERE ads.faculty_id = clerks.id
-        AND (fsa.academic_year LIKE ${yearPattern} OR fsa.academic_year = ${academicYear})
-      )`.mapWith(Number);
+      db.select({
+        faculty_id: branchTimetable.faculty_id,
+        count: sql`COUNT(*)`.mapWith(Number)
+      })
+      .from(branchTimetable)
+      .where(or(
+        like(branchTimetable.academic_year, yearPattern),
+        eq(branchTimetable.academic_year, academicYear)
+      ))
+      .groupBy(branchTimetable.faculty_id),
 
-    const subjectsExpr = sql`(
-        SELECT GROUP_CONCAT(DISTINCT fsa.subject_name SEPARATOR ', ')
-        FROM faculty_subject_assignments fsa
-        WHERE fsa.faculty_id = clerks.id AND fsa.is_active = 1
-        AND (fsa.academic_year LIKE ${yearPattern} OR fsa.academic_year = ${academicYear})
-      )`;
+      db.select({
+        faculty_id: attendanceSessions.faculty_id,
+        count: sql`COUNT(DISTINCT ${attendanceSessions.id})`.mapWith(Number)
+      })
+      .from(attendanceSessions)
+      .innerJoin(facultySubjectAssignments, eq(attendanceSessions.assignment_id, facultySubjectAssignments.id))
+      .where(or(
+        like(facultySubjectAssignments.academic_year, yearPattern),
+        eq(facultySubjectAssignments.academic_year, academicYear)
+      ))
+      .groupBy(attendanceSessions.faculty_id),
 
-    return await db.select({
-      id: clerks.id,
-      name: clerks.name,
-      email: clerks.email,
-      home_branch: clerks.branch,
-      scheduled_weekly: scheduledWeeklyExpr,
-      total_conducted: totalConductedExpr,
-      subjects: subjectsExpr
-    })
-    .from(clerks)
-    .where(eq(clerks.role, 'faculty'))
-    .orderBy(desc(scheduledWeeklyExpr), asc(clerks.name));
+      db.select({
+        faculty_id: facultySubjectAssignments.faculty_id,
+        subjects: sql`GROUP_CONCAT(DISTINCT ${facultySubjectAssignments.subject_name} SEPARATOR ', ')`
+      })
+      .from(facultySubjectAssignments)
+      .where(and(
+        eq(facultySubjectAssignments.is_active, true),
+        or(
+          like(facultySubjectAssignments.academic_year, yearPattern),
+          eq(facultySubjectAssignments.academic_year, academicYear)
+        )
+      ))
+      .groupBy(facultySubjectAssignments.faculty_id)
+    ]);
+
+    const scheduledMap = new Map(scheduledRows.map(r => [r.faculty_id, r.count]));
+    const conductedMap = new Map(conductedRows.map(r => [r.faculty_id, r.count]));
+    const subjectsMap = new Map(subjectsRows.map(r => [r.faculty_id, r.subjects || '']));
+
+    return facultyList.map(f => ({
+      id: f.id,
+      name: f.name,
+      email: f.email,
+      home_branch: f.home_branch,
+      scheduled_weekly: scheduledMap.get(f.id) || 0,
+      total_conducted: conductedMap.get(f.id) || 0,
+      subjects: subjectsMap.get(f.id) || ''
+    })).sort((a, b) => {
+      if (b.scheduled_weekly !== a.scheduled_weekly) {
+        return b.scheduled_weekly - a.scheduled_weekly;
+      }
+      return (a.name || '').localeCompare(b.name || '');
+    });
   }
 
   /**
@@ -119,7 +153,7 @@ export class FacultyService {
       eq(branchTimetable.branch, branch),
       eq(branchTimetable.semester, semester),
       or(
-        like(branchTimetable.academic_year, `%${systemYear.substring(0, 4)}%`),
+        like(branchTimetable.academic_year, `${systemYear.substring(0, 4)}%`),
         eq(branchTimetable.academic_year, '2025-26')
       )
     ];

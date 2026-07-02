@@ -12,8 +12,8 @@ export default function MarksEntrySheet({ assignment, onBack }) {
   const [subjectType, setSubjectType] = useState('theory'); // 'theory' | 'lab'
   const [marksMode, setMarksMode] = useState('overview'); // 'overview' | 'mid1' | 'mid2' | 'assignment'
   const [isMobile, setIsMobile] = useState(false);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const [rollColWidth, setRollColWidth] = useState(0);
+  const [_scrollLeft, setScrollLeft] = useState(0);
+  const [_rollColWidth, setRollColWidth] = useState(0);
 
   const scrollContainerRef = useRef(null);
   const rollHeaderRef = useRef(null);
@@ -301,59 +301,98 @@ export default function MarksEntrySheet({ assignment, onBack }) {
         </div>
       </div>
 
-      <div ref={scrollContainerRef} onScroll={isMobile ? handleScroll : undefined} className="overflow-x-auto border border-slate-200">
-        <table className="w-full text-xs border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th ref={rollHeaderRef} className={`px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 ${isMobile ? 'sticky left-0 z-10 bg-slate-50' : ''}`}>Roll No</th>
-              <th className="px-2 py-2 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">Student Name</th>
+      {/* Mobile Card Layout */}
+      <div className="md:hidden flex flex-col gap-3 mt-4">
+        {students.map((student) => {
+          const internalTotal = computeTotal(student);
+          const fullRoll = student.roll_no || '';
+          const disabled = !assignment.is_active || isPublishedLocked;
+
+          return (
+            <div key={student.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-sm font-mono font-bold text-slate-800">{fullRoll}</span>
+                  <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide mt-1">{student.name}</div>
+                </div>
+                
+                {marksMode === 'overview' && (
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Total</span>
+                    <span className="text-sm font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded">
+                      {internalTotal !== null ? internalTotal.toFixed(1) : '-'}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {marksMode !== 'overview' && (
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{activeMode.label} ({activeMode.max})</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max={activeMode.max}
+                    step="0.5"
+                    value={student[activeMode.field]}
+                    onChange={(e) => handleMarkChange(student.id, activeMode.field, e.target.value)}
+                    className="w-24 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-center text-sm font-black text-slate-800 focus:bg-white focus:border-indigo-500 outline-none disabled:opacity-50 focus:ring-2 focus:ring-indigo-200 transition-all"
+                    disabled={disabled}
+                    inputMode="decimal"
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div ref={scrollContainerRef} onScroll={isMobile ? handleScroll : undefined} className="hidden md:block overflow-x-auto border border-slate-200 mt-4 rounded-lg">
+        <table className="min-w-full text-xs border-collapse divide-y-2 divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th ref={rollHeaderRef} className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">Roll No</th>
+              <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">Student Name</th>
               
               {marksMode === 'overview' ? (
                 <>
-                  <th className="px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 hidden md:table-cell">{labels.m1}</th>
-                  <th className="px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 hidden md:table-cell">{labels.m2}</th>
-                  <th className="px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 hidden md:table-cell">{labels.a}</th>
-                  <th className="px-2 py-2 text-center text-[10px] font-bold text-indigo-700 uppercase tracking-wider bg-indigo-50/50 hidden md:table-cell">Total</th>
-                  {/* Mobile Overview: Show only Total if in Overview? Prompt says: "MOBILE MUST SHOW ONLY: Roll Number, Student Name, Active Mode Marks." */}
-                  {/* "OVERVIEW MODE | Roll No | Student | M1 | M2 | ASG | Total |" on Desktop */}
-                  {/* On Mobile Overview, let's show Total as the "Active Marks" */}
-                  <th className="px-2 py-2 text-center text-[10px] font-bold text-indigo-700 uppercase tracking-wider md:hidden">Total</th>
+                  <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">{labels.m1}</th>
+                  <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">{labels.m2}</th>
+                  <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200">{labels.a}</th>
+                  <th className="px-4 py-3 text-center text-[11px] font-bold text-indigo-700 uppercase tracking-wider bg-indigo-50/50">Total</th>
                 </>
               ) : (
-                <th className="px-2 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">{activeMode.label} ({activeMode.max})</th>
+                <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider">{activeMode.label} ({activeMode.max})</th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="bg-white divide-y divide-slate-100">
             {students.map((student) => {
               const internalTotal = computeTotal(student);
               const fullRoll = student.roll_no || '';
-              const showCompact = isMobile && scrollLeft > rollColWidth;
-              const shortRoll = fullRoll.endsWith('L') ? fullRoll.slice(-3) : fullRoll.slice(-2);
               const disabled = !assignment.is_active || isPublishedLocked;
 
               return (
                 <tr key={student.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className={`px-2 py-1.5 font-mono font-bold text-center border-r border-slate-100 ${isMobile ? 'sticky left-0 z-10 bg-white group-hover:bg-slate-50' : ''}`}>
-                    <span className={`inline-block transition-all ${isMobile && showCompact ? 'opacity-0 scale-50' : 'opacity-100 scale-100'}`}>{fullRoll}</span>
-                    {isMobile && <span className={`absolute inset-0 flex items-center justify-center transition-all ${showCompact ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}>{shortRoll}</span>}
+                  <td className="px-4 py-3 font-mono font-bold text-left border-r border-slate-100">
+                    <span className="inline-block transition-all opacity-100 scale-100">{fullRoll}</span>
                   </td>
-                  <td className="px-2 py-1.5 border-r border-slate-100">
-                    <div className="text-[11px] font-bold text-slate-700 uppercase whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] md:max-w-none" title={student.name}>
+                  <td className="px-4 py-3 border-r border-slate-100">
+                    <div className="text-[12px] font-bold text-slate-700 uppercase whitespace-nowrap overflow-hidden text-ellipsis max-w-xs" title={student.name}>
                       {student.name}
                     </div>
                   </td>
                   
                   {marksMode === 'overview' ? (
                     <>
-                      <td className="px-2 py-1.5 text-center font-mono text-slate-600 border-r border-slate-100 hidden md:table-cell">{student.mid1_marks === '' ? '-' : student.mid1_marks}</td>
-                      <td className="px-2 py-1.5 text-center font-mono text-slate-600 border-r border-slate-100 hidden md:table-cell">{student.mid2_marks === '' ? '-' : student.mid2_marks}</td>
-                      <td className="px-2 py-1.5 text-center font-mono text-slate-600 border-r border-slate-100 hidden md:table-cell">{student.assignment_marks === '' ? '-' : student.assignment_marks}</td>
-                      <td className="px-2 py-1.5 text-center font-mono font-bold text-indigo-700 bg-indigo-50/20 hidden md:table-cell">{internalTotal !== null ? internalTotal.toFixed(1) : '-'}</td>
-                      <td className="px-2 py-1.5 text-center font-mono font-bold text-indigo-700 md:hidden">{internalTotal !== null ? internalTotal.toFixed(1) : '-'}</td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">{student.mid1_marks === '' ? '-' : student.mid1_marks}</td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">{student.mid2_marks === '' ? '-' : student.mid2_marks}</td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">{student.assignment_marks === '' ? '-' : student.assignment_marks}</td>
+                      <td className="px-4 py-3 text-center font-mono font-bold text-indigo-700 bg-indigo-50/20">{internalTotal !== null ? internalTotal.toFixed(1) : '-'}</td>
                     </>
                   ) : (
-                    <td className="px-2 py-1.5 text-center">
+                    <td className="px-4 py-3 text-center">
                       <input
                         type="number"
                         min="0"
@@ -361,7 +400,7 @@ export default function MarksEntrySheet({ assignment, onBack }) {
                         step="0.5"
                         value={student[activeMode.field]}
                         onChange={(e) => handleMarkChange(student.id, activeMode.field, e.target.value)}
-                        className="w-full max-w-[80px] px-1 py-1 bg-slate-50 border border-slate-200 rounded-sm text-center text-[11px] font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none disabled:opacity-50"
+                        className="w-full max-w-[100px] px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-center text-[12px] font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none disabled:opacity-50"
                         disabled={disabled}
                         inputMode="decimal"
                       />

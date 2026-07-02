@@ -44,6 +44,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         id: s.id,
         roll_no: s.roll_no,
         name: s.name,
+        pfp: s.pfp || null,
       }));
       setBaseStudents(base);
       setAttendanceStatusMap({});

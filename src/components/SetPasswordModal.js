@@ -62,7 +62,7 @@ const SetPasswordModal = ({ rollno, _email, onPasswordSet }) => {
           <p className="text-blue-100 text-xs mt-1 uppercase tracking-widest font-medium">Create a personal password</p>
         </div>
 
-        <div className="p-8 space-y-6">
+        <div className="p-4 sm:p-8 space-y-6">
           <div className="flex items-center justify-between">
             <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl flex gap-3 flex-1">
               <AlertCircle className="text-blue-600 shrink-0" size={18} />

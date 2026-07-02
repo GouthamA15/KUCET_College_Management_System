@@ -30,7 +30,7 @@ function validateRollNo(rollNo) {
   const lateralMatch = cleanRollNo.match(lateralPattern);
 
   if (regularMatch) {
-    const [, year, branchCode, serial] = regularMatch;
+    const [, year, branchCode, _serial] = regularMatch;
     const branch = branchCodes[branchCode];
     if (branch) {
       return {
@@ -43,7 +43,7 @@ function validateRollNo(rollNo) {
   }
 
   if (lateralMatch) {
-    const [, year, branchCode, serial] = lateralMatch;
+    const [, year, branchCode, _serial] = lateralMatch;
     const branch = branchCodes[branchCode];
     if (branch) {
       return {
@@ -271,8 +271,14 @@ function getResolvedCurrentAcademicYear(rollNo, collegeInfo = null, now = getNow
   return `${startYear}-${String(endYear).slice(-2)}`;
 }
 
+function canonicalizeRollNo(rollNo) {
+  if (typeof rollNo !== 'string') return '';
+  return rollNo.trim().toUpperCase().replace(/^(\d{2}567)T?/i, '$1T');
+}
+
 export {
   validateRollNo,
+  canonicalizeRollNo,
   getEntryYearFromRoll,
   getBranchFromRoll,
   getAdmissionTypeFromRoll,

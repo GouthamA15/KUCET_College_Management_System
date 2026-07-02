@@ -504,7 +504,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
           onDragOver={handleDragOver}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
-          className={`mx-auto max-w-2xl p-8 border-2 rounded-lg text-center transition cursor-pointer select-none
+          className={`mx-auto max-w-2xl p-4 sm:p-8 border-2 rounded-lg text-center transition cursor-pointer select-none
             ${isDragging ? 'border-blue-400 bg-blue-50' : 'border-dashed border-gray-300 hover:border-blue-300 hover:bg-gray-50'}`}
         >
           <div className="text-3xl mb-2">📄</div>
@@ -638,7 +638,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
               Dismiss
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-6 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
             <div>
               <h5 className="font-semibold text-red-700 mb-2">Missing headers</h5>
               <ul className="list-disc list-inside space-y-1">
@@ -685,7 +685,7 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
               Dismiss
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-4 text-sm text-gray-700">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm text-gray-700">
             <div>
               <span className="font-medium">Total Rows:</span> {summaryData.totalRows}
             </div>
@@ -705,38 +705,51 @@ export default function BulkImportStudents({ onImportSuccess, onReset }) {
               <h5 className="text-md font-semibold text-red-700 mb-3">
                 <span className="text-red-500 mr-2">⚠</span> Row-level validation errors
               </h5>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Excel Row
-                      </th>
-                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Roll Number
-                      </th>
-                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Reason
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {errorDetails.map((error, index) => (
-                      <tr key={index} className="hover:bg-red-50">
-                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {error.row}
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                          {error.roll_no || 'N/A'}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-500">
-                          {error.reason}
-                        </td>
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Excel Row
+                        </th>
+                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Roll Number
+                        </th>
+                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Reason
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {errorDetails.map((error, index) => (
+                        <tr key={index} className="hover:bg-red-50">
+                          <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {error.row}
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                            {error.roll_no || 'N/A'}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-500">
+                            {error.reason}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="md:hidden flex flex-col gap-3">
+                  {errorDetails.map((error, index) => (
+                    <div key={index} className="bg-white border border-red-200 p-3 rounded-lg shadow-sm">
+                      <div className="flex justify-between items-center border-b border-red-100 pb-2 mb-2">
+                        <span className="text-xs font-bold text-gray-500 uppercase">Row {error.row}</span>
+                        <span className="text-sm font-mono font-bold text-gray-900">{error.roll_no || 'N/A'}</span>
+                      </div>
+                      <div className="text-sm text-red-600 font-medium">{error.reason}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
             </div>
           )}
         </div>

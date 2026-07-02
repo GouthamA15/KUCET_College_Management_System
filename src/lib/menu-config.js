@@ -79,7 +79,12 @@ export const NAV_MENU_CONFIG = {
     { label: 'PAYMENTS', route: '/admin/payments' },
     { label: 'MANAGE CLERKS', route: '/admin/manage-clerks' },
     { label: 'CREATE CLERK', route: '/admin/create-clerk' },
-    { label: 'INFRASTRUCTURE', route: '/admin/infrastructure' },
+    { label: 'INFRASTRUCTURE', children: [
+        { label: 'System Configuration', route: '/admin/infrastructure?tab=config' },
+        { label: 'Database Sovereignty', route: '/admin/infrastructure?tab=backups' },
+        { label: 'Storage Explorer', route: '/admin/infrastructure?tab=storage' }
+      ]
+    },
     { label: 'AUDIT TRAILS', route: '/admin/audit-logs' },
     { label: 'VERIFICATIONS', route: '/admin/verifications' },
   ]

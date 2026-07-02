@@ -67,7 +67,7 @@ export default function TimeMachine() {
           <div className="text-center">
             <h1 className="text-4xl font-black text-red-500 mb-4">403 - Forbidden</h1>
             <p className="text-gray-400 font-medium">Developer tools are disabled in this environment.</p>
-            <Link href="/" className="mt-6 inline-block bg-blue-600 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs">Return Home</Link>
+            <Link href="/" className="mt-6 inline-block bg-blue-600 px-4 sm:px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs">Return Home</Link>
           </div>
         </div>
       </>
@@ -97,7 +97,7 @@ export default function TimeMachine() {
     <HeaderMobileView />
     <Header />
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 font-sans">
-      <div className="bg-[#1a1a1a] p-10 rounded-[2.5rem] shadow-2xl border border-white/5 max-w-md w-full relative overflow-hidden">
+      <div className="bg-[#1a1a1a] p-4 sm:p-10 rounded-[2.5rem] shadow-2xl border border-white/5 max-w-md w-full relative overflow-hidden">
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-600/20 blur-[100px] rounded-full"></div>
         
         <h1 className="text-3xl font-black text-white mb-2 flex items-center gap-3 relative z-10">

@@ -33,6 +33,7 @@ export async function POST(request) {
 
       if (status === 'APPROVED') {
         const academicTerm = interest.semester % 2 === 0 ? 2 : 1;
+        
         await tx.insert(facultySubjectAssignments).values({
           faculty_id: interest.faculty_id,
           subject_code: interest.subject_code,
@@ -42,6 +43,8 @@ export async function POST(request) {
           academic_term: academicTerm,
           academic_year: interest.academic_year,
           is_active: true
+        }).onDuplicateKeyUpdate({
+          set: { is_active: true }
         });
       }
     });

@@ -1,33 +1,37 @@
 'use client';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { useClerk } from '@/context/ClerkContext';
 
 export default function AssignedSubjectsList({ onSelectAssignment = () => {}, showActions = true }) {
-  const [assignments, setAssignments] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchAssignments = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/clerk/faculty/assignments');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
-      setAssignments(data.data || []);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { facultyAssignments = [], isLoadingFaculty } = useClerk();
+  const [localAssignments, setLocalAssignments] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const id = setTimeout(() => {
+    if ((!facultyAssignments || facultyAssignments.length === 0) && !isLoadingFaculty && localAssignments === null && !loading) {
+      const fetchAssignments = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch('/api/clerk/faculty/assignments');
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
+          setLocalAssignments(data.data || []);
+        } catch (error) {
+          toast.error(error.message);
+          setLocalAssignments([]);
+        } finally {
+          setLoading(false);
+        }
+      };
       fetchAssignments();
-    }, 0);
-    return () => clearTimeout(id);
-  }, []);
+    }
+  }, [facultyAssignments, isLoadingFaculty, localAssignments, loading]);
 
-  if (loading) return <div className="text-center py-4">Loading assignments...</div>;
+  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : (localAssignments || []);
+  const isLoading = isLoadingFaculty || loading;
+
+  if (isLoading) return <div className="text-center py-4">Loading assignments...</div>;
 
   const activeAssignments = assignments.filter(a => a.is_active);
   const historicalAssignments = assignments.filter(a => !a.is_active);
@@ -101,7 +105,7 @@ export default function AssignedSubjectsList({ onSelectAssignment = () => {}, sh
             ))}
           </div>
         ) : (
-          <div className="bg-slate-50 p-10 border border-dashed border-slate-200 text-center">
+          <div className="bg-slate-50 p-4 sm:p-10 border border-dashed border-slate-200 text-center">
             <div className="text-3xl mb-3 opacity-20">📭</div>
             <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">No active instructional assignments found</p>
             <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-tighter italic">Official assignments will be displayed here once verified by the department registry.</p>

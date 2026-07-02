@@ -63,7 +63,7 @@ export default function Header({ fixed = true }) {
         {/* Left Section with Logos */}
         <div className="flex items-center gap-2">
           <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={getAsset('/assets/Naac_A+.png')} 
               alt="NAAC Logo" 
               width={56} height={56}
@@ -73,7 +73,7 @@ export default function Header({ fixed = true }) {
           </div>
 
           <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={getAsset('/assets/ku-logo.png')} 
               alt="KU Logo" 
               width={56} height={56}
@@ -83,7 +83,7 @@ export default function Header({ fixed = true }) {
           </div>
 
           <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={getAsset('/assets/kakatiya-kala-thoranam.png')} 
               alt="Kakatiya Kala Thoranam" 
               width={56} height={56}
@@ -109,7 +109,7 @@ export default function Header({ fixed = true }) {
         {/* Right Side Block */}
         <div className="flex items-start gap-2 h-full">
           <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={getAsset('/assets/rudramadevi_statue.jpg')} 
               alt="Rudramadevi Statue" 
               width={56} height={56}
@@ -119,7 +119,7 @@ export default function Header({ fixed = true }) {
           </div>
 
           <div className="bg-blue-100 p-1 rounded-lg">
-            <Image 
+            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
               src={getAsset('/assets/ku-college-logo.png')} 
               alt="College Logo" 
               width={56} height={56}

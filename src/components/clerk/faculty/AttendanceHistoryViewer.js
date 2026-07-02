@@ -138,104 +138,175 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
             No attendance sessions recorded yet.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Session</th>
-                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Present Count</th>
-                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total Headcount</th>
-                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance %</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {uniqueSessions.map((session, idx) => {
-                  // Calculate stats for this specific session
-                  const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
-                  const presentCount = sessionRecords.filter(r => r.status === 'PRESENT').length;
-                  const totalCount = sessionRecords.length;
-                  const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
-                  
-                  const sessionKey = `${session.date}-${session.session}-${idx}`;
-                  const isExpanded = expandedSession === sessionKey;
-                  
-                  return (
-                    <Fragment key={sessionKey}>
-                      <tr onClick={() => toggleSession(sessionKey)} className="hover:bg-gray-50 transition-colors cursor-pointer">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                          {session.date}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className="bg-gray-100 text-gray-800 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-gray-200">
-                            S{session.session}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-emerald-600">
-                          {presentCount}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">
-                          {totalCount}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                              <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${percentage}%` }}></div>
-                            </div>
-                            <span className="text-xs font-bold text-gray-700 w-8">{percentage}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan="5" className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                            <div className="max-h-64 overflow-y-auto pr-2 rounded border border-gray-200 bg-white shadow-inner">
-                              <table className="min-w-full divide-y divide-gray-100 text-sm">
-                                <thead className="bg-gray-100 sticky top-0">
-                                  <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Roll No</th>
-                                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Name</th>
-                                    <th className="px-4 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                  {sessionRecords.sort((a, b) => (a.roll_no || '').localeCompare(b.roll_no || '')).map(record => (
-                                    <tr key={record.student_id} className="hover:bg-gray-50">
-                                      <td className="px-4 py-2 font-mono font-bold text-gray-700">{record.roll_no}</td>
-                                      <td className="px-4 py-2 font-medium text-gray-600">{record.name}</td>
-                                      <td className="px-4 py-2 text-center">
-                                        {record.status === 'PRESENT' ? (
-                                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                                            PRESENT
-                                          </span>
-                                        ) : record.status === 'NCC' ? (
-                                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                                            NCC
-                                          </span>
-                                        ) : record.status === 'MEDICAL' ? (
-                                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                                            MEDICAL
-                                          </span>
-                                        ) : (
-                                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
-                                            ABSENT
-                                          </span>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+          <>
+            {/* Desktop Table Layout */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Session</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Present Count</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total Headcount</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance %</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {uniqueSessions.map((session, idx) => {
+                    // Calculate stats for this specific session
+                    const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
+                    const presentCount = sessionRecords.filter(r => r.status === 'PRESENT').length;
+                    const totalCount = sessionRecords.length;
+                    const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+                    
+                    const sessionKey = `${session.date}-${session.session}-${idx}`;
+                    const isExpanded = expandedSession === sessionKey;
+                    
+                    return (
+                      <Fragment key={sessionKey}>
+                        <tr onClick={() => toggleSession(sessionKey)} className="hover:bg-gray-50 transition-colors cursor-pointer">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                            {session.date}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <span className="bg-gray-100 text-gray-800 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-gray-200">
+                              S{session.session}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-emerald-600">
+                            {presentCount}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">
+                            {totalCount}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${percentage}%` }}></div>
+                              </div>
+                              <span className="text-xs font-bold text-gray-700 w-8">{percentage}%</span>
                             </div>
                           </td>
                         </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan="5" className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                              <div className="max-h-64 overflow-y-auto pr-2 rounded border border-gray-200 bg-white shadow-inner">
+                                <table className="min-w-full divide-y divide-gray-100 text-sm">
+                                  <thead className="bg-gray-100 sticky top-0">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Roll No</th>
+                                      <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Name</th>
+                                      <th className="px-4 py-2 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-50">
+                                    {sessionRecords.sort((a, b) => (a.roll_no || '').localeCompare(b.roll_no || '')).map(record => (
+                                      <tr key={record.student_id} className="hover:bg-gray-50">
+                                        <td className="px-4 py-2 font-mono font-bold text-gray-700">{record.roll_no}</td>
+                                        <td className="px-4 py-2 font-medium text-gray-600">{record.name}</td>
+                                        <td className="px-4 py-2 text-center">
+                                          {record.status === 'PRESENT' ? (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                              PRESENT
+                                            </span>
+                                          ) : record.status === 'NCC' ? (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                              NCC
+                                            </span>
+                                          ) : record.status === 'MEDICAL' ? (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                              MEDICAL
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                                              ABSENT
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card Layout */}
+            <div className="md:hidden flex flex-col divide-y divide-gray-100 bg-gray-50">
+              {uniqueSessions.map((session, idx) => {
+                const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
+                const presentCount = sessionRecords.filter(r => r.status === 'PRESENT').length;
+                const totalCount = sessionRecords.length;
+                const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+                
+                const sessionKey = `${session.date}-${session.session}-${idx}`;
+                const isExpanded = expandedSession === sessionKey;
+
+                return (
+                  <div key={sessionKey} className="flex flex-col bg-white">
+                    <div onClick={() => toggleSession(sessionKey)} className="p-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900">{session.date}</span>
+                          <span className="bg-gray-100 text-gray-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase border border-gray-200">
+                            Session {session.session}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-gray-400 font-bold">
+                          {isExpanded ? '▲ HIDE' : '▼ VIEW'}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-end">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Attendance</span>
+                          <span className="text-sm font-black text-emerald-600">{presentCount} <span className="text-xs text-gray-400 font-medium">/ {totalCount} students</span></span>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-sm font-black text-indigo-600">{percentage}%</span>
+                          <div className="w-16 bg-gray-200 rounded-full h-1 overflow-hidden">
+                            <div className="bg-indigo-500 h-1 rounded-full" style={{ width: `${percentage}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="bg-gray-50 border-t border-gray-100 p-3 shadow-inner">
+                        <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                          {sessionRecords.sort((a, b) => (a.roll_no || '').localeCompare(b.roll_no || '')).map(record => (
+                            <div key={record.student_id} className="bg-white border border-gray-200 rounded p-2 flex justify-between items-center shadow-sm">
+                              <div>
+                                <div className="text-[10px] font-mono font-bold text-gray-600 leading-none mb-1">{record.roll_no}</div>
+                                <div className="text-xs font-semibold text-gray-800 leading-none">{record.name}</div>
+                              </div>
+                              <div>
+                                {record.status === 'PRESENT' ? (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-emerald-100 text-emerald-700">PRESENT</span>
+                                ) : record.status === 'NCC' ? (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-blue-100 text-blue-700">NCC</span>
+                                ) : record.status === 'MEDICAL' ? (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-amber-100 text-amber-700">MEDICAL</span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-sm bg-rose-100 text-rose-700">ABSENT</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -6,7 +6,7 @@ export default function SignatureBlock({ signatureUrl, label = "PRINCIPAL", imag
   return (
     <View style={styles.signatureSection}>
       {signatureUrl ? (
-        <Image 
+        <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
           src={signatureUrl} 
           style={imageStyle || styles.signatureImage} 
           alt="Principal Signature" 

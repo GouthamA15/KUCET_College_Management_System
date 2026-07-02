@@ -115,7 +115,7 @@ export default function ResetPassword() {
       <div id="main-content" className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">
         <main className="flex-1 bg-gray-100 flex items-center justify-center p-4">
           <div className="max-w-md w-full">
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-8">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-8">
               <div className="text-center mb-8">
                 <h1 className="text-2xl font-bold text-[#0b3578] uppercase tracking-tight">Reset Password</h1>
                 <p className="text-xs text-slate-400 mt-2 uppercase tracking-widest font-bold">Credential Recovery</p>

@@ -114,7 +114,7 @@ export function MediaSection({ detail, isEditing, onFieldChange }) {
                 <div className="w-full bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden" style={{ aspectRatio: '3 / 4' }}>
                     {detail.pfp ? (
                         <div className="w-full h-full relative">
-                            <Image src={getAssetUrl(detail.pfp)} alt="Student Photo" fill className="object-cover" unoptimized />
+                            <Image src={getAssetUrl(detail.pfp)} alt="Student Photo" fill className="object-cover" unoptimized onError={(e) => { e.target.style.display = 'none'; if (e.target.parentNode) e.target.parentNode.innerHTML = '<div class="flex items-center justify-center w-full h-full text-[9px] font-bold text-slate-400 uppercase">Image Unavailable</div>'; }} />
                         </div>
                     ) : (
                         <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">No Record Found</span>
@@ -525,7 +525,7 @@ export function AdmissionModal({
         <div className="fixed inset-0 z-[9998] bg-slate-900/60 backdrop-blur-sm flex items-stretch justify-center p-4 font-sans">
             <div className="bg-slate-50 border border-slate-300 w-full max-w-6xl h-full flex flex-col shadow-2xl rounded-sm">
                 {/* Header */}
-                <div className="px-8 py-5 border-b border-slate-200 bg-white flex items-center justify-between">
+                <div className="px-4 sm:px-8 py-5 border-b border-slate-200 bg-white flex items-center justify-between">
                     <div>
                         <div className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1">Audit Environment</div>
                         <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Institutional Admission Review</h2>
@@ -556,7 +556,7 @@ export function AdmissionModal({
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-8">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-8">
                     {rejectionMode ? (
                         <div className="flex flex-col items-center justify-center h-full max-w-lg mx-auto space-y-8 animate-fadeIn">
                             <div className="text-center space-y-3">
@@ -606,7 +606,7 @@ export function AdmissionModal({
 
                 {/* Footer */}
                 {!rejectionMode && (
-                    <div className="px-8 py-5 border-t border-slate-200 bg-white flex justify-between items-center">
+                    <div className="px-4 sm:px-8 py-5 border-t border-slate-200 bg-white flex justify-between items-center">
                         <button
                             type="button"
                             onClick={() => setRejectionMode(true)}
@@ -621,7 +621,7 @@ export function AdmissionModal({
                                     type="button"
                                     onClick={onSave}
                                     disabled={processing}
-                                    className="px-8 py-2.5 border-2 border-amber-500 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 disabled:opacity-60 transition-all rounded-sm shadow-lg shadow-amber-100 active:scale-95"
+                                    className="px-4 sm:px-8 py-2.5 border-2 border-amber-500 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 disabled:opacity-60 transition-all rounded-sm shadow-lg shadow-amber-100 active:scale-95"
                                 >
                                     {processing ? 'Saving Audit...' : 'Commit Changes'}
                                 </button>
@@ -630,7 +630,7 @@ export function AdmissionModal({
                                     type="button"
                                     onClick={onVerify}
                                     disabled={processing}
-                                    className="px-8 py-2.5 bg-[#0b3578] text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-900 disabled:opacity-60 transition-all rounded-sm shadow-lg shadow-blue-100 active:scale-95"
+                                    className="px-4 sm:px-8 py-2.5 bg-[#0b3578] text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-900 disabled:opacity-60 transition-all rounded-sm shadow-lg shadow-blue-100 active:scale-95"
                                 >
                                     {processing ? 'Finalizing...' : verifyLabel}
                                 </button>

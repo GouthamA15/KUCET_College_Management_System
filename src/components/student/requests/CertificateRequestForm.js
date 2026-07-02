@@ -443,7 +443,7 @@ export default function CertificateRequestForm({
                           </div>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center relative">
-                            <Image src={formState.paymentPreviewUrl} alt="Payment Screenshot Preview" width={320} height={140} className="max-h-[140px] w-auto object-contain rounded-md" unoptimized />
+                            <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={formState.paymentPreviewUrl} alt="Payment Screenshot Preview" width={320} height={140} className="max-h-[140px] w-auto object-contain rounded-md" unoptimized />
                             <button type="button" onClick={handleRemoveImage} className="absolute -top-1 -right-1 bg-white border border-gray-300 rounded-full p-1 text-gray-600 hover:bg-gray-100 shadow-sm cursor-pointer w-6 h-6 flex items-center justify-center font-bold text-sm">
                               ×
                             </button>

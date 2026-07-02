@@ -27,7 +27,7 @@ export default function AddNewStudent() {
 
   const [basic, setBasic] = useState({ admission_no:'', roll_no:'', name:'', date_of_birth:'', gender:'Male', mobile:'', email:'' });
   const [mobileError, setMobileError] = useState('');
-  const [_incomeError, _setIncomeError] = useState('');
+  const [incomeError, setIncomeError] = useState('');
   const [_annualIncomeDisplay, setAnnualIncomeDisplay] = useState('');
   const [personal, setPersonal] = useState({ 
     father_name:'', mother_name:'', nationality:'', religion:'', category:'OC', sub_caste:'', area_status:'Local', 
@@ -213,6 +213,7 @@ export default function AddNewStudent() {
       // reset fee_reimbursement
       setBasic(prev => ({ ...prev, fee_reimbursement: undefined }));
       setAnnualIncomeDisplay('');
+      setIncomeError('');
       setAcademic({ qualifying_exam:'TG EAPCET', previous_college_details:'', medium_of_instruction:'English', ranks:'', ssc_marks:'', inter_marks:'' });
       setFiles({ pfp: null, signature: null });
       setSavedRollLocked(false);
@@ -380,14 +381,14 @@ export default function AddNewStudent() {
               {/* Current Address */}
               <div>
                 <h4 className="text-[10px] font-bold text-gray-500 mb-2 ">Current Address</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <input placeholder="House No*" value={personal.curr_house_no} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="Apartment / Landmark" value={personal.curr_apartment} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="Street*" value={personal.curr_street} onChange={e => handleAddressChange('curr_street', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-2" />
-                  <input placeholder="City*" value={personal.curr_city} onChange={e => handleAddressChange('curr_city', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="State*" value={personal.curr_state} onChange={e => handleAddressChange('curr_state', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="PIN Code*" value={personal.curr_pincode} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                  <input placeholder="Country*" value={personal.curr_country} onChange={e => handleAddressChange('curr_country', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input placeholder="House No*" value={personal.curr_house_no} onChange={e => handleAddressChange('curr_house_no', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="Apartment / Landmark" value={personal.curr_apartment} onChange={e => handleAddressChange('curr_apartment', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="Street*" value={personal.curr_street} onChange={e => handleAddressChange('curr_street', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-2" />
+                  <input placeholder="City*" value={personal.curr_city} onChange={e => handleAddressChange('curr_city', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="State*" value={personal.curr_state} onChange={e => handleAddressChange('curr_state', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="PIN Code*" value={personal.curr_pincode} onChange={e => handleAddressChange('curr_pincode', e.target.value.replace(/\D/g, ''))} maxLength={6} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                  <input placeholder="Country*" value={personal.curr_country} onChange={e => handleAddressChange('curr_country', e.target.value)} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
                 </div>
                 <div className="flex items-center gap-2 mt-3">
                   <input 
@@ -407,14 +408,14 @@ export default function AddNewStudent() {
               <div>
                 <h4 className="text-[10px] font-bold text-gray-500 mb-2 ">Permanent Address</h4>
                 {!personal.is_current_same_as_permanent ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <input placeholder="House No*" value={personal.perm_house_no} onChange={e => setPersonal({...personal, perm_house_no: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="Apartment / Landmark" value={personal.perm_apartment} onChange={e => setPersonal({...personal, perm_apartment: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="Street*" value={personal.perm_street} onChange={e => setPersonal({...personal, perm_street: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-2" />
-                    <input placeholder="City*" value={personal.perm_city} onChange={e => setPersonal({...personal, perm_city: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="State*" value={personal.perm_state} onChange={e => setPersonal({...personal, perm_state: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="PIN Code*" value={personal.perm_pincode} onChange={e => setPersonal({...personal, perm_pincode: e.target.value.replace(/\D/g, '')})} maxLength={6} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
-                    <input placeholder="Country*" value={personal.perm_country} onChange={e => setPersonal({...personal, perm_country: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md col-span-1" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input placeholder="House No*" value={personal.perm_house_no} onChange={e => setPersonal({...personal, perm_house_no: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="Apartment / Landmark" value={personal.perm_apartment} onChange={e => setPersonal({...personal, perm_apartment: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="Street*" value={personal.perm_street} onChange={e => setPersonal({...personal, perm_street: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-2" />
+                    <input placeholder="City*" value={personal.perm_city} onChange={e => setPersonal({...personal, perm_city: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="State*" value={personal.perm_state} onChange={e => setPersonal({...personal, perm_state: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="PIN Code*" value={personal.perm_pincode} onChange={e => setPersonal({...personal, perm_pincode: e.target.value.replace(/\D/g, '')})} maxLength={6} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
+                    <input placeholder="Country*" value={personal.perm_country} onChange={e => setPersonal({...personal, perm_country: e.target.value})} className="p-2 text-sm border border-gray-300 rounded-md sm:col-span-1" />
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-24 bg-gray-100/50 border border-gray-300 border-dashed rounded-md">
@@ -451,11 +452,16 @@ export default function AddNewStudent() {
                 value={personal.annual_income} 
                 onChange={e => {
                   const raw = e.target.value.replace(/\D/g, '');
-                  if (raw && parseInt(raw) > 2000000) return;
+                  if (raw && parseInt(raw) > 2000000) {
+                    setIncomeError('Annual income exceeds max limit of 2,000,000');
+                  } else {
+                    setIncomeError('');
+                  }
                   setPersonal({...personal, annual_income: formatIndianNumber(raw)});
                 }} 
-                className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578]"
+                className={`w-full p-2 text-sm border ${incomeError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:border-[#0b3578]`}
               />
+              {incomeError && <div className="text-[10px] text-red-500 mt-0.5">{incomeError}</div>}
             </div>
             <div className="md:col-span-2">
               <label className="text-sm font-medium text-gray-700 block mb-1">Guardian Mobile</label>
@@ -529,14 +535,14 @@ export default function AddNewStudent() {
               <label className="text-sm font-medium text-gray-700 block mb-1">Student Photo (Max 1MB)</label>
               <div className="flex items-center gap-4">
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="p-1.5 text-xs border border-gray-300 rounded-md w-full bg-white" />
-                {files.pfp && <Image src={files.pfp} alt="Preview" className="h-10 w-10 object-cover border border-gray-300 rounded-full" width={40} height={40} unoptimized />}
+                {files.pfp && <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={files.pfp} alt="Preview" className="h-10 w-10 object-cover border border-gray-300 rounded-full" width={40} height={40} unoptimized />}
               </div>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Signature (Max 1MB)</label>
               <div className="flex items-center gap-4">
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="p-1.5 text-xs border border-gray-300 rounded-md w-full bg-white" />
-                {files.signature && <Image src={files.signature} alt="Preview" className="h-10 w-24 object-contain border border-gray-300 rounded-md bg-white p-1" width={96} height={40} unoptimized />}
+                {files.signature && <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={files.signature} alt="Preview" className="h-10 w-24 object-contain border border-gray-300 rounded-md bg-white p-1" width={96} height={40} unoptimized />}
               </div>
             </div>
           </div>

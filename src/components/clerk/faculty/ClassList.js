@@ -1,10 +1,13 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useClerk } from '@/context/ClerkContext';
 
 export default function ClassList() {
-  const [assignments, setAssignments] = useState([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const { facultyAssignments = [], isLoadingFaculty } = useClerk();
+  const [localAssignments, setLocalAssignments] = useState(null);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [searchRoll, setSearchRoll] = useState('');
@@ -15,21 +18,26 @@ export default function ClassList() {
   const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
 
   useEffect(() => {
-    const fetchAssignments = async () => {
-      setLoadingAssignments(true);
-      try {
-        const res = await fetch('/api/clerk/faculty/assignments');
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
-        setAssignments(data.data || []);
-      } catch (e) {
-        toast.error(e.message);
-      } finally {
-        setLoadingAssignments(false);
-      }
-    };
-    fetchAssignments();
-  }, []);
+    if ((!facultyAssignments || facultyAssignments.length === 0) && !isLoadingFaculty && localAssignments === null && !loadingAssignments) {
+      const fetchAssignments = async () => {
+        setLoadingAssignments(true);
+        try {
+          const res = await fetch('/api/clerk/faculty/assignments');
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to fetch assignments');
+          setLocalAssignments(data.data || []);
+        } catch (e) {
+          toast.error(e.message);
+          setLocalAssignments([]);
+        } finally {
+          setLoadingAssignments(false);
+        }
+      };
+      fetchAssignments();
+    }
+  }, [facultyAssignments, isLoadingFaculty, localAssignments, loadingAssignments]);
+
+  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : (localAssignments || []);
 
   const years = useMemo(() => Array.from(new Set(assignments.map(a => a.academic_year))).sort((a,b)=> b.localeCompare(a)), [assignments]);
   const branches = useMemo(() => Array.from(new Set(assignments.filter(a => (!selectedAY || a.academic_year === selectedAY)).map(a => a.branch))).sort(), [assignments, selectedAY]);
@@ -118,13 +126,15 @@ export default function ClassList() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border border-slate-200 rounded-sm">
+      {/* Desktop Table */}
+      <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-sm">
         {loadingStudents ? (
           <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest">Loading students…</div>
         ) : (
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest w-16">Photo</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Roll Number</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest">Student Name</th>
               </tr>
@@ -132,17 +142,56 @@ export default function ClassList() {
             <tbody className="bg-white divide-y divide-slate-200">
               {visibleStudents.map((s) => (
                 <tr key={s.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500">
+                      {s.pfp ? (
+                        <img src={s.pfp} alt={s.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = s.name.charAt(0).toUpperCase(); }} />
+                      ) : (
+                        s.name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-[11px] font-mono font-bold text-slate-800">{s.roll_no}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-[11px] text-slate-700 font-semibold">{s.name}</td>
                 </tr>
               ))}
               {visibleStudents.length === 0 && (
                 <tr>
-                  <td className="px-4 py-10 text-center text-[11px] text-slate-500 font-semibold uppercase tracking-widest" colSpan={2}>No students found.</td>
+                  <td className="px-4 py-10 text-center text-[11px] text-slate-500 font-semibold uppercase tracking-widest" colSpan={3}>No students found.</td>
                 </tr>
               )}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* Mobile Card Layout */}
+      <div className="md:hidden flex flex-col gap-3">
+        {loadingStudents ? (
+          <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest bg-slate-50 rounded-lg">Loading students…</div>
+        ) : (
+          <>
+            {visibleStudents.map((s) => (
+              <div key={s.id} className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm flex items-center justify-between gap-4">
+                <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-sm text-slate-600 flex-shrink-0">
+                  {s.pfp ? (
+                    <img src={s.pfp} alt={s.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = s.name.charAt(0).toUpperCase(); }} />
+                  ) : (
+                    s.name.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-sm text-slate-800">{s.name}</div>
+                  <div className="text-[11px] font-mono font-bold text-indigo-600 mt-1">{s.roll_no}</div>
+                </div>
+              </div>
+            ))}
+            {visibleStudents.length === 0 && (
+              <div className="text-center py-10 text-[11px] text-slate-500 font-semibold uppercase tracking-widest bg-slate-50 rounded-lg">
+                No students found.
+              </div>
+            )}
+          </>
         )}
       </div>
       </div>

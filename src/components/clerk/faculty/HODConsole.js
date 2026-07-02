@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useClerk } from '@/context/ClerkContext';
 import { toast } from 'react-hot-toast';
 import SyllabusManager from './SyllabusManager';
@@ -15,8 +16,9 @@ const INSTITUTIONAL_ACTIVITIES = [
 ];
 
 export default function HODConsole({ workstreams = null, onSelectWorkstream = null, onActiveSubTabChange = null }) {
+  const searchParams = useSearchParams();
+  const activeSubTab = searchParams.get('tab') || 'workload';
   const { clerkData, hodBranchData, refreshHOD, isLoadingHOD } = useClerk();
-  const [activeSubTab, setActiveSubTab] = useState('workload');
   const [editingSlot, setEditingSlot] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const formRef = useRef(null);
@@ -219,26 +221,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
           </button>
         </div>
 
-        <div className="flex gap-2 mt-6 overflow-x-auto pb-1 no-scrollbar border-t border-white/5 pt-4">
-          {[
-            { id: 'workload', label: 'Faculty Load', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-            { id: 'timetable', label: 'Edit Timetable', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z' },
-            { id: 'allocation', label: 'Assignment Registry', icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' },
-            { id: 'syllabus', label: 'Branch Syllabus', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-            { id: 'analytics', label: 'Data Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-            { id: 'config', label: 'Department Config', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
-          ].map(tab => ( activeSubTab === tab.id ? (
-            <button key={tab.id} className={`flex items-center gap-2 px-4 py-2 bg-white text-[#0b3578] font-bold border-t-2 border-amber-400 whitespace-nowrap ${tab.id === 'allocation' ? 'text-[11px]' : 'text-[10px]'} uppercase tracking-widest transition-all`}>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
-              {tab.label}
-            </button>
-          ) : (
-            <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} className="flex items-center gap-2 px-4 py-2 text-blue-100 hover:text-white hover:bg-white/5 whitespace-nowrap text-[10px] uppercase tracking-widest font-medium transition-all">
-              <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} /></svg>
-              {tab.label}
-            </button>
-          )))}
-        </div>
+        {/* Sub-navigation is now handled by the Sidebar component */}
       </div>
 
       <div className="p-4 md:p-8 min-h-[450px]">
@@ -316,18 +299,18 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3">
-                    {isLoadingTimetable && <div className="w-4 h-4 border-2 border-[#0b3578] border-t-transparent animate-spin"></div>}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                    {isLoadingTimetable && <div className="w-4 h-4 border-2 border-[#0b3578] border-t-transparent animate-spin self-center"></div>}
                     <button 
                       onClick={() => handleClearTimetable('clearSemester')}
-                      className="px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-bold uppercase tracking-widest hover:bg-amber-100 transition-all flex items-center gap-2"
+                      className="w-full sm:w-auto justify-center px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-bold uppercase tracking-widest hover:bg-amber-100 transition-all flex items-center gap-2"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       Clear Sem {selectedSem}
                     </button>
                     <button 
                       onClick={() => handleClearTimetable('clearAll')}
-                      className="px-3 py-2 bg-red-50 text-red-700 border border-red-200 text-[9px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
+                      className="w-full sm:w-auto justify-center px-3 py-2 bg-red-50 text-red-700 border border-red-200 text-[9px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                       Wipe Departmental Timetable
@@ -352,6 +335,7 @@ export default function HODConsole({ workstreams = null, onSelectWorkstream = nu
             {activeSubTab === 'syllabus' && <SyllabusManager branch={clerkData.branch} />}
             {activeSubTab === 'analytics' && <BranchAnalytics branch={clerkData.branch} />}
             {activeSubTab === 'config' && <BranchConfig config={hodBranchData?.config} branch={clerkData.branch} refresh={refreshHOD} />}
+            {activeSubTab === 'interests' && <FacultyInterestsView refreshHOD={refreshHOD} />}
           </div>
         )}
       </div>
@@ -472,41 +456,43 @@ function WorkloadView({ data, branch }) {
       
       <div className="grid grid-cols-1 gap-4">
         {data.map(f => (
-          <div key={f.id} className="bg-white border border-slate-200 p-6 hover:border-[#0b3578] transition-all group">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+          <div key={f.id} className="bg-white border border-slate-200 p-4 sm:p-5 hover:border-[#0b3578] transition-all group rounded-sm">
+            
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6 w-full max-w-full min-w-0">
               
-              <div className="flex items-center gap-5">
-                <div className="w-12 h-12 bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-[#0b3578] text-xl group-hover:bg-[#0b3578] group-hover:text-white transition-all">
-                  {f.name.charAt(0)}
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-slate-800 group-hover:text-[#0b3578] transition-colors uppercase tracking-wider">{f.name}</h4>
-                  <p className="text-[10px] text-slate-400 font-medium tracking-widest uppercase mt-0.5">{f.email}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                     {f.subjects ? f.subjects.split(', ').map(s => (
-                       <span key={s} className="text-[8px] font-bold bg-slate-50 text-slate-500 px-2 py-0.5 border border-slate-200 uppercase tracking-tighter">{s}</span>
-                     )) : <span className="text-[8px] font-medium text-slate-300 italic">No Official Authorization</span>}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto min-w-0">
+                <div className="flex items-center gap-3 w-full sm:w-auto min-w-0">
+                  <div className="w-12 h-12 bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-[#0b3578] text-xl group-hover:bg-[#0b3578] group-hover:text-white transition-all flex-shrink-0 rounded-sm">
+                    {f.name.charAt(0)}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-base text-slate-800 group-hover:text-[#0b3578] transition-colors uppercase tracking-wider truncate">{f.name}</h4>
+                    <p className="text-xs text-slate-400 font-medium tracking-widest uppercase mt-0.5 truncate">{f.email}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 w-full sm:w-auto min-w-0">
+                   {f.subjects ? f.subjects.split(', ').map(s => (
+                     <span key={s} className="text-[10px] font-bold bg-slate-50 text-slate-500 px-2 py-1 border border-slate-200 uppercase tracking-tighter rounded-sm break-all">{s}</span>
+                   )) : <span className="text-[10px] font-medium text-slate-300 italic">No Official Authorization</span>}
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 w-full lg:w-auto">
-                 <div className="bg-slate-50 border border-slate-100 p-3 text-center">
+              <div className="grid grid-cols-3 gap-3 w-full lg:w-auto min-w-0">
+                 <div className="bg-slate-50 border border-slate-100 p-3 text-center rounded-sm flex flex-col justify-center min-w-0">
                     <div className="text-lg font-bold text-slate-800">{f.scheduled_weekly}</div>
-                    <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Weekly / Sch</div>
+                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate">Weekly / Sch</div>
                  </div>
-                 <div className="bg-slate-50 border border-slate-100 p-3 text-center">
+                 <div className="bg-slate-50 border border-slate-100 p-3 text-center rounded-sm flex flex-col justify-center min-w-0">
                     <div className="text-lg font-bold text-slate-800">{f.total_conducted}</div>
-                    <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Sem / Reg</div>
+                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate">Sem / Reg</div>
                  </div>
-                 <div className="bg-[#0b3578]/5 border border-[#0b3578]/10 p-3 text-center">
+                 <div className="bg-[#0b3578]/5 border border-[#0b3578]/10 p-3 text-center rounded-sm flex flex-col justify-center min-w-0">
                     <div className="text-lg font-bold text-[#0b3578]">
                        {f.scheduled_weekly > 0 ? Math.min(Math.round((f.total_conducted / (f.scheduled_weekly * 4)) * 100), 100) : 0}%
                     </div>
-                    <div className="text-[7px] font-bold text-[#0b3578]/60 uppercase tracking-widest">Performance</div>
+                    <div className="text-[8px] font-bold text-[#0b3578]/60 uppercase tracking-widest truncate">Performance</div>
                  </div>
               </div>
-
             </div>
             
             <div className="mt-6 relative pt-2">
@@ -538,11 +524,62 @@ function WorkloadView({ data, branch }) {
   );
 }
 
+
 function TimetableManager({ data, onEditSlot }) {
-  const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const periods = [1, 2, 3, 4, 5, 6, 7];
-  
-  const getSlot = (day, period) => data.find(s => s.day_of_week === day && s.period_number === period);
+    const [activeMobileDay, setActiveMobileDay] = useState('MON');
+    const [touchStart, setTouchStart] = useState(null);
+    const [touchEnd, setTouchEnd] = useState(null);
+
+    const minSwipeDistance = 50;
+
+    const onTouchStart = (e) => {
+      setTouchEnd(null);
+      setTouchStart(e.targetTouches[0].clientX);
+    };
+    
+    const onTouchMove = (e) => {
+      setTouchEnd(e.targetTouches[0].clientX);
+    };
+    
+    const onTouchEndHandler = () => {
+      if (!touchStart || !touchEnd) return;
+      const distance = touchStart - touchEnd;
+      const isLeftSwipe = distance > minSwipeDistance;
+      const isRightSwipe = distance < -minSwipeDistance;
+      
+      const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      const currentIndex = days.indexOf(activeMobileDay);
+      
+      if (isLeftSwipe && currentIndex < days.length - 1) {
+        setActiveMobileDay(days[currentIndex + 1]);
+      } else if (isRightSwipe && currentIndex > 0) {
+        setActiveMobileDay(days[currentIndex - 1]);
+      }
+    };
+
+    const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const periods = [1, 2, 3, 4, 5, 6, 7];
+    
+    const getSlot = (day, period) => data.find(s => s.day_of_week === day && s.period_number === period);
+    
+    const isSlotActiveNow = (day, p) => {
+      const now = new Date();
+      const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      if (dayNames[now.getDay()] !== day) return false;
+      
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      let startMin = 0; let endMin = 0;
+      if (p === 1) { startMin = 9*60+30; endMin = 10*60+20; }
+      else if (p === 2) { startMin = 10*60+20; endMin = 11*60+10; }
+      else if (p === 3) { startMin = 11*60+20; endMin = 12*60+10; }
+      else if (p === 4) { startMin = 12*60+10; endMin = 13*60+0; }
+      else if (p === 5) { startMin = 14*60+0; endMin = 14*60+50; }
+      else if (p === 6) { startMin = 14*60+50; endMin = 15*60+40; }
+      else if (p === 7) { startMin = 15*60+40; endMin = 16*60+30; }
+      
+      return currentMinutes >= startMin && currentMinutes < endMin;
+    };
+
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -553,7 +590,8 @@ function TimetableManager({ data, onEditSlot }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-slate-200">
+      {/* Desktop Matrix Layout */}
+      <div className="hidden md:block overflow-x-auto border border-slate-200">
         <table className="w-full border-collapse text-xs min-w-[1000px]">
           <thead>
             <tr>
@@ -615,8 +653,160 @@ function TimetableManager({ data, onEditSlot }) {
           </tbody>
         </table>
       </div>
+
+      {/* Mobile Card Layout */}
+      
+      {/* Mobile Card Layout */}
+      <div className="md:hidden">
+        {/* Day Selector */}
+        <div className="px-1 py-3 bg-white border-b border-slate-200 sticky top-0 z-20">
+          <div className="flex justify-between items-center bg-slate-100/50 p-1 rounded-lg border border-slate-200">
+            {days.map(day => (
+              <button
+                key={day}
+                onClick={() => setActiveMobileDay(day)}
+                className={`flex-1 py-2 px-1 rounded-md text-[11px] font-black transition-all ${activeMobileDay === day ? 'bg-[#0b3578] text-white shadow' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Swipeable Area */}
+        <div 
+          className="p-4 space-y-4 bg-slate-50/50"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEndHandler}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#0b3578]"></span>
+              {activeMobileDay} Schedule
+            </h3>
+            <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-1 border border-slate-200 rounded uppercase tracking-widest">
+              {periods.length} Periods
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {periods.map(p => {
+              const slot = getSlot(activeMobileDay, p);
+              const activity = slot ? INSTITUTIONAL_ACTIVITIES.find(a => a.code === slot.subject_code) : null;
+              const isInstitutional = !!activity;
+              const isActiveNow = isSlotActiveNow(activeMobileDay, p);
+
+              let timeStr = '';
+              if (p === 1) timeStr = '09:30 - 10:20 AM';
+              else if (p === 2) timeStr = '10:20 - 11:10 AM';
+              else if (p === 3) timeStr = '11:20 - 12:10 PM';
+              else if (p === 4) timeStr = '12:10 - 01:00 PM';
+              else if (p === 5) timeStr = '02:00 - 02:50 PM';
+              else if (p === 6) timeStr = '02:50 - 03:40 PM';
+              else if (p === 7) timeStr = '03:40 - 04:30 PM';
+
+              return (
+                <div key={p}>
+                  {/* Short Break */}
+                  {p === 3 && (
+                    <div className="my-3 py-2.5 px-3 bg-amber-50/80 border border-amber-200 rounded-lg flex items-center justify-between shadow-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">☕</span>
+                        <span className="text-[11px] font-black text-amber-800 uppercase tracking-wider">Short Break</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-700">11:10 - 11:20 AM</span>
+                    </div>
+                  )}
+                  {/* Lunch Break */}
+                  {p === 5 && (
+                    <div className="my-3 py-2.5 px-3 bg-emerald-50/80 border border-emerald-200 rounded-lg flex items-center justify-between shadow-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🍽️</span>
+                        <span className="text-[11px] font-black text-emerald-800 uppercase tracking-wider">Lunch Break</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700">01:00 - 02:00 PM</span>
+                    </div>
+                  )}
+
+                  <div 
+                    onClick={() => onEditSlot(activeMobileDay, p, slot)}
+                    className={`rounded-xl border transition-all p-4 shadow-sm relative overflow-hidden cursor-pointer active:scale-[0.98] ${
+                      isActiveNow 
+                        ? 'bg-blue-50/80 border-[#0b3578] ring-2 ring-[#0b3578]/20 shadow-md' 
+                        : slot 
+                          ? (isInstitutional ? 'bg-amber-50/40 border-amber-200' : 'bg-white border-slate-200') 
+                          : 'bg-slate-50/70 border-dashed border-slate-300'
+                    }`}
+                  >
+                    {isActiveNow && (
+                      <div className="absolute top-0 right-0 bg-[#0b3578] text-white text-[8px] font-black px-2.5 py-0.5 rounded-bl uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Active Now
+                      </div>
+                    )}
+
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                        <div className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center font-black flex-shrink-0 border shadow-xs ${
+                          isActiveNow
+                            ? 'bg-[#0b3578] text-white border-[#0b3578]'
+                            : slot
+                              ? (isInstitutional ? 'bg-amber-100/80 text-amber-900 border-amber-200' : 'bg-slate-100 text-[#0b3578] border-slate-200')
+                              : 'bg-slate-100 text-slate-400 border-slate-200'
+                        }`}>
+                          <span className="text-xs">P{p}</span>
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex flex-wrap items-center gap-2">
+                            <span>{timeStr}</span>
+                            {slot?.room_no && (
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tight ${
+                                isActiveNow ? 'bg-[#0b3578]/10 text-[#0b3578]' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                Room {slot.room_no}
+                              </span>
+                            )}
+                          </div>
+
+                          {slot ? (
+                            <>
+                              <h4 className={`text-sm font-black uppercase tracking-tight leading-snug break-words ${
+                                isInstitutional ? 'text-amber-900' : 'text-slate-900'
+                              }`}>
+                                {activity ? activity.name : (slot.display_name || slot.subject_name || slot.subject_code)}
+                              </h4>
+                              {slot.subject_code && !isInstitutional && (
+                                <div className="text-[10px] font-bold text-[#0b3578] mt-0.5 uppercase tracking-widest">
+                                  {slot.subject_code}
+                                </div>
+                              )}
+                              {slot.faculty_name && (
+                                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-medium truncate">
+                                  <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider flex-shrink-0">Faculty:</span>
+                                  <span className="truncate font-semibold text-slate-800">{slot.faculty_name}</span>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="py-2 flex items-center gap-2 text-slate-400 font-medium text-xs">
+                              <span className="italic">Free Period / Available</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
       
       <div className="mt-8 flex flex-wrap gap-8 items-center justify-center bg-slate-50 p-5 border border-slate-200">
+
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-white border border-slate-200 flex items-center justify-center text-orange-500 font-bold text-sm">☕</div>
           <div>
@@ -752,12 +942,12 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
 
            <div className="grid grid-cols-1 gap-3">
               {filteredAssignments.map(a => (
-                <div key={a.id} className="bg-white border border-slate-200 p-5 flex justify-between items-center group hover:border-[#0b3578] transition-all shadow-sm">
-                   <div className="flex items-center gap-5">
-                      <div className="w-10 h-10 bg-slate-50 border border-slate-100 flex items-center justify-center text-sm group-hover:bg-blue-50 transition-colors">🎓</div>
-                      <div>
-                         <h5 className="font-bold text-slate-800 tracking-wider text-[11px] leading-tight mb-1 uppercase">{a.subject_name}</h5>
-                         <div className="flex items-center gap-3">
+                <div key={a.id} className="bg-white border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 group hover:border-[#0b3578] transition-all shadow-sm">
+                   <div className="flex items-start sm:items-center gap-3 sm:gap-5 min-w-0 flex-1">
+                      <div className="w-10 h-10 bg-slate-50 border border-slate-100 flex items-center justify-center text-sm group-hover:bg-blue-50 transition-colors flex-shrink-0">🎓</div>
+                      <div className="min-w-0">
+                         <h5 className="font-bold text-slate-800 tracking-wider text-[11px] leading-tight mb-1 uppercase truncate">{a.subject_name}</h5>
+                         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                             <span className="text-[8px] font-bold text-[#0b3578] border border-[#0b3578]/20 bg-blue-50 px-2 py-0.5 uppercase tracking-widest">{a.subject_code}</span>
                             <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Handler: <span className="text-slate-600 underline underline-offset-2 decoration-slate-300">{a.faculty_name}</span></span>
                          </div>
@@ -765,7 +955,7 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
                    </div>
                    <button 
                      onClick={() => handleRevoke(a.id)}
-                     className="p-2.5 text-slate-300 hover:bg-red-500 hover:text-white border border-transparent hover:border-red-600 transition-all opacity-0 group-hover:opacity-100"
+                     className="self-end sm:self-center p-2.5 text-slate-400 hover:bg-red-500 hover:text-white border border-slate-200 sm:border-transparent sm:hover:border-red-600 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 rounded"
                      title="Revoke Registry Authorization"
                    >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -774,7 +964,7 @@ function SubjectAllocation({ subjects, faculty, assignments, refresh }) {
               ))}
 
               {filteredAssignments.length === 0 && (
-                <div className="bg-slate-50 border border-dashed border-slate-300 py-20 flex flex-col items-center justify-center text-center px-10">
+                <div className="bg-slate-50 border border-dashed border-slate-300 py-20 flex flex-col items-center justify-center text-center px-4 sm:px-10">
                    <div className="text-3xl mb-4 opacity-20">🔐</div>
                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">No Faculty Authorized for Semester {selectedSem} Registry</p>
                    <p className="text-[8px] text-slate-400 mt-2 max-w-xs uppercase tracking-tighter opacity-60">Authorized personnel will be granted system access to manage student academic records for this semester.</p>
@@ -851,7 +1041,7 @@ function BranchConfig({ config, branch, refresh }) {
         </div>
 
         <div className="space-y-6">
-           <div className="bg-[#0b3578] p-8 text-white border border-[#0b3578]">
+           <div className="bg-[#0b3578] p-4 sm:p-8 text-white border border-[#0b3578]">
               <h4 className="font-bold text-[10px] mb-2 uppercase tracking-[0.3em] text-blue-300 opacity-80">University Affiliate Branch</h4>
               <div className="text-3xl font-bold mb-1 tracking-tight">{branch}</div>
               <div className="text-[9px] font-bold text-blue-200/60 uppercase tracking-widest mb-8 border-b border-white/10 pb-4">Engineering Department Control Unit</div>
@@ -869,6 +1059,109 @@ function BranchConfig({ config, branch, refresh }) {
            </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function FacultyInterestsView({ refreshHOD }) {
+  const [interests, setInterests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null);
+
+  useEffect(() => {
+    fetchInterests();
+  }, []);
+
+  async function fetchInterests() {
+    try {
+      const res = await fetch('/api/clerk/hod/faculty-interests');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch interests');
+      setInterests(data.data || []);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAction = async (interestId, status) => {
+    setProcessingId(interestId);
+    try {
+      const res = await fetch('/api/clerk/hod/faculty-interests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interest_id: interestId, status })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to process request');
+      
+      toast.success(`Interest ${status.toLowerCase()} successfully`);
+      await fetchInterests();
+      if (status === 'APPROVED' && refreshHOD) {
+        await refreshHOD();
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-4 sm:p-8 text-center text-slate-500 font-bold text-xs uppercase tracking-widest">Loading interests...</div>;
+  }
+
+  return (
+    <div className="animate-in fade-in duration-500">
+      <h3 className="text-sm font-bold text-slate-800 mb-6 uppercase tracking-wider">Faculty Subject Interests</h3>
+      
+      {interests.length === 0 ? (
+        <div className="bg-slate-50 border border-slate-200 p-12 text-center text-slate-500 text-xs font-bold uppercase tracking-widest">
+          No faculty interests pending for your branch.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {interests.map(interest => (
+            <div key={interest.id} className="bg-white border border-slate-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+              <div className="min-w-0">
+                <div className="flex flex-wrap gap-2 items-center mb-1">
+                  <span className="font-bold text-slate-800 text-sm uppercase">{interest.subject_code}</span>
+                  <span className="text-slate-500 text-xs truncate">- {interest.subject_name}</span>
+                </div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                  Faculty: <span className="text-blue-700">{interest.faculty_name}</span> | Sem: {interest.semester} | {interest.academic_year}
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 self-end sm:self-center">
+                <div className="text-[10px] font-bold px-2 py-1 bg-slate-100 uppercase tracking-widest text-slate-600 border border-slate-200">
+                  {interest.status}
+                </div>
+                
+                {interest.status === 'PENDING' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAction(interest.id, 'REJECTED')}
+                      disabled={processingId === interest.id}
+                      className="px-3 py-1.5 border border-red-200 text-red-700 bg-red-50 text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleAction(interest.id, 'APPROVED')}
+                      disabled={processingId === interest.id}
+                      className="px-3 py-1.5 border border-[#0b3578] text-white bg-[#0b3578] text-[10px] font-bold uppercase tracking-widest hover:bg-blue-900 disabled:opacity-50"
+                    >
+                      {processingId === interest.id ? 'Processing...' : 'Approve'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

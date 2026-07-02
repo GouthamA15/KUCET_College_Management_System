@@ -37,7 +37,7 @@ const ASSET_MANIFEST = [
 export function AssetProvider({ children }) {
   const preCacheAssets = useCallback(async () => {
     // We just fetch the assets once so the browser stores them in its native HTTP cache.
-    // This avoids issues with Next.js <Image /> components and blob URLs,
+    // This avoids issues with Next.js <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} /> components and blob URLs,
     // while still achieving the goal of fetching once and storing locally.
     
     const fetchPromises = ASSET_MANIFEST.map(async (path) => {

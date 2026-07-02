@@ -28,7 +28,10 @@ export const GET = wrapHandler({
 
     const imageHelper = (val) => {
       if (!val) return null;
-      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:') || val.startsWith('/api/'))) return val;
+      if (typeof val === 'string') {
+        return storage.getUrl(val);
+      }
       if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
       return val;
     };

@@ -1,8 +1,10 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 import { useState, _useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
+import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
@@ -295,94 +297,193 @@ const AttendanceGrid = () => {
   const { students, assignment, dateValidation, toggleAttendanceStatus, setAllAttendanceStatus, statusLoading, verifiedStudentIds } = useFacultyAttendance();
 
   return (
-    <table className="min-w-full divide-y-2 divide-gray-200 border">
-      <thead className="bg-gray-50">
-        <tr>
-          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Roll No</th>
-          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
-          <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
-            <div className="flex flex-col items-center gap-2">
-              <div className="inline-flex items-center justify-center gap-2">
-                <span>Status</span>
-                {statusLoading && (
-                  <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                )}
-              </div>
-              {/* Bulk Toggle Buttons */}
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
-                  disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
-                  className="px-2 py-1 bg-green-600 text-white text-[9px] font-black rounded hover:bg-green-700 disabled:opacity-50 transition-colors uppercase"
-                  title="Mark All Present"
-                >
-                  All P
-                </button>
-                <button
-                  type="button"
-                  onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
-                  disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
-                  className="px-2 py-1 bg-red-600 text-white text-[9px] font-black rounded hover:bg-red-700 disabled:opacity-50 transition-colors uppercase"
-                  title="Mark All Absent"
-                >
-                  All A
-                </button>
+    <div className="w-full">
+      {/* Mobile Header Actions (Visible only on mobile) */}
+      <div className="md:hidden flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 mb-4">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Bulk Actions</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
+            disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
+            className="px-3 py-1.5 bg-green-600 text-white text-[10px] font-black rounded hover:bg-green-700 disabled:opacity-50 transition-colors uppercase"
+          >
+            All P
+          </button>
+          <button
+            type="button"
+            onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
+            disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
+            className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-black rounded hover:bg-red-700 disabled:opacity-50 transition-colors uppercase"
+          >
+            All A
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Card Layout */}
+      <div className="md:hidden flex flex-col gap-3">
+        {students.map((student) => (
+          <div key={student.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 flex-shrink-0">
+                  {student.pfp ? (
+                    <img src={student.pfp} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
+                  ) : (
+                    student.name.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-mono font-bold text-slate-800">{student.roll_no}</span>
+                    {verifiedStudentIds.has(student.id) && (
+                      <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{student.name}</span>
+                    {verifiedStudentIds.has(student.id) && (
+                      <span className="text-[8px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          </th>
-        </tr>
-      </thead>
-      <tbody className="bg-white divide-y divide-gray-200">
-        {students.map((student) => (
-          <tr key={student.id} className="hover:bg-gray-50">
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">
-              <div className="flex items-center gap-2">
-                {student.roll_no}
-                {verifiedStudentIds.has(student.id) && (
-                  <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
-                )}
-              </div>
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-              <div className="flex items-center gap-2">
-                {student.name}
-                {verifiedStudentIds.has(student.id) && (
-                  <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
-                )}
-              </div>
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-center">
+            
+            <div className="pt-3 border-t border-slate-100">
               {statusLoading ? (
-                <div className="flex justify-center">
-                  <span className="inline-block h-6 w-6 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                <div className="flex justify-center py-2">
+                  <span className="inline-block h-6 w-6 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : (
                 <button
                   onClick={() => assignment.is_active && toggleAttendanceStatus(student.id)}
                   disabled={!assignment.is_active || !dateValidation.isValid}
-                  className={`w-28 px-3 py-2 rounded text-sm font-bold uppercase ${
+                  className={`w-full py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${
                     student.status === null
-                      ? 'bg-gray-100 text-gray-700'
+                      ? 'bg-slate-100 text-slate-500 border border-slate-200'
                       : student.status === 'PRESENT'
-                      ? 'bg-green-100 text-green-800'
+                      ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
                       : student.status === 'ABSENT'
-                      ? 'bg-red-100 text-red-800'
+                      ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
                       : student.status === 'NCC'
-                      ? 'bg-blue-100 text-blue-800'
+                      ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
                       : student.status === 'MEDICAL'
-                      ? 'bg-purple-100 text-purple-800'
-                      : 'bg-gray-100 text-gray-700'
-                  } ${!assignment.is_active || !dateValidation.isValid ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
+                      ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
+                      : 'bg-slate-100 text-slate-500'
+                  } ${!assignment.is_active || !dateValidation.isValid ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
                 >
-                  {student.status === null ? 'NOT SET' : student.status}
+                  {student.status === null ? 'NOT SET (TAP TO CHANGE)' : student.status}
                 </button>
               )}
-            </td>
-          </tr>
+            </div>
+          </div>
         ))}
-      </tbody>
-    </table>
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden md:block overflow-x-auto border border-gray-200 rounded-lg">
+        <table className="min-w-full divide-y-2 divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-16">Photo</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Roll No</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="inline-flex items-center justify-center gap-2">
+                    <span>Status</span>
+                    {statusLoading && (
+                      <span className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </div>
+                  {/* Bulk Toggle Buttons */}
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('PRESENT')}
+                      disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
+                      className="px-2 py-1 bg-green-600 text-white text-[9px] font-black rounded hover:bg-green-700 disabled:opacity-50 transition-colors uppercase"
+                      title="Mark All Present"
+                    >
+                      All P
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => assignment.is_active && dateValidation.isValid && setAllAttendanceStatus('ABSENT')}
+                      disabled={!assignment.is_active || !dateValidation.isValid || statusLoading}
+                      className="px-2 py-1 bg-red-600 text-white text-[9px] font-black rounded hover:bg-red-700 disabled:opacity-50 transition-colors uppercase"
+                      title="Mark All Absent"
+                    >
+                      All A
+                    </button>
+                  </div>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {students.map((student) => (
+              <tr key={student.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500">
+                    {student.pfp ? (
+                      <img src={student.pfp} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
+                    ) : (
+                      student.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">
+                  <div className="flex items-center gap-2">
+                    {student.roll_no}
+                    {verifiedStudentIds.has(student.id) && (
+                      <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Self-Verified via QR/PIN"></span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    {student.name}
+                    {verifiedStudentIds.has(student.id) && (
+                      <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 uppercase">Verified</span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  {statusLoading ? (
+                    <div className="flex justify-center">
+                      <span className="inline-block h-6 w-6 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => assignment.is_active && toggleAttendanceStatus(student.id)}
+                      disabled={!assignment.is_active || !dateValidation.isValid}
+                      className={`w-28 px-3 py-2 rounded text-sm font-bold uppercase ${
+                        student.status === null
+                          ? 'bg-gray-100 text-gray-700'
+                          : student.status === 'PRESENT'
+                          ? 'bg-green-100 text-green-800'
+                          : student.status === 'ABSENT'
+                          ? 'bg-red-100 text-red-800'
+                          : student.status === 'NCC'
+                          ? 'bg-blue-100 text-blue-800'
+                          : student.status === 'MEDICAL'
+                          ? 'bg-purple-100 text-purple-800'
+                          : 'bg-gray-100 text-gray-700'
+                      } ${!assignment.is_active || !dateValidation.isValid ? 'cursor-default opacity-50' : 'cursor-pointer'}`}
+                    >
+                      {student.status === null ? 'NOT SET' : student.status}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 };
 
@@ -429,14 +530,15 @@ const PendingSyncIndicator = () => {
 };
 
 export default function AttendanceSheet({ onBack, mode }) {
-  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, verifiedStudentIds, setVerifiedStudentIds } = useFacultyAttendance();
+  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, verifiedStudentIds: _verifiedStudentIds, setVerifiedStudentIds } = useFacultyAttendance();
 
   const handleQRScan = (rollNo) => {
     if (!selectedDate || !dateValidation?.isValid) {
       toast.error('Select a valid WORKING day from the calendar first.', { id: 'qr-error' });
       return;
     }
-    const student = students.find(s => s.roll_no === rollNo);
+    const targetRoll = canonicalizeRollNo(rollNo);
+    const student = students.find(s => canonicalizeRollNo(s.roll_no) === targetRoll);
     if (student) {
       setAttendanceStatus(student.id, 'PRESENT');
       // optionally add them to verified list to show visual feedback

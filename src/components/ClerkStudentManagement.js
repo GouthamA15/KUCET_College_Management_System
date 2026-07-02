@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import BulkImportStudents from '@/components/BulkImportStudents';
 import AddNewStudent from './clerk/student-management/AddNewStudent';
 import FetchStudent from './clerk/student-management/FetchStudent';

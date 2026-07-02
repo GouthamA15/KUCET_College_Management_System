@@ -8,14 +8,13 @@ import Link from 'next/link';
 import { useAssets } from '@/context/AssetContext';
 import { usePathname, useRouter } from 'next/navigation';
 import { _logoutByRole } from '@/lib/logout';
-import { getPortalTitle } from '@/lib/path-utils';
 
-export default function StudentTopBar({ onMenuClick }) {
+export default function StudentTopBar({ title: _title, subtitle: _subtitle, breadcrumb: _breadcrumb, onMenuClick: _onMenuClick }) {
   const { studentData } = useStudent();
   const _student = studentData?.student;
   const { _getAsset } = useAssets();
   const _router = useRouter();
-  const pathname = usePathname();
+  const _pathname = usePathname();
   
   const activity = useProfileActivity();
   const { latestRequest, dismissCount, dismiss } = activity;
@@ -64,36 +63,8 @@ export default function StudentTopBar({ onMenuClick }) {
   };
 
   return (
-    <header className="h-11 lg:h-20 flex items-center px-4 lg:px-8 bg-[#0b3578] lg:bg-transparent relative">
-      {/* MOBILE ONLY LAYOUT */}
-      {/* Left: Mobile Menu Toggle */}
-      <div className="flex-1 flex items-center justify-start lg:hidden">
-        <button 
-          onClick={onMenuClick}
-          className="p-2 text-white/70 hover:text-white rounded-lg transition-colors"
-          aria-label="Open menu"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Center: Portal Title for Mobile */}
-      <div className="flex-1 flex justify-center lg:hidden">
-        <span className="text-[11px] font-bold text-white tracking-widest uppercase whitespace-nowrap">
-          {getPortalTitle(pathname)}
-        </span>
-      </div>
-
-      {/* Right: Spacer for Mobile to keep title centered */}
-      <div className="flex-1 flex items-center justify-end lg:hidden">
-        {/* spacer */}
-      </div>
-
-      {/* DESKTOP ONLY LAYOUT */}
-      <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-5">
-        {/* Desktop Bell - Hidden on Mobile */}
+    <div className="hidden lg:flex lg:h-16 lg:items-center lg:justify-end lg:gap-5 px-4 sm:px-8 absolute top-4 right-4 z-40">
+      {/* Desktop Bell - Hidden on Mobile */}
         <div className="relative" ref={desktopDropdownRef}>
           <button 
             onClick={() => setNotifOpen(!notifOpen)}
@@ -174,6 +145,5 @@ export default function StudentTopBar({ onMenuClick }) {
           )}
         </div>
       </div>
-    </header>
   );
 }

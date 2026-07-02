@@ -336,6 +336,7 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
                                     onClick={(e) => { e.stopPropagation(); setImagePreviewSrc(getAssetUrl(String(p))); setImagePreviewOpen(true); }} 
                                     className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                                     onLoad={() => setImageLoading(false)}
+                                    onError={() => setImageLoading(false)}
                                 />
                             </>
                         );
@@ -609,6 +610,7 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
           <div className="flex justify-end space-x-2">
             <button 
               onClick={() => {
+                if (hasEdits() && !window.confirm('You have unsaved changes. Discard changes and clear record?')) return;
                 if (setFetchedStudent) setFetchedStudent(null);
                 setActiveAction('fetch');
               }} 

@@ -29,7 +29,7 @@ export default function IDCardReissueComingSoon() {
           
           <button
             onClick={() => router.push('/student')}
-            className="px-8 py-3 bg-slate-800 text-white text-xs font-black uppercase tracking-widest hover:bg-slate-900 transition-all rounded-sm shadow-xl active:scale-95"
+            className="px-4 sm:px-8 py-3 bg-slate-800 text-white text-xs font-black uppercase tracking-widest hover:bg-slate-900 transition-all rounded-sm shadow-xl active:scale-95"
           >
             ← Return to Dashboard
           </button>

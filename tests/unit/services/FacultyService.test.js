@@ -44,18 +44,54 @@ describe('FacultyService', () => {
 
   describe('getFacultyLoad', () => {
     it('should fetch faculty load metrics', async () => {
-      const mockChain = {
+      const mockFacultyChain = {
         from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockResolvedValue([
-          { id: 1, name: 'Faculty A', scheduled_weekly: 10, total_conducted: 5, subjects: 'Math' }
+        where: vi.fn().mockResolvedValue([
+          { id: 1, name: 'Faculty A', email: 'a@test.com', home_branch: 'CSE' },
+          { id: 2, name: 'Faculty B', email: 'b@test.com', home_branch: 'CSE' },
+          { id: 3, name: 'Faculty C', email: 'c@test.com', home_branch: 'CSE' }
         ]),
       };
-      db.select.mockReturnValue(mockChain);
+      const mockScheduledChain = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockResolvedValue([
+          { faculty_id: 1, count: 10 },
+          { faculty_id: 2, count: 20 },
+          { faculty_id: 3, count: 10 }
+        ]),
+      };
+      const mockConductedChain = {
+        from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockResolvedValue([
+          { faculty_id: 1, count: 5 }
+        ]),
+      };
+      const mockSubjectsChain = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockResolvedValue([
+          { faculty_id: 1, subjects: 'Math' }
+        ]),
+      };
+
+      db.select
+        .mockReturnValueOnce(mockFacultyChain)
+        .mockReturnValueOnce(mockScheduledChain)
+        .mockReturnValueOnce(mockConductedChain)
+        .mockReturnValueOnce(mockSubjectsChain);
 
       const result = await FacultyService.getFacultyLoad('2025-26');
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Faculty A');
+      expect(result).toHaveLength(3);
+      // Expected order: B (20), A (10), C (10)
+      expect(result[0].name).toBe('Faculty B');
+      expect(result[0].scheduled_weekly).toBe(20);
+      expect(result[1].name).toBe('Faculty A');
+      expect(result[1].scheduled_weekly).toBe(10);
+      expect(result[2].name).toBe('Faculty C');
+      expect(result[2].scheduled_weekly).toBe(10);
     });
   });
 

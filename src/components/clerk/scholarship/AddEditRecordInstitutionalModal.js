@@ -167,7 +167,7 @@ export default function AddEditRecordInstitutionalModal({
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 overflow-hidden">
       {!isDesktop ? (
-        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center space-y-4">
+        <div className="bg-white rounded-xl shadow-2xl p-4 sm:p-8 max-w-md w-full text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-600">
             <Info size={32} />
           </div>
@@ -233,8 +233,8 @@ export default function AddEditRecordInstitutionalModal({
             
             {/* 3. FINANCIAL STATUS SUMMARY */}
             {isScholar ? (
-              <section className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-4 divide-x divide-slate-200">
+              <section className="bg-white border border-slate-200 rounded-lg overflow-hidden p-2 sm:p-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-slate-200">
                   {[
                     {
                       label: 'Total Sanctioned',
@@ -276,8 +276,8 @@ export default function AddEditRecordInstitutionalModal({
                 </div>
               </section>
             ) : (
-              <section className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-3 divide-x divide-slate-200">
+              <section className="bg-white border border-slate-200 rounded-lg overflow-hidden p-2 sm:p-0">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-0 sm:divide-x divide-slate-200">
                   {[
                     {
                       label: 'Total Course Fee',
@@ -328,7 +328,7 @@ export default function AddEditRecordInstitutionalModal({
                     </h3>
                   </div>
                   <div className="p-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-slate-600 flex items-center justify-between">
                           Application number
@@ -362,7 +362,7 @@ export default function AddEditRecordInstitutionalModal({
 
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-slate-600">Compliance registry</label>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <label className="flex items-center gap-2 bg-white px-3 py-2 rounded-md border border-slate-200 cursor-pointer">
                             <input 
                               type="checkbox" 
@@ -424,7 +424,7 @@ export default function AddEditRecordInstitutionalModal({
                   </div>
 
                   <div className="p-4 space-y-4 bg-white">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-slate-600">Proceeding ID</label>
                         <input 
@@ -532,76 +532,140 @@ export default function AddEditRecordInstitutionalModal({
                     </h3>
                     <span className="text-xs text-slate-500">{proceedings.length} records</span>
                   </div>
-                  <div className="overflow-x-auto max-h-[300px]">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
-                        <tr>
-                          <th className="px-3 py-2 text-xs font-semibold text-slate-600">Proceeding</th>
-                          <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-right">Sanctioned</th>
-                          <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-center">Sanction date</th>
-                          <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-center">Status</th>
-                          <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-right">Released</th>
-                          <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {proceedings.length === 0 ? (
+                  <>
+                    <div className="hidden md:block overflow-x-auto max-h-[300px]">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
                           <tr>
-                            <td colSpan="6" className="px-3 py-10 text-center text-slate-500 text-sm">No proceedings recorded for this year.</td>
+                            <th className="px-3 py-2 text-xs font-semibold text-slate-600">Proceeding</th>
+                            <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-right">Sanctioned</th>
+                            <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-center">Sanction date</th>
+                            <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-center">Status</th>
+                            <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-right">Released</th>
+                            <th className="px-3 py-2 text-xs font-semibold text-slate-600 text-right">Actions</th>
                           </tr>
-                        ) : (
-                          proceedings.map((p) => (
-                            <tr key={p.id} className={`hover:bg-slate-50 transition-colors group ${p.status === 'REJECTED' ? 'bg-red-50/30' : ''}`}>
-                              <td className="px-3 py-2.5">
-                                <p className="text-sm font-medium text-slate-900">{p.proceeding_no}</p>
-                              </td>
-                              <td className="px-3 py-2.5 text-right text-sm font-semibold text-slate-900 tabular-nums">₹{Number(p.amount).toLocaleString()}</td>
-                              <td className="px-3 py-2.5 text-center text-xs text-slate-600">{toDmy(p.date)}</td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
-                                  p.status === 'REJECTED' ? 'bg-red-100 text-red-700 border-red-200' :
-                                  p.status === 'RELEASED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                  'bg-indigo-100 text-indigo-700 border-indigo-200'
-                                }`}>
-                                  {p.status || 'SANCTIONED'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2.5 text-right">
-                                {p.released_amount ? (
-                                  <div className="space-y-0.5">
-                                    <p className="text-sm font-semibold text-emerald-700 tabular-nums">₹{Number(p.released_amount).toLocaleString()}</p>
-                                    <p className="text-xs text-emerald-700/80">{toDmy(p.released_date)}</p>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-slate-500">Pending</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-2.5 text-right">
-                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button 
-                                    onClick={() => onSelectProceeding?.(p)}
-                                    className="p-2 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 rounded transition-colors"
-                                  >
-                                    <Edit2 size={16} />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (window.confirm('Are you sure you want to permanently delete this scholarship proceeding record?')) {
-                                        onDeleteScholarship?.(p.id);
-                                      }
-                                    }}
-                                    className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                  >
-                                    <X size={16} />
-                                  </button>
-                                </div>
-                              </td>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {proceedings.length === 0 ? (
+                            <tr>
+                              <td colSpan="6" className="px-3 py-10 text-center text-slate-500 text-sm">No proceedings recorded for this year.</td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                          ) : (
+                            proceedings.map((p) => (
+                              <tr key={p.id} className={`hover:bg-slate-50 transition-colors group ${p.status === 'REJECTED' ? 'bg-red-50/30' : ''}`}>
+                                <td className="px-3 py-2.5">
+                                  <p className="text-sm font-medium text-slate-900">{p.proceeding_no}</p>
+                                </td>
+                                <td className="px-3 py-2.5 text-right text-sm font-semibold text-slate-900 tabular-nums">₹{Number(p.amount).toLocaleString()}</td>
+                                <td className="px-3 py-2.5 text-center text-xs text-slate-600">{toDmy(p.date)}</td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                    p.status === 'REJECTED' ? 'bg-red-100 text-red-700 border-red-200' :
+                                    p.status === 'RELEASED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                    'bg-indigo-100 text-indigo-700 border-indigo-200'
+                                  }`}>
+                                    {p.status || 'SANCTIONED'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-right">
+                                  {p.released_amount ? (
+                                    <div className="space-y-0.5">
+                                      <p className="text-sm font-semibold text-emerald-700 tabular-nums">₹{Number(p.released_amount).toLocaleString()}</p>
+                                      <p className="text-xs text-emerald-700/80">{toDmy(p.released_date)}</p>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-slate-500">Pending</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-right">
+                                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                      onClick={() => onSelectProceeding?.(p)}
+                                      className="p-2 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 rounded transition-colors"
+                                    >
+                                      <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm('Are you sure you want to permanently delete this scholarship proceeding record?')) {
+                                          onDeleteScholarship?.(p.id);
+                                        }
+                                      }}
+                                      className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    >
+                                      <X size={16} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    <div className="md:hidden flex flex-col gap-3 p-3 bg-slate-50 max-h-[400px] overflow-y-auto">
+                      {proceedings.length === 0 ? (
+                        <div className="py-10 text-center text-slate-500 text-sm">No proceedings recorded for this year.</div>
+                      ) : (
+                        proceedings.map((p) => (
+                          <div key={p.id} className={`bg-white rounded border p-3 flex flex-col gap-2 ${p.status === 'REJECTED' ? 'border-red-200 bg-red-50/10' : 'border-slate-200 shadow-sm'}`}>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="text-xs text-slate-500 font-semibold mb-0.5">Proceeding No</p>
+                                <p className="text-sm font-bold text-slate-900 break-all">{p.proceeding_no}</p>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                p.status === 'REJECTED' ? 'bg-red-100 text-red-700 border-red-200' :
+                                p.status === 'RELEASED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              }`}>
+                                {p.status || 'SANCTIONED'}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 pt-2 border-t border-slate-100">
+                              <div>
+                                <p className="text-xs text-slate-500 font-semibold mb-0.5">Sanctioned</p>
+                                <p className="text-sm font-semibold text-slate-900 tabular-nums">₹{Number(p.amount).toLocaleString()}</p>
+                                <p className="text-[10px] text-slate-500 mt-0.5">{toDmy(p.date)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-slate-500 font-semibold mb-0.5">Released</p>
+                                {p.released_amount ? (
+                                  <>
+                                    <p className="text-sm font-semibold text-emerald-700 tabular-nums">₹{Number(p.released_amount).toLocaleString()}</p>
+                                    <p className="text-[10px] text-emerald-700/80 mt-0.5">{toDmy(p.released_date)}</p>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-slate-400 italic mt-1 block">Pending</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-100">
+                              <button 
+                                onClick={() => onSelectProceeding?.(p)}
+                                className="flex-1 py-1.5 flex justify-center items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded hover:bg-indigo-100 transition-colors"
+                              >
+                                <Edit2 size={12} /> Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to permanently delete this scholarship proceeding record?')) {
+                                    onDeleteScholarship?.(p.id);
+                                  }
+                                }}
+                                className="flex-1 py-1.5 flex justify-center items-center gap-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded hover:bg-red-100 transition-colors"
+                              >
+                                <X size={12} /> Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
                 </section>
               </div>
               )}
@@ -619,7 +683,7 @@ export default function AddEditRecordInstitutionalModal({
                   </div>
 
                   <div className="p-4 bg-white space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-slate-600">Amount paid</label>
                         <input 
@@ -770,7 +834,7 @@ export default function AddEditRecordInstitutionalModal({
                       </h3>
                     </div>
                     <div className="p-4 space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
                           <div className="text-[12px] text-slate-600">Sanctioned</div>
                           <div className="text-lg font-bold text-slate-900 tabular-nums">₹{totalSanctioned.toLocaleString()}</div>

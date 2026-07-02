@@ -259,7 +259,7 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
 
       <div className="flex items-center justify-end gap-2 pt-2">
         <button 
-          onClick={()=>{setFetchRoll(''); setFetchAdmission(''); setFetchName(''); setFetchError(''); setFetchRollNoError('');}} 
+          onClick={()=>{setFetchRoll(''); setFetchAdmission(''); setFetchName(''); setFetchError(''); setFetchRollNoError(''); setFetchedList([]);}} 
           className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
         >
           Clear

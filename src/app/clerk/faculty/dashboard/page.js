@@ -9,7 +9,6 @@ import MarksEntrySheet from '@/components/clerk/faculty/MarksEntrySheet';
 import SubjectInterestForm from '@/components/clerk/faculty/SubjectInterestForm';
 import InterestStatusList from '@/components/clerk/faculty/InterestStatusList';
 import ClassList from '@/components/clerk/faculty/ClassList';
-import HODConsole from '@/components/clerk/faculty/HODConsole';
 import PersonalSchedule from '@/components/clerk/faculty/PersonalSchedule';
 import FacultyActivityBar from '@/components/clerk/faculty/FacultyActivityBar';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -23,7 +22,6 @@ export default function FacultyDashboardOverview() {
 
   const [activeSection, setActiveSection] = useState(null);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [activeHodTab, setActiveHodTab] = useState(null);
 
   useEffect(() => {
     if (!loading && !clerk) {
@@ -56,7 +54,7 @@ export default function FacultyDashboardOverview() {
 
   const firstName = clerk?.name?.split(' ')[0] || 'Faculty';
   const employeeLabel = clerk?.employee_id || (clerk?.role ? String(clerk.role).toUpperCase() : 'FACULTY');
-  const roleLabel = clerk?.is_hod ? 'HOD Office' : 'Faculty';
+  const roleLabel = 'Faculty';
 
   const modules = [
     {
@@ -130,15 +128,6 @@ export default function FacultyDashboardOverview() {
               </div>
             </div>
 
-            {clerk?.is_hod ? (
-              <HODConsole
-                workstreams={modules}
-                onSelectWorkstream={handleOpenWorkstream}
-                onActiveSubTabChange={setActiveHodTab}
-              />
-            ) : null}
-
-            {!clerk?.is_hod ? (
               <section className="space-y-6">
                 <div className="flex items-center justify-between px-1">
                   <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Workstreams</h2>
@@ -180,11 +169,7 @@ export default function FacultyDashboardOverview() {
                   ))}
                 </div>
               </section>
-            ) : null}
-
-            {clerk?.is_hod && (activeHodTab === 'analytics' || activeHodTab === 'config' || activeHodTab === 'allocation' || activeHodTab === 'workload' || activeHodTab === 'syllabus') ? null : (
-              <PersonalSchedule />
-            )}
+            <PersonalSchedule />
           </>
         ) : (
           <section className="bg-white border border-slate-200 rounded-sm shadow-sm overflow-hidden">
@@ -202,7 +187,7 @@ export default function FacultyDashboardOverview() {
               </button>
             </div>
 
-            <div className="p-4 md:p-6 overflow-x-auto">
+            <div className="p-4 md:p-6">
               {activeSection === 'subjects' && !selectedAssignment ? (
                 <AssignedSubjectsList onSelectAssignment={handleSelectAssignment} />
               ) : null}

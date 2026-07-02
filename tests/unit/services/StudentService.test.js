@@ -81,7 +81,8 @@ describe('StudentService', () => {
         name: 'Full Test',
         email: 'test@kucet.com',
         pfp: 'data:image/png;base64,123',
-        signature: 'data:image/png;base64,456'
+        signature: 'data:image/png;base64,456',
+        perm_house_no: '123'
       };
       await StudentService.upsertStudent(data, 1);
       expect(mockTx.insert).toHaveBeenCalledTimes(5); // Student, Personal, Academic, Images, Signatures

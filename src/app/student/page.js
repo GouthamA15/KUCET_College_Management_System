@@ -297,7 +297,7 @@ export default function StudentHomePage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.20em]">No curriculum records</div>
+                    <div className="p-4 sm:p-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.20em]">No curriculum records</div>
                   )}
                 </div>
               </section>
