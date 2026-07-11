@@ -302,12 +302,16 @@ export class FinanceService {
     ]);
 
     const { getExpectedScholarship } = await import('@/lib/financial-utils');
-    const expectedGovt = getExpectedScholarship(studentData, totalFee);
-    const expectedStudentLiability = Math.max(0, totalFee - expectedGovt);
+    let expectedGovt = getExpectedScholarship(studentData, totalFee);
+    let expectedStudentLiability = Math.max(0, totalFee - expectedGovt);
 
     const activeSanctions = sanctions.filter(s => (s.status || 'SANCTIONED').toUpperCase() !== 'REJECTED');
     const govtPaid = activeSanctions.reduce((sum, s) => sum + (Number(s.sanctioned_amount) || 0), 0);
     const govtReleased = activeSanctions.reduce((sum, s) => sum + (Number(s.released_amount) || 0), 0);
+
+    // Scholarship Window override has been moved to ScholarshipService.js
+
+
     
     const studentPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
     const pendingFee = Math.max(0, totalFee - (govtPaid + studentPaid));
@@ -374,6 +378,7 @@ export class FinanceService {
       thumb_update_available: thumbUpdateAvailable ? 1 : 0,
       hardcopySubmitted,
       hardcopy_submitted: hardcopySubmitted ? 1 : 0,
+      is_scholarship_locked: false,
       record_state: (scholarshipProceedings.length === 0 && studentPayments.length === 0 && !applicationNo) 
         ? 'NO_RECORD' 
         : (feeSummary.status)

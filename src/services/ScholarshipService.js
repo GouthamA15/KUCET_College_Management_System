@@ -3,6 +3,7 @@ import { scholarshipSanctions, scholarshipWindows } from '@/db/schema';
 import { eq, and, or, isNull, sql, desc, count } from 'drizzle-orm';
 import { getNow } from '@/lib/clock';
 import { toMySQLDate } from '@/lib/date';
+import { FinanceService } from '@/services/FinanceService';
 
 /**
  * Service for Scholarship-related business logic
@@ -70,5 +71,58 @@ export class ScholarshipService {
       windowStartDate: windowInfo.startDate,
       windowEndDate: windowInfo.endDate
     };
+  }
+
+  /**
+   * Check if a student has an active scholarship record for a given academic year.
+   * An active record means they have an application number or at least one active sanction.
+   */
+  static async hasScholarshipRecord(studentId, academicYear) {
+    const sanctions = await db.query.scholarshipSanctions.findMany({
+      where: and(
+        eq(scholarshipSanctions.student_id, studentId),
+        eq(scholarshipSanctions.academic_year, academicYear)
+      )
+    });
+    const activeSanctions = sanctions.filter(s => (s.status || 'SANCTIONED').toUpperCase() !== 'REJECTED');
+    const hasApp = sanctions.some(s => s.application_no && String(s.application_no).trim() !== '');
+    return hasApp || activeSanctions.length > 0;
+  }
+
+  /**
+   * Get student financial summary with Scholarship Window override applied.
+   * This leaves FinanceService pristine and enforces business rules in the Scholarship domain.
+   */
+  static async getScholarshipFinancialSummary(studentId, academicYear, rollNo) {
+    // 1. Fetch raw generic financial summary
+    const summary = await FinanceService.getStudentFinancialSummary(studentId, academicYear, rollNo);
+    
+    // 2. Fetch Scholarship Window Status
+    const winStatus = await this.getWindowStatus();
+    
+    // 3. Check for existing active scholarship record
+    const hasRecord = await this.hasScholarshipRecord(studentId, academicYear);
+
+    summary.is_scholarship_locked = false;
+
+    // 4. Apply Override Rule
+    // If the window is CLOSED, for the current academic year, and the student has NO record:
+    if (winStatus.windowRecord && winStatus.windowRecord.academic_year === academicYear) {
+      if (winStatus.status === 'CLOSED' && !hasRecord) {
+        summary.is_scholarship_locked = true;
+        
+        // Override the expected government contribution to 0 and liability to full fee
+        summary.feeSummary.expectedGovt = 0;
+        summary.feeSummary.expectedStudentLiability = summary.feeSummary.totalFee;
+        
+        // Also override legacy aliases
+        summary.feeSummary.expected_govt = 0;
+        summary.feeSummary.expected_student_liability = summary.feeSummary.totalFee;
+        summary.fee_summary.expected_govt = 0;
+        summary.fee_summary.expected_student_liability = summary.feeSummary.totalFee;
+      }
+    }
+
+    return summary;
   }
 }

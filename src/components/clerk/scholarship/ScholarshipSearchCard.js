@@ -18,6 +18,7 @@ export default function ScholarshipSearchCard({
   onSubmit,
   nameResults = [],
   onSelectStudentFromName,
+  onClear,
 }) {
   const handleRollChange = (e) => {
     const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -57,130 +58,154 @@ export default function ScholarshipSearchCard({
   );
 
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-6">
-      <div className="space-y-1">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Search Workspace</p>
-        <h3 className="text-base font-semibold text-slate-900 tracking-tight">Student Search</h3>
-        <p className="text-xs text-slate-600">Search by roll number, application number, or student name.</p>
-      </div>
-
-      <form onSubmit={onSubmit} className="mt-5 space-y-5">
-        <fieldset className="flex flex-wrap items-center gap-3">
-          <legend className="sr-only">Search mode</legend>
-          {[
-            { value: 'roll', label: 'Roll Number' },
-            { value: 'application', label: 'Application Number' },
-            { value: 'name', label: 'Student Name' },
-          ].map((opt) => (
-            <label key={opt.value} className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-700 uppercase tracking-wider cursor-pointer select-none">
-              <input
-                type="radio"
-                name="searchMode"
-                value={opt.value}
-                checked={searchMode === opt.value}
-                onChange={() => {
-                  setSearchMode(opt.value);
-                  if (opt.value !== 'roll') setRoll('');
-                  if (opt.value !== 'application') setApplicationNoInput('');
-                  if (opt.value !== 'name') setNameInput('');
-                  setRollError('');
-                  if (opt.value === 'roll') {
-                    setApplicationNoInput('');
-                    setNameInput('');
-                    setRoll('');
-                  }
-                  if (opt.value === 'application') {
-                    setRoll('');
-                    setNameInput('');
-                  }
-                  if (opt.value === 'name') {
-                    setRoll('');
-                    setApplicationNoInput('');
-                  }
-                }}
-                className="accent-[#0b3578]"
-              />
-              {opt.label}
-            </label>
-          ))}
-        </fieldset>
-
-        <div className="space-y-2">
-          {searchMode === 'roll' && (
+    <div className="bg-white border border-gray-300 rounded-md p-4 shadow-sm">
+      <form onSubmit={(e) => {
+        // Set searchMode right before submit based on what's filled
+        if (roll && String(roll).trim().length === MAX_ROLL) {
+          setSearchMode('roll');
+        } else if (applicationNoInput && String(applicationNoInput).trim()) {
+          setSearchMode('application');
+        } else if (nameInput && String(nameInput).trim().length >= 2) {
+          setSearchMode('name');
+        } else {
+          setSearchMode(''); // page.js validation will catch it
+        }
+        onSubmit(e);
+      }} className="mt-5 space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Roll Number</label>
             <input
               value={roll}
-              onChange={handleRollChange}
-              placeholder="Enter Roll Number"
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 focus:border-[#0b3578]/30"
+              onChange={(e) => {
+                handleRollChange(e);
+                setApplicationNoInput('');
+                setNameInput('');
+              }}
+              placeholder="e.g. 21B81A0501"
+              className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578] uppercase"
               maxLength={MAX_ROLL}
               inputMode="text"
               autoComplete="off"
             />
-          )}
-          {searchMode === 'application' && (
+            {rollError && (
+              <div className="text-red-600 text-xs mt-1">{rollError}</div>
+            )}
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Application Number</label>
             <input
               value={applicationNoInput}
-              onChange={handleAppChange}
-              placeholder="Enter Scholarship Application Number"
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 focus:border-[#0b3578]/30"
+              onChange={(e) => {
+                handleAppChange(e);
+                setRoll('');
+                setNameInput('');
+              }}
+              placeholder="e.g. 202300001111"
+              className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578]"
               maxLength={12}
               inputMode="numeric"
               autoComplete="off"
             />
-          )}
-          {searchMode === 'name' && (
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Student Name</label>
             <input
               value={nameInput}
-              onChange={handleNameChange}
-              placeholder="Enter Student Name"
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0b3578]/20 focus:border-[#0b3578]/30"
+              onChange={(e) => {
+                handleNameChange(e);
+                setRoll('');
+                setApplicationNoInput('');
+              }}
+              placeholder="Enter full or partial name"
+              className="w-full h-10 bg-white border border-gray-300 rounded-md px-3 text-sm text-gray-800 focus:outline-none focus:border-[#0b3578]"
               autoComplete="off"
             />
-          )}
-          {rollError && searchMode === 'roll' && (
-            <div className="text-rose-700 text-xs font-semibold uppercase tracking-wider">{rollError}</div>
-          )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (onClear) onClear();
+              else {
+                setRoll('');
+                setApplicationNoInput('');
+                setNameInput('');
+                setRollError('');
+                setSearchMode('roll');
+              }
+            }}
+            className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Clear
+          </button>
           <button
             type="submit"
-            disabled={disabled}
-            className="px-4 py-2.5 bg-[#0b3578] text-white text-[11px] font-black uppercase tracking-widest rounded-md shadow-lg shadow-[#0b3578]/15 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-lg"
+            disabled={loading || (!roll && !applicationNoInput && !nameInput)}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${
+              (loading || (!roll && !applicationNoInput && !nameInput))
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
+                : 'bg-[#0b3578] text-white hover:bg-[#082654] border border-[#0b3578] shadow-sm'
+            }`}
           >
-            {loading ? 'Fetching…' : 'Fetch Student'}
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span>Searching...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <span>Search Records</span>
+              </>
+            )}
           </button>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">No workflows changed</p>
         </div>
 
-        {searchMode === 'name' && Array.isArray(nameResults) && nameResults.length > 0 && (
-          <div className="mt-2 border border-slate-200 rounded-2xl overflow-hidden max-h-64 overflow-y-auto">
-            <div className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 bg-slate-50">
-              Search Results
+        {Array.isArray(nameResults) && nameResults.length > 0 && (
+          <div className="mt-6 bg-white border border-gray-300 rounded-md overflow-hidden shadow-sm">
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-300">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <span className="bg-[#0b3578] text-white px-2 py-0.5 rounded-full text-xs">{nameResults.length}</span>
+                Multiple Results Found
+              </h3>
             </div>
-            <ul className="divide-y divide-slate-100">
+            <div className="divide-y divide-gray-200">
               {nameResults.map((s) => {
-                const branch = getBranchFromRoll(s.roll_number);
+                const rollStr = s.roll_number || s.roll_no;
+                const branch = getBranchFromRoll(rollStr);
                 return (
-                  <li key={s.id}>
+                  <div key={s.id || rollStr} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium text-sm">
+                        {(s.name || '').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-800 text-sm">{s.name}</div>
+                        <div className="text-xs text-gray-500 mt-0.5 flex gap-3">
+                          <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{rollStr}</span>
+                          {branch && <span>{branch}</span>}
+                        </div>
+                      </div>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => onSelectStudentFromName && onSelectStudentFromName(s.roll_number)}
-                      className="w-full text-left px-4 py-3 hover:bg-slate-50 focus:outline-none focus:bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+                      onClick={() => onSelectStudentFromName && onSelectStudentFromName(rollStr)}
+                      className="px-3 py-1.5 bg-white border border-gray-300 text-[#0b3578] hover:bg-gray-50 rounded-md text-xs font-medium transition-colors cursor-pointer"
                     >
-                      <span className="text-sm font-semibold text-slate-800">{s.name}</span>
-                      <span className="text-[11px] text-slate-600 font-semibold uppercase tracking-wider">
-                        {s.roll_number}
-                        {branch ? ` — ${branch}` : ''}
-                      </span>
+                      Open Profile
                     </button>
-                  </li>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           </div>
         )}
       </form>
-    </section>
+    </div>
   );
 }

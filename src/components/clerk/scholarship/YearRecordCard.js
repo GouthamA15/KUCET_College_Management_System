@@ -41,11 +41,13 @@ export default function YearRecordCard({
     };
   })();
 
-  const latestProceeding = (Array.isArray(summary?.scholarship_proceedings) && summary.scholarship_proceedings.length > 0)
-    ? summary.scholarship_proceedings[summary.scholarship_proceedings.length - 1]
-    : null;
+  const proceedings = Array.isArray(summary?.scholarship_proceedings) ? summary.scholarship_proceedings : [];
+  const activeProceedings = proceedings.filter(p => (p.status || 'SANCTIONED').toUpperCase() !== 'REJECTED');
+  
+  const proceedingCount = activeProceedings.length;
+  const totalSanctioned = activeProceedings.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const totalReleased = activeProceedings.reduce((sum, p) => sum + (Number(p.released_amount) || 0), 0);
 
-  const sanctionDate = latestProceeding?.date || null;
   const hardcopy = summary?.hardcopy_submitted;
   const hardcopyLabel = (hardcopy === 1 || hardcopy === true) ? 'Submitted' : (hardcopy === 0 || hardcopy === false) ? 'Pending' : '-';
   const isScholar = student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV';
@@ -98,48 +100,44 @@ export default function YearRecordCard({
           </div>
         )}
         <div className="flex items-center justify-between gap-4">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pending Fee</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Outstanding Amount</span>
           <span className="text-[11px] font-semibold text-slate-700">{feeSummaryMerged?.pending_fee ?? '-'}</span>
         </div>
-        {isScholar && latestProceeding && (
+        {isScholar && (
           <>
             <div className="flex items-center justify-between gap-4">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Proceeding No</span>
-              <span className="text-[11px] font-semibold text-slate-700">{latestProceeding.proceeding_no || '-'}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Proceedings</span>
+              <span className="text-[11px] font-semibold text-slate-700">{proceedingCount > 0 ? proceedingCount : '-'}</span>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sanctioned</span>
-              <span className="text-[11px] font-semibold text-slate-700">{latestProceeding.amount ?? '-'}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Sanctions</span>
+              <span className="text-[11px] font-semibold text-emerald-700">{proceedingCount > 0 ? `₹${totalSanctioned}` : '-'}</span>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sanction Date</span>
-              <span className="text-[11px] font-semibold text-slate-700">{sanctionDate ? (toDmy?.(sanctionDate) || sanctionDate) : '-'}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Releases</span>
+              <span className="text-[11px] font-semibold text-blue-700">{proceedingCount > 0 ? `₹${totalReleased}` : '-'}</span>
             </div>
           </>
         )}
         {Number(feeSummaryMerged?.student_paid) > 0 && (
           <div className="flex items-center justify-between gap-4">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Student Paid</span>
-            <span className="text-[11px] font-semibold text-slate-700">{feeSummaryMerged.student_paid}</span>
+            <span className="text-[11px] font-semibold text-slate-700">₹{feeSummaryMerged.student_paid}</span>
           </div>
         )}
         {isScholar && hasRecords && (
           <>
             <div className="flex items-center justify-between gap-4">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thumb Update Available</span>
-              <span className="text-[11px] font-semibold text-slate-700">{summary?.thumb_update_available ? 'YES' : 'NO'}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thumb Status</span>
+              <span className="text-[11px] font-semibold text-slate-700">
+                {summary?.thumb_update_available ? String(summary?.thumb_status || 'Pending').toUpperCase() : 'NO'}
+              </span>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hardcopy Submitted</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hardcopy Status</span>
               <span className="text-[11px] font-semibold text-slate-700">{hardcopyLabel}</span>
             </div>
           </>
-        )}
-        {isScholar && summary?.thumb_update_available && (
-          <div className="flex items-center justify-between gap-4 sm:col-span-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thumb Verification Status</span>
-            <span className="text-[11px] font-semibold text-slate-700">{String(summary?.thumb_status || 'Pending').toUpperCase()}</span>
-          </div>
         )}
       </div>
 

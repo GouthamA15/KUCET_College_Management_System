@@ -50,7 +50,8 @@ export default function AddEditRecordInstitutionalModal({
   const hasScholarshipData = (proceedings.length > 0) || (summary?.application_no && String(summary.application_no).trim() !== '');
   
   const [forceScholarWorkflow, setForceScholarWorkflow] = useState(false);
-  const isScholar = reimbursementStatus === 'YES' || reimbursementStatus === 'GOV' || hasScholarshipData || forceScholarWorkflow;
+  const isScholarshipLocked = !!summary?.is_scholarship_locked;
+  const isScholar = (reimbursementStatus === 'YES' || reimbursementStatus === 'GOV' || hasScholarshipData || forceScholarWorkflow) && !isScholarshipLocked;
 
   // 2. Lifecycle hooks
   useEffect(() => {
@@ -197,7 +198,7 @@ export default function AddEditRecordInstitutionalModal({
                 <span className="hidden sm:inline-flex px-2 py-0.5 text-[11px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded">
                   {isScholar ? 'Registry' : 'Payments'}
                 </span>
-                {(!isScholar && reimbursementStatus === 'NO') && (
+                {(!isScholar && reimbursementStatus === 'NO' && !isScholarshipLocked) && (
                   <button 
                     onClick={() => setForceScholarWorkflow(true)}
                     className="px-2 py-0.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors uppercase tracking-wider"
@@ -231,88 +232,18 @@ export default function AddEditRecordInstitutionalModal({
 
           <main className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
             
-            {/* 3. FINANCIAL STATUS SUMMARY */}
-            {isScholar ? (
-              <section className="bg-white border border-slate-200 rounded-lg overflow-hidden p-2 sm:p-0">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-slate-200">
-                  {[
-                    {
-                      label: 'Total Sanctioned',
-                      value: totalSanctioned,
-                      icon: FileText,
-                      iconWrap: 'bg-indigo-50 text-indigo-700',
-                    },
-                    {
-                      label: 'Total Released',
-                      value: totalReleased,
-                      icon: CheckCircle2,
-                      iconWrap: 'bg-emerald-50 text-emerald-700',
-                    },
-                    {
-                      label: 'Pending Release',
-                      value: balanceToRelease,
-                      icon: Clock,
-                      iconWrap: 'bg-amber-50 text-amber-700',
-                    },
-                    {
-                      label: 'Remaining Eligible',
-                      value: remainingEligible,
-                      icon: TrendingUp,
-                      iconWrap: 'bg-slate-50 text-slate-700',
-                    },
-                  ].map((m) => (
-                    <div key={m.label} className="px-4 py-3">
-                      <div className="flex items-center justify-between">
-                        <div className={`p-1.5 rounded border border-slate-200 ${m.iconWrap}`}>
-                          <m.icon size={16} />
-                        </div>
-                        <div className="text-xl font-bold text-slate-900 tabular-nums">
-                          ₹{m.value.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="mt-1 text-xs font-medium text-slate-600">{m.label}</div>
-                    </div>
-                  ))}
+            {isScholarshipLocked && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
+                <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={18} />
+                <div>
+                  <h4 className="text-sm font-bold text-red-900">Scholarship Window Closed</h4>
+                  <p className="text-xs text-red-700 mt-0.5">
+                    The scholarship application window for this academic year is closed. Because this student did not register an application before the deadline, they are not eligible for government fee reimbursement for this year.
+                  </p>
                 </div>
-              </section>
-            ) : (
-              <section className="bg-white border border-slate-200 rounded-lg overflow-hidden p-2 sm:p-0">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-0 sm:divide-x divide-slate-200">
-                  {[
-                    {
-                      label: 'Total Course Fee',
-                      value: totalFee,
-                      icon: FileText,
-                      iconWrap: 'bg-slate-50 text-slate-700',
-                    },
-                    {
-                      label: 'Total Paid',
-                      value: totalStudentPaid,
-                      icon: CheckCircle2,
-                      iconWrap: 'bg-emerald-50 text-emerald-700',
-                    },
-                    {
-                      label: 'Balance Due',
-                      value: pendingInstitutionalFee,
-                      icon: Clock,
-                      iconWrap: 'bg-amber-50 text-amber-700',
-                    },
-                  ].map((m) => (
-                    <div key={m.label} className="px-4 py-3">
-                      <div className="flex items-center justify-between">
-                        <div className={`p-1.5 rounded border border-slate-200 ${m.iconWrap}`}>
-                          <m.icon size={16} />
-                        </div>
-                        <div className="text-xl font-bold text-slate-900 tabular-nums">
-                          ₹{m.value.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="mt-1 text-xs font-medium text-slate-600">{m.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              </div>
             )}
+
 
             <div className="grid grid-cols-12 gap-6">
               {/* Left Column - Scholarship Operations */}

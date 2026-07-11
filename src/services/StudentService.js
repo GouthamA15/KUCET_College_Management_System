@@ -78,12 +78,12 @@ export class StudentService {
   static async validateTCEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
     const { calculateYearAndSemesterAsync } = await import('@/lib/academic-utils');
     const { getResolvedCurrentAcademicYear } = await import('@/lib/rollNumber');
-    const { FinanceService } = await import('./FinanceService');
+    const { ScholarshipService } = await import('./ScholarshipService');
 
     const academicYear = getResolvedCurrentAcademicYear(rollNo, collegeInfo, now);
     const { year, semester } = await calculateYearAndSemesterAsync(rollNo, collegeInfo, 0);
 
-    const financialSummary = await FinanceService.getStudentFinancialSummary(studentId, academicYear, rollNo);
+    const financialSummary = await ScholarshipService.getScholarshipFinancialSummary(studentId, academicYear, rollNo);
     const pendingDues = financialSummary?.feeSummary?.pendingFee || 0;
 
     const isFinalYearCompleted = year > 4 || (year === 4 && semester >= 8);

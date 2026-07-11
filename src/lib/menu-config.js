@@ -53,6 +53,7 @@ export const NAV_MENU_CONFIG = {
   clerkScholarship: [
     { label: 'DASHBOARD', route: '/clerk/scholarship/dashboard' },
     { label: 'PROFILE', route: '/clerk/scholarship/profile' },
+    { label: 'STUDENT RECORDS', route: '/clerk/scholarship/student-records' },
     { label: 'REQUESTS', route: '/clerk/scholarship/dashboard?view=requests&scroll=1' },
     { label: 'VERIFICATION', route: '/clerk/scholarship/dashboard?view=certificates&scroll=1' },
     { label: 'SETTINGS', children: [

@@ -8,10 +8,7 @@ export default function ScholarshipProceedingsView({ student, summary, toDmy }) 
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Records</span>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-4">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Application No</span>
-        <span className="text-[11px] font-semibold text-slate-700">{summary?.application_no || '-'}</span>
-      </div>
+
 
       {(student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV') ? (
         Array.isArray(summary?.scholarship_proceedings) && summary.scholarship_proceedings.length > 0 ? (

@@ -9,7 +9,7 @@ import { getAcademicYear, getResolvedCurrentAcademicYear, getBranchFromRoll } fr
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
-import { FinanceService } from '@/services/FinanceService';
+import { ScholarshipService } from '@/services/ScholarshipService';
 
 /**
  * GET /api/clerk/scholarship/summary/[rollno]
@@ -52,7 +52,7 @@ export const GET = wrapHandler({
     if (!year) year = currentYear;
 
     // 3. Fetch financial summary via service
-    const financialSummary = await FinanceService.getStudentFinancialSummary(student.id, year, student.roll_no);
+    const financialSummary = await ScholarshipService.getScholarshipFinancialSummary(student.id, year, student.roll_no);
 
     const enrichedStudent = {
       id: student.id,
