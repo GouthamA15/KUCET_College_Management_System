@@ -13,6 +13,7 @@ vi.mock('@/db', () => ({
       studentSignatures: { findFirst: vi.fn() },
       scholarshipSanctions: { findMany: vi.fn() },
       studentFeePayments: { findMany: vi.fn() },
+      scholarshipWindows: { findFirst: vi.fn().mockResolvedValue(null) },
     },
   },
 }));
@@ -41,6 +42,9 @@ vi.mock('@/lib/clock', () => ({
 }));
 vi.mock('./FinanceService', () => ({
   FinanceService: { getStudentFinancialSummary: vi.fn().mockResolvedValue({ feeSummary: { pendingFee: 0 } }) }
+}));
+vi.mock('./ScholarshipService', () => ({
+  ScholarshipService: { getScholarshipFinancialSummary: vi.fn().mockResolvedValue({ feeSummary: { pendingFee: 0 } }) }
 }));
 
 describe('StudentService', () => {

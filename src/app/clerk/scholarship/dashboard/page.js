@@ -4,16 +4,12 @@ import { useEffect, useState, _useRef, Suspense } from 'react';
 import { useClerk } from '@/context/ClerkContext';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
-import ImagePreviewModal from '@/components/ImagePreviewModal';
 import CertificateDashboard from '@/components/clerk/certificates/CertificateDashboard';
 import ScholarshipMetricsCards from '@/components/clerk/scholarship/ScholarshipMetricsCards';
 import ScholarshipWindowCard from '@/components/clerk/scholarship/ScholarshipWindowCard';
-import { useScholarshipDashboard } from '@/context/ScholarshipDashboardContext';
 import toast from 'react-hot-toast';
-import { formatDate } from '@/lib/date';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { smoothScrollToId } from '@/lib/scroll-utils';
-import { logoutScholarshipDashboard } from '@/lib/logout';
 import { Search, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useClerk } from '@/context/ClerkContext';
-import { useRouter } from 'next/navigation';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
 import StudentInfoCard from '@/components/clerk/scholarship/StudentInfoCard';
 import StudentAcademicSummaryCard from '@/components/clerk/scholarship/StudentAcademicSummaryCard';
@@ -14,11 +13,9 @@ import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber';
 import { formatDate, toMySQLDate } from '@/lib/date';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { Info, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import { Info } from 'lucide-react';
 
 function StudentRecordsContent() {
-  const router = useRouter();
   const { clerkData: clerk, loading: isClerkLoading } = useClerk();
   const { state, setField, resetStudent, setState } = useScholarshipDashboard();
   const {

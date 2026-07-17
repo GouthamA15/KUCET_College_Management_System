@@ -3,7 +3,7 @@
 import { validateRollNo, getBranchFromRoll } from '@/lib/rollNumber';
 
 export default function ScholarshipSearchCard({
-  searchMode,
+  _searchMode,
   setSearchMode,
   roll,
   setRoll,
@@ -49,13 +49,7 @@ export default function ScholarshipSearchCard({
     setNameInput(v);
   };
 
-  const disabled = loading || (
-    searchMode === 'roll'
-      ? String(roll).length !== MAX_ROLL
-      : searchMode === 'application'
-        ? !applicationNoInput
-        : String(nameInput || '').trim().length < 2
-  );
+  const disabled = loading || (!roll && !applicationNoInput && !nameInput);
 
   return (
     <div className="bg-white border border-gray-300 rounded-md p-4 shadow-sm">
@@ -145,9 +139,9 @@ export default function ScholarshipSearchCard({
           </button>
           <button
             type="submit"
-            disabled={loading || (!roll && !applicationNoInput && !nameInput)}
+            disabled={disabled}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${
-              (loading || (!roll && !applicationNoInput && !nameInput))
+              disabled
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
                 : 'bg-[#0b3578] text-white hover:bg-[#082654] border border-[#0b3578] shadow-sm'
             }`}

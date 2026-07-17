@@ -37,7 +37,9 @@ export default function ClassList() {
     }
   }, [facultyAssignments, isLoadingFaculty, localAssignments, loadingAssignments]);
 
-  const assignments = (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : (localAssignments || []);
+  const assignments = useMemo(() => {
+    return (facultyAssignments && facultyAssignments.length > 0) ? facultyAssignments : (localAssignments || []);
+  }, [facultyAssignments, localAssignments]);
 
   const years = useMemo(() => Array.from(new Set(assignments.map(a => a.academic_year))).sort((a,b)=> b.localeCompare(a)), [assignments]);
   const branches = useMemo(() => Array.from(new Set(assignments.filter(a => (!selectedAY || a.academic_year === selectedAY)).map(a => a.branch))).sort(), [assignments, selectedAY]);
