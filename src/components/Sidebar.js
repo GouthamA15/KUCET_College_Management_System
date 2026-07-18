@@ -586,7 +586,7 @@ function SidebarInner({
         </div>
 
         {/* Logout (bottom, outside scroll) */}
-        <div className="border-t border-slate-200/70 px-2 py-2 pb-24">
+        <div className="border-t border-slate-200/70 px-2 py-2 pb-10">
           <button
             type="button"
             onClick={() =>
