@@ -212,7 +212,12 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
   };
 
   return (
-    <div className="space-y-4 animate-fadeIn text-sm">
+    <form onSubmit={(e) => { e.preventDefault(); handleFetch(); }} className="animate-fadeIn text-sm">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-gray-800">Search Student</h2>
+        <p className="text-sm text-gray-600">Search using Roll Number, Application Number, or Student Name.</p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1">Roll Number</label>
@@ -257,15 +262,16 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 pt-2">
+      <div className="flex items-center justify-end gap-2 mt-4">
         <button 
+          type="button"
           onClick={()=>{setFetchRoll(''); setFetchAdmission(''); setFetchName(''); setFetchError(''); setFetchRollNoError(''); setFetchedList([]);}} 
           className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
         >
           Clear
         </button>
         <button
-          onClick={handleFetch}
+          type="submit"
           disabled={!canFetch() || fetchLoading || !!fetchRollNoError}
           className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${
             (!canFetch() || fetchLoading || !!fetchRollNoError) 
@@ -328,6 +334,6 @@ export default function FetchStudent({ setActiveAction, setFetchedStudent, setPe
           </div>
         </div>
       )}
-    </div>
+    </form>
   );
 }

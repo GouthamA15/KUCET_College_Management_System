@@ -5,7 +5,7 @@ import { getNowSync } from '@/lib/clock';
 
 export default function Footer() {
   return (
-    <footer className="relative w-full border-t border-white/10 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+    <footer className="relative z-40 w-full border-t border-white/10 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-0"

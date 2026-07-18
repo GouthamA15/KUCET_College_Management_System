@@ -52,7 +52,11 @@ export default function ScholarshipSearchCard({
   const disabled = loading || (!roll && !applicationNoInput && !nameInput);
 
   return (
-    <div className="bg-white border border-gray-300 rounded-md p-4 shadow-sm">
+    <div className="bg-gradient-to-br from-white via-slate-50 to-slate-100 border border-slate-200 rounded-md p-4 shadow-sm">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-gray-800">Search Student</h2>
+        <p className="text-sm text-gray-600">Search using Roll Number, Application Number, or Student Name.</p>
+      </div>
       <form onSubmit={(e) => {
         // Set searchMode right before submit based on what's filled
         if (roll && String(roll).trim().length === MAX_ROLL) {
@@ -65,7 +69,7 @@ export default function ScholarshipSearchCard({
           setSearchMode(''); // page.js validation will catch it
         }
         onSubmit(e);
-      }} className="mt-5 space-y-5">
+      }} className="">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Roll Number</label>
@@ -120,7 +124,7 @@ export default function ScholarshipSearchCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2">
+        <div className="flex items-center justify-end gap-2 mt-4">
           <button
             type="button"
             onClick={() => {

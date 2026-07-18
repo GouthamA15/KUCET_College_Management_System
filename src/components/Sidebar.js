@@ -92,6 +92,12 @@ const Icons = {
       <path d="M7 9.7 4.8 12 7 14.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </SvgIcon>
   ),
+  sidebarToggle: (props) => (
+    <SvgIcon {...props}>
+      <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 4v16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </SvgIcon>
+  ),
   chevron: ({ direction = 'right', ...props }) => {
     const rotation = direction === 'down' ? 90 : direction === 'up' ? -90 : direction === 'left' ? 180 : 0;
     return (
@@ -280,28 +286,44 @@ function SidebarInner({
     return buildMenuItems({ effectiveRole, studentData, clerkData });
   }, [effectiveRole, isClerkLoading, studentData, clerkData]);
 
-  const [expanded, setExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('kucet_sidebar_pinned');
+      if (stored !== null) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setIsExpanded(stored === 'true');
+      }
+    } catch (_e) {
+      // ignore
+    }
+  }, []);
+
+  const togglePin = () => {
+    const next = !isExpanded;
+    setIsExpanded(next);
+    try {
+      localStorage.setItem('kucet_sidebar_pinned', next);
+    } catch (_e) {
+      // ignore
+    }
+  };
+
+  const expanded = isExpanded;
   const [desktopExpanded, setDesktopExpanded] = useState({});
   const [mobileExpanded, setMobileExpanded] = useState({});
 
   const DESKTOP_COLLAPSED_W = 69; // px (matches layouts using lg:ml-16)
   const DESKTOP_EXPANDED_W = 264; // px
-  const DESKTOP_TOP = 'calc(50% + 48px)';
-  const DESKTOP_MAX_HEIGHT = '78dvh';
 
   // Publish desktop sidebar width to the app shell so main content can "push" instead of being overlaid.
-  // Desktop-only consumption happens via `lg:ml-(--desktop-sidebar-offset,64px)` in layouts.
   useEffect(() => {
     if (typeof document === 'undefined') return;
-
     const root = document.documentElement;
     const width = expanded ? `${DESKTOP_EXPANDED_W}px` : `${DESKTOP_COLLAPSED_W}px`;
     root.style.setProperty('--desktop-sidebar-offset', width);
-
-    return () => {
-      // Keep the layout safe if the Sidebar unmounts.
-      root.style.removeProperty('--desktop-sidebar-offset');
-    };
+    return () => root.style.removeProperty('--desktop-sidebar-offset');
   }, [expanded]);
 
   const DesktopNav = (
@@ -309,21 +331,17 @@ function SidebarInner({
       className={cn(
         'hidden lg:flex fixed left-0 z-30',
         'flex-col',
-        'rounded-tr-2xl rounded-br-2xl overflow-hidden',
-        'border border-slate-200/70',
+        'overflow-hidden',
+        'border-r border-slate-200/70',
         'bg-linear-to-b from-blue-200/70 via-white to-blue-200/70',
         'shadow-sm backdrop-blur-md'
       )}
       style={{
-        top: DESKTOP_TOP,
-        maxHeight: DESKTOP_MAX_HEIGHT,
+        top: 'var(--app-fixed-header-offset, 112px)',
         width: expanded ? `${DESKTOP_EXPANDED_W}px` : `${DESKTOP_COLLAPSED_W}px`,
-        height: '75dvh',
-        transform: 'translateY(-50%)',
+        height: 'calc(100vh - var(--app-fixed-header-offset, 112px))',
         transition: 'width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)',
       }}
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
     >
       {/* subtle depth overlay */}
       <div className="pointer-events-none absolute inset-0">
@@ -346,12 +364,21 @@ function SidebarInner({
           expanded ? 'bg-linear-to-b from-blue-100/45 via-white/60 to-white/35' : 'bg-transparent'
         )}
       >
+        <div className={cn("flex items-center pt-3 pb-2 mb-1 border-b border-slate-200/50", expanded ? "justify-end px-3" : "justify-center")}>
+            <button
+              onClick={togglePin}
+              className="p-1.5 rounded-lg text-slate-500 hover:bg-white hover:shadow-sm hover:text-[#0b3578] transition-all focus:outline-none"
+              title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+            >
+              <Icons.sidebarToggle size={20} className={cn("transition-transform duration-200", isExpanded ? "" : "scale-x-[-1]")} />
+            </button>
+        </div>
         <div
           className={cn(
             'flex-1 min-h-0',
             'overflow-y-auto overflow-x-hidden',
             expanded ? 'scrollbar-premium' : 'scrollbar-hide',
-            'px-2 py-3 pr-2.5 pb-2',
+            'px-2 pb-2',
             'relative',
             expanded ? 'bg-linear-to-b from-blue-100/25 via-white/20 to-transparent' : ''
           )}
@@ -416,7 +443,13 @@ function SidebarInner({
                     <button
                       type="button"
                       className={cn(commonRow, 'flex items-center gap-2 px-1.5')}
-                      onClick={() => setDesktopExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                      onClick={() => {
+                        if (!isExpanded) {
+                          setIsExpanded(true);
+                          try { localStorage.setItem('kucet_sidebar_pinned', 'true'); } catch (_e) { /* ignore */ }
+                        }
+                        setDesktopExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }));
+                      }}
                       aria-expanded={expanded ? open : false}
                       title={!expanded ? displayLabel : undefined}
                     >
@@ -553,7 +586,7 @@ function SidebarInner({
         </div>
 
         {/* Logout (bottom, outside scroll) */}
-        <div className="border-t border-slate-200/70 px-2 py-2">
+        <div className="border-t border-slate-200/70 px-2 py-2 pb-24">
           <button
             type="button"
             onClick={() =>

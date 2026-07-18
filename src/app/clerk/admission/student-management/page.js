@@ -32,10 +32,10 @@ export default function StudentManagementPage() {
                 </Link>
             </header>
 
-            <section className="space-y-10">
+            <section className="space-y-4">
                 <ClerkStudentManagement />
                 
-                <div className="pt-6">
+                <div>
                   <StudentHistoryCard currentClerkId={clerk?.id} />
                 </div>
             </section>

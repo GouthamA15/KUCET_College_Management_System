@@ -47,7 +47,7 @@ export default function ClerkStudentManagement() {
         ))}
       </div>
 
-      <div className="border border-gray-300 rounded-md bg-white p-4">
+      <div className="border border-slate-200 rounded-md bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 shadow-sm">
         {activeAction === 'add' && <AddNewStudent />}
         {activeAction === 'import' && <BulkImportStudents onReset={() => { /* empty */ }} onImportSuccess={() => { /* empty */ }} />}
         {activeAction === 'export' && <ExportStudents />}
