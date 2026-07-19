@@ -103,7 +103,8 @@ export function parseDate(str) {
     else return null;
 
     const d = parseInt(dayStr, 10);
-    const m = parseInt(monthStr, 10);
+    const monthIndex = MONTHS.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
+    const m = monthIndex >= 0 ? monthIndex + 1 : parseInt(monthStr, 10);
     const y = parseInt(yearStr, 10);
 
     if (isNaN(d) || isNaN(m) || isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31) return null;

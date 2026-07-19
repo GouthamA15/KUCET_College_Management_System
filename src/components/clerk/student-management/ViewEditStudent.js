@@ -125,7 +125,13 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
     };
 
     // Copy arrays so we never mutate props.
-    const initialAcademics = Array.isArray(fetchedStudent.academics) ? [...fetchedStudent.academics] : [];
+    let academicsSource = [];
+    if (Array.isArray(fetchedStudent.academics)) {
+      academicsSource = fetchedStudent.academics;
+    } else if (fetchedStudent.academic_background) {
+      academicsSource = [fetchedStudent.academic_background];
+    }
+    const initialAcademics = [...academicsSource];
     let currentQualifyingExam = initialAcademics.length > 0 ? initialAcademics[0].qualifying_exam : '';
     let currentRanks = initialAcademics.length > 0 ? initialAcademics[0].ranks : '';
     let currentSscMarks = initialAcademics.length > 0 ? initialAcademics[0].ssc_marks : '';
@@ -224,7 +230,6 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
         date_of_birth: editValues.date_of_birth,
         gender: editValues.gender,
         mobile: editValues.mobile,
-        email: editValues.email,
         father_name: personalFull.father_name,
         mother_name: personalFull.mother_name,
         nationality: personalFull.nationality,
@@ -419,7 +424,6 @@ export default function ViewEditStudent({ fetchedStudent, setFetchedStudent, set
                     onPaste={(e) => { const pasted=(e.clipboardData||window.clipboardData).getData('text'); const digits=pasted.replace(/\D/g,'').slice(0, MAX_MOBILE_LEN); setEditValues(prev=>({...prev, mobile: digits})); e.preventDefault(); }}
                   />
                 </div>
-                <input type="email" placeholder="Email" value={editValues.email || ''} onChange={e=>setEditValues({...editValues, email:e.target.value})} className="p-2 border rounded" />
                 <div>
                 <label className="block text-sm font-medium text-gray-700">Academic Status</label>
                 <select value={editValues.academic_status || 'ACTIVE'} onChange={e=>setEditValues({...editValues, academic_status:e.target.value})} className="p-2 border rounded">

@@ -101,8 +101,6 @@ export async function PUT(req, context) {
           studentUpdate.mobile_hash = normalizedMobile ? hashForIndex(normalizedMobile) : null;
       }
       
-      if (updatedData.email !== undefined) studentUpdate.email = toNull(updatedData.email);
-
       if (Object.keys(studentUpdate).length > 0) {
         await tx.update(studentsTable)
           .set({ ...studentUpdate, updated_at: new Date(), updated_by_clerk_id: clerkId })

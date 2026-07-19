@@ -16,11 +16,7 @@ export const NAV_MENU_CONFIG = {
         { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
       ]
     },
-    { label: 'MENU', children: [
-        { label: 'Edit Profile', route: '/student/settings/edit-profile' },
-        { label: 'Security & Privacy', route: '/student/settings/security' }
-      ]
-    }
+    { label: 'SETTINGS', route: '/student/settings/security' }
   ],
   clerk: [
     { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },

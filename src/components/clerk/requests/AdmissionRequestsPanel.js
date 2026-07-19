@@ -155,51 +155,77 @@ const AdmissionRequestsPanel = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center px-1">
+            <div className="flex justify-between items-center px-1 mb-2">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-800">Admission Queue</h2>
-                  <p className="text-sm text-gray-500 mt-1">Review new intake applications</p>
+                  <p className="text-sm text-gray-500 mt-1">Review newly reported admission applications.</p>
                 </div>
-                <button onClick={refreshAdmissionDrafts} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors rounded-md shadow-sm">
-                    <span className={`${loading ? 'animate-spin' : ''}`}>↻</span> Sync
+                <button 
+                    onClick={refreshAdmissionDrafts} 
+                    disabled={isLoadingRequests}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors rounded-md shadow-sm cursor-pointer"
+                >
+                    <span className={`inline-block ${isLoadingRequests ? 'animate-spin' : ''}`}>↻</span> 
+                    {isLoadingRequests ? 'Syncing...' : 'Sync'}
                 </button>
             </div>
 
             <div className="space-y-4">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-500 bg-slate-50 border border-slate-200 rounded-xl">
                         <div className="animate-spin h-6 w-6 border-2 border-[#0b3578] border-t-transparent rounded-full mb-4"></div>
                         <p className="text-sm font-medium">Accessing Intake Records...</p>
                     </div>
                 ) : drafts.length === 0 ? (
-                    <div className="text-center py-20 text-gray-500 border border-gray-200 rounded-md bg-white">
-                        <p className="text-sm font-medium">No pending intake applications found</p>
+                    <div className="text-center py-20 text-gray-500 bg-slate-50 border border-slate-200 rounded-xl">
+                        <p className="text-sm font-medium">No pending admission requests.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-4">
-                        {drafts.map(draft => (
-                            <div key={draft.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 border border-gray-300 rounded-md bg-white hover:border-gray-400 transition-colors gap-4">
-                                <div>
-                                    <h3 className="font-semibold text-gray-900 text-base">{draft.name}</h3>
-                                    <p className="text-sm text-gray-600">Father: {draft.father_name}</p>
+                    <div className="bg-slate-50/50 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        {/* Desktop Table Header */}
+                        <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-200 bg-white/60 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <div className="col-span-4">Student Name</div>
+                            <div className="col-span-3">Application No.</div>
+                            <div className="col-span-3">Entrance Type</div>
+                            <div className="col-span-2 text-right">Action</div>
+                        </div>
+
+                        {/* Queue Rows */}
+                        <div className="divide-y divide-slate-200/70">
+                            {drafts.map(draft => (
+                                <div key={draft.id} className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 px-4 md:px-6 py-4 md:py-3 md:items-center bg-white hover:bg-slate-50/80 transition-colors">
+                                    {/* Mobile labels & stacked layout vs Desktop grid */}
+                                    
+                                    {/* Name */}
+                                    <div className="md:col-span-4 flex flex-col md:block">
+                                        <h3 className="font-medium text-slate-900 text-[15px] truncate">{draft.name}</h3>
+                                    </div>
+                                    
+                                    {/* App No */}
+                                    <div className="md:col-span-3 flex items-center justify-between md:block">
+                                        <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">Application No.</span>
+                                        <p className="text-[14px] text-slate-600 font-mono tracking-tight">{draft.application_no || draft.id}</p>
+                                    </div>
+                                    
+                                    {/* Entrance */}
+                                    <div className="md:col-span-3 flex items-center justify-between md:block">
+                                        <span className="md:hidden text-xs text-slate-500 font-medium uppercase tracking-wider">Entrance Type</span>
+                                        <p className="text-[14px] text-slate-600">{draft.entrance_exam}</p>
+                                    </div>
+                                    
+                                    {/* Action */}
+                                    <div className="md:col-span-2 flex justify-end mt-2 md:mt-0">
+                                        <button 
+                                            onClick={() => fetchDetail(draft.id)}
+                                            disabled={fetchingDetail}
+                                            className="w-full md:w-auto px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 hover:text-blue-700 hover:border-blue-300 disabled:opacity-50 transition-all rounded-lg shadow-sm whitespace-nowrap cursor-pointer"
+                                        >
+                                            {selectedDraftId === draft.id && fetchingDetail ? 'Auditing...' : 'View & Verify'}
+                                        </button>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-gray-700 font-medium">{draft.entrance_exam}</p>
-                                    <span className="text-xs bg-blue-50 text-[#0b3578] px-2 py-1 rounded-md border border-blue-100 font-medium">
-                                        Rank {draft.exam_rank}
-                                    </span>
-                                </div>
-                                <div className="flex justify-end">
-                                    <button 
-                                        onClick={() => fetchDetail(draft.id)}
-                                        disabled={fetchingDetail}
-                                        className="px-4 py-2 bg-gray-100 border border-gray-300 text-gray-800 text-sm font-medium hover:bg-gray-200 disabled:opacity-60 transition-colors rounded-md cursor-pointer"
-                                    >
-                                        {selectedDraftId === draft.id && fetchingDetail ? 'Auditing...' : 'View & Verify'}
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

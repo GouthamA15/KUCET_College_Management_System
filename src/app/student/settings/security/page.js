@@ -5,6 +5,7 @@ import { useStudent } from '@/context/StudentContext';
 import { AlertCircle } from 'lucide-react';
 import { formatInstitutionalDate, formatInstitutionalDateTime } from '@/lib/date';
 import { formatIPAddress } from '@/lib/security';
+import toast from 'react-hot-toast';
 import { 
   useSecurityEvents, 
   usePasswordManagement,
@@ -24,6 +25,37 @@ export default function SecurityCenterPage() {
   const { studentData, loading, refreshData } = useStudent();
   const student = studentData?.student;
   const [activeTab, setActiveTab] = useState('overview');
+  
+  const [phoneEditing, setPhoneEditing] = useState(false);
+  const [phoneInput, setPhoneInput] = useState(student?.mobile || '');
+  const [phoneSaving, setPhoneSaving] = useState(false);
+
+  const handleSavePhone = async () => {
+    if (!phoneInput || phoneInput.replace(/\D/g, '').length !== 10) {
+      toast.error('Enter a valid 10-digit phone number');
+      return;
+    }
+    setPhoneSaving(true);
+    try {
+      const res = await fetch('/api/student/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneInput })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Phone number updated successfully');
+        setPhoneEditing(false);
+        refreshData();
+      } else {
+        toast.error(data.error || 'Failed to update phone number');
+      }
+    } catch (err) {
+      toast.error('Network error');
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
   
   const isEmailVerified = !!student?.is_email_verified;
   const isPasswordSet = !!student?.password_hash;
@@ -119,18 +151,23 @@ export default function SecurityCenterPage() {
           <section className="border border-gray-300 rounded-md bg-white p-4 sm:p-6">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-gray-800">Email Management</h2>
-                <p className="text-sm text-gray-600">Primary contact for security alerts.</p>
+                <h2 className="text-sm font-semibold text-gray-800">Contact Management</h2>
+                <p className="text-sm text-gray-600">Primary email and phone number for security alerts.</p>
               </div>
-              {!emailVerification.emailEditing ? (
-                <button onClick={() => emailVerification.setEmailEditing(true)} className="text-[#0b3578] font-semibold hover:underline text-xs sm:text-sm">Edit Settings</button>
-              ) : (
-                <button onClick={() => { emailVerification.setEmailEditing(false); emailVerification.setEmailInput(student.email); emailVerification.setOtpSent(false); }} className="text-gray-500 font-semibold hover:underline text-xs sm:text-sm">Cancel</button>
-              )}
             </div>
 
-            <div className="max-w-md space-y-4">
-              <div className="flex flex-col sm:flex-row gap-2">
+            <div className="max-w-md space-y-6">
+              {/* Email Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Email Address</label>
+                  {!emailVerification.emailEditing ? (
+                    <button onClick={() => emailVerification.setEmailEditing(true)} className="text-[#0b3578] font-semibold hover:underline text-xs">Edit Email</button>
+                  ) : (
+                    <button onClick={() => { emailVerification.setEmailEditing(false); emailVerification.setEmailInput(student.email); emailVerification.setOtpSent(false); }} className="text-gray-500 font-semibold hover:underline text-xs">Cancel</button>
+                  )}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
                 <input 
                   type="email" 
                   value={emailVerification.emailInput}
@@ -174,6 +211,43 @@ export default function SecurityCenterPage() {
                   </div>
                 </div>
               )}
+              </div>
+
+              {/* Phone Section */}
+              <div className="space-y-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Mobile Number</label>
+                  {!phoneEditing ? (
+                    <button onClick={() => { setPhoneEditing(true); setPhoneInput(student.mobile || ''); }} className="text-[#0b3578] font-semibold hover:underline text-xs">Edit Phone</button>
+                  ) : (
+                    <button onClick={() => { setPhoneEditing(false); setPhoneInput(student.mobile || ''); }} className="text-gray-500 font-semibold hover:underline text-xs">Cancel</button>
+                  )}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex items-center flex-1">
+                    <span className={`px-3 py-2 border border-r-0 rounded-l-md text-sm transition-colors ${!phoneEditing ? 'bg-gray-50 text-gray-500 border-gray-300' : 'border-gray-300 bg-gray-100 text-gray-600'}`}>+91</span>
+                    <input 
+                      type="tel" 
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      readOnly={!phoneEditing}
+                      placeholder="10-digit mobile number"
+                      className={`w-full border rounded-r-md px-3 py-2 text-sm focus:ring-1 outline-none transition-colors ${
+                        !phoneEditing ? 'bg-gray-50 text-gray-500 border-gray-300' : 'border-gray-300 focus:ring-[#0b3578] bg-white'
+                      }`}
+                    />
+                  </div>
+                  {phoneEditing && (
+                    <button 
+                      onClick={handleSavePhone}
+                      disabled={phoneSaving || phoneInput.length !== 10 || phoneInput === (student.mobile || '')}
+                      className="bg-[#0b3578] text-white px-4 py-2 rounded-md font-medium hover:bg-[#0a2d66] disabled:opacity-50 text-sm"
+                    >
+                      {phoneSaving ? '...' : 'Save'}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </section>
 
