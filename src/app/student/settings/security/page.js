@@ -50,7 +50,7 @@ export default function SecurityCenterPage() {
       } else {
         toast.error(data.error || 'Failed to update phone number');
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('Network error');
     } finally {
       setPhoneSaving(false);

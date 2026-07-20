@@ -85,7 +85,8 @@ export async function POST(req) {
       eventType = 'PASSWORD_CHANGED';
     }
 
-    const saltRounds = 10;
+    // ─── FIX #10: bcrypt cost raised from 10 → 12 ───
+    const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     const now = (await import('@/lib/clock')).getNow();

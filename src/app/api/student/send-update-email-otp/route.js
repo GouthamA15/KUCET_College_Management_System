@@ -39,10 +39,15 @@ export async function POST(req) {
         .limit(1);
 
       if (existingEmailRows.length > 0) {
-        return apiError('This email is already registered to another student.', 409);
+        // ─── FIX #9: Generic message — was "email is already registered" which reveals account existence ───
+        return apiError('Please check your details and try again.', 409);
       }
       
       const otp = crypto.randomInt(100000, 999999).toString();
+
+      // ─── FIX #4: Store OTP as SHA-256 hash — never plaintext ───
+      const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
       const { getNow } = await import('@/lib/clock');
       const now = getNow();
       const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
@@ -51,7 +56,7 @@ export async function POST(req) {
         await db.delete(otpCodes).where(eq(otpCodes.identifier, rollno));
         await db.insert(otpCodes).values({
           identifier: rollno,
-          otp_code: otp,
+          otp_code: otpHash,  // stored as hash, NOT plaintext
           expires_at: expiresAt
         });
       } catch (dbError) {

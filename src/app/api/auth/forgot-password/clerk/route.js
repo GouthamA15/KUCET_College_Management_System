@@ -4,10 +4,28 @@ import { clerks, passwordResetTokens } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getBaseUrl, sendInstitutionalEmail } from '@/lib/email';
 import { apiResponse, apiError } from '@/lib/api-utils';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 export async function POST(req) {
+  // ─── FIX #12: Rate limiting (3 per 15 min per IP) ───
   try {
+    let clientIp = req.ip;
+    if (!clientIp) {
+      const xff = req.headers.get('x-forwarded-for');
+      clientIp = xff ? xff.split(',')[0].trim() : `anon-${crypto.randomBytes(4).toString('hex')}`;
+    }
+
+    const rateCheck = await checkRateLimit(`forgot_pwd_clerk:${clientIp}`, 3, 900); // 3 per 15 min
+    if (!rateCheck.success) {
+      const retryAfter = rateCheck.resetIn || rateCheck.ttl || rateCheck.reset || 900;
+      return NextResponse.json(
+        { message: 'If an account with this email exists, a password reset link has been sent.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+      );
+    }
+
     const { email } = await req.json();
     if (!email) {
       return apiError('Email is required', 400);
@@ -20,13 +38,21 @@ export async function POST(req) {
       }
     });
 
-    if (!clerk) {
-      return apiError('Clerk not found', 404);
-    }
+    // ─── FIX #3: Was returning 404 "Clerk not found" — now always 200 generic ───
+    // SECURITY: Do NOT reveal whether the account exists or not.
+    const GENERIC_OK = apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
+
+    if (!clerk) return GENERIC_OK;
 
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const expires_at = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+
+    // ─── FIX #14: Use getNow() (IST clock) instead of Date.now() ───
+    const { getNow } = await import('@/lib/clock');
+    const now = getNow();
+
+    // ─── FIX #15: Reset token expiry raised from 10 min → 60 min ───
+    const expires_at = new Date(now.getTime() + 60 * 60 * 1000); // 60 minutes
 
     await db.insert(passwordResetTokens).values({
       token_hash: tokenHash,
@@ -66,13 +92,14 @@ If you did not initiate this request, please ignore this email or contact the ad
       action: {
         url: resetLink,
         label: 'Reset Password',
-        expiresIn: '10 minutes'
+        expiresIn: '60 minutes'
       }
     });
 
-    return apiResponse({ message: 'Password reset link sent to your email' });
+    return GENERIC_OK;
   } catch (error) {
     logger.error('FORGOT PASSWORD ERROR:', error);
-    return apiError('Internal server error', 500);
+    // SECURITY: Generic 200 on errors too — never expose internals
+    return apiResponse({ message: 'If an account with this email exists, a password reset link has been sent.' });
   }
 }

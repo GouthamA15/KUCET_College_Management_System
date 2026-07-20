@@ -24,7 +24,8 @@ export async function POST(req) {
     const validatedData = validationSchema.parse(json);
     const { name, email, password, employee_id, role, branch, is_hod } = validatedData;
 
-    const saltRounds = 10;
+    // ─── FIX #10: bcrypt cost raised from 10 → 12 ───
+    const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     const [result] = await db.insert(clerks).values({

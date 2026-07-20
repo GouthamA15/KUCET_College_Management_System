@@ -1,9 +1,15 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students, otpCodes } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
+import crypto from 'crypto';
+
+// Must match the hashing used in send-update-email-otp/route.js
+function hashOtp(otp) {
+  return crypto.createHash('sha256').update(String(otp)).digest('hex');
+}
 
 export async function POST(req) {
   try {
@@ -24,7 +30,8 @@ export async function POST(req) {
       }
 
       const otpData = await db.query.otpCodes.findFirst({
-        where: and(eq(otpCodes.identifier, rollno), eq(otpCodes.otp_code, otp))
+        // Fetch by identifier only; compare hash in application layer to avoid DB-level timing oracle
+        where: eq(otpCodes.identifier, rollno)
       });
 
       if (!otpData) {
@@ -37,6 +44,16 @@ export async function POST(req) {
       if (now > new Date(otpData.expires_at)) {
         await db.delete(otpCodes).where(eq(otpCodes.id, otpData.id));
         return apiError('OTP has expired. Please request a new one.', 400);
+      }
+
+      // ─── FIX #4/#6: Compare SHA-256(submitted) vs stored hash using timingSafeEqual ───
+      const submittedHash = Buffer.from(hashOtp(otp), 'hex');
+      const storedHash   = Buffer.from(otpData.otp_code, 'hex');
+      const otpValid = submittedHash.length === storedHash.length &&
+                       crypto.timingSafeEqual(submittedHash, storedHash);
+
+      if (!otpValid) {
+        return apiError('Invalid or expired OTP.', 400);
       }
       
       await db.update(students)

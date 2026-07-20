@@ -4,8 +4,12 @@ import { students, passwordResetTokens } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getBaseUrl, sendInstitutionalEmail } from '@/lib/email';
 import { apiResponse, apiError } from '@/lib/api-utils';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+// ─── FIX #1: GET — always return the same shape regardless of whether roll no exists ───
+// Prevents enumeration: attacker learns nothing from 404 vs 200 discrepancy.
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -23,22 +27,39 @@ export async function GET(req) {
       }
     });
 
-    if (!student) {
-      return apiError('Student not found', 404, { is_email_verified: false, has_password_set: false });
-    }
-
-    return apiResponse({ 
-      is_email_verified: student.is_email_verified,
-      has_password_set: !!student.password_hash 
+    // SECURITY: Always return 200 with the same structure — never 404.
+    // This prevents user enumeration via the presence/absence of an account.
+    return apiResponse({
+      is_email_verified: student ? !!student.is_email_verified : false,
+      has_password_set: student ? !!student.password_hash : false
     });
   } catch (error) {
     logger.error('FORGOT PASSWORD STATUS ERROR:', error);
-    return apiError('Internal server error', 500, { is_email_verified: false, has_password_set: false });
+    // Fail safe: never expose 500 internals, return neutral payload
+    return apiResponse({ is_email_verified: false, has_password_set: false });
   }
 }
 
+// ─── FIX #2: POST — uniform 200 "If an account exists" in ALL branches ───
+// Prevents enumeration: "Student not found" 404 and "not activated" 403 both gone.
 export async function POST(req) {
+  // ─── FIX #12: Rate limiting on forgot-password/student (3 per 15 min) ───
   try {
+    let clientIp = req.ip;
+    if (!clientIp) {
+      const xff = req.headers.get('x-forwarded-for');
+      clientIp = xff ? xff.split(',')[0].trim() : `anon-${crypto.randomBytes(4).toString('hex')}`;
+    }
+
+    const rateCheck = await checkRateLimit(`forgot_pwd_student:${clientIp}`, 3, 900); // 3 per 15 min
+    if (!rateCheck.success) {
+      const retryAfter = rateCheck.resetIn || rateCheck.ttl || rateCheck.reset || 900;
+      return NextResponse.json(
+        { message: 'If an account with this roll number exists, a password reset link has been sent.' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+      );
+    }
+
     const { rollno } = await req.json();
     if (!rollno) {
       return apiError('Roll number is required', 400);
@@ -53,20 +74,32 @@ export async function POST(req) {
       }
     });
 
-    if (!student) {
-      return apiError('Student not found', 404, { can_dob_login: false });
-    }
+    // SECURITY: Generic response regardless of whether student exists or is activated.
+    // This prevents two previous enumeration vectors:
+    //   • "Student not found" 404 → attacker learns roll no is invalid
+    //   • 403 "not activated" → attacker learns roll no IS valid but has no password
+    const GENERIC_OK = apiResponse({
+      message: 'If an account with this roll number exists, a password reset link has been sent.',
+      can_dob_login: false
+    });
 
+    if (!student) return GENERIC_OK;
+
+    // If account isn't activated, silently succeed so attacker learns nothing.
     if (!student.is_email_verified || !student.password_hash) {
-      return apiError("Password reset is not available because your account hasn't been activated yet. Please log in using your Date of Birth (DD-MM-YYYY) as a temporary password to complete your account setup.", 403, { can_dob_login: true });
+      return GENERIC_OK;
     }
 
-    // Generate raw token and store only its SHA-256 hash in DB
+    // Generate raw token; store only its SHA-256 hash in DB (Fix #token-hash is already present)
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // ─── FIX #14: Use getNow() (IST clock) instead of Date.now() ───
     const { getNow } = await import('@/lib/clock');
     const now = getNow();
-    const expires_at = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes from now
+
+    // ─── FIX #15: Reset token expiry raised from 10 min → 60 min ───
+    const expires_at = new Date(now.getTime() + 60 * 60 * 1000); // 60 minutes
 
     await db.insert(passwordResetTokens).values({
       token_hash: tokenHash,
@@ -106,13 +139,14 @@ If you did not initiate this request, please ignore this email or contact the ad
       action: {
         url: resetLink,
         label: 'Reset Password',
-        expiresIn: '10 minutes'
+        expiresIn: '60 minutes'
       }
     });
 
-    return apiResponse({ message: 'Password reset link sent to your email', can_dob_login: false });
+    return GENERIC_OK;
   } catch (error) {
     logger.error('FORGOT PASSWORD ERROR:', error);
-    return apiError('Internal server error', 500);
+    // SECURITY: Always return generic 200 — never leak internals via 500
+    return apiResponse({ message: 'If an account with this roll number exists, a password reset link has been sent.' });
   }
 }

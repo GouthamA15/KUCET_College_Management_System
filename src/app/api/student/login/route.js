@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import logger from '@/lib/logger';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 const loginSchema = z.object({
   rollno: z.string().trim().toUpperCase().min(10).max(12),
@@ -13,17 +14,36 @@ const loginSchema = z.object({
   rememberMe: z.boolean().default(false)
 });
 
+// ─── FIX #7: Constant-time string comparison with 255-byte padded buffers ───
+// Eliminates the timing oracle that allowed inferring DOB format character-by-character.
+const COMPARE_PAD_LEN = 255;
+function timingSafeStringEqual(a, b) {
+  const aBuf = Buffer.alloc(COMPARE_PAD_LEN);
+  const bBuf = Buffer.alloc(COMPARE_PAD_LEN);
+  Buffer.from(String(a)).copy(aBuf, 0, 0, Math.min(String(a).length, COMPARE_PAD_LEN));
+  Buffer.from(String(b)).copy(bBuf, 0, 0, Math.min(String(b).length, COMPARE_PAD_LEN));
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
 export const POST = wrapHandler({
   schema: loginSchema,
   handler: async (req, { data }) => {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(getTieredKey(req, 'login_student'), 5, 900); // 5 attempts per 15 min
 
+    // ─── IP-based rate limit (existing) ───
+    const rateCheck = await checkRateLimit(getTieredKey(req, 'login_student'), 5, 900); // 5 attempts per 15 min
     if (!rateCheck.success) {
       return apiError('Too many login attempts. Please try again later.', 429);
     }
 
     const { rollno, dob, rememberMe } = data;
+
+    // ─── FIX #8: Per-account lockout (8 attempts / 30 min per roll number) ───
+    // Prevents distributed brute-force that bypasses the shared IP limit.
+    const accountLock = await checkRateLimit(`login_student_acct:${rollno}`, 8, 1800); // 8 per 30 min
+    if (!accountLock.success) {
+      return apiError('Account temporarily locked due to too many failed attempts. Please try again in 30 minutes.', 429);
+    }
     
     const rows = await db.select({
       id: students.id,
@@ -69,7 +89,8 @@ export const POST = wrapHandler({
         }
       }
 
-      if (dbDateString === inputDateString) isAuthenticated = true;
+      // ─── FIX #7: Use timingSafeStringEqual instead of plain === ───
+      if (timingSafeStringEqual(dbDateString, inputDateString)) isAuthenticated = true;
       else {
         logger.warn({ rollno }, '[Student Login Failed] DOB mismatch');
         return apiError('Invalid credentials', 401);

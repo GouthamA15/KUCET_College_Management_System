@@ -6,6 +6,18 @@ import { apiResponse, apiError } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
+// ─── FIX #11: Password strength validation ───
+// Enforces 8+ chars, at least one uppercase, lowercase, digit, and special character.
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/;
+function validatePasswordStrength(password) {
+  if (!password || typeof password !== 'string') return 'Password is required.';
+  if (password.length < 8) return 'Password must be at least 8 characters long.';
+  if (!PASSWORD_REGEX.test(password)) {
+    return 'Password must include at least one uppercase letter, one lowercase letter, one digit, and one special character.';
+  }
+  return null; // valid
+}
+
 export async function GET(req, { params }) {
   try {
     const resolved = params ? await params : { /* empty */ };
@@ -37,6 +49,10 @@ export async function POST(req, { params }) {
 
     if (!token || !password) return apiError('Missing token or password', 400);
 
+    // ─── FIX #11: Validate password strength before hashing ───
+    const strengthError = validatePasswordStrength(password);
+    if (strengthError) return apiError(strengthError, 400);
+
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const tokenData = await db.query.passwordResetTokens.findFirst({
       where: eq(passwordResetTokens.token_hash, tokenHash)
@@ -47,8 +63,9 @@ export async function POST(req, { params }) {
     const { getNow } = await import('@/lib/clock');
     if (getNow() > new Date(tokenData.expires_at)) return apiError('EXPIRED', 410);
 
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    // ─── FIX #10: bcrypt cost raised from 10 → 12 ───
+    const SALT_ROUNDS = 12;
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     await db.transaction(async (tx) => {
       // 1. Update the appropriate user table

@@ -73,6 +73,11 @@ export async function POST(request) {
     if (!targetEmail) return apiError('Destination email not found.', 404);
 
     const otp = generateSecureOtp();
+
+    // ─── FIX #4: Store only SHA-256(otp) in DB — never plaintext ───
+    // The raw OTP is sent to the user's email only; the DB holds just its hash.
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
     const { getNow } = await import('@/lib/clock');
     const now = getNow();
     const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes
@@ -81,7 +86,7 @@ export async function POST(request) {
       await db.delete(otpCodes).where(eq(otpCodes.identifier, identifier));
       await db.insert(otpCodes).values({
         identifier: identifier,
-        otp_code: otp,
+        otp_code: otpHash,   // stored as hash, NOT plaintext
         expires_at: expiresAt
       });
     } catch (dbError) {

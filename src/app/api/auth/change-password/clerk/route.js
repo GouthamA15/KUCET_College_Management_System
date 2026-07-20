@@ -5,6 +5,17 @@ import { eq } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import bcrypt from 'bcrypt';
 
+// ─── FIX #11: Password strength validation ───
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$/;
+function validatePasswordStrength(password) {
+  if (!password || typeof password !== 'string') return 'Password is required.';
+  if (password.length < 8) return 'Password must be at least 8 characters long.';
+  if (!PASSWORD_REGEX.test(password)) {
+    return 'Password must include at least one uppercase letter, one lowercase letter, one digit, and one special character.';
+  }
+  return null;
+}
+
 export async function POST(req) {
   try {
     const user = await getAuthUser('clerk');
@@ -14,6 +25,14 @@ export async function POST(req) {
     }
 
     const { oldPassword, newPassword } = await req.json();
+
+    // ─── FIX #11: Validate new password strength ───
+    const strengthError = validatePasswordStrength(newPassword);
+    if (strengthError) return apiError(strengthError, 400);
+
+    if (oldPassword === newPassword) {
+      return apiError('New password must be different from the current password', 400);
+    }
 
     const clerk = await db.query.clerks.findFirst({
       where: eq(clerks.email, user.email),
@@ -32,12 +51,9 @@ export async function POST(req) {
       return apiError('Invalid old password', 400);
     }
 
-    if (oldPassword === newPassword) {
-      return apiError('New password must be different from the current password', 400);
-    }
-
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    // ─── FIX #10: bcrypt cost raised from 10 → 12 ───
+    const SALT_ROUNDS = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
     const now = (await import('@/lib/clock')).getNow();
     await db.update(clerks)
