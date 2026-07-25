@@ -29,6 +29,13 @@ export async function POST(request) {
     const validatedData = loginSchema.parse(json);
     const { email, password, rememberMe } = validatedData;
 
+    // ─── FIX #8: Per-account lockout (8 attempts / 30 min per email) ───
+    // Prevents distributed brute-force attacks that bypass shared IP rate limits.
+    const accountLock = await checkRateLimit(`login_employee_acct:${email}`, 8, 1800); // 8 per 30 min
+    if (!accountLock.success) {
+      return apiError('Account temporarily locked due to too many failed attempts. Please try again in 30 minutes.', 429);
+    }
+
     // 1. Try Admin (Principal) Table First
     const adminRows = await db.select({ id: principal.id, email: principal.email, password_hash: principal.password_hash })
       .from(principal)

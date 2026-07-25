@@ -107,7 +107,8 @@ export async function POST(req) {
         const emailInClerk = await db.query.clerks.findFirst({ where: eq(clerks.email, email) });
         
         if (emailInDraft || emailInStudent || emailInClerk) {
-            return apiError('This email address is already registered in our system.', 409);
+            // ─── FIX #9: Generic message — was "email is already registered" which allows email enumeration ───
+            return apiError('Please check your details and try again.', 409);
         }
     }
 
@@ -117,7 +118,8 @@ export async function POST(req) {
     const mobileInStudent = await db.query.students.findFirst({ where: eq(students.mobile_hash, mobileHash) });
     
     if (mobileInDraft || mobileInStudent) {
-        return apiError('This mobile number is already in use.', 409);
+        // ─── FIX #9: Generic message — was "mobile already in use" which allows mobile enumeration ───
+        return apiError('Please check your details and try again.', 409);
     }
 
     // 3. Aadhaar Uniqueness Check (Using Blind Index)
@@ -127,7 +129,8 @@ export async function POST(req) {
         const aadhaarInStudent = await db.query.studentPersonalDetails.findFirst({ where: eq(studentPersonalDetails.aadhaar_hash, aHash) });
         
         if (aadhaarInDraft || aadhaarInStudent) {
-            return apiError('This Aadhaar number is already registered.', 409);
+            // ─── FIX #9: Generic message — was "Aadhaar already registered" which allows Aadhaar enumeration ───
+            return apiError('Please check your details and try again.', 409);
         }
     }
 

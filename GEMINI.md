@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** July 1, 2026 (Session 171)
+**Last Updated:** July 20, 2026 (Session 176)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -73,7 +73,41 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - June 2026)
 
-#### **Session 174: Global Navigation Unification (July 2, 2026)**
+#### **Session 176: Auth Security Hardening — Full Audit & Fix Sprint (July 20, 2026)**
+- **User Enumeration Elimination (Critical):**
+  - `forgot-password/student` GET: Was returning `404` on missing roll numbers — now always returns `200 { is_email_verified: false, has_password_set: false }` regardless of account existence.
+  - `forgot-password/student` POST: Was returning `404 "Student not found"` and `403 "not activated"` — both consolidated to a single generic `200 "If an account exists..."` message in all branches including the error handler.
+  - `forgot-password/clerk` POST: Was returning `404 "Clerk not found"` — replaced with the same generic `200` message.
+- **OTP Security (Critical):**
+  - `send-otp/route.js` and `send-update-email-otp/route.js`: OTPs were stored as **plaintext** in the `otp_codes` table. Now stored as **SHA-256 hash** only; the raw OTP goes to email and is never persisted.
+  - `verify-otp/route.js`: Added **max 5 attempts / 10 min per identifier** rate limit to block 1M-OTP brute-force attacks.
+- **Timing-Safe Comparisons (High):**
+  - `verify-otp`: Plain `===` comparison replaced with `crypto.timingSafeEqual(hashOtp(submitted), storedHash)` — eliminates timing oracle on OTP verification.
+  - `student/login`: DOB `===` string comparison replaced with `crypto.timingSafeEqual` with 255-byte padded buffers — eliminates timing oracle on date-of-birth login.
+- **Per-Account Lockout (High):**
+  - `student/login`: Added secondary `login_student_acct:{rollno}` key: **8 attempts / 30 min** in addition to the existing IP-based limit, preventing distributed brute-force.
+  - `employee-login`: Added `login_employee_acct:{email}` key: **8 attempts / 30 min** per account.
+- **409 Enumeration (High):**
+  - `public/admission/route.js`: Three distinct `409` messages (`"email already registered"`, `"mobile already in use"`, `"Aadhaar already registered"`) consolidated to one generic `"Please check your details and try again."` — prevents PII probing via the admission form.
+  - `send-update-email-otp`: Was `"This email is already registered to another student"` → same generic `409`.
+- **Rate Limiting (Medium):**
+  - `forgot-password/admin`, `forgot-password/clerk`, `forgot-password/student`: **3 requests / 15 min per IP** — was completely unprotected.
+  - `change-password/student`: **5 requests / 15 min** via tiered device key.
+- **bcrypt Cost Factor (Medium):** All `bcrypt.hash()` calls in `reset-password`, `change-password/student`, `change-password/clerk`, `change-password/admin` raised from cost `10` → `12`.
+- **Password Strength Validation (Medium):** `reset-password` and all `change-password` routes now enforce: 8+ characters, at least 1 uppercase, 1 lowercase, 1 digit, 1 special character (`PASSWORD_REGEX`).
+- **IST Clock Consistency (Medium):** `forgot-password/clerk` and `forgot-password/admin` switched from `Date.now()` to `getNow()` (authoritative IST clock) for token expiry calculation.
+- **Reset Token Expiry (Medium):** Extended from 10 minutes → **60 minutes** across all three `forgot-password` routes, matching institutional usability requirements.
+
+#### **Session 175: Remote Changes by GouthamA15 — Feature Optimizations (July 19, 2026)**
+- **Student Security Page Refactor:** Rewrote `src/app/student/settings/security/page.js` to consolidate phone and email management into a unified Security Center page (~92 lines added). Integrates `SecurityCenter`, `SecurityOverview`, `SecurityAuthentication`, `SecurityActivity`, and `StudentActivationUI` components with full hook integration (`useSecurityEvents`, `usePasswordManagement`, `useEmailVerification`).
+- **Student Settings Cleanup:** Removed legacy `src/app/student/settings/page.js` (10 lines removed) — now superseded by the granular security sub-page.
+- **Clerk Edit-Profile Deprecation:** Renamed `src/app/clerk/settings/edit-profile/page.js` → `_page.js` to temporarily disable the stale page without deleting it.
+- **Admission Requests Panel Refactor:** `src/components/clerk/requests/AdmissionRequestsPanel.js` heavily refactored — improved layout, sorting, and filter UX with 86 lines reworked across search, filter chips, and pagination controls.
+- **ViewEditStudent Enhancement:** `src/components/clerk/student-management/ViewEditStudent.js` improved field validation and display logic (+10 lines).
+- **Admission Students API Cleanup:** Removed 2 lines from `src/app/api/clerk/admission/students/[rollno]/route.js` — minor dead-code removal.
+- **Date Utility Fix:** `src/lib/date.js` patched to handle edge case in date formatting (+3/-1 lines).
+- **Menu Config Update:** `src/lib/menu-config.js` menu items updated to reflect new security page routing (+6/-1 lines).
+
 - **Sidebar Consolidation:** Integrated Admin Infrastructure and HOD Dashboard navigation into the primary `Sidebar.js` pattern, deprecating ad-hoc navigation arrays, page-level drawer modals, and in-page horizontal scroll tabs.
 - **Deep Linking Integration:** Converted HOD and Admin UI states to utilize Next.js `useSearchParams()` natively, enabling browser history retention and direct deep-linking (e.g. `?tab=config`) without sacrificing client-side rendering speed.
 - **UX Standardization:** Established a singular, institution-wide nested navigation pattern that naturally expands and highlights active child paths, completely eradicating disjointed mobile bottom-sheets across clerk and admin roles.
