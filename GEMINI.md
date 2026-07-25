@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** July 20, 2026 (Session 176)
+**Last Updated:** July 25, 2026 (Session 178)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -71,7 +71,31 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **D. Digital Certificate Engine**
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
-## 6. Recent Activity Log (May - June 2026)
+## 6. Recent Activity Log (May - July 2026)
+
+#### **Session 178: Category Restructuring, UI Fixes & Scalability Architecture Sprint (July 25, 2026)**
+- **SC Sub-Caste Implementation:**
+  - Expanded `SC` category into four sub-castes (`SC-A`, `SC-B`, `SC-C`, `SC-D`) across `COLLEGE_CONFIG.categories`, Zod schemas, bulk import logic, and financial reimbursement rules (`financial-utils.js` & `scholarship-utils.js`).
+  - Dynamically integrated all four sub-castes into category selection dropdowns across public admission (`/admission`), `AddNewStudent.js`, and `ViewEditStudent.js`.
+  - Updated server-side PDF certificate rendering engine (`download/[request_id]/route.js`, `BonafideCertificatePDF.js`, `TransferCertificatePDF.js`, `NoObjectionCertificatePDF.js`) to fetch `category` & `sub_caste` from `student_personal_details` and print `Category/Sub-Caste` details on all issued documents.
+- **EWS Category Standardization:**
+  - Standardized `OC-EWS` classification to `EWS` repository-wide, updating bulk import sanitization and validation schemas to reject legacy `OC-EWS`/`O-EWS` designations.
+- **Admission Form UI Refinement:**
+  - Updated Identification Marks field label and placeholders on `/admission` page to explicitly read `26. Identification Marks (As per SSC memo)` and `Identification Mark 1 (As per SSC memo)`.
+- **UI Bug Fixes & Adjustments:**
+  - **Receipt Modal Layout Fix:** Resolved bottom content cutoff and improper height/overflow constraints in `FeeTransactionHistory.js` by adding `max-h-[92vh]` and vertical scrolling (`overflow-y-auto max-h-[calc(92vh-8rem)]`) to ensure perfect centering and full visibility across viewports.
+  - **Profile Edit Button Removal:** Removed `editHref` and `editTitle` props from `ProfileHeaderCard.js` for student views, completely eliminating the edit pencil button from the Student Profile page.
+- **Architectural, Scalability & Future-Proofing Enhancements:**
+  - **Native Database Partitioning:** Authored `docs/database_partitioning.sql` establishing TiDB Range Partitioning by `date` for `student_attendance` and Hash Partitioning by `student_id` for `student_marks`.
+  - **Stateless Cloud Storage:** Engineered `S3StorageProvider.js` supporting AWS S3 and Cloudflare R2 object storage with fallback handling. Updated `storage/factory.js` to support `s3`/`r2` storage types and deprecated `LocalStorageProvider` for production cloud scaling.
+  - **Dead Letter Queues (DLQ):** Created `src/app/api/webhooks/qstash/dlq/route.js` to process and persist failed background tasks into Redis (`dlq:failed_jobs`). Updated `enqueueJob` in `queue.js` with `failureCallback` and retry policies.
+  - **WebSocket Load Testing Strategy:** Authored `scripts/load-testing/k6-supabase-realtime.js` to simulate E2E WebSocket load testing for Supabase Broadcast channels (`room:attendance`, `room:pulse`).
+  - **Automated Schema Migrations:** Integrated automated Drizzle drift verification (`npx drizzle-kit generate`) and automated database migration execution (`npm run db:migrate`) into the GitHub Actions CI pipeline (`.github/workflows/ci.yml`).
+
+#### **Session 177: Remote Changes by GouthamA15 — Student Management UI/UX Improvements (July 25, 2026)**
+- **Student History Card Refactor:** Refactored `StudentHistoryCard.js` to simplify history rendering and card layout (~331 lines reworked).
+- **Export Students Alignment:** Updated `ExportStudents.js` column mapping, field formatting, and export logic (+116/-116 lines).
+- **Student Management Navigation:** Updated `src/app/clerk/admission/student-management/page.js` and `ClerkStudentManagement.js` navigation and context wiring.
 
 #### **Session 176: Auth Security Hardening — Full Audit & Fix Sprint (July 20, 2026)**
 - **User Enumeration Elimination (Critical):**
