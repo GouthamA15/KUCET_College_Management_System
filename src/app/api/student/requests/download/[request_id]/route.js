@@ -80,6 +80,8 @@ export async function GET(request, context) {
             roll_no: students.roll_no,
             mobile: students.mobile,
             father_name: studentPersonalDetails.father_name,
+            category: studentPersonalDetails.category,
+            sub_caste: studentPersonalDetails.sub_caste,
             date_of_birth: students.date_of_birth,
             perm_house_no: studentPersonalDetails.perm_house_no,
             perm_street: studentPersonalDetails.perm_street,
@@ -187,10 +189,14 @@ export async function GET(request, context) {
             return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
         };
 
+        const category = student.category || '';
+        const subCaste = student.sub_caste || '';
+        const casteDisplay = subCaste && subCaste !== category ? `${category} (${subCaste})` : category;
+
         const commonData = {
             certId, date: formattedDate, studentName: student.name,
             fatherName: student.father_name || 'N/A', admissionNo: student.roll_no,
-            course, dob: formattedDob,
+            course, dob: formattedDob, category, subCaste, casteDisplay,
             academicYear: getResolvedCurrentAcademicYear(student.roll_no, collegeInfo) || certRequest.academic_year || '',
             logoUrl, signatureUrl, stampSign, stampUrl, qrUrl: qrBase64, batch: batchString
         };

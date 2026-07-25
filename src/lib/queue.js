@@ -19,11 +19,15 @@ export const enqueueJob = async (endpoint, payload, options = {}) => {
     return null; // Keep null for not configured state to match existing logic
   }
 
+  const dlqUrl = `${baseUrl}/api/webhooks/qstash/dlq`;
+
   try {
     const result = await qstashBreaker.execute(async () => {
       return await qstashClient.publishJSON({
         url,
         body: payload,
+        failureCallback: dlqUrl,
+        retries: 3,
         ...options
       });
     });

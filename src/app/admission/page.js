@@ -531,7 +531,7 @@ const AdmissionPage = () => {
                         </div>
 
                         <div className="md:col-span-2 mt-4">
-                            <label className={labelClasses + " mb-2"}>26. Identification Marks</label>
+                            <label className={labelClasses + " mb-2"}>26. Identification Marks (As per SSC memo)</label>
                             <table className="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden">
                                 <thead className="bg-gray-100">
                                     <tr>
@@ -543,13 +543,13 @@ const AdmissionPage = () => {
                                     <tr>
                                         <td className="border border-gray-300 p-2 text-center font-bold">1</td>
                                         <td className="border border-gray-300 p-0">
-                                            <input maxLength="100" value={form.identification_mark_1} onChange={e => setForm({...form, identification_mark_1: e.target.value})} className="w-full p-2 border-none focus:ring-0 text-sm" placeholder="Identification Mark 1" />
+                                            <input maxLength="100" value={form.identification_mark_1} onChange={e => setForm({...form, identification_mark_1: e.target.value})} className="w-full p-2 border-none focus:ring-0 text-sm" placeholder="Identification Mark 1 (As per SSC memo)" />
                                         </td>
                                     </tr>
                                     <tr>
                                         <td className="border border-gray-300 p-2 text-center font-bold">2</td>
                                         <td className="border border-gray-300 p-0">
-                                            <input maxLength="100" value={form.identification_mark_2} onChange={e => setForm({...form, identification_mark_2: e.target.value})} className="w-full p-2 border-none focus:ring-0 text-sm" placeholder="Identification Mark 2" />
+                                            <input maxLength="100" value={form.identification_mark_2} onChange={e => setForm({...form, identification_mark_2: e.target.value})} className="w-full p-2 border-none focus:ring-0 text-sm" placeholder="Identification Mark 2 (As per SSC memo)" />
                                         </td>
                                     </tr>
                                 </tbody>

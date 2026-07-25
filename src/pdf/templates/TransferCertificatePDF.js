@@ -14,10 +14,14 @@ export default function TransferCertificatePDF({
   batch,
   conduct,
   reason,
+  casteDisplay,
+  category,
+  subCaste,
   logoUrl,
   signatureUrl,
   qrUrl,
 }) {
+  const casteInfo = casteDisplay || category || '';
   return (
     <BaseCertificate
       certId={certId}
@@ -33,6 +37,7 @@ export default function TransferCertificatePDF({
           This is to certify that Mr./Ms. <Text style={styles.bold}>{studentName}</Text>,
           {" "}S/o., D/o. <Text style={styles.bold}>{fatherName}</Text>{" "}
           bearing Admission No. <Text style={styles.bold}>{admissionNo}</Text>{" "}
+          {casteInfo ? <>(Category/Sub-Caste: <Text style={styles.bold}>{casteInfo}</Text>) </> : null}
           was a bonafide student of B.Tech <Text style={styles.bold}>{course}</Text>{" "}
           course at this college during the batch <Text style={styles.bold}>{batch}</Text>.
         </Text>

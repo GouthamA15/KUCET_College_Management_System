@@ -9,8 +9,6 @@ export default function ProfileHeaderCard({ student }) {
       name={student?.name}
       primaryId={student?.roll_no}
       photoUrl={student?.pfp}
-      editHref="/student/settings/edit-profile"
-      editTitle="Modify Records"
       fallback="placeholder"
     />
   );

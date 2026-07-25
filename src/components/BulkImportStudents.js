@@ -105,9 +105,9 @@ const validateRow = (rowData, excelRowNumber) => {
     validationErrors.push({ row: excelRowNumber, field: 'Father Name', message: 'Father Name is required.' });
   }
 
-  // 6. Category
-  const category = String(rowData['category'] || '').trim().replace(/\s*-\s*/g, '-');
-  if (!category || !CATEGORIES.includes(category)) {
+  let category = String(rowData['category'] || '').trim().replace(/\s*-\s*/g, '-').toUpperCase();
+  if (category === 'OC-EWS' || category === 'O-EWS') category = 'EWS';
+  if (!category || (!CATEGORIES.includes(category) && category !== 'SC')) {
     rowErrors['category'] = `Invalid Category. Must be one of ${CATEGORIES.join(', ')}.`;
     validationErrors.push({ row: excelRowNumber, field: 'Category', message: `Invalid Category: ${category}` });
   }

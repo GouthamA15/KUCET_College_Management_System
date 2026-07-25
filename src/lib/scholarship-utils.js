@@ -39,18 +39,18 @@ export function calculateExpectedRTF(student, collegeTuitionFee) {
 
   // 3. Rule for SC/ST/Minority (GO Rt No. 63)
   // These categories get FULL fee regardless of rank.
-  if (['SC', 'ST'].includes(category)) return collegeTuitionFee;
+  if (['SC', 'SC-A', 'SC-B', 'SC-C', 'SC-D', 'ST'].includes(category) || category.startsWith('SC')) return collegeTuitionFee;
   if (MINORITY_RELIGIONS.includes(religion) || category === 'MINORITY') {
     return collegeTuitionFee;
   }
 
   // 4. Government Junior College Exception
-  // BC/EBC/OC-EWS students who studied in Govt Junior Colleges usually get full reimbursement.
+  // BC/EBC/EWS students who studied in Govt Junior Colleges usually get full reimbursement.
   const prevCollege = String(student?.previous_college_details || '').toUpperCase();
   const isGovtCollege = prevCollege.includes('GOVT') || prevCollege.includes('GOVERNMENT');
   if (isGovtCollege) return collegeTuitionFee;
 
-  // 5. Standard BC/EBC/OC-EWS Rank Condition
+  // 5. Standard BC/EBC/EWS Rank Condition
   // Below 10,000 Rank = Full Fee
   // Above 10,000 Rank = Max 35,000 Cap
   if (rank > 0 && rank <= 10000) {

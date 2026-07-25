@@ -21,7 +21,7 @@ export const COLLEGE_CONFIG = {
   ],
   genders: ['Male', 'Female'],
   religions: ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Parsi', 'Other'],
-  categories: ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS'],
+  categories: ['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC-A', 'SC-B', 'SC-C', 'SC-D', 'ST', 'EWS'],
   bloodGroups: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Not available'],
   annualIncomes: [
     'Less than 1,00,000',

@@ -20,7 +20,7 @@ const normalizeHeader = (h) => {
     .replace(/[^a-z0-9_]/g, '');
 };
 
-const VALID_CATEGORIES = new Set(['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'ST', 'EWS', 'OC-EWS']);
+const VALID_CATEGORIES = new Set(['OC', 'BC-A', 'BC-B', 'BC-C', 'BC-D', 'BC-E', 'SC', 'SC-A', 'SC-B', 'SC-C', 'SC-D', 'ST', 'EWS']);
 
 const ALIASES = {
   students: {
@@ -209,7 +209,8 @@ export const POST = wrapHandler({
       const dob = normalizeDateToMySQL(student.date_of_birth);
       const name = String(student.name || '').trim();
       const fatherName = String(personal.father_name || '').trim();
-      const category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-');
+      let category = String(personal.category || '').trim().replace(/\s*-\s*/g, '-').toUpperCase();
+      if (category === 'OC-EWS' || category === 'O-EWS') category = 'EWS';
       const permanent_address = String(personal.permanent_address || personal.address || '').trim();
       const contact_address = String(personal.contact_address || '').trim() || permanent_address;
 

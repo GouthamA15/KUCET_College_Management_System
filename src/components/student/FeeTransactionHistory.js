@@ -197,13 +197,13 @@ export default function FeeTransactionHistory({ feeRecords = [], student = null,
 
       {/* Official Receipt Modal */}
       {selectedReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 md:p-8 shadow-2xl border border-slate-200 overflow-hidden relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-xl w-full max-h-[92vh] flex flex-col p-5 sm:p-8 shadow-2xl border border-slate-200 relative overflow-hidden my-auto">
             {/* Close Button */}
             <button
               type="button"
               onClick={() => setSelectedReceipt(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-2 transition-colors print:hidden"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-2 transition-colors print:hidden z-10"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -211,7 +211,7 @@ export default function FeeTransactionHistory({ feeRecords = [], student = null,
             </button>
 
             {/* Receipt Printable Area */}
-            <div id="printable-receipt-area" className="space-y-6">
+            <div id="printable-receipt-area" className="space-y-6 overflow-y-auto pr-1 max-h-[calc(92vh-8rem)]">
               {/* Institutional Header */}
               <div className="text-center border-b-2 border-slate-800 pb-4">
                 <h2 className="text-lg md:text-xl font-black text-[#0b3578] uppercase tracking-wide">Kakatiya University College of Engineering & Technology</h2>

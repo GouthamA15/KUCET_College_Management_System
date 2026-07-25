@@ -14,6 +14,9 @@ export default function NoObjectionCertificatePDF({
   semester,
   course,
   academicYear,
+  casteDisplay,
+  category,
+  subCaste,
   logoUrl,
   signatureUrl,
   qrUrl,
@@ -21,6 +24,7 @@ export default function NoObjectionCertificatePDF({
   fromDate,
   toDate
 }) {
+  const casteInfo = casteDisplay || category || '';
   return (
     <BaseCertificate
       certId={certId}
@@ -36,6 +40,7 @@ export default function NoObjectionCertificatePDF({
           This is to certify that Mr./Ms. <Text style={styles.bold}>{studentName}</Text>,{" "}
           S/o., D/o. <Text style={styles.bold}>{fatherName}</Text>{" "}
           bearing Admission No. <Text style={styles.bold}>{admissionNo}</Text>{" "}
+          {casteInfo ? <>(Category/Sub-Caste: <Text style={styles.bold}>{casteInfo}</Text>) </> : null}
           is a Bonafide student of this college studying B.Tech{" "}
           <Text style={styles.bold}>{year}</Text>{" "}Year Semester{" "}
           <Text style={styles.bold}>{semester}</Text>{" "}and branch{" "}

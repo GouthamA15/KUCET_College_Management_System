@@ -40,7 +40,7 @@ export function getExpectedScholarship(student, totalFee) {
   
   // 4. Rule for SC/ST/Minority (GO Rt No. 63)
   // These categories get FULL fee reimbursement (RTF) regardless of their TG EAPCET/TG ECET rank.
-  if (['SC', 'ST'].includes(category)) return totalFee;
+  if (['SC', 'SC-A', 'SC-B', 'SC-C', 'SC-D', 'ST'].includes(category) || category.startsWith('SC')) return totalFee;
   
   const minorityReligions = ['MUSLIM', 'CHRISTIAN', 'SIKH', 'BUDDHIST', 'JAIN', 'PARSI'];
   if (minorityReligions.includes(religion) || category === 'MINORITY') {
@@ -48,12 +48,12 @@ export function getExpectedScholarship(student, totalFee) {
   }
   
   // 5. Government Junior College Exception
-  // BC/EBC/OC-EWS students who studied in Govt Junior Colleges usually get full reimbursement.
+  // BC/EBC/EWS students who studied in Govt Junior Colleges usually get full reimbursement.
   const prevCollege = String(student?.previous_college_details || '').toUpperCase();
   const isGovtCollege = prevCollege.includes('GOVT') || prevCollege.includes('GOVERNMENT');
   if (isGovtCollege) return totalFee;
 
-  // 6. Standard BC/EBC/OC-EWS Rank Condition
+  // 6. Standard BC/EBC/EWS Rank Condition
   // Rank <= 10,000 = Full Fee Reimbursement
   // Rank > 10,000 = Partial reimbursement capped at ₹35,000
   const rank = Number(student?.ranks || student?.exam_rank || 999999);
