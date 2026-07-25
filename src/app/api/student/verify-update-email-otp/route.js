@@ -13,18 +13,19 @@ function hashOtp(otp) {
 
 export async function POST(req) {
   try {
+    const user = await getAuthUser('student');
+    if (!user) return apiError('Unauthorized', 401);
+
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(getTieredKey(req, 'otp_verify'), 5, 900); // 5 attempts per 15 min
+    const rateCheck = await checkRateLimit(`otp_verify_${user.roll_no}`, 8, 900); // 8 attempts per 15 min
     
     if (!rateCheck.success) {
       return apiError('Too many verification attempts. Please try again in 15 minutes.', 429);
     }
-
-    const user = await getAuthUser('student');
-    if (!user) return apiError('Unauthorized', 401);
     
     try {
-      const { rollno, otp, email } = await req.json();
+      const { otp, email } = await req.json();
+      const rollno = user.roll_no;
       if (!rollno || !otp || !email) {
         return apiError('Missing roll number, OTP, or email', 400);
       }

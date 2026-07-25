@@ -131,7 +131,7 @@ export default function ResetPassword() {
               {tokenStatus === 'VALID' && (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="space-y-1.5">
-                    <label htmlFor="password" uncomfortable className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <label htmlFor="password" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                       New Password
                     </label>
                     <div className="relative">

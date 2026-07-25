@@ -9,19 +9,19 @@ import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 
 export async function POST(req) {
   try {
+    const user = await getAuthUser('student');
+    if (!user) return apiError('Unauthorized', 401);
+
     const _ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(getTieredKey(req, 'otp_send'), 5, 900); // 5 attempts per 15 min
+    const rateCheck = await checkRateLimit(`otp_send_${user.roll_no}`, 8, 900); // 8 attempts per 15 min
     
     if (!rateCheck.success) {
       return apiError('Please try again after 15 minutes.', 429);
     }
 
-    const user = await getAuthUser('student');
-    if (!user) return apiError('Unauthorized', 401);
-
     try {
       const body = await req.json();
-      const rollno = body.rollno;
+      const rollno = user.roll_no;
       const rawEmail = body.email ? String(body.email) : '';
       const email = rawEmail.trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9@.\-_]/g, '');
 
@@ -60,8 +60,9 @@ export async function POST(req) {
           expires_at: expiresAt
         });
       } catch (dbError) {
-        logger.error('[DATABASE ERROR] OTP management failed:', dbError);
-        return apiError('Please try again after 15 minutes.', 500);
+        logger.error(dbError, '[DATABASE ERROR] OTP management failed');
+        console.error('CRITICAL DATABASE ERROR IN OTP SEND:', dbError);
+        return apiError(`Please try again after 15 minutes. (DB Error: ${dbError.message || dbError})`, 500);
       }
 
       const isActivating = !user.is_email_verified;
@@ -90,22 +91,22 @@ export async function POST(req) {
           bodyHtml: bodyHtml,
         });
       } catch (mailError) {
-        logger.error('[MAIL EXCEPTION] Failed during sendEmail:', mailError);
+        logger.error(mailError, '[MAIL EXCEPTION] Failed during sendEmail');
         return apiError('Please try again after 15 minutes.', 500);
       }
 
       if (emailResponse.success) {
         return apiResponse({ message: 'OTP sent to your new email address.' });
       } else {
-        logger.error('[MAIL FAILURE] sendEmail returned false:', emailResponse.message);
+        logger.error({ message: emailResponse.message }, '[MAIL FAILURE] sendEmail returned false');
         return apiError('Please try again after 15 minutes.', 500);
       }
     } catch (error) {
-      logger.error('[GENERAL ERROR] send-update-email-otp:', error);
+      logger.error(error, '[GENERAL ERROR] send-update-email-otp');
       return apiError('An internal server error occurred.', 500);
     }
   } catch (outerError) {
-    logger.error('[CRITICAL ERROR] send-update-email-otp rate limit check:', outerError);
+    logger.error(outerError, '[CRITICAL ERROR] send-update-email-otp rate limit check');
     return apiError('Internal Server Error', 500);
   }
 }
