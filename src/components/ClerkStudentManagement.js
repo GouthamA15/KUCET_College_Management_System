@@ -5,8 +5,9 @@ import AddNewStudent from './clerk/student-management/AddNewStudent';
 import FetchStudent from './clerk/student-management/FetchStudent';
 import ViewEditStudent from './clerk/student-management/ViewEditStudent';
 import ExportStudents from './clerk/student-management/ExportStudents';
+import StudentHistoryCard from './clerk/student-management/StudentHistoryCard';
 
-export default function ClerkStudentManagement() {
+export default function ClerkStudentManagement({ clerkId }) {
   const [activeAction, setActiveAction] = useState('fetch');
   const [fetchedStudent, setFetchedStudent] = useState(null);
   const [_personalFull, setPersonalFull] = useState({ /* empty */ });
@@ -24,6 +25,7 @@ export default function ClerkStudentManagement() {
     { id: 'view', title: 'Edit Student', disabled: !fetchedStudent },
     { id: 'import', title: 'Import Records' },
     { id: 'export', title: 'Export Records' },
+    { id: 'history', title: 'Student History' },
   ];
 
   return (
@@ -71,6 +73,9 @@ export default function ClerkStudentManagement() {
             setFetchedStudent={setFetchedStudent}
             setActiveAction={setActiveAction}
           />
+        )}
+        {activeAction === 'history' && (
+          <StudentHistoryCard currentClerkId={clerkId} />
         )}
       </div>
     </div>

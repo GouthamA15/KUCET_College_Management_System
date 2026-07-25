@@ -4,7 +4,6 @@ import { useClerk } from '@/context/ClerkContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ClerkStudentManagement from '@/components/ClerkStudentManagement';
-import StudentHistoryCard from '@/components/clerk/student-management/StudentHistoryCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function StudentManagementPage() {
@@ -33,11 +32,7 @@ export default function StudentManagementPage() {
             </header>
 
             <section className="space-y-4">
-                <ClerkStudentManagement />
-                
-                <div>
-                  <StudentHistoryCard currentClerkId={clerk?.id} />
-                </div>
+                <ClerkStudentManagement clerkId={clerk?.id} />
             </section>
         </div>
     );

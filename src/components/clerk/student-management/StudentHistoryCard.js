@@ -2,18 +2,14 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 
-export default function StudentHistoryCard({ _currentClerkId }) {
+export default function StudentHistoryCard({ currentClerkId }) {
   // State
-  const [isExpanded, setIsExpanded] = useState(false);
   const [historyScope, setHistoryScope] = useState('my'); // 'my' | 'all'
-  const [showFilters, setShowFilters] = useState(false);
-  const [popoverPosition, setPopoverPosition] = useState('bottom'); // 'bottom' | 'top'
   const DEFAULT_FILTERS = { actionTypes: [], dateRange: 'all' };
   const [historyFilters, setHistoryFilters] = useState(DEFAULT_FILTERS); // staged filters
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS); // actually applied to fetch
   const [historyData, setHistoryData] = useState({ records: [], myCount: 0, allCount: 0 });
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const triggerRef = useRef(null);
   const historyCacheRef = useRef(new Map());
 
   const myCount = historyData.myCount || 0;
@@ -32,10 +28,8 @@ export default function StudentHistoryCard({ _currentClerkId }) {
     return `${dd}-${mm}-${yyyy}`;
   };
 
-  // Fetch records from backend when scope or filters change AND it is expanded
+  // Fetch records from backend when scope or filters change
   useEffect(() => {
-    if (!isExpanded) return;
-
     const cachedHistory = historyCacheRef.current.get(requestKey);
     if (cachedHistory) {
       setHistoryData(cachedHistory);
@@ -84,31 +78,7 @@ export default function StudentHistoryCard({ _currentClerkId }) {
       isActive = false;
       controller.abort();
     };
-  }, [requestKey, historyScope, appliedFilters.dateRange, appliedFilters.actionTypes, isExpanded]);
-
-  // Compute popover placement to avoid viewport overflow
-  useEffect(() => {
-    if (!showFilters) return;
-    let mounted = true;
-    function compute() {
-      const trig = triggerRef.current;
-      if (!trig) return;
-      const rect = trig.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      const estimatedHeight = 260; // safe estimate for popover height
-      if (spaceBelow < estimatedHeight && spaceAbove > estimatedHeight) {
-        if (mounted) setPopoverPosition('top');
-      } else {
-        if (mounted) setPopoverPosition('bottom');
-      }
-    }
-    compute();
-    const onResize = () => compute();
-    window.addEventListener('resize', onResize);
-    window.addEventListener('scroll', onResize, true);
-    return () => { mounted = false; window.removeEventListener('resize', onResize); window.removeEventListener('scroll', onResize, true); };
-  }, [showFilters]);
+  }, [requestKey, historyScope, appliedFilters.dateRange, appliedFilters.actionTypes]);
 
   // Derived filtered/grouped records from recordsRaw
   const filtered = useMemo(() => {
@@ -153,186 +123,151 @@ export default function StudentHistoryCard({ _currentClerkId }) {
   };
 
   return (
-    <div className="border border-gray-300 rounded-md bg-white overflow-hidden transition-all duration-300">
-      {/* Header / Toggle */}
-      <button 
-        type="button"
-        className="w-full text-left px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors gap-4"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div>
-          <h3 className="text-sm font-semibold text-gray-800">Student Entry History</h3>
-          <p className="text-sm text-gray-600 mt-1">
-            Activity Count: {historyScope === 'my' ? myCount : allCount} {historyData.records.length > 0 && `• Last Updated: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-          </p>
+    <div className="bg-transparent space-y-4">
+      {/* Toolbar / Filters */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-white p-4 rounded-md border border-gray-200 shadow-sm">
+        <div className="flex items-center gap-2 w-full lg:w-auto">
+          <button 
+            type="button" 
+            onClick={() => setHistoryScope('my')} 
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${historyScope === 'my' ? 'bg-[#0b3578] text-white shadow-sm' : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100'}`}
+          >
+            My Actions
+          </button>
+          <button 
+            type="button" 
+            onClick={() => setHistoryScope('all')} 
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${historyScope === 'all' ? 'bg-[#0b3578] text-white shadow-sm' : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100'}`}
+          >
+            System Activity
+          </button>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <span>{isExpanded ? 'Collapse' : 'Expand'}</span>
-          <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-            </svg>
+
+        <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+          {/* Inline Action Type Filters */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium text-gray-600 mr-1">Action:</span>
+            {['ADDED','UPDATED','IMPORTED'].map(t => {
+              const active = historyFilters.actionTypes.includes(t);
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => toggleActionType(t)}
+                  className={
+                    "px-2.5 py-1 text-xs font-medium rounded-md transition-colors border " +
+                    (active ? 'bg-[#0b3578] border-[#0b3578] text-white' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50')
+                  }
+                >
+                  {t === 'ADDED' ? 'Created' : t.charAt(0) + t.slice(1).toLowerCase()}
+                </button>
+              );
+            })}
           </div>
+
+          {/* Inline Date Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">Time:</span>
+            <select
+              value={historyFilters.dateRange}
+              onChange={(e) => {
+                const nf = { ...historyFilters, dateRange: e.target.value };
+                setHistoryFilters(nf);
+                setAppliedFilters(nf);
+              }}
+              className="text-sm border-gray-300 rounded-md shadow-sm focus:border-[#0b3578] focus:ring-[#0b3578] py-1 pl-2 pr-8"
+            >
+              <option value="7">Last 7 Days</option>
+              <option value="30">Last 30 Days</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+
+          <button 
+            type="button"
+            onClick={() => {
+              historyCacheRef.current.delete(requestKey);
+              setHistoryData({ records: [], myCount: 0, allCount: 0 }); // clear to trigger reload visual
+            }}
+            className="p-1.5 rounded-md border border-gray-300 bg-white text-gray-500 hover:text-[#0b3578] hover:bg-gray-50 transition-colors shadow-sm ml-auto lg:ml-0"
+            title="Refresh"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+          </button>
         </div>
-      </button>
+      </div>
 
-      {/* Expanded Content */}
-      {isExpanded && (
-        <div className="border-t border-gray-300 p-4 bg-white">
-          
-          {/* Toolbar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-gray-50 p-3 rounded-md border border-gray-200">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button 
-                type="button" 
-                onClick={() => setHistoryScope('my')} 
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${historyScope === 'my' ? 'bg-[#0b3578] text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'}`}
-              >
-                My Actions
-              </button>
-              <button 
-                type="button" 
-                onClick={() => setHistoryScope('all')} 
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${historyScope === 'all' ? 'bg-[#0b3578] text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'}`}
-              >
-                System Activity
-              </button>
-            </div>
+      <div className="flex items-center justify-between px-2">
+         <p className="text-sm text-gray-600">
+           Found <strong>{historyScope === 'my' ? myCount : allCount}</strong> activities matching your filters.
+         </p>
+      </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto relative">
-              <button 
-                ref={triggerRef} 
-                type="button" 
-                onClick={() => setShowFilters(s => !s)} 
-                className="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-1.5"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-                Filters {appliedFilters.actionTypes.length > 0 ? `(${appliedFilters.actionTypes.length})` : ''}
-              </button>
+      {/* Timeline */}
+      <div className="bg-white p-4 rounded-md border border-gray-200 shadow-sm min-h-[300px]">
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b3578] mb-4"></div>
+            <span className="text-sm font-medium">Fetching history records...</span>
+          </div>
+        )}
 
-              <button 
-                type="button"
-                onClick={() => {
-                  historyCacheRef.current.delete(requestKey);
-                  setIsExpanded(false); 
-                  setTimeout(() => setIsExpanded(true), 10);
-                }}
-                className="p-1.5 rounded-md border border-gray-300 bg-white text-gray-500 hover:text-[#0b3578] transition-colors"
-                title="Refresh"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-              </button>
+        {!loading && filtered.keys.length === 0 && (
+          <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-lg">
+            <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-base text-gray-600 font-medium">No activity found</p>
+            <p className="text-sm text-gray-400 mt-1">Try adjusting your filters to see more results.</p>
+          </div>
+        )}
 
-              {showFilters && (
-                <div className={`${popoverPosition === 'bottom' ? 'absolute right-0 mt-2 top-full' : 'absolute right-0 mb-2 bottom-full'} w-72 bg-white rounded-md shadow-lg border border-gray-300 p-4 z-20`} style={{ minWidth: 280 }}>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Action Type</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {['ADDED','UPDATED','IMPORTED'].map(t => {
-                          const active = historyFilters.actionTypes.includes(t);
-                          return (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => toggleActionType(t)}
-                              className={
-                                "px-3 py-1 text-xs rounded-md transition-colors border " +
-                                (active ? 'bg-[#0b3578] border-[#0b3578] text-white' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50')
-                              }
-                            >
-                              {t === 'ADDED' ? 'Created' : t.charAt(0) + t.slice(1).toLowerCase()}
-                            </button>
-                          );
-                        })}
-                      </div>
+        {!loading && filtered.keys.map(k => (
+          <div key={k} className="relative pl-6 border-l-2 border-gray-100 ml-4 mb-8 last:mb-0">
+            <div className="absolute w-3 h-3 bg-white border-2 border-[#0b3578] rounded-full -left-[7.5px] top-1"></div>
+            <div className="text-sm font-bold text-gray-700 mb-4 tracking-wide">{k}</div>
+            
+            <div className="space-y-3">
+              {filtered.groups[k].map(act => (
+                <div key={act._keyId} className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-gray-300 hover:shadow-md transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className={`shrink-0 inline-flex items-center justify-center px-2.5 py-1 text-[11px] font-bold rounded-md border uppercase tracking-wider ${badgeClass(act.actionType)}`}>
+                      {act.actionType === 'ADDED' ? 'CREATED' : act.actionType}
                     </div>
+                    
                     <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Date Range</h4>
-                      <div className="flex bg-gray-100 p-1 rounded-md">
-                        {[
-                          { val: '7', label: '7 Days' },
-                          { val: '30', label: '30 Days' },
-                          { val: 'all', label: 'All Time' }
-                        ].map(opt => (
-                          <button
-                            key={opt.val}
-                            type="button"
-                            onClick={() => {
-                              const nf = { ...historyFilters, dateRange: opt.val };
-                              setHistoryFilters(nf);
-                              setAppliedFilters(nf);
-                            }}
-                            className={`flex-1 px-2 py-1.5 text-xs rounded-md transition-all ${historyFilters.dateRange === opt.val ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-800 font-medium">
+                        {act.rollNo && (
+                          <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-700 border border-slate-200">
+                            {act.rollNo}
+                          </span>
+                        )}
+                        <span>
+                          {act.actionType === 'IMPORTED' ? `Imported ${act.totalRecords ?? ''} students` : (act.actionType === 'ADDED' ? 'Registered new student record' : 'Updated student profile')}
+                        </span>
+                      </div>
+                      
+                      <div className="text-xs text-gray-500 mt-1.5 flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        By: <span className="font-medium text-gray-700">{historyScope === 'all' && act.clerkName ? act.clerkName : 'Me'}</span>
                       </div>
                     </div>
                   </div>
+                  
+                  <div className="text-xs font-medium text-gray-400 shrink-0 flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {new Date(act.actionTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
           </div>
-
-          {/* Timeline */}
-          <div className="space-y-6">
-            {loading && (
-              <div className="flex items-center justify-center py-10">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#0b3578]"></div>
-                <span className="ml-3 text-sm text-gray-500">Loading history...</span>
-              </div>
-            )}
-
-            {!loading && filtered.keys.length === 0 && (
-              <div className="text-center py-8 border border-dashed border-gray-300 rounded-md">
-                <p className="text-sm text-gray-500">No activity found for this scope.</p>
-              </div>
-            )}
-
-            {!loading && filtered.keys.map(k => (
-              <div key={k} className="relative pl-4 border-l border-gray-200 ml-2">
-                <div className="absolute w-2.5 h-2.5 bg-white border border-[#0b3578] rounded-full -left-[5px] top-1"></div>
-                <div className="text-sm font-semibold text-gray-800 mb-3 ml-2">{k}</div>
-                
-                <div className="space-y-2 ml-2">
-                  {filtered.groups[k].map(act => (
-                    <div key={act._keyId} className="bg-white p-3 rounded-md border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-gray-300 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={`shrink-0 inline-flex items-center justify-center px-2 py-0.5 text-[11px] rounded-md border ${badgeClass(act.actionType)}`}>
-                          {act.actionType === 'ADDED' ? 'CREATED' : act.actionType}
-                        </div>
-                        
-                        <div>
-                          <div className="flex items-center gap-2 text-sm text-gray-800">
-                            {act.rollNo && (
-                              <span className="font-mono bg-gray-100 px-1.5 rounded">
-                                {act.rollNo}
-                              </span>
-                            )}
-                            <span>
-                              {act.actionType === 'IMPORTED' ? `Imported ${act.totalRecords ?? ''} students` : (act.actionType === 'ADDED' ? 'Student Registered' : 'Profile Updated')}
-                            </span>
-                          </div>
-                          
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            By: {historyScope === 'all' && act.clerkName ? act.clerkName : 'Me'}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="text-xs text-gray-500 shrink-0">
-                        {new Date(act.actionTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

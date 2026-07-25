@@ -68,10 +68,7 @@ const ExportStudents = () => {
     return `XXXX-XXXX-${value.slice(-4)}`;
   };
 
-  const maskMobile = (value) => {
-    if (!value || typeof value !== 'string' || value.length < 5) return 'N/A';
-    return `XXXXX${value.slice(-5)}`;
-  };
+
 
   const isValidImageUrl = (url) => {
     if (!url) return false;
@@ -108,7 +105,7 @@ const ExportStudents = () => {
       'Father Occupation': s.father_occupation,
       'Annual Income': s.annual_income,
       'Aadhaar Number': maskAadhaar(s.aadhaar_no),
-      'Guardian Mobile': maskMobile(s.guardian_mobile),
+      'Guardian Mobile': s.guardian_mobile || 'N/A',
       'Permanent Address': s.permanent_address ? s.permanent_address.split(',')[0] : 'N/A',
       'Identification Marks': s.identification_marks,
       'Seat Allotted Category': s.seat_allotted_category,
@@ -155,26 +152,26 @@ const ExportStudents = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* 1. Configuration Section */}
-      <div className="bg-white p-5 rounded-sm border border-gray-300 shadow-sm">
-        <div className="flex items-center gap-3 mb-5 border-b border-slate-100 pb-3">
-          <div className="w-8 h-8 bg-[#0b3578]/10 rounded-full flex items-center justify-center text-[#0b3578]">
+      <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm">
+        <div className="flex items-center gap-3 mb-5 border-b border-gray-100 pb-3">
+          <div className="w-10 h-10 bg-[#0b3578]/10 rounded-full flex items-center justify-center text-[#0b3578]">
              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
              </svg>
           </div>
           <div>
-            <h3 className="text-sm font-black text-gray-800 tracking-tight">Student Data Migration</h3>
-            <p className="text-sm font-medium text-gray-400 mt-0.5">Filter records and preview before university integration</p>
+            <h3 className="text-base font-semibold text-gray-800">Student Data Migration</h3>
+            <p className="text-sm text-gray-500 mt-0.5">Filter records and preview before university integration</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-          <div className="space-y-1">
-            <label className="text-[10px] font-black text-gray-500 ml-1">Academic Branch</label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Academic Branch</label>
             <select 
               value={branch}
               onChange={(e) => setBranch(e.target.value)}
-              className="w-full h-12 bg-gray-50 border-2 border-slate-100 rounded-sm px-4 text-sm font-bold text-gray-700 focus:outline-none focus:border-indigo-500 transition-all "
+              className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578]"
             >
               <option value="">SELECT BRANCH</option>
               {Object.entries(branchCodes).map(([code, name]) => (
@@ -183,12 +180,12 @@ const ExportStudents = () => {
             </select>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-500 ml-1">Admission Batch (4-Year Range)</label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Admission Batch (4-Year Range)</label>
             <select 
               value={year}
               onChange={(e) => setYear(e.target.value)}
-              className="w-full h-12 bg-gray-50 border-2 border-slate-100 rounded-sm px-4 text-sm font-bold text-gray-700 focus:outline-none focus:border-indigo-500 transition-all "
+              className="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#0b3578]"
             >
               <option value="">SELECT BATCH</option>
               {batches.map(b => (
@@ -202,7 +199,7 @@ const ExportStudents = () => {
           <button 
             onClick={handleFetch}
             disabled={loading}
-            className={`w-full md:w-auto h-12 px-4 sm:px-8 bg-slate-800 text-white text-[11px] font-black tracking-[0.2em] rounded-sm hover:bg-slate-900 transition-all shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
+            className={`w-full md:w-auto h-10 px-6 bg-[#0b3578] text-white text-sm font-medium rounded-md hover:bg-[#08295c] transition-all shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
           >
             {loading ? (
               <>
@@ -223,62 +220,60 @@ const ExportStudents = () => {
 
       {/* 2. Preview Section */}
       {previewData && (
-        <div className="bg-white rounded-sm border border-gray-300 shadow-sm overflow-hidden animate-slideUp">
-          <div className="bg-gray-50 px-4 sm:px-8 py-4 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
-             <div className="flex items-center gap-4">
-                <span className="text-[10px] font-black bg-indigo-600 text-white px-2 py-1 rounded-sm ">{previewData.length} Records</span>
-                <p className="text-xs font-bold text-gray-500 tracking-tight">Previewing {branchCodes[branch]} Registry for Batch {year}</p>
+        <div className="bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden animate-slideUp">
+          <div className="bg-gray-50 px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
+             <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-md">{previewData.length} Records</span>
+                <p className="text-sm font-medium text-gray-600">Previewing {branchCodes[branch]} Registry for Batch {year}</p>
              </div>
              
              <button 
                 onClick={handleExport}
-                className="h-10 px-6 bg-green-600 text-white text-[10px] font-black tracking-[0.15em] rounded-sm hover:bg-green-700 transition-all flex items-center gap-2"
+                className="h-10 px-5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm"
              >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
-                Download Excel (Migration Ready)
+                Download Excel
              </button>
           </div>
           
           {/* Desktop Table Layout */}
           <div className="hidden md:block overflow-x-auto max-h-[500px]">
-            <table className="w-full border-collapse">
-              <thead className="sticky top-0 bg-white shadow-sm">
-                <tr className="border-b-2 border-slate-100">
-                  <th className="px-6 py-4 text-left text-[9px] font-black text-gray-400 ">Roll Number</th>
-                  <th className="px-6 py-4 text-left text-[9px] font-black text-gray-400 ">Batch</th>
-                  <th className="px-6 py-4 text-left text-[9px] font-black text-gray-400 ">Full Name</th>
-                  <th className="px-6 py-4 text-left text-[9px] font-black text-gray-400 ">Aadhaar</th>
-                  <th className="px-6 py-4 text-left text-[9px] font-black text-gray-400 ">Mobile</th>
-                  <th className="px-6 py-4 text-left text-[9px] font-black text-gray-400 ">Photo</th>
-                  <th className="px-6 py-4 text-left text-[9px] font-black text-gray-400 ">Signature</th>
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 bg-gray-50 shadow-sm">
+                <tr className="border-b border-gray-200">
+                  <th className="px-6 py-3 text-left font-semibold text-gray-600">Roll Number</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-600">Batch</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-600">Full Name</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-600">Mobile</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-600">Photo</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-600">Signature</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-gray-100">
                 {previewData.map((student, index) => (
-                  <tr key={`${student.roll_no}-${index}`} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 text-xs font-black text-gray-700">{student.roll_no}</td>
-                    <td className="px-6 py-4 text-[10px] font-bold text-indigo-600 tracking-tight">{getBatchFromRoll(student.roll_no)}</td>
-                    <td className="px-6 py-4 text-xs font-bold text-gray-600">{student.name}</td>
-                    <td className="px-6 py-4 text-[11px] font-mono text-gray-500">{maskAadhaar(student.aadhaar_no)}</td>
-                    <td className="px-6 py-4 text-[11px] font-mono text-gray-500">{maskMobile(student.mobile)}</td>
-                    <td className="px-6 py-4">
+                  <tr key={`${student.roll_no}-${index}`} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-3 font-medium text-gray-800">{student.roll_no}</td>
+                    <td className="px-6 py-3 text-gray-600">{getBatchFromRoll(student.roll_no)}</td>
+                    <td className="px-6 py-3 font-medium text-gray-700">{student.name}</td>
+                    <td className="px-6 py-3 font-mono text-gray-500 text-xs">{student.mobile || 'N/A'}</td>
+                    <td className="px-6 py-3">
                       {isValidImageUrl(getAssetUrl(student.photo)) ? (
-                        <div className="w-8 h-8 rounded-full border-2 border-indigo-100 overflow-hidden bg-gray-100">
+                        <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
                            <Image src={getAssetUrl(student.photo)} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized onError={() => {}} />
                         </div>
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">NA</div>
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400">NA</div>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       {student.signature ? (
-                        <div className="h-6 w-16 bg-gray-50 border border-slate-100 p-1 flex items-center justify-center">
+                        <div className="h-6 w-16 bg-white border border-gray-200 p-1 flex items-center justify-center rounded">
                            <Image src={getAssetUrl(student.signature)} width={64} height={24} className="h-full object-contain" alt="SIG" unoptimized />
                         </div>
                       ) : (
-                        <span className="text-[10px] text-gray-400 italic">None</span>
+                        <span className="text-xs text-gray-400 italic">None</span>
                       )}
                     </td>
                   </tr>
@@ -288,34 +283,33 @@ const ExportStudents = () => {
           </div>
 
           {/* Mobile Card Layout */}
-          <div className="md:hidden flex flex-col gap-3 p-4 bg-slate-50">
+          <div className="md:hidden flex flex-col gap-3 p-4 bg-gray-50">
             {previewData.map((student, index) => (
-              <div key={`${student.roll_no}-${index}`} className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm flex flex-col gap-3">
+              <div key={`${student.roll_no}-${index}`} className="bg-white border border-gray-200 p-4 rounded-md shadow-sm flex flex-col gap-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-sm font-black text-gray-800">{student.roll_no}</span>
-                    <span className="ml-2 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded tracking-tight">{getBatchFromRoll(student.roll_no)}</span>
+                    <span className="text-sm font-semibold text-gray-800">{student.roll_no}</span>
+                    <span className="ml-2 text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{getBatchFromRoll(student.roll_no)}</span>
                   </div>
                   <div className="flex gap-2">
                     {isValidImageUrl(getAssetUrl(student.photo)) ? (
-                      <div className="w-8 h-8 rounded-full border-2 border-indigo-100 overflow-hidden bg-gray-100">
+                      <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden bg-gray-100">
                          <Image src={getAssetUrl(student.photo)} width={32} height={32} className="w-full h-full object-cover" alt="S" unoptimized onError={() => {}} />
                       </div>
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">NA</div>
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400">NA</div>
                     )}
                     {student.signature && (
-                      <div className="h-8 w-12 bg-gray-50 border border-slate-100 p-1 flex items-center justify-center">
+                      <div className="h-8 w-12 bg-white border border-gray-200 p-1 flex items-center justify-center rounded">
                          <Image src={getAssetUrl(student.signature)} width={48} height={24} className="h-full object-contain" alt="SIG" unoptimized />
                       </div>
                     )}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-gray-700">{student.name}</div>
-                  <div className="text-[10px] text-gray-500 mt-1 flex flex-col gap-0.5">
-                    <span className="font-mono">Aadhaar: {maskAadhaar(student.aadhaar_no)}</span>
-                    <span className="font-mono">Mobile: {maskMobile(student.mobile)}</span>
+                  <div className="text-sm font-medium text-gray-700">{student.name}</div>
+                  <div className="text-xs text-gray-500 mt-1 flex flex-col gap-0.5">
+                    <span className="font-mono">Mobile: {student.mobile || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -325,14 +319,14 @@ const ExportStudents = () => {
       )}
       
       {/* 3. Helper Note */}
-      <div className="bg-amber-50 border-l-4 border-amber-400 p-4">
+      <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-md">
          <div className="flex gap-3">
            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-500 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
            </svg>
            <div className="space-y-1">
-             <p className="text-[10px] font-black text-amber-800 ">Migration Protocol</p>
-             <p className="text-[11px] text-amber-700 leading-relaxed font-medium">Use the preview table to verify student identity and asset presence before generating the master migration file. Photos and Signatures are linked via Cloudinary URLs for seamless remote ingestion.</p>
+             <p className="text-sm font-semibold text-amber-800">Migration Protocol</p>
+             <p className="text-sm text-amber-700 leading-relaxed">Use the preview table to verify student identity and asset presence before generating the master migration file. Photos and Signatures are linked via Cloudinary URLs for seamless remote ingestion.</p>
            </div>
          </div>
       </div>

@@ -11,9 +11,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'FEES', route: '/student/finances' },
     { label: 'TIME TABLE', route: '/student/timetable' },
     { label: 'REQUESTS', children: [
-        { label: 'Certificates', route: '/student/requests/certificates' },
-        { label: 'Profile Updates', route: '/student/requests/profile-updates' },
-        { label: 'ID Card Re-issue', route: '/student/requests/id-card' }
+        { label: 'Certificates', route: '/student/requests/certificates' }
       ]
     },
     { label: 'SETTINGS', route: '/student/settings/security' }
