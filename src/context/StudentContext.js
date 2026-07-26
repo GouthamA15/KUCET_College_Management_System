@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import RealtimeListener from '@/components/RealtimeListener';
-import { getNowSync } from '@/lib/clock';
 
 export const StudentContext = createContext();
 
@@ -60,16 +59,13 @@ export function StudentProvider({ children }) {
   const fetchProfile = useCallback(async (rollno) => {
     try {
       const [profileRes, sigRes, reqRes] = await Promise.all([
-        fetch(`/api/student/${rollno}`),
-        fetch('/api/student/signature'),
-        fetch(`/api/student/latest-request?rollno=${rollno}`)
+        fetch(`/api/student/${rollno}`, { cache: 'no-store' }),
+        fetch('/api/student/signature', { cache: 'no-store' }),
+        fetch(`/api/student/latest-request?rollno=${rollno}`, { cache: 'no-store' })
       ]);
       
       if (profileRes.ok) {
         const data = await profileRes.json();
-        if (data.student && data.student.pfp) {
-          data.student.pfp = `${data.student.pfp}?t=${getNowSync().getTime()}`;
-        }
         setStudentData(data);
         
         if (sigRes.ok) {
@@ -117,7 +113,7 @@ export function StudentProvider({ children }) {
         if (process.env.NODE_ENV === 'development') {
           console.info('[StudentContext] /api/student/me request started');
         }
-        const me = await fetch('/api/student/me');
+        const me = await fetch('/api/student/me', { cache: 'no-store' });
         if (process.env.NODE_ENV === 'development') {
           console.info('[StudentContext] /api/student/me request completed');
         }

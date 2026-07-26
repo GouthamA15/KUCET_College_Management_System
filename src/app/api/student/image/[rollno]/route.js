@@ -15,6 +15,7 @@ export async function GET(req, context) {
     
     const params = await context.params;
     const { rollno } = params;
+    
     if (!rollno) return new NextResponse('Roll number required', { status: 400 });
 
     const rows = await db.select({ pfp: studentImages.pfp })
@@ -33,6 +34,7 @@ export async function GET(req, context) {
     if (resolvedUrl.startsWith('http')) {
       // Remote Asset (Cloudinary)
       const imageRes = await fetch(resolvedUrl);
+      
       if (!imageRes.ok) throw new Error(`Cloudinary fetch failed: ${imageRes.statusText}`);
       
       const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
@@ -41,7 +43,7 @@ export async function GET(req, context) {
       return new NextResponse(Buffer.from(buffer), {
         headers: {
           'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=86400, must-revalidate',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
         },
       });
     } else if (resolvedUrl.startsWith('/api/assets/view/')) {
@@ -67,7 +69,7 @@ export async function GET(req, context) {
         return new NextResponse(fileBuffer, {
           headers: {
             'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=3600',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
           },
         });
       } catch (err) {
@@ -76,11 +78,15 @@ export async function GET(req, context) {
       }
     }
 
-    // Treat as Buffer (old BLOB data)
-    return new NextResponse(assetValue, {
+    // Treat as Buffer (convert base64 text to binary Buffer if stored as text)
+    const imageBuffer = typeof assetValue === 'string' && !assetValue.startsWith('http') && !assetValue.startsWith('data:')
+      ? Buffer.from(assetValue, 'base64')
+      : Buffer.from(assetValue);
+
+    return new NextResponse(imageBuffer, {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=86400, must-revalidate', 
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0', 
       },
     });
 
