@@ -203,11 +203,14 @@ export async function GET(request, context) {
 
         let data = { ...commonData };
         switch (certRequest.certificate_type) {
-            case 'Bonafide Certificate':
+            case 'Bonafide Certificate': {
+                const { formatPurpose } = require('@/lib/certificate-utils');
                 data.year = yearWords[yearOfStudy - 1] || 'N/A';
                 data.semester = semesterWords[currentSemester - 1] || 'N/A';
                 data.attendancePercentage = attendanceValue || '';
+                data.purpose = formatPurpose(certRequest.purpose) || 'General';
                 break;
+            }
             case 'Course Completion Certificate':
                 data.aggCgpa = 'N/A';
                 data.completionYear = today.getFullYear();
@@ -245,7 +248,9 @@ export async function GET(request, context) {
         const pdfBuffer = await pdf(<Template {...data} />).toBuffer();
         const headers = new Headers();
         headers.set('Content-Type', 'application/pdf');
-        const filename = `${certRequest.certificate_type.replace(/ /g, '_')}_${student.roll_no}.pdf`;
+        const { formatCertificateName } = require('@/lib/certificate-utils');
+        const formattedCertName = formatCertificateName(certRequest.certificate_type, certRequest.purpose);
+        const filename = `${formattedCertName.replace(/ /g, '_')}_${student.roll_no}.pdf`;
         headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
 
         return new NextResponse(pdfBuffer, { status: 200, headers });

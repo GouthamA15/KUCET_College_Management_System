@@ -1,5 +1,6 @@
 "use client";
 import { getStatusStyles } from '@/lib/ui-utils';
+import { formatCertificateName } from '@/lib/certificate-utils';
 
 export default function RequestHistoryMobile({
   requests,
@@ -32,7 +33,7 @@ export default function RequestHistoryMobile({
               <div key={req.request_id} className="w-full border rounded-md p-4 bg-white">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-gray-800 wrap-break-word">{req.certificate_type}</div>
+                    <div className="text-sm font-semibold text-gray-800 wrap-break-word">{formatCertificateName(req.certificate_type, req.purpose)}</div>
                     <div className="text-xs text-gray-500 mt-1">Request ID: <span className="font-medium text-gray-700">{req.request_id}</span></div>
                   </div>
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusStyles(s)}`}>{s}</span>

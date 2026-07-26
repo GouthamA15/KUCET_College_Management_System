@@ -6,8 +6,8 @@ import { _useClerk, ClerkContext } from '@/context/ClerkContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ChangePasswordModal from './ChangePasswordModal';
-import NotificationDropdown from './NotificationDropdown';
-import ClerkNotificationDropdown from './clerk/ClerkNotificationDropdown';
+// import NotificationDropdown from './NotificationDropdown';
+// import ClerkNotificationDropdown from './clerk/ClerkNotificationDropdown';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
 import { logoutByRole } from '@/lib/logout';
 
@@ -226,7 +226,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                 })}
               </div>
 
-              {/* Functional Notification Dropdown */}
+              {/* Functional Notification Dropdown - Commented out per request
               {effectiveRole === 'student' && (
                 <div className="border-l border-white/10 pl-4">
                   <NotificationDropdown />
@@ -237,6 +237,7 @@ export default function Navbar({ activePanel, setActivePanel, role, studentProfi
                   <ClerkNotificationDropdown />
                 </div>
               )}
+              */}
 
               {/* Dedicated Desktop Logout Button */}
               {effectiveRole !== 'guest' && (

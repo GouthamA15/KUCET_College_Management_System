@@ -25,7 +25,18 @@ export async function GET() {
       orderBy: [desc(studentRequests.created_at)]
     });
 
-    return apiResponse(requests);
+    const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
+    const mappedRequests = requests.map(r => {
+      const parsed = parsePurpose(r.purpose);
+      return {
+        ...r,
+        purpose_type: parsed.purpose_type,
+        purpose_custom: parsed.purpose_custom,
+        purpose: formatPurpose(r.purpose) || r.purpose
+      };
+    });
+
+    return apiResponse(mappedRequests);
   } catch (error) {
     logger.error('Error fetching student requests:', error);
     return apiError("Internal Server Error", 500);
@@ -68,7 +79,8 @@ export async function POST(request) {
     const clerkType = formData.get("clerkType");
     const paymentAmount = formData.get("paymentAmount");
     const transactionId = formData.get("transactionId")?.toString().trim();
-    const purpose = formData.get("purpose");
+    const purposeType = formData.get("purpose_type")?.toString().trim() || formData.get("purpose")?.toString().trim();
+    const purposeCustom = formData.get("purpose_custom")?.toString().trim();
     const fromDateStr = formData.get("fromDate");
     const toDateStr = formData.get("toDate");
     const paymentScreenshotFile = formData.get("paymentScreenshot");
@@ -82,11 +94,13 @@ export async function POST(request) {
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeRows[0], now);
 
-    // --- PHASE 4: MODULAR CERTIFICATE ELIGIBILITY VALIDATION ---
     const isBonafide = certificateType === 'Bonafide Certificate';
     const isTC = certificateType === 'Transfer Certificate (TC)';
     const isNOC = certificateType === 'No Objection Certificate';
 
+    const { parsePurpose } = require('@/lib/certificate-utils');
+
+    // --- PHASE 4: MODULAR CERTIFICATE ELIGIBILITY VALIDATION ---
     if (isBonafide || isTC || isNOC) {
       const { StudentService } = await import('@/services/StudentService');
       const eligibilityMap = await StudentService.getCertificateEligibility(user.student_id, user.roll_no);
@@ -99,17 +113,55 @@ export async function POST(request) {
       if (eligibility && !eligibility.isEligible) {
         return apiError(eligibility.reason || `You are not eligible for a ${certificateType} at this time.`, 403);
       }
+
+      if (isBonafide) {
+        const approvedBonafides = await db.query.studentRequests.findMany({
+          where: and(
+            eq(studentRequests.student_id, user.student_id),
+            eq(studentRequests.certificate_type, 'Bonafide Certificate'),
+            eq(studentRequests.status, 'APPROVED'),
+            eq(studentRequests.academic_year, academicYear)
+          )
+        });
+        const alreadyHasApprovedPurpose = approvedBonafides.some(r => {
+          const parsed = parsePurpose(r.purpose);
+          return parsed.purpose_type === purposeType;
+        });
+        if (alreadyHasApprovedPurpose) {
+          return apiError(`A Bonafide Certificate has already been approved for: ${purposeType} in the current academic year.`, 403);
+        }
+      }
     }
 
-    // Check existing
-    const existing = await db.query.studentRequests.findFirst({
-      where: and(
-        eq(studentRequests.student_id, user.student_id),
-        eq(studentRequests.certificate_type, certificateType),
-        eq(studentRequests.academic_year, academicYear)
-      ),
-      orderBy: [desc(studentRequests.created_at)]
-    });
+    const finalStoredPurpose = isBonafide 
+      ? JSON.stringify({ purpose_type: purposeType || null, purpose_custom: purposeCustom || null })
+      : (purposeType || null);
+
+    // Check existing per-purpose for Bonafide
+    let existing = null;
+    if (isBonafide) {
+      const existingAll = await db.query.studentRequests.findMany({
+        where: and(
+          eq(studentRequests.student_id, user.student_id),
+          eq(studentRequests.certificate_type, certificateType),
+          eq(studentRequests.academic_year, academicYear)
+        ),
+        orderBy: [desc(studentRequests.created_at)]
+      });
+      existing = existingAll.find(r => {
+        const parsed = parsePurpose(r.purpose);
+        return parsed.purpose_type === purposeType;
+      }) || null;
+    } else {
+      existing = await db.query.studentRequests.findFirst({
+        where: and(
+          eq(studentRequests.student_id, user.student_id),
+          eq(studentRequests.certificate_type, certificateType),
+          eq(studentRequests.academic_year, academicYear)
+        ),
+        orderBy: [desc(studentRequests.created_at)]
+      });
+    }
 
     requestId = existing?.request_id;
 
@@ -163,14 +215,13 @@ export async function POST(request) {
       flagDetails = integrity.flagDetails;
     }
 
-    // If an active (PENDING) request already exists for this academic year, block new one.
-    // If it's APPROVED or REJECTED, we can allow a new one (especially for Bonafide which is free after first)
+    // If an active (PENDING) request already exists for this purpose/academic year, block new one.
     if (existing && existing.status === "PENDING") {
-      return apiError("An active request already exists for this academic year. Please wait for it to be processed.", 409);
+      return apiError("An active request already exists for this purpose. Please wait for it to be processed.", 409);
     }
 
     if (existing && existing.status === "REJECTED") {
-      // For rejected bonafides, recheck yearly limit before allowing re-submission
+      // Re-check yearly limit for the purpose before allowing re-submission
       if (certificateType === 'Bonafide Certificate') {
         const approvedBonafides = await db.query.studentRequests.findMany({
           where: and(
@@ -180,8 +231,12 @@ export async function POST(request) {
             eq(studentRequests.academic_year, academicYear)
           )
         });
-        if (approvedBonafides.length > 0) {
-          return apiError(`You have already received a Bonafide Certificate for the current academic year (${academicYear}). Cannot re-submit rejected request.`, 403);
+        const hasApprovedPurpose = approvedBonafides.some(r => {
+          const parsed = parsePurpose(r.purpose);
+          return parsed.purpose_type === purposeType;
+        });
+        if (hasApprovedPurpose) {
+          return apiError(`You have already received a Bonafide Certificate for ${purposeType} in the current academic year (${academicYear}). Cannot re-submit rejected request.`, 403);
         }
       }
       // Update the rejected one to PENDING again (original behavior)
@@ -190,7 +245,7 @@ export async function POST(request) {
         .set({
           payment_amount: finalPaymentAmount,
           transaction_id: transactionId || null,
-          purpose: purpose || null,
+          purpose: finalStoredPurpose,
           from_date: fromDateStr ? new Date(fromDateStr) : null,
           to_date: toDateStr ? new Date(toDateStr) : null,
           status: 'PENDING',
@@ -202,14 +257,14 @@ export async function POST(request) {
         })
         .where(eq(studentRequests.request_id, requestId));
     } else {
-      // Insert new request (even if an APPROVED one exists for this year, we allow new ones for Bonafide)
+      // Insert new request
       const result = await db.insert(studentRequests).values({
         student_id: user.student_id,
         certificate_type: certificateType,
         academic_year: academicYear,
         payment_amount: finalPaymentAmount,
         transaction_id: transactionId || null,
-        purpose: purpose || null,
+        purpose: finalStoredPurpose,
         from_date: fromDateStr ? new Date(fromDateStr) : null,
         to_date: toDateStr ? new Date(toDateStr) : null,
         status: 'PENDING',

@@ -157,7 +157,16 @@ export async function GET(request, { params }) {
         const allowedTypes = clerkToTypes[clerk.role] || [];
         if (!allowedTypes.includes(rows[0].certificate_type)) return apiError('Forbidden', 403);
 
-        return apiResponse(rows[0]);
+        const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
+        const parsed = parsePurpose(rows[0].purpose);
+        const mappedRequest = {
+            ...rows[0],
+            purpose_type: parsed.purpose_type,
+            purpose_custom: parsed.purpose_custom,
+            purpose: formatPurpose(rows[0].purpose) || rows[0].purpose
+        };
+
+        return apiResponse(mappedRequest);
     } catch (error) {
         logger.error('Error fetching request details:', error);
         return apiError('Failed to fetch request details', 500);

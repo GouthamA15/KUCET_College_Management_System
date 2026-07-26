@@ -231,9 +231,10 @@ describe('StudentService', () => {
     it('should fetch all eligibilities', async () => {
         db.select.mockReturnValue({ from: vi.fn().mockReturnThis(), innerJoin: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ id: 1 }]) });
         db.query.students = { findFirst: vi.fn().mockResolvedValue({}) };
-        db.query.studentRequests = { findMany: vi.fn().mockResolvedValue([{ certificate_type: 'Bonafide Certificate', academic_year: '2025-26' }]) };
+        db.query.studentRequests = { findMany: vi.fn().mockResolvedValue([{ certificate_type: 'Bonafide Certificate', academic_year: '2025-26', purpose: 'Scholarship' }]) };
         const res = await StudentService.getCertificateEligibility(1, '22567T0901');
-        expect(res.bonafide.isEligible).toBe(false); // Because existingApproved is true
+        expect(res.bonafide.isEligible).toBe(true); // Now true because page is not blocked by single approved request
+        expect(res.bonafide.approvedPurposes).toContain('Scholarship');
         expect(res.noc.isEligible).toBe(true);
     });
   });

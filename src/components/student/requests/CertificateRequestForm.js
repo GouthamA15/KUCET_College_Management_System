@@ -74,16 +74,15 @@ export default function CertificateRequestForm({
   ];
 
   const bonafidePurposes = [
-    'Scholarship applications',
-    'Education loan requests',
-    'Student travel discounts',
-    'Visa and passport processing',
-    'Internship and workshop applications',
-    'Student bank account opening',
-    'Job background checks',
-    'Employee loan approval',
-    'Work visa sponsorships',
-    'Official identity proof'
+    'Scholarship',
+    'Internship / Industrial Training',
+    'Higher Studies',
+    'Education Loan',
+    'Passport / Visa',
+    'Bank Account Opening',
+    'Identity Verification',
+    'Government Scheme',
+    'Employment / Background Verification'
   ];
 
   const currentPurposes = isNoObjection ? nocPurposes : bonafidePurposes;
@@ -169,6 +168,13 @@ export default function CertificateRequestForm({
     };
   }, [formState.paymentPreviewUrl]);
 
+  const selectedPurposeOption = formState.purposeOption;
+  const isDuplicatePurpose = isBonafide && eligibilityMap?.bonafide?.approvedPurposes && (
+    selectedPurposeOption === 'Other'
+      ? eligibilityMap.bonafide.approvedPurposes.includes(formState.customPurpose.trim())
+      : eligibilityMap.bonafide.approvedPurposes.includes(selectedPurposeOption)
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -202,11 +208,16 @@ export default function CertificateRequestForm({
         return;
       }
 
-      const finalPurpose = formState.purposeOption === 'Other' ? formState.customPurpose.trim() : formState.purposeOption;
-      
       // If it's NOC, we proceed directly
       if (isNoObjection) {
-        await onSubmit({ transactionId: '', paymentScreenshot: null, finalPurpose, fromDate: formState.fromDate, toDate: formState.toDate });
+        await onSubmit({ 
+          transactionId: '', 
+          paymentScreenshot: null, 
+          purposeOption: formState.purposeOption,
+          customPurpose: formState.customPurpose,
+          fromDate: formState.fromDate, 
+          toDate: formState.toDate 
+        });
         return;
       }
     }
@@ -223,15 +234,12 @@ export default function CertificateRequestForm({
         return;
       }
     }
-    
-    const finalPurpose = requiresPurpose 
-      ? (formState.purposeOption === 'Other' ? formState.customPurpose.trim() : formState.purposeOption)
-      : '';
 
     await onSubmit({ 
       transactionId: formState.transactionId, 
       paymentScreenshot: formState.paymentScreenshot, 
-      finalPurpose, 
+      purposeOption: requiresPurpose ? formState.purposeOption : '',
+      customPurpose: requiresPurpose ? formState.customPurpose.trim() : '', 
       fromDate: isNoObjection ? formState.fromDate : null, 
       toDate: isNoObjection ? formState.toDate : null 
     });
@@ -289,18 +297,20 @@ export default function CertificateRequestForm({
                     )}
                   </div>
 
-                  {/* Academic Year */}
-                  <div className={`p-4 rounded-md ${!eligibilityMap.bonafide.alreadyHasApproved ? 'bg-slate-50' : 'bg-rose-50 text-rose-955'}`}>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Academic Year</p>
-                    <div className="mt-1">
-                      <span className="text-base font-bold text-slate-900">{eligibilityMap.bonafide.academicYear || '—'}</span>
+                  {/* Academic Year / Approved Bonafide Certificates */}
+                  <div className="p-4 rounded-md bg-slate-50">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Approved Bonafide Certificates</p>
+                    <div className="mt-1.5 space-y-1">
+                      {eligibilityMap.bonafide.approvedPurposes && eligibilityMap.bonafide.approvedPurposes.length > 0 ? (
+                        eligibilityMap.bonafide.approvedPurposes.map((p, idx) => (
+                          <div key={idx} className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                            <span>✓</span> <span>{p}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-slate-500 italic">No approved certificates</p>
+                      )}
                     </div>
-                    {eligibilityMap.bonafide.alreadyHasApproved && (
-                      <p className="text-[10px] text-rose-600 mt-1 font-medium italic font-semibold">Already issued</p>
-                    )}
-                    {!eligibilityMap.bonafide.alreadyHasApproved && (
-                      <p className="text-[10px] text-emerald-600 mt-1 font-medium italic">Available</p>
-                    )}
                   </div>
 
                   {/* Fee Reimbursement */}
@@ -343,13 +353,24 @@ export default function CertificateRequestForm({
               )}
 
               {!isLoadingEligibility && (
-                (isBonafide && !eligibilityMap?.bonafide?.isEligible) || 
+                (isBonafide && isDuplicatePurpose) || 
                 (isTC && !eligibilityMap?.tc?.isEligible)
               ) && (
                 <div className="p-3 bg-rose-50 border-l-4 border-rose-500 rounded-md">
-                  <p className="text-xs text-rose-800 font-medium">
-                    <span className="font-bold">Access Blocked:</span> {isBonafide ? eligibilityMap?.bonafide?.reason : eligibilityMap?.tc?.reason}
-                  </p>
+                  {isTC && (
+                    <p className="text-xs text-rose-800 font-medium">
+                      <span className="font-bold">Access Blocked:</span> {eligibilityMap?.tc?.reason}
+                    </p>
+                  )}
+                  {isBonafide && isDuplicatePurpose && (
+                    <div className="space-y-1 text-xs text-rose-800">
+                      <p className="font-bold text-sm">Access Blocked</p>
+                      <p>A Bonafide Certificate has already been approved for:</p>
+                      <p className="font-bold">{selectedPurposeOption === 'Other' ? formState.customPurpose : selectedPurposeOption}</p>
+                      <p className="mt-1"><span className="font-semibold">Academic Year:</span> {eligibilityMap.bonafide.academicYear}</p>
+                      <p className="text-slate-600 mt-2 italic font-medium">Please choose another purpose if applicable.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -583,7 +604,11 @@ export default function CertificateRequestForm({
                       (isIncomeTax && !formState.paymentScreenshot)
                     );
 
-                    const bonafideInvalid = isBonafide && eligibilityMap?.bonafide && !eligibilityMap.bonafide.isEligible;
+                    const bonafideInvalid = isBonafide && (
+                      formState.purposeOption === 'Select' ||
+                      isDuplicatePurpose ||
+                      (formState.purposeOption === 'Other' && !!validateNocPurpose(formState.customPurpose))
+                    );
                     const tcInvalid = isTC && eligibilityMap?.tc && !eligibilityMap.tc.isEligible;
 
                     const isSubmitDisabled = isLoading || nocPurposeInvalid || nocDatesInvalid || paymentInvalid || bonafideInvalid || tcInvalid || ((isBonafide || isTC) && isLoadingEligibility);

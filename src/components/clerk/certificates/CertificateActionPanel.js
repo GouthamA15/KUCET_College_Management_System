@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { getStatusStyles } from "@/lib/ui-utils";
+import { formatCertificateName } from '@/lib/certificate-utils';
 
 export default function CertificateActionPanel({ request }) {
   const [imageLoading, setImageLoading] = useState(true);
@@ -88,7 +89,7 @@ export default function CertificateActionPanel({ request }) {
             <div className="space-y-2">
               <div className="flex items-start gap-3">
                 <div className="w-36 text-sm text-gray-500">Certificate Type</div>
-                <div className="font-semibold text-gray-800">{request?.certificate_type ?? '—'}</div>
+                <div className="font-semibold text-gray-800">{request ? formatCertificateName(request.certificate_type, request.purpose) : '—'}</div>
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-36 text-sm text-gray-500">Requested On</div>
