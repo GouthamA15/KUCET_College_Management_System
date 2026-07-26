@@ -1,6 +1,7 @@
 "use client";
 import { _useEffect, _useState } from 'react';
 import { getStatusStyles } from '@/lib/ui-utils';
+import { formatCertificateName } from '@/lib/certificate-utils';
 
 export default function RequestHistoryDesktop({
   requests,
@@ -42,7 +43,7 @@ export default function RequestHistoryDesktop({
                 const s = (req.status || '').toUpperCase();
                 return (
                   <tr key={req.request_id ?? `req-${idx}-${req.certificate_type}-${req.academic_year}` } className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
-                    <td className="px-3 py-2 text-sm text-gray-800 align-middle">{req.certificate_type}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800 align-middle">{formatCertificateName(req.certificate_type, req.purpose)}</td>
                     <td className="px-3 py-2 text-sm text-gray-700 align-middle">{req.academic_year || '-'}</td>
                     <td className="px-3 py-2 text-sm text-center align-middle">
                       <span className={`inline-flex items-center justify-center ${getStatusStyles(s)} text-sm font-medium rounded-sm px-2 py-1`}>

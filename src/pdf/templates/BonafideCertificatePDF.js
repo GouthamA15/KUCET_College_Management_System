@@ -21,6 +21,7 @@ export default function BonafideCertificatePDF({
   logoUrl,
   signatureUrl,
   qrUrl,
+  purpose,
 }) {
   const casteInfo = casteDisplay || category || '';
   return (
@@ -43,8 +44,8 @@ export default function BonafideCertificatePDF({
           {" "}<Text style={styles.bold}>{year}</Text>{" "}Year Semester
           {" "}<Text style={styles.bold}>{semester}</Text>{" "}and
           {" "}branch <Text style={styles.bold}>{course}</Text>{" "}during the academic year
-          {" "}<Text style={styles.bold}>{academicYear}</Text>{" "}
-          for the purpose of Scholarship. His/her percentage of attendance is
+          {" "}<Text style={styles.bold}>{academicYear}</Text>.
+          {" "}This certificate is issued for <Text style={styles.bold}>{purpose || 'General'}</Text> purpose. His/her percentage of attendance is
           {" "}<Text style={styles.bold}>{attendancePercentage}</Text>.
         </Text>
       </View>

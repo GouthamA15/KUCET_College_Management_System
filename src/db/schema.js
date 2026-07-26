@@ -459,7 +459,7 @@ export const certificateVerificationsArchive = mysqlTable('certificate_verificat
 export const otpCodes = mysqlTable('otp_codes', {
   id: int('id').autoincrement().primaryKey().notNull(),
   identifier: varchar('identifier', { length: 255 }).notNull(),
-  otp_code: varchar('otp_code', { length: 6 }).notNull(),
+  otp_code: varchar('otp_code', { length: 64 }).notNull(),
   created_at: timestamp('created_at').defaultNow(),
   expires_at: timestamp('expires_at').notNull(),
 }, (table) => ({

@@ -7,12 +7,12 @@ import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import HeaderMobileView from "@/components/Header-MobileView";
 import ClientShell from "@/components/ClientShell.client";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [_message, setMessage] = useState("");
   const [_error, setError] = useState("");
@@ -112,32 +112,32 @@ export default function ResetPassword() {
       <Header />
       <ClientShell />
 
-      <div id="main-content" className="flex-1 flex flex-col min-h-screen relative overflow-x-hidden transition-all duration-300">
-        <main className="flex-1 bg-gray-100 flex items-center justify-center p-4">
-          <div className="max-w-md w-full">
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-8">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-[#0b3578] uppercase tracking-tight">Reset Password</h1>
-                <p className="text-xs text-slate-400 mt-2 uppercase tracking-widest font-bold">Credential Recovery</p>
+      <div id="main-content" className="flex-2 flex flex-col relative overflow-x-hidden transition-all duration-300">
+        <main className="flex-grow bg-gray-100 flex items-center justify-center p-6">
+          <div className="max-w-md w-full my-auto">
+            <div className="bg-white border border-gray-300 rounded-lg shadow-sm p-6 sm:p-8">
+              <div className="mb-6">
+                <h1 className="text-2xl font-semibold text-gray-800">Reset Password</h1>
+                <p className="text-sm text-gray-600 mt-1">Please enter your new password to recover access to your account.</p>
               </div>
 
               {tokenStatus === 'loading' && (
                 <div className="py-12 text-center">
                   <div className="w-8 h-8 border-4 border-[#0b3578] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Validating reset link...</p>
+                  <p className="text-sm font-medium text-gray-600">Validating reset link...</p>
                 </div>
               )}
 
               {tokenStatus === 'VALID' && (
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label htmlFor="password" uncomfortable className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <label htmlFor="password" className="text-sm font-medium text-gray-700">
                       New Password
                     </label>
                     <div className="relative">
                       <input
                         id="password"
-                        type={passwordVisible ? 'text' : 'password'}
+                        type={showPasswords ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -155,60 +155,64 @@ export default function ResetPassword() {
                           else if (score === 2) setPasswordStrengthLabel('Good');
                           else setPasswordStrengthLabel('Fair');
                         }}
-                        className="w-full border border-gray-200 rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#0b3578]"
+                        className="w-full border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
                         required
                       />
                       <button
                         type="button"
-                        onClick={() => setPasswordVisible((v) => !v)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 hover:text-[#0b3578] uppercase"
+                        onClick={() => setShowPasswords((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0b3578] focus:outline-none"
+                        aria-label={showPasswords ? 'Hide password' : 'Show password'}
                       >
-                        {passwordVisible ? 'Hide' : 'Show'}
+                        {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                     {passwordStrengthLabel && (
-                      <p className={`text-[9px] font-black uppercase tracking-widest ${passwordValid ? 'text-green-600' : 'text-yellow-600'}`}>Strength: {passwordStrengthLabel}</p>
+                      <p className={`text-xs mt-1 font-medium ${passwordValid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        Strength: {passwordStrengthLabel}
+                      </p>
                     )}
                   </div>
 
                   <div className="space-y-1.5">
-                    <label htmlFor="confirmPassword" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
                       Confirm Password
                     </label>
                     <div className="relative">
                       <input
                         id="confirmPassword"
-                        type={confirmVisible ? 'text' : 'password'}
+                        type={showPasswords ? 'text' : 'password'}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full border border-gray-200 rounded px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#0b3578]"
+                        className="w-full border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#0b3578] focus:border-[#0b3578]"
                         required
                       />
                       <button
                         type="button"
-                        onClick={() => setConfirmVisible((v) => !v)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 hover:text-[#0b3578] uppercase"
+                        onClick={() => setShowPasswords((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0b3578] focus:outline-none"
+                        aria-label={showPasswords ? 'Hide password' : 'Show password'}
                       >
-                        {confirmVisible ? 'Hide' : 'Show'}
+                        {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                     {confirmPassword && password !== confirmPassword && (
-                      <p className="text-red-600 text-[9px] font-black uppercase tracking-widest mt-1">Passwords do not match</p>
+                      <p className="text-rose-600 text-xs mt-1 font-medium">Passwords do not match</p>
                     )}
                   </div>
 
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full bg-[#0b3578] text-white font-bold py-2 rounded text-xs uppercase tracking-widest hover:bg-[#0a2d66] transition-all disabled:opacity-50"
+                      className="w-full bg-[#0b3578] text-white font-medium py-2 rounded-md text-sm hover:bg-[#0a2d66] transition-all disabled:opacity-50"
                       disabled={isLoading || redirecting || !password || !confirmPassword || password !== confirmPassword}
                     >
                       {redirecting ? 'Redirecting...' : (isLoading ? 'Processing...' : 'Reset Password')}
                     </button>
                   </div>
 
-                  <div className="text-center">
-                    <Link href="/" className="text-[10px] font-black text-[#0b3578] hover:underline uppercase tracking-widest">
+                  <div className="text-center pt-2">
+                    <Link href="/" className="text-sm font-medium text-[#0b3578] hover:underline">
                       Back to Login
                     </Link>
                   </div>
@@ -216,13 +220,15 @@ export default function ResetPassword() {
               )}
 
               {tokenStatus !== 'loading' && tokenStatus !== 'VALID' && (
-                <div className="text-center">
-                  <h2 className="text-lg font-bold text-red-600 uppercase tracking-tight">
+                <div className="text-center py-4">
+                  <h2 className="text-lg font-semibold text-rose-600">
                     {tokenStatus === 'EXPIRED' ? 'Link Expired' : tokenStatus === 'USED' ? 'Link Used' : 'Invalid Link'}
                   </h2>
-                  <p className="mt-2 text-xs text-slate-500">{tokenMessage || 'Please request a new reset link.'}</p>
+                  <p className="mt-2 text-sm text-gray-600">{tokenMessage || 'Please request a new reset link.'}</p>
                   <div className="mt-6">
-                    <Link href="/" className="inline-block bg-[#0b3578] text-white px-6 py-2 rounded text-xs font-bold uppercase tracking-widest hover:bg-[#0a2d66] transition-all">Go to Home</Link>
+                    <Link href="/" className="inline-block bg-[#0b3578] text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-[#0a2d66] transition-all">
+                      Go to Home
+                    </Link>
                   </div>
                 </div>
               )}

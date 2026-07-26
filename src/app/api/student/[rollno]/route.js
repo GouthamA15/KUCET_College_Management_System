@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 

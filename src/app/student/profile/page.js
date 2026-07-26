@@ -57,7 +57,7 @@ export default function StudentProfileNew() {
       <div className="flex items-start justify-center">
         <div className="w-full bg-white shadow-xl rounded-lg p-6 overflow-hidden border border-slate-100">
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8">
-            <ProfileHeaderCard student={student} />
+            <ProfileHeaderCard student={student} refreshData={refreshData} />
             <div className="flex flex-col justify-start">
               <ProfileStatusBar courseLabel={courseLabel} yearOfStudy={yearOfStudy} semesterLabel={semesterLabel} currentAcademicYearLabel={currentAcademicYearLabel} batchString={batchString} />
               <ProfileTabs

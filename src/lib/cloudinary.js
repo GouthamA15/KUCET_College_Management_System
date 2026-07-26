@@ -117,9 +117,9 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
       throw new Error('Cloudinary upload returned an empty response.');
     }
     
-    // Return ONLY the relative path (including extension)
-    // Cloudinary's secure_url includes the extension by default.
-    return relativizeCloudinaryUrl(result.secure_url);
+    // Return the full canonical secure_url with optimizations applied
+    // This standardizes the storage format to always be a full URL
+    return getOptimizedUrl(result.secure_url);
   } catch (error) {
     logger.error('Cloudinary Upload Error:', {
       message: error.message,

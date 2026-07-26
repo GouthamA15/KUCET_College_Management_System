@@ -85,8 +85,19 @@ export async function GET(request) {
       const allCountRows = await countBase(baseHistoryConds);
       const myCountRows = await countBase([...baseHistoryConds, eq(studentRequests.action_by_clerk_id, clerk.id)]);
 
+      const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
+      const mappedRows = rows.map(r => {
+        const parsed = parsePurpose(r.purpose);
+        return {
+          ...r,
+          purpose_type: parsed.purpose_type,
+          purpose_custom: parsed.purpose_custom,
+          purpose: formatPurpose(r.purpose) || r.purpose
+        };
+      });
+
       return apiResponse({ 
-        records: rows, 
+        records: mappedRows, 
         myHistoryCount: Number(myCountRows[0]?.count || 0), 
         allHistoryCount: Number(allCountRows[0]?.count || 0) 
       });
@@ -116,7 +127,18 @@ export async function GET(request) {
       .where(and(...activeConditions))
       .orderBy(desc(studentRequests.created_at));
 
-      return apiResponse({ records: rows });
+      const { parsePurpose, formatPurpose } = require('@/lib/certificate-utils');
+      const mappedRows = rows.map(r => {
+        const parsed = parsePurpose(r.purpose);
+        return {
+          ...r,
+          purpose_type: parsed.purpose_type,
+          purpose_custom: parsed.purpose_custom,
+          purpose: formatPurpose(r.purpose) || r.purpose
+        };
+      });
+
+      return apiResponse({ records: mappedRows });
     }
   } catch (error) {
     logger.error('Error fetching clerk requests:', error);

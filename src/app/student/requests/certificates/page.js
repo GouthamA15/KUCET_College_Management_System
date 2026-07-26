@@ -176,13 +176,19 @@ export default function CertificateRequestsPage() {
     smoothScrollToId('certificate-type', { behavior: 'smooth', block: 'center' });
   };
 
-  const handleSubmit = async ({ transactionId, paymentScreenshot, finalPurpose, fromDate, toDate }) => {
+  const handleSubmit = async ({ transactionId, paymentScreenshot, purposeOption, customPurpose, fromDate, toDate }) => {
     setIsLoading(true);
     const formData = new FormData();
     formData.append('certificateType', selectedCertificate);
     formData.append('clerkType', selectedOption.clerk);
     formData.append('paymentAmount', fee);
-    formData.append('purpose', finalPurpose);
+    if (purposeOption) formData.append('purpose_type', purposeOption);
+    if (customPurpose) formData.append('purpose_custom', customPurpose);
+    
+    // Fallback for older code/apis expecting 'purpose'
+    const finalPurpose = purposeOption === 'Other' ? customPurpose : purposeOption;
+    if (finalPurpose) formData.append('purpose', finalPurpose);
+
     if (fromDate) formData.append('fromDate', fromDate);
     if (toDate) formData.append('toDate', toDate);
     // append transaction and screenshot only when provided (avoid sending null)

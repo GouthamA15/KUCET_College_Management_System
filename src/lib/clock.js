@@ -11,11 +11,35 @@ export function getNow() {
   // Robustly get IST (Asia/Kolkata) as a wall-clock Date object
   const getISTNow = () => {
     const now = new Date();
-    // Use toLocaleString to get the exact string representation of time in India
-    // Then create a new Date object from it. This Date will have its local hours/minutes
-    // matching IST regardless of the system's actual timezone.
-    const istString = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-    return new Date(istString);
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: false
+      });
+      const parts = formatter.formatToParts(now);
+      const partValues = {};
+      parts.forEach(p => {
+        if (p.type !== 'literal') partValues[p.type] = parseInt(p.value, 10);
+      });
+      return new Date(
+        partValues.year,
+        partValues.month - 1,
+        partValues.day,
+        partValues.hour,
+        partValues.minute,
+        partValues.second
+      );
+    } catch (e) {
+      // Safe fallback: math-based UTC to IST shift (UTC+5:30)
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      return new Date(utc + (3600000 * 5.5));
+    }
   };
 
   if (isProduction || !isTesting) {

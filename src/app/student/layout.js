@@ -9,7 +9,7 @@ import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import MobileTopbar from '@/components/MobileTopbar';
-import StudentTopBar from '@/components/student/StudentTopBar';
+// import StudentTopBar from '@/components/student/StudentTopBar';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStudent } from '@/context/StudentContext';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -91,10 +91,11 @@ export default function StudentLayout({ children }) {
                 <Header />
               </div>
 
-              {/* Desktop-only Student Top Bar for notifications */}
+              {/* Desktop-only Student Top Bar for notifications - Commented out per request
               <div className="hidden lg:block">
                 <StudentTopBar />
               </div>
+              */}
 
               {/* Content stack (single, consistent top spacing below header/topbar) */}
               <div className="flex-1 flex flex-col min-h-0 pt-(--app-content-top-gap,20px) lg:pt-(--app-fixed-header-offset,100px) ">
@@ -114,9 +115,11 @@ export default function StudentLayout({ children }) {
           </div>
 
           {/* Mobile Overlay for Sidebar Mode */}
-          {MOBILE_NAV_MODE === 'sidebar' && isMobileMenuOpen && (
+          {MOBILE_NAV_MODE === 'sidebar' && (
             <div 
-              className="fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-40 lg:hidden transition-opacity duration-300"
+              className={`fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-40 lg:hidden transition-opacity duration-300 ${
+                isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+              }`}
               onClick={() => setIsMobileMenuOpen(false)}
             />
           )}

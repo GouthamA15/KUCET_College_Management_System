@@ -27,6 +27,7 @@ export class StudentService {
   static async validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
     const { getResolvedCurrentAcademicYear, getBranchFromRoll } = await import('@/lib/rollNumber');
     const { calculateYearAndSemesterAsync } = await import('@/lib/academic-utils');
+    const { parsePurpose } = await import('@/lib/certificate-utils');
 
     const academicYear = getResolvedCurrentAcademicYear(rollNo, collegeInfo, now);
     const branch = getBranchFromRoll(rollNo);
@@ -49,11 +50,18 @@ export class StudentService {
     const attended = Number(attendanceStats[0]?.attended_classes || 0);
     const attendancePercent = total > 0 ? (attended / total) * 100 : null;
 
-    const existingApproved = approvedRequests.find(r => 
+    const approvedBonafides = approvedRequests.filter(r => 
       r.certificate_type === 'Bonafide Certificate' && r.academic_year === academicYear
     );
 
-    const isAcademicYearEligible = !existingApproved;
+    const approvedPurposes = approvedBonafides.map(r => {
+      const parsed = parsePurpose(r.purpose);
+      if (parsed.purpose_type === 'Other' && parsed.purpose_custom) {
+        return parsed.purpose_custom;
+      }
+      return parsed.purpose_type || 'General';
+    });
+
     const isAttendanceEligible = true; // Institutional Waiver currently active
 
     return {
@@ -66,9 +74,10 @@ export class StudentService {
       },
       feeReimbursement: studentData?.fee_reimbursement || 'NO',
       academicYear,
-      alreadyHasApproved: !!existingApproved,
-      isEligible: isAcademicYearEligible && isAttendanceEligible,
-      reason: !isAcademicYearEligible ? `You have already received an approved Bonafide for ${academicYear}.` : null
+      approvedPurposes,
+      alreadyHasApproved: approvedPurposes.length > 0,
+      isEligible: isAttendanceEligible,
+      reason: null
     };
   }
 

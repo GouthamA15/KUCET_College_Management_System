@@ -1,4 +1,5 @@
 "use client";
+import { formatCertificateName } from '@/lib/certificate-utils';
 
 export default function CertificateRecordsView({ records = [], onViewDetails, groupByDate = false, loading = false }) {
 
@@ -91,7 +92,7 @@ export default function CertificateRecordsView({ records = [], onViewDetails, gr
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-800">{r.certificate_type ?? r.type}</td>
+                        <td className="px-6 py-3 text-sm text-gray-800">{formatCertificateName(r.certificate_type ?? r.type, r.purpose)}</td>
                         <td className="px-6 py-3 text-sm">
                           <span className={statusClass(r.status)}>{r.status}</span>
                         </td>
@@ -129,7 +130,7 @@ export default function CertificateRecordsView({ records = [], onViewDetails, gr
                       <span className={statusClass(r.status)}>{r.status}</span>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <div className="text-sm font-medium text-gray-700">{r.certificate_type ?? r.type}</div>
+                      <div className="text-sm font-medium text-gray-700">{formatCertificateName(r.certificate_type ?? r.type, r.purpose)}</div>
                       <div className="text-xs text-gray-500">Date: {formatDateForDisplay(r.date)}</div>
                     </div>
                     <button
@@ -188,7 +189,7 @@ export default function CertificateRecordsView({ records = [], onViewDetails, gr
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-sm text-gray-800">{r.certificate_type ?? r.type}</td>
+                  <td className="px-6 py-3 text-sm text-gray-800">{formatCertificateName(r.certificate_type ?? r.type, r.purpose)}</td>
                   <td className="px-6 py-3 text-sm">
                     <span className={statusClass(r.status)}>{r.status}</span>
                   </td>
@@ -235,7 +236,7 @@ export default function CertificateRecordsView({ records = [], onViewDetails, gr
                 <span className={statusClass(r.status)}>{r.status}</span>
               </div>
               <div className="flex flex-col gap-1">
-                <div className="text-sm font-medium text-gray-700">{r.certificate_type ?? r.type}</div>
+                <div className="text-sm font-medium text-gray-700">{formatCertificateName(r.certificate_type ?? r.type, r.purpose)}</div>
                 <div className="text-xs text-gray-500">Date: {formatDateForDisplay(r.date)}</div>
               </div>
               <button
