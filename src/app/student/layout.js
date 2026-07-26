@@ -115,9 +115,11 @@ export default function StudentLayout({ children }) {
           </div>
 
           {/* Mobile Overlay for Sidebar Mode */}
-          {MOBILE_NAV_MODE === 'sidebar' && isMobileMenuOpen && (
+          {MOBILE_NAV_MODE === 'sidebar' && (
             <div 
-              className="fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-40 lg:hidden transition-opacity duration-300"
+              className={`fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-40 lg:hidden transition-opacity duration-300 ${
+                isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+              }`}
               onClick={() => setIsMobileMenuOpen(false)}
             />
           )}
