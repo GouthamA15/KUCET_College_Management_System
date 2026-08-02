@@ -5,19 +5,31 @@ import { rateLimits } from '@/db/schema';
 import { eq, sql, lt } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
-// Initialize Redis client if environment variables are present
-let _ratelimit = null;
+// ── Singleton Redis + Ratelimit instances (initialized once at module load) ──────────────
+// Creating a new Redis() on every call opens a new TCP connection pool, exhausting the
+// connection limit under load. The singleton is safe because Upstash Redis is stateless HTTP.
+let _redisClient = null;
 
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  const _redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+function _getRedisClient() {
+  if (_redisClient) return _redisClient;
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    _redisClient = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  }
+  return _redisClient;
+}
+
+function _getRatelimit(limit, windowSeconds) {
+  const redis = _getRedisClient();
+  if (!redis) return null;
+  return new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(limit, `${windowSeconds} s`),
+    analytics: true,
+    prefix: '@upstash/ratelimit/kucet',
   });
-
-  // Create a new ratelimiter that allows 'limit' requests per 'windowSeconds'
-  // We use a factory-like approach inside checkRateLimit to support dynamic windows if needed,
-  // but for common usage we can pre-init if the config is static.
-  // Here we'll initialize a default one or handle it dynamically.
 }
 
 /**
@@ -29,20 +41,9 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
  */
 export async function checkRateLimit(key, limit, windowSeconds) {
   // 1. Try Upstash Redis first (Distributed & High Performance)
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const rl = _getRatelimit(limit, windowSeconds);
+  if (rl) {
     try {
-      const redis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      });
-
-      const rl = new Ratelimit({
-        redis: redis,
-        limiter: Ratelimit.slidingWindow(limit, `${windowSeconds} s`),
-        analytics: true,
-        prefix: '@upstash/ratelimit/kucet',
-      });
-
       const { success, remaining } = await rl.limit(key);
       return { success, remaining };
     } catch (redisError) {

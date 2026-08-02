@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** July 25, 2026 (Session 178)
+**Last Updated:** August 2, 2026 (Session 179)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -71,7 +71,45 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **D. Digital Certificate Engine**
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
-## 6. Recent Activity Log (May - July 2026)
+## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 179: Hosting Strategy Finalization, Student Profile Pic, Sidebar & Finances Refactor (July 26-27 & August 2, 2026)**
+- **Official Hosting Budget & Migration Plan (`OFFICIAL_HOSTING_BUDGET_AND_MIGRATION_PLAN.md`):**
+  - Consolidated and replaced `PREVIOUS_YEARLY_BUDGET_AND_MIGRATION_PLAN.md` and `YEARLY_BUDGET_AND_MIGRATION_PLAN.md` with a single authoritative document.
+  - Evaluated 6 VPS providers: Hostinger KVM 2, Contabo VPS 10, Hetzner CX32, Bluehost NVMe 8, YouStable vPopular, and MilesWeb SM-L3.
+  - **College Decision:** Hostinger KVM 2 VPS (2 vCPU / 8GB RAM / 100GB NVMe / Mumbai DC) — Rs.11,839.18/yr (Year 1 with NETWORKCHUCK coupon). Domain: kucet.in (3yr) = Rs.2,122.82. Total Year 1 outlay: Rs.13,962.
+  - **Eliminated:** Bluehost (USA server, fatal latency). All YouStable and MilesWeb content removed from all project files.
+  - Documented OOM mitigation for 8GB RAM: mandatory 4GB swap file + PDF generation concurrency limiter (max 3 concurrent jobs).
+  - Year 2 renewal risk documented: +67% spike → Rs.19,809.84. Calendar reminder strategy in place.
+- **Student Profile Pic Feature (`718cb99`):**
+  - Fully rebuilt `ProfileHeaderCard.js` (+521 lines, -43) with in-component photo upload UI, live preview, and crop workflow.
+  - Enhanced `upload-photo/route.js` with multi-provider storage support, image compression, and validation.
+  - Updated `student/image/[rollno]/route.js` and `student/[rollno]/route.js` to serve images from all storage providers.
+  - Patched `StudentContext.js` to include pfp invalidation on upload success.
+  - Fixed `cloudinary.js` edge case in URL resolution for mixed storage environments.
+- **Sidebar Performance & Fee Cards Improvement (`70a9708`):**
+  - Optimized sidebar re-render triggers and reduced unnecessary context subscriptions.
+  - Refactored fee summary cards for improved data fetching patterns.
+- **Finances Page Refactor (`8479a4f`):**
+  - Full architectural refactor of the Student Finances page for clarity, data flow separation, and performance.
+- **Bonafide Certificate Multi-Purpose (`933b749`):**
+  - Extended the Bonafide Certificate request flow to support multiple concurrent purpose submissions in a single request.
+  - Updated `validateBonafideEligibility` in `StudentService.js` to track approved purposes per academic year without blocking re-requests for distinct purposes.
+- **Reset Password Page (`e7c450c`):**
+  - New dedicated reset password UI page with validation, strength enforcement, and token expiry handling.
+- **OTP Security Fix (`839637e`):**
+  - Resolved a regression where OTPs were being compared incorrectly after the SHA-256 hashing migration in Session 176. Corrected the verify-otp comparison logic.
+- **Critical Bug Fixes (August 2, 2026):**
+  - **C1 Fixed:** Removed ghost import `_getNow` from `api-utils.js` (non-exported symbol — potential bundler crash).
+  - **C2 Fixed:** Replaced raw unsigned `fetch()` PUT in `S3StorageProvider.js` with `@aws-sdk/client-s3` `PutObjectCommand` (SigV4 auth — previous code always returned 403).
+  - **C3 Fixed:** Added `s3` and `r2` to `NEXT_PUBLIC_STORAGE_TYPE` Zod enum in `env.js` (app was crashing at startup if those types were configured).
+  - **C4 Fixed:** Replaced `getNow()` (IST-shifted Date) with `new Date()` (real UTC) for DB timestamp writes in `SecurityService.logEvent()` and `SecurityService.createNotification()`. `getNow()` is now reserved for business logic and display only.
+  - **C5 Fixed:** Refactored `SecurityService.revokeSession()` and `revokeOtherSessions()` from fragile dual-argument-order polymorphism to clean named-options objects.
+  - **M1 Fixed:** Rate-limiter now uses module-level Redis singleton (`_getRedisClient()`) instead of creating a new TCP connection on every call.
+  - **M6 Fixed:** Added `GOV` to `students.fee_reimbursement` enum in `schema.js` — prevents MySQL constraint error when finalizing GOV-category admission drafts.
+  - **YouStable Removal:** Removed all YouStable context from `OFFICIAL_HOSTING_BUDGET_AND_MIGRATION_PLAN.md` and `GEMINI.md`. College selected Hostinger KVM 2.
+  - **Deployment Guide Rewritten:** `DEPLOYMENT_PACKAGE/MASTER_DEPLOYMENT_GUIDE.md` fully rewritten for Hostinger VPS with Phase 0 (hPanel SSH), Phase 3 (MySQL RAM tuning), Phase 12 (security hardening), Phase 13 (Cloudflare Tunnel), and deployment health checklist.
+
 
 #### **Session 178: Category Restructuring, UI Fixes & Scalability Architecture Sprint (July 25, 2026)**
 - **SC Sub-Caste Implementation:**

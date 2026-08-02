@@ -68,29 +68,37 @@ export default class S3StorageProvider extends StorageProvider {
       else if (contentType.includes('pdf')) extension = '.pdf';
       else if (contentType.includes('webp')) extension = '.webp';
 
-      const key = publicId ? `${folder}/${publicId}${extension}` : `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}${extension}`;
+      const key = publicId
+        ? `${folder}/${publicId}${extension}`
+        : `${folder}/${require('crypto').randomBytes(8).toString('hex')}${extension}`;
 
-      // If S3 credentials are configured, execute upload via S3 API or fallback URL construction
       const accessKey = process.env.S3_ACCESS_KEY_ID;
       const secretKey = process.env.S3_SECRET_ACCESS_KEY;
 
       if (accessKey && secretKey && this.endpoint) {
         try {
-          const uploadUrl = `${this.endpoint.replace(/\/$/, '')}/${this.bucket}/${key}`;
-          const res = await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': contentType,
-              'x-amz-acl': 'public-read',
-            },
-            body: buffer,
+          // Use AWS SDK v3 PutObjectCommand for proper SigV4 auth.
+          // This requires: npm install @aws-sdk/client-s3
+          const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+          const client = new S3Client({
+            endpoint: this.endpoint,
+            region: process.env.S3_REGION || 'auto',
+            credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
+            forcePathStyle: true, // Required for R2 and MinIO
           });
-
-          if (!res.ok) {
-            console.warn(`S3 direct upload returned status ${res.status}, generating object key reference.`);
-          }
+          await client.send(new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+            ACL: 'public-read',
+          }));
         } catch (uploadError) {
-          console.warn('S3 HTTP upload fallback warning:', uploadError.message);
+          // If @aws-sdk/client-s3 is not installed, throw clearly.
+          if (uploadError.code === 'MODULE_NOT_FOUND') {
+            throw new Error('S3StorageProvider requires @aws-sdk/client-s3. Run: npm install @aws-sdk/client-s3');
+          }
+          throw uploadError;
         }
       }
 
@@ -111,10 +119,20 @@ export default class S3StorageProvider extends StorageProvider {
 
       if (accessKey && secretKey && this.endpoint) {
         try {
-          const deleteUrl = `${this.endpoint.replace(/\/$/, '')}/${this.bucket}/${cleanPath}`;
-          await fetch(deleteUrl, { method: 'DELETE' });
+          const { S3Client, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+          const client = new S3Client({
+            endpoint: this.endpoint,
+            region: process.env.S3_REGION || 'auto',
+            credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
+            forcePathStyle: true,
+          });
+          await client.send(new DeleteObjectCommand({
+            Bucket: this.bucket,
+            Key: cleanPath,
+          }));
         } catch (deleteError) {
-          console.warn('S3 delete fallback warning:', deleteError.message);
+          const { default: logger } = await import('@/lib/logger');
+          logger.warn({ err: deleteError.message, path: cleanPath }, '[S3_DELETE_WARNING]');
         }
       }
     });

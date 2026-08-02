@@ -5,7 +5,6 @@ import { db } from '@/db';
 import { auditLogs } from '@/db/schema';
 import logger from './logger';
 import { z } from 'zod';
-import { _getNow } from './clock';
 
 /**
  * Standard API response helper

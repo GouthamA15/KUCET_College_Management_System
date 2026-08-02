@@ -38,7 +38,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
 
   // Storage (Local VPS Storage)
-  NEXT_PUBLIC_STORAGE_TYPE: z.enum(['cloudinary', 'local']).default('cloudinary'),
+  NEXT_PUBLIC_STORAGE_TYPE: z.enum(['cloudinary', 'local', 's3', 'r2']).default('cloudinary'),
   LOCAL_STORAGE_PATH: z.string().optional(),
 
   // Public URLs

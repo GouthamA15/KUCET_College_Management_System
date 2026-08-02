@@ -1,385 +1,685 @@
-﻿# KUCET CMS: MASTER DEPLOYMENT GUIDE (Local Self-Hosting Edition)
-## Prepared for: P. Sannith (Lead Architect & Admin)
-**Revision:** 2.4 (The "Zero-Ambiguity" Execution Manual) | **Target System:** Local Ubuntu/Debian Server
+# KUCET CMS: MASTER DEPLOYMENT GUIDE
+## Target: Hostinger KVM 2 — Mumbai VPS (2 vCPU / 8GB RAM / 100GB NVMe)
+**Revision:** 3.0 (Hostinger Edition) | **Last Updated:** August 2, 2026
+**Lead Architect:** P. Sannith | **System Integrator:** Antigravity CLI
 
-Sannith, this guide is designed to be **100% self-contained and idiot-proof**. 
-Every single code block below begins with a `cd` (change directory) command. You do not need to guess where you are in the terminal; just copy and paste the entire block exactly as written.
+This guide is **100% self-contained**. Every block begins with a `cd` command — copy and paste entire blocks exactly as written. Do not skip phases; each phase depends on the previous.
 
-**IMPORTANT CONCEPT:** You do **NOT** need to install MySQL or Redis directly on your Linux machine. Our Docker setup completely isolates and automatically installs the exact correct versions of MySQL (8.0) and Redis (7-alpine) inside secure containers.
+> **IMPORTANT:** You do NOT need to install MySQL or Redis directly on the VPS. Docker manages both inside secure containers.
 
 ---
 
-## PHASE 1: HARDWARE & SYSTEM PREP
-**[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
+## PHASE 0: ACCESS YOUR HOSTINGER VPS
 
-### 1.1 Hardware Resilience (CRITICAL)
-*   **Power**: Use a **UPS (Uninterruptible Power Supply)**.
-*   **Connectivity**: Use a wired **Ethernet cable**.
-*   **Cooling**: Ensure proper ventilation.
+After purchasing Hostinger KVM 2, access the VPS terminal from hPanel:
 
-### 1.2 The "Sovereign" OS Prep
-````bash
+1. Login to **hPanel** → **VPS** → Click your VPS → **SSH Access**
+2. Connect from your local machine:
+   ```bash
+   ssh root@YOUR_VPS_IP
+   ```
+   *(Replace `YOUR_VPS_IP` with the IP shown in hPanel. Default user is `root` for Hostinger KVM.)*
+
+All subsequent commands run **inside the VPS terminal**.
+
+---
+
+## PHASE 1: SYSTEM PREPARATION
+
+### 1.1 OS Update & Core Dependencies
+
+```bash
 cd ~
-# Update and install basic dependencies
-sudo apt update && sudo apt upgrade -y
+# Update and upgrade OS packages
+apt update && apt upgrade -y
 
-# Install Node.js 20+ (Useful for host-side scripts)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
-sudo apt install -y nodejs
-
-# Install Docker Engine & Compose (This is what runs the DB and App)
-curl -fsSL https://get.docker.com | sudo sh
-
-# Install essential networking and security tools
-sudo apt install -y ufw fail2ban certbot python3-certbot-nginx net-tools build-essential rclone
+# Install essential tools
+apt install -y curl wget git ufw fail2ban certbot python3-certbot-nginx \
+               net-tools build-essential rclone jq unattended-upgrades
 ```
 
-### 1.3 Resource Optimization (Swap File)
-Next.js builds require heavy RAM. Create a 4GB safety net.
-````bash
+### 1.2 Install Node.js 20 (for host-side scripts only)
+
+```bash
 cd ~
-sudo fallocate -l 4G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-# Make it permanent across reboots
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs
+node --version  # Should print v20.x.x
 ```
 
-### 1.4 Firewall Setup (UFW)
-Lock down the server.
-````bash
+### 1.3 Install Docker Engine & Docker Compose
+
+```bash
 cd ~
-sudo ufw allow OpenSSH
-sudo ufw allow 80,443/tcp
-sudo ufw --force enable
+# Official Docker install (do NOT use apt docker.io — it's outdated)
+curl -fsSL https://get.docker.com | sh
+
+# Verify
+docker --version
+docker compose version
+```
+
+### 1.4 Create 4GB Swap File (CRITICAL for 8GB RAM)
+
+Next.js builds and PDF generation are memory-intensive. Without swap, the OOM killer will terminate processes.
+
+```bash
+cd ~
+fallocate -l 4G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+# Make permanent across reboots
+echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
+# Verify
+free -h  # Should show 4.0G under Swap
+```
+
+### 1.5 Firewall Setup (UFW)
+
+```bash
+cd ~
+ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
+# Allow Uptime Kuma dashboard on local network only (remove this in production if not needed)
+ufw allow 3001/tcp
+ufw --force enable
+ufw status
 ```
 
 ---
 
 ## PHASE 2: SECRETS & ENVIRONMENT CONFIGURATION
-**[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
 
-Before starting the app, you need cryptographic keys. Do not guess these; generate them securely.
+### 2.1 Generate Cryptographic Keys
 
-### 2.1 Generate Secure Keys
-Run these commands in your terminal to generate mathematically secure keys. Copy the outputs.
-````bash
+Run these on the VPS terminal. Copy each output carefully.
+
+```bash
 cd ~
-# 1. Generate JWT_SECRET and CERTIFICATE_SECRET (32 bytes hex):
+echo "--- JWT_SECRET and CERTIFICATE_SECRET (32-byte hex) ---"
 openssl rand -hex 32
-
-# 2. Generate ENCRYPTION_KEY (Exactly 64 characters hex):
+echo ""
+echo "--- ENCRYPTION_KEY (64-character hex) ---"
 openssl rand -hex 32
 ```
 
-### 2.2 Setup the Project Directory
-````bash
-cd /var/www
-# Create and enter the project folder
-sudo mkdir -p /var/www/kucet-cms
+> Run the second command **twice** if you need both JWT_SECRET and CERTIFICATE_SECRET as separate values.
+
+### 2.2 Create Project Directory Structure
+
+```bash
+# Create the project directory
+mkdir -p /var/www/kucet-cms
 cd /var/www/kucet-cms
 
-# Ensure local storage vault exists for file uploads
-# This folder stores all Student/Faculty profile photos, college logos, 
-# Signatures, and Payment Screenshots.
-sudo mkdir -p /var/www/kucet-storage/public
+# Create the local asset storage vault
+# This stores student photos, signatures, payment screenshots
+mkdir -p /var/www/kucet-storage/public
 
-# Secure the storage vault (Docker UID 1001)
-sudo chown -R 1001:1001 /var/www/kucet-storage/public
-sudo chmod -R 755 /var/www/kucet-storage/public
+# Correct ownership for Docker UID 1001 (nextjs user inside container)
+chown -R 1001:1001 /var/www/kucet-storage/public
+chmod -R 755 /var/www/kucet-storage/public
+
+# Create secure backup directory
+mkdir -p /var/kucet-db-backup
+chmod 700 /var/kucet-db-backup
 ```
 
-### 2.3 Create the `.env.production` File
-````bash
+### 2.3 Clone the Repository
+
+```bash
 cd /var/www/kucet-cms
-# Copy the template provided in the deployment package
-sudo cp DEPLOYMENT_PACKAGE/.env.production.template .env.production
-sudo nano .env.production
+git clone https://github.com/GouthamA15/KUCET_College_Management_System.git .
+git checkout testvanilla
 ```
-*Inside nano, paste the keys you generated above. Set `DB_HOST=db` and `REDIS_URL=redis://redis:6379`. Leave `NEXT_PUBLIC_STORAGE_TYPE=local`.*
+
+### 2.4 Create the Production Environment File
+
+```bash
+cd /var/www/kucet-cms
+cp DEPLOYMENT_PACKAGE/.env.production.template .env.production
+nano .env.production
+```
+
+Fill in the following values (use your generated keys from Phase 2.1):
+
+```env
+# ── Core ──────────────────────────────────────────────
+NODE_ENV=production
+NEXT_PUBLIC_BASE_URL=https://login.kucet.in
+
+# ── Database (MySQL inside Docker) ────────────────────
+DB_HOST=db
+DB_PORT=3306
+DB_USER=kucet_user
+DB_PASSWORD=STRONG_DB_PASSWORD_HERE
+DB_DATABASE=kucet_cms
+DB_SSL=false
+DB_ROOT_PASSWORD=VERY_STRONG_ROOT_PASSWORD_HERE
+
+# ── Authentication ────────────────────────────────────
+JWT_SECRET=PASTE_32BYTE_HEX_HERE
+CERTIFICATE_SECRET=PASTE_SECOND_32BYTE_HEX_HERE
+ENCRYPTION_KEY=PASTE_64CHAR_HEX_HERE
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# ── Email (Brevo SMTP) ────────────────────────────────
+EMAIL_USER=noreply@kucet.in
+BREVO_API_KEY=your_brevo_api_key
+
+# ── Storage (Local VPS — default for Hostinger) ───────
+NEXT_PUBLIC_STORAGE_TYPE=local
+LOCAL_STORAGE_PATH=/var/www/kucet-storage/public
+
+# ── Redis (inside Docker) ─────────────────────────────
+REDIS_URL=redis://redis:6379
+
+# ── Cloudinary (optional — set if using Cloudinary) ───
+# CLOUDINARY_CLOUD_NAME=
+# CLOUDINARY_API_KEY=
+# CLOUDINARY_API_SECRET=
+
+# ── Monitoring (optional) ─────────────────────────────
+# NEXT_PUBLIC_SENTRY_DSN=
+# BACKUP_ALERT_WEBHOOK_URL=https://your-webhook-url
+
+# ── Rate Limiting (optional — falls back to MySQL) ────
+# UPSTASH_REDIS_REST_URL=
+# UPSTASH_REDIS_REST_TOKEN=
+```
+
+> **Save and close** with `Ctrl+X` → `Y` → `Enter`
 
 ---
 
-## PHASE 3: DOCKER ORCHESTRATION (THE MAGIC)
-**[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
+## PHASE 3: MYSQL PERFORMANCE TUNING
 
-This single command downloads and configures your entire infrastructure: Nginx, Next.js, MySQL, Redis, and Uptime Kuma.
+Before starting Docker, create MySQL tuning config for 8GB RAM:
 
-### 3.1 Launching the Stack
-````bash
-cd /var/www/kucet-cms
-# Start the containers
-sudo docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml up -d --build
-```
-*Wait 2-3 minutes for everything to download and start.*
-
-### 3.2 Initialize the Database Schema (Drizzle)
-Since MySQL is brand new and empty, you must push the KUCET CMS tables to it.
-````bash
-cd /var/www/kucet-cms
-# This commands the Node.js app to connect to the MySQL container and create tables
-sudo docker exec -it kucet-cms-app npm run db:push
+```bash
+mkdir -p /var/www/kucet-cms/DEPLOYMENT_PACKAGE/CONFIGS/mysql
+cat > /var/www/kucet-cms/DEPLOYMENT_PACKAGE/CONFIGS/mysql/kucet.cnf << 'EOF'
+[mysqld]
+# Tuned for Hostinger KVM 2 — 8GB RAM
+innodb_buffer_pool_size = 1536M
+innodb_log_file_size = 256M
+max_connections = 150
+thread_cache_size = 16
+query_cache_type = 0
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 2
+EOF
 ```
 
 ---
 
-## PHASE 4: DATABASE & REDIS ADMINISTRATION
-**[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
+## PHASE 4: DOCKER ORCHESTRATION
 
-Because MySQL and Redis are inside Docker, you use `docker exec` to access their internal command lines.
+### 4.1 Launch the Full Stack
 
-### 4.1 How to access MySQL (Database)
-If you ever need to manually run SQL queries or check data:
-````bash
+This single command starts: **Next.js app, Nginx, MySQL 8.0, Redis 7, Uptime Kuma**.
+
+```bash
+cd /var/www/kucet-cms
+docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml up -d --build
+```
+
+> Wait **3-5 minutes** for Docker to pull images and build the Next.js app.
+
+### 4.2 Verify All Containers are Running
+
+```bash
+cd /var/www/kucet-cms
+docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml ps
+```
+
+All services should show `healthy` or `running`. If `kucet-cms-app` is still building, wait 2 more minutes.
+
+### 4.3 Initialize the Database Schema (Drizzle Migrations)
+
+Run this once after the database container is healthy:
+
+```bash
+cd /var/www/kucet-cms
+# Run safe Drizzle migrations (NEVER use db:push in production)
+docker exec -it kucet-cms-app npm run db:migrate
+```
+
+> If this is a **fresh install**, migrations will create all tables.
+> If **migrating from TiDB Cloud**, see Phase 5 first, then skip this step.
+
+### 4.4 Check Application Logs
+
+```bash
+cd /var/www/kucet-cms
+# Live app logs
+docker logs -f kucet-cms-app
+
+# Live Nginx logs
+docker logs -f kucet-cms-proxy
+```
+
+Press `Ctrl+C` to exit log tail.
+
+---
+
+## PHASE 5: DATA MIGRATION (FROM TIDB CLOUD)
+
+If migrating existing student data from TiDB Cloud:
+
+### 5.1 Export from TiDB Cloud
+
+On your **local machine** (Windows/Mac), export the database:
+
+```bash
+# On local machine — install TiDB CLI or use MySQL dump via TiDB endpoint
+mysqldump -h YOUR_TIDB_HOST -P 4000 -u root -p kucet_cms > kucet_backup.sql
+```
+
+### 5.2 Transfer to VPS
+
+```bash
+# Run on your LOCAL machine — SCP to the VPS
+scp kucet_backup.sql root@YOUR_VPS_IP:/tmp/kucet_backup.sql
+```
+
+### 5.3 Import into Docker MySQL
+
+```bash
+# Run on VPS
 cd ~
-# Access the MySQL console inside the container
-sudo docker exec -it kucet-cms-db mysql -u root -p
-```
-*(Enter the `DB_ROOT_PASSWORD` you set in `.env.production`)*
+# Copy backup into the running MySQL container
+docker cp /tmp/kucet_backup.sql kucet-cms-db:/tmp/backup.sql
 
-### 4.2 How to access Redis (Cache & Rate Limiting)
-If you need to clear the cache or see rate-limiting in real-time:
-````bash
-cd ~
-# Open Redis CLI
-sudo docker exec -it kucet-cms-redis redis-cli
-
-# Useful Redis Commands once inside:
-# > ping        (Should reply PONG)
-# > flushall    (Clears the entire cache - use carefully!)
-# > monitor     (Shows live stream of all cache requests)
+# Import into the database
+docker exec -it kucet-cms-db mysql -u root -p kucet_cms -e "source /tmp/backup.sql"
+# Enter DB_ROOT_PASSWORD when prompted
 ```
 
 ---
 
-## PHASE 5: INITIAL MIGRATION (IMPORTING EXISTING DATA)
-**[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
+## PHASE 6: NGINX & SSL CONFIGURATION
 
-If you are migrating from the old TiDB cloud or have an existing `.sql` backup that you want to load into the new system, follow these steps. Because the database is inside Docker, you must copy the file *into* the container first.
+### 6.1 Update Nginx Config for Your Domain
 
-### 5.1 Transfer and Import
-Assuming you have downloaded your old backup file and named it `kucet_backup.sql`, navigate to the folder where that file is located:
-
-````bash
-# 1. Navigate to wherever you downloaded your .sql file
-# cd /path/to/your/download/folder
-
-# 2. Copy the file INTO the running database container's temporary folder
-sudo docker cp kucet_backup.sql kucet-cms-db:/tmp/backup.sql
-
-# 3. Tell MySQL to import the file into the 'kucet_cms' database
-sudo docker exec -it kucet-cms-db mysql -u root -p kucet_cms -e "source /tmp/backup.sql"
+```bash
+cd /var/www/kucet-cms
+nano DEPLOYMENT_PACKAGE/nginx/nginx.conf
 ```
-*(When prompted for a password, enter the `DB_ROOT_PASSWORD` from your `.env.production` file. The text will remain invisible as you type.)*
+
+Ensure the `server_name` line reads:
+
+```nginx
+server_name login.kucet.in;
+```
+
+Restart Nginx after saving:
+
+```bash
+cd /var/www/kucet-cms
+docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml restart nginx
+```
+
+### 6.2 Point Your Domain to the VPS
+
+In **Cloudflare DNS** (after adding kucet.in to Cloudflare):
+
+1. Add an **A record**: `login` → `YOUR_VPS_IP` → **Proxied (orange cloud)**
+2. Add an **A record**: `@` → `YOUR_VPS_IP` → Proxied
+
+### 6.3 Issue Let's Encrypt Certificate (Origin Cert)
+
+```bash
+cd ~
+# Issue certificate for your domain
+certbot --nginx -d login.kucet.in
+# Follow prompts — enter email, agree to terms, choose redirect to HTTPS
+```
+
+Set Cloudflare SSL mode → **Full (Strict)** (Cloudflare Dashboard → SSL/TLS → Overview).
 
 ---
-**[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
 
-### 5.1 Install Cloudflared
-````bash
+## PHASE 7: AUTO-RECOVERY ON REBOOT
+
+### 7.1 Docker Auto-Start
+
+```bash
 cd ~
-curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-sudo dpkg -i cloudflared.deb
+systemctl enable docker.service
+systemctl enable containerd.service
 ```
 
-### 5.2 Permanent Tunnel Setup
-1.  **Authorize Server**:
-    ````bash
-    cd ~
-    cloudflared tunnel login
-    ```
-    *Copy the URL, open it in your laptop's browser, login to Cloudflare, and select `kucet.ac.in`.*
+All containers have `restart: always` in docker-compose.yml — they auto-restart after VPS reboot.
 
-2.  **Create the Tunnel**:
-    ````bash
-    cd ~
-    cloudflared tunnel create kucet-cms
-    ```
-    *Copy the **Tunnel ID (UUID)** printed in the terminal.*
+### 7.2 Let's Encrypt Auto-Renewal
 
-3.  **Route the Subdomain**:
-    ````bash
-    cd ~
-    cloudflared tunnel route dns kucet-cms login.kucet.ac.in
-    ```
+Certbot installs a systemd timer by default. Verify:
 
-### 5.3 Ingress Config (`/etc/cloudflared/config.yml`)
-Create the configuration file:
-````bash
-cd /etc
-sudo mkdir -p cloudflared
-cd cloudflared
-sudo nano config.yml
+```bash
+cd ~
+systemctl status certbot.timer
 ```
-Paste this inside, replacing `<YOUR-TUNNEL-UUID>` with your actual ID:
+
+If not active:
+
+```bash
+systemctl enable certbot.timer
+systemctl start certbot.timer
+```
+
+---
+
+## PHASE 8: AUTOMATED BACKUPS
+
+### 8.1 Configure Rclone for Google Drive (Offsite Backup)
+
+```bash
+cd ~
+rclone config
+```
+
+Follow the interactive prompts:
+- Select `n` → New remote
+- Name it: `gdrive`
+- Storage type: `drive` (Google Drive)
+- Follow OAuth flow — open the URL in your browser and authorize
+- Confirm all defaults → `y` to finish
+
+### 8.2 Update Backup Script Configuration
+
+```bash
+cd /var/www/kucet-cms
+nano DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh
+```
+
+The script is pre-configured. Verify these variables at the top:
+
+```bash
+DB_NAME="kucet_cms"
+BACKUP_DIR="/var/kucet-db-backup"
+STORAGE_DIR="/var/www/kucet-storage/public"
+```
+
+### 8.3 Schedule Automated Backups
+
+```bash
+cd /var/www/kucet-cms
+# Make scripts executable
+chmod +x DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh
+chmod +x DEPLOYMENT_PACKAGE/SCRIPTS/offsite-backup.sh
+
+# Add to crontab
+(crontab -l 2>/dev/null; echo "0 2 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh >> /var/log/kucet-backup.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 4 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/offsite-backup.sh >> /var/log/kucet-offsite.log 2>&1") | crontab -
+
+# Verify
+crontab -l
+```
+
+### 8.4 Test Backup Manually
+
+```bash
+cd /var/www/kucet-cms
+bash DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh
+ls -lh /var/kucet-db-backup/
+```
+
+---
+
+## PHASE 9: UPTIME KUMA MONITORING
+
+Uptime Kuma runs on port 3001.
+
+### 9.1 Access Uptime Kuma
+
+1. Open your browser: `http://YOUR_VPS_IP:3001`
+2. Create an admin account on first visit
+3. Add a new monitor:
+   - Type: **HTTP(s)**
+   - URL: `https://login.kucet.in/api/health`
+   - Interval: **60 seconds**
+4. Add notification channel: **Telegram** or **Email**
+
+> The `/api/health` endpoint returns `{"status":"ok"}` when the app and DB are healthy.
+
+---
+
+## PHASE 10: CI/CD DEPLOYMENT (AUTO-DEPLOY ON GIT PUSH)
+
+### 10.1 Create a Restricted Deployment User
+
+```bash
+cd ~
+# Create deployer user
+adduser deployer --disabled-password --gecos ""
+usermod -aG docker deployer
+chown -R deployer:deployer /var/www/kucet-cms
+```
+
+### 10.2 Setup SSH Key for GitHub Actions
+
+```bash
+cd ~
+su - deployer
+ssh-keygen -t ed25519 -C "github-actions-kucet-deploy" -f ~/.ssh/id_ed25519 -N ""
+cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+# Print the PRIVATE key — copy this to GitHub Secrets
+cat ~/.ssh/id_ed25519
+exit  # Return to root
+```
+
+### 10.3 GitHub Secrets (Repository Settings → Secrets → Actions)
+
+| Secret Name | Value |
+| :--- | :--- |
+| `SERVER_HOST` | Your VPS IP from hPanel |
+| `SERVER_USER` | `deployer` |
+| `SERVER_SSH_KEY` | Entire private key from step 10.2 (including `-----BEGIN...END-----`) |
+
+### 10.4 Deploy Trigger
+
+Push to `testvanilla` branch → GitHub Actions auto-deploys via SSH.
+
+The `.github/workflows/ci.yml` file handles:
+1. ESLint check
+2. Unit tests (Vitest)
+3. Drizzle migration check
+4. SSH deploy to VPS
+
+---
+
+## PHASE 11: DAILY OPERATIONS REFERENCE
+
+### How to Access MySQL
+
+```bash
+cd ~
+docker exec -it kucet-cms-db mysql -u root -p
+# Enter DB_ROOT_PASSWORD
+```
+
+### How to Access Redis CLI
+
+```bash
+cd ~
+docker exec -it kucet-cms-redis redis-cli
+# > ping  (should reply PONG)
+# > info memory  (shows usage)
+```
+
+### How to Update the Application (Manual Deploy)
+
+```bash
+cd /var/www/kucet-cms
+git pull origin testvanilla
+# Run migrations if schema changed
+docker exec -it kucet-cms-app npm run db:migrate
+# Rebuild and restart app container only
+docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml up -d --build app
+```
+
+### How to Restore from Backup
+
+```bash
+cd /var/kucet-db-backup
+# Decompress the backup
+gzip -d db_YYYY-MM-DD_HH-MM-SS.sql.gz
+# Copy into container
+docker cp db_YYYY-MM-DD_HH-MM-SS.sql kucet-cms-db:/tmp/restore.sql
+# Import
+docker exec -it kucet-cms-db mysql -u root -p kucet_cms -e "source /tmp/restore.sql"
+```
+
+### How to Check Container Health
+
+```bash
+cd /var/www/kucet-cms
+docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml ps
+docker stats --no-stream  # One-time resource snapshot
+```
+
+### Admin Bulk Import Route (Bypass Cloudflare 100MB Limit)
+
+Cloudflare limits uploads to 100MB. For large Excel bulk imports:
+1. Do **not** use `https://login.kucet.in`
+2. Use the VPS IP directly in your browser: `http://YOUR_VPS_IP`
+3. Nginx has `client_max_body_size 0` for local access — no size limits.
+
+---
+
+## PHASE 12: SECURITY HARDENING
+
+### 12.1 Automated Security Patching
+
+```bash
+cd ~
+dpkg-reconfigure --priority=low unattended-upgrades
+# Select 'Yes' — server installs security patches automatically at 3 AM
+```
+
+### 12.2 Nginx Rate Limiting (Internal DDoS Protection)
+
+```bash
+cd /var/www/kucet-cms
+nano DEPLOYMENT_PACKAGE/nginx/nginx.conf
+```
+
+Inside the `http { }` block, add:
+
+```nginx
+limit_req_zone $binary_remote_addr zone=kucet_limit:10m rate=10r/s;
+```
+
+Inside the `location / { }` block, add:
+
+```nginx
+limit_req zone=kucet_limit burst=20 nodelay;
+```
+
+Restart Nginx after saving:
+
+```bash
+cd /var/www/kucet-cms
+docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml restart nginx
+```
+
+### 12.3 Fail2Ban SSH Protection (Already Installed)
+
+```bash
+cd ~
+# Verify fail2ban is monitoring SSH
+fail2ban-client status sshd
+```
+
+### 12.4 Redis Password (Production Hardening)
+
+```bash
+cd /var/www/kucet-cms
+nano DEPLOYMENT_PACKAGE/docker-compose.yml
+```
+
+Add to the redis service command:
+
 ```yaml
+command: redis-server --appendonly yes --requirepass YOUR_STRONG_REDIS_PASSWORD
+```
+
+Update `.env.production`:
+
+```env
+REDIS_URL=redis://:YOUR_STRONG_REDIS_PASSWORD@redis:6379
+```
+
+Restart Redis:
+
+```bash
+cd /var/www/kucet-cms
+docker compose -f DEPLOYMENT_PACKAGE/docker-compose.yml restart redis app
+```
+
+---
+
+## PHASE 13: CLOUDFLARE TUNNEL (ALTERNATIVE TO DIRECT IP)
+
+If you want to hide the VPS IP completely behind Cloudflare (recommended):
+
+```bash
+cd ~
+# Install cloudflared
+curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+dpkg -i cloudflared.deb
+
+# Authorize
+cloudflared tunnel login
+
+# Create tunnel
+cloudflared tunnel create kucet-cms
+
+# Route subdomain
+cloudflared tunnel route dns kucet-cms login.kucet.in
+
+# Create config
+mkdir -p /etc/cloudflared
+cat > /etc/cloudflared/config.yml << 'EOF'
 tunnel: <YOUR-TUNNEL-UUID>
 credentials-file: /root/.cloudflared/<YOUR-TUNNEL-UUID>.json
 
 ingress:
-  - hostname: login.kucet.ac.in
+  - hostname: login.kucet.in
     service: http://localhost:80
   - service: http_status:404
+EOF
+
+# Install as service (auto-starts on reboot)
+cloudflared service install
+systemctl enable cloudflared
+systemctl start cloudflared
 ```
 
 ---
 
-## PHASE 6: AUTO-RECOVERY (THE "NEVER-DOWN" CONFIG)
-**[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
+## DEPLOYMENT HEALTH CHECKLIST
 
-We must ensure the CMS survives a local power cut.
+Run through this checklist after every deployment:
 
-### 6.1 BIOS Level: Power-On After Fail
-*   Restart your PC, enter BIOS. Set **"Restore on AC/Power Loss"** to **[Always On]**.
-
-### 6.2 OS Level: Docker & Cloudflare Persistence
-Make sure Docker and Cloudflare start automatically when Linux boots up.
-````bash
-cd ~
-sudo systemctl enable docker.service
-sudo systemctl enable containerd.service
-
-# Install Cloudflare as a background service
-sudo cloudflared service install
-sudo systemctl enable cloudflared
-sudo systemctl start cloudflared
-```
+- [ ] `docker compose ps` → all containers show `healthy`
+- [ ] `curl https://login.kucet.in/api/health` → returns `{"status":"ok"}`
+- [ ] Login as Admin → check College Config loads
+- [ ] Login as Student → check dashboard loads
+- [ ] Check Uptime Kuma dashboard → all monitors green
+- [ ] Verify daily backup ran: `ls -lh /var/kucet-db-backup/`
+- [ ] Check disk space: `df -h /` → must have >20GB free
+- [ ] Check RAM usage: `free -h` → should show <6GB used + swap available
 
 ---
 
-## PHASE 7: MAINTENANCE, BACKUPS & DISASTER RECOVERY
-**[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
-
-### 7.1 Automated Secure Local Backups
-Dockerized databases must be backed up using `docker exec`. The provided script compresses and stores backups in a dedicated secure system folder (`/var/kucet-db-backup`), NOT the web root.
-````bash
-cd /var/www/kucet-cms
-# 1. Create the secure backup folder on host
-sudo mkdir -p /var/kucet-db-backup
-sudo chmod 700 /var/kucet-db-backup
-
-# 2. Make script executable
-sudo chmod +x DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh
-
-# 3. Add to crontab to run at 2:00 AM daily
-(crontab -l 2>/dev/null; echo "0 2 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh") | crontab -
-```
-
-### 7.2 Automated Cloud Sync (Offsite Backup)
-Sync secure local backups to Google Drive/S3 via Rclone.
-````bash
-cd /var/www/kucet-cms
-# Configure Rclone (Follow prompts, name the remote 'kucet-offsite')
-rclone config
-
-# Make script executable
-sudo chmod +x DEPLOYMENT_PACKAGE/SCRIPTS/offsite-backup.sh
-
-# Add to crontab to run at 4:00 AM daily
-(crontab -l 2>/dev/null; echo "0 4 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/offsite-backup.sh") | crontab -
-```
-
-### 7.3 Restoring from a Secure Backup
-If you ever need to restore a `.sql.gz` file:
-````bash
-cd /var/kucet-db-backup
-# 1. Unzip the backup file (replace db_backup.sql.gz with the actual filename)
-sudo gzip -d db_backup.sql.gz
-
-# 2. Copy the unzipped backup file into the database container
-sudo docker cp db_backup.sql kucet-cms-db:/tmp/backup.sql
-
-# 3. Tell MySQL to import it
-sudo docker exec -it kucet-cms-db mysql -u root -p kucet_cms -e "source /tmp/backup.sql"
-```
-
----
-
-## PHASE 8: THE ADMIN "HEAVY-LIFT" ROUTE
-**[LOCATION: ACCESS VIA BROWSER]**
-
-Cloudflare limits uploads to **100MB**. To bypass this for massive Excel Bulk Imports:
-1.  **Do not use** `https://login.kucet.ac.in`.
-2.  Use the local server IP directly in your browser: `http://192.168.x.x` (or Tailscale IP).
-3.  Because Nginx is configured with `client_max_body_size 0`, local uploads have **no size limits**.
-
----
-
-## PHASE 9: AUTOMATIC GITHUB DEPLOYMENT (CI/CD)
-**[LOCATION: RUN ON YOUR LOCAL SERVER & GITHUB DASHBOARD]**
-
-To prevent giving GitHub root access to your server, we create a dedicated deployment user with restricted permissions.
-
-### 9.1 Create the Deployment User (On Server)
-````bash
-cd ~
-# 1. Create a user named 'deployer'
-sudo adduser deployer
-# 2. Add deployer to the docker group (allows running docker compose without sudo)
-sudo usermod -aG docker deployer
-# 3. Give deployer ownership of the project folder
-sudo chown -R deployer:deployer /var/www/kucet-cms
-```
-
-### 9.2 Setup SSH Keys for 'deployer' (On Server)
-````bash
-cd ~
-# Switch to the deployer user
-sudo su - deployer
-
-# Generate an SSH key pair (No passphrase)
-ssh-keygen -t ed25519 -C "github-actions-deploy"
-
-# Add the public key to authorized_keys
-cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-
-# Print the PRIVATE key so you can copy it to GitHub
-cat ~/.ssh/id_ed25519
-# Type 'exit' to return to your normal admin account
-exit
-```
-
-### 9.3 Configure GitHub Secrets
-Go to your GitHub Repository -> Settings -> Secrets and variables -> Actions.
-Add the following Repository Secrets:
-*   `SERVER_HOST`: Your local server's public IP (or Tailscale IP if the GitHub runner is on the Tailnet).
-*   `SERVER_USER`: `deployer`
-*   `SERVER_SSH_KEY`: The entire contents of the private key you printed in step 9.2.
-
-### 9.4 Deploy
-The .github/workflows/deploy.yml file handles the rest whenever you push to the main branch. GitHub will SSH in as deployer, pull the code, and restart the containers safely.
-
----
-
-## PHASE 15: ENTERPRISE HARDENING (OPTIONAL)
-**[LOCATION: RUN ON YOUR LOCAL SERVER TERMINAL]**
-
-These steps elevate your server to maximum institutional compliance.
-
-### 15.1 Automated Host Security Patching
-Never forget to install a critical Linux security update again.
-```bash
-cd ~
-sudo apt install -y unattended-upgrades
-sudo dpkg-reconfigure --priority=low unattended-upgrades
-``
-*Select 'Yes' when prompted. Your server will now install security patches automatically at 3 AM.*
-
-### 15.2 Nginx Rate Limiting (Internal DDoS Protection)
-Cloudflare protects the public internet, but anyone on the college WiFi could spam your local IP.
-```bash
-cd /etc/nginx
-sudo nano nginx.conf
-``
-*Inside the http { block, add:*
-limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;
-
-*Inside the location / { block, add:*
-limit_req zone=mylimit burst=20 nodelay;
-
----
-**Lead Architect:** P. Sannith  
-**System Integrator:** Gemini CLI  
-**Last Updated:** June 9, 2026
+**Lead Architect:** P. Sannith
+**System Integrator:** Antigravity CLI
+**Hosting:** Hostinger KVM 2 — Mumbai DC (2 vCPU / 8GB RAM / 100GB NVMe)
+**Last Updated:** August 2, 2026 (Revision 3.0 — Hostinger Edition)

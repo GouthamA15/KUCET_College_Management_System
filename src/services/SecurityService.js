@@ -45,7 +45,7 @@ export default class SecurityService {
         event_type: eventType,
         ip_address: ipAddress,
         details,
-        created_at: getNow(),
+        created_at: new Date(), // Use real UTC for DB storage; getNow() is IST display-only
       });
       logger.info({ userType, userId, eventType }, '[SECURITY_EVENT_LOGGED]');
 
@@ -206,7 +206,7 @@ export default class SecurityService {
         title,
         message,
         severity,
-        created_at: getNow(),
+        created_at: new Date(), // Use real UTC for DB storage; getNow() is IST display-only
       });
       
       // Real-time broadcast for notification count update
@@ -258,24 +258,14 @@ export default class SecurityService {
   }
 
   /**
-   * Revoke a specific session
-   * Supports both (sessionId, userId, userType) and (userType, userId, sessionId) signatures
+   * Revoke a specific session.
+   * @param {Object} options
+   * @param {string} options.userType - User role (STUDENT, CLERK, ADMIN, etc.)
+   * @param {number} options.userId  - User's primary key
+   * @param {number} options.sessionId - Session ID to revoke
    */
-  static async revokeSession(arg1, arg2, arg3) {
-    let sessionId, userId, userType;
-    
-    // Determine which signature is being used
-    if (typeof arg1 === 'string' && (['STUDENT', 'CLERK', 'ADMIN', 'FACULTY', 'HOD'].includes(arg1.toUpperCase()) || arg1.toLowerCase() === 'student' || arg1.toLowerCase() === 'clerk')) {
-      // (userType, userId, sessionId)
-      userType = arg1.toUpperCase();
-      userId = arg2;
-      sessionId = arg3;
-    } else {
-      // (sessionId, userId, userType)
-      sessionId = arg1;
-      userId = arg2;
-      userType = arg3.toUpperCase();
-    }
+  static async revokeSession({ userType, userId, sessionId }) {
+    userType = userType.toUpperCase();
 
     try {
       const [session] = await db
@@ -330,23 +320,15 @@ export default class SecurityService {
   }
 
   /**
-   * Revoke all other sessions for a user
-   * Supports both (currentSessionId, userId, userType) and (userType, userId, currentTokenHash)
+   * Revoke all sessions for a user except the current one.
+   * @param {Object} options
+   * @param {string} options.userType        - User role
+   * @param {number} options.userId          - User's primary key
+   * @param {string} [options.currentTokenHash] - Hash of the token to keep alive
+   * @param {number} [options.currentSessionId] - ID of the session to keep alive (fallback)
    */
-  static async revokeOtherSessions(arg1, arg2, arg3) {
-    let currentSessionId, userId, userType, currentTokenHash;
-
-    if (typeof arg1 === 'string') {
-      // (userType, userId, currentTokenHash)
-      userType = arg1.toUpperCase();
-      userId = arg2;
-      currentTokenHash = arg3;
-    } else {
-      // (currentSessionId, userId, userType)
-      currentSessionId = arg1;
-      userId = arg2;
-      userType = arg3.toUpperCase();
-    }
+  static async revokeOtherSessions({ userType, userId, currentTokenHash, currentSessionId }) {
+    userType = userType.toUpperCase();
 
     try {
       const whereClause = [

@@ -40,7 +40,7 @@ export const students = mysqlTable('students', {
   id: int('id').autoincrement().primaryKey().notNull(),
   admission_no: varchar('admission_no', { length: 255 }),
   roll_no: varchar('roll_no', { length: 255 }),
-  fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO']).default('NO').notNull(),
+  fee_reimbursement: mysqlEnum('fee_reimbursement', ['YES', 'NO', 'GOV']).default('NO').notNull(),
   name: varchar('name', { length: 255 }),
   date_of_birth: date('date_of_birth'),
   gender: varchar('gender', { length: 50 }),
