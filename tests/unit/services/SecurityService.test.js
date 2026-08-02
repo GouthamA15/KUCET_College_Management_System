@@ -127,14 +127,14 @@ describe('SecurityService', () => {
         })
       });
 
-      await SecurityService.revokeSession(1, 1, 'STUDENT');
+      await SecurityService.revokeSession({ sessionId: 1, userId: 1, userType: 'STUDENT' });
       expect(db.update).toHaveBeenCalledWith(userSessions);
     });
 
     it('should handle CLERK and ADMIN revocation', async () => {
         db.select.mockReturnValue({ from: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue([{ id: 1 }]) });
-        await SecurityService.revokeSession(1, 1, 'CLERK');
-        await SecurityService.revokeSession(1, 1, 'ADMIN');
+        await SecurityService.revokeSession({ sessionId: 1, userId: 1, userType: 'CLERK' });
+        await SecurityService.revokeSession({ sessionId: 1, userId: 1, userType: 'ADMIN' });
         expect(db.update).toHaveBeenCalledTimes(2);
     });
 
@@ -146,7 +146,7 @@ describe('SecurityService', () => {
           })
         })
       });
-      const result = await SecurityService.revokeSession(1, 1, 'STUDENT');
+      const result = await SecurityService.revokeSession({ sessionId: 1, userId: 1, userType: 'STUDENT' });
       expect(result).toBe(false);
     });
   });
@@ -158,13 +158,13 @@ describe('SecurityService', () => {
           where: vi.fn().mockResolvedValueOnce([{ id: 2, device_name: 'Mobile' }])
         })
       });
-      await SecurityService.revokeOtherSessions(1, 1, 'STUDENT');
+      await SecurityService.revokeOtherSessions({ userId: 1, currentSessionId: 1, userType: 'STUDENT' });
       expect(db.update).toHaveBeenCalled();
     });
 
     it('should handle token hash variant', async () => {
         db.select.mockReturnValueOnce({ from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ id: 2 }]) });
-        await SecurityService.revokeOtherSessions('STUDENT', 1, 'hash');
+        await SecurityService.revokeOtherSessions({ userType: 'STUDENT', userId: 1, currentTokenHash: 'hash' });
         expect(db.update).toHaveBeenCalled();
     });
   });
