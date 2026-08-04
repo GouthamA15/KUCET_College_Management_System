@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 2, 2026 (Session 179)
+**Last Updated:** August 5, 2026 (Session 180)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -72,6 +72,10 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 180: Dependency Updates & CI Pipeline Hardening (August 5, 2026)**
+- **Dependency Updates:** Updated `next-auth` to the latest version.
+- **CI Pipeline Hardening:** Rewrote database connection logic (`src/db/migrate.js`, `src/lib/db.js`, `drizzle.config.js`) to natively parse `DATABASE_URL` (12-factor standard connection strings), resolving `ECONNREFUSED` failures during GitHub Actions `db:migrate` pipeline jobs and increasing overall platform resilience for modern cloud deployments.
 
 #### **Session 179: Hosting Strategy Finalization, Student Profile Pic, Sidebar & Finances Refactor (July 26-27 & August 2, 2026)**
 - **Official Hosting Budget & Migration Plan (`OFFICIAL_HOSTING_BUDGET_AND_MIGRATION_PLAN.md`):**
