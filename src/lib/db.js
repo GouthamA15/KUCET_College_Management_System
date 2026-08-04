@@ -19,30 +19,58 @@ let pool;
 
 export function getDb() {
   if (!pool) {
-    const poolConfig = {
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_DATABASE,
-      port: process.env.DB_PORT || 3306,
-      dateStrings: true, // Prevent timezone conversion issues
-      waitForConnections: true,
-      connectionLimit: 3, // Increased to 3 to support concurrent queries in hot paths
-      queueLimit: 0,
-      // PRODUCTION HARDENING (Serverless Optimized):
-      enableKeepAlive: true,
-      keepAliveInitialDelay: 10000,
-      idleTimeout: 30000, // Reduced to 30s to release connections faster in serverless
-      maxIdle: 0,
-    };
-
-    // TiDB Cloud and many production databases require SSL
-    if (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) {
-      poolConfig.ssl = {
-        minVersion: 'TLSv1.2',
-        rejectUnauthorized: true,
+    let poolConfig;
+    if (process.env.DATABASE_URL) {
+      const url = new URL(process.env.DATABASE_URL);
+      poolConfig = {
+        host: url.hostname,
+        user: url.username,
+        password: decodeURIComponent(url.password),
+        database: url.pathname.slice(1),
+        port: Number(url.port) || 3306,
+        dateStrings: true,
+        waitForConnections: true,
+        connectionLimit: 3,
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 10000,
+        idleTimeout: 30000,
+        maxIdle: 0,
       };
-      console.info('[DB] SSL/TLS Encryption enabled for database connection.');
+      
+      if (url.searchParams.get('ssl') === 'true' || url.hostname.includes('tidbcloud.com')) {
+        poolConfig.ssl = {
+          minVersion: 'TLSv1.2',
+          rejectUnauthorized: true,
+        };
+        console.info('[DB] SSL/TLS Encryption enabled for database connection (DATABASE_URL).');
+      }
+    } else {
+      poolConfig = {
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_DATABASE,
+        port: process.env.DB_PORT || 3306,
+        dateStrings: true, // Prevent timezone conversion issues
+        waitForConnections: true,
+        connectionLimit: 3, // Increased to 3 to support concurrent queries in hot paths
+        queueLimit: 0,
+        // PRODUCTION HARDENING (Serverless Optimized):
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 10000,
+        idleTimeout: 30000, // Reduced to 30s to release connections faster in serverless
+        maxIdle: 0,
+      };
+
+      // TiDB Cloud and many production databases require SSL
+      if (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) {
+        poolConfig.ssl = {
+          minVersion: 'TLSv1.2',
+          rejectUnauthorized: true,
+        };
+        console.info('[DB] SSL/TLS Encryption enabled for database connection.');
+      }
     }
 
     pool = mysql.createPool(poolConfig);

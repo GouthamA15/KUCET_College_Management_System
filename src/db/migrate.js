@@ -8,17 +8,35 @@ require('dotenv').config({ path: '.env.local', override: true });
 async function runMigrations() {
   console.info('⏳ Running migrations...');
 
-  const connection = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
-    port: Number(process.env.DB_PORT) || 3306,
-    ssl: (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) ? {
-      minVersion: 'TLSv1.2',
-      rejectUnauthorized: true,
-    } : undefined,
-  });
+  let dbConfig;
+  if (process.env.DATABASE_URL) {
+    const url = new URL(process.env.DATABASE_URL);
+    dbConfig = {
+      host: url.hostname,
+      user: url.username,
+      password: decodeURIComponent(url.password),
+      database: url.pathname.slice(1),
+      port: Number(url.port) || 3306,
+      ssl: (url.searchParams.get('ssl') === 'true' || url.hostname.includes('tidbcloud.com')) ? {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true,
+      } : undefined,
+    };
+  } else {
+    dbConfig = {
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_DATABASE,
+      port: Number(process.env.DB_PORT) || 3306,
+      ssl: (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) ? {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true,
+      } : undefined,
+    };
+  }
+
+  const connection = await mysql.createConnection(dbConfig);
 
   const db = drizzle(connection);
 

@@ -6,19 +6,23 @@ config();
 // Override with .env.local if it exists
 config({ path: '.env.local', override: true });
 
+const dbCredentials = process.env.DATABASE_URL 
+  ? { url: process.env.DATABASE_URL } 
+  : {
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_DATABASE,
+      port: Number(process.env.DB_PORT) || 3306,
+      ssl: (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) ? {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true,
+      } : undefined,
+    };
+
 export default defineConfig({
   schema: './src/db/schema.js',
   out: './drizzle',
   dialect: 'mysql',
-  dbCredentials: {
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
-    port: Number(process.env.DB_PORT) || 3306,
-    ssl: (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) ? {
-      minVersion: 'TLSv1.2',
-      rejectUnauthorized: true,
-    } : undefined,
-  },
+  dbCredentials,
 });
