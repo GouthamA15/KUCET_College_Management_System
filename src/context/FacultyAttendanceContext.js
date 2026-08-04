@@ -296,8 +296,11 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   }, [fetchAttendanceStatus]);
 
   const setAttendanceStatus = useCallback((studentId, status) => {
+    startTransition(() => {
+      setOptimisticStatusMap({ type: 'SET', studentId, status });
+    });
     setAttendanceStatusMap((prev) => ({ ...prev, [studentId]: status }));
-  }, []);
+  }, [setOptimisticStatusMap, startTransition]);
 
   const toggleAttendanceStatus = useCallback((studentId) => {
     setAbsentCountMap((prevStages) => {
@@ -319,6 +322,10 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
       const nextStatus = stageToStatus[nextStage];
 
+      startTransition(() => {
+        setOptimisticStatusMap({ type: 'SET', studentId, status: nextStatus });
+      });
+
       setAttendanceStatusMap(prevStatus => ({
         ...prevStatus,
         [studentId]: nextStatus
@@ -326,9 +333,12 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
       return { ...prevStages, [studentId]: nextStage };
     });
-  }, []);
+  }, [setOptimisticStatusMap, startTransition]);
 
   const setAllAttendanceStatus = useCallback((status) => {
+    startTransition(() => {
+      setOptimisticStatusMap({ type: 'SET_ALL', status });
+    });
     setAttendanceStatusMap((prev) => {
       const next = { ...prev };
       const nextStages = { ...absentCountMap };
@@ -347,7 +357,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       setAbsentCountMap(nextStages);
       return next;
     });
-  }, [baseStudents, absentCountMap]);
+  }, [baseStudents, absentCountMap, setOptimisticStatusMap, startTransition]);
 
   const handleSaveAttendance = useCallback(async () => {
     if (!assignment?.id) return;
