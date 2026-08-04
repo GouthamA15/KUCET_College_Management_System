@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 5, 2026 (Session 180)
+**Last Updated:** August 5, 2026 (Session 181)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -9,32 +9,38 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Departmental Management:** Multi-semester timetable orchestration and faculty workload tracking.
 - **Real-Time Orchestration:** Instant schedule and activity synchronization via Supabase Broadcast.
 - **Admissions & Records:** Multi-stage admission pipeline and comprehensive student registry.
-- **Attendance Tracking:** GPS-based, proxy-free attendance with fingerprinting.
+- **Attendance Tracking:** GPS-based, proxy-free attendance with fingerprinting and React 19 optimistic updates.
 - **Internal Marks:** Entry with validation and departmental pattern recommendations.
 - **Financial & Certificates:** Scholarship tracking, fee management, and automated digital certificate generation.
 
 ## 2. Technical Stack
 - **Framework:** Next.js 16 (App Router), React 19, Tailwind CSS 4.
-- **Database:** TiDB Cloud (MySQL) with **Drizzle ORM**.
+- **Database:** TiDB Cloud (MySQL) with **Drizzle ORM** (Modular DDD Domain Schemas).
 - **Auth:** JWT (HTTP-only) via `jose`, Google OAuth (`next-auth`).
 - **Real-Time:** Supabase Realtime (Broadcast) & Redis Pub/Sub (`ioredis`).
 - **Security:** AES-256-GCM encryption for PII, SHA-256 blind indexing.
-- **Infrastructure:** Sentry (Monitoring), Cloudinary (Storage), Upstash (Rate Limiting/Idempotency).
-- **Tooling:** Zod (Validation), Vitest/Playwright (Testing), Pino (Logging).
+- **Infrastructure:** Sentry (Monitoring), Cloudinary/S3 (Storage), Upstash (Rate Limiting/Idempotency), Docker (Multi-stage production build).
+- **Tooling:** Zod (Validation), Vitest & Playwright (Unit & E2E Testing), Pino (Logging).
 
 ## 3. Core Architectural Concepts
 
 ### A. Database & Type Safety
-- **Drizzle ORM:** Centralized schema in `src/db/schema.js`. Uses versioned migrations (`drizzle-kit`).
+- **Drizzle ORM:** Modular domain schemas located in `src/db/schema/` (`identity.js`, `academic.js`, `registry.js`, `attendance.js`, `finance.js`, `security.js`, `operations.js`, `index.js`). Barrel re-export in `src/db/schema.js` ensures 100% backwards compatibility. Uses versioned migrations (`drizzle-kit`).
   - **Safe Database Updates (Data Loss Prevention):** NEVER use `npm run db:push` to update the database schema, as it may drop tables or columns and cause data loss. ALWAYS use the safe migration workflow:
-    1. Update `src/db/schema.js`.
+    1. Update domain schemas in `src/db/schema/`.
     2. Run `npm run db:generate` to generate a `.sql` migration file in `drizzle/`.
     3. Manually review the `.sql` file to ensure no unintended `DROP` statements exist (e.g., if renaming a column, change `DROP` + `ADD` to `RENAME COLUMN`).
     4. Run `npm run db:migrate` to safely apply the changes.
 - **Zero-Trust Validation:** Strict Zod schema enforcement on all API boundaries via a unified `wrapHandler`.
 
 ### B. Service & Provider Layer
-- **Service Layer:** Business logic encapsulated in static Service classes (e.g., `StudentService`, `SecurityService`).
+- **Domain-Oriented Service Layer:** Business logic organized into domain subdirectories under `src/services/`:
+  - `identity/`: `DeviceService.js`, `StudentService.js`
+  - `academic/`: `FacultyService.js`
+  - `finance/`: `FinanceService.js`, `ScholarshipService.js`, `IdempotencyService.js`
+  - `security/`: `SecurityService.js`, `ValidationService.js`
+  - `shared/`: `HealthService.js`
+  - Barrel export in `src/services/index.js` and root re-exports guarantee backwards compatibility for all import paths.
 - **Provider Pattern:** Strategy pattern for Email, Storage, and Realtime providers, enabling vendor-agnostic infrastructure.
 
 ### C. Security & Robustness
@@ -42,6 +48,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Circuit Breakers:** Fail-fast utility for external services to prevent cascading hangs.
 - **Financial Idempotency:** Registry-backed guards ensuring transactions process exactly once.
 - **Session Orchestration:** Real-time remote revocation and device-heuristic tracking.
+- **Docker Containerization:** Multi-stage production `Dockerfile` with Node 20 alpine runner, Next.js `standalone` mode, non-root user (`nextjs:nodejs`), and health monitoring endpoint (`/api/health`).
 
 ### D. Time Management
 - **Authoritative Clock:** `src/lib/clock.js` (`getNow()`) ensures IST consistency and supports "Time Machine" testing.
@@ -72,6 +79,22 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 181: DDD Architecture, E2E Testing, Docker & Optimistic UI Sprint (August 5, 2026)**
+- **DDD Database Schema Modularization (`158ba44`):**
+  - Split `src/db/schema.js` into domain modules under `src/db/schema/`: `identity.js`, `academic.js`, `registry.js`, `attendance.js`, `finance.js`, `security.js`, and `operations.js`.
+  - Maintained 100% backwards compatibility via `src/db/schema.js` barrel re-exports. Verified zero physical migration drift (`npm run db:generate`).
+- **DDD Service-Layer Domain Organization (`af2be61`):**
+  - Reorganized business service classes into domain subfolders under `src/services/`: `identity/`, `academic/`, `finance/`, `security/`, and `shared/`.
+  - Created centralized barrel export `src/services/index.js` and root compatibility re-exports.
+- **Playwright Student Fee Payment E2E Flow (`27c5109`):**
+  - Authored E2E test suite in `tests/student-fee-payment.spec.js` covering login, navigation, ledger overview, payment transaction history, receipt modal rendering, and duplicate payment reference handling.
+- **CI Pipeline Playwright Integration (`cbe6e9a` / `ci.yml`):**
+  - Enhanced `.github/workflows/ci.yml` to install Chromium browsers (`npx playwright install --with-deps chromium`), execute Playwright E2E tests, and upload test artifacts on failure.
+- **Docker Containerization (`cbe6e9a`):**
+  - Created production multi-stage `Dockerfile` (deps, builder, runner), `.dockerignore`, and lightweight `/api/health` probe endpoint operating Next.js standalone mode with non-root security user (`nextjs:nodejs`).
+- **React 19 Optimistic Attendance Updates (`707afa9`):**
+  - Integrated React 19 `useOptimistic` hook into `FacultyAttendanceContext.js` for instant attendance UI rendering with automatic server failure rollback.
 
 #### **Session 180: Dependency Updates & CI Pipeline Hardening (August 5, 2026)**
 - **Dependency Updates:** Updated `next-auth` to the latest version.
