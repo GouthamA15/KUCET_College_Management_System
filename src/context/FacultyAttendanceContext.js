@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useOptimistic, useTransition } from 'react';
 import toast from 'react-hot-toast';
 import RealtimeListener from '@/components/RealtimeListener';
 import { getPendingAttendance, savePendingAttendance, deletePendingAttendance } from '@/lib/idb-attendance';
@@ -12,6 +12,26 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [baseStudents, setBaseStudents] = useState([]);
   const [attendanceStatusMap, setAttendanceStatusMap] = useState({});
   const [absentCountMap, setAbsentCountMap] = useState({});
+
+  const [optimisticStatusMap, setOptimisticStatusMap] = useOptimistic(
+    attendanceStatusMap,
+    (currentMap, update) => {
+      if (!update) return currentMap;
+      if (update.type === 'SET') {
+        return { ...currentMap, [update.studentId]: update.status };
+      }
+      if (update.type === 'SET_ALL') {
+        const next = { ...currentMap };
+        baseStudents.forEach((s) => {
+          next[s.id] = update.status;
+        });
+        return next;
+      }
+      return currentMap;
+    }
+  );
+
+  const [, startTransition] = useTransition();
   const [existingSessionsForSelectedDate, setExistingSessionsForSelectedDate] = useState([]);
   const [dayInfo, setDayInfo] = useState(null);
   const [dateValidation, setDateValidation] = useState({
@@ -586,8 +606,8 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   // --- DERIVED STATE (useMemo) ---
 
   const students = useMemo(
-    () => baseStudents.map((s) => ({ ...s, status: attendanceStatusMap[s.id] ?? null })),
-    [baseStudents, attendanceStatusMap],
+    () => baseStudents.map((s) => ({ ...s, status: optimisticStatusMap[s.id] ?? null })),
+    [baseStudents, optimisticStatusMap],
   );
 
   const value = {
