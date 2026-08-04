@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.local
+.env.*
+coverage
+playwright-report
+test-results
+*.log
+Dockerfile
+.dockerignore
+screenshots
+DEPLOYMENT_PACKAGE
