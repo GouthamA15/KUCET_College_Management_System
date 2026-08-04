@@ -1,0 +1,94 @@
+import { db } from '@/db';
+import { idempotencyKeys } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { getNow } from '@/lib/clock';
+
+/**
+ * Utility to handle idempotency for critical transactions.
+ */
+export class IdempotencyService {
+  /**
+   * Start an idempotent operation.
+   * @param {string} key - Unique idempotency key.
+   * @param {number} ttlMinutes - How long the key remains valid.
+   * @returns {Promise<{isDuplicate: boolean, response: Object|null}>}
+   */
+  static async start(key, ttlMinutes = 60 * 24) {
+    if (!key) return { isDuplicate: false, response: null };
+
+    const now = getNow();
+    
+    const expiresAt = new Date(now.getTime() + ttlMinutes * 60000);
+    
+    // 1. Check if key exists
+    const existing = await db.query.idempotencyKeys.findFirst({
+      where: eq(idempotencyKeys.idempotency_key, key)
+    });
+
+    if (existing) {
+      if (existing.status === 'COMPLETED') {
+        return { isDuplicate: true, response: existing.response_body, code: existing.response_code };
+      }
+      if (existing.status === 'STARTED' && new Date(existing.expires_at) > now) {
+        throw new Error('Transaction already in progress');
+      }
+
+      // Reset expired/failed key safely handling concurrent race conditions
+      const [updateResult] = await db.update(idempotencyKeys)
+        .set({ status: 'STARTED', expires_at: expiresAt, created_at: now })
+        .where(and(
+          eq(idempotencyKeys.id, existing.id),
+          eq(idempotencyKeys.status, existing.status) // Optimistic lock
+        ));
+
+      if (updateResult.affectedRows === 0) {
+        return { isDuplicate: true, response: existing.response_body, code: existing.response_code };
+      }
+
+      return { isDuplicate: false, response: null };
+    }
+
+    // 2. Register new key safely handling concurrent race conditions
+    try {
+      await db.insert(idempotencyKeys).values({
+        idempotency_key: key,
+        status: 'STARTED',
+        expires_at: expiresAt,
+        created_at: now
+      });
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') {
+        throw new Error('Transaction already in progress');
+      }
+      throw error;
+    }
+
+    return { isDuplicate: false, response: null };
+  }
+
+  /**
+   * Complete an idempotent operation.
+   */
+  static async complete(key, responseCode, responseBody) {
+    if (!key) return;
+    await db.update(idempotencyKeys)
+      .set({
+        status: 'COMPLETED',
+        response_code: responseCode,
+        response_body: responseBody
+      })
+      .where(eq(idempotencyKeys.idempotency_key, key));
+  }
+
+  /**
+   * Mark an idempotent operation as failed so it can be retried.
+   */
+  static async fail(key) {
+    if (!key) return;
+    await db.update(idempotencyKeys)
+      .set({ status: 'FAILED' })
+      .where(eq(idempotencyKeys.idempotency_key, key));
+  }
+}
+
+export default IdempotencyService;
