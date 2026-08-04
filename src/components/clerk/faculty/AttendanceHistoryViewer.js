@@ -17,6 +17,8 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
     } else {
       setExpandedSession(sessionKey);
     }
+  };
+
   useEffect(() => {
     let isMounted = true;
     const fetchHistory = async () => {
