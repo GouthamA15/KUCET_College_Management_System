@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { studentAttendance, students } from '@/db/schema';
+import { studentAttendance, students, attendanceSessions } from '@/db/schema';
 import { eq, and, asc, desc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
@@ -50,14 +50,20 @@ export async function GET(request) {
     .where(eq(studentAttendance.assignment_id, assignment_id))
     .orderBy(asc(studentAttendance.date), asc(studentAttendance.session));
 
-    // Get unique dates/sessions for columns
+    // Get unique dates/sessions for columns with topic_covered metadata
     const uniqueDates = await db.select({
       date: sql`DATE_FORMAT(${studentAttendance.date}, '%Y-%m-%d')`,
-      session: studentAttendance.session
+      session: studentAttendance.session,
+      topic_covered: attendanceSessions.topic_covered
     })
     .from(studentAttendance)
+    .leftJoin(attendanceSessions, and(
+      eq(attendanceSessions.assignment_id, studentAttendance.assignment_id),
+      eq(attendanceSessions.attendance_date, studentAttendance.date),
+      eq(attendanceSessions.session_number, studentAttendance.session)
+    ))
     .where(eq(studentAttendance.assignment_id, assignment_id))
-    .groupBy(studentAttendance.date, studentAttendance.session)
+    .groupBy(studentAttendance.date, studentAttendance.session, attendanceSessions.topic_covered)
     .orderBy(asc(studentAttendance.date), asc(studentAttendance.session));
 
     return apiResponse({ 

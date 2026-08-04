@@ -32,6 +32,7 @@ export const attendanceSessions = mysqlTable('attendance_sessions', {
   created_at: timestamp('created_at').defaultNow(),
   session_number: int('session_number').default(1),
   accuracy: float('accuracy'),
+  topic_covered: varchar('topic_covered', { length: 500 }),
 }, (table) => ({
   assignmentActiveIdx: index('idx_assignment_active').on(table.assignment_id, table.is_active),
   sessionsActiveIdx: index('idx_sessions_active').on(table.is_active, table.expires_at),

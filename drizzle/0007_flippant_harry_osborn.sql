@@ -1,0 +1,1 @@
+ALTER TABLE `attendance_sessions` ADD `topic_covered` varchar(500);

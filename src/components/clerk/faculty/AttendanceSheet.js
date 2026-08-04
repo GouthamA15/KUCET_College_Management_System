@@ -6,6 +6,7 @@ import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
+import LectureTopicModal from './LectureTopicModal';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
   ssr: false,
@@ -530,7 +531,7 @@ const PendingSyncIndicator = () => {
 };
 
 export default function AttendanceSheet({ onBack, mode }) {
-  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, verifiedStudentIds: _verifiedStudentIds, setVerifiedStudentIds } = useFacultyAttendance();
+  const { assignment, loading, students, selectedDate, dayInfo, dateValidation, handleCalendarSelect, setAttendanceStatus, verifiedStudentIds: _verifiedStudentIds, setVerifiedStudentIds, topicModalSession, setTopicModalSession } = useFacultyAttendance();
 
   const handleQRScan = (rollNo) => {
     if (!selectedDate || !dateValidation?.isValid) {
@@ -636,7 +637,15 @@ export default function AttendanceSheet({ onBack, mode }) {
         )}
       </section>
 
-      {/* History removed — single-session grid only */}
+      {/* Lecture Topic Modal after successful attendance save */}
+      <LectureTopicModal
+        isOpen={Boolean(topicModalSession)}
+        assignmentId={topicModalSession?.assignmentId}
+        date={topicModalSession?.date}
+        session={topicModalSession?.session}
+        initialTopic={topicModalSession?.initialTopic || ''}
+        onClose={() => setTopicModalSession(null)}
+      />
     </div>
   );
 }

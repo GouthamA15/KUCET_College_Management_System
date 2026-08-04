@@ -95,6 +95,12 @@ A robust, production-ready web application built with **Next.js** for managing t
   - Created production multi-stage `Dockerfile` (deps, builder, runner), `.dockerignore`, and lightweight `/api/health` probe endpoint operating Next.js standalone mode with non-root security user (`nextjs:nodejs`).
 - **React 19 Optimistic Attendance Updates (`707afa9`):**
   - Integrated React 19 `useOptimistic` hook into `FacultyAttendanceContext.js` for instant attendance UI rendering with automatic server failure rollback.
+- **Lecture Topic Tracking for Faculty Attendance (`4bd46e3`):**
+  - Added `topic_covered` column (`VARCHAR(500)`) to `attendance_sessions` in `src/db/schema/attendance.js` with safe Drizzle migration (`0007_flippant_harry_osborn.sql`).
+  - Created `AttendanceService.js` in `src/services/attendance/` and PATCH endpoint `/api/clerk/faculty/attendance/session/topic`.
+  - Built `LectureTopicModal.js` component which pops up after successful server attendance confirmation across manual, QR, and GPS modes.
+  - Implemented session-level topic display, `+ Add Topic`, and `Edit Topic` workflows in `AttendanceHistoryViewer.js`.
+  - Ensured topic saving is completely decoupled from attendance persistence, allowing faculty to skip topic entry without affecting attendance records.
 
 #### **Session 180: Dependency Updates & CI Pipeline Hardening (August 5, 2026)**
 - **Dependency Updates:** Updated `next-auth` to the latest version.

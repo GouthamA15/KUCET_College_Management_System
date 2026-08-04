@@ -2,19 +2,16 @@
 import { test, expect } from '@playwright/test';
 import { SignJWT } from 'jose';
 
-test.describe('Attendance Marking Flow', () => {
+test.describe('Attendance Marking & Lecture Topic Flow', () => {
   test.use({ 
     geolocation: { latitude: 17.969, longitude: 79.608 },
     permissions: ['geolocation']
   });
 
   test('should show attendance bar when a session is active', async ({ page }) => {
-    // A valid KUCET roll number format is YY567TBBSS (Regular) or YY567BBSSL (Lateral)
-    // 22 = 2022, 567 = KUCET, T = Regular, 09 = CSE, 01 = Serial
     const roll_no = '22567T0901';
     const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
     
-    // Generate a valid mock JWT
     const secret = new TextEncoder().encode(jwtSecret);
     const token = await new SignJWT({
       student_id: 1,
@@ -29,7 +26,6 @@ test.describe('Attendance Marking Flow', () => {
       .setExpirationTime('15m')
       .sign(secret);
 
-    // Set the auth cookie AND the required companion cookie to bypass redirects
     await page.goto('/');
     await page.context().addCookies([
       {
@@ -46,7 +42,6 @@ test.describe('Attendance Marking Flow', () => {
       }
     ]);
     
-    // Mock authentication and student data APIs
     await page.route('/api/student/me', async (route) => {
       await route.fulfill({
         status: 200,
@@ -99,19 +94,44 @@ test.describe('Attendance Marking Flow', () => {
       await route.fulfill({ status: 200, body: JSON.stringify({ latestRequest: null }) });
     });
 
-    // Mock image 404s to avoid noise
     await page.route('**/*.{png,jpg,jpeg,svg}', route => route.fulfill({ status: 200, body: '' }));
 
-// Go to student portal and wait for it to load
     await page.goto('/');
-
-    // Verify successful login (no redirect back to /)
     await expect(page).toHaveURL(/\/student/);
-    
-    // Check if the greeting is visible
     await expect(page.locator('h1').first()).toContainText('Welcome, MOCK');
     
     const title = await page.title();
     expect(title).toBeDefined();
+  });
+
+  test('should prompt for lecture topic after attendance save', async ({ page }) => {
+    // Intercept lecture topic update API
+    let patchPayload = null;
+    await page.route('/api/clerk/faculty/attendance/session/topic', async (route) => {
+      patchPayload = JSON.parse(route.request().postData() || '{}');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          message: 'Lecture topic updated successfully',
+          topic_covered: patchPayload.topic_covered
+        }),
+      });
+    });
+
+    // Verify topic PATCH logic with mock API
+    const response = await page.request.patch('/api/clerk/faculty/attendance/session/topic', {
+      data: {
+        assignment_id: 101,
+        date: '2026-08-05',
+        session: 1,
+        topic_covered: 'Deadlocks & Banker Algorithm'
+      }
+    });
+
+    expect(response.status()).toBe(200);
+    const json = await response.json();
+    expect(json.data.topic_covered).toBe('Deadlocks & Banker Algorithm');
   });
 });

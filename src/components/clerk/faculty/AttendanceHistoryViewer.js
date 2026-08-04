@@ -1,13 +1,15 @@
 'use client';
 import { useState, useEffect, Fragment } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Calendar, Users, Activity, History } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Activity, History, BookOpen, Edit3, Plus } from 'lucide-react';
+import LectureTopicModal from './LectureTopicModal';
 
 export default function AttendanceHistoryViewer({ assignment, onBack }) {
   const [historyData, setHistoryData] = useState([]);
   const [uniqueSessions, setUniqueSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedSession, setExpandedSession] = useState(null);
+  const [topicModalSession, setTopicModalSession] = useState(null);
 
   const toggleSession = (sessionKey) => {
     if (expandedSession === sessionKey) {
@@ -15,9 +17,8 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
     } else {
       setExpandedSession(sessionKey);
     }
-  };
-
   useEffect(() => {
+    let isMounted = true;
     const fetchHistory = async () => {
       setLoading(true);
       try {
@@ -26,19 +27,47 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
         
         if (!res.ok) throw new Error(data.error || 'Failed to fetch history');
         
-        setHistoryData(data.data.attendance || []);
-        setUniqueSessions(data.data.uniqueDates || []);
+        if (isMounted) {
+          setHistoryData(data.data.attendance || []);
+          setUniqueSessions(data.data.uniqueDates || []);
+        }
       } catch (err) {
-        toast.error(err.message);
+        if (isMounted) toast.error(err.message);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
-    
+
     if (assignment?.id) {
       fetchHistory();
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [assignment?.id]);
+
+  const handleOpenTopicModal = (session, e) => {
+    if (e) e.stopPropagation();
+    setTopicModalSession({
+      assignmentId: assignment.id,
+      date: session.date,
+      session: session.session,
+      initialTopic: session.topic_covered || ''
+    });
+  };
+
+  const handleTopicSavedInHistory = (newTopic) => {
+    if (!topicModalSession) return;
+    setUniqueSessions((prev) =>
+      prev.map((s) => {
+        if (s.date === topicModalSession.date && s.session === topicModalSession.session) {
+          return { ...s, topic_covered: newTopic };
+        }
+        return s;
+      })
+    );
+  };
 
   // Aggregate data for summary cards
   const totalClasses = uniqueSessions.length;
@@ -54,7 +83,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
 
   return (
     <div className="max-w-7xl mx-auto mt-4 animate-fadeIn pb-24">
-      <button onClick={onBack} className="text-sm font-medium text-gray-700 hover:text-gray-900 mb-6 inline-flex items-center gap-2 transition-colors">
+      <button onClick={onBack} className="text-sm font-medium text-gray-700 hover:text-gray-900 mb-6 inline-flex items-center gap-2 transition-colors cursor-pointer">
         <ArrowLeft className="w-4 h-4" />
         Back to Mode Selection
       </button>
@@ -63,10 +92,10 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
         <div className="flex justify-between items-center border-b-2 border-gray-100 pb-3 mb-4">
           <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
             <History className="w-6 h-6 text-indigo-500" />
-            Attendance History
+            Attendance History & Teaching Record
           </h2>
           <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-100 text-gray-600 uppercase tracking-widest">
-            View Only
+            View & Manage Topics
           </span>
         </div>
         
@@ -96,7 +125,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
               <Calendar className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Classes Taken</p>
+              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Classes Conducted</p>
               <p className="text-2xl font-black text-indigo-700">{totalClasses}</p>
             </div>
           </div>
@@ -125,7 +154,10 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
 
       <div className="bg-white border-2 border-gray-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-          <h3 className="font-black text-gray-800 uppercase text-sm tracking-wide">Session Logs</h3>
+          <h3 className="font-black text-gray-800 uppercase text-sm tracking-wide flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-[#0b3578]" />
+            Session Logs & Topics Taught
+          </h3>
         </div>
         
         {loading ? (
@@ -145,15 +177,15 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Session</th>
-                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Present Count</th>
-                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total Headcount</th>
-                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance %</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Session</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Topic Covered</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Present</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance %</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
                   {uniqueSessions.map((session, idx) => {
-                    // Calculate stats for this specific session
                     const sessionRecords = historyData.filter(r => r.date === session.date && r.session === session.session);
                     const presentCount = sessionRecords.filter(r => r.status === 'PRESENT').length;
                     const totalCount = sessionRecords.length;
@@ -164,22 +196,53 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                     
                     return (
                       <Fragment key={sessionKey}>
-                        <tr onClick={() => toggleSession(sessionKey)} className="hover:bg-gray-50 transition-colors cursor-pointer">
+                        <tr onClick={() => toggleSession(sessionKey)} className="hover:bg-gray-50 transition-colors cursor-pointer group">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                             {session.date}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <td className="px-4 py-4 whitespace-nowrap text-center">
                             <span className="bg-gray-100 text-gray-800 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-gray-200">
                               S{session.session}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-emerald-600">
+                          <td className="px-6 py-4 text-sm">
+                            {session.topic_covered ? (
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-medium text-gray-800 line-clamp-2 leading-relaxed" title={session.topic_covered}>
+                                  {session.topic_covered}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenTopicModal(session, e)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded transition-colors shrink-0 cursor-pointer"
+                                  title="Edit Topic"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Edit</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-gray-400 italic text-xs font-medium">Not added yet</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenTopicModal(session, e)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded border border-emerald-200 transition-colors shrink-0 cursor-pointer"
+                                  title="Add Topic Covered"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  <span>Add Topic</span>
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-bold text-emerald-600">
                             {presentCount}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">
+                          <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">
                             {totalCount}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <td className="px-4 py-4 whitespace-nowrap text-center">
                             <div className="flex items-center justify-center gap-2">
                               <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
                                 <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${percentage}%` }}></div>
@@ -190,7 +253,7 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan="5" className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <td colSpan="6" className="px-6 py-4 bg-gray-50 border-t border-gray-100">
                               <div className="max-h-64 overflow-y-auto pr-2 rounded border border-gray-200 bg-white shadow-inner">
                                 <table className="min-w-full divide-y divide-gray-100 text-sm">
                                   <thead className="bg-gray-100 sticky top-0">
@@ -264,6 +327,37 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                           {isExpanded ? '▲ HIDE' : '▼ VIEW'}
                         </div>
                       </div>
+
+                      {/* Mobile Topic Section */}
+                      <div className="mb-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200/80">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                            <BookOpen className="w-3 h-3 text-[#0b3578]" />
+                            Topic Covered
+                          </span>
+                          {session.topic_covered ? (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenTopicModal(session, e)}
+                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase"
+                            >
+                              Edit
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenTopicModal(session, e)}
+                              className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 uppercase"
+                            >
+                              + Add
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-slate-800">
+                          {session.topic_covered || <span className="text-slate-400 italic">Not added yet</span>}
+                        </p>
+                      </div>
+
                       <div className="flex justify-between items-end">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Attendance</span>
@@ -309,6 +403,17 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
           </>
         )}
       </div>
+
+      {/* Topic Edit/Add Modal in History */}
+      <LectureTopicModal
+        isOpen={Boolean(topicModalSession)}
+        assignmentId={topicModalSession?.assignmentId}
+        date={topicModalSession?.date}
+        session={topicModalSession?.session}
+        initialTopic={topicModalSession?.initialTopic || ''}
+        onClose={() => setTopicModalSession(null)}
+        onTopicSaved={handleTopicSavedInHistory}
+      />
     </div>
   );
 }

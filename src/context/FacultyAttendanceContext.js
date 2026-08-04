@@ -45,6 +45,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const [activeSession, setActiveSession] = useState(null);
   const [verifiedStudentIds, setVerifiedStudentIds] = useState(new Set());
   const [pendingSyncs, setPendingSyncs] = useState([]);
+  const [topicModalSession, setTopicModalSession] = useState(null);
 
   // --- ACTIONS (useCallback) ---
 
@@ -432,6 +433,12 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       }
 
       await fetchAttendanceStatus(selectedDate, selectedSession, true);
+      setTopicModalSession({
+        assignmentId: assignment.id,
+        date: selectedDate,
+        session: selectedSession,
+        initialTopic: ''
+      });
     } catch (error) {
       if (error.message === 'OFFLINE_SAVED') {
         toast.success('Offline: Attendance saved to device. It will sync automatically when you are back online.', { duration: 5000 });
@@ -648,7 +655,9 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     verifiedStudentIds,
     fetchAttendanceStatus,
     pendingSyncs,
-    syncOfflineAttendance
+    syncOfflineAttendance,
+    topicModalSession,
+    setTopicModalSession
   };
 
   return (
