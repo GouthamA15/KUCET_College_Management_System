@@ -105,33 +105,40 @@ test.describe('Attendance Marking & Lecture Topic Flow', () => {
   });
 
   test('should prompt for lecture topic after attendance save', async ({ page }) => {
-    // Intercept lecture topic update API
-    let patchPayload = null;
+    // Navigate to a neutral page so route mocking context is active
+    await page.goto('/');
+
+    // Intercept lecture topic update API via page.route (applies to fetch within page context)
     await page.route('/api/clerk/faculty/attendance/session/topic', async (route) => {
-      patchPayload = JSON.parse(route.request().postData() || '{}');
+      const payload = JSON.parse(route.request().postData() || '{}');
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           success: true,
           message: 'Lecture topic updated successfully',
-          topic_covered: patchPayload.topic_covered
+          topic_covered: payload.topic_covered,
         }),
       });
     });
 
-    // Verify topic PATCH logic with mock API
-    const response = await page.request.patch('/api/clerk/faculty/attendance/session/topic', {
-      data: {
-        assignment_id: 101,
-        date: '2026-08-05',
-        session: 1,
-        topic_covered: 'Deadlocks & Banker Algorithm'
-      }
+    // Execute fetch from within the page context — this respects route mocking
+    const result = await page.evaluate(async () => {
+      const res = await fetch('/api/clerk/faculty/attendance/session/topic', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: 101,
+          date: '2026-08-05',
+          session: 1,
+          topic_covered: 'Deadlocks & Banker Algorithm',
+        }),
+      });
+      const json = await res.json();
+      return { status: res.status, json };
     });
 
-    expect(response.status()).toBe(200);
-    const json = await response.json();
-    expect(json.data.topic_covered).toBe('Deadlocks & Banker Algorithm');
+    expect(result.status).toBe(200);
+    expect(result.json.topic_covered).toBe('Deadlocks & Banker Algorithm');
   });
 });

@@ -1,5 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
+import { SignJWT } from 'jose';
 
 test.describe('Student Fee Payment E2E Flow', () => {
   const testStudent = {
@@ -54,7 +55,86 @@ test.describe('Student Fee Payment E2E Flow', () => {
     ]
   };
 
+  /** @type {string} */
+  let studentToken;
+
+  test.beforeAll(async () => {
+    // Generate a valid student JWT for the test session
+    const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
+    const secret = new TextEncoder().encode(jwtSecret);
+    studentToken = await new SignJWT({
+      student_id: testStudent.id,
+      roll_no: testStudent.roll_no,
+      name: testStudent.name,
+      is_email_verified: true,
+      has_password_set: true,
+      role: 'student',
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('30m')
+      .sign(secret);
+  });
+
   test.beforeEach(async ({ page }) => {
+    // Set auth cookies BEFORE navigating — middleware reads these on every request
+    await page.context().addCookies([
+      {
+        name: 'student_auth',
+        value: studentToken,
+        domain: 'localhost',
+        path: '/',
+      },
+      {
+        name: 'student_logged_in',
+        value: 'true',
+        domain: 'localhost',
+        path: '/',
+      },
+    ]);
+
+    // Mock /api/public/college-info (required by StudentContext on mount)
+    await page.route('/api/public/college-info', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ collegeInfo: mockCollegeInfo }),
+      });
+    });
+
+    // Mock student profile endpoint
+    await page.route(`/api/student/${testStudent.roll_no}`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          student: {
+            ...testStudent,
+            is_email_verified: 1,
+            password_hash: 'mock_hash',
+          },
+          scholarship: mockScholarships,
+          fees: mockFeePayments,
+        }),
+      });
+    });
+
+    // Mock signature & latest-request endpoints
+    await page.route('/api/student/signature', async (route) => {
+      await route.fulfill({ status: 200, body: JSON.stringify({ latestRequest: null }) });
+    });
+    await page.route(/\/api\/student\/latest-request.*/, async (route) => {
+      await route.fulfill({ status: 200, body: JSON.stringify({ latestRequest: null }) });
+    });
+
+    // Mock academic info
+    await page.route('/api/student/academic-info', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: [] }),
+      });
+    });
     // Intercept student session / profile API
     await page.route('/api/student/me', async (route) => {
       await route.fulfill({
