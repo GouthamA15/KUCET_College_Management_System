@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 5, 2026 (Session 181)
+**Last Updated:** August 5, 2026 (Session 182)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -79,6 +79,32 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 182: Persistent Deep-Linking & Refresh Fix for Faculty Attendance (`b96a39f`) (August 5, 2026)**
+- **Root Cause Identified:** `src/app/clerk/faculty/attendance/page.js` was acting as a monolithic client-side router, using React state (`selectedAssignment`, `attendanceMode`) to conditionally render `AttendanceModeSelector`, `AttendanceSheet`, and `AttendanceHistoryViewer`. On browser refresh, all state was lost, returning faculty to the subject list.
+- **Nested App Router Route Architecture:** Converted the single flat page into a proper Next.js App Router nested route tree:
+  - `/clerk/faculty/attendance` — Subject selection list (root page, fully persistent).
+  - `/clerk/faculty/attendance/[assignmentId]` — Mode selector (manual / qr / gps / history). URL encodes assignment identity.
+  - `/clerk/faculty/attendance/[assignmentId]/take/[mode]` — Live attendance sheet. Both assignment and mode are URL segments.
+  - `/clerk/faculty/attendance/[assignmentId]/history` — Attendance history viewer.
+- **Navigation Refactored:** Replaced all `setSelectedAssignment()` / `setAttendanceMode()` state mutations with `router.push()` calls. Browser Back/Forward now correctly traverses the attendance workflow.
+- **Guard Rails Added:** Invalid `[mode]` values (anything other than `manual`, `qr`, `gps`) trigger a `router.replace()` back to the mode selector. Non-existent `assignmentId` values show a typed "Assignment Not Found" state instead of a blank page.
+- **Syntax Bug Fixed (`AttendanceHistoryViewer.js`):** Missing closing brace `};` after the `toggleSession` function body caused a `Expected '}', got '<eof>'` Turbopack build error introduced in Session 181.
+- **E2E Test Coverage (`tests/attendance-routing.spec.js`):** Added 8 Playwright test cases covering:
+  - Subject list renders at `/clerk/faculty/attendance`.
+  - Clicking a card navigates to `/clerk/faculty/attendance/[id]`.
+  - Direct deep-link to mode selector renders correctly.
+  - Refresh on mode selector stays on same page (the core regression test).
+  - Direct deep-link + refresh for history page.
+  - Direct deep-link + refresh for `take/manual` page.
+  - Invalid mode redirects to mode selector.
+  - Non-existent assignment shows "Not Found" state.
+  - Browser Back button returns to subject list.
+- **Classification Rule Applied:**
+  - **URL Segments** (`[assignmentId]`, `[mode]`): Major entity identity and workflow step.
+  - **Search Params** (retained for `?tab=`, `?view=`): Tab/filter-level state in HOD, Admin, and Student pages — not refactored (correct as-is per project conventions).
+  - **React State** (retained): Modal open/close, loading flags, optimistic updates, hover effects.
+- **Build Verified:** `next build` exits code 0. All 116 unit tests pass.
 
 #### **Session 181: DDD Architecture, E2E Testing, Docker & Optimistic UI Sprint (August 5, 2026)**
 - **DDD Database Schema Modularization (`158ba44`):**
