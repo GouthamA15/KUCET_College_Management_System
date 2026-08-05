@@ -34,7 +34,7 @@ export function SecurityAuthentication({
     <div className="space-y-6 animate-fadeIn">
       {children}
       
-      <section className="border border-gray-300 rounded-md bg-white p-4 sm:p-6">
+      <section className="border border-gray-400 rounded-md bg-white p-4 sm:p-6">
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
@@ -60,8 +60,8 @@ export function SecurityAuthentication({
                   type={showCurrentPw ? 'text' : 'password'}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-[#0b3578] outline-none pr-10"
-                  placeholder="••••••••"
+                  className="w-full border border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-[#0b3578] outline-none pr-10"
+                  placeholder="********"
                 />
                 <button onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showCurrentPw ? <Clock size={16} /> : <Lock size={16} />}
@@ -84,8 +84,8 @@ export function SecurityAuthentication({
                 type={showNewPw ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-[#0b3578] outline-none pr-10"
-                placeholder="••••••••"
+                className="w-full border border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-[#0b3578] outline-none pr-10"
+                placeholder="********"
               />
               <button onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                 {showNewPw ? <Clock size={16} /> : <Lock size={16} />}
@@ -127,8 +127,8 @@ export function SecurityAuthentication({
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-[#0b3578] outline-none"
-              placeholder="••••••••"
+              className="w-full border border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-[#0b3578] outline-none"
+              placeholder="********"
             />
           </div>
 
@@ -142,7 +142,7 @@ export function SecurityAuthentication({
         </div>
       </section>
 
-      <div className="bg-gray-50 p-4 rounded-md border border-gray-300">
+      <div className="bg-gray-50 p-4 rounded-md border border-gray-400">
         <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">Security Guidelines</h3>
         <ul className="space-y-2 text-xs text-gray-600">
           <li className="flex items-start gap-2">

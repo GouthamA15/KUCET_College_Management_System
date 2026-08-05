@@ -10,13 +10,13 @@ import { History } from 'lucide-react';
 
 export function SecurityActivity({ securityEvents, eventsLoading }) {
   return (
-    <section className="border border-gray-300 rounded-md bg-white p-4 sm:p-6 animate-fadeIn">
+    <section className="border border-gray-400 rounded-md bg-white p-4 sm:p-6 animate-fadeIn">
       <div className="mb-6">
         <h2 className="text-sm font-semibold text-gray-800">Recent Security Activity</h2>
         <p className="text-sm text-gray-600">Timeline of authentication events and account changes.</p>
       </div>
 
-      <div className="relative pl-4 sm:pl-6 border-l-2 border-gray-100 space-y-8 py-2">
+      <div className="relative pl-4 sm:pl-6 border-l-2 border-gray-200 space-y-8 py-2">
         {eventsLoading ? (
           <SecurityLoadingState message="Loading activity..." />
         ) : securityEvents.length > 0 ? (
