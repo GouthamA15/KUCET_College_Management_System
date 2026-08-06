@@ -23,6 +23,31 @@ export function apiError(message, status = 500, details = null) {
 }
 
 /**
+ * Standardized Pagination Helper
+ * @param {URLSearchParams|Object} params - Query params or options object containing page and limit
+ * @param {number} defaultLimit - Default limit (default 20)
+ * @param {number} maxLimit - Maximum allowed limit (default 100)
+ * @returns {{ page: number, limit: number, offset: number }}
+ */
+export function getPaginationParams(params, defaultLimit = 20, maxLimit = 100) {
+  let rawPage, rawLimit;
+  if (params instanceof URLSearchParams) {
+    rawPage = params.get('page');
+    rawLimit = params.get('limit');
+  } else if (params && typeof params === 'object') {
+    rawPage = params.page;
+    rawLimit = params.limit;
+  }
+
+  const page = Math.max(1, parseInt(rawPage, 10) || 1);
+  const limitNum = parseInt(rawLimit, 10) || defaultLimit;
+  const limit = Math.min(Math.max(1, limitNum), maxLimit);
+  const offset = (page - 1) * limit;
+
+  return { page, limit, offset };
+}
+
+/**
  * Audit log helper
  * @param {Request} req The incoming request object
  * @param {Object} data Audit data (userId, userType, action, targetId, targetType, before, after)

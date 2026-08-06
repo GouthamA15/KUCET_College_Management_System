@@ -558,8 +558,12 @@ export class ArchiveService {
   /**
    * Get archive execution audit log history
    */
-  static async getArchiveHistory({ limit = 50, offset = 0, archive_type = null }) {
+  static async getArchiveHistory({ limit = 50, offset = 0, page = 1, archive_type = null }) {
     try {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
+      const computedOffset = offset > 0 ? offset : (pageNum - 1) * limitNum;
+
       const queryBuilder = db
         .select()
         .from(archiveOperationsLog);
@@ -570,8 +574,8 @@ export class ArchiveService {
 
       const logs = await queryBuilder
         .orderBy(desc(archiveOperationsLog.created_at))
-        .limit(limit)
-        .offset(offset);
+        .limit(limitNum)
+        .offset(computedOffset);
 
       return logs || [];
     } catch (error) {
