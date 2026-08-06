@@ -78,8 +78,9 @@ export default class S3StorageProvider extends StorageProvider {
       if (accessKey && secretKey && this.endpoint) {
         try {
           // Use AWS SDK v3 PutObjectCommand for proper SigV4 auth.
-          // This requires: npm install @aws-sdk/client-s3
-          const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+          // Dynamic string prevents static bundler build errors if optional package is omitted
+          const pkgName = '@aws-sdk/client-s3';
+          const { S3Client, PutObjectCommand } = await import(/* webpackIgnore: true */ pkgName);
           const client = new S3Client({
             endpoint: this.endpoint,
             region: process.env.S3_REGION || 'auto',
@@ -95,7 +96,7 @@ export default class S3StorageProvider extends StorageProvider {
           }));
         } catch (uploadError) {
           // If @aws-sdk/client-s3 is not installed, throw clearly.
-          if (uploadError.code === 'MODULE_NOT_FOUND') {
+          if (uploadError.code === 'MODULE_NOT_FOUND' || uploadError.message?.includes('Cannot find module')) {
             throw new Error('S3StorageProvider requires @aws-sdk/client-s3. Run: npm install @aws-sdk/client-s3');
           }
           throw uploadError;
@@ -119,7 +120,8 @@ export default class S3StorageProvider extends StorageProvider {
 
       if (accessKey && secretKey && this.endpoint) {
         try {
-          const { S3Client, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+          const pkgName = '@aws-sdk/client-s3';
+          const { S3Client, DeleteObjectCommand } = await import(/* webpackIgnore: true */ pkgName);
           const client = new S3Client({
             endpoint: this.endpoint,
             region: process.env.S3_REGION || 'auto',

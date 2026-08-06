@@ -81,6 +81,7 @@ export const NAV_MENU_CONFIG = {
       ]
     },
     { label: 'AUDIT TRAILS', route: '/admin/audit-logs' },
+    { label: 'ARCHIVE CENTER', route: '/admin/archive' },
     { label: 'VERIFICATIONS', route: '/admin/verifications' },
   ]
 };
