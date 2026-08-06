@@ -8,6 +8,7 @@ import Header from '@/components/Header';
 import HeaderMobileView from '@/components/Header-MobileView';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { safeJsonParse } from '@/lib/json-utils';
 
 export default function DevelopersPage() {
   const { getAsset } = useAssets();
@@ -33,8 +34,8 @@ export default function DevelopersPage() {
       const pending = sessionStorage.getItem('pendingBugReport');
       if (pending) {
         sessionStorage.removeItem('pendingBugReport');
-        const data = JSON.parse(pending);
-        if (data.description) {
+        const data = safeJsonParse(pending, null);
+        if (data && data.description) {
           const doSubmit = async () => {
             const toastId = toast.loading('Completing your submission...');
             try {

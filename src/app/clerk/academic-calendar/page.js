@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { safeJsonParse } from '@/lib/json-utils';
 import CalendarGrid from '@/components/clerk/academic-calendar/CalendarGrid';
 
 export default function AcademicCalendarPage() {
@@ -56,7 +57,7 @@ export default function AcademicCalendarPage() {
 
                 let weekendPattern = [];
                 if (typeof selected.weekend_pattern === 'string') {
-                    weekendPattern = JSON.parse(selected.weekend_pattern || '[]');
+                    weekendPattern = safeJsonParse(selected.weekend_pattern, []);
                 } else if (Array.isArray(selected.weekend_pattern)) {
                     weekendPattern = selected.weekend_pattern;
                 }

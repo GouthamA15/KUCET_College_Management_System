@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import { safeJsonParse } from '@/lib/json-utils';
 
 const ScholarshipDashboardContext = createContext(undefined);
 
@@ -31,7 +32,7 @@ export function ScholarshipDashboardProvider({ children }) {
       if (typeof window === 'undefined') return;
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      const parsed = JSON.parse(raw);
+      const parsed = safeJsonParse(raw, null);
       if (parsed && typeof parsed === 'object') {
         const timer = setTimeout(() => {
           setState((prev) => ({ ...prev, ...parsed }));

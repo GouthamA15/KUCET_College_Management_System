@@ -10,6 +10,7 @@ import {
 } from '@/db/schema';
 import { eq, and, desc, _sql } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { safeJsonParse } from '@/lib/json-utils';
 import { storage } from '@/lib/providers';
 import { decrypt, hashForIndex } from '@/lib/encryption';
 
@@ -120,10 +121,12 @@ export async function GET(_req) {
       // Decrypt new_data values
       let newData = row.new_data;
       if (newData) {
-          const parsed = typeof newData === 'string' ? JSON.parse(newData) : newData;
-          if (parsed.mobile) parsed.mobile = decrypt(parsed.mobile);
-          if (parsed.guardian_mobile) parsed.guardian_mobile = decrypt(parsed.guardian_mobile);
-          if (parsed.aadhaar_no) parsed.aadhaar_no = decrypt(parsed.aadhaar_no);
+          const parsed = safeJsonParse(newData, newData);
+          if (parsed && typeof parsed === 'object') {
+            if (parsed.mobile) parsed.mobile = decrypt(parsed.mobile);
+            if (parsed.guardian_mobile) parsed.guardian_mobile = decrypt(parsed.guardian_mobile);
+            if (parsed.aadhaar_no) parsed.aadhaar_no = decrypt(parsed.aadhaar_no);
+          }
           newData = parsed;
       }
 
@@ -189,7 +192,7 @@ export async function PUT(req) {
 
         // 3. Update Text Data
         if (new_data) {
-          const data = typeof new_data === 'string' ? JSON.parse(new_data) : new_data;
+          const data = safeJsonParse(new_data, new_data) || {};
           
           // Core Student Table Updates
           const studentSets = { /* empty */ };

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { getIntakeYear } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import { smoothScrollToTop } from '@/lib/scroll-utils';
+import { safeJsonParse } from '@/lib/json-utils';
 
 const AdmissionPage = () => {
     const [admissionYear, setAdmissionYear] = useState('');
@@ -95,8 +96,9 @@ const AdmissionPage = () => {
     useEffect(() => {
         const savedDraft = localStorage.getItem('admission_form_draft');
         if (savedDraft) {
-            try {
-                const { form: savedForm, admissionYear: savedYear } = JSON.parse(savedDraft);
+            const draftObj = safeJsonParse(savedDraft, null);
+            if (draftObj) {
+                const { form: savedForm, admissionYear: savedYear } = draftObj;
                 // Only prompt if the current form is essentially empty (to avoid annoying active users)
                 if (!initialNameRef.current && savedForm?.name) {
                     toast((t) => (
@@ -137,8 +139,6 @@ const AdmissionPage = () => {
                         }
                     });
                 }
-            } catch (e) {
-                console.error("Failed to parse saved draft", e);
             }
         }
     }, []);

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
+import { safeJsonParse } from '@/lib/json-utils';
 import _LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { getAssetUrl } from '@/lib/assets';
 
@@ -198,7 +199,7 @@ const StudentUpdateRequestsPanel = () => {
                                     <div className="font-semibold text-[#0b3578] text-xs text-center border-l border-gray-200">Requested Change</div>
                                 </div>
                                 <div className="divide-y divide-gray-100">
-                                    {Object.entries(typeof req.new_data === 'string' ? JSON.parse(req.new_data) : req.new_data).map(([field, value]) => (
+                                    {Object.entries(safeJsonParse(req.new_data, {}) || {}).map(([field, value]) => (
                                         <div key={field} className="grid grid-cols-1 md:grid-cols-3 hover:bg-gray-50 transition-colors p-4 md:items-center gap-3 md:gap-0">
                                             <div className="font-medium text-gray-700 text-sm break-words border-b md:border-0 pb-2 md:pb-0">{formatLabel(field)}</div>
                                             <div className="md:text-center md:border-l border-gray-100 md:px-2 break-words flex flex-row items-center justify-between md:block">
