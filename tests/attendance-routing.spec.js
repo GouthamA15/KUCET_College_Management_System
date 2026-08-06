@@ -22,8 +22,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
       id: 42,
       email: 'faculty@kucet.ac.in',
       name: 'MOCK FACULTY',
-      role: 'clerk',
-      clerk_role: 'faculty',
+      role: 'faculty',
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()

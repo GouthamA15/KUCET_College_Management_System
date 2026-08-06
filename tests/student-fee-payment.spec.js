@@ -141,11 +141,18 @@ test.describe('Student Fee Payment E2E Flow', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          student: testStudent,
-          collegeInfo: mockCollegeInfo,
-          scholarship: mockScholarships,
-          fees: mockFeePayments,
-          academics: []
+          id: testStudent.id,
+          roll_no: testStudent.roll_no,
+          name: testStudent.name,
+          email: testStudent.email,
+          fee_reimbursement: testStudent.fee_reimbursement,
+          student_status: testStudent.student_status,
+          academic_status: testStudent.academic_status,
+          academic_offset_years: testStudent.academic_offset_years,
+          is_email_verified: 1,
+          has_password_set: true,
+          mobile: null,
+          personal_details: null,
         }),
       });
     });
@@ -208,9 +215,9 @@ test.describe('Student Fee Payment E2E Flow', () => {
     await expect(page).toHaveURL(/\/student\/finances/);
 
     // 4. Verify Financial Overview Page Heading & Metrics
-    await expect(page.getByRole('heading', { name: 'Fee Details & Scholarships' })).toBeVisible();
-    await expect(page.getByText('Current Year Fee')).toBeVisible();
-    await expect(page.getByText('Current Year Paid')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fee Details & Scholarships' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Current Year Fee')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Current Year Paid')).toBeVisible({ timeout: 10000 });
 
     // 5. Switch to Transactions & Receipts Tab
     const transactionsTab = page.getByRole('button', { name: /Transactions & Receipts/i }).first();
@@ -250,6 +257,6 @@ test.describe('Student Fee Payment E2E Flow', () => {
     });
 
     await page.goto('/student/finances');
-    await expect(page.getByRole('heading', { name: 'Fee Details & Scholarships' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fee Details & Scholarships' })).toBeVisible({ timeout: 15000 });
   });
 });

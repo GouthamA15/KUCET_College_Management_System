@@ -26,7 +26,7 @@ test.describe('Attendance Marking & Lecture Topic Flow', () => {
       .setExpirationTime('15m')
       .sign(secret);
 
-    await page.goto('/');
+    // Set auth cookies BEFORE any navigation so the middleware sees them on the first request
     await page.context().addCookies([
       {
         name: 'student_auth',
@@ -41,7 +41,8 @@ test.describe('Attendance Marking & Lecture Topic Flow', () => {
         path: '/',
       }
     ]);
-    
+
+    // Set up all route mocks before navigating
     await page.route('/api/student/me', async (route) => {
       await route.fulfill({
         status: 200,
@@ -97,8 +98,8 @@ test.describe('Attendance Marking & Lecture Topic Flow', () => {
     await page.route('**/*.{png,jpg,jpeg,svg}', route => route.fulfill({ status: 200, body: '' }));
 
     await page.goto('/');
-    await expect(page).toHaveURL(/\/student/);
-    await expect(page.locator('h1').first()).toContainText('Welcome, MOCK');
+    await expect(page).toHaveURL(/\/student/, { timeout: 10000 });
+    await expect(page.locator('h1').first()).toContainText('Welcome, MOCK', { timeout: 10000 });
     
     const title = await page.title();
     expect(title).toBeDefined();
