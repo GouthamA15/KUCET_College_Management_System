@@ -209,7 +209,15 @@ export default async function proxy(request) {
     return response;
   }
 
-  // Protect Routes
+  // Protect API Routes (Baseline Defense-in-Depth)
+  if (pathname.startsWith('/api/admin')) {
+    if (!adminPayload) return handleUnauthorized(request);
+  }
+  else if (pathname.startsWith('/api/clerk')) {
+    if (!clerkPayload) return handleUnauthorized(request);
+  }
+
+  // Protect UI Routes
   if (pathname.startsWith('/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
     if (pathname === '/admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
