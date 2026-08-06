@@ -163,40 +163,27 @@ export function FacultyAttendanceProvider({ assignment, children }) {
       if (toSync.length === 0) return;
 
       setSubmitting(true);
-      let successCount = 0;
 
-      for (const item of toSync) {
-        try {
-          const res = await fetch('/api/clerk/faculty/attendance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              assignment_id: item.assignment_id,
-              date: item.date,
-              session: item.session,
-              attendance_data: item.attendance_data,
-            }),
-          });
+      const res = await fetch('/api/clerk/faculty/attendance/bulk-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: toSync }),
+      });
 
-          if (res.ok) {
-            await deletePendingAttendance(item.id);
-            successCount++;
-          } else {
-            const data = await res.json();
-            throw new Error(data.error || 'Failed to sync record');
-          }
-        } catch (e) {
-          toast.error(`Sync failed for ${item.date} Session ${item.session}: ${e.message}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to perform bulk offline sync');
+
+      if (data.synced_ids && data.synced_ids.length > 0) {
+        for (const syncedId of data.synced_ids) {
+          await deletePendingAttendance(syncedId);
         }
-      }
-
-      if (successCount > 0) {
-        toast.success(`Successfully synced ${successCount} attendance records.`);
+        toast.success(`Successfully synced ${data.synced_ids.length} offline attendance records.`);
         await refreshPendingSyncs();
         fetchAttendanceStatus(null, null, true);
       }
     } catch (err) {
-      console.error('Global Sync Error:', err);
+      console.error('Bulk Offline Sync Error:', err);
+      toast.error(err.message || 'Failed to sync offline attendance records.');
     } finally {
       setSubmitting(false);
     }
