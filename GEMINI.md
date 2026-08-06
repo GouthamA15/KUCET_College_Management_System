@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 6, 2026 (Session 183)
+**Last Updated:** August 6, 2026 (Session 184)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -12,6 +12,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Attendance Tracking:** GPS-based, proxy-free attendance with fingerprinting and React 19 optimistic updates.
 - **Internal Marks:** Entry with validation and departmental pattern recommendations.
 - **Financial & Certificates:** Scholarship tracking, fee management, and automated digital certificate generation.
+- **Academic Data Archival & Restoration:** Production-grade long-term archival engine for historical student registries, closed semester attendance, evaluation marks, payment receipts, and media storage assets with safe zero-data-loss restoration capabilities.
 
 ## 2. Technical Stack
 - **Framework:** Next.js 16 (App Router), React 19, Tailwind CSS 4.
@@ -25,7 +26,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 3. Core Architectural Concepts
 
 ### A. Database & Type Safety
-- **Drizzle ORM:** Modular domain schemas located in `src/db/schema/` (`identity.js`, `academic.js`, `registry.js`, `attendance.js`, `finance.js`, `security.js`, `operations.js`, `index.js`). Barrel re-export in `src/db/schema.js` ensures 100% backwards compatibility. Uses versioned migrations (`drizzle-kit`).
+- **Drizzle ORM:** Modular domain schemas located in `src/db/schema/` (`identity.js`, `academic.js`, `registry.js`, `attendance.js`, `finance.js`, `security.js`, `operations.js`, `archive.js`, `index.js`). Barrel re-export in `src/db/schema.js` ensures 100% backwards compatibility. Uses versioned migrations (`drizzle-kit`).
   - **Safe Database Updates (Data Loss Prevention):** NEVER use `npm run db:push` to update the database schema, as it may drop tables or columns and cause data loss. ALWAYS use the safe migration workflow:
     1. Update domain schemas in `src/db/schema/`.
     2. Run `npm run db:generate` to generate a `.sql` migration file in `drizzle/`.
@@ -38,6 +39,7 @@ A robust, production-ready web application built with **Next.js** for managing t
   - `identity/`: `DeviceService.js`, `StudentService.js`
   - `academic/`: `FacultyService.js`
   - `finance/`: `FinanceService.js`, `ScholarshipService.js`, `IdempotencyService.js`
+  - `archive/`: `ArchiveService.js`, `ArchiveMediaService.js`, `ArchiveRestoreService.js`
   - `security/`: `SecurityService.js`, `ValidationService.js`
   - `shared/`: `HealthService.js`
   - Barrel export in `src/services/index.js` and root re-exports guarantee backwards compatibility for all import paths.
@@ -59,6 +61,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Registry:** `student_personal_details`, `student_academic_background`, `student_admission_drafts`.
 - **Operations:** `student_attendance`, `student_marks`, `branch_timetable`, `faculty_subject_assignments`.
 - **Finance:** `scholarship_sanctions`, `student_payments`, `idempotency_keys`.
+- **Archive:** `archive_students`, `archive_student_personal_details`, `archive_student_academic_background`, `archive_student_attendance`, `archive_attendance_sessions`, `archive_student_marks`, `archive_student_payments`, `archive_operations_log`, `archive_retention_policies`.
 
 ## 5. Specialized Modules & Features
 
@@ -78,7 +81,36 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **D. Digital Certificate Engine**
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
+### **E. Academic Archive & Data Restoration Engine**
+- **Data Lifecycle Management:** Automated and manual archival of closed semester attendance, internal marks, payment transaction receipts, and graduated student profiles into optimized `archive_*` tables.
+- **Cloud Media Asset Archival:** Moves profile photos, signatures, and payment verification screenshots from operational storage paths (`uploads/`) to long-term storage namespaces (`archive/`) with multi-provider strategy support (S3/R2, Local, Cloudinary).
+- **Zero-Data-Loss Restoration:** Granular search, profile preview, and 1-click restore functionality allowing Super Admin to reactivate archived student profiles and academic logs back to operational database without manual SQL queries.
+- **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
+
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 184: Academic Archive Management System Architecture & Implementation (`fee89aa` & `35cae93`) (August 6, 2026)**
+- **Feature Motivation & DDD Architecture:** Engineered a production-grade Academic Archive Management System to separate active operational records (current semester attendance, active marks, current students) from long-term historical archives while keeping database queries fast and lean.
+- **Database Schema Domain (`src/db/schema/archive.js`):**
+  - Designed 9 modular archive tables: `archive_students`, `archive_student_personal_details`, `archive_student_academic_background`, `archive_student_attendance`, `archive_attendance_sessions`, `archive_student_marks`, `archive_student_payments`, `archive_operations_log`, and `archive_retention_policies`.
+  - Re-exported in `src/db/schema/index.js` and `src/db/schema.js` for 100% backwards compatibility.
+- **Safe Database Migration (`drizzle/0008_solid_black_tarantula.sql`):**
+  - Generated via `npm run db:generate` and executed safely via `npm run db:migrate` against TiDB Cloud / MySQL.
+  - Enhanced `src/db/migrate.js` with fallback SQL execution to guarantee resilience across migration environments.
+- **Domain Service Layer (`src/services/archive/`):**
+  - `ArchiveMediaService.js`: Manages cloud storage media relocation (`uploads/` to `archive/` namespace) using `getStorageProvider()`.
+  - `ArchiveService.js`: Implements executive metrics aggregation (`getArchiveOverview`), closed semester data archival (`runSemesterArchive`), graduated alumni archival (`runAlumniArchive`), historical audit log queries (`getArchiveHistory`), search across archived records (`searchArchivedRecords`), and configurable retention rule management (`updateRetentionPolicy`).
+  - `ArchiveRestoreService.js`: Implements pre-restoration student profile inspection (`previewRestore`) and 1-click restoration (`restoreStudent`, `restoreAcademicRecords`) from archive tables back into operational database schemas.
+- **API Endpoints (`src/app/api/admin/archive/`):**
+  - Built 6 REST API endpoints: `/api/admin/archive` (GET stats), `/api/admin/archive/run` (POST execute archival job), `/api/admin/archive/history` (GET audit log), `/api/admin/archive/policies` (GET/PATCH retention rules), `/api/admin/archive/search` (GET search records), and `/api/admin/archive/restore` (POST preview/execute restoration).
+- **Navigation & Super Admin Menu Integration (`src/lib/menu-config.js`):**
+  - Added `{ label: 'ARCHIVE CENTER', route: '/admin/archive' }` to Super Admin navigation menu.
+- **Admin Archive Center Dashboard UI (`src/app/admin/archive/page.js` & `src/components/admin/archive/`):**
+  - Built modern Admin UI featuring 5 specialized panels: `ArchiveDashboardStats.js` (metrics overview), `SemesterArchivalForm.js` (semester job form), `AlumniArchivalPanel.js` (graduated alumni archiver), `ArchiveSearchRestorePanel.js` (search & modal restoration preview), `RetentionPoliciesManager.js` (configurable retention rules), and `ArchiveAuditLogs.js` (immutable execution audit trail).
+- **Comprehensive Testing Verification:**
+  - Authored 4 unit test suites (`ArchiveService.test.js`, `ArchiveRestoreService.test.js`) verifying 100% pass across all 120 Vitest unit tests (`npx vitest run`).
+  - Authored Playwright E2E test suite (`tests/archive.spec.js`) verifying 100% clean test passes (`npx playwright test tests/archive.spec.js`) covering dashboard rendering, archive search, and profile restoration modal interaction.
+  - Resolved dynamic import bundler compatibility in `S3StorageProvider.js` for optional `@aws-sdk/client-s3` dependency.
 
 #### **Session 183: CI E2E Test Suite Fix — 12 Failing Playwright Tests & Strict Mode Locators Resolved (`3ca869e` & `bdc4633`) (August 6, 2026)**
 - **Root Cause Analysis:** GitHub Actions CI pipeline was failing on all 12 Playwright E2E tests across three spec files due to three distinct bugs in the test helpers, not in the application code itself.
