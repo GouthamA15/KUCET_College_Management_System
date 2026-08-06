@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 5, 2026 (Session 182)
+**Last Updated:** August 6, 2026 (Session 183)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -79,6 +79,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 183: CI E2E Test Suite Fix — 12 Failing Playwright Tests Resolved (`3ca869e`) (August 6, 2026)**
+- **Root Cause Analysis:** GitHub Actions CI pipeline was failing on all 12 Playwright E2E tests across three spec files due to three distinct bugs in the test helpers, not in the application code itself.
+- **Fix 1 — `attendance-routing.spec.js` (9 tests):** The mock JWT token for the clerk/faculty session used `role: 'clerk'` with a separate `clerk_role: 'faculty'` field. However, the middleware (`src/proxy.js`) protects `/clerk/faculty/*` routes by checking `clerkPayload.role !== 'faculty'` directly. Since `clerkPayload.role` was `'clerk'`, every test was immediately redirected away, causing all 9 attendance routing tests to fail. **Fixed** by setting `role: 'faculty'` directly in the JWT payload, matching how the actual auth flow signs tokens.
+- **Fix 2 — `student-fee-payment.spec.js` (2 tests):** The `/api/student/me` route mock returned data nested under a `student` key (`{ student: testStudent, ... }`). However, `StudentContext.js` reads `user.roll_no` at the **top level** of the response (matching the real API's flat object shape). This caused `fetchProfile(undefined)` to be called, which never matched the `/api/student/${rollno}` mock, leaving the finances page stuck in loading state forever. **Fixed** by returning a flat object with `roll_no` and all student fields at the top level, plus adding explicit `15000ms` timeouts to the asynchronous heading assertions.
+- **Fix 3 — `attendance.spec.js` (1 test):** The test called `page.goto('/')` before `page.context().addCookies(...)`, meaning the middleware never saw the `student_auth` cookie on the first request and did not redirect to `/student`. Route mocks were also registered after the first navigation instead of before. **Fixed** by moving all cookie setup and route mock registration to before the first `page.goto()` call, and increasing assertion timeouts to `10000ms`.
+- **E2E Classification (No App Code Changed):** All fixes were isolated to the three test spec files. The app source code (`src/`) is untouched — the bugs were entirely in test scaffolding.
 
 #### **Session 182: Persistent Deep-Linking & Refresh Fix for Faculty Attendance (`b96a39f`) (August 5, 2026)**
 - **Root Cause Identified:** `src/app/clerk/faculty/attendance/page.js` was acting as a monolithic client-side router, using React state (`selectedAssignment`, `attendanceMode`) to conditionally render `AttendanceModeSelector`, `AttendanceSheet`, and `AttendanceHistoryViewer`. On browser refresh, all state was lost, returning faculty to the subject list.
