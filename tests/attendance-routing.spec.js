@@ -142,7 +142,7 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
 
     // Should render the mode selector, NOT redirect back to subject list
     await expect(page.getByText('Select Attendance Mode')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Operating Systems')).toBeVisible();
+    await expect(page.getByText('Operating Systems', { exact: true })).toBeVisible();
   });
 
   test('refreshing mode selector page stays on the same page', async ({ page }) => {
@@ -174,13 +174,13 @@ test.describe('Attendance Deep-Linking & Refresh Persistence', () => {
     // Navigate directly to history page
     await page.goto('/clerk/faculty/attendance/101/history');
 
-    await expect(page.getByText('Attendance History')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Attendance History', exact: true })).toBeVisible({ timeout: 10000 });
 
     // Refresh
     await page.reload();
 
     // Should still be on history page
-    await expect(page.getByText('Attendance History')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Attendance History', exact: true })).toBeVisible({ timeout: 10000 });
     expect(page.url()).toContain('/clerk/faculty/attendance/101/history');
   });
 
