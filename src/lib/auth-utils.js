@@ -112,7 +112,7 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
  * Generates a student auth JWT and attaches it to the provided NextResponse.
  */
 export async function issueStudentAuthCookie(response, student, rememberMe = false, ip = null, userAgent = null) {
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long');
   // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
   const durationDays = rememberMe ? 30 : 14;
@@ -159,7 +159,7 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
  * Generates a clerk auth JWT and attaches it to the provided NextResponse.
  */
 export async function issueClerkAuthCookie(response, clerk, rememberMe = false, ip = null, userAgent = null) {
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long');
   // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
   const durationDays = rememberMe ? 30 : 14;
@@ -212,7 +212,7 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false, 
  * Generates an admin auth JWT and attaches it to the provided NextResponse.
  */
 export async function issueAdminAuthCookie(response, admin, rememberMe = false, ip = null, userAgent = null) {
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long');
   // Access token: 15 minutes. Refresh token: 14-30 days
   const sessionDuration = '15m';
   const durationDays = rememberMe ? 30 : 14;

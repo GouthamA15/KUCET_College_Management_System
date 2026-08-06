@@ -90,7 +90,7 @@ export default async function proxy(request) {
   const adminAuth = cookies.get('admin_auth');
   const clerkAuth = cookies.get('clerk_auth');
   const studentAuth = cookies.get('student_auth');
-  const jwtSecret = process.env.JWT_SECRET;
+  const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
 
   // Reduce 401 noise: Only attempt refresh if companion cookies suggest a session exists
   const hasAdminSession = cookies.get('admin_logged_in');

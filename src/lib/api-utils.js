@@ -189,7 +189,8 @@ export async function getAuthUser(role = null) {
 
     if (!token) return null;
 
-    const payload = await verifyJwt(token, process.env.JWT_SECRET);
+    const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
+    const payload = await verifyJwt(token, jwtSecret);
     
     // NOTE: Redundant silent refresh logic removed. 
     // The middleware (proxy.js) now authoritatively handles silent refresh 
