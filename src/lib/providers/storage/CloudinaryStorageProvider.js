@@ -8,15 +8,19 @@ export default class CloudinaryStorageProvider extends StorageProvider {
 
   getUrl(path, { transformations = 'f_auto,q_auto' } = {}) {
     if (!path) return '';
+    if (typeof path !== 'string') return '';
     
-    // 1. Handle absolute URLs and Data URIs
+    // 1. Handle absolute URLs and Data URIs - pass through as-is
     if (path.startsWith('data:') || path.startsWith('http')) {
       return path;
     }
 
-    // 2. Normalize path
-    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-    const extension = cleanPath.split('.').pop().toLowerCase();
+    // 2. Handle versioned Cloudinary paths (legacy data: v1234567/kucet/...)
+    // Strip version prefix so we can build a clean URL
+    let cleanPath = path.replace(/^v\d+\//, '');
+    cleanPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
+    
+    const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
     
     let resourceType = 'image';
     if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {

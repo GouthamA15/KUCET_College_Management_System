@@ -41,28 +41,38 @@ const STATIC_ASSETS = [
  */
 export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   if (!path) return '';
+  if (typeof path !== 'string') return '';
   
   // 1. Handle data URIs, absolute URLs, and local API routes
   if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/api/')) {
     return path;
   }
 
-  // 2. Normalize path and check for static assets
-  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  // 2. Handle [object Object] corruption gracefully - return empty string
+  if (path.includes('[object Object]') || path.startsWith('[object')) {
+    return '';
+  }
+
+  // 3. Handle versioned Cloudinary paths (legacy DB data: v1234567/kucet/...)
+  // Strip the version prefix to get the canonical storage key
+  let cleanedPath = path.replace(/^v\d+\//, '');
+
+  // 4. Normalize path and check for static assets
+  const cleanPath = cleanedPath.startsWith('/') ? cleanedPath.substring(1) : cleanedPath;
   const normalizedPath = `/${cleanPath}`;
 
   if (STATIC_ASSETS.includes(normalizedPath) && transformations === 'f_auto,q_auto') {
     return normalizedPath;
   }
 
-  // 3. Strategy: Local VPS storage proxy
+  // 5. Strategy: Local VPS storage proxy
   if (process.env.NEXT_PUBLIC_STORAGE_TYPE === 'local') {
     return `/api/assets/view/${cleanPath}`;
   }
 
-  // 4. Strategy: Cloudinary (client-safe)
+  // 6. Strategy: Cloudinary (client-safe)
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
-  const extension = cleanPath.split('.').pop()?.toLowerCase();
+  const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
   let resourceType = 'image';
   if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
     resourceType = 'video';

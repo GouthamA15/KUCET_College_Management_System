@@ -46,30 +46,50 @@ export async function POST(req) {
         return apiError('Image exceeds maximum size of 1MB.', 400);
       }
 
-      // 3. Upload to Cloudinary using Storage Provider
-      let pfpUrl;
+      // 3. Delete old photo first (prevent orphan files)
+      const existing = await db.query.studentImages.findFirst({
+        where: eq(studentImages.student_id, studentId)
+      });
+      if (existing?.pfp) {
+        await storage.delete(existing.pfp).catch(err => {
+          logger.warn('Old photo deletion warning (non-fatal):', err.message);
+        });
+      }
+
+      // 4. Upload using Storage Provider
+      let pfpStorageKey;
       try {
-        pfpUrl = await storage.upload(pfp, 'students/pfp', roll_no);
+        pfpStorageKey = await storage.upload(pfp, 'students/pfp', roll_no);
       } catch (uploadError) {
-        logger.error("Cloudinary upload failed:", uploadError);
-        return apiError(`Cloudinary upload failed: ${uploadError.message}`, 500);
+        logger.error("Storage upload failed:", uploadError);
+        return apiError(`Upload failed: ${uploadError.message}`, 500);
       }
 
-      if (!pfpUrl) {
-        return apiError('Cloudinary upload failed: Empty URL returned.', 500);
+      if (!pfpStorageKey || typeof pfpStorageKey !== 'string') {
+        return apiError('Upload failed: Invalid storage key returned.', 500);
       }
 
-      // 4. Update Database
+      // 5. Update Database with storage key (NOT a URL)
       try {
         await db.insert(studentImages)
           .values({
             student_id: studentId,
-            pfp: pfpUrl
+            pfp: pfpStorageKey
           })
-          .onDuplicateKeyUpdate({ set: { pfp: pfpUrl } });
+          .onDuplicateKeyUpdate({ set: { pfp: pfpStorageKey } });
       } catch (dbError) {
         logger.error("Database update failed for student pfp:", dbError);
+        // Rollback: delete the newly uploaded file
+        await storage.delete(pfpStorageKey).catch(() => {});
         return apiError('Database update failed.', 500);
+      }
+
+      // 6. Real-time broadcast for React refresh
+      try {
+        const { broadcastUpdate } = await import('@/lib/sse');
+        broadcastUpdate('PROFILE_PHOTO_UPDATED', { roll_no, student_id: studentId });
+      } catch (e) {
+        logger.warn('SSE broadcast failed (non-fatal):', e.message);
       }
 
     } else {
@@ -81,11 +101,19 @@ export async function POST(req) {
 
         if (existing?.pfp) {
           await storage.delete(existing.pfp).catch(err => {
-            logger.error("Cloudinary deletion warning:", err);
+            logger.error("Storage deletion warning:", err);
           });
         }
 
         await db.delete(studentImages).where(eq(studentImages.student_id, studentId));
+
+        // 6. Real-time broadcast for React refresh
+        try {
+          const { broadcastUpdate } = await import('@/lib/sse');
+          broadcastUpdate('PROFILE_PHOTO_REMOVED', { roll_no, student_id: studentId });
+        } catch (e) {
+          logger.warn('SSE broadcast failed (non-fatal):', e.message);
+        }
       } catch (dbError) {
         logger.error("Database deletion failed for student pfp:", dbError);
         return apiError('Database update failed.', 500);

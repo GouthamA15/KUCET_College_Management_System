@@ -792,3 +792,71 @@ src/services/
 - **Floating Action Button:** Fixed bottom-right widget (`Ctrl+Shift+A` shortcut) with slide-over drawer modal.
 - **Explainability Proof Toggle:** Allows users to inspect the rules applied, data analyzed, and suggested actions behind every assistant answer.
 - **Export & Storage Controls:** Copy to clipboard, download chat log as Markdown, and clear history options.
+
+## 9. Storage Provider Architecture Recovery (Session 190)
+
+**Added:** August 7, 2026 (Session 190)
+
+### Overview
+Critical production architecture repair that restored the original storage provider contract: **Database stores ONLY storage keys, never provider-specific URLs**. The system had regressed to storing full Cloudinary URLs, versioned paths (`v1234567/kucet/...`), S3 URLs, and `[object Object].webp` corruption across multiple tables.
+
+### Original Design (Restored)
+```
+Browser ? Upload API ? Storage Provider ? returns Storage Key ? DB stores key
+                                                     ?
+                              DB key ? StorageProvider.getUrl() ? Generated URL
+```
+
+### Root Causes Fixed
+
+| File | Problem | Fix |
+|------|---------|-----|
+| `src/lib/cloudinary.js` | `uploadToCloudinary()` returned `getOptimizedUrl(result.secure_url)` — full URL | Now returns `${result.public_id}.${result.format}` — canonical storage key |
+| `src/lib/providers/storage/FailoverStorageProvider.js` | Missing `getUrl()` — all `storage.getUrl()` calls threw "not a function" | Added `getUrl()` delegating to first provider with that method |
+| `src/lib/cloudinary.js` | `deleteFromCloudinary()` only handled full URLs, failed on keys/versioned paths | Now handles storage keys, full URLs, and `v\d+/` prefixed legacy paths |
+| `src/lib/providers/storage/CloudinaryStorageProvider.js` | `getUrl()` crashed on non-string values and versioned paths | Added type guard, strips `v\d+/` version prefix from legacy DB data |
+| `src/lib/assets.js` | `getAssetUrl()` returned `[object Object]` values unchanged | Returns `''` for corrupt values; strips `v\d+/` from legacy versioned paths |
+
+### `imageHelper` Pattern Fixed (All Routes)
+
+All `imageHelper` functions in API routes now correctly resolve storage keys via `storage.getUrl()` instead of returning raw strings:
+- `src/app/api/student/signature/route.js`
+- `src/app/api/student/[rollno]/route.js`
+- `src/app/api/clerk/me/route.js`
+- `src/app/api/clerk/admission/student-requests/route.js`
+- `src/app/api/student/requests/profile/route.js`
+- `src/app/api/student/upload-photo/route.js` — also: deletes old photo before upload, validates storage key type, rollback on DB failure
+
+### Upload-Photo Route Improvements
+- Deletes old photo from storage before uploading new one (prevents orphan accumulation)
+- Validates returned storage key is a proper string before writing to DB
+- Rolls back (deletes newly uploaded file) if DB write fails
+- Removed all "Cloudinary" references from error messages (provider-agnostic)
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `scripts/migrate-storage-keys.js` | Idempotent DB migration: converts Cloudinary URLs, S3 URLs, versioned paths ? storage keys. Nullifies unrecoverable `[object Object]` values |
+| `tests/unit/storage-architecture.test.js` | **49 passing regression tests** covering all providers, migration logic, URL generation, archive system, and database key contract |
+
+### OrphanMediaService Improvements
+- Added `scanDatabaseViolations()` — scans all image columns for URL violations and `[object Object]` corruption
+- Fixed referenced media path collection to use correct schema tables (`studentImages`, `studentSignatures` — not the old `students.pfp` column)
+- Added `URL_VIOLATION_PATTERNS` constant for consistent detection across services
+
+### Storage Key Format (Enforced)
+- **Valid keys:** `kucet/students/pfp/abc.jpg`, `kucet/admission_drafts/pfp/def.png`, `archive/students/2026/CSE/pfp/ghi.jpg`
+- **Violations (detected & rejected):** `https://res.cloudinary.com/...`, `https://bucket.s3.amazonaws.com/...`, `v1778497250/kucet/...`, `[object Object].webp`
+
+### Key Invariant (Permanent Rule)
+> **The database MUST NEVER contain provider-specific URLs.** All image/file columns store relative storage keys only. URL generation happens exclusively at read-time via `StorageProvider.getUrl()`.
+
+### Running the Migration
+```bash
+# Dry run (inspect what will change — safe):
+node scripts/migrate-storage-keys.js
+
+# Verify architecture regression tests pass:
+npx vitest run tests/unit/storage-architecture.test.js
+```
