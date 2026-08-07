@@ -16,6 +16,7 @@
     "db:archive": "tsx src/db/archive-verifications.js",
     "db:studio": "drizzle-kit studio",
     "test:unit": "vitest run",
+    "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') { try { require('child_process').execSync('husky', {stdio: 'inherit'}) } catch (e) {} }\""
   },

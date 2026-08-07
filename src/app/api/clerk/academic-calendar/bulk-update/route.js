@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { academicCalendar, semesters } from '@/db/schema';
 import { eq, and, between, sql, _notInArray, min, max } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
+import { safeJsonParse } from '@/lib/json-utils';
 
 export async function POST(request) {
   try {
@@ -64,7 +65,7 @@ export async function POST(request) {
         if (semData && semData.weekend_pattern) {
           const weekendPattern = Array.isArray(semData.weekend_pattern) 
             ? semData.weekend_pattern 
-            : JSON.parse(semData.weekend_pattern || '[]');
+            : safeJsonParse(semData.weekend_pattern, []);
 
           if (weekendPattern.length > 0) {
             const dayMap = { 'SUNDAY': 1, 'MONDAY': 2, 'TUESDAY': 3, 'WEDNESDAY': 4, 'THURSDAY': 5, 'FRIDAY': 6, 'SATURDAY': 7 };

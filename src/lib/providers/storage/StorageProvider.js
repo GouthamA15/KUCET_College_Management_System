@@ -30,4 +30,25 @@ export default class StorageProvider {
   async delete(_path) {
     throw new Error('Method not implemented');
   }
+
+  /**
+   * Copy an asset to a new destination folder.
+   * @param {string} sourcePath - Relative path of source asset
+   * @param {string} targetFolder - Destination folder path
+   * @returns {Promise<{ newPath: string, sizeBytes: number }>}
+   */
+  async copyFile(_sourcePath, _targetFolder) {
+    throw new Error('Method not implemented');
+  }
+
+  /**
+   * Move an asset to a new destination folder.
+   * @param {string} sourcePath - Relative path of source asset
+   * @param {string} targetFolder - Destination folder path
+   * @returns {Promise<{ newPath: string, sizeBytes: number }>}
+   */
+  async moveFile(_sourcePath, _targetFolder) {
+    throw new Error('Method not implemented');
+  }
 }
+

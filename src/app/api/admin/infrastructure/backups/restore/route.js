@@ -70,13 +70,32 @@ export async function POST(req) {
         env: mysqlEnv
       });
 
-      mysqlProcess.on('error', (err) => {
-        logger.error(`Failed to start mysql restore process: ${err.message}`);
-        // Clean up on error
-        if (fs.existsSync(tempFilePath)) {
-          try { fs.unlinkSync(tempFilePath); } catch (_e) { /* empty */ }
+      mysqlProcess.on('error', async (err) => {
+        logger.warn(`Failed to start mysql CLI (${err.message}). Falling back to direct Drizzle SQL execution...`);
+        try {
+          const fileContent = fs.readFileSync(tempFilePath, 'utf8');
+          const statements = fileContent
+            .split(/;\s*$/m)
+            .map(s => s.trim())
+            .filter(s => s.length > 0 && !s.startsWith('--') && !s.startsWith('/*'));
+
+          const { db } = await import('@/db');
+          const { sql } = await import('drizzle-orm');
+          for (const statement of statements) {
+            if (statement) {
+              await db.execute(sql.raw(statement));
+            }
+          }
+          logger.info(`[RESTORE_SUCCESS_FALLBACK] Database restored via fallback SQL execution from ${filename}`);
+          resolve(apiResponse({ success: true, message: 'Database restoration successful (via SQL engine).' }));
+        } catch (fallbackErr) {
+          logger.error(`[RESTORE_FALLBACK_FAILED] Direct SQL restoration error: ${fallbackErr.message}`);
+          resolve(apiError('Database restoration failed.', 500));
+        } finally {
+          if (fs.existsSync(tempFilePath)) {
+            try { fs.unlinkSync(tempFilePath); } catch (_e) { /* empty */ }
+          }
         }
-        resolve(apiError('Failed to initiate mysql restoration.', 500));
       });
 
       const fileStream = fs.createReadStream(tempFilePath);

@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { passwordResetTokens, students, clerks, principal } from '@/db/schema';
 import { eq, and, isNull, _sql } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
+import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
@@ -20,6 +21,12 @@ function validatePasswordStrength(password) {
 
 export async function GET(req, { params }) {
   try {
+    const key = getTieredKey(req, 'reset_password_get');
+    const rateCheck = await checkRateLimit(key, 5, 900);
+    if (!rateCheck.success) {
+      return apiError('Too many password reset validation requests. Please try again in 15 minutes.', 429);
+    }
+
     const resolved = params ? await params : { /* empty */ };
     const { token } = resolved || { /* empty */ };
     if (!token) return apiError('INVALID', 400);
@@ -43,6 +50,12 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   try {
+    const key = getTieredKey(req, 'reset_password_post');
+    const rateCheck = await checkRateLimit(key, 5, 900);
+    if (!rateCheck.success) {
+      return apiError('Too many password reset attempts. Please try again in 15 minutes.', 429);
+    }
+
     const resolved = params ? await params : { /* empty */ };
     const { token } = resolved || { /* empty */ };
     const { password } = await req.json();

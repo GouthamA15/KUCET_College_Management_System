@@ -15,6 +15,7 @@ export const studentAttendance = mysqlTable('student_attendance', {
   attendanceIdx: index('idx_attendance_lookup').on(table.assignment_id, table.date, table.session),
   historyIdx: index('idx_student_attendance_history').on(table.student_id, table.date),
   studentAssignmentIdx: index('idx_sa_student_assignment').on(table.student_id, table.assignment_id),
+  studentStatusDateIdx: index('idx_att_student_status_date').on(table.student_id, table.status, table.date),
   uqAttendance: uniqueIndex('uq_student_attendance').on(table.student_id, table.assignment_id, table.date, table.session),
 }));
 

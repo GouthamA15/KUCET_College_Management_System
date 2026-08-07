@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { safeJsonParse } from '@/lib/json-utils';
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
@@ -53,12 +54,8 @@ export default function AuditLogsPage() {
 
   const formatPayload = (payload) => {
     if (!payload) return 'N/A';
-    try {
-      const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
-      return JSON.stringify(parsed, null, 2);
-    } catch (_e) {
-      return String(payload);
-    }
+    const parsed = safeJsonParse(payload, payload);
+    return typeof parsed === 'object' && parsed !== null ? JSON.stringify(parsed, null, 2) : String(parsed);
   };
 
   return (

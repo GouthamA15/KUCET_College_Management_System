@@ -69,8 +69,11 @@ export class FinanceService {
   /**
    * Get unified transaction list
    */
-  static async getAllTransactions({ type, status, rollNo, startDate, endDate, limit = 50 }) {
+  static async getAllTransactions({ type, status, rollNo, startDate, endDate, limit = 50, page = 1 }) {
     try {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 50), 100);
+      const offset = (pageNum - 1) * limitNum;
       let transactions = [];
 
       // 1. Fee Payments
@@ -100,7 +103,11 @@ export class FinanceService {
         if (endDate) conditions.push(lte(sql`DATE(DATE_ADD(${studentFeePayments.transaction_date}, INTERVAL '5:30' HOUR_MINUTE))`, endDate));
         if (conditions.length > 0) feeQuery = feeQuery.where(and(...conditions));
 
-        const feeResults = await feeQuery.orderBy(desc(studentFeePayments.transaction_date)).limit(limit);
+        let feeExec = feeQuery.orderBy(desc(studentFeePayments.transaction_date)).limit(limitNum);
+        if (offset > 0 && typeof feeExec.offset === 'function') {
+          feeExec = feeExec.offset(offset);
+        }
+        const feeResults = await feeExec;
         transactions.push(...feeResults);
       }
 

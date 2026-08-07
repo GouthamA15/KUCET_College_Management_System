@@ -52,6 +52,8 @@ services:
     image: mysql:8.0
     container_name: kucet-cms-db
     restart: always
+    env_file:
+      - .env.production
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-kucet_cms}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}

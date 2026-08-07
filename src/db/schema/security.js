@@ -56,3 +56,25 @@ export const auditLogs = mysqlTable('audit_logs', {
   user_idx: index('idx_audit_user').on(table.user_id, table.user_type),
   targetIdx: index('idx_audit_target').on(table.target_id, table.target_type),
 }));
+
+export const pushSubscriptions = mysqlTable('push_subscriptions', {
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  user_id: varchar('user_id', { length: 255 }).notNull(),
+  user_type: mysqlEnum('user_type', ['student', 'clerk', 'faculty', 'hod', 'admin']).notNull(),
+  endpoint: text('endpoint').notNull(),
+  p256dh: text('p256dh').notNull(),
+  auth_secret: text('auth_secret').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('idx_push_sub_user').on(table.user_id, table.user_type),
+}));
+
+export const notificationPreferences = mysqlTable('notification_preferences', {
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
+  user_id: varchar('user_id', { length: 255 }).notNull(),
+  user_type: mysqlEnum('user_type', ['student', 'clerk', 'faculty', 'hod', 'admin']).notNull(),
+  categories: json('categories').notNull(), // JSON map of enabled categories e.g. { attendance: true, marks: true }
+  updated_at: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('idx_notif_pref_user').on(table.user_id, table.user_type),
+}));

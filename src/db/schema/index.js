@@ -5,3 +5,5 @@ export * from './attendance.js';
 export * from './finance.js';
 export * from './security.js';
 export * from './operations.js';
+export * from './archive.js';
+

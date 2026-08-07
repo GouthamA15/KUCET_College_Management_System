@@ -87,4 +87,45 @@ export default class LocalStorageProvider extends StorageProvider {
       }
     }
   }
+
+  async copyFile(sourcePath, targetFolder) {
+    if (!sourcePath || typeof sourcePath !== 'string' || sourcePath.startsWith('http') || sourcePath.startsWith('data:')) {
+      return { newPath: sourcePath, sizeBytes: 0 };
+    }
+
+    const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
+    const cleanSource = sourcePath.startsWith('/') ? sourcePath.substring(1) : sourcePath;
+    const absSource = path.join(STORAGE_PATH, cleanSource);
+
+    if (!absSource.startsWith(STORAGE_PATH)) {
+      return { newPath: sourcePath, sizeBytes: 0 };
+    }
+
+    try {
+      const stats = await fs.promises.stat(absSource);
+      const filename = path.basename(cleanSource);
+      const targetDir = path.join(STORAGE_PATH, targetFolder);
+      await fs.promises.mkdir(targetDir, { recursive: true });
+
+      const absTarget = path.join(targetDir, filename);
+      await fs.promises.copyFile(absSource, absTarget);
+
+      const relativeNewPath = `${targetFolder.replace(/^\/+|\/+$/g, '')}/${filename}`;
+      return { newPath: relativeNewPath, sizeBytes: stats.size || 1024 };
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error('LocalStorage Copy File Error:', error);
+      }
+      return { newPath: sourcePath, sizeBytes: 0 };
+    }
+  }
+
+  async moveFile(sourcePath, targetFolder) {
+    const copyResult = await this.copyFile(sourcePath, targetFolder);
+    if (copyResult.newPath !== sourcePath) {
+      await this.delete(sourcePath);
+    }
+    return copyResult;
+  }
 }
+

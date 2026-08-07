@@ -1,17 +1,15 @@
+import { safeJsonParse } from '@/lib/json-utils';
+
 export function parsePurpose(purposeStr) {
   if (!purposeStr) {
     return { purpose_type: null, purpose_custom: null };
   }
-  try {
-    const parsed = JSON.parse(purposeStr);
-    if (parsed && typeof parsed === 'object' && ('purpose_type' in parsed || 'purpose_custom' in parsed)) {
-      return {
-        purpose_type: parsed.purpose_type || null,
-        purpose_custom: parsed.purpose_custom || null
-      };
-    }
-  } catch (e) {
-    // Not a JSON string - handle as historical plain string
+  const parsed = safeJsonParse(purposeStr, null);
+  if (parsed && typeof parsed === 'object' && ('purpose_type' in parsed || 'purpose_custom' in parsed)) {
+    return {
+      purpose_type: parsed.purpose_type || null,
+      purpose_custom: parsed.purpose_custom || null
+    };
   }
   return { purpose_type: purposeStr, purpose_custom: null };
 }

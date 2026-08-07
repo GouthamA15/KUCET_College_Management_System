@@ -10,6 +10,7 @@ import {
 } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
+import { safeJsonParse } from '@/lib/json-utils';
 import { storage } from '@/lib/providers';
 import { encrypt, decrypt, _hashForIndex } from '@/lib/encryption';
 import { getPermanentAddressFromDetails, getContactAddressFromDetails } from '@/lib/address-utils';
@@ -46,11 +47,12 @@ export async function GET(_req) {
     const history = allRequestsRows.map(row => {
       let newData = row.new_data;
       if (newData) {
-          const data = typeof newData === 'string' ? JSON.parse(newData) : newData;
-          // Decrypt sensitive fields in the request data
-          if (data.mobile) data.mobile = decrypt(data.mobile);
-          if (data.guardian_mobile) data.guardian_mobile = decrypt(data.guardian_mobile);
-          if (data.aadhaar_no) data.aadhaar_no = decrypt(data.aadhaar_no);
+          const data = safeJsonParse(newData, newData);
+          if (data && typeof data === 'object') {
+            if (data.mobile) data.mobile = decrypt(data.mobile);
+            if (data.guardian_mobile) data.guardian_mobile = decrypt(data.guardian_mobile);
+            if (data.aadhaar_no) data.aadhaar_no = decrypt(data.aadhaar_no);
+          }
           newData = data;
       }
 
@@ -180,7 +182,7 @@ export async function POST(req) {
 
       if (pending) {
         // --- ACTIVE REQUEST GUARD ---
-        const existingData = pending.new_data ? (typeof pending.new_data === 'string' ? JSON.parse(pending.new_data) : pending.new_data) : { /* empty */ };
+        const existingData = pending.new_data ? safeJsonParse(pending.new_data, {}) : {};
         const newFields = data ? Object.keys(data) : [];
         const existingFields = Object.keys(existingData);
         

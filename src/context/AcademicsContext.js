@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { safeJsonParse } from '@/lib/json-utils';
 
 const AcademicsContext = createContext(null);
 
@@ -7,17 +8,12 @@ export function AcademicsProvider({ children, roll }) {
 
   useEffect(() => {
     if (!roll) return;
-    try {
-      const key = `academics_cache_${roll}`;
-      const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
-      if (raw) {
-        // Defer setState to avoid synchronous setState inside effect
-        const parsed = JSON.parse(raw);
-        setTimeout(() => setCache(parsed), 0);
-      }
-    } catch (_e) {
-      // ignore parse errors
-      setTimeout(() => setCache(null), 0);
+    const key = `academics_cache_${roll}`;
+    const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+    if (raw) {
+      // Defer setState to avoid synchronous setState inside effect
+      const parsed = safeJsonParse(raw, null);
+      setTimeout(() => setCache(parsed), 0);
     }
   }, [roll]);
 

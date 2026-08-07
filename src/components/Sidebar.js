@@ -98,6 +98,12 @@ const Icons = {
       <path d="M9 4v16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </SvgIcon>
   ),
+  assistant: (props) => (
+    <SvgIcon {...props}>
+      <path d="M12 2l2.4 5.6L20 10l-5.6 2.4L12 18l-2.4-5.6L4 10l5.6-2.4Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M19 17l1 2.2L22 20l-2.2 1L19 23l-1-2.2L16 20l2.2-1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </SvgIcon>
+  ),
   chevron: ({ direction = 'right', ...props }) => {
     const rotation = direction === 'down' ? 90 : direction === 'up' ? -90 : direction === 'left' ? 180 : 0;
     return (
@@ -154,7 +160,7 @@ function buildMenuItems({ effectiveRole, studentData, clerkData }) {
     }
   }
 
-  // Add HOD Dashboard dynamically
+  // Add HOD Dashboard & HOD Assistant dynamically
   if (effectiveRole === 'faculty' && clerkData?.is_hod) {
     // Clone array to avoid mutating the constant menu config
     const enhancedMenu = [...menuItemsRaw];
@@ -168,7 +174,8 @@ function buildMenuItems({ effectiveRole, studentData, clerkData }) {
         { label: 'Branch Syllabus', route: '/clerk/hod/dashboard?tab=syllabus' },
         { label: 'Data Analytics', route: '/clerk/hod/dashboard?tab=analytics' },
         { label: 'Department Config', route: '/clerk/hod/dashboard?tab=config' },
-        { label: 'Faculty Interests', route: '/clerk/hod/dashboard?tab=interests' }
+        { label: 'Faculty Interests', route: '/clerk/hod/dashboard?tab=interests' },
+        { label: 'AI Assistant', route: '/clerk/hod/assistant' }
       ]
     });
     return enhancedMenu;
@@ -215,6 +222,7 @@ function isActiveRoute({ pathname, searchParams, route, exact }) {
 
 function pickIconKey(label) {
   const upper = String(label || '').toUpperCase();
+  if (upper.includes('ASSISTANT') || upper.includes('AI')) return 'assistant';
   if (upper === 'DASHBOARD' || upper === 'HOME' || upper.includes('DASHBOARD')) return 'dashboard';
   if (upper === 'PROFILE') return 'profile';
   if (upper.includes('ACADEMIC') || upper === 'ACADEMICS' || upper === 'ATTENDANCE' || upper === 'MATERIALS') return 'academics';

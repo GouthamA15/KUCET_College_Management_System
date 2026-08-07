@@ -2,7 +2,7 @@
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
-RUN apk add --no-linux-headers libc6-compat
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -33,7 +33,7 @@ ENV HOSTNAME "0.0.0.0"
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs && \
-    apk add --no-cache curl
+    apk add --no-cache curl mysql-client mariadb-client
 
 # Copy public directory and standalone build assets
 COPY --from=builder /app/public ./public

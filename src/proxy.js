@@ -90,7 +90,7 @@ export default async function proxy(request) {
   const adminAuth = cookies.get('admin_auth');
   const clerkAuth = cookies.get('clerk_auth');
   const studentAuth = cookies.get('student_auth');
-  const jwtSecret = process.env.JWT_SECRET;
+  const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
 
   // Reduce 401 noise: Only attempt refresh if companion cookies suggest a session exists
   const hasAdminSession = cookies.get('admin_logged_in');
@@ -99,6 +99,9 @@ export default async function proxy(request) {
 
   // We need to keep track of request headers to pass them to NextResponse.next()
   const requestHeaders = new Headers(request.headers);
+  const requestId = request.headers.get('x-request-id') || `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
+  requestHeaders.set('x-request-id', requestId);
+
   let refreshTriggered = false;
 
   // 1. Verify Tokens
@@ -112,6 +115,7 @@ export default async function proxy(request) {
       headers: requestHeaders,
     },
   });
+  response.headers.set('x-request-id', requestId);
 
   // 2. Handle Silent Refresh if expired (Only if session likely exists)
   if (!adminRes.payload && adminRes.expired && hasAdminSession) {
@@ -209,7 +213,15 @@ export default async function proxy(request) {
     return response;
   }
 
-  // Protect Routes
+  // Protect API Routes (Baseline Defense-in-Depth)
+  if (pathname.startsWith('/api/admin')) {
+    if (!adminPayload) return handleUnauthorized(request);
+  }
+  else if (pathname.startsWith('/api/clerk')) {
+    if (!clerkPayload) return handleUnauthorized(request);
+  }
+
+  // Protect UI Routes
   if (pathname.startsWith('/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
     if (pathname === '/admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);

@@ -10,6 +10,7 @@ import MobileTopbar from '@/components/MobileTopbar';
 import { usePathname } from 'next/navigation';
 import { getPortalTitle } from '@/lib/path-utils';
 import { MOBILE_NAV_MODE } from '@/lib/college-config';
+import FloatingAssistant from '@/components/assistant/FloatingAssistant';
 
 export default function ClerkLayout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -76,6 +77,7 @@ export default function ClerkLayout({ children }) {
         </div>
 
         <Footer />
+        <FloatingAssistant />
       </div>
     </ClerkProvider>
   );

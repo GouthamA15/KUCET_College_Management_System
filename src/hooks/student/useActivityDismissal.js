@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { safeJsonParse } from '@/lib/json-utils';
 
 const STORAGE_KEY = 'kucet_dismissed_activities';
 const EVENT_DISMISS_START = 'kucet:activity-dismiss-start';
@@ -11,11 +12,7 @@ function isBrowser() {
 }
 
 function safeParseJson(value, fallback) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
+  return safeJsonParse(value, fallback);
 }
 
 function readDismissedMap() {
