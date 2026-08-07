@@ -63,3 +63,4 @@ node_modules/
 .cursorrules
 .env.test.render
 thingstodoafterdeployment.txt
+.env.production
