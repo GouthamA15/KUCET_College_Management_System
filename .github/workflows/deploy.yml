@@ -23,13 +23,14 @@ jobs:
             cp /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production .env.production
           fi
 
-      - name: Deploy Production Application
+      - name: Install Dependencies
+        run: npm ci --only=production || npm install
+
+      - name: Run Database Migrations
+        run: DB_HOST=127.0.0.1 npm run db:migrate
+
+      - name: Update Production Server & Restart Docker Stack
         run: |
-          npm ci --only=production || npm install
-          npm run db:migrate
-          npm run build
-          if command -v pm2 &> /dev/null; then
-            pm2 reload kucet-cms || pm2 start npm --name "kucet-cms" -- start
-          else
-            npm run start &
-          fi
+          rsync -av --exclude='.git' --exclude='node_modules' ./ /var/www/kucet-cms/
+          cd /var/www/kucet-cms
+          docker compose up -d --build
