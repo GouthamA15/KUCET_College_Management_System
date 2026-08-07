@@ -213,4 +213,22 @@ export class OrphanMediaService {
       throw new Error(`Orphan media scan failed: ${error.message}`);
     }
   }
+
+  /**
+   * Specifically scan temporary staging directories (requests/, admission_drafts/)
+   * to detect files remaining after approval or finalization.
+   * @returns {Promise<{ stagingOrphans: string[], count: number }>}
+   */
+  static async scanStagingOrphans() {
+    const { orphanPaths } = await this.scanOrphanMedia({ dryRun: true });
+    const stagingOrphans = orphanPaths.filter(p => 
+      p.includes('requests/pfp/') ||
+      p.includes('requests/signatures/') ||
+      p.includes('admission_drafts/pfp/') ||
+      p.includes('admission_drafts/signatures/')
+    );
+
+    logger.info({ count: stagingOrphans.length, stagingOrphans }, '[STAGING_ORPHANS_SCAN_COMPLETE]');
+    return { stagingOrphans, count: stagingOrphans.length };
+  }
 }

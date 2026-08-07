@@ -860,3 +860,62 @@ node scripts/migrate-storage-keys.js
 # Verify architecture regression tests pass:
 npx vitest run tests/unit/storage-architecture.test.js
 ```
+
+## 10. Media Promotion Lifecycle Repair (Session 191)
+
+**Added:** August 7, 2026 (Session 191)
+
+### Overview
+Repaired the institutional media storage lifecycle. Previously, temporary staging assets (`requests/pfp/`, `requests/signatures/`, `admission_drafts/pfp/`, `admission_drafts/signatures/`) remained in temporary folders even after approval or finalization. The system now guarantees that **upon approval or finalization, assets are physically moved into permanent student folders (`students/pfp/`, `students/signatures/`) using `StorageProvider.moveFile()` and database keys are updated atomically**.
+
+### Staging vs Permanent Storage Hierarchy
+```
+STAGING / TEMPORARY (Stays here ONLY while pending)
+  +-- kucet/requests/pfp/
+  +-- kucet/requests/signatures/
+  +-- kucet/admission_drafts/pfp/
+  +-- kucet/admission_drafts/signatures/
+                      ?
+       Approval / Finalization (MediaPromotionService)
+                      ?
+PERMANENT STUDENT ASSETS (Physical move + DB sync)
+  +-- kucet/students/pfp/
+  +-- kucet/students/signatures/
+
+PERMANENT FINANCIAL EVIDENCE (Intact — NEVER moved)
+  +-- kucet/certificates/payments/ (or kucet/requests/payments/)
+```
+
+### MediaPromotionService (`src/services/storage/MediaPromotionService.js`)
+Dedicated service enforcing the storage promotion lifecycle:
+- `promoteStudentProfile(storageKey)`: Moves temporary profile photo to `students/pfp/` using `StorageProvider.moveFile()`.
+- `promoteStudentSignature(storageKey)`: Moves temporary signature to `students/signatures/` using `StorageProvider.moveFile()`.
+- `promoteRequestMedia({ studentId, newPfp, newSignature }, tx)`: Atomically promotes request media during profile update approval inside a DB transaction.
+- `promoteAdmissionMedia({ studentId, pfp, signature }, tx)`: Atomically promotes draft media during admission finalization inside a DB transaction.
+- **Transactional Rollback Safety:** If DB update fails after physical file move, files are restored to their original temporary staging location.
+- **Idempotency:** Permanent keys (`students/pfp/...`) are ignored (no-op).
+
+### Modified API Routes & Services
+
+| File | Change |
+|------|--------|
+| `src/services/identity/StudentProfileService.js` | `upsertStudent` calls `MediaPromotionService.promoteAdmissionMedia` when creating/upserting student records from drafts |
+| `src/app/api/clerk/admission/student-requests/route.js` | Approval handler calls `MediaPromotionService.promoteRequestMedia` inside transaction and emits `REQUEST_UPDATED` SSE event |
+| `src/app/api/clerk/admission/drafts/[id]/finalize/route.js` | Finalize handler invokes `StudentService.upsertStudent` which triggers media promotion and sets draft `pfp`/`signature` to null |
+| `src/services/archive/OrphanMediaService.js` | Added `scanStagingOrphans()` method to detect leftover files in `requests/` or `admission_drafts/` after approval |
+
+### Migration & Test Suite
+
+| File | Description |
+|------|-------------|
+| `scripts/promote-legacy-media.js` | Resumable, idempotent migration script that scans `student_images`, `student_signatures`, and `student_admission_drafts` to physically move legacy temporary keys to `students/pfp/` and `students/signatures/`. |
+| `tests/unit/media-promotion-lifecycle.test.js` | **12 unit tests** covering identification, promotion, transactional rollback, provider contracts, and orphan detection. |
+
+### Running the Media Promotion Suite
+```bash
+# Run migration script (safe & idempotent):
+node scripts/promote-legacy-media.js
+
+# Run full storage & media promotion tests (61 tests total):
+npx vitest run tests/unit/storage-architecture.test.js tests/unit/media-promotion-lifecycle.test.js
+```

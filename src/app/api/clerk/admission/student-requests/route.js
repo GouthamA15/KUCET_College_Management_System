@@ -176,23 +176,13 @@ export async function PUT(req) {
 
     if (action === 'approve') {
       await db.transaction(async (tx) => {
-        // 1. Update Signature
-        if (new_signature) {
-          const oldSig = await tx.query.studentSignatures.findFirst({ where: eq(studentSignatures.student_id, student_id) });
-          if (oldSig?.signature) await storage.delete(oldSig.signature);
-          await tx.insert(studentSignatures)
-            .values({ student_id, signature: new_signature })
-            .onDuplicateKeyUpdate({ set: { signature: new_signature } });
-        }
-        
-        // 2. Update PFP
-        if (new_pfp) {
-          const oldPfp = await tx.query.studentImages.findFirst({ where: eq(studentImages.student_id, student_id) });
-          if (oldPfp?.pfp) await storage.delete(oldPfp.pfp);
-          await tx.insert(studentImages)
-            .values({ student_id, pfp: new_pfp })
-            .onDuplicateKeyUpdate({ set: { pfp: new_pfp } });
-        }
+        // 1 & 2. Promote PFP & Signature via MediaPromotionService
+        const { MediaPromotionService } = await import('@/services/storage/MediaPromotionService');
+        const { promotedPfp, promotedSig } = await MediaPromotionService.promoteRequestMedia({
+          studentId: student_id,
+          newPfp: new_pfp || null,
+          newSignature: new_signature || null
+        }, tx);
 
         // 3. Update Text Data
         if (new_data) {
