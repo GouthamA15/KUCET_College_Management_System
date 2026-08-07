@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useTransition } from 'react';
+import React, { useState, useEffect, useRef, useTransition, useCallback } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
 import { toast } from 'react-hot-toast';
 
@@ -58,31 +58,7 @@ export default function AssistantContainer({ role = 'student', isDrawerMode = fa
   const roleMeta = ROLE_TITLES[role] || ROLE_TITLES.student;
   const promptList = SUGGESTED_PROMPTS[role] || SUGGESTED_PROMPTS.student;
 
-  // Auto-scroll to bottom of message list
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, loading]);
-
-  // Load conversation list on mount
-  useEffect(() => {
-    loadConversations();
-  }, [role]);
-
-  // Load messages when active conversation changes
-  useEffect(() => {
-    if (activeConvId) {
-      loadMessages(activeConvId);
-    } else {
-      setMessages([]);
-    }
-  }, [activeConvId]);
-
-  const loadConversations = async () => {
-    setLoadingHistory(true);
+  const loadConversations = useCallback(async () => {
     try {
       const res = await fetch('/api/assistant/conversations');
       if (res.ok) {
@@ -97,19 +73,56 @@ export default function AssistantContainer({ role = 'student', isDrawerMode = fa
     } finally {
       setLoadingHistory(false);
     }
+  }, [activeConvId]);
+
+  // Auto-scroll to bottom of message list
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const loadMessages = async (convId) => {
-    try {
-      const res = await fetch(`/api/assistant/conversations/${convId}/messages`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages || []);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
+
+  // Load conversation list on mount
+  useEffect(() => {
+    let isSubscribed = true;
+    async function fetchConvs() {
+      try {
+        const res = await fetch('/api/assistant/conversations');
+        if (res.ok && isSubscribed) {
+          const data = await res.json();
+          setConversations(data.conversations || []);
+          if (data.conversations && data.conversations.length > 0) {
+            setActiveConvId(data.conversations[0].id);
+          }
+        }
+      } catch (_err) {
+        if (isSubscribed) toast.error('Failed to load chat history');
       }
-    } catch (_err) {
-      // ignore
     }
-  };
+    fetchConvs();
+    return () => { isSubscribed = false; };
+  }, [role]);
+
+  // Load messages when active conversation changes
+  useEffect(() => {
+    if (!activeConvId) return;
+    let isSubscribed = true;
+    async function fetchMsgs() {
+      try {
+        const res = await fetch(`/api/assistant/conversations/${activeConvId}/messages`);
+        if (res.ok && isSubscribed) {
+          const data = await res.json();
+          setMessages(data.messages || []);
+        }
+      } catch (_err) {
+        // ignore
+      }
+    }
+    fetchMsgs();
+    return () => { isSubscribed = false; };
+  }, [activeConvId]);
 
   const handleNewChat = async () => {
     try {
@@ -138,9 +151,11 @@ export default function AssistantContainer({ role = 'student', isDrawerMode = fa
     setInputMessage('');
     setLoading(true);
 
+    const timeStamp = String(new Date().getTime());
+
     // Optimistic user message
     const tempUserMsg = {
-      id: `temp_${Date.now()}`,
+      id: `temp_${timeStamp}`,
       sender: 'user',
       message: query,
       created_at: new Date().toISOString()
@@ -185,7 +200,7 @@ export default function AssistantContainer({ role = 'student', isDrawerMode = fa
       setMessages(prev => [
         ...prev,
         {
-          id: `err_${Date.now()}`,
+          id: `err_${timeStamp}`,
           sender: 'assistant',
           message: '⚠️ Sorry, I encountered an error connecting to the Intelligence Engine. Please try again.',
           created_at: new Date().toISOString()
@@ -488,7 +503,7 @@ export default function AssistantContainer({ role = 'student', isDrawerMode = fa
 
                     {/* Metadata / Actions Bar */}
                     <div className={`flex items-center gap-3 text-[11px] text-slate-600 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                      <span>{new Date(msg.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                       
                       {!isUser && (
                         <>
