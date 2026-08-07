@@ -105,7 +105,7 @@ log "Code updated: $PREV_COMMIT → $NEW_COMMIT"
 # Run database migrations
 # ---------------------------------------------------------------------------
 log "Running database migrations ..."
-DB_HOST=127.0.0.1 npm run db:migrate 2>&1 && \
+  MIGRATE_HOST=127.0.0.1 npm run db:migrate 2>&1 && \
   log "Database migrations completed successfully." || {
   log "ERROR: Database migrations failed! Aborting deployment."
   DEPLOY_STATUS="failed:migrations"
