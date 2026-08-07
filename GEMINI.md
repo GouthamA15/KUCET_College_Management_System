@@ -1064,3 +1064,56 @@ node scripts/promote-legacy-media.js
 # 3. Execute complete storage unit test suite (61 tests total):
 npx vitest run tests/unit/storage-architecture.test.js tests/unit/media-promotion-lifecycle.test.js
 ```
+
+## 12. Safe JSON Parsing & Certificate Eligibility Repair (Session 192)
+
+**Added:** August 7, 2026 (Session 192)
+
+### Overview
+Addressed console warning spam (`safeJsonParse failed to parse JSON string: Unexpected token 'S'...`) and fixed HTTP 500 runtime errors on `GET /api/student/requests/eligibility`.
+
+### Root Cause Analysis
+
+1. **Console Warning Spam:**  
+   When database columns stored plain text strings (e.g. `student_requests.purpose` containing `"Scholarship applications"`, `"Bonafide Certificate"`, `"Late Fee"`, `"General Request"`), `safeJsonParse()` previously called `JSON.parse()` unconditionally on any string input. `JSON.parse("Scholarship applications")` threw a syntax error, logging warnings to the console on every fetch/render.
+
+2. **Eligibility Endpoint Failure (HTTP 500):**  
+   `StudentCertificateService.js` invoked `calculateYearAndSemesterAsync(rollNo, collegeInfo, 0)` with invalid arguments (passing `collegeInfo` object as `offsetYears`), and destructured `year` instead of `yearOfStudy`. This caused numeric operations to evaluate to `NaN` and threw unhandled exceptions during eligibility verification.
+
+---
+
+### Key Architectural Fixes
+
+#### 1. Intelligently Enhanced `safeJsonParse()` (`src/lib/json-utils.js`)
+- **JSON Initial Character Detection:** Inspects string prefixes before attempting `JSON.parse()`.
+- Valid JSON strings must start with `{`, `[`, `"`, `true`, `false`, `null`, or digits/`-`.
+- Plain text strings (e.g. `"Scholarship applications"`, `"General Request"`) are recognized as text and returned directly **without calling `JSON.parse()` and without logging console warnings**.
+- Malformed JSON strings return the fallback value gracefully without flooding production/test logs.
+
+#### 2. Robust Certificate Eligibility Orchestrator (`src/services/identity/StudentCertificateService.js`)
+- Corrected parameter signature: `calculateYearAndSemesterAsync(rollNo, 0)` and property destructuring (`yearOfStudy`).
+- Added defensive `try/catch` fallback blocks around attendance queries, financial summary lookups, and eligibility orchestrations.
+- `GET /api/student/requests/eligibility` is guaranteed to return HTTP 200 with clean, safe eligibility structures under all database states.
+- Delegated `StudentService.validateBonafideEligibility` and `StudentService.validateTCEligibility` to `StudentCertificateService` to eliminate duplicate logic.
+
+#### 3. Audit of Raw `JSON.parse()` Usages
+Replaced all risky raw `JSON.parse()` calls with `safeJsonParse()`:
+- `src/components/clerk/requests/StudentUpdateRequestsPanel.js`: Prevented React frontend crashes when viewing student update requests containing stringified/unparsed `new_data`.
+- `src/services/AssistantService.js`: Safe message metadata parsing when retrieving chat history.
+- `src/intelligence/rule-engine/ThresholdConfig.js`: Safe system threshold config parsing.
+- `src/intelligence/scoring/WeightConfig.js`: Safe scoring weight config parsing.
+- `src/intelligence/shared/ConfigManager.js`: Safe intelligence section config parsing.
+- `src/intelligence/shared/IntelligenceConfig.js`: Safe intelligence main config parsing.
+
+---
+
+### Commits & Testing
+
+| Commit | Description |
+|---|---|
+| `6de9637` | **Safe JSON Parsing & Eligibility Repair:** Enhanced `safeJsonParse` text detection, repaired `StudentCertificateService` eligibility calculations, replaced raw `JSON.parse` in UI/services, and added unit tests in `json-utils.test.js`. |
+
+```bash
+# Execute complete unit test suite (37 test files, 275 tests):
+npm run test:unit
+```

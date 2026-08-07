@@ -2,6 +2,7 @@ import { db } from '@/db';
 import { systemConfigs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { cacheAside, invalidateTag } from '@/lib/cache';
+import { safeJsonParse } from '@/lib/json-utils';
 
 const DEFAULT_THRESHOLDS = {
   attendance: { warning: 75, critical: 65, condonation_min: 65 },
@@ -84,12 +85,8 @@ class ConfigManager {
       const defaults = DEFAULTS[section];
       
       if (result.length > 0 && result[0].config_value) {
-        try {
-          const parsed = JSON.parse(result[0].config_value);
-          return deepMerge(defaults, parsed);
-        } catch (e) {
-          return defaults;
-        }
+        const parsed = safeJsonParse(result[0].config_value, {});
+        return deepMerge(defaults, parsed);
       }
       return defaults;
     }, { ttl: 3600, tags: ['intelligence'] });

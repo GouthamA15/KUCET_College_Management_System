@@ -28,87 +28,14 @@ export class StudentService {
    * Specialized validator for Bonafide Certificate eligibility
    */
   static async validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
-    const { getBranchFromRoll } = await import('@/lib/rollNumber');
-    const { calculateYearAndSemesterAsync, getCollegeAcademicYear } = await import('@/lib/academic-utils');
-    const { parsePurpose } = await import('@/lib/certificate-utils');
-
-    const academicYear = await getCollegeAcademicYear();
-    const branch = getBranchFromRoll(rollNo);
-    const { semester } = await calculateYearAndSemesterAsync(rollNo, 0, now);
-
-    const attendanceStats = await db.select({
-      total_classes: sql`COUNT(DISTINCT ${studentAttendance.id})`,
-      attended_classes: sql`COUNT(DISTINCT CASE WHEN ${studentAttendance.status} IN ('PRESENT', 'NCC', 'MEDICAL') THEN ${studentAttendance.id} END)`
-    })
-    .from(studentAttendance)
-    .innerJoin(facultySubjectAssignments, eq(studentAttendance.assignment_id, facultySubjectAssignments.id))
-    .where(and(
-      eq(studentAttendance.student_id, studentId),
-      eq(facultySubjectAssignments.branch, branch),
-      eq(facultySubjectAssignments.course_semester, semester),
-      eq(facultySubjectAssignments.academic_year, academicYear)
-    ));
-
-    const total = Number(attendanceStats[0]?.total_classes || 0);
-    const attended = Number(attendanceStats[0]?.attended_classes || 0);
-    const attendancePercent = total > 0 ? (attended / total) * 100 : null;
-
-    const approvedBonafides = approvedRequests.filter(r => 
-      r.certificate_type === 'Bonafide Certificate' && r.academic_year === academicYear
-    );
-
-    const approvedPurposes = approvedBonafides.map(r => {
-      const parsed = parsePurpose(r.purpose);
-      if (parsed.purpose_type === 'Other' && parsed.purpose_custom) {
-        return parsed.purpose_custom;
-      }
-      return parsed.purpose_type || 'General';
-    });
-
-    const isAttendanceEligible = true; // Institutional Waiver currently active
-
-    return {
-      attendance: {
-        total,
-        attended,
-        percentage: attendancePercent,
-        isEligible: true,
-        thresholdReached: attendancePercent === null || attendancePercent >= 50
-      },
-      feeReimbursement: studentData?.fee_reimbursement || 'NO',
-      academicYear,
-      approvedPurposes,
-      alreadyHasApproved: approvedPurposes.length > 0,
-      isEligible: isAttendanceEligible,
-      reason: null
-    };
+    return StudentCertificateService.validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now);
   }
 
   /**
    * Specialized validator for Transfer Certificate (TC) eligibility
    */
   static async validateTCEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
-    const { calculateYearAndSemesterAsync, getCollegeAcademicYear } = await import('@/lib/academic-utils');
-    const { ScholarshipService } = await import('../finance/ScholarshipService');
-
-    const academicYear = await getCollegeAcademicYear();
-    const { year, semester } = await calculateYearAndSemesterAsync(rollNo, 0, now);
-
-    const financialSummary = await ScholarshipService.getScholarshipFinancialSummary(studentId, academicYear, rollNo);
-    const pendingDues = financialSummary?.feeSummary?.pendingFee || 0;
-
-    const isFinalYearCompleted = year > 4 || (year === 4 && semester >= 8);
-    const hasNoDues = pendingDues <= 0;
-
-    return {
-      isFinalYearCompleted,
-      hasNoDues,
-      pendingDues,
-      isEligible: isFinalYearCompleted && hasNoDues,
-      reason: !isFinalYearCompleted 
-        ? "Final academic year not completed." 
-        : (!hasNoDues ? "Outstanding fee dues detected." : null)
-    };
+    return StudentCertificateService.validateTCEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now);
   }
 
   /**

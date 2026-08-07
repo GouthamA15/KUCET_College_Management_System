@@ -10,6 +10,7 @@ import { PolicyEngine } from '@/intelligence/business-rules/PolicyEngine';
 import { ScoringEngine } from '@/intelligence/scoring/ScoringEngine';
 import { RecommendationEngine } from '@/intelligence/recommendation/RecommendationEngine';
 import { ExplainableDecision } from '@/intelligence/reports/ExplainableDecision';
+import { safeJsonParse } from '@/lib/json-utils';
 import logger from '@/lib/logger';
 
 // In-memory fallback store if DB table doesn't exist yet
@@ -113,7 +114,7 @@ export class AssistantService {
   /**
    * Get messages for a conversation
    */
-  static async getMessages(conversationId, userId) {
+  static async getMessages(conversationId, _userId) {
     try {
       const msgs = await db.select()
         .from(assistantMessages)
@@ -125,7 +126,7 @@ export class AssistantService {
         conversation_id: m.conversation_id,
         sender: m.sender,
         message: m.message,
-        metadata: typeof m.metadata === 'string' ? JSON.parse(m.metadata) : m.metadata,
+        metadata: safeJsonParse(m.metadata, {}),
         created_at: m.created_at
       }));
     } catch (_err) {

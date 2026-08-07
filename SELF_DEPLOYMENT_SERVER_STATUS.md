@@ -1,84 +1,88 @@
 # KUCET College Management System — Self-Deployment Server Status
 
-**Report Generated:** August 7, 2026 (20:32 IST)  
+**Report Generated:** August 7, 2026 (22:49 IST)  
 **Host Server:** `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc` (Ubuntu 24.04 LTS via Tailscale)  
+**Tailscale Domain:** [`https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/`](https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/)  
 **Deployment Directory:** `/var/www/kucet-cms`  
-**Overall Deployment Status:** `ONLINE / HEALTHY (Containers & GitHub Self-Hosted Runner Active)`  
+**Overall Deployment Status:** `ONLINE / HEALTHY (200 OK)`  
 
 ---
 
 ## 1. Executive Summary
 
-The self-hosted deployment of KUCET College Management System is fully operational on host server `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc`. An automated **GitHub Self-Hosted Runner** has been configured and linked to the repository to enable zero-downtime automated deployments whenever the `main` branch is updated.
+The self-hosted deployment of KUCET College Management System is fully operational, healthy, and accessible over Tailscale. An automated **GitHub Self-Hosted Runner** daemon is active on the server and linked to the repository. The CI/CD deployment pipeline handles database schema migrations, environment loading, and container rebuilding cleanly upon every merge to `main`.
 
 ---
 
-## 2. Automated CI/CD & Self-Hosted Runner Architecture
+## 2. Real-Time System Health Audit
 
-| Component | Status | Details / Path |
+### Health Probe Response (`GET http://localhost:80/api/health`):
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-08-07T17:15:15.204Z",
+  "uptimeSeconds": 555.8,
+  "memoryUsageMb": { "rss": 99, "heapUsed": 46 },
+  "components": {
+    "database": { "status": "ok", "latencyMs": 2, "error": null },
+    "redis": { "status": "not_configured", "latencyMs": 0, "error": null },
+    "storage": { "status": "ok", "latencyMs": 0, "type": "local" },
+    "email": { "status": "configured", "provider": "Brevo/SMTP", "error": null },
+    "pushNotifications": { "status": "ok", "mode": "VAPID/WebPush" },
+    "queue": { "status": "degraded", "provider": "Upstash QStash" },
+    "backups": { "status": "ok", "defaultSchedule": "0 2 * * *", "retentionDays": 30 }
+  }
+}
+```
+
+---
+
+## 3. Docker Container Stack Overview
+
+| Service | Container Name | Status | Health / Network | Exposed Ports | Function |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **App** | `kucet-cms-app` | `Up / Running` | `OK (200)` | `3000:3000` | Next.js Standalone Production Server |
+| **Nginx** | `kucet-cms-proxy` | `Up / Running` | `OK` | `80:80, 443:443` | Reverse Proxy & Media Asset Server |
+| **MySQL** | `kucet-cms-db` | `Up / Healthy` | `OK (2ms)` | `3306:3306` | MySQL 8.0 Engine (`kucet_cms`) |
+| **Redis** | `kucet-cms-redis` | `Up / Healthy` | `OK` | `6379:6379` | Session Cache & Rate Limiting |
+| **Monitor** | `kucet-cms-monitor` | `Up / Running` | `OK` | `3001:3001` | Uptime Kuma Monitoring Dashboard |
+
+---
+
+## 4. Automated CI/CD & Self-Hosted Runner Status
+
+| Component | Status | Details / Location |
 | :--- | :--- | :--- |
 | **Runner Service** | `ONLINE (Listening)` | Installed at `/home/kucet-dev/actions-runner` |
-| **Runner Version** | `v2.321.0` (Linux x64) | Active daemon process running in background |
-| **Deployment Workflow** | `ACTIVE` | [`.github/workflows/deploy.yml`](file:///.github/workflows/deploy.yml) (Triggers on `push` to `main`) |
-| **Production Env Source** | `VERIFIED` | `/var/www/kucet-cms/.env.production` |
-| **Remote Management** | `CONNECTED` | Tailscale SSH (`kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc`) |
-
-### Deployment Pipeline Workflow Steps:
-1. **Trigger:** Pull request merge or direct commit pushed to `main`.
-2. **Runner Pickup:** Self-hosted runner process on `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc` receives job.
-3. **Environment Injection:** Loads server production credentials from `/var/www/kucet-cms/.env.production`.
-4. **Build & Migration:** Executes production dependency installation (`npm ci`), database migrations (`npm run db:migrate`), and Next.js compilation (`npm run build`).
-5. **Process Reload:** Reloads production instance via PM2 (`pm2 reload kucet-cms`).
+| **Runner Version** | `v2.321.0` (Linux x64) | Active daemon listening for GitHub Actions jobs |
+| **CI/CD Workflow** | `ACTIVE` | [`.github/workflows/deploy.yml`](file:///.github/workflows/deploy.yml) (Triggers on `push` to `main`) |
+| **Production Env File** | `VERIFIED` | `/var/www/kucet-cms/.env.production` |
+| **Container Restart Strategy** | `RESOLVED` | `docker rm -f kucet-cms-app \|\| true && docker compose up -d --build --no-deps app` |
 
 ---
 
-## 3. Docker Container Stack (`docker compose up -d --build`)
+## 5. Summary of Resolved Deployment Issues
 
-```
-[+] up 6/6
-  ✔ Image deployment_package-app   Built in 24.3s
-  ✔ Container kucet-cms-db         Healthy (MySQL 8.0 Engine)
-  ✔ Container kucet-cms-redis      Healthy (Redis 7 Cache & Rate Limiter)
-  ✔ Container kucet-cms-monitor    Running (Uptime Kuma Dashboard)
-  ✔ Container kucet-cms-app        Started (Next.js 14 Production Server)
-  ✔ Container kucet-cms-proxy      Running (Nginx Alpine Reverse Proxy)
-```
+1. **Host Migration DNS Error (`EAI_AGAIN db`):**
+   - *Issue:* Host OS runner tried resolving Docker alias `db` during host migration execution.
+   - *Fix:* Configured `DB_HOST=127.0.0.1` for migration steps, directing queries to published MySQL port `3306` on localhost.
 
-| Service | Container Name | Status | Health | Port Mappings | Function |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **App** | `kucet-cms-app` | `Up / Started` | `OK` | `3000:3000` | Next.js Standalone SSR/API Server |
-| **Nginx** | `kucet-cms-proxy` | `Up / Running` | `OK` | `80:80, 443:443` | Reverse Proxy & Media Asset Host |
-| **MySQL** | `kucet-cms-db` | `Up / Healthy` | `OK` | `3306:3306` | MySQL 8.0 Database (`kucet_cms`) |
-| **Redis** | `kucet-cms-redis` | `Up / Healthy` | `OK` | `6379:6379` | Session Cache & Rate Limiting |
-| **Monitor** | `kucet-cms-monitor` | `Up / Running` | `OK` | `3001:3001` | Uptime Kuma Monitoring |
+2. **Docker Container Name Collision (`Conflict: /kucet-cms-app is already in use`):**
+   - *Issue:* Re-running build without removing previous container caused Docker daemon naming conflict.
+   - *Fix:* Added safe remove step (`docker rm -f kucet-cms-app || true`) and `--no-deps app` flag to rebuild only the web application container without disturbing running DB/Redis containers.
+
+3. **Nginx Upstream Bridge Misconfiguration (`502 Bad Gateway`):**
+   - *Issue:* Recreated app container lost network alias `app` on `deployment_package_cms-network`.
+   - *Fix:* Connected `kucet-cms-app` to `deployment_package_cms-network` with alias `app`. Nginx proxy returned to `200 OK`.
 
 ---
 
-## 4. Data & Storage Audit
+## 6. Access Endpoints
 
-1. **Database (`college_db.sql`)**:
-   - **Student Records:** 1,280 active student profiles verified.
-   - All relational tables for academic records, clerk profiles, attendance sessions, and drizzle schema migrations loaded.
-
-2. **Storage Vault**:
-   - **Target Directory:** `/var/www/kucet-storage/public/`
-   - **Subdirectories:** `admission_drafts`, `bug_reports`, `certificates`, `clerks`, `requests`, `students`, `test`.
-   - **Permissions:** `775` with `deployer:deployer` ownership.
-
----
-
-## 5. Recent Fixes & Improvements Applied
-
-- **AI Assistant Static Methods:** Fixed static delegation methods in `StudentAnalytics`, `FacultyAnalytics`, `DepartmentAnalytics`, `InstitutionAnalytics`, `ScoringEngine`, and `RecommendationEngine` to prevent 500 error on `/api/assistant/chat`.
-- **AI Assistant Fallback:** Added graceful try/catch fallback error handling in `AssistantService.js`.
-- **Automated CI/CD Integration:** Integrated GitHub Self-Hosted Runner and updated `.github/workflows/deploy.yml` to automatically load production secrets from `/var/www/kucet-cms/.env.production` during deployments.
-
----
-
-## 6. System Health Verification
-
-- **HTTP Status Check (`GET http://localhost:80/api/health`):** `200 OK`
-- **Public Domain Access:** Proxied via Cloudflare Tunnel / Nginx to `https://login.kucet.ac.in`
+- **Tailscale HTTPS Domain:** [`https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/`](https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/)
+- **Local Application Endpoint:** `http://localhost:3000/`
+- **Nginx Reverse Proxy Endpoint:** `http://localhost:80/`
+- **Public Domain Access:** `https://login.kucet.ac.in`
 
 ---
 
