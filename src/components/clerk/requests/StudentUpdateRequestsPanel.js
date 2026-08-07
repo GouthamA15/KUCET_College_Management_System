@@ -6,6 +6,7 @@ import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getAssetUrl } from '@/lib/assets';
+import { safeJsonParse } from '@/lib/json-utils';
 import { Search, Filter, ArrowUpDown, X, FileText, CheckCircle, XCircle } from 'lucide-react';
 
 const StudentUpdateRequestsPanel = () => {
@@ -116,7 +117,7 @@ const StudentUpdateRequestsPanel = () => {
     if (req.new_pfp) count++;
     if (req.new_signature) count++;
     if (req.new_data) {
-        const data = typeof req.new_data === 'string' ? JSON.parse(req.new_data) : req.new_data;
+        const data = safeJsonParse(req.new_data, {});
         count += Object.keys(data).length;
     }
     return count;
@@ -412,7 +413,7 @@ const StudentUpdateRequestsPanel = () => {
                       Modified Fields
                     </h4>
                     <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden divide-y divide-gray-100">
-                      {Object.entries(typeof reviewingRequest.new_data === 'string' ? JSON.parse(reviewingRequest.new_data) : reviewingRequest.new_data).map(([field, value]) => (
+                      {Object.entries(safeJsonParse(reviewingRequest.new_data, {})).map(([field, value]) => (
                         <div key={field} className="p-4 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-4 items-center">
                           <div className="space-y-1">
                             <p className="text-[10px] uppercase font-bold text-gray-500">{formatLabel(field)}</p>

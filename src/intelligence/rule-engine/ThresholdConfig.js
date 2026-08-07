@@ -2,6 +2,7 @@ import { db } from '@/db';
 import { systemConfigs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { cacheAside } from '@/lib/cache';
+import { safeJsonParse } from '@/lib/json-utils';
 import { getIntelligenceConfig } from '../shared/IntelligenceConfig';
 
 const DEFAULT_THRESHOLDS = {
@@ -18,7 +19,8 @@ export async function getThresholds() {
     try {
       const result = await db.select().from(systemConfigs).where(eq(systemConfigs.config_key, 'INTELLIGENCE_THRESHOLDS')).limit(1);
       if (result.length > 0 && result[0].config_value) {
-        return { ...DEFAULT_THRESHOLDS, ...JSON.parse(result[0].config_value) };
+        const parsed = safeJsonParse(result[0].config_value, {});
+        return { ...DEFAULT_THRESHOLDS, ...parsed };
       }
     } catch (error) {
       console.error('Error fetching INTELLIGENCE_THRESHOLDS', error);
