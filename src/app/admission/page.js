@@ -264,8 +264,8 @@ const AdmissionPage = () => {
         }
     };
 
-    const inputClasses = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all";
-    const labelClasses = "block text-sm font-bold text-gray-700";
+    const inputClasses = "mt-1 block w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white text-gray-900 text-sm transition-all duration-200 placeholder:text-gray-400";
+    const labelClasses = "block text-xs font-semibold tracking-wide text-gray-600 uppercase mb-1.5";
 
     if (submitted) {
         return (
@@ -284,16 +284,36 @@ const AdmissionPage = () => {
 
     return (
         <>
-        <div className="min-h-screen bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-5xl mx-auto bg-white shadow-2xl rounded-sm overflow-hidden border border-gray-300">
+        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
                 
                 {/* Formal Header */}
-                <div className="p-4 sm:p-8 border-b-2 border-double border-gray-400 text-center bg-white">
-                    <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900">{admissionYear} of B.TECH</h1>
-                    <p className="mt-2 text-lg font-bold text-indigo-800 uppercase underline decoration-2 underline-offset-4">
-                        For Admission into I - Year B.Tech / M.Tech Branch
+                <div className="relative p-3 sm:p-5 border-b border-gray-200 text-center bg-white overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600"></div>
+                    <div className="flex flex-row items-center justify-between gap-2 sm:gap-6 max-w-4xl mx-auto mb-2 sm:mb-3">
+                        <div className="w-12 h-12 sm:w-28 sm:h-28 shrink-0 flex items-center justify-center">
+                            <Image src="/assets/ku-logo.png" alt="University Logo" width={112} height={112} className="w-full h-full object-contain" priority />
+                        </div>
+                        <div className="flex-1 text-center">
+                            <h2 className="text-[13px] sm:text-[17px] md:text-xl font-bold text-gray-900 tracking-tight sm:tracking-wide leading-tight sm:leading-snug">
+                                KAKATIYA UNIVERSITY COLLEGE OF ENGINEERING AND TECHNOLOGY
+                            </h2>
+                            <p className="text-[10px] sm:text-sm text-gray-600 font-medium mt-0.5 sm:mt-1">Warangal, Telangana - 506009</p>
+                            <p className="hidden sm:block text-[10px] sm:text-xs text-gray-500 mt-0.5">(Approved by AICTE, New Delhi & Affiliated to Kakatiya University)</p>
+                        </div>
+                        <div className="w-12 h-12 sm:w-28 sm:h-28 shrink-0 flex items-center justify-center">
+                            <Image src="/assets/Naac_A+.png" alt="NAAC Logo" width={112} height={112} className="w-full h-full object-contain" priority />
+                        </div>
+                    </div>
+                    
+                    <p className="block sm:hidden text-[9px] text-gray-500 mb-2 leading-tight">(Approved by AICTE, New Delhi & Affiliated to Kakatiya University)</p>
+                    
+                    <h1 className="text-[12px] sm:text-base md:text-lg font-black text-gray-800 uppercase tracking-tight sm:tracking-wide px-2 mt-2 sm:mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
+                        For Admission Into B.Tech: <span className="text-indigo-700">{admissionYear}</span>
+                    </h1>
+                    <p className="text-[10px] sm:text-xs font-semibold text-gray-500 mt-1.5 sm:mt-2 bg-gray-50 border border-gray-200 inline-block px-2 sm:px-3 py-1 rounded-full shadow-sm mx-2 mb-1">
+                        Available Branches: CSE, CSD, ECE, EEE, CIVIL, IT, MECH
                     </p>
-                    <p className="text-xs font-bold text-gray-500 mt-1">(CSE, CSD, ECE, EEE, CIVIL, IT or MECH)</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-10">
@@ -303,27 +323,36 @@ const AdmissionPage = () => {
                         <div className="w-full md:w-auto">
                             <label className={labelClasses + " mb-2"}>Photograph <span className="text-red-500">*</span></label>
                             <div className="flex flex-col items-center">
-                                <div className="w-32 h-40 border-2 border-dashed border-gray-400 bg-white flex items-center justify-center overflow-hidden mb-3">
+                                <div className="w-32 h-40 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white flex items-center justify-center overflow-hidden mb-3 rounded-lg transition-colors">
                                     {files.pfp ? <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={files.pfp} alt="Student Photo" className="w-full h-full object-cover" width={128} height={160} unoptimized /> : <span className="text-[10px] text-gray-400 uppercase font-bold text-center p-2">Student Photo</span>}
                                 </div>
-                                <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="text-xs file:bg-indigo-50 file:text-indigo-700 file:border-0 file:rounded-full file:px-4 file:py-1 hover:file:bg-indigo-100" />
+                                <label className="cursor-pointer bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-700 text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2 w-full max-w-[160px]">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                    Upload Photo
+                                    <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'pfp')} className="hidden" />
+                                </label>
                             </div>
                         </div>
                         <div className="w-full md:w-auto">
                             <label className={labelClasses + " mb-2"}>Signature Photo <span className="text-red-500">*</span></label>
                             <div className="flex flex-col items-center">
-                                <div className="w-56 h-20 border-2 border-dashed border-gray-400 bg-white flex items-center justify-center overflow-hidden mb-3">
+                                <div className="w-56 h-20 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white flex items-center justify-center overflow-hidden mb-3 rounded-lg transition-colors">
                                     {files.signature ? <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} src={files.signature} alt="Signature Preview" className="w-full h-full object-contain" width={224} height={80} unoptimized /> : <span className="text-[10px] text-gray-400 uppercase font-bold">Signature Preview</span>}
                                 </div>
-                                <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="text-xs file:bg-indigo-50 file:text-indigo-700 file:border-0 file:rounded-full file:px-4 file:py-1 hover:file:bg-indigo-100" />
+                                <label className="cursor-pointer bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-700 text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2 w-full max-w-[180px]">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                    Upload Signature
+                                    <input required type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'signature')} className="hidden" />
+                                </label>
                             </div>
                         </div>
                     </div>
 
                     {/* Numbered Form Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
-                        <div className="md:col-span-2 bg-indigo-50 p-3 rounded text-sm font-bold text-indigo-900 border-l-4 border-indigo-600 mb-2 uppercase tracking-wider">
-                            Personal & Academic Information
+                        <div className="md:col-span-2 flex items-center gap-3 pb-2 border-b border-gray-200 mb-4 mt-2">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">1</div>
+                            <h3 className="text-lg font-bold text-gray-900 tracking-tight uppercase">Personal & Academic Details</h3>
                         </div>
 
                         <div className="space-y-1">
@@ -557,8 +586,9 @@ const AdmissionPage = () => {
                         </div>
 
                         {/* 27. Contact / Current Address */}
-                        <div className="md:col-span-2 bg-indigo-50 p-3 rounded text-sm font-bold text-indigo-900 border-l-4 border-indigo-600 mb-2 uppercase tracking-wider mt-4">
-                            Contact / Current Address
+                        <div className="md:col-span-2 flex items-center gap-3 pb-2 border-b border-gray-200 mb-4 mt-6">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">2</div>
+                            <h3 className="text-lg font-bold text-gray-900 tracking-tight uppercase">Contact / Current Address</h3>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
@@ -592,23 +622,24 @@ const AdmissionPage = () => {
                             </div>
                         </div>
 
-                        {/* Checkbox: Same as Permanent */}
-                        <div className="md:col-span-2 flex items-center gap-2 py-2">
-                            <input 
-                                type="checkbox" 
-                                id="is_current_same_as_permanent" 
-                                checked={form.is_current_same_as_permanent} 
-                                onChange={e => handleCheckboxChange(e.target.checked)} 
-                                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" 
-                            />
-                            <label htmlFor="is_current_same_as_permanent" className="text-sm font-bold text-gray-700 select-none cursor-pointer">
-                                Mark as permanent address
-                            </label>
-                        </div>
-
                         {/* 28. Permanent Address */}
-                        <div className="md:col-span-2 bg-indigo-50 p-3 rounded text-sm font-bold text-indigo-900 border-l-4 border-indigo-600 mb-2 uppercase tracking-wider mt-4">
-                            Permanent Address
+                        <div className="md:col-span-2 flex items-center justify-between pb-2 border-b border-gray-200 mb-4 mt-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">3</div>
+                                <h3 className="text-lg font-bold text-gray-900 tracking-tight uppercase">Permanent Address</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="checkbox" 
+                                    id="is_current_same_as_permanent" 
+                                    checked={form.is_current_same_as_permanent} 
+                                    onChange={e => handleCheckboxChange(e.target.checked)} 
+                                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" 
+                                />
+                                <label htmlFor="is_current_same_as_permanent" className="text-xs font-semibold text-gray-600 uppercase tracking-wide cursor-pointer hover:text-indigo-600 transition-colors">
+                                    Same as current
+                                </label>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
@@ -643,7 +674,7 @@ const AdmissionPage = () => {
                         </div>
 
                         {/* Legal Consent Checkbox */}
-                        <div className="md:col-span-2 mt-6 p-4 bg-indigo-50/50 border border-indigo-100 rounded-lg">
+                        <div className="md:col-span-2 mt-8 p-6 bg-gradient-to-br from-indigo-50 to-blue-50/50 border border-indigo-100 rounded-xl shadow-sm">
                             <div className="flex items-start gap-3">
                                 <div className="flex items-center h-5 mt-1">
                                     <input 
@@ -664,9 +695,26 @@ const AdmissionPage = () => {
                     </div>
 
                     {/* Final Actions */}
-                    <div className="pt-8 flex justify-end border-t border-gray-200">
-                        <button type="submit" disabled={loading || !form.legal_consent} className="bg-indigo-700 text-white font-bold py-3 px-4 sm:px-8 rounded-md hover:bg-indigo-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-lg shadow-lg">
-                            {loading ? 'Submitting...' : 'Submit Application'}
+                    <div className="pt-8 flex justify-end">
+                        <button type="submit" disabled={loading || !form.legal_consent} className="relative overflow-hidden group bg-indigo-600 text-white font-bold py-3.5 px-8 rounded-xl hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-xl hover:-translate-y-0.5">
+                            <span className="relative z-10 flex items-center gap-2">
+                                {loading ? (
+                                    <>
+                                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    <>
+                                        Submit Application
+                                        <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                                        </svg>
+                                    </>
+                                )}
+                            </span>
                         </button>
                     </div>
                 </form>
