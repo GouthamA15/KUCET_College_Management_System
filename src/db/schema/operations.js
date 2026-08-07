@@ -194,3 +194,26 @@ export const bugReports = mysqlTable('bug_reports', {
   typeIdx: index('idx_bug_type').on(table.type),
   createdAtIdx: index('idx_bug_created_at').on(table.created_at),
 }));
+
+export const assistantConversations = mysqlTable('assistant_conversations', {
+  id: varchar('id', { length: 64 }).primaryKey().notNull(),
+  user_id: varchar('user_id', { length: 64 }).notNull(),
+  role: varchar('role', { length: 50 }).notNull(),
+  title: varchar('title', { length: 255 }).default('New Conversation').notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (table) => ({
+  userIdIdx: index('idx_ac_user_id').on(table.user_id),
+}));
+
+export const assistantMessages = mysqlTable('assistant_messages', {
+  id: varchar('id', { length: 64 }).primaryKey().notNull(),
+  conversation_id: varchar('conversation_id', { length: 64 }).notNull(),
+  sender: mysqlEnum('sender', ['user', 'assistant']).notNull(),
+  message: text('message').notNull(),
+  metadata: json('metadata'),
+  created_at: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  convIdIdx: index('idx_am_conv_id').on(table.conversation_id),
+}));
+

@@ -14,19 +14,20 @@ export const NAV_MENU_CONFIG = {
         { label: 'Certificates', route: '/student/requests/certificates' }
       ]
     },
+    { label: 'AI ASSISTANT', route: '/student/assistant' },
     { label: 'SETTINGS', route: '/student/settings/security' }
   ],
   clerk: [
     { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
     { label: 'PROFILE', route: '/clerk/admission/profile' },
     { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
+    { label: 'AI ASSISTANT', route: '/clerk/faculty/assistant' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }
       ]
     },
   ],
-  // Explicit menu for Admission clerks (keeps Academic Calendar)
   clerkAdmission: [
     { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },
     { label: 'PROFILE', route: '/clerk/admission/profile' },
@@ -37,19 +38,20 @@ export const NAV_MENU_CONFIG = {
       ]
     },
     { label: 'ACADEMIC CALENDAR', route: '/clerk/academic-calendar' },
+    { label: 'AI ASSISTANT', route: '/clerk/faculty/assistant' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }
       ]
     },
   ],
-  // Scholarship clerks: omit Academic Calendar
   clerkScholarship: [
     { label: 'DASHBOARD', route: '/clerk/scholarship/dashboard' },
     { label: 'PROFILE', route: '/clerk/scholarship/profile' },
     { label: 'STUDENT RECORDS', route: '/clerk/scholarship/student-records' },
     { label: 'REQUESTS', route: '/clerk/scholarship/dashboard?view=requests&scroll=1' },
     { label: 'VERIFICATION', route: '/clerk/scholarship/dashboard?view=certificates&scroll=1' },
+    { label: 'AI ASSISTANT', route: '/clerk/faculty/assistant' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }
@@ -63,6 +65,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'MARKS', route: '/clerk/faculty/marks' },
     { label: 'TIME TABLE', route: '/clerk/faculty/time-table' },
     { label: 'MATERIALS', route: '/clerk/faculty/materials' },
+    { label: 'AI ASSISTANT', route: '/clerk/faculty/assistant' },
     { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/clerk/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/clerk/settings/security' }
@@ -83,5 +86,6 @@ export const NAV_MENU_CONFIG = {
     { label: 'AUDIT TRAILS', route: '/admin/audit-logs' },
     { label: 'ARCHIVE CENTER', route: '/admin/archive' },
     { label: 'VERIFICATIONS', route: '/admin/verifications' },
+    { label: 'AI ASSISTANT', route: '/admin/assistant' },
   ]
 };
