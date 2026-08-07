@@ -10,7 +10,7 @@ function cleanRelativePath(assetPath) {
   if (clean.includes('/api/assets/view/')) {
     clean = clean.split('/api/assets/view/')[1];
   }
-  clean = clean.replace(/^https?:\/\/[^\/]+/, '');
+  clean = clean.replace(/^https?:\/\/[^/]+/, '');
   clean = clean.replace(/^v\d+\//, '');
   clean = clean.startsWith('/') ? clean.substring(1) : clean;
   return clean;
@@ -32,7 +32,7 @@ export default class LocalStorageProvider extends StorageProvider {
     return `/api/assets/view/${cleanPath}`;
   }
 
-  async upload(file, folder, publicId = null) {
+  async upload(file, folder, _publicId = null) {
     if (!file) return null;
     
     let buffer;
@@ -80,8 +80,8 @@ export default class LocalStorageProvider extends StorageProvider {
     else if (mimeType.includes('svg')) extension = '.svg';
     else extension = '.jpg';
 
-    const randomHex = crypto.randomBytes(4).toString('hex');
-    const filename = publicId ? `${publicId}${extension}` : `${Date.now()}-${randomHex}${extension}`;
+    const randomStr = crypto.randomBytes(10).toString('hex');
+    const filename = `${randomStr}${extension}`;
     const targetPath = path.join(targetDir, filename);
 
     await fs.promises.writeFile(targetPath, buffer);
