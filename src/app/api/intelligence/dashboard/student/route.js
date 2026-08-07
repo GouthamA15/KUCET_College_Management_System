@@ -1,8 +1,8 @@
 import { wrapHandler, apiResponse } from '@/lib/api-utils';
 import { cacheAside } from '@/lib/cache';
-import { StudentAnalytics } from '../../../../../../intelligence/analytics/StudentAnalytics';
-import { ScoringEngine } from '../../../../../../intelligence/engine/ScoringEngine';
-import { RecommendationEngine } from '../../../../../../intelligence/engine/RecommendationEngine';
+import { StudentAnalytics } from '@/intelligence/analytics/StudentAnalytics';
+import { ScoringEngine } from '@/intelligence/scoring/ScoringEngine';
+import { RecommendationEngine } from '@/intelligence/recommendation/RecommendationEngine';
 
 export const GET = wrapHandler({ role: 'student' }, async (req, ctx) => {
   const studentId = ctx.user?.id || 'TEST_STUDENT';

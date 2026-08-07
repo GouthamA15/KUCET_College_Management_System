@@ -1,5 +1,5 @@
 import { wrapHandler, apiResponse } from '@/lib/api-utils';
-import { ExplainableDecision } from '../../../../../../intelligence/reports/ExplainableDecision';
+import { ExplainableDecision } from '@/intelligence/reports/ExplainableDecision';
 
 export const GET = wrapHandler({ role: ['admin', 'hod'] }, async (req, ctx) => {
   const url = new URL(req.url);

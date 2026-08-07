@@ -1,5 +1,5 @@
 import { wrapHandler, apiResponse } from '@/lib/api-utils';
-import { ScoringEngine } from '../../../../../../../intelligence/engine/ScoringEngine';
+import { ScoringEngine } from '@/intelligence/scoring/ScoringEngine';
 
 export const GET = wrapHandler({ role: ['admin', 'hod', 'student'] }, async (req, ctx) => {
   const { id } = ctx.params;

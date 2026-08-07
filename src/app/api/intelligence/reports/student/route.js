@@ -1,5 +1,5 @@
 import { wrapHandler, apiResponse } from '@/lib/api-utils';
-import { ReportGenerator } from '../../../../../../intelligence/reports/ReportGenerator';
+import { ReportGenerator } from '@/intelligence/reports/ReportGenerator';
 
 export const GET = wrapHandler({ role: ['admin', 'hod', 'student'] }, async (req, ctx) => {
   const url = new URL(req.url);

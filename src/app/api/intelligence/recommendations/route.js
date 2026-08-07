@@ -1,5 +1,5 @@
 import { wrapHandler, apiResponse } from '@/lib/api-utils';
-import { RecommendationEngine } from '../../../../../intelligence/engine/RecommendationEngine';
+import { RecommendationEngine } from '@/intelligence/recommendation/RecommendationEngine';
 
 export const GET = wrapHandler({ role: ['admin', 'hod', 'faculty', 'clerk', 'student'] }, async (req, ctx) => {
   const url = new URL(req.url);

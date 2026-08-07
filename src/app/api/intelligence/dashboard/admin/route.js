@@ -1,7 +1,7 @@
 import { wrapHandler, apiResponse } from '@/lib/api-utils';
 import { cacheAside } from '@/lib/cache';
-import { InstitutionAnalytics } from '../../../../../../intelligence/analytics/InstitutionAnalytics';
-import { RecommendationEngine } from '../../../../../../intelligence/engine/RecommendationEngine';
+import { InstitutionAnalytics } from '@/intelligence/analytics/InstitutionAnalytics';
+import { RecommendationEngine } from '@/intelligence/recommendation/RecommendationEngine';
 
 export const GET = wrapHandler({ role: 'admin' }, async (req, ctx) => {
   const academicYear = '2025-26';
