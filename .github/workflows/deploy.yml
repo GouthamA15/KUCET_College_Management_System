@@ -13,12 +13,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Copy Master Environment Configuration
+      - name: Load Server Environment
         run: |
-          if [ -f /home/kucet-dev/.env.master ]; then
-            cp /home/kucet-dev/.env.master .env
-          elif [ -f ~/.env.master ]; then
-            cp ~/.env.master .env
+          if [ -f /home/kucet-dev/.env ]; then
+            cp /home/kucet-dev/.env .env
           fi
 
       - name: Deploy Production Application
