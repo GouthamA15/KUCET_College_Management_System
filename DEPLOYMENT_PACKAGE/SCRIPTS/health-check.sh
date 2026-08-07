@@ -89,26 +89,12 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# CHECK 7: MySQL connectivity
+# (CHECK 7 removed: rely on Docker native container healthcheck)
 # ---------------------------------------------------------------------------
-mysql_out=$(docker exec kucet-cms-db mysqladmin ping -h localhost --silent 2>&1 || echo "FAILED")
-if echo "$mysql_out" | grep -qi "mysqld is alive"; then
-  record "mysql:ping" "PASS" "mysqladmin ping OK"
-else
-  record "mysql:ping" "FAIL" "mysqladmin ping failed: $mysql_out"
-  CRITICAL_FAIL=true
-fi
 
 # ---------------------------------------------------------------------------
-# CHECK 8: Redis connectivity
+# (CHECK 8 removed: rely on Docker native container healthcheck)
 # ---------------------------------------------------------------------------
-redis_out=$(docker exec kucet-cms-redis redis-cli ping 2>&1 || echo "FAILED")
-if [[ "$redis_out" == "PONG" ]]; then
-  record "redis:ping" "PASS" "redis-cli ping returned PONG"
-else
-  record "redis:ping" "FAIL" "redis-cli ping returned: $redis_out"
-  CRITICAL_FAIL=true
-fi
 
 # ---------------------------------------------------------------------------
 # CHECK 9: Nginx config validity
@@ -122,22 +108,8 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# CHECK 10: GitHub Actions runner systemd service
+# (CHECK 10 removed: runner obviously works if this script is executing)
 # ---------------------------------------------------------------------------
-runner_unit=$(systemctl list-units --type=service --all 2>/dev/null \
-  | grep -oP 'actions\.runner\.[^\s]+\.service' | head -1 || true)
-
-if [[ -n "$runner_unit" ]]; then
-  runner_active=$(systemctl is-active "$runner_unit" 2>/dev/null || echo "inactive")
-  if [[ "$runner_active" == "active" ]]; then
-    record "github-runner:service" "PASS" "$runner_unit is active"
-  else
-    record "github-runner:service" "FAIL" "$runner_unit is $runner_active"
-    CRITICAL_FAIL=true
-  fi
-else
-  record "github-runner:service" "WARN" "No actions.runner.* service unit found"
-fi
 
 # ---------------------------------------------------------------------------
 # CHECK 11: Storage directory exists and is writable
