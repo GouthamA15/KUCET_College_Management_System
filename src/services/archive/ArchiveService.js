@@ -2,7 +2,7 @@ import { db } from '@/db';
 import { 
   students, studentPersonalDetails, studentAcademicBackground,
   studentAttendance, attendanceSessions, studentMarks, studentFeePayments,
-  facultySubjectAssignments, academicCalendar, collegeInfo,
+  facultySubjectAssignments,
   archiveStudents, archiveStudentPersonalDetails, archiveStudentAcademicBackground,
   archiveStudentAttendance, archiveAttendanceSessions, archiveStudentMarks, archiveStudentPayments,
   archiveOperationsLog, archiveRetentionPolicies
@@ -273,8 +273,6 @@ export class ArchiveService {
           }
         }
 
-        const executionTimeMs = Date.now() - startTime;
-
         // 5. Record Operation in Audit Log
         await tx.insert(archiveOperationsLog).values({
           job_id: jobId,
@@ -287,7 +285,7 @@ export class ArchiveService {
           affected_records_count: recordsArchived,
           affected_media_count: mediaArchived,
           storage_size_bytes: storageSizeBytes,
-          execution_time_ms: executionTimeMs,
+          execution_time_ms: Date.now() - startTime,
           status: 'COMPLETED',
           archived_by,
           notes: reason,
@@ -295,6 +293,7 @@ export class ArchiveService {
         });
       });
 
+      const executionTimeMs = Date.now() - startTime;
       logger.info({ jobId, recordsArchived, mediaArchived, executionTimeMs }, '[SEMESTER_ARCHIVE_SUCCESS]');
 
       return {
@@ -492,8 +491,6 @@ export class ArchiveService {
         // Delete moved students from active table
         await tx.delete(students).where(inArray(students.id, targetStudentIds));
 
-        const executionTimeMs = Date.now() - startTime;
-
         await tx.insert(archiveOperationsLog).values({
           job_id: jobId,
           archive_type: 'ALUMNI',
@@ -504,11 +501,13 @@ export class ArchiveService {
           affected_media_count: mediaArchived,
           storage_size_bytes: storageSizeBytes,
           archived_by,
-          execution_time_ms: executionTimeMs,
+          execution_time_ms: Date.now() - startTime,
           status: 'COMPLETED',
           details: JSON.stringify({ reason, count: targetStudents.length }),
         });
       });
+
+      const executionTimeMs = Date.now() - startTime;
 
       return {
         success: true,
