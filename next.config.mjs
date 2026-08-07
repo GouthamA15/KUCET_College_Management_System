@@ -27,6 +27,21 @@ const nextConfig = {
         hostname: 'res.cloudinary.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '*.s3.amazonaws.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.s3.*.amazonaws.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.r2.dev',
+        pathname: '/**',
+      },
     ],
   },
   async headers() {
@@ -35,13 +50,13 @@ const nextConfig = {
       default-src 'self';
       script-src 'self' 'unsafe-eval' 'unsafe-inline';
       style-src 'self' 'unsafe-inline';
-      img-src 'self' blob: data: res.cloudinary.com;
+      img-src 'self' blob: data: res.cloudinary.com *.s3.amazonaws.com *.r2.dev;
       font-src 'self' data:;
       object-src 'none';
       base-uri 'self';
       form-action 'self';
       frame-ancestors 'none';
-      connect-src 'self' res.cloudinary.com *.sentry.io *.supabase.co wss://*.supabase.co login.kucet.ac.in *.kucet.ac.in wss://*.kucet.ac.in${devConnectSrc};
+      connect-src 'self' res.cloudinary.com *.s3.amazonaws.com *.r2.dev *.sentry.io *.supabase.co wss://*.supabase.co login.kucet.ac.in *.kucet.ac.in wss://*.kucet.ac.in${devConnectSrc};
     `.replace(/\s{2,}/g, ' ').trim();
 
     return [

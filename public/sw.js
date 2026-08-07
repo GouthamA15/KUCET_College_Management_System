@@ -60,43 +60,66 @@ self.addEventListener('fetch', (event) => {
   // 2. Offline Priority Routes (ID Card, Fee Receipts, Timetable)
   if (OFFLINE_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname))) {
     event.respondWith(
-      caches.open(CACHE_NAME).then(async (cache) => {
+      (async () => {
         try {
           const networkResponse = await fetch(request);
-          if (networkResponse.ok) {
-            cache.put(request, networkResponse.clone());
+          if (networkResponse && networkResponse.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(request, networkResponse.clone());
           }
           return networkResponse;
         } catch (error) {
-          const cachedResponse = await cache.match(request);
+          const cachedResponse = await caches.match(request);
           if (cachedResponse) {
             return cachedResponse;
           }
           if (request.mode === 'navigate') {
-            return caches.match(OFFLINE_URL);
+            const offlineResponse = await caches.match(OFFLINE_URL);
+            if (offlineResponse) return offlineResponse;
           }
-          throw error;
+          return new Response('Network error', { status: 503, statusText: 'Service Unavailable' });
         }
-      })
+      })()
     );
     return;
   }
 
   // 3. Stale-While-Revalidate for standard navigation/assets
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request).then((networkResponse) => {
-        if (networkResponse.ok) {
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse.clone()));
-        }
-        return networkResponse;
-      }).catch(() => {
-        if (request.mode === 'navigate') {
-          return caches.match(OFFLINE_URL);
-        }
-      });
+    (async () => {
+      const cachedResponse = await caches.match(request);
 
-      return cachedResponse || fetchPromise;
-    })
+      const fetchPromise = (async () => {
+        try {
+          const networkResponse = await fetch(request);
+          if (networkResponse && networkResponse.ok) {
+            const responseForCache = networkResponse.clone();
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(request, responseForCache);
+          }
+          return networkResponse;
+        } catch (error) {
+          if (request.mode === 'navigate') {
+            const offlineResponse = await caches.match(OFFLINE_URL);
+            if (offlineResponse) return offlineResponse;
+          }
+          return null;
+        }
+      })();
+
+      if (cachedResponse) {
+        // Trigger background revalidation safely
+        fetchPromise.catch(() => {});
+        return cachedResponse;
+      }
+
+      const networkRes = await fetchPromise;
+      if (networkRes) {
+        return networkRes;
+      }
+
+      return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+    })()
   );
 });
+

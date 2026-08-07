@@ -1,4 +1,4 @@
-import StorageProvider from './StorageProvider';
+import StorageProvider, { StorageResult } from './StorageProvider';
 
 /**
  * Stateless S3 / Cloudflare R2 Storage Provider.
@@ -103,7 +103,16 @@ export default class S3StorageProvider extends StorageProvider {
         }
       }
 
-      return key;
+      const url = this.getUrl(key);
+      const filename = key.split('/').pop() || '';
+
+      return new StorageResult({
+        path: key,
+        url,
+        filename,
+        provider: 's3',
+        mimeType: contentType
+      });
     });
   }
 

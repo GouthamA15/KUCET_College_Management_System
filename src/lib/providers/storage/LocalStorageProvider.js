@@ -1,13 +1,34 @@
-import StorageProvider from './StorageProvider';
+import StorageProvider, { StorageResult } from './StorageProvider';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
+function cleanRelativePath(assetPath) {
+  if (!assetPath || typeof assetPath !== 'string') return '';
+  if (assetPath.startsWith('data:')) return assetPath;
+  let clean = assetPath;
+  if (clean.includes('/api/assets/view/')) {
+    clean = clean.split('/api/assets/view/')[1];
+  }
+  clean = clean.replace(/^https?:\/\/[^\/]+/, '');
+  clean = clean.replace(/^v\d+\//, '');
+  clean = clean.startsWith('/') ? clean.substring(1) : clean;
+  return clean;
+}
+
 export default class LocalStorageProvider extends StorageProvider {
   getUrl(assetPath) {
     if (!assetPath) return '';
-    if (assetPath.startsWith('data:') || assetPath.startsWith('http')) return assetPath;
-    const cleanPath = assetPath.startsWith('/') ? assetPath.substring(1) : assetPath;
+    if (typeof assetPath !== 'string') return '';
+    if (assetPath.startsWith('data:') || assetPath.startsWith('http://') || assetPath.startsWith('https://')) return assetPath;
+    
+    const cleanPath = cleanRelativePath(assetPath);
+    if (!cleanPath) return '';
+
+    if (cleanPath.startsWith('assets/')) {
+      return `/${cleanPath}`;
+    }
+
     return `/api/assets/view/${cleanPath}`;
   }
 
@@ -46,7 +67,8 @@ export default class LocalStorageProvider extends StorageProvider {
     }
 
     const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
-    const targetDir = path.join(STORAGE_PATH, folder);
+    const cleanFolder = folder ? folder.replace(/^\/+|\/+$/g, '') : 'uploads';
+    const targetDir = path.join(STORAGE_PATH, cleanFolder);
     
     await fs.promises.mkdir(targetDir, { recursive: true });
 
@@ -64,14 +86,25 @@ export default class LocalStorageProvider extends StorageProvider {
 
     await fs.promises.writeFile(targetPath, buffer);
 
-    return `${folder}/${filename}`;
+    const relPath = `${cleanFolder}/${filename}`;
+    const url = `/api/assets/view/${relPath}`;
+
+    return new StorageResult({
+      path: relPath,
+      url,
+      filename,
+      provider: 'local',
+      mimeType
+    });
   }
 
   async delete(relativePath) {
-    if (!relativePath || relativePath.startsWith('http') || relativePath.startsWith('data:')) return;
+    if (!relativePath || typeof relativePath !== 'string' || relativePath.startsWith('data:')) return;
     
     const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
-    const cleanPath = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+    const cleanPath = cleanRelativePath(relativePath);
+    if (!cleanPath || cleanPath.startsWith('assets/')) return;
+    
     const targetPath = path.join(STORAGE_PATH, cleanPath);
 
     // Security: Prevent Directory Traversal
@@ -94,7 +127,7 @@ export default class LocalStorageProvider extends StorageProvider {
     }
 
     const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
-    const cleanSource = sourcePath.startsWith('/') ? sourcePath.substring(1) : sourcePath;
+    const cleanSource = cleanRelativePath(sourcePath);
     const absSource = path.join(STORAGE_PATH, cleanSource);
 
     if (!absSource.startsWith(STORAGE_PATH)) {
@@ -104,13 +137,14 @@ export default class LocalStorageProvider extends StorageProvider {
     try {
       const stats = await fs.promises.stat(absSource);
       const filename = path.basename(cleanSource);
-      const targetDir = path.join(STORAGE_PATH, targetFolder);
+      const cleanFolder = targetFolder.replace(/^\/+|\/+$/g, '');
+      const targetDir = path.join(STORAGE_PATH, cleanFolder);
       await fs.promises.mkdir(targetDir, { recursive: true });
 
       const absTarget = path.join(targetDir, filename);
       await fs.promises.copyFile(absSource, absTarget);
 
-      const relativeNewPath = `${targetFolder.replace(/^\/+|\/+$/g, '')}/${filename}`;
+      const relativeNewPath = `${cleanFolder}/${filename}`;
       return { newPath: relativeNewPath, sizeBytes: stats.size || 1024 };
     } catch (error) {
       if (error.code !== 'ENOENT') {
@@ -128,4 +162,5 @@ export default class LocalStorageProvider extends StorageProvider {
     return copyResult;
   }
 }
+
 
