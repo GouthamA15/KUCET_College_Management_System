@@ -284,39 +284,43 @@ const AdmissionPage = () => {
 
     return (
         <>
-        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
-                
-                {/* Formal Header */}
-                <div className="relative p-3 sm:p-5 border-b border-gray-200 text-center bg-white overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600"></div>
-                    <div className="flex flex-row items-center justify-between gap-2 sm:gap-6 max-w-4xl mx-auto mb-2 sm:mb-3">
-                        <div className="w-12 h-12 sm:w-28 sm:h-28 shrink-0 flex items-center justify-center">
-                            <Image src="/assets/ku-logo.png" alt="University Logo" width={112} height={112} className="w-full h-full object-contain" priority />
+        <div className="min-h-screen bg-white pb-16">
+            
+            {/* Formal Header - Full Page Width */}
+            <div className="relative border-b border-gray-200 bg-white">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600"></div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 lg:py-10">
+                    <div className="flex flex-row items-center justify-between gap-3 sm:gap-6 lg:gap-10">
+                        <div className="w-14 h-14 sm:w-24 sm:h-24 lg:w-32 lg:h-32 shrink-0 flex items-center justify-center">
+                            <Image src="/assets/ku-logo.png" alt="University Logo" width={128} height={128} className="w-full h-full object-contain" priority />
                         </div>
                         <div className="flex-1 text-center">
-                            <h2 className="text-[13px] sm:text-[17px] md:text-xl font-bold text-gray-900 tracking-tight sm:tracking-wide leading-tight sm:leading-snug">
-                                KAKATIYA UNIVERSITY COLLEGE OF ENGINEERING AND TECHNOLOGY
+                            <h2 className="text-[14px] sm:text-[20px] lg:text-3xl font-black text-gray-900 tracking-tight sm:tracking-wide leading-tight uppercase">
+                                Kakatiya University College of Engineering and Technology
                             </h2>
-                            <p className="text-[10px] sm:text-sm text-gray-600 font-medium mt-0.5 sm:mt-1">Warangal, Telangana - 506009</p>
-                            <p className="hidden sm:block text-[10px] sm:text-xs text-gray-500 mt-0.5">(Approved by AICTE, New Delhi & Affiliated to Kakatiya University)</p>
+                            <p className="text-[11px] sm:text-sm lg:text-lg text-gray-600 font-medium mt-1 sm:mt-2">Warangal, Telangana - 506009</p>
+                            <p className="hidden sm:block text-[11px] sm:text-xs lg:text-sm text-gray-500 mt-0.5 lg:mt-1">(Approved by AICTE, New Delhi & Affiliated to Kakatiya University)</p>
                         </div>
-                        <div className="w-12 h-12 sm:w-28 sm:h-28 shrink-0 flex items-center justify-center">
-                            <Image src="/assets/Naac_A+.png" alt="NAAC Logo" width={112} height={112} className="w-full h-full object-contain" priority />
+                        <div className="w-14 h-14 sm:w-24 sm:h-24 lg:w-32 lg:h-32 shrink-0 flex items-center justify-center">
+                            <Image src="/assets/Naac_A+.png" alt="NAAC Logo" width={128} height={128} className="w-full h-full object-contain" priority />
                         </div>
                     </div>
                     
-                    <p className="block sm:hidden text-[9px] text-gray-500 mb-2 leading-tight">(Approved by AICTE, New Delhi & Affiliated to Kakatiya University)</p>
+                    <p className="block sm:hidden text-[10px] text-gray-500 mt-2 text-center leading-tight">(Approved by AICTE, New Delhi & Affiliated to Kakatiya University)</p>
                     
-                    <h1 className="text-[12px] sm:text-base md:text-lg font-black text-gray-800 uppercase tracking-tight sm:tracking-wide px-2 mt-2 sm:mt-1 whitespace-nowrap overflow-hidden text-ellipsis">
-                        For Admission Into B.Tech: <span className="text-indigo-700">{admissionYear}</span>
-                    </h1>
-                    <p className="text-[10px] sm:text-xs font-semibold text-gray-500 mt-1.5 sm:mt-2 bg-gray-50 border border-gray-200 inline-block px-2 sm:px-3 py-1 rounded-full shadow-sm mx-2 mb-1">
-                        Available Branches: CSE, CSD, ECE, EEE, CIVIL, IT, MECH
-                    </p>
+                    <div className="mt-5 sm:mt-8 text-center">
+                        <h1 className="text-[13px] sm:text-lg lg:text-2xl font-black text-gray-900 uppercase tracking-tight sm:tracking-wide whitespace-nowrap overflow-hidden text-ellipsis px-2">
+                            For Admission Into B.TECH: <span className="text-indigo-600">{admissionYear}</span>
+                        </h1>
+                        <p className="text-[10px] sm:text-xs lg:text-sm font-semibold text-gray-600 mt-2 bg-gray-50 border border-gray-200 inline-block px-3 sm:px-4 py-1 sm:py-1.5 rounded-full shadow-sm">
+                            Available Branches: CSE, CSD, ECE, EEE, CIVIL, IT, MECH
+                        </p>
+                    </div>
                 </div>
+            </div>
 
-                <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-10">
+            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12">
+                <form onSubmit={handleSubmit} className="space-y-10">
                     
                     {/* Top Upload Section */}
                     <div className="flex flex-col md:flex-row justify-between items-start gap-8 bg-gray-50 p-6 rounded-lg border border-gray-200">
@@ -637,7 +641,7 @@ const AdmissionPage = () => {
                                     className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" 
                                 />
                                 <label htmlFor="is_current_same_as_permanent" className="text-xs font-semibold text-gray-600 uppercase tracking-wide cursor-pointer hover:text-indigo-600 transition-colors">
-                                    Same as current
+                                    Mark as permanent address
                                 </label>
                             </div>
                         </div>
@@ -718,7 +722,7 @@ const AdmissionPage = () => {
                         </button>
                     </div>
                 </form>
-            </div>
+            </main>
         </div>
         </>
     );
