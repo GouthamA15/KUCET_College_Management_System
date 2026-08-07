@@ -18,7 +18,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 KUCET_CMS_DIR="/var/www/kucet-cms"
 COMPOSE_FILE="$KUCET_CMS_DIR/DEPLOYMENT_PACKAGE/docker-compose.yml"
-LOG_FILE="/var/log/kucet/health-check.log"
+LOG_FILE="/tmp/kucet_health_check.log"
 STORAGE_DIR="/var/www/kucet-storage/public"
 HEALTH_ENDPOINT="http://localhost/api/health"
 DISK_WARN_GB=10
@@ -36,8 +36,8 @@ done
 # Log helper (only writes to log file, not stdout in json mode)
 # ---------------------------------------------------------------------------
 mkdir -p /var/log/kucet
-touch "$LOG_FILE"
-log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"; }
+touch "$LOG_FILE" 2>/dev/null || true
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE" 2>/dev/null || true; }
 
 # ---------------------------------------------------------------------------
 # Result tracking
