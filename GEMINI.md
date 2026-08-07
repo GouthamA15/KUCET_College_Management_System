@@ -1117,3 +1117,57 @@ Replaced all risky raw `JSON.parse()` calls with `safeJsonParse()`:
 # Execute complete unit test suite (37 test files, 275 tests):
 npm run test:unit
 ```
+
+## 13. Dashboard Performance, Decryption Loop & Login Flow Optimization (Commits 24c5714 & c52422f)
+
+**Added:** August 7, 2026  
+**Contributors:** GouthamA15, P.Sannith  
+
+### Overview
+Addressed long loading times, login page freezing/visual stalling, and database connection pool contention during dashboard initialization.
+
+### Root Cause Analysis
+
+1. **Decryption Loop Bottleneck:**  
+   GET /api/clerk/admission/student-requests previously ran AES decryption (decrypt()) unconditionally across all current student columns (mobile, guardian_mobile, adhaar_no) for every request in the query result. On large data sets, this generated excessive CPU overhead and delayed API responses.
+
+2. **Login Redirect Latency & Stalling:**  
+   Upon successful authentication, LoginPanel.js redirected users to / using window.location.replace('/'), forcing a server-side redirect hop through proxy.js before reaching role-specific dashboards (/student, /clerk, /admin).
+
+3. **Database Connection Pool Exhaustion on Dashboard Load:**  
+   ClerkProvider in ClerkContext.js previously fetched all heavy role data concurrently via Promise.all(). This saturated the database connection pool, causing 30s connection timeouts and UI freezes. Additionally, clerkData in useEffect dependency arrays caused infinite fetch re-triggering.
+
+---
+
+### Key Technical Optimizations
+
+#### 1. Targeted Decryption in Request API (src/app/api/clerk/admission/student-requests/route.js)
+- Inspects 
+ew_data before decrypting.
+- AES decryption (decrypt()) is executed **only** when encrypted fields (mobile, guardian_mobile, adhaar_no) are explicitly modified in the update request.
+- Dramatically speeds up profile update request listing APIs.
+
+#### 2. Direct Role Navigation on Login (src/components/LoginPanel.js)
+- Replaced generic root redirects (/) with direct role routes (/student, /clerk, /admin).
+- Eliminates server-side proxy redirect overhead and prevents UI freezing during login.
+
+#### 3. Optimized Bootstrapping & Sequential Background Loading (src/context/ClerkContext.js)
+- Drops global loading spinner (setLoading(false)) immediately after fetching basic clerk identity and college info.
+- Fetches heavy secondary data tables (faculty data, pending profile requests, certificate requests, admission drafts, student history) sequentially in the background.
+- Removed clerkData from useEffect dependencies, resolving infinite fetch loops and preventing state cleanup cancellations.
+
+#### 4. Defensive Modification Rendering & Filtering (src/components/clerk/requests/StudentUpdateRequestsPanel.js)
+- Wrapped search filtering in useMemo to eliminate unnecessary array re-filtering on renders.
+- Added defensive parsing and fallback handling for 
+ew_data (handling both JSON object modifications and plain string updates) without throwing React render errors.
+
+---
+
+### Commits Summary
+
+| Commit | Author | Description |
+|---|---|---|
+| 24c5714 | GouthamA15 | **Performance & Login Fix:** Targeted decryption in student requests API, direct role routing in LoginPanel.js, useMemo filtering in StudentUpdateRequestsPanel.js, and ClerkContext.js infinite loop fix. |
+| c52422f | GouthamA15 | **Profile Modification & Context Optimization:** Defensive 
+ew_data parsing in request panel and sequential background table fetching in ClerkContext.js. |
+| edd223b | P.Sannith | **CI/CD Network Fix:** Configured Docker Compose project name deployment_package to prevent 502 Bad Gateway on auto-deployments. |
