@@ -14,7 +14,7 @@ services:
     env_file:
       - .env.production
     volumes:
-      - /var/www/kucet-storage/public:/app/public/uploads
+      - /var/www/kucet-storage/public:/var/www/kucet-storage/public
     depends_on:
       db:
         condition: service_healthy

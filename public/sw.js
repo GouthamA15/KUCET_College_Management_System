@@ -14,7 +14,11 @@ const BYPASS_CACHE_PATTERNS = [
   /\/api\/clerk\/login/,
   /\/api\/admin\/login/,
   /\/api\/student\/finances\/pay/,
-  /\/api\/auth\/reset-password/
+  /\/api\/auth\/reset-password/,
+  /\/api\/assets\/view\//,
+  /\/uploads\//,
+  /\/api\/student\/image\//,
+  /\/api\/student\/requests\/image\//
 ];
 
 const OFFLINE_CACHE_PATTERNS = [
