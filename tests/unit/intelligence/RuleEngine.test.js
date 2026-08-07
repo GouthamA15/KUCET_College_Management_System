@@ -1,4 +1,4 @@
-/* global describe, test, expect, beforeEach, jest */
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { RuleEngine } from '../../../src/intelligence/rule-engine/RuleEngine';
 
 describe('RuleEngine', () => {
@@ -11,7 +11,7 @@ describe('RuleEngine', () => {
     engine.thresholds = {
       attendance: { warning: 75, critical: 65 }
     };
-    engine.init = jest.fn().mockResolvedValue();
+    engine.init = vi.fn().mockResolvedValue(undefined);
   });
 
   test('evaluate() ATTENDANCE_WARNING - triggered', async () => {
