@@ -18,7 +18,7 @@ export class StudentProfileService {
    * Helper to normalize roll number
    */
   static normalizeRollNo(val) {
-    if (!val) return null;
+    if (!val) return '';
     return String(val).trim().toUpperCase();
   }
 
@@ -26,30 +26,33 @@ export class StudentProfileService {
    * Helper to normalize mobile
    */
   static normalizeMobile(val) {
-    if (!val) return null;
-    const digits = String(val).replace(/\D/g, '');
-    if (digits.length === 10) return digits;
-    if (digits.length > 10 && digits.startsWith('91')) return digits.slice(-10);
-    return digits || null;
+    if (!val) return '';
+    return String(val).replace(/\D/g, '');
   }
 
   /**
    * Helper to normalize Aadhaar
    */
   static normalizeAadhaar(val) {
-    if (!val) return null;
-    const digits = String(val).replace(/\D/g, '');
-    if (digits.length === 12) return digits;
-    return digits || null;
+    if (!val) return '';
+    return String(val).replace(/\D/g, '');
   }
 
   /**
    * Fetch full student registry data for export or admin review
    */
-  static async getFullStudentDataForExport(admissionYear, branchCode) {
-    const yearDigits = String(admissionYear).slice(-2);
-    const regularRollPattern = `${yearDigits}841A${branchCode}%`;
-    const lateralRollPattern = `${String(Number(yearDigits) + 1).padStart(2, '0')}8415${branchCode}%`;
+  static async getFullStudentDataForExport(year, branch) {
+    if (!year || !branch) {
+      throw new Error('Year and branch are required');
+    }
+
+    const startYear = year.split('-')[0];
+    const startYearInt = parseInt(startYear, 10);
+    const regularYearShort = String(startYearInt).slice(-2);
+    const lateralYearShort = String(startYearInt + 1).slice(-2);
+    
+    const regularRollPattern = `${regularYearShort}567T${branch}%`;
+    const lateralRollPattern = `${lateralYearShort}567${branch}%L`;
 
     const results = await db.select({
       admission_no: studentsTable.admission_no,
@@ -221,110 +224,47 @@ export class StudentProfileService {
       qualifying_exam: qualifying_exam || null,
       previous_college_details: previous_college_details || null,
       medium_of_instruction: medium_of_instruction || null,
-      ranks: ranks || null,
+      ranks: ranks ? parseInt(ranks) : null,
       ssc_marks: ssc_marks || null,
       inter_marks: inter_marks || null
     };
 
-    const executeUpsert = async (executor) => {
-      const existing = await executor
-        .select()
-        .from(studentsTable)
-        .where(eq(studentsTable.roll_no, roll))
-        .limit(1);
+    const executeUpsert = async (innerTx) => {
+      // 1. Upsert Student
+      await innerTx.insert(studentsTable)
+        .values({ ...studentValues, added_by_clerk_id: clerkId })
+        .onDuplicateKeyUpdate({ set: studentValues });
 
-      let studentId;
-      if (existing.length > 0) {
-        studentId = existing[0].id;
-        await executor
-          .update(studentsTable)
-          .set({ ...studentValues, updated_at: new Date(), updated_by_clerk_id: clerkId })
-          .where(eq(studentsTable.id, studentId));
-      } else {
-        const [inserted] = await executor
-          .insert(studentsTable)
-          .values({ ...studentValues, added_by_clerk_id: clerkId });
-        studentId = inserted.insertId;
-      }
+      const existing = await innerTx.select({ id: studentsTable.id })
+        .from(studentsTable).where(eq(studentsTable.roll_no, roll)).limit(1);
+      
+      let studentId = existing[0]?.id;
+      if (!studentId) throw new Error('STUDENT_ID_GENERATION_FAILED');
 
-      const existingPersonal = await executor
-        .select()
-        .from(studentPersonalDetails)
-        .where(eq(studentPersonalDetails.student_id, studentId))
-        .limit(1);
+      // 2. Upsert Personal Details
+      await innerTx.insert(studentPersonalDetails)
+        .values({ student_id: studentId, ...personalValues })
+        .onDuplicateKeyUpdate({ set: personalValues });
 
-      if (existingPersonal.length > 0) {
-        await executor
-          .update(studentPersonalDetails)
-          .set(personalValues)
-          .where(eq(studentPersonalDetails.student_id, studentId));
-      } else {
-        await executor
-          .insert(studentPersonalDetails)
-          .values({ student_id: studentId, ...personalValues });
-      }
-
-      const existingAcademic = await executor
-        .select()
-        .from(studentAcademicBackground)
-        .where(eq(studentAcademicBackground.student_id, studentId))
-        .limit(1);
-
-      if (existingAcademic.length > 0) {
-        await executor
-          .update(studentAcademicBackground)
-          .set(academicValues)
-          .where(eq(studentAcademicBackground.student_id, studentId));
-      } else {
-        await executor
-          .insert(studentAcademicBackground)
-          .values({ student_id: studentId, ...academicValues });
-      }
+      // 3. Upsert Academic Background
+      await innerTx.insert(studentAcademicBackground)
+        .values({ student_id: studentId, ...academicValues })
+        .onDuplicateKeyUpdate({ set: academicValues });
 
       if (pfp) {
-        const existingImage = await executor
-          .select()
-          .from(studentImages)
-          .where(eq(studentImages.student_id, studentId))
-          .limit(1);
-
-        if (existingImage.length > 0) {
-          await executor
-            .update(studentImages)
-            .set({ pfp })
-            .where(eq(studentImages.student_id, studentId));
-        } else {
-          await executor
-            .insert(studentImages)
-            .values({ student_id: studentId, pfp });
-        }
+        await innerTx.insert(studentImages).values({ student_id: studentId, pfp }).onDuplicateKeyUpdate({ set: { pfp } });
       }
-
       if (signature) {
-        const existingSig = await executor
-          .select()
-          .from(studentSignatures)
-          .where(eq(studentSignatures.student_id, studentId))
-          .limit(1);
-
-        if (existingSig.length > 0) {
-          await executor
-            .update(studentSignatures)
-            .set({ signature })
-            .where(eq(studentSignatures.student_id, studentId));
-        } else {
-          await executor
-            .insert(studentSignatures)
-            .values({ student_id: studentId, signature });
-        }
+        await innerTx.insert(studentSignatures).values({ student_id: studentId, signature }).onDuplicateKeyUpdate({ set: { signature } });
       }
 
       return studentId;
     };
 
     if (tx) {
-      return executeUpsert(tx);
+      return await executeUpsert(tx);
+    } else {
+      return await db.transaction(executeUpsert);
     }
-    return db.transaction(async (newTx) => executeUpsert(newTx));
   }
 }
