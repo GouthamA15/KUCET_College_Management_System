@@ -13,10 +13,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Load Server Environment
+      - name: Load Server Production Environment
         run: |
-          if [ -f /home/kucet-dev/.env ]; then
-            cp /home/kucet-dev/.env .env
+          if [ -f /var/www/kucet-cms/.env.production ]; then
+            cp /var/www/kucet-cms/.env.production .env
+            cp /var/www/kucet-cms/.env.production .env.production
+          elif [ -f /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production ]; then
+            cp /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production .env
+            cp /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production .env.production
           fi
 
       - name: Deploy Production Application
