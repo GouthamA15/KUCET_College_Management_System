@@ -1,0 +1,36 @@
+name: Auto Deploy to Self-Hosted Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-self-hosted:
+    name: Build & Deploy on Self-Hosted Desktop
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Load Server Production Environment
+        run: |
+          if [ -f /var/www/kucet-cms/.env.production ]; then
+            cp /var/www/kucet-cms/.env.production .env
+            cp /var/www/kucet-cms/.env.production .env.production
+          elif [ -f /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production ]; then
+            cp /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production .env
+            cp /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production .env.production
+          fi
+
+      - name: Install Dependencies
+        run: npm ci --only=production || npm install
+
+      - name: Run Database Migrations
+        run: DB_HOST=127.0.0.1 npm run db:migrate
+
+      - name: Update Production Server & Restart Docker Stack
+        run: |
+          rsync -av --exclude='.git' --exclude='node_modules' ./ /var/www/kucet-cms/
+          cd /var/www/kucet-cms
+          docker compose up -d --build

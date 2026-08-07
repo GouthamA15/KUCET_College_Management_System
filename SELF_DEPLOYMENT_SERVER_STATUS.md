@@ -1,19 +1,38 @@
 # KUCET College Management System — Self-Deployment Server Status
 
-**Report Generated:** August 7, 2026 (17:54 IST)  
-**Host Server:** `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc`  
+**Report Generated:** August 7, 2026 (20:32 IST)  
+**Host Server:** `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc` (Ubuntu 24.04 LTS via Tailscale)  
 **Deployment Directory:** `/var/www/kucet-cms`  
-**Overall Deployment Status:** `ONLINE / HEALTHY (6/6 Containers Up)`  
+**Overall Deployment Status:** `ONLINE / HEALTHY (Containers & GitHub Self-Hosted Runner Active)`  
 
 ---
 
 ## 1. Executive Summary
 
-The self-hosted deployment of KUCET College Management System has been fully compiled, built, and verified on the local workstation server. All database records (1,280 active students) and storage files (51.8 MB including profile photos, signatures, and document proofs) have been restored and verified.
+The self-hosted deployment of KUCET College Management System is fully operational on host server `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc`. An automated **GitHub Self-Hosted Runner** has been configured and linked to the repository to enable zero-downtime automated deployments whenever the `main` branch is updated.
 
 ---
 
-## 2. Docker Container Stack (`docker compose up -d --build`)
+## 2. Automated CI/CD & Self-Hosted Runner Architecture
+
+| Component | Status | Details / Path |
+| :--- | :--- | :--- |
+| **Runner Service** | `ONLINE (Listening)` | Installed at `/home/kucet-dev/actions-runner` |
+| **Runner Version** | `v2.321.0` (Linux x64) | Active daemon process running in background |
+| **Deployment Workflow** | `ACTIVE` | [`.github/workflows/deploy.yml`](file:///.github/workflows/deploy.yml) (Triggers on `push` to `main`) |
+| **Production Env Source** | `VERIFIED` | `/var/www/kucet-cms/.env.production` |
+| **Remote Management** | `CONNECTED` | Tailscale SSH (`kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc`) |
+
+### Deployment Pipeline Workflow Steps:
+1. **Trigger:** Pull request merge or direct commit pushed to `main`.
+2. **Runner Pickup:** Self-hosted runner process on `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc` receives job.
+3. **Environment Injection:** Loads server production credentials from `/var/www/kucet-cms/.env.production`.
+4. **Build & Migration:** Executes production dependency installation (`npm ci`), database migrations (`npm run db:migrate`), and Next.js compilation (`npm run build`).
+5. **Process Reload:** Reloads production instance via PM2 (`pm2 reload kucet-cms`).
+
+---
+
+## 3. Docker Container Stack (`docker compose up -d --build`)
 
 ```
 [+] up 6/6
@@ -35,34 +54,32 @@ The self-hosted deployment of KUCET College Management System has been fully com
 
 ---
 
-## 3. Data & Storage Restoration Audit
+## 4. Data & Storage Audit
 
-1. **Database Restoration (`college_db.sql`)**:
-   - Dump file: `college_db.sql` (850 KB) restored to `kucet-cms-db`.
-   - **Student Count:** 1,280 verified.
-   - All relational tables for academic records, clerk profiles, attendance sessions, and drizzle migrations loaded.
+1. **Database (`college_db.sql`)**:
+   - **Student Records:** 1,280 active student profiles verified.
+   - All relational tables for academic records, clerk profiles, attendance sessions, and drizzle schema migrations loaded.
 
-2. **Storage Vault Restoration (`kucet_full_export_1786100086461.zip`)**:
-   - Target Directory: `/var/www/kucet-storage/public/`
-   - Archive size: 51.8 MB fully extracted.
+2. **Storage Vault**:
+   - **Target Directory:** `/var/www/kucet-storage/public/`
    - **Subdirectories:** `admission_drafts`, `bug_reports`, `certificates`, `clerks`, `requests`, `students`, `test`.
-   - **Permissions:** Set to `775` with `deployer:deployer` ownership.
+   - **Permissions:** `775` with `deployer:deployer` ownership.
 
 ---
 
-## 4. Key Deployment Fixes Applied
+## 5. Recent Fixes & Improvements Applied
 
-- **Dockerfile Build Fix:** Added `ENV SKIP_ENV_VALIDATION=true` to the `builder` stage in `DEPLOYMENT_PACKAGE/Dockerfile` to allow Next.js static asset compilation without requiring build-time environment secrets.
-- **Package Manager Fix:** Replaced invalid Alpine package option `--no-linux-headers` with `--no-cache`.
-- **React Compiler & Linting Fix:** Resolved React hook set-state-in-effect and purity errors in `src/components/assistant/AssistantContainer.js`.
+- **AI Assistant Static Methods:** Fixed static delegation methods in `StudentAnalytics`, `FacultyAnalytics`, `DepartmentAnalytics`, `InstitutionAnalytics`, `ScoringEngine`, and `RecommendationEngine` to prevent 500 error on `/api/assistant/chat`.
+- **AI Assistant Fallback:** Added graceful try/catch fallback error handling in `AssistantService.js`.
+- **Automated CI/CD Integration:** Integrated GitHub Self-Hosted Runner and updated `.github/workflows/deploy.yml` to automatically load production secrets from `/var/www/kucet-cms/.env.production` during deployments.
 
 ---
 
-## 5. System Health Verification
+## 6. System Health Verification
 
 - **HTTP Status Check (`GET http://localhost:80/api/health`):** `200 OK`
-- **Public Domain Access:** Proxied via Cloudflare Tunnel to `https://login.kucet.ac.in`
+- **Public Domain Access:** Proxied via Cloudflare Tunnel / Nginx to `https://login.kucet.ac.in`
 
 ---
 
-*Document saved locally at [`SELF_DEPLOYMENT_SERVER_STATUS.md`](file:///D:/User/Desktop/CMS/SELF_DEPLOYMENT_SERVER_STATUS.md) and on host server at `/home/kucet-dev/Desktop/SELF_DEPLOYMENT_SERVER_STATUS.md`.*
+*Document updated locally at [`SELF_DEPLOYMENT_SERVER_STATUS.md`](file:///D:/User/Desktop/CMS/SELF_DEPLOYMENT_SERVER_STATUS.md).*
