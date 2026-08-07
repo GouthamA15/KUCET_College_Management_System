@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 7, 2026 (Session 187)
+**Last Updated:** August 8, 2026 (Session 188)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -94,6 +94,29 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 188: Autonomous & Self-Healing Deployment Infrastructure (August 8, 2026)**
+- **Critical Gap Resolved â€” GitHub Runner Persistence:**
+  - Identified that the GitHub Actions self-hosted runner was started manually via `./run.sh`, dying on every server reboot and silently failing all CI/CD deployments.
+  - Created `setup-runner-service.sh` (`DEPLOYMENT_PACKAGE/SCRIPTS/setup-runner-service.sh`) that gracefully stops any running `./run.sh` process, calls the runner's built-in `./svc.sh install` to register it as a systemd unit, enables it with `systemctl enable`, and enables `docker.service` + `containerd.service` for auto-start on reboot.
+- **Production Deploy Script (`deploy.sh`):**
+  - Created `DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh` as the canonical deploy entry point called by GitHub Actions. Performs: environment load from `.env.production`, `git pull`, `DB_HOST=127.0.0.1 npm run db:migrate`, Docker build + restart of `kucet-cms-app` only (preserving DB/Redis), network alias reconnection, Nginx config validation (`nginx -t`) before reload, and post-deploy health check with automatic rollback on failure. Writes timestamped log to `/var/log/kucet/deploy_<timestamp>.log` and appends a JSON record to `/var/log/kucet/deployments.json`.
+- **Comprehensive Health Check (`health-check.sh`):**
+  - Created `DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh` performing 13-point PASS/FAIL validation: all 5 Docker container states, HTTP 200 from `/api/health`, MySQL `mysqladmin ping`, Redis `PONG`, Nginx `nginx -t` config validity, GitHub runner `systemctl is-active`, storage directory writable check, disk space (>10GB), and RAM usage. Supports `--json` flag for programmatic consumption.
+- **Full Rollback Rewrite (`rollback.sh`):**
+  - Rewrote `DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh` to be Docker-aware. Performs `git checkout TARGET_COMMIT`, rebuilds and restarts only the app container, re-runs health check, exits with code 2 on double-failure (distinguishable from normal exit 1), sends webhook notification via `BACKUP_ALERT_WEBHOOK_URL` on completion.
+- **Self-Healing Watchdog (`monitor.sh`):**
+  - Created `DEPLOYMENT_PACKAGE/SCRIPTS/monitor.sh` (cron every 5 minutes). Checks all 5 containers and restarts via `docker compose up -d <service>` if stopped. Checks GitHub runner systemd unit and restarts if inactive. Tracks `/api/health` failures in `/tmp/kucet_health_failures` counter â€” triggers `rollback.sh` to last known-good commit (from `deployments.json`) after 3 consecutive failures. Sends webhook alerts on any auto-recovery. Rotates monitor.log if >50MB.
+- **Boot Recovery Script (`boot-recovery.sh`):**
+  - Created `DEPLOYMENT_PACKAGE/SCRIPTS/boot-recovery.sh` that runs on every reboot via `@reboot` cron. Waits up to 120s for Docker daemon, runs `docker compose up -d` to bring all containers back, polls `/api/health` for 90s, verifies runner service, and logs to `/var/log/kucet/boot-recovery.log`.
+- **One-Time Setup Orchestration:**
+  - Created `setup-runner-service.sh`, `setup-logrotate.sh`, `setup-cron.sh`, and master `setup-all.sh` orchestrator. Running `sudo bash DEPLOYMENT_PACKAGE/SCRIPTS/setup-all.sh` once on the VPS configures the complete autonomous stack end-to-end.
+- **Centralized Deployment Logging (`/var/log/kucet/`):**
+  - All scripts log to `/var/log/kucet/`. Created `DEPLOYMENT_PACKAGE/CONFIGS/logrotate/kucet-cms` and `setup-logrotate.sh` installing it to `/etc/logrotate.d/kucet-cms` (daily rotation, 30-day retention, compressed, `copytruncate`).
+- **Updated GitHub Actions Workflow (`deploy.yml`):**
+  - Replaced minimal `deploy.yml` with production-grade workflow: 10-minute job timeout, `concurrency: production-deploy` lock preventing parallel deploys, calls `deploy.sh` with `--commit ${{ github.sha }}`, explicit emergency rollback step using `github.event.before` on failure, always-uploads deploy log as GitHub Actions artifact (30-day retention).
+- **Updated `DEPLOYMENT_PACKAGE/MASTER_DEPLOYMENT_GUIDE.md`:**
+  - Added Phase 14 (Autonomous Deployment Setup) documenting the one-time setup command, script inventory table, verification procedure, and boot recovery test steps.
 
 #### **Session 187: Production Deployment Automation & Operational Excellence (`38a1bb4` & `4829dbc`) (August 7, 2026)**
 - **Deployment Automation Suite (`scripts/deployment/`):**
@@ -577,48 +600,48 @@ A robust, production-ready web application built with **Next.js** for managing t
 A fully offline, rule-based and analytics-driven intelligence layer that operates completely without AI/LLM. All insights are generated from institutional rules, statistical calculations, and configurable weighted formulas applied to existing ERP data.
 
 ### Module Location
-src/intelligence/ — completely independent module integrated via interfaces only.
+src/intelligence/ ï¿½ completely independent module integrated via interfaces only.
 
 ### Architecture
 
 `
 src/intelligence/
 +-- rule-engine/        # Phase 1: Rule evaluation with thresholds
-¦   +-- RuleEngine.js
-¦   +-- RuleRegistry.js
-¦   +-- ThresholdConfig.js
-¦   +-- index.js
+ï¿½   +-- RuleEngine.js
+ï¿½   +-- RuleRegistry.js
+ï¿½   +-- ThresholdConfig.js
+ï¿½   +-- index.js
 +-- business-rules/     # Phase 2: Institutional policy decisions
-¦   +-- PolicyEngine.js
-¦   +-- PolicyRegistry.js
-¦   +-- index.js
+ï¿½   +-- PolicyEngine.js
+ï¿½   +-- PolicyRegistry.js
+ï¿½   +-- index.js
 +-- analytics/          # Phase 3: Statistical analytics engine
-¦   +-- StudentAnalytics.js
-¦   +-- FacultyAnalytics.js
-¦   +-- DepartmentAnalytics.js
-¦   +-- InstitutionAnalytics.js
-¦   +-- AnalyticsEngine.js
-¦   +-- index.js
+ï¿½   +-- StudentAnalytics.js
+ï¿½   +-- FacultyAnalytics.js
+ï¿½   +-- DepartmentAnalytics.js
+ï¿½   +-- InstitutionAnalytics.js
+ï¿½   +-- AnalyticsEngine.js
+ï¿½   +-- index.js
 +-- recommendation/     # Phase 4: Deterministic recommendations
-¦   +-- RecommendationEngine.js
-¦   +-- RecommendationRegistry.js
-¦   +-- index.js
+ï¿½   +-- RecommendationEngine.js
+ï¿½   +-- RecommendationRegistry.js
+ï¿½   +-- index.js
 +-- scoring/            # Phase 5: Weighted risk scoring
-¦   +-- ScoringEngine.js
-¦   +-- WeightConfig.js
-¦   +-- ScoreNormalizer.js
-¦   +-- index.js
+ï¿½   +-- ScoringEngine.js
+ï¿½   +-- WeightConfig.js
+ï¿½   +-- ScoreNormalizer.js
+ï¿½   +-- index.js
 +-- reports/            # Phase 7: Explainable decisions
-¦   +-- ExplainableDecision.js
-¦   +-- ReportGenerator.js
-¦   +-- index.js
+ï¿½   +-- ExplainableDecision.js
+ï¿½   +-- ReportGenerator.js
+ï¿½   +-- index.js
 +-- shared/             # Utilities and configuration
-¦   +-- IntelligenceConfig.js
-¦   +-- ConfigManager.js
-¦   +-- StatUtils.js
-¦   +-- QueryOptimizer.js
-¦   +-- BackgroundJobHelper.js
-¦   +-- index.js
+ï¿½   +-- IntelligenceConfig.js
+ï¿½   +-- ConfigManager.js
+ï¿½   +-- StatUtils.js
+ï¿½   +-- QueryOptimizer.js
+ï¿½   +-- BackgroundJobHelper.js
+ï¿½   +-- index.js
 +-- index.js            # Master barrel export
 `
 
@@ -730,16 +753,16 @@ Every intelligence output includes:
 ### Testing
 
 Unit test coverage in 	ests/unit/intelligence/:
-- RuleEngine.test.js — rule evaluation, disabled rules, threshold overrides
-- PolicyEngine.test.js — all 7 policies, eligibility conditions
-- StatUtils.test.js — all statistical utilities
-- AnalyticsEngine.test.js — analytics structure validation
-- RecommendationEngine.test.js — all 4 actor types, explainability fields
-- ScoringEngine.test.js — scoring models, normalizer, grade/risk conversion
-- ExplainableDecision.test.js — explainability contract
-- ConfigManager.test.js — config loading, merging, cache invalidation
-- QueryOptimizer.test.js — batch loading, empty inputs
-- Integration.test.js — full pipeline test with mocked DB
+- RuleEngine.test.js ï¿½ rule evaluation, disabled rules, threshold overrides
+- PolicyEngine.test.js ï¿½ all 7 policies, eligibility conditions
+- StatUtils.test.js ï¿½ all statistical utilities
+- AnalyticsEngine.test.js ï¿½ analytics structure validation
+- RecommendationEngine.test.js ï¿½ all 4 actor types, explainability fields
+- ScoringEngine.test.js ï¿½ scoring models, normalizer, grade/risk conversion
+- ExplainableDecision.test.js ï¿½ explainability contract
+- ConfigManager.test.js ï¿½ config loading, merging, cache invalidation
+- QueryOptimizer.test.js ï¿½ batch loading, empty inputs
+- Integration.test.js ï¿½ full pipeline test with mocked DB
 
 
 ## 8. Frontend AI Assistant Integration & Governance (Session 189)
@@ -811,8 +834,8 @@ Browser ? Upload API ? Storage Provider ? returns Storage Key ? DB stores key
 
 | File | Problem | Fix |
 |------|---------|-----|
-| `src/lib/cloudinary.js` | `uploadToCloudinary()` returned `getOptimizedUrl(result.secure_url)` — full URL | Now returns `${result.public_id}.${result.format}` — canonical storage key |
-| `src/lib/providers/storage/FailoverStorageProvider.js` | Missing `getUrl()` — all `storage.getUrl()` calls threw "not a function" | Added `getUrl()` delegating to first provider with that method |
+| `src/lib/cloudinary.js` | `uploadToCloudinary()` returned `getOptimizedUrl(result.secure_url)` ï¿½ full URL | Now returns `${result.public_id}.${result.format}` ï¿½ canonical storage key |
+| `src/lib/providers/storage/FailoverStorageProvider.js` | Missing `getUrl()` ï¿½ all `storage.getUrl()` calls threw "not a function" | Added `getUrl()` delegating to first provider with that method |
 | `src/lib/cloudinary.js` | `deleteFromCloudinary()` only handled full URLs, failed on keys/versioned paths | Now handles storage keys, full URLs, and `v\d+/` prefixed legacy paths |
 | `src/lib/providers/storage/CloudinaryStorageProvider.js` | `getUrl()` crashed on non-string values and versioned paths | Added type guard, strips `v\d+/` version prefix from legacy DB data |
 | `src/lib/assets.js` | `getAssetUrl()` returned `[object Object]` values unchanged | Returns `''` for corrupt values; strips `v\d+/` from legacy versioned paths |
@@ -825,7 +848,7 @@ All `imageHelper` functions in API routes now correctly resolve storage keys via
 - `src/app/api/clerk/me/route.js`
 - `src/app/api/clerk/admission/student-requests/route.js`
 - `src/app/api/student/requests/profile/route.js`
-- `src/app/api/student/upload-photo/route.js` — also: deletes old photo before upload, validates storage key type, rollback on DB failure
+- `src/app/api/student/upload-photo/route.js` ï¿½ also: deletes old photo before upload, validates storage key type, rollback on DB failure
 
 ### Upload-Photo Route Improvements
 - Deletes old photo from storage before uploading new one (prevents orphan accumulation)
@@ -841,8 +864,8 @@ All `imageHelper` functions in API routes now correctly resolve storage keys via
 | `tests/unit/storage-architecture.test.js` | **49 passing regression tests** covering all providers, migration logic, URL generation, archive system, and database key contract |
 
 ### OrphanMediaService Improvements
-- Added `scanDatabaseViolations()` — scans all image columns for URL violations and `[object Object]` corruption
-- Fixed referenced media path collection to use correct schema tables (`studentImages`, `studentSignatures` — not the old `students.pfp` column)
+- Added `scanDatabaseViolations()` ï¿½ scans all image columns for URL violations and `[object Object]` corruption
+- Fixed referenced media path collection to use correct schema tables (`studentImages`, `studentSignatures` ï¿½ not the old `students.pfp` column)
 - Added `URL_VIOLATION_PATTERNS` constant for consistent detection across services
 
 ### Storage Key Format (Enforced)
@@ -854,7 +877,7 @@ All `imageHelper` functions in API routes now correctly resolve storage keys via
 
 ### Running the Migration
 ```bash
-# Dry run (inspect what will change — safe):
+# Dry run (inspect what will change ï¿½ safe):
 node scripts/migrate-storage-keys.js
 
 # Verify architecture regression tests pass:
@@ -882,7 +905,7 @@ PERMANENT STUDENT ASSETS (Physical move + DB sync)
   +-- kucet/students/pfp/
   +-- kucet/students/signatures/
 
-PERMANENT FINANCIAL EVIDENCE (Intact — NEVER moved)
+PERMANENT FINANCIAL EVIDENCE (Intact ï¿½ NEVER moved)
   +-- kucet/certificates/payments/ (or kucet/requests/payments/)
 ```
 
