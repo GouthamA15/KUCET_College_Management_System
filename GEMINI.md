@@ -919,3 +919,148 @@ node scripts/promote-legacy-media.js
 # Run full storage & media promotion tests (61 tests total):
 npx vitest run tests/unit/storage-architecture.test.js tests/unit/media-promotion-lifecycle.test.js
 ```
+
+## 11. Developer Specification: Institutional Media Architecture & Database Instructions
+
+**Added:** August 7, 2026 (Session 191)
+
+### Overview & Golden Architectural Rule
+
+> ?? **THE GOLDEN RULE:**  
+> **The database MUST NEVER store full URLs, hostnames, Cloudinary URLs, S3 URLs, or versioned prefixes.**  
+> The database stores **ONLY relative storage keys** (e.g., `kucet/students/pfp/101.jpg`).  
+> Dynamic URL generation happens **exclusively at read-time** via `storage.getUrl(key)` or `getAssetUrl(key)`.  
+> Swapping storage providers (`Local` ? `Cloudinary` ? `S3`) requires **ZERO database changes**.
+
+---
+
+### Storage Folder Hierarchy Standard
+
+| Storage Namespace | Folder Path | Purpose | Lifecycle Stage |
+|---|---|---|---|
+| **Staging** | `kucet/admission_drafts/pfp/` | Temporary draft profile photo | Temporary (Moved on finalization) |
+| **Staging** | `kucet/admission_drafts/signatures/` | Temporary draft signature | Temporary (Moved on finalization) |
+| **Staging** | `kucet/requests/pfp/` | Temporary profile request photo | Temporary (Moved on approval) |
+| **Staging** | `kucet/requests/signatures/` | Temporary profile request signature | Temporary (Moved on approval) |
+| **Staging** | `kucet/requests/proofs/` | Profile update proof document | Audit proof (Retained/Archived) |
+| **Permanent** | `kucet/students/pfp/` | Active/alumni student profile photo | Permanent |
+| **Permanent** | `kucet/students/signatures/` | Active/alumni student signature | Permanent |
+| **Permanent** | `kucet/clerks/pfp/` | Clerk / Faculty profile photo | Permanent |
+| **Permanent** | `kucet/clerks/signatures/` | Clerk / Faculty signature | Permanent |
+| **Evidence** | `kucet/certificates/payments/` | Certificate request payment screenshot | Permanent financial audit evidence |
+| **Archive** | `archive/students/YYYY/BRANCH/` | Archived student assets | Long-term cold storage |
+
+---
+
+### Step-by-Step Instructions for Developers
+
+#### 1. Uploading an Image / Asset (Write Path)
+
+When receiving a file or Base64 string from the frontend or API request:
+
+```javascript
+import { storage } from '@/lib/providers';
+
+// 1. Upload file to storage provider
+// storage.upload() returns ONLY a relative storage key string (e.g., 'kucet/students/pfp/20567T0901.jpg')
+const storageKey = await storage.upload(fileData, 'students/pfp', rollNo);
+
+// 2. Validate storage key return type
+if (!storageKey || typeof storageKey !== 'string' || storageKey.includes('[object')) {
+  throw new Error('Storage upload failed to return a valid storage key');
+}
+
+// 3. Store ONLY the storage key in the Database
+await db.insert(studentImages)
+  .values({ student_id: studentId, pfp: storageKey })
+  .onDuplicateKeyUpdate({ set: { pfp: storageKey } });
+```
+
+**Rule for Uploading:**  
+- **NEVER** save `getOptimizedUrl()`, `secure_url`, or `http://...` into the database.
+- Always store the string returned directly by `storage.upload()`.
+
+---
+
+#### 2. Fetching & Displaying Images (Read Path)
+
+##### A. In Server-Side API Routes & Services
+Use the standard `imageHelper` pattern or `storage.getUrl()`:
+
+```javascript
+import { storage } from '@/lib/providers';
+
+// Helper to resolve keys to public URLs
+const imageHelper = (val) => {
+  if (!val) return null;
+  if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:') || val.startsWith('/api/'))) return val;
+  if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
+  if (typeof val === 'string') return storage.getUrl(val);
+  return null;
+};
+
+// Application logic returning user data with resolved image URLs
+const studentPfpUrl = imageHelper(studentImageRow.pfp);
+```
+
+##### B. In Frontend React Components
+Import `getAssetUrl` from `@/lib/assets`:
+
+```javascript
+import { getAssetUrl } from '@/lib/assets';
+import Image from 'next/image';
+
+// In React JSX component:
+<Image 
+  src={getAssetUrl(student.pfp)} 
+  alt="Student Photo" 
+  width={120} 
+  height={120} 
+/>
+```
+
+---
+
+#### 3. Promoting Media Assets (Staging ? Permanent)
+
+When an event approves a request or finalizes a draft:
+
+```javascript
+import { MediaPromotionService } from '@/services/storage/MediaPromotionService';
+
+// Inside database transaction handle `tx`:
+const { promotedPfp, promotedSig } = await MediaPromotionService.promoteRequestMedia({
+  studentId: student.id,
+  newPfp: request.new_pfp,         // e.g. 'kucet/requests/pfp/abc.jpg'
+  newSignature: request.new_signature // e.g. 'kucet/requests/signatures/def.png'
+}, tx);
+
+// MediaPromotionService automatically:
+// 1. Calls StorageProvider.moveFile() to physically move files to students/pfp and students/signatures
+// 2. Updates student_images and student_signatures tables inside `tx`
+// 3. Restores physical files if DB transaction fails (Rollback Safety)
+```
+
+---
+
+### Summary of Image Infrastructure Commits
+
+| Session | Commit | Description |
+|---|---|---|
+| **Session 190** | `f809a60` | **Storage Architecture Recovery:** Restored strict storage key contract (`uploadToCloudinary` returns key, added `FailoverStorageProvider.getUrl()`, fixed `getAssetUrl`, added 49 unit tests in `storage-architecture.test.js`). |
+| **Session 191** | `e2a75ff` | **Media Promotion Lifecycle Repair:** Created `MediaPromotionService`, atomic file movement (`StorageProvider.moveFile()`), rollback safety, admission finalization & profile request approval promotion, `scripts/promote-legacy-media.js`, and 12 unit tests in `media-promotion-lifecycle.test.js`. |
+
+---
+
+### Operational Command Reference
+
+```bash
+# 1. Run storage key normalization migration (DB cleanup):
+node scripts/migrate-storage-keys.js
+
+# 2. Run legacy media promotion migration (Physical move + DB sync):
+node scripts/promote-legacy-media.js
+
+# 3. Execute complete storage unit test suite (61 tests total):
+npx vitest run tests/unit/storage-architecture.test.js tests/unit/media-promotion-lifecycle.test.js
+```
