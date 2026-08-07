@@ -161,9 +161,12 @@ export class MediaPromotionService {
 
       if (promotedPfp) {
         // Delete old permanent PFP if different
-        const oldPfpRow = await dbHandle.query.studentImages.findFirst({
-          where: eq(studentImages.student_id, studentId)
-        });
+        const oldPfpRow = dbHandle.query?.studentImages
+          ? await dbHandle.query.studentImages.findFirst({
+              where: eq(studentImages.student_id, studentId)
+            })
+          : null;
+
         if (oldPfpRow?.pfp && oldPfpRow.pfp !== promotedPfp && !this.isTemporaryPfp(oldPfpRow.pfp)) {
           const storage = getStorageProvider();
           await storage.delete(oldPfpRow.pfp).catch(err => {
@@ -178,9 +181,12 @@ export class MediaPromotionService {
 
       if (promotedSig) {
         // Delete old permanent Signature if different
-        const oldSigRow = await dbHandle.query.studentSignatures.findFirst({
-          where: eq(studentSignatures.student_id, studentId)
-        });
+        const oldSigRow = dbHandle.query?.studentSignatures
+          ? await dbHandle.query.studentSignatures.findFirst({
+              where: eq(studentSignatures.student_id, studentId)
+            })
+          : null;
+
         if (oldSigRow?.signature && oldSigRow.signature !== promotedSig && !this.isTemporarySignature(oldSigRow.signature)) {
           const storage = getStorageProvider();
           await storage.delete(oldSigRow.signature).catch(err => {
