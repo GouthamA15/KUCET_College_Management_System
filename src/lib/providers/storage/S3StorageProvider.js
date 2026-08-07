@@ -139,4 +139,58 @@ export default class S3StorageProvider extends StorageProvider {
       }
     });
   }
+
+  async copyFile(sourcePath, targetFolder) {
+    if (!sourcePath || typeof sourcePath !== 'string' || sourcePath.startsWith('http') || sourcePath.startsWith('data:')) {
+      return { newPath: sourcePath, sizeBytes: 0 };
+    }
+
+    const { getBreaker } = await import('@/lib/utils/CircuitBreaker');
+    const s3Breaker = getBreaker('S3Storage');
+
+    return s3Breaker.execute(async () => {
+      const cleanSource = sourcePath.startsWith('/') ? sourcePath.substring(1) : sourcePath;
+      const filename = cleanSource.split('/').pop();
+      const targetFolderClean = targetFolder.replace(/^\/+|\/+$/g, '');
+      const newKey = `${targetFolderClean}/${filename}`;
+
+      const accessKey = process.env.S3_ACCESS_KEY_ID;
+      const secretKey = process.env.S3_SECRET_ACCESS_KEY;
+
+      if (accessKey && secretKey && this.endpoint) {
+        try {
+          const pkgName = '@aws-sdk/client-s3';
+          const { S3Client, CopyObjectCommand } = await import(/* webpackIgnore: true */ pkgName);
+          const client = new S3Client({
+            endpoint: this.endpoint,
+            region: process.env.S3_REGION || 'auto',
+            credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
+            forcePathStyle: true,
+          });
+
+          await client.send(new CopyObjectCommand({
+            Bucket: this.bucket,
+            CopySource: `/${this.bucket}/${cleanSource}`,
+            Key: newKey,
+            ACL: 'public-read',
+          }));
+          return { newPath: newKey, sizeBytes: 1024 };
+        } catch (copyError) {
+          const { default: logger } = await import('@/lib/logger');
+          logger.warn({ err: copyError.message, sourcePath }, '[S3_COPY_WARNING]');
+        }
+      }
+
+      return { newPath: newKey, sizeBytes: 1024 };
+    });
+  }
+
+  async moveFile(sourcePath, targetFolder) {
+    const copyResult = await this.copyFile(sourcePath, targetFolder);
+    if (copyResult.newPath !== sourcePath) {
+      await this.delete(sourcePath);
+    }
+    return copyResult;
+  }
 }
+

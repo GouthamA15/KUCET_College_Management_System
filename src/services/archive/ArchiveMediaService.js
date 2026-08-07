@@ -30,22 +30,14 @@ export class ArchiveMediaService {
 
     try {
       const storage = getStorageProvider();
-      const filename = originalPath.split('/').pop();
       const archiveFolderPath = `archive/${targetFolder.replace(/^\/+|\/+$/g, '')}`;
       
-      // Calculate estimated file size
-      const estimatedSize = Math.max(1024, filename.length * 512);
-
-      // Store in archive namespace
-      // Note: If using storage providers like S3/R2/Cloudinary, upload creates key in archive/ prefix
-      const cleanPath = originalPath.startsWith('/') ? originalPath.substring(1) : originalPath;
-      const archivePath = `${archiveFolderPath}/${filename}`;
-
-      logger.info({ from: cleanPath, to: archivePath }, '[ARCHIVE_MEDIA_MOVE]');
+      const moveResult = await storage.moveFile(originalPath, archiveFolderPath);
+      logger.info({ from: originalPath, to: moveResult.newPath, sizeBytes: moveResult.sizeBytes }, '[ARCHIVE_MEDIA_MOVE]');
       
       return {
-        newPath: archivePath,
-        sizeBytes: estimatedSize,
+        newPath: moveResult.newPath,
+        sizeBytes: moveResult.sizeBytes || 1024,
       };
     } catch (error) {
       logger.error({ err: error.message, originalPath }, '[ARCHIVE_MEDIA_ERROR]');
@@ -69,10 +61,10 @@ export class ArchiveMediaService {
     }
 
     try {
-      const filename = archivedPath.split('/').pop();
-      const restoredPath = `${targetFolder.replace(/^\/+|\/+$/g, '')}/${filename}`;
-      logger.info({ from: archivedPath, to: restoredPath }, '[RESTORE_MEDIA_MOVE]');
-      return restoredPath;
+      const storage = getStorageProvider();
+      const moveResult = await storage.moveFile(archivedPath, targetFolder);
+      logger.info({ from: archivedPath, to: moveResult.newPath }, '[RESTORE_MEDIA_MOVE]');
+      return moveResult.newPath;
     } catch (error) {
       logger.error({ err: error.message, archivedPath }, '[RESTORE_MEDIA_ERROR]');
       return archivedPath;

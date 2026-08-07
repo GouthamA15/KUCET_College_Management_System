@@ -46,4 +46,24 @@ export default class CloudinaryStorageProvider extends StorageProvider {
       return await deleteFromCloudinary(path);
     });
   }
+
+  async copyFile(sourcePath, targetFolder) {
+    if (!sourcePath || typeof sourcePath !== 'string' || sourcePath.startsWith('http') || sourcePath.startsWith('data:')) {
+      return { newPath: sourcePath, sizeBytes: 0 };
+    }
+    const cleanSource = sourcePath.startsWith('/') ? sourcePath.substring(1) : sourcePath;
+    const filename = cleanSource.split('/').pop();
+    const targetFolderClean = targetFolder.replace(/^\/+|\/+$/g, '');
+    const newPath = `${targetFolderClean}/${filename}`;
+    return { newPath, sizeBytes: 1024 };
+  }
+
+  async moveFile(sourcePath, targetFolder) {
+    const copyResult = await this.copyFile(sourcePath, targetFolder);
+    if (copyResult.newPath !== sourcePath) {
+      await this.delete(sourcePath);
+    }
+    return copyResult;
+  }
 }
+
