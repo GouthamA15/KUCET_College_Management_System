@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 7, 2026 (Session 186)
+**Last Updated:** August 7, 2026 (Session 187)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -14,6 +14,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Financial & Certificates:** Scholarship tracking, fee management, and automated digital certificate generation.
 - **Academic Data Archival & Restoration:** Production-grade long-term archival engine for historical student registries, closed semester attendance, evaluation marks, payment receipts, and media storage assets with safe zero-data-loss restoration capabilities.
 - **Enterprise Core Systems:** Centralized Domain Event Bus, Tagged Cache-Aside Redis layer, Async QStash Background Workers, PWA Offline capability, Web Push Notifications, Fine-grained RBAC, Observability & Tracing, Multi-Provider Failover, and Automated Backups with Retention Pruning.
+- **Production Deployment & Operations:** Multi-container Docker Compose packaging, zero-downtime Linux VPS deployment automation, automated rollback, disaster recovery procedures, real-time infrastructure monitoring, and full diagnostic operational health probes.
 
 ## 2. Technical Stack
 - **Framework:** Next.js 16 (App Router), React 19, Tailwind CSS 4.
@@ -21,7 +22,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Auth:** JWT (HTTP-only) via `jose`, Google OAuth (`next-auth`).
 - **Real-Time:** Supabase Realtime (Broadcast) & Redis Pub/Sub (`ioredis`).
 - **Security:** AES-256-GCM encryption for PII, SHA-256 blind indexing, Fine-Grained Permission RBAC.
-- **Infrastructure:** Sentry (Monitoring), Cloudinary/S3/Local (Failover Storage), Upstash (Rate Limiting/QStash Queue/Redis Cache), Docker (Multi-stage production build).
+- **Infrastructure:** Sentry (Monitoring), Cloudinary/S3/Local (Failover Storage), Upstash (Rate Limiting/QStash Queue/Redis Cache), Docker & Docker Compose (Production packaging), PM2 (Process Manager).
 - **Tooling:** Zod (Validation), Vitest & Playwright (Unit & E2E Testing), Pino (Logging).
 
 ## 3. Core Architectural Concepts
@@ -40,7 +41,7 @@ A robust, production-ready web application built with **Next.js** for managing t
   - `identity/`: `DeviceService.js`, `StudentService.js`, `StudentCertificateService.js`, `StudentProfileService.js`
   - `academic/`: `FacultyService.js`
   - `finance/`: `FinanceService.js`, `ScholarshipService.js`, `IdempotencyService.js`
-  - `archive/`: `ArchiveService.js`, `ArchiveMediaService.js`, `ArchiveRestoreService.js`, `OrphanMediaService.js`, `BackupService.js`
+  - `archive/`: `ArchiveService.js`, `ArchiveMediaService.js`, `ArchiveRestoreService.js`, `OrphanMediaService.js`, `BackupService.js`, `DisasterRecoveryService.js`
   - `security/`: `SecurityService.js`, `ValidationService.js`, `PushNotificationService.js`
   - `shared/`: `HealthService.js`
   - Barrel export in `src/services/index.js` and root re-exports guarantee backwards compatibility for all import paths.
@@ -93,6 +94,34 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 187: Production Deployment Automation & Operational Excellence (`38a1bb4` & `4829dbc`) (August 7, 2026)**
+- **Deployment Automation Suite (`scripts/deployment/`):**
+  - Created `deploy-vps.sh` (`scripts/deployment/deploy-vps.sh`) providing environment validation, dependency installation, safe database migration (`npm run db:migrate`), zero-downtime application process reload via PM2/Docker, post-deployment health verification (`/api/health`), and automatic rollback to previous commit on failure.
+  - Created `rollback.sh` (`scripts/deployment/rollback.sh`) for rapid emergency rollback to any commit hash.
+  - Created `backup-restore.sh` (`scripts/deployment/backup-restore.sh`) for database backup and snapshot restoration.
+- **Multi-Container Docker Packaging (`docker-compose.yml`):**
+  - Created production `docker-compose.yml` orchestrating Next.js Standalone runner (`kucet-cms-app`), MySQL 8.0 (`kucet-cms-db`), and Redis 7 Alpine (`kucet-cms-redis`) with automated container healthcheck probes (`/api/health`).
+- **Real-Time Infrastructure Monitoring (`/api/admin/infrastructure/monitoring`):**
+  - Built secure admin monitoring endpoint `src/app/api/admin/infrastructure/monitoring/route.js` exposing Node.js RSS/Heap memory consumption, process uptime, active user session count (`user_sessions`), active student registry count (`students`), database connection status, and diagnostic health report.
+- **Operational Health Diagnostics (`/api/health` & `HealthService.js`):**
+  - Enhanced `HealthService.js` (`src/services/shared/HealthService.js`) and public probe `/api/health` to return component-level diagnostics across Database (SQL query latency), Redis (PING response), Storage Provider, Email API credentials, Push Notifications, QStash Queue, and Scheduled Backups. Covered by Vitest unit tests in `tests/unit/services/OperationalExcellence.test.js`.
+- **Automated Disaster Recovery Engine (`DisasterRecoveryService.js` & `/api/admin/infrastructure/disaster-recovery`):**
+  - Created `DisasterRecoveryService.js` (`src/services/archive/DisasterRecoveryService.js`) and REST API route `/api/admin/infrastructure/disaster-recovery/route.js` implementing automated database table integrity verification (`verifyDatabaseIntegrity`), tag-based domain cache rebuilding (`rebuildDomainCaches`), and comprehensive disaster recovery report generation. Covered by Vitest unit tests.
+- **Storage Audit & Orphan Media Cleanup API (`/api/admin/infrastructure/storage/audit`):**
+  - Created API route `src/app/api/admin/infrastructure/storage/audit/route.js` wrapping `OrphanMediaService.scanOrphanMedia` supporting dry-run inspection (GET/POST) and real file cleanup execution (POST `dryRun: false`).
+- **Performance Benchmarking Suite (`scripts/benchmark-system.js`):**
+  - Created system benchmarking CLI script `scripts/benchmark-system.js` measuring health diagnostics latency, 1,000 RBAC evaluation times, and Cache-Aside retrieval speed.
+- **Comprehensive Operational Documentation (`OPERATIONAL_RUNBOOK.md`):**
+  - Authored authoritative `OPERATIONAL_RUNBOOK.md` detailing production deployment instructions, emergency rollback workflows, disaster recovery procedures, health check references, and system maintenance checklists.
+- **E2E Test Suite Expansion (`tests/enterprise-features.spec.js`):**
+  - Created Playwright E2E test suite `tests/enterprise-features.spec.js` verifying Web App manifest (`manifest.json`), offline fallback route (`/offline`), backup schedule authorization guards, storage audit authorization guards, and push subscription authorization guards.
+- **System Verification & Git Push:**
+  - ESLint check: `npm run lint` passed cleanly with 0 errors.
+  - Vitest Unit suite: 194 unit tests passed cleanly across 26 test files (`npm test -- --run`).
+  - Playwright E2E suite: 23 E2E tests passed cleanly across 7 spec files (`npx playwright test`).
+  - Production Build: `npm run build` compiled successfully (0 build errors).
+  - Git Push: Pushed to `origin/testvanilla` (`4829dbc`).
 
 #### **Session 186: Final Enterprise Hardening & Completion Sprint (August 7, 2026)**
 - **Domain Event Bus (`src/lib/events/EventBus.js`):**
