@@ -41,7 +41,7 @@ ENV_FILE="$KUCET_CMS_DIR/.env.production"
 if [[ -f "$ENV_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
-  source "$ENV_FILE"
+  source <(tr -d '\r' < "$ENV_FILE")
   set +a
 fi
 

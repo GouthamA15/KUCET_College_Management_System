@@ -77,7 +77,7 @@ if [[ -f "$ENV_FILE" ]]; then
   log "Loading environment from $ENV_FILE ..."
   set -a
   # shellcheck disable=SC1090
-  source "$ENV_FILE"
+  source <(tr -d '\r' < "$ENV_FILE")
   set +a
   log "Environment loaded."
 else
