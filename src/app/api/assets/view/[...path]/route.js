@@ -11,11 +11,6 @@ import path from 'path';
  */
 export async function GET(request, { params }) {
   const { path: pathSegments } = await params;
-  const user = await getAuthUser(request);
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   // Join the path segments back into a string
   const filename = pathSegments.join('/');
