@@ -16,6 +16,8 @@ COPY . .
 
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV SKIP_ENV_VALIDATION=true
 
 # Production build
 # Note: Ensure all environment variables needed for BUILD time are provided
