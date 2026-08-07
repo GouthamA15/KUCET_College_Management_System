@@ -15,11 +15,13 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="backups/release_${TIMESTAMP}"
 mkdir -p "${BACKUP_DIR}"
 
-echo "1/5 Validating environment and pulling latest release..."
-git fetch origin testvanilla
+BRANCH="${1:-${DEPLOY_BRANCH:-main}}"
+
+echo "1/5 Validating environment and pulling latest release ($BRANCH)..."
+git fetch origin "$BRANCH"
 PREV_COMMIT=$(git rev-parse HEAD)
-git checkout testvanilla
-git pull origin testvanilla
+git checkout "$BRANCH"
+git pull origin "$BRANCH"
 
 echo "2/5 Installing dependencies & running database migrations..."
 npm ci --only=production || npm install
