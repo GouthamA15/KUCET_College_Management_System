@@ -21,6 +21,7 @@
     "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') { try { require('child_process').execSync('husky', {stdio: 'inherit'}) } catch (e) {} }\""
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1103.0",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@react-pdf/renderer": "^4.3.2",
     "@sentry/nextjs": "^10.43.0",

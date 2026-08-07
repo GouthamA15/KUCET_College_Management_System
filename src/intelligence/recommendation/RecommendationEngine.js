@@ -14,6 +14,12 @@ import { RecommendationRegistry } from './RecommendationRegistry';
 import { getNow } from '@/lib/clock';
 
 export class RecommendationEngine {
+  static async generateForStudent(...args) { return new RecommendationEngine().generateForStudent(...args); }
+  static async generateForFaculty(...args) { return new RecommendationEngine().generateForFaculty(...args); }
+  static async generateForHOD(...args) { return new RecommendationEngine().generateForHOD(...args); }
+  static async generateForAdmin(...args) { return new RecommendationEngine().generateForAdmin(...args); }
+
+
   
   _createRecommendation(registryEntry, reason, dataUsed, thresholdCrossed, suggestedAction, targetId) {
     return {

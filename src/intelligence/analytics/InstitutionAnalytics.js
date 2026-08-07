@@ -4,6 +4,13 @@ import { eq, sql } from 'drizzle-orm';
 import { cacheAside } from '@/lib/cache';
 
 export class InstitutionAnalytics {
+  static async getActiveStudentCount(...args) { return new InstitutionAnalytics().getActiveStudentCount(...args); }
+  static async getAlumniCount(...args) { return new InstitutionAnalytics().getAlumniCount(...args); }
+  static async getDepartmentComparison(...args) { return new InstitutionAnalytics().getDepartmentComparison(...args); }
+  static async getArchiveGrowth(...args) { return new InstitutionAnalytics().getArchiveGrowth(...args); }
+  static async getInstitutionSummary(...args) { return new InstitutionAnalytics().getInstitutionSummary(...args); }
+
+
   async getActiveStudentCount() {
     return await cacheAside(
       `analytics:inst:active_students`,

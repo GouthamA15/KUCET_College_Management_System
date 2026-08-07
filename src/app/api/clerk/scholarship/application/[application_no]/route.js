@@ -9,11 +9,11 @@ import {
 import { eq, and, asc, sql, _or, _like } from 'drizzle-orm';
 import { 
   getBranchFromRoll, 
-  getAcademicYear, 
-  getResolvedCurrentAcademicYear,
+  getAcademicYear,
   getAdmissionTypeFromRoll,
   _getAcademicYearForStudyYear
 } from '@/lib/rollNumber';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
@@ -67,7 +67,7 @@ export async function GET(req, ctx) {
     const now = await getNow();
     const course = getBranchFromRoll(student.roll_no);
     const admission_year = getAcademicYear(student.roll_no);
-    const current_year = getResolvedCurrentAcademicYear(student.roll_no, null, now);
+    const current_year = await getCollegeAcademicYear();
     const _admissionType = getAdmissionTypeFromRoll(student.roll_no);
 
     // For each academic_year belonging to this application, build a summary

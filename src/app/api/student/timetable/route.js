@@ -1,8 +1,8 @@
 import { wrapHandler } from '@/lib/api-utils';
-import { getCurrentSemester, getBranchFromRoll } from '@/lib/rollNumber';
+import { getBranchFromRoll } from '@/lib/rollNumber';
+import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import { FacultyService } from '@/services/FacultyService';
 import { db } from '@/db';
-import { collegeInfo as collegeInfoTable } from '@/db/schema';
 
 /**
  * GET /api/student/timetable
@@ -13,11 +13,15 @@ export const GET = wrapHandler({
   handler: async (req, { user }) => {
     const rollNo = user.roll_no;
 
-    const collegeRows = await db.select().from(collegeInfoTable).limit(1);
-    const collegeInfo = collegeRows[0] || null;
-
-    const semester = getCurrentSemester(rollNo, collegeInfo);
+    const academicSession = await calculateYearAndSemesterAsync(rollNo, user.academic_offset_years || 0);
+    const { semester, status: sessionStatus } = academicSession;
     const branch = getBranchFromRoll(rollNo);
+
+    if (sessionStatus === 'Semester Not Configured') {
+      const err = new Error('Academic Calendar not configured.');
+      err.status = 400;
+      throw err;
+    }
 
     if (!semester || !branch) {
       const err = new Error('Resolution failed');

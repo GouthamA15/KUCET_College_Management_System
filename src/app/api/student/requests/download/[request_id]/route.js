@@ -12,9 +12,8 @@ import { getAssetUrl } from '@/lib/assets';
 import path from 'path';
 import fs from 'fs';
 import { getBranchFromRoll } from '@/lib/rollNumber';
-import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
+import { getCollegeAcademicYear, calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import { getNow } from '@/lib/clock';
-import { getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
 import { decrypt } from '@/lib/encryption';
 import { _studentImages } from '@/db/schema';
 
@@ -109,7 +108,8 @@ export async function GET(request, context) {
         const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
         const collegeInfo = collegeRows[0] || { /* empty */ };
 
-        const { yearOfStudy, semester: currentSemester } = await calculateYearAndSemesterAsync(student.roll_no, collegeInfo);
+        const { yearOfStudy, semester: currentSemester } = await calculateYearAndSemesterAsync(student.roll_no);
+        const currentAcademicYear = await getCollegeAcademicYear();
         
         const rollNo = student.roll_no;
         const isLateral = rollNo.toUpperCase().endsWith('L');
@@ -197,7 +197,7 @@ export async function GET(request, context) {
             certId, date: formattedDate, studentName: student.name,
             fatherName: student.father_name || 'N/A', admissionNo: student.roll_no,
             course, dob: formattedDob, category, subCaste, casteDisplay,
-            academicYear: getResolvedCurrentAcademicYear(student.roll_no, collegeInfo) || certRequest.academic_year || '',
+            academicYear: currentAcademicYear || certRequest.academic_year || '',
             logoUrl, signatureUrl, stampSign, stampUrl, qrUrl: qrBase64, batch: batchString
         };
 

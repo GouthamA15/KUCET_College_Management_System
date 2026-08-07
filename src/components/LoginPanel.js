@@ -4,6 +4,7 @@ import { useState, _useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 import { signIn } from "next-auth/react";
+import Link from 'next/link';
 
 export default function LoginPanel({ activePanel, onClose, _onStudentLogin, variant = 'modal', dismissable = true }) {
   const MAX_ROLL = 10;
@@ -505,9 +506,15 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                   </form>
                 )}
 
-                <p className={isModal ? 'mt-6 text-center text-xs text-gray-600' : 'mt-4 text-center text-[11px] text-gray-600 hidden sm:block'}>
-                  Note : Login by DOB will work only for the students who haven&apos;t set their password yet
-                </p>
+                <div className={isModal ? 'mt-6 text-center text-sm' : 'mt-4 text-center text-xs'}>
+                  <span className="text-gray-600">New User? </span>
+                  <Link 
+                    href="/admission" 
+                    className="font-semibold text-[#0b3578] hover:text-[#1a4a8f] hover:underline transition-colors duration-200 cursor-pointer"
+                  >
+                    Register for Admission &rarr;
+                  </Link>
+                </div>
               </div>
             )}
           </div>

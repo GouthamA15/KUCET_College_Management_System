@@ -26,10 +26,15 @@ export async function GET(_request) {
     const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
     const collegeInfo = collegeRows[0] || null;
 
-    const { semester } = await calculateYearAndSemesterAsync(user.roll_no, collegeInfo, user.academic_offset_years || 0);
-    const academicYear = await getCollegeAcademicYear(collegeInfo);
+    const academicSession = await calculateYearAndSemesterAsync(user.roll_no, user.academic_offset_years || 0);
+    const { semester, status: sessionStatus } = academicSession;
+    const academicYear = await getCollegeAcademicYear();
     const branch = getBranchFromRoll(user.roll_no);
     const studentId = user.student_id;
+
+    if (sessionStatus === 'Semester Not Configured') {
+      return apiError('Academic Calendar not configured.', 400);
+    }
 
     if (!studentId || !branch || !semester || !academicYear) {
       return apiError('Unable to determine student academic context', 400);

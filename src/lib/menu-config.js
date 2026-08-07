@@ -14,8 +14,12 @@ export const NAV_MENU_CONFIG = {
         { label: 'Certificates', route: '/student/requests/certificates' }
       ]
     },
-    { label: 'AI ASSISTANT', route: '/student/assistant' },
-    { label: 'SETTINGS', route: '/student/settings/security' }
+
+    {label: 'SETTINGS', children: [
+        { label: 'Edit Profile', route: '/student/settings/edit-profile' },
+        { label: 'Security & Privacy', route: '/student/settings/security' }
+      ]
+    }
   ],
   clerk: [
     { label: 'DASHBOARD', route: '/clerk/admission/dashboard' },

@@ -38,15 +38,14 @@ export async function GET(_req) {
       where: eq(studentImages.student_id, user.student_id)
     });
 
-    // 3. Fetch latest request (pending or rejected)
-    const latestReqRow = await db.query.studentProfileRequests.findFirst({
+    // 3. Fetch all requests (history)
+    const allRequestsRows = await db.query.studentProfileRequests.findMany({
       where: eq(studentProfileRequests.student_id, user.student_id),
       orderBy: [desc(studentProfileRequests.created_at)]
     });
 
-    let latestRequest = null;
-    if (latestReqRow) {
-      let newData = latestReqRow.new_data;
+    const history = allRequestsRows.map(row => {
+      let newData = row.new_data;
       if (newData) {
           const data = safeJsonParse(newData, newData);
           if (data && typeof data === 'object') {
@@ -57,14 +56,16 @@ export async function GET(_req) {
           newData = data;
       }
 
-      latestRequest = {
-        ...latestReqRow,
+      return {
+        ...row,
         new_data: newData,
-        new_signature: imageHelper(latestReqRow.new_signature),
-        new_pfp: imageHelper(latestReqRow.new_pfp),
-        proof_url: imageHelper(latestReqRow.proof_url)
+        new_signature: imageHelper(row.new_signature),
+        new_pfp: imageHelper(row.new_pfp),
+        proof_url: imageHelper(row.proof_url)
       };
-    }
+    });
+
+    const latestRequest = history.length > 0 ? history[0] : null;
 
     const currentSignature = sigRow ? imageHelper(sigRow.signature) : null;
     const currentPfp = pfpRow ? imageHelper(pfpRow.pfp) : null;
@@ -81,7 +82,8 @@ export async function GET(_req) {
         roll_no: true,
         name: true,
         mobile: true,
-        email: true
+        email: true,
+        date_of_birth: true
       },
       where: eq(students.id, user.student_id)
     });
@@ -99,9 +101,13 @@ export async function GET(_req) {
       signature: currentSignature,
       pfp: currentPfp,
       latestRequest: latestRequest,
+      history: history,
       details: {
         student: studentRow || { /* empty */ },
-        personal: personalRow || { /* empty */ },
+        personal: { 
+          ...(personalRow || { /* empty */ }), 
+          dob: studentRow?.date_of_birth || null 
+        },
         academic: academicRow || { /* empty */ }
       }
     });
@@ -149,8 +155,14 @@ export async function POST(req) {
     let proofUrl = null;
 
     try {
-      if (signature) signatureUrl = await storage.upload(signature, 'requests/signatures');
-      if (pfp) pfpUrl = await storage.upload(pfp, 'requests/pfp');
+      if (signature) {
+        if (signature === 'REMOVE') signatureUrl = 'REMOVE';
+        else signatureUrl = await storage.upload(signature, 'requests/signatures');
+      }
+      if (pfp) {
+        if (pfp === 'REMOVE') pfpUrl = 'REMOVE';
+        else pfpUrl = await storage.upload(pfp, 'requests/pfp');
+      }
       if (proof) proofUrl = await storage.upload(proof, 'requests/proofs');
     } catch (uploadError) {
       if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Rollback signature failed'));

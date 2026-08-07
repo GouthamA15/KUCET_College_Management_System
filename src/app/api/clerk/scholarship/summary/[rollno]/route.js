@@ -5,7 +5,8 @@ import {
   collegeInfo as collegeInfoTable 
 } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { getAcademicYear, getResolvedCurrentAcademicYear, getBranchFromRoll } from '@/lib/rollNumber';
+import { getAcademicYear, getBranchFromRoll } from '@/lib/rollNumber';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
@@ -46,8 +47,7 @@ export const GET = wrapHandler({
 
     // 2. Resolve academic context
     const admissionYear = getAcademicYear(student.roll_no);
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const currentYear = getResolvedCurrentAcademicYear(student.roll_no, collegeRows[0], now);
+    const currentYear = await getCollegeAcademicYear();
     
     if (!year) year = currentYear;
 

@@ -1,113 +1,163 @@
-import { getEffectiveAcademicYear, getCurrentStudyingYear } from './rollNumber';
-import { getNow, getNowSync } from './clock';
+import { db } from '@/db';
+import { semesters } from '@/db/schema';
+import { eq, and, sql, desc, asc } from 'drizzle-orm';
+import { getNow } from './clock';
+import { getEntryYearFromRoll, getAdmissionTypeFromRoll } from './rollNumber';
+
+// Helper to get YYYY-MM-DD
+function formatDate(dateObj) {
+  return dateObj.getFullYear() + '-' + String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + String(dateObj.getDate()).padStart(2, '0');
+}
 
 /**
- * CORE LOGIC (Shared between Sync and Async)
+ * Core logic to calculate a student's year and semester given the current calendar session.
  */
+export function calculateStudentYearAndSemester(rollNo, currentAcademicYear, currentSemester, offsetYears = 0) {
+  const entryYear = getEntryYearFromRoll(rollNo);
+  const admissionType = getAdmissionTypeFromRoll(rollNo);
 
-function calculateYearAndSemesterCore(rollNo, collegeInfo, now, offsetYears = 0) {
-  const yearOfStudy = getCurrentStudyingYear(rollNo, collegeInfo, now, offsetYears);
-  if (!yearOfStudy) return { yearOfStudy: null, semester: null, semesterLabel: 'N/A' };
-
-  const currentMonth = now.getMonth() + 1;
-  const currentDay = now.getDate();
-  const currentTime = currentMonth * 100 + currentDay;
-
-  const firstSemStartMonth = parseInt(collegeInfo?.first_sem_start_month) || 8;
-  const firstSemStartDay = parseInt(collegeInfo?.first_sem_start_day) || 25;
-  const firstSemTime = firstSemStartMonth * 100 + firstSemStartDay;
-
-  const secondSemStartMonth = parseInt(collegeInfo?.second_sem_start_month) || 2;
-  const secondSemStartDay = parseInt(collegeInfo?.second_sem_start_day) || 8;
-  const secondSemTime = secondSemStartMonth * 100 + secondSemStartDay;
-
-  let isOddPeriod = false;
-  if (firstSemTime < secondSemTime) {
-    isOddPeriod = currentTime >= firstSemTime && currentTime < secondSemTime;
-  } else {
-    isOddPeriod = currentTime >= firstSemTime || currentTime < secondSemTime;
+  if (!entryYear) {
+    return { yearOfStudy: null, semester: null, semesterLabel: 'N/A', status: 'Invalid Roll' };
   }
 
-  let semester = isOddPeriod ? (yearOfStudy * 2) - 1 : (yearOfStudy * 2);
+  const admissionYearInt = parseInt(entryYear, 10);
+  const currentStartYearInt = parseInt(currentAcademicYear.split('-')[0], 10);
 
-  // If the student entered in the current calendar year, and it is before the official start of the first semester,
-  // they are in Semester 1.
-  const entryYear = rollNo && rollNo.match(/^(\d{2})567/) ? `20${rollNo.slice(0, 2)}` : null;
-  if (entryYear && parseInt(entryYear, 10) === now.getFullYear() && currentTime < firstSemTime) {
-    semester = 1;
+  let difference = currentStartYearInt - admissionYearInt;
+  
+  if (admissionType && admissionType.toLowerCase() === 'lateral') {
+    difference += 1;
   }
+
+  let studentYear = difference + 1 - (offsetYears || 0);
+  if (studentYear < 1) studentYear = 1;
+
+  const studentSemester = (studentYear - 1) * 2 + currentSemester;
 
   return {
-    yearOfStudy,
-    semester,
-    semesterLabel: `Year ${yearOfStudy} / Sem ${semester}`
+    yearOfStudy: studentYear,
+    semester: studentSemester,
+    semesterLabel: `Year ${studentYear} / Sem ${studentSemester}`,
+    academicYear: currentAcademicYear,
+    calendarSemester: currentSemester,
+    status: 'OK'
   };
 }
 
-function isSemesterActiveCore(semester, assignmentAcademicYear, collegeInfo, now) {
-  const startYear = getEffectiveAcademicYear(collegeInfo, now);
-  const currentAY = `${startYear}-${(startYear + 1).toString().slice(-2)}`;
+/**
+ * Returns the current academic session based strictly on the semesters table.
+ * Returns { yearOfStudy, semester, semesterLabel, academicYear, calendarSemester, status }
+ */
+export async function calculateYearAndSemesterAsync(rollNo, offsetYears = 0) {
+  const session = await getCurrentCalendarSession();
 
-  if (assignmentAcademicYear !== currentAY) return false;
-
-  const currentMonth = now.getMonth() + 1;
-  const currentDay = now.getDate();
-  const currentTime = currentMonth * 100 + currentDay;
-
-  const firstSemStartMonth = parseInt(collegeInfo?.first_sem_start_month) || 8;
-  const firstSemStartDay = parseInt(collegeInfo?.first_sem_start_day) || 25;
-  const firstSemTime = firstSemStartMonth * 100 + firstSemStartDay;
-
-  const secondSemStartMonth = parseInt(collegeInfo?.second_sem_start_month) || 2;
-  const secondSemStartDay = parseInt(collegeInfo?.second_sem_start_day) || 8;
-  const secondSemTime = secondSemStartMonth * 100 + secondSemStartDay;
-
-  let isOddPeriod = false;
-  if (firstSemTime < secondSemTime) {
-    isOddPeriod = currentTime >= firstSemTime && currentTime < secondSemTime;
-  } else {
-    isOddPeriod = currentTime >= firstSemTime || currentTime < secondSemTime;
+  if (!session) {
+    return {
+      yearOfStudy: null,
+      semester: null,
+      semesterLabel: 'N/A',
+      academicYear: null,
+      calendarSemester: null,
+      status: 'Semester Not Configured'
+    };
   }
 
-  const isOddSemester = parseInt(semester) % 2 !== 0;
-  return isOddSemester === isOddPeriod;
+  const result = calculateStudentYearAndSemester(rollNo, session.academicYear, session.semester, offsetYears);
+  
+  // Override status with the session status (ACTIVE, PREVIOUS, or UPCOMING)
+  // unless there's an error like Invalid Roll
+  if (result.status === 'OK') {
+    result.status = session.status;
+  }
+  
+  return {
+    ...result,
+    isCurrent: session.isCurrent
+  };
+}
+
+
+/**
+ * Gets the college's current academic year from the semesters table.
+ */
+export async function getCollegeAcademicYear() {
+  const session = await getCurrentCalendarSession();
+  return session ? session.academicYear : null;
 }
 
 /**
- * SYNC FUNCTIONS (Mainly for Frontend / Client Components)
- * Use getNowSync() to respect mock time travel via document.cookie
+ * Gets the current academic session details directly from the semesters table.
+ * Returns { academicYear, semester, status, isCurrent }
  */
+export async function getCurrentCalendarSession() {
+  const now = await getNow();
+  const dateStr = formatDate(now);
+  
+  // Priority 1: Active Semester
+  const activeSemRows = await db.select()
+    .from(semesters)
+    .where(
+      sql`${dateStr} BETWEEN ${semesters.start_date} AND ${semesters.end_date}`
+    )
+    .limit(1);
 
-export function getCollegeAcademicYearSync(collegeInfo = null) {
-  const startYear = getEffectiveAcademicYear(collegeInfo, getNowSync());
-  return `${startYear}-${(startYear + 1).toString().slice(-2)}`;
-}
+  if (activeSemRows.length > 0) {
+    return {
+      academicYear: activeSemRows[0].academic_year,
+      semester: activeSemRows[0].semester,
+      status: 'ACTIVE',
+      isCurrent: true
+    };
+  }
 
-export function calculateYearAndSemesterSync(rollNo, collegeInfo = null, offsetYears = 0) {
-  return calculateYearAndSemesterCore(rollNo, collegeInfo, getNowSync(), offsetYears);
+  // Priority 2: Latest completed semester
+  const prevSemRows = await db.select()
+    .from(semesters)
+    .where(
+      sql`${semesters.end_date} < ${dateStr}`
+    )
+    .orderBy(desc(semesters.end_date))
+    .limit(1);
+
+  if (prevSemRows.length > 0) {
+    return {
+      academicYear: prevSemRows[0].academic_year,
+      semester: prevSemRows[0].semester,
+      status: 'PREVIOUS',
+      isCurrent: false
+    };
+  }
+
+  // Priority 3: Nearest upcoming semester (if before the first semester ever starts)
+  const upcomingSemRows = await db.select()
+    .from(semesters)
+    .where(
+      sql`${semesters.start_date} > ${dateStr}`
+    )
+    .orderBy(asc(semesters.start_date))
+    .limit(1);
+
+  if (upcomingSemRows.length > 0) {
+    return {
+      academicYear: upcomingSemRows[0].academic_year,
+      semester: upcomingSemRows[0].semester,
+      status: 'UPCOMING',
+      isCurrent: false
+    };
+  }
+
+  // Priority 4: Not configured
+  return null;
 }
 
 /**
- * ASYNC FUNCTIONS (Mainly for API Routes / Server Components)
- * Use await getNow() to respect mock time travel via next/headers
+ * Determine if a semester is active right now.
  */
-
-export async function getCollegeAcademicYear(collegeInfo = null) {
-  const startYear = getEffectiveAcademicYear(collegeInfo, await getNow());
-  return `${startYear}-${(startYear + 1).toString().slice(-2)}`;
+export async function isSemesterActive(semester, assignmentAcademicYear) {
+  const session = await getCurrentCalendarSession();
+    
+  if (!session || !session.isCurrent) return false;
+  
+  return session.academicYear === assignmentAcademicYear && 
+         (session.semester % 2 === semester % 2);
 }
-
-export async function calculateYearAndSemesterAsync(rollNo, collegeInfo = null, offsetYears = 0) {
-  return calculateYearAndSemesterCore(rollNo, collegeInfo, await getNow(), offsetYears);
-}
-
-export function isSemesterActiveSync(semester, assignmentAcademicYear, collegeInfo = null) {
-  return isSemesterActiveCore(semester, assignmentAcademicYear, collegeInfo, getNowSync());
-}
-
-export async function isSemesterActive(semester, assignmentAcademicYear, collegeInfo = null) {
-  return isSemesterActiveCore(semester, assignmentAcademicYear, collegeInfo, await getNow());
-}
-
-// Default export for convenience (Sync version for UI)
-export const calculateYearAndSemester = calculateYearAndSemesterSync;

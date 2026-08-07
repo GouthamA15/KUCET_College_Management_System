@@ -210,7 +210,14 @@ export async function PUT(req) {
           }
 
           // Personal Details Updates
-          const spd_fields = ['father_name','mother_name','nationality','religion','category','sub_caste','area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile','annual_income','aadhaar_no','seat_allotted_category','identification_marks','blood_group'];
+          const spd_fields = [
+            'father_name','mother_name','nationality','religion','category','sub_caste',
+            'area_status','mother_tongue','place_of_birth','father_occupation','guardian_mobile',
+            'annual_income','aadhaar_no','seat_allotted_category','identification_marks','blood_group',
+            'curr_house_no', 'curr_street', 'curr_apartment', 'curr_city', 'curr_state', 'curr_pincode', 'curr_country',
+            'perm_house_no', 'perm_street', 'perm_apartment', 'perm_city', 'perm_state', 'perm_pincode', 'perm_country',
+            'is_current_same_as_permanent'
+          ];
           const spd_data = { /* empty */ };
           spd_fields.forEach(f => { 
               if (Object.prototype.hasOwnProperty.call(data, f)) {

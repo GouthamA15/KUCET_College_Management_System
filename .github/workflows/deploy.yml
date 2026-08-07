@@ -1,0 +1,30 @@
+name: Auto Deploy to Self-Hosted Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-self-hosted:
+    name: Build & Deploy on Self-Hosted Desktop
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Deploy Production Application
+        run: |
+          npm ci --only=production || npm install
+          npm run db:migrate
+          npm run build
+          if (Get-Command pm2 -ErrorAction SilentlyContinue) {
+            pm2 reload kucet-cms || pm2 start npm --name "kucet-cms" -- start
+          } else {
+            npm run start &
+          }

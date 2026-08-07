@@ -3,6 +3,7 @@ import { students, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, wrapHandler } from '@/lib/api-utils';
 import { decrypt } from '@/lib/encryption';
+import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 
 export const GET = wrapHandler({
   auth: 'student',
@@ -23,9 +24,12 @@ export const GET = wrapHandler({
 
     const { student, personal } = profile[0];
 
+    const academic_session = await calculateYearAndSemesterAsync(user.roll_no, student.academic_offset_years || 0);
+
     // Decrypt fields
     return {
       ...student,
+      academic_session,
       mobile: decrypt(student.mobile),
       personal_details: personal ? {
         ...personal,

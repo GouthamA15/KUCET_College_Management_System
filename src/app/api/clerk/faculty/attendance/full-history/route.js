@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { studentAttendance, students, attendanceSessions } from '@/db/schema';
+import { studentAttendance, students, attendanceSessions, facultySubjectAssignments } from '@/db/schema';
 import { eq, and, asc, desc, sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
@@ -50,21 +50,43 @@ export async function GET(request) {
     .where(eq(studentAttendance.assignment_id, assignment_id))
     .orderBy(asc(studentAttendance.date), asc(studentAttendance.session));
 
-    // Get unique dates/sessions for columns with topic_covered metadata
+    // 1. Fetch assignment details to get academic_year and course_semester
+    const assignments = await db.select({
+      academic_year: facultySubjectAssignments.academic_year,
+      course_semester: facultySubjectAssignments.course_semester
+    })
+    .from(facultySubjectAssignments)
+    .where(eq(facultySubjectAssignments.id, assignment_id))
+    .limit(1);
+
+    if (assignments.length === 0) {
+      return apiError('Assignment not found', 404);
+    }
+    const assignment = assignments[0];
+
+    // Get all generated dates for this semester from the Academic Calendar
+    const { academicCalendar } = await import('@/db/schema');
+    
+    // We also need topic_covered for these dates
+    // Since topic_covered is per session, and calendar is per day, 
+    // we fetch calendar dates and left join sessions.
     const uniqueDates = await db.select({
-      date: sql`DATE_FORMAT(${studentAttendance.date}, '%Y-%m-%d')`,
-      session: studentAttendance.session,
+      date: sql`DATE_FORMAT(${academicCalendar.date}, '%Y-%m-%d')`,
+      day_type: academicCalendar.day_type,
+      holiday_name: academicCalendar.holiday_name,
+      session: sql`COALESCE(${attendanceSessions.session_number}, 1)`.mapWith(Number),
       topic_covered: attendanceSessions.topic_covered
     })
-    .from(studentAttendance)
+    .from(academicCalendar)
     .leftJoin(attendanceSessions, and(
-      eq(attendanceSessions.assignment_id, studentAttendance.assignment_id),
-      eq(attendanceSessions.attendance_date, studentAttendance.date),
-      eq(attendanceSessions.session_number, studentAttendance.session)
+      eq(attendanceSessions.assignment_id, assignment_id),
+      eq(attendanceSessions.attendance_date, sql`DATE_FORMAT(${academicCalendar.date}, '%Y-%m-%d')`)
     ))
-    .where(eq(studentAttendance.assignment_id, assignment_id))
-    .groupBy(studentAttendance.date, studentAttendance.session, attendanceSessions.topic_covered)
-    .orderBy(asc(studentAttendance.date), asc(studentAttendance.session));
+    .where(and(
+      eq(academicCalendar.academic_year, assignment.academic_year),
+      eq(academicCalendar.semester, assignment.course_semester)
+    ))
+    .orderBy(asc(academicCalendar.date), asc(sql`COALESCE(${attendanceSessions.session_number}, 1)`));
 
     return apiResponse({ 
       data: {

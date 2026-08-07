@@ -148,7 +148,7 @@ export default function SecurityCenterPage() {
       activityContent={<SecurityActivity securityEvents={securityEvents} eventsLoading={eventsLoading} />}
       authContent={
         <div className="space-y-6">
-          <section className="border border-gray-300 rounded-md bg-white p-4 sm:p-6">
+          <section className="border border-gray-400 rounded-md bg-white p-4 sm:p-6">
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-gray-800">Contact Management</h2>
@@ -174,8 +174,8 @@ export default function SecurityCenterPage() {
                   onChange={(e) => emailVerification.setEmailInput(e.target.value)}
                   readOnly={!emailVerification.emailEditing}
                   className={`flex-1 border rounded-md px-3 py-2 text-sm focus:ring-1 outline-none transition-colors ${
-                    !emailVerification.emailEditing ? 'bg-gray-50 text-gray-500 border-gray-300' : 
-                    (emailVerification.emailInput && !emailVerification.isEmailValid ? 'border-red-400 focus:ring-red-400 bg-red-50/10' : 'border-gray-300 focus:ring-[#0b3578] bg-white')
+                    !emailVerification.emailEditing ? 'bg-gray-50 text-gray-500 border-gray-600' : 
+                    (emailVerification.emailInput && !emailVerification.isEmailValid ? 'border-red-400 focus:ring-red-400 bg-red-50/10' : 'border-gray-600 focus:ring-[#0b3578] bg-white text-gray-900')
                   }`}
                 />
                 {emailVerification.emailEditing && !emailVerification.otpSent && (
@@ -199,7 +199,7 @@ export default function SecurityCenterPage() {
                       value={emailVerification.otpInput}
                       onChange={(e) => emailVerification.setOtpInput(e.target.value.replace(/\D/g, ''))}
                       placeholder="000000"
-                      className="w-full border border-blue-200 rounded-md px-3 py-2 text-center font-mono tracking-widest outline-none text-sm"
+                      className="w-full border border-blue-600 rounded-md px-3 py-2 text-center font-mono tracking-widest outline-none text-sm text-gray-900"
                     />
                     <button 
                       onClick={emailVerification.handleVerifyOtp}
@@ -225,7 +225,7 @@ export default function SecurityCenterPage() {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <div className="flex items-center flex-1">
-                    <span className={`px-3 py-2 border border-r-0 rounded-l-md text-sm transition-colors ${!phoneEditing ? 'bg-gray-50 text-gray-500 border-gray-300' : 'border-gray-300 bg-gray-100 text-gray-600'}`}>+91</span>
+                    <span className={`px-3 py-2 border border-r-0 rounded-l-md text-sm transition-colors ${!phoneEditing ? 'bg-gray-50 text-gray-500 border-gray-600' : 'border-gray-600 bg-gray-100 text-gray-600'}`}>+91</span>
                     <input 
                       type="tel" 
                       value={phoneInput}
@@ -233,7 +233,7 @@ export default function SecurityCenterPage() {
                       readOnly={!phoneEditing}
                       placeholder="10-digit mobile number"
                       className={`w-full border rounded-r-md px-3 py-2 text-sm focus:ring-1 outline-none transition-colors ${
-                        !phoneEditing ? 'bg-gray-50 text-gray-500 border-gray-300' : 'border-gray-300 focus:ring-[#0b3578] bg-white'
+                        !phoneEditing ? 'bg-gray-50 text-gray-500 border-gray-600' : 'border-gray-600 focus:ring-[#0b3578] bg-white text-gray-900'
                       }`}
                     />
                   </div>

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useStudent } from '@/context/StudentContext';
 import { getSyllabusUrl } from '@/lib/getSyllabusUrl';
-import { getBranchFromRoll, getCurrentStudyingYear, getCurrentSemester } from '@/lib/rollNumber';
+import { getBranchFromRoll } from '@/lib/rollNumber';
 import { AcademicsProvider, useAcademicsCache } from '@/context/AcademicsContext';
 import toast from 'react-hot-toast';
 
@@ -30,12 +30,12 @@ export default function AcademicsPage() {
 
   return (
     <AcademicsProvider roll={studentData.student.roll_no}>
-      <AcademicsInner studentData={studentData} collegeInfo={collegeInfo} />
+      <AcademicsInner studentData={studentData} />
     </AcademicsProvider>
   );
 }
 
-function AcademicsInner({ studentData, collegeInfo }) {
+function AcademicsInner({ studentData }) {
   const [data, setData] = useState([]);
   const [_loading, setLoading] = useState(true);
   const [_historySubject, setHistorySubject] = useState(null);
@@ -111,13 +111,14 @@ function AcademicsInner({ studentData, collegeInfo }) {
 
   // removed unused helpers: getPercentageColor, overallAttendance
   // resolve syllabus URL via helper that uses rollNumber utilities
-  function resolveSyllabusUrl(studentData, collegeInfo) {
+  // resolve syllabus URL via helper that uses rollNumber utilities
+  function resolveSyllabusUrl(studentData) {
     try {
       const roll = studentData?.student?.roll_no;
       if (!roll) return null;
       const branch = getBranchFromRoll(roll);
-      const yearOfStudy = getCurrentStudyingYear(roll, collegeInfo);
-      const semester = getCurrentSemester(roll, collegeInfo);
+      const yearOfStudy = studentData?.academic_session?.yearOfStudy;
+      const semester = studentData?.academic_session?.semester;
       if (!branch && yearOfStudy !== 1) return null; // branch required except maybe first year
       if (!yearOfStudy || !semester) return null;
       return getSyllabusUrl({ course: branch, year: yearOfStudy, semester });
@@ -126,7 +127,7 @@ function AcademicsInner({ studentData, collegeInfo }) {
     }
   }
 
-  const syllabusUrl = resolveSyllabusUrl(studentData, collegeInfo);
+  const syllabusUrl = resolveSyllabusUrl(studentData);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">

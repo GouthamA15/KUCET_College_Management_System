@@ -3,8 +3,7 @@
 import React from 'react';
 import { useStudent } from '@/context/StudentContext';
 import Link from 'next/link';
-import { getBranchFromRoll, getResolvedCurrentAcademicYear } from '@/lib/rollNumber';
-import { calculateYearAndSemester } from '@/lib/academic-utils';
+import { getBranchFromRoll } from '@/lib/rollNumber';
 import DashboardActionCenter from '@/components/student/DashboardActionCenter';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
@@ -132,12 +131,9 @@ export default function StudentHomePage() {
 
   const student = studentData?.student || null;
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
-  const { semesterLabel, yearOfStudy, semester } = student
-    ? calculateYearAndSemester(student.roll_no, collegeInfo, student.academic_offset_years || 0)
-    : { semesterLabel: '', yearOfStudy: null, semester: null };
-  const academicYear = student ? getResolvedCurrentAcademicYear(student.roll_no, collegeInfo) : null;
+  const { semesterLabel, yearOfStudy, semester, academicYear, status } = student?.academic_session || { semesterLabel: '', yearOfStudy: null, semester: null, academicYear: null, status: null };
 
-  // overallAttendance calculation removed as metrics row is removed
+  // Status can be used to show a notice if calendar is missing, but for now we just fallback gracefully.
 
   if (contextLoading && !student) {
     return <LoadingSpinner label="Loading Records" />;

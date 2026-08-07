@@ -11,6 +11,13 @@ import { eq, sql } from 'drizzle-orm';
 import { cacheAside } from '@/lib/cache';
 
 export class DepartmentAnalytics {
+  static async getPassPercentage(...args) { return new DepartmentAnalytics().getPassPercentage(...args); }
+  static async getAttendancePercentage(...args) { return new DepartmentAnalytics().getAttendancePercentage(...args); }
+  static async getFeeCollection(...args) { return new DepartmentAnalytics().getFeeCollection(...args); }
+  static async getScholarshipStats(...args) { return new DepartmentAnalytics().getScholarshipStats(...args); }
+  static async getDepartmentSummary(...args) { return new DepartmentAnalytics().getDepartmentSummary(...args); }
+
+
   async getPassPercentage(branch, filters = {}) {
     return await cacheAside(
       `analytics:dept:${branch}:pass_pct:${JSON.stringify(filters)}`,

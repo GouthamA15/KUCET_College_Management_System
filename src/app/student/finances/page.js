@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useStudent } from '@/context/StudentContext';
 import { getBranchFromRoll } from '@/lib/rollNumber';
-import { calculateYearAndSemester } from '@/lib/academic-utils';
 import FinancialSummaryTable from '@/components/student/FinancialSummaryTable';
 import FeeTransactionHistory from '@/components/student/FeeTransactionHistory';
 import useFinancialRows from '@/components/student/useFinancialRows';
@@ -35,7 +34,7 @@ export default function StudentFinancesPage() {
   const isScholar = student?.fee_reimbursement === 'YES' || student?.fee_reimbursement === 'GOV';
 
   // Current Year of Study based on Academic Calendar
-  const { yearOfStudy } = calculateYearAndSemester(student.roll_no, collegeInfo, student.academic_offset_years || 0);
+  const yearOfStudy = student?.academic_session?.yearOfStudy;
   const activeYearOfStudy = yearOfStudy || 1;
 
   // Specific current year row data

@@ -1,106 +1,68 @@
 # KUCET College Management System — Self-Deployment Server Status
 
-**Report Generated:** August 7, 2026 (16:47 IST)  
-**Host Machine:** `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc`  
-**Deployment Path:** `/var/www/kucet-cms`  
-**System Integrator / Maintenance:** KUCET Tech Team & Gemini CLI  
+**Report Generated:** August 7, 2026 (17:54 IST)  
+**Host Server:** `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc`  
+**Deployment Directory:** `/var/www/kucet-cms`  
+**Overall Deployment Status:** `ONLINE / HEALTHY (6/6 Containers Up)`  
 
 ---
 
-## 1. System Overview & Deployment Architecture
+## 1. Executive Summary
 
-The KUCET Management System is operating in a self-hosted environment on an on-premise workstation server connected via LAN/SSH and exposed through Cloudflare Tunnels for secure HTTPS access (`login.kucet.ac.in`).
+The self-hosted deployment of KUCET College Management System has been fully compiled, built, and verified on the local workstation server. All database records (1,280 active students) and storage files (51.8 MB including profile photos, signatures, and document proofs) have been restored and verified.
+
+---
+
+## 2. Docker Container Stack (`docker compose up -d --build`)
 
 ```
-                              ┌─────────────────────────────────────────┐
-                              │             Nginx Proxy                 │
-                              │           (Port 80 / 443)               │
-                              └────────────────────┬────────────────────┘
-                                                   │
-                                                   ▼
-┌─────────────────────────┐       ┌─────────────────────────────────────┐       ┌─────────────────────────┐
-│     kucet-cms-db        │◄──────┤            kucet-cms-app            ├──────►│     kucet-cms-redis     │
-│   (MySQL 8.0 Container) │       │        (Next.js App Container)       │       │    (Redis 7 Container)  │
-└─────────────────────────┘       └──────────────────┬──────────────────┘       └─────────────────────────┘
-                                                     │
-                                                     ▼
-                                  ┌─────────────────────────────────────┐
-                                  │      Mounted Local Storage          │
-                                  │   (/var/www/kucet-storage/public)   │
-                                  └─────────────────────────────────────┘
+[+] up 6/6
+  ✔ Image deployment_package-app   Built in 24.3s
+  ✔ Container kucet-cms-db         Healthy (MySQL 8.0 Engine)
+  ✔ Container kucet-cms-redis      Healthy (Redis 7 Cache & Rate Limiter)
+  ✔ Container kucet-cms-monitor    Running (Uptime Kuma Dashboard)
+  ✔ Container kucet-cms-app        Started (Next.js 14 Production Server)
+  ✔ Container kucet-cms-proxy      Running (Nginx Alpine Reverse Proxy)
 ```
 
----
-
-## 2. Active Services & Container Status
-
-All 5 core Docker containers are up, healthy, and configured for automatic restart (`restart: always`).
-
-| Container Name | Image | Port Mapping | Health Status | Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| **`kucet-cms-app`** | `deployment_package-app` | `3000:3000` | `Up (Active)` | Core Next.js production Web Server |
-| **`kucet-cms-proxy`** | `nginx:alpine` | `80:80, 443:443` | `Up (Active)` | Reverse Proxy, SSL termination & Static Media |
-| **`kucet-cms-db`** | `mysql:8.0` | `3306:3306` | `Up (Healthy)` | Primary relational database (`kucet_cms`) |
-| **`kucet-cms-redis`** | `redis:7-alpine` | `6379:6379` | `Up (Healthy)` | Cache-Aside storage & API rate limiting |
-| **`kucet-cms-monitor`** | `louislam/uptime-kuma:1` | `3001:3001` | `Up (Healthy)` | Real-time service uptime dashboard |
+| Service | Container Name | Status | Health | Port Mappings | Function |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **App** | `kucet-cms-app` | `Up / Started` | `OK` | `3000:3000` | Next.js Standalone SSR/API Server |
+| **Nginx** | `kucet-cms-proxy` | `Up / Running` | `OK` | `80:80, 443:443` | Reverse Proxy & Media Asset Host |
+| **MySQL** | `kucet-cms-db` | `Up / Healthy` | `OK` | `3306:3306` | MySQL 8.0 Database (`kucet_cms`) |
+| **Redis** | `kucet-cms-redis` | `Up / Healthy` | `OK` | `6379:6379` | Session Cache & Rate Limiting |
+| **Monitor** | `kucet-cms-monitor` | `Up / Running` | `OK` | `3001:3001` | Uptime Kuma Monitoring |
 
 ---
 
-## 3. Database Restoration Status
+## 3. Data & Storage Restoration Audit
 
-- **Database File:** `college_db.sql` (Restored Aug 7, 2026)
-- **Target Schema:** `kucet_cms` on MySQL 8.0 container (`kucet-cms-db`)
-- **Total Student Records:** `1,280` active student records verified
-- **Schema & Migrations:** 
-  - Complete tables for `students`, `student_personal_details`, `student_academic_background`, `student_images`, `student_signatures`, `clerks`, `student_requests`, `attendance_sessions`, `audit_logs`, and drizzle migration tracking.
+1. **Database Restoration (`college_db.sql`)**:
+   - Dump file: `college_db.sql` (850 KB) restored to `kucet-cms-db`.
+   - **Student Count:** 1,280 verified.
+   - All relational tables for academic records, clerk profiles, attendance sessions, and drizzle migrations loaded.
 
----
-
-## 4. Local Storage & Media Assets Restoration
-
-- **Storage Mode:** Local Storage (`NEXT_PUBLIC_STORAGE_TYPE=local`)
-- **Host Path:** `/var/www/kucet-storage/public/`
-- **Container Path:** `/app/public/uploads`
-- **Backup Source:** `kucet_full_export_1786100086461.zip` (51.8 MB extracted)
-- **Restored Directory Structure:**
-  - `kucet/students/pfp/` & `kucet/students/signatures/`
-  - `kucet/clerks/pfp/` & `kucet/clerks/signatures/`
-  - `kucet/requests/payments/`, `pfp/`, `proofs/`, `signatures/`
-  - `kucet/certificates/payments/`
-  - `kucet/admission_drafts/`
-  - `kucet/bug_reports/`
-- **Permissions:** Ownership set to `deployer:deployer` with `775` directory permissions for seamless Docker and Nginx write operations.
+2. **Storage Vault Restoration (`kucet_full_export_1786100086461.zip`)**:
+   - Target Directory: `/var/www/kucet-storage/public/`
+   - Archive size: 51.8 MB fully extracted.
+   - **Subdirectories:** `admission_drafts`, `bug_reports`, `certificates`, `clerks`, `requests`, `students`, `test`.
+   - **Permissions:** Set to `775` with `deployer:deployer` ownership.
 
 ---
 
-## 5. System Health Verification & Endpoints
+## 4. Key Deployment Fixes Applied
 
-- **Public Health Endpoint (`GET /api/health`):** `200 OK`
-- **Proxy Status (`HTTP http://localhost:80`):** `200 OK` (Served via Nginx)
-- **Uptime Monitoring Dashboard:** Accessible internally via `http://localhost:3001`
-- **Cloudflare Tunnel Routing:** Configured to map domain traffic to local port `80`.
-
----
-
-## 6. Server Maintenance Commands
-
-For ongoing operations on `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc`:
-
-### View Live Container Status:
-```bash
-ssh kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc "docker ps"
-```
-
-### View Application Logs:
-```bash
-ssh kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc "docker logs -f kucet-cms-app"
-```
-
-### Trigger On-Demand Database Backup:
-```bash
-ssh kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc "docker exec kucet-cms-db mysqldump -u root -pKucet@official kucet_cms > /home/kucet-dev/backups/manual_db_backup.sql"
-```
+- **Dockerfile Build Fix:** Added `ENV SKIP_ENV_VALIDATION=true` to the `builder` stage in `DEPLOYMENT_PACKAGE/Dockerfile` to allow Next.js static asset compilation without requiring build-time environment secrets.
+- **Package Manager Fix:** Replaced invalid Alpine package option `--no-linux-headers` with `--no-cache`.
+- **React Compiler & Linting Fix:** Resolved React hook set-state-in-effect and purity errors in `src/components/assistant/AssistantContainer.js`.
 
 ---
 
-*Report saved to workspace at [`SELF_DEPLOYMENT_SERVER_STATUS.md`](file:///D:/User/Desktop/CMS/SELF_DEPLOYMENT_SERVER_STATUS.md)*
+## 5. System Health Verification
+
+- **HTTP Status Check (`GET http://localhost:80/api/health`):** `200 OK`
+- **Public Domain Access:** Proxied via Cloudflare Tunnel to `https://login.kucet.ac.in`
+
+---
+
+*Document saved locally at [`SELF_DEPLOYMENT_SERVER_STATUS.md`](file:///D:/User/Desktop/CMS/SELF_DEPLOYMENT_SERVER_STATUS.md) and on host server at `/home/kucet-dev/Desktop/SELF_DEPLOYMENT_SERVER_STATUS.md`.*
