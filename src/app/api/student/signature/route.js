@@ -23,9 +23,10 @@ export async function GET(_req) {
     // Helper to handle both URLs and legacy Buffer data
     const imageHelper = (val) => {
       if (!val) return null;
-      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:'))) return val;
+      if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:') || val.startsWith('/api/'))) return val;
       if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
-      return val;
+      if (typeof val === 'string') return storage.getUrl(val);
+      return null;
     };
     
     // 1. Fetch current signature

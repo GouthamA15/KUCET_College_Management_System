@@ -10,12 +10,21 @@ export default class FailoverStorageProvider extends StorageProvider {
     this.providers = providers.filter(Boolean);
   }
 
-  getUrl(assetPath) {
-    if (this.providers.length > 0) {
-      // Delegate URL resolution to the primary active provider
-      return this.providers[0].getUrl(assetPath);
+  /**
+   * Resolve a storage key to a publicly accessible URL.
+   * Delegates to the first provider in the chain since URL generation
+   * is deterministic and does not require failover.
+   * @param {string} storageKey - The relative storage key (e.g., kucet/students/pfp/abc.jpg)
+   * @param {Object} options - Optional transform options
+   * @returns {string}
+   */
+  getUrl(storageKey, options = {}) {
+    for (const provider of this.providers) {
+      if (typeof provider.getUrl === 'function') {
+        return provider.getUrl(storageKey, options);
+      }
     }
-    return assetPath;
+    return storageKey;
   }
 
   async upload(fileBuffer, key, options = {}) {

@@ -6,6 +6,7 @@ import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getAssetUrl } from '@/lib/assets';
+import { safeJsonParse } from '@/lib/json-utils';
 import { Search, Filter, ArrowUpDown, X, FileText, CheckCircle, XCircle } from 'lucide-react';
 
 const StudentUpdateRequestsPanel = () => {

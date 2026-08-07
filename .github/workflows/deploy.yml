@@ -29,8 +29,9 @@ jobs:
       - name: Run Database Migrations
         run: DB_HOST=127.0.0.1 npm run db:migrate
 
-      - name: Update Production Server & Restart Docker Stack
+      - name: Update Production Server & Restart Application Container
         run: |
           rsync -av --exclude='.git' --exclude='node_modules' ./ /var/www/kucet-cms/
           cd /var/www/kucet-cms
-          docker compose up -d --build
+          docker rm -f kucet-cms-app || true
+          docker compose up -d --build --no-deps app

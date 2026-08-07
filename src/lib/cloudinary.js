@@ -113,13 +113,23 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
 
   try {
     const result = await cloudinary.uploader.upload(fileToUpload, options);
-    if (!result || !result.secure_url) {
+    if (!result || !result.public_id) {
       throw new Error('Cloudinary upload returned an empty response.');
     }
     
-    // Return the full canonical secure_url with optimizations applied
-    // This standardizes the storage format to always be a full URL
-    return getOptimizedUrl(result.secure_url);
+    // ARCHITECTURE CONTRACT: Return ONLY the storage key, never the full URL.
+    // The storage key format is: kucet/folder/filename.ext
+    // public_id from Cloudinary is already the path without extension (e.g., kucet/students/pfp/abc)
+    // We append the extension from the format field to get the complete key.
+    const ext = result.format ? `.${result.format}` : '';
+    const storageKey = `${result.public_id}${ext}`;
+    
+    // GUARD: Ensure the storage key is a valid string - prevent [object Object] corruption
+    if (typeof storageKey !== 'string' || storageKey.includes('[object') || !storageKey.startsWith('kucet/')) {
+      throw new Error(`Cloudinary upload returned an invalid storage key: ${storageKey}`);
+    }
+    
+    return storageKey;
   } catch (error) {
     logger.error('Cloudinary Upload Error:', {
       message: error.message,
@@ -132,19 +142,34 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
 }
 
 /**
- * Deletes an image from Cloudinary given its URL or relative path
- * @param {string} pathOrUrl - The full URL or relative path
+ * Deletes an image from Cloudinary given its storage key or URL.
+ * Handles: storage keys, full URLs, versioned paths.
+ * @param {string} pathOrUrl - The storage key or full URL
  */
 export async function deleteFromCloudinary(pathOrUrl) {
   if (!pathOrUrl) return;
+  if (typeof pathOrUrl !== 'string') return;
+  // Skip data URIs and [object Object] garbage
+  if (pathOrUrl.startsWith('data:') || pathOrUrl.includes('[object')) return;
 
   try {
-    const path = pathOrUrl.includes('cloudinary.com') 
-      ? relativizeCloudinaryUrl(pathOrUrl) 
-      : pathOrUrl;
-
-    // Cloudinary uploader.destroy expects public_id (folder + name, NO extension)
-    const publicId = path.substring(0, path.lastIndexOf('.'));
+    let keyPath;
+    if (pathOrUrl.includes('cloudinary.com')) {
+      // Full Cloudinary URL - extract the storage key
+      keyPath = relativizeCloudinaryUrl(pathOrUrl);
+    } else if (/^v\d+\//.test(pathOrUrl)) {
+      // Versioned path like v1778497250/kucet/students/pfp/abc.jpg
+      keyPath = pathOrUrl.replace(/^v\d+\//, '');
+    } else {
+      // Already a storage key
+      keyPath = pathOrUrl;
+    }
+    
+    if (!keyPath) return;
+    
+    // Cloudinary uploader.destroy expects public_id WITHOUT extension
+    const lastDot = keyPath.lastIndexOf('.');
+    const publicId = lastDot > 0 ? keyPath.substring(0, lastDot) : keyPath;
 
     const result = await cloudinary.uploader.destroy(publicId);
     return result;

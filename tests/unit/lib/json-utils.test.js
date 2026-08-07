@@ -26,4 +26,12 @@ describe('safeJsonParse', () => {
     expect(safeJsonParse('', 'default')).toBe('default');
     expect(safeJsonParse('   ', 'default')).toBe('default');
   });
+
+  it('returns plain text strings as-is without attempting JSON.parse or throwing warnings', () => {
+    expect(safeJsonParse('Scholarship applications')).toBe('Scholarship applications');
+    expect(safeJsonParse('Bonafide Certificate')).toBe('Bonafide Certificate');
+    expect(safeJsonParse('Late Fee')).toBe('Late Fee');
+    expect(safeJsonParse('General Request')).toBe('General Request');
+    expect(safeJsonParse('For bank account opening')).toBe('For bank account opening');
+  });
 });

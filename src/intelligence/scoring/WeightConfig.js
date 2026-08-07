@@ -2,6 +2,7 @@ import { db } from '@/db';
 import { systemConfigs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { cacheAside } from '@/lib/cache';
+import { safeJsonParse } from '@/lib/json-utils';
 
 const DEFAULT_WEIGHTS = {
   ATTENDANCE_RISK: {
@@ -45,9 +46,9 @@ export async function getWeights(model) {
     try {
       const configRows = await db.select().from(systemConfigs).where(eq(systemConfigs.config_key, 'INTELLIGENCE_SCORE_WEIGHTS'));
       if (configRows.length > 0 && configRows[0].config_value) {
-        return JSON.parse(configRows[0].config_value);
+        return safeJsonParse(configRows[0].config_value, DEFAULT_WEIGHTS);
       }
-    } catch (e) {
+    } catch (_e) {
       // return default on db error
     }
     return DEFAULT_WEIGHTS;
