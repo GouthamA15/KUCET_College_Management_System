@@ -46,11 +46,20 @@ describe('ArchiveService - Academic Archival Engine', () => {
   });
 
   it('should execute semester archival for closed semester', async () => {
-    // Mock attendance select
+    // 1. Mock facultySubjectAssignments select
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockResolvedValue([
-        { id: 1, student_id: 10, roll_no: '228W1A0501', assignment_id: 101, branch: 'CSE', semester: 5, academic_year: '2025-26', date: '2025-10-10', session: 1, status: 'PRESENT' }
+        { id: 101, branch: 'CSE', course_semester: 5, subject_code: 'CS501', academic_year: '2025-26' }
+      ])
+    }));
+
+    // 2. Mock studentAttendance select with leftJoin
+    db.select.mockImplementationOnce(() => ({
+      from: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([
+        { id: 1, student_id: 10, roll_no: '22567T0901', assignment_id: 101, date: '2025-10-10', session: 1, status: 'PRESENT' }
       ])
     }));
 
@@ -59,19 +68,20 @@ describe('ArchiveService - Academic Archival Engine', () => {
     // Mock delete operational attendance
     db.delete.mockImplementationOnce(() => ({ where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]) }));
 
-    // Mock sessions select (empty)
+    // 3. Mock attendanceSessions select
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockResolvedValue([])
     }));
 
-    // Mock assignments select (empty)
+    // 4. Mock studentMarks select with leftJoin
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
       where: vi.fn().mockResolvedValue([])
     }));
 
-    // Mock payments select (empty)
+    // 5. Mock studentFeePayments select
     db.select.mockImplementationOnce(() => ({
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockResolvedValue([])
@@ -90,5 +100,53 @@ describe('ArchiveService - Academic Archival Engine', () => {
 
     expect(result.success).toBe(true);
     expect(result.affectedRecordsCount).toBe(1);
+  });
+
+  it('should execute alumni archival with branch filtering', async () => {
+    // Mock students select
+    db.select.mockImplementationOnce(() => ({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([
+        {
+          id: 101,
+          roll_no: '22567T0901',
+          name: 'Graduated Student',
+          email: 'graduated@kucet.ac.in',
+          mobile: '9999999999',
+          fee_reimbursement: 'NO',
+          academic_status: 'GRADUATED',
+          student_status: 'ARCHIVED',
+          admission_year: '2022',
+          pfp: null,
+        }
+      ])
+    }));
+
+    // Mock insert into archive_students
+    db.insert.mockImplementationOnce(() => ({ values: vi.fn().mockResolvedValue([{ insertId: 501 }]) }));
+    // Mock personal details select
+    db.select.mockImplementationOnce(() => ({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([])
+    }));
+    // Mock academic background select
+    db.select.mockImplementationOnce(() => ({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue([])
+    }));
+    // Mock delete active student
+    db.delete.mockImplementationOnce(() => ({ where: vi.fn().mockResolvedValue([{ affectedRows: 1 }]) }));
+    // Mock audit log insert
+    db.insert.mockImplementationOnce(() => ({ values: vi.fn().mockResolvedValue([{ insertId: 1 }]) }));
+
+    const result = await ArchiveService.runAlumniArchive({
+      graduation_year: '2026',
+      branch: 'CSE',
+      archived_by: 'ADMIN',
+      reason: 'Graduated batch 2026'
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.affectedStudentsCount).toBe(1);
   });
 });

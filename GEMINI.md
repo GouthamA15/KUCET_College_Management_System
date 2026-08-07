@@ -115,10 +115,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Core Standardized Query Pagination (`2ad7f27`):**
   - Built `getPaginationParams(params, defaultLimit, maxLimit)` helper in `src/lib/api-utils.js` (with unit tests in `tests/unit/lib/pagination-utils.test.js`) to parse `page`, `limit`, and compute `offset` from `URLSearchParams` or request options while enforcing upper limits (max limit 100).
   - Refactored `ArchiveService.getArchiveHistory()` and `FinanceService.getAllTransactions()` to utilize standardized pagination, preventing memory and performance degradation on large SQL datasets.
-- **Bulk Offline Attendance Synchronization (`6ba15f3`):**
-  - Engineered batch endpoint `/api/clerk/faculty/attendance/bulk-sync/route.js` allowing faculty to sync multiple offline attendance sessions in a single Zod-validated transactional request.
-  - Implemented transactional validations verifying faculty/substitute permissions, active semester locks (`isSemesterActive`), and canonical assignment mapping with `onDuplicateKeyUpdate`.
-  - Refactored `FacultyAttendanceContext.js` to replace sequential HTTP POST loops with a single bulk API sync request, drastically improving offline sync performance and network efficiency.
+- **Alumni Archival SQL Query Fix:**
+  - Resolved `Failed query: select ... where (... and = ?)` syntax error in `ArchiveService.runAlumniArchive()`.
+  - Replaced non-existent `students.branch` column lookup with roll number pattern matching (`like(students.roll_no, ...)`) and `getBranchFromRoll()` dynamic branch resolution.
+  - Added unit test in `tests/unit/services/ArchiveService.test.js` verifying branch-filtered alumni archival execution.
+- **Semester Archival & Restoration Schema Alignment:**
+  - Audited and refactored `ArchiveService.runSemesterArchive()` and `ArchiveRestoreService.restoreAcademicRecords()` to query attendance, session, and marks records through `facultySubjectAssignments` mapping instead of un-indexed non-existent table columns.
+  - Aligned restored records schema with operational database column definitions (`students`, `studentAttendance`, `attendanceSessions`), adding fallback required values (`session_pin`, `session_token`, `expires_at`, `attendance_date`) to prevent MySQL NOT NULL constraint violations upon restoration.
 
 #### **Session 184: Academic Archive Management System Architecture & Implementation (`fee89aa` & `35cae93`) (August 6, 2026)**
 - **Feature Motivation & DDD Architecture:** Engineered a production-grade Academic Archive Management System to separate active operational records (current semester attendance, active marks, current students) from long-term historical archives while keeping database queries fast and lean.

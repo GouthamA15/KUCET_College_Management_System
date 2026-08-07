@@ -10,6 +10,7 @@ import {
 import { eq, and, inArray, count, sql, like, or, desc } from 'drizzle-orm';
 import { ArchiveMediaService } from './ArchiveMediaService';
 import logger from '@/lib/logger';
+import { getBranchFromRoll, branchCodes } from '@/lib/rollNumber';
 
 /**
  * Archive Service
@@ -28,82 +29,68 @@ export class ArchiveService {
         db.select({ count: count() }).from(archiveStudents),
       ]);
 
-      // 2. Active vs Archived Attendance Records Count
-      const [[activeAttRes], [archivedAttRes]] = await Promise.all([
+      const activeStudentsCount = activeStudentsRes?.count || 0;
+      const archivedStudentsCount = archivedStudentsRes?.count || 0;
+
+      // 2. Active vs Archived Records
+      const [[activeAttRes], [archivedAttRes], [activeMarksRes], [archivedMarksRes], [activePayRes], [archivedPayRes]] = await Promise.all([
         db.select({ count: count() }).from(studentAttendance),
         db.select({ count: count() }).from(archiveStudentAttendance),
-      ]);
-
-      // 3. Active vs Archived Marks Records Count
-      const [[activeMarksRes], [archivedMarksRes]] = await Promise.all([
         db.select({ count: count() }).from(studentMarks),
         db.select({ count: count() }).from(archiveStudentMarks),
-      ]);
-
-      // 4. Active vs Archived Payments Count
-      const [[activePaymentsRes], [archivedPaymentsRes]] = await Promise.all([
         db.select({ count: count() }).from(studentFeePayments),
         db.select({ count: count() }).from(archiveStudentPayments),
       ]);
 
-      // 5. Total Archive Jobs & Storage Statistics
-      const [jobsRes] = await db
+      const totalActiveRecords = (activeAttRes?.count || 0) + (activeMarksRes?.count || 0) + (activePayRes?.count || 0);
+      const totalArchivedRecords = (archivedAttRes?.count || 0) + (archivedMarksRes?.count || 0) + (archivedPayRes?.count || 0);
+
+      // 3. Operational Log Metrics
+      const [logMetrics] = await db
         .select({
           totalJobs: count(),
-          totalSize: sql`COALESCE(SUM(${archiveOperationsLog.storage_size_bytes}), 0)`,
-          totalAffectedRecords: sql`COALESCE(SUM(${archiveOperationsLog.affected_records_count}), 0)`,
-          totalAffectedMedia: sql`COALESCE(SUM(${archiveOperationsLog.affected_media_count}), 0)`,
+          totalSize: sql`COALESCE(SUM(storage_size_bytes), 0)`,
+          totalAffectedRecords: sql`COALESCE(SUM(affected_records_count), 0)`,
+          totalAffectedMedia: sql`COALESCE(SUM(affected_media_count), 0)`,
         })
         .from(archiveOperationsLog);
 
-      // 6. Last Executed Archive Job
+      // 4. Last Executed Job
       const lastJob = await db
         .select()
         .from(archiveOperationsLog)
         .orderBy(desc(archiveOperationsLog.created_at))
         .limit(1);
 
-      // 7. Configured Retention Policies
-      const policies = await db
-        .select()
-        .from(archiveRetentionPolicies);
+      // 5. Retention Policies
+      const policies = await db.select().from(archiveRetentionPolicies);
 
       return {
         metrics: {
-          activeStudents: Number(activeStudentsRes?.count || 0),
-          archivedStudents: Number(archivedStudentsRes?.count || 0),
-          activeAttendance: Number(activeAttRes?.count || 0),
-          archivedAttendance: Number(archivedAttRes?.count || 0),
-          activeMarks: Number(activeMarksRes?.count || 0),
-          archivedMarks: Number(archivedMarksRes?.count || 0),
-          activePayments: Number(activePaymentsRes?.count || 0),
-          archivedPayments: Number(archivedPaymentsRes?.count || 0),
-          totalCompletedJobs: Number(jobsRes?.totalJobs || 0),
-          totalStorageSizeBytes: Number(jobsRes?.totalSize || 0),
-          totalArchivedRecordsCount: Number(jobsRes?.totalAffectedRecords || 0),
-          totalArchivedMediaCount: Number(jobsRes?.totalAffectedMedia || 0),
-          lastJobDate: lastJob[0]?.created_at || null,
+          activeStudents: activeStudentsCount,
+          archivedStudents: archivedStudentsCount,
+          activeRecords: totalActiveRecords,
+          archivedRecords: totalArchivedRecords,
+          totalStorageSizeBytes: Number(logMetrics?.totalSize || 0),
+          totalCompletedJobs: Number(logMetrics?.totalJobs || 0),
+          totalAffectedRecords: Number(logMetrics?.totalAffectedRecords || 0),
+          totalAffectedMediaCount: Number(logMetrics?.totalAffectedMedia || 0),
         },
-        lastJob: lastJob[0] || null,
-        policies: policies || [],
+        lastArchivalJob: lastJob[0] || null,
+        retentionPolicies: policies || [],
       };
     } catch (error) {
-      logger.error({ err: error.message }, '[GET_ARCHIVE_OVERVIEW_ERROR]');
-      throw new Error(`Failed to calculate archive overview: ${error.message}`);
+      logger.error(error, '[ARCHIVE_OVERVIEW_ERROR]');
+      throw error;
     }
   }
 
   /**
-   * Run a semester archival job for a closed academic semester
-   * Archives student attendance, sessions, lecture topics, marks, and verified payments.
+   * Run a semester data archival job for closed semesters
    */
-  static async runSemesterArchive({ branch, semester, academic_year, archived_by = 'SYSTEM', reason = 'Semester closed' }) {
+  static async runSemesterArchive({ branch, semester, academic_year, archived_by = 'SYSTEM', reason = 'Semester closure' }) {
     const startTime = Date.now();
     const jobId = `JOB-SEM-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-    if (!branch || !semester || !academic_year) {
-      throw new Error('Branch, semester, and academic_year are required parameters.');
-    }
 
     try {
       logger.info({ jobId, branch, semester, academic_year, archived_by }, '[START_SEMESTER_ARCHIVE]');
@@ -112,95 +99,103 @@ export class ArchiveService {
       let mediaArchived = 0;
       let storageSizeBytes = 0;
 
-      // 1. Fetch matching attendance records
-      const attendanceRows = await db
-        .select()
-        .from(studentAttendance)
-        .where(
-          and(
-            eq(studentAttendance.branch, branch),
-            eq(studentAttendance.semester, Number(semester)),
-            eq(studentAttendance.academic_year, academic_year)
-          )
-        );
-
-      if (attendanceRows.length > 0) {
-        // Copy to archive_student_attendance
-        const archiveAttEntries = attendanceRows.map(row => ({
-          original_attendance_id: row.id,
-          student_id: row.student_id,
-          roll_no: row.roll_no,
-          assignment_id: row.assignment_id,
-          branch: row.branch,
-          semester: row.semester,
-          subject_code: row.subject_code,
-          academic_year: row.academic_year,
-          date: row.date,
-          session: row.session,
-          status: row.status,
-          marked_by: row.marked_by,
-          verification_mode: row.verification_mode,
-          device_fingerprint: row.device_fingerprint,
-          created_at: row.created_at,
-          archived_at: new Date(),
-        }));
-
-        await db.insert(archiveStudentAttendance).values(archiveAttEntries);
-
-        // Remove from active table
-        const attIds = attendanceRows.map(r => r.id);
-        await db.delete(studentAttendance).where(inArray(studentAttendance.id, attIds));
-        recordsArchived += attendanceRows.length;
+      // 0. Find matching assignment IDs for the branch, semester, and academic_year
+      const assignmentConditions = [
+        eq(facultySubjectAssignments.course_semester, Number(semester)),
+        eq(facultySubjectAssignments.academic_year, academic_year),
+      ];
+      if (branch) {
+        assignmentConditions.push(eq(facultySubjectAssignments.branch, branch));
       }
 
-      // 2. Fetch matching attendance sessions & lecture topics
-      const sessionRows = await db
-        .select()
-        .from(attendanceSessions)
-        .where(
-          and(
-            eq(attendanceSessions.branch, branch),
-            eq(attendanceSessions.semester, Number(semester)),
-            eq(attendanceSessions.academic_year, academic_year)
-          )
-        );
-
-      if (sessionRows.length > 0) {
-        const archiveSessionEntries = sessionRows.map(row => ({
-          original_session_id: row.id,
-          assignment_id: row.assignment_id,
-          branch: row.branch,
-          semester: row.semester,
-          academic_year: row.academic_year,
-          date: row.date,
-          session: row.session,
-          faculty_id: row.faculty_id,
-          topic_covered: row.topic_covered,
-          created_at: row.created_at,
-          archived_at: new Date(),
-        }));
-
-        await db.insert(archiveAttendanceSessions).values(archiveSessionEntries);
-
-        const sessionIds = sessionRows.map(r => r.id);
-        await db.delete(attendanceSessions).where(inArray(attendanceSessions.id, sessionIds));
-        recordsArchived += sessionRows.length;
-      }
-
-      // 3. Fetch subject assignments for branch/sem/year to find internal marks
-      const assignments = await db
-        .select({ id: facultySubjectAssignments.id, subject_code: facultySubjectAssignments.subject_code })
+      const matchingAssignments = await db
+        .select({
+          id: facultySubjectAssignments.id,
+          branch: facultySubjectAssignments.branch,
+          course_semester: facultySubjectAssignments.course_semester,
+          subject_code: facultySubjectAssignments.subject_code,
+          academic_year: facultySubjectAssignments.academic_year,
+        })
         .from(facultySubjectAssignments)
-        .where(
-          and(
-            eq(facultySubjectAssignments.branch, branch),
-            eq(facultySubjectAssignments.semester, Number(semester)),
-            eq(facultySubjectAssignments.academic_year, academic_year)
-          )
-        );
+        .where(and(...assignmentConditions));
 
-      if (assignments.length > 0) {
-        const assignmentIds = assignments.map(a => a.id);
+      const assignmentMap = new Map();
+      matchingAssignments.forEach(a => assignmentMap.set(a.id, a));
+      const assignmentIds = matchingAssignments.map(a => a.id);
+
+      if (assignmentIds.length > 0) {
+        // 1. Move Attendance Records
+        const attendanceRows = await db
+          .select({
+            id: studentAttendance.id,
+            student_id: studentAttendance.student_id,
+            assignment_id: studentAttendance.assignment_id,
+            date: studentAttendance.date,
+            session: studentAttendance.session,
+            status: studentAttendance.status,
+            created_at: studentAttendance.created_at,
+            roll_no: students.roll_no,
+          })
+          .from(studentAttendance)
+          .leftJoin(students, eq(studentAttendance.student_id, students.id))
+          .where(inArray(studentAttendance.assignment_id, assignmentIds));
+
+        if (attendanceRows.length > 0) {
+          const archiveAttEntries = attendanceRows.map(row => {
+            const assignment = assignmentMap.get(row.assignment_id) || {};
+            return {
+              original_attendance_id: row.id,
+              student_id: row.student_id,
+              roll_no: row.roll_no || 'UNKNOWN',
+              assignment_id: row.assignment_id,
+              branch: assignment.branch || branch || 'CSE',
+              semester: assignment.course_semester || Number(semester),
+              academic_year: assignment.academic_year || academic_year,
+              date: row.date,
+              session: row.session,
+              status: row.status,
+              topic_covered: null,
+              archived_at: new Date(),
+            };
+          });
+
+          await db.insert(archiveStudentAttendance).values(archiveAttEntries);
+          const attIds = attendanceRows.map(r => r.id);
+          await db.delete(studentAttendance).where(inArray(studentAttendance.id, attIds));
+          recordsArchived += attendanceRows.length;
+        }
+
+        // 2. Move Attendance Sessions
+        const sessionRows = await db
+          .select()
+          .from(attendanceSessions)
+          .where(inArray(attendanceSessions.assignment_id, assignmentIds));
+
+        if (sessionRows.length > 0) {
+          const archiveSessEntries = sessionRows.map(row => {
+            const assignment = assignmentMap.get(row.assignment_id) || {};
+            return {
+              original_session_id: row.id,
+              assignment_id: row.assignment_id,
+              branch: assignment.branch || branch || 'CSE',
+              semester: assignment.course_semester || Number(semester),
+              academic_year: assignment.academic_year || academic_year,
+              date: row.attendance_date || new Date().toISOString().split('T')[0],
+              session: row.session_number || 1,
+              faculty_id: row.faculty_id,
+              topic_covered: row.topic_covered,
+              created_at: row.created_at,
+              archived_at: new Date(),
+            };
+          });
+
+          await db.insert(archiveAttendanceSessions).values(archiveSessEntries);
+          const sessionIds = sessionRows.map(r => r.id);
+          await db.delete(attendanceSessions).where(inArray(attendanceSessions.id, sessionIds));
+          recordsArchived += sessionRows.length;
+        }
+
+        // 3. Move Marks Records
         const marksRows = await db
           .select({
             id: studentMarks.id,
@@ -221,136 +216,113 @@ export class ArchiveService {
           .where(inArray(studentMarks.assignment_id, assignmentIds));
 
         if (marksRows.length > 0) {
-          const archiveMarksEntries = marksRows.map(row => ({
-            original_mark_id: row.id,
-            student_id: row.student_id,
-            roll_no: row.roll_no || 'UNKNOWN',
-            assignment_id: row.assignment_id,
-            branch,
-            semester: Number(semester),
-            academic_year,
-            mid1_marks: row.mid1_marks,
-            mid2_marks: row.mid2_marks,
-            assignment_marks: row.assignment_marks,
-            lab_theory_marks: row.lab_theory_marks,
-            lab_execution_marks: row.lab_execution_marks,
-            lab_record_marks: row.lab_record_marks,
-            is_published: row.is_published,
-            created_at: row.created_at,
-            archived_at: new Date(),
-          }));
+          const archiveMarksEntries = marksRows.map(row => {
+            const assignment = assignmentMap.get(row.assignment_id) || {};
+            return {
+              original_mark_id: row.id,
+              student_id: row.student_id,
+              roll_no: row.roll_no || 'UNKNOWN',
+              assignment_id: row.assignment_id,
+              subject_code: assignment.subject_code,
+              branch: assignment.branch || branch || 'CSE',
+              semester: assignment.course_semester || Number(semester),
+              academic_year: assignment.academic_year || academic_year,
+              mid1_marks: row.mid1_marks,
+              mid2_marks: row.mid2_marks,
+              assignment_marks: row.assignment_marks,
+              lab_theory_marks: row.lab_theory_marks,
+              lab_execution_marks: row.lab_execution_marks,
+              lab_record_marks: row.lab_record_marks,
+              is_published: row.is_published,
+              created_at: row.created_at,
+              archived_at: new Date(),
+            };
+          });
 
           await db.insert(archiveStudentMarks).values(archiveMarksEntries);
-
           const markIds = marksRows.map(r => r.id);
           await db.delete(studentMarks).where(inArray(studentMarks.id, markIds));
           recordsArchived += marksRows.length;
         }
       }
 
-      // 4. Archive completed/verified fee payment screenshots for this academic year
+      // 4. Archive Financial Payment Screenshots for the Semester
+      const payConditions = [
+        eq(studentFeePayments.academic_year, academic_year),
+      ];
       const paymentRows = await db
         .select()
         .from(studentFeePayments)
-        .where(
-          and(
-            eq(studentFeePayments.academic_year, academic_year),
-            eq(studentFeePayments.status, 'VERIFIED')
-          )
-        );
+        .where(and(...payConditions));
 
-      if (paymentRows.length > 0) {
-        for (const p of paymentRows) {
-          if (p.proof_url) {
-            const { newPath, sizeBytes } = await ArchiveMediaService.archiveMediaFile(
-              p.proof_url, 
-              `payments/${academic_year}`
-            );
-            p.proof_url = newPath;
+      for (const p of paymentRows) {
+        if (p.payment_screenshot_path) {
+          const { newPath, sizeBytes } = await ArchiveMediaService.archiveMediaFile(
+            p.payment_screenshot_path,
+            `payments/${academic_year}`
+          );
+          if (newPath !== p.payment_screenshot_path) {
+            await db
+              .update(studentFeePayments)
+              .set({ payment_screenshot_path: newPath })
+              .where(eq(studentFeePayments.id, p.id));
             storageSizeBytes += sizeBytes;
             mediaArchived += 1;
           }
         }
-
-        const archivePaymentEntries = paymentRows.map(row => ({
-          original_payment_id: row.id,
-          student_id: row.student_id,
-          roll_no: row.roll_no,
-          academic_year: row.academic_year,
-          amount: row.amount,
-          transaction_ref_no: row.transaction_ref_no,
-          transaction_date: row.transaction_date,
-          payment_mode: row.payment_mode,
-          bank_name: row.bank_name,
-          proof_url: row.proof_url,
-          status: row.status,
-          created_at: row.created_at,
-          archived_at: new Date(),
-        }));
-
-        await db.insert(archiveStudentPayments).values(archivePaymentEntries);
-
-        const paymentIds = paymentRows.map(r => r.id);
-        await db.delete(studentFeePayments).where(inArray(studentFeePayments.id, paymentIds));
-        recordsArchived += paymentRows.length;
       }
 
       const executionTimeMs = Date.now() - startTime;
 
-      // 5. Write audit log
-      const logEntry = {
+      // 5. Record Operation in Audit Log
+      await db.insert(archiveOperationsLog).values({
         job_id: jobId,
         archive_type: 'SEMESTER',
-        branch,
-        semester: Number(semester),
+        target_scope: `${branch || 'ALL'}-SEM${semester}-${academic_year}`,
         academic_year,
+        semester,
+        branch,
         affected_students_count: 0,
         affected_records_count: recordsArchived,
         affected_media_count: mediaArchived,
         storage_size_bytes: storageSizeBytes,
-        archived_by,
         execution_time_ms: executionTimeMs,
         status: 'COMPLETED',
-        details: JSON.stringify({ reason, timestamp: new Date().toISOString() }),
-      };
+        archived_by,
+        notes: reason,
+        created_at: new Date(),
+      });
 
-      await db.insert(archiveOperationsLog).values(logEntry);
-
-      logger.info({ jobId, recordsArchived, mediaArchived, executionTimeMs }, '[SEMESTER_ARCHIVE_COMPLETED]');
+      logger.info({ jobId, recordsArchived, mediaArchived, executionTimeMs }, '[SEMESTER_ARCHIVE_SUCCESS]');
 
       return {
         success: true,
         jobId,
-        branch,
-        semester: Number(semester),
-        academic_year,
         affectedRecordsCount: recordsArchived,
         affectedMediaCount: mediaArchived,
         storageSizeBytes,
         executionTimeMs,
+        message: `Successfully archived ${recordsArchived} records for ${branch || 'ALL'} Semester ${semester} (${academic_year}).`,
       };
     } catch (error) {
-      const executionTimeMs = Date.now() - startTime;
-      logger.error({ jobId, err: error.message }, '[SEMESTER_ARCHIVE_FAILED]');
+      logger.error({ jobId, error: error.message }, '[SEMESTER_ARCHIVE_FAILURE]');
 
+      // Log failure execution
       await db.insert(archiveOperationsLog).values({
         job_id: jobId,
         archive_type: 'SEMESTER',
-        branch,
-        semester: Number(semester),
+        target_scope: `${branch || 'ALL'}-SEM${semester}-${academic_year}`,
         academic_year,
-        affected_students_count: 0,
-        affected_records_count: 0,
-        affected_media_count: 0,
-        storage_size_bytes: 0,
-        archived_by,
-        execution_time_ms: executionTimeMs,
+        semester,
+        branch,
         status: 'FAILED',
         error_message: error.message,
-        details: JSON.stringify({ reason }),
-      });
+        archived_by,
+        notes: reason,
+        created_at: new Date(),
+      }).catch(() => { /* empty */ });
 
-      throw new Error(`Semester archival failed: ${error.message}`);
+      throw error;
     }
   }
 
@@ -380,16 +352,26 @@ export class ArchiveService {
         conditions.push(eq(students.academic_offset_years, 0)); // Or filter by batch/year
       }
       if (branch) {
-        conditions.push(eq(students.branch, branch));
+        const branchCode = Object.keys(branchCodes).find(code => branchCodes[code].toUpperCase() === branch.toUpperCase());
+        if (branchCode) {
+          conditions.push(like(students.roll_no, `%${branchCode}%`));
+        }
       }
       if (student_ids && student_ids.length > 0) {
         conditions.push(inArray(students.id, student_ids));
       }
 
-      const targetStudents = await db
+      let targetStudents = await db
         .select()
         .from(students)
         .where(and(...conditions));
+
+      if (branch) {
+        targetStudents = targetStudents.filter(s => {
+          const b = getBranchFromRoll(s.roll_no);
+          return b && b.toUpperCase() === branch.toUpperCase();
+        });
+      }
 
       if (targetStudents.length === 0) {
         return {
@@ -407,11 +389,13 @@ export class ArchiveService {
 
       // Move students to archive_students
       for (const s of targetStudents) {
+        const studentBranch = getBranchFromRoll(s.roll_no) || branch || 'CSE';
+
         let archivedPfp = s.pfp;
         if (s.pfp) {
           const { newPath, sizeBytes } = await ArchiveMediaService.archiveMediaFile(
             s.pfp, 
-            `students/${s.branch || 'CSE'}/profile`
+            `students/${studentBranch}/profile`
           );
           archivedPfp = newPath;
           storageSizeBytes += sizeBytes;
@@ -424,7 +408,7 @@ export class ArchiveService {
           name: s.name,
           email: s.email,
           mobile: s.mobile,
-          branch: s.branch,
+          branch: studentBranch,
           batch: `${s.admission_year || ''}-${graduation_year || ''}`,
           admission_year: s.admission_year || '2022',
           graduation_year: graduation_year || '2026',
@@ -452,7 +436,7 @@ export class ArchiveService {
             if (pd.signature_path) {
               const { newPath, sizeBytes } = await ArchiveMediaService.archiveMediaFile(
                 pd.signature_path,
-                `students/${s.branch || 'CSE'}/signatures`
+                `students/${studentBranch}/signatures`
               );
               archivedSig = newPath;
               storageSizeBytes += sizeBytes;

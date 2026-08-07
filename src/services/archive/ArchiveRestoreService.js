@@ -126,8 +126,6 @@ export class ArchiveRestoreService {
         name: s.name,
         email: s.email,
         mobile: s.mobile,
-        branch: s.branch,
-        admission_year: s.admission_year || '2022',
         academic_status: 'ACTIVE',
         student_status: 'ACTIVE',
         fee_reimbursement: s.fee_reimbursement || 'NO',
@@ -244,18 +242,10 @@ export class ArchiveRestoreService {
       if (archivedAtt.length > 0) {
         const attEntries = archivedAtt.map(row => ({
           student_id: row.student_id,
-          roll_no: row.roll_no,
           assignment_id: row.assignment_id,
-          branch: row.branch,
-          semester: row.semester,
-          subject_code: row.subject_code,
-          academic_year: row.academic_year,
           date: row.date,
           session: row.session,
           status: row.status,
-          marked_by: row.marked_by,
-          verification_mode: row.verification_mode,
-          device_fingerprint: row.device_fingerprint,
           created_at: row.created_at || new Date(),
         }));
 
@@ -280,12 +270,13 @@ export class ArchiveRestoreService {
       if (archivedSessions.length > 0) {
         const sessionEntries = archivedSessions.map(row => ({
           assignment_id: row.assignment_id,
-          branch: row.branch,
-          semester: row.semester,
-          academic_year: row.academic_year,
-          date: row.date,
-          session: row.session,
-          faculty_id: row.faculty_id,
+          attendance_date: row.date,
+          faculty_id: row.faculty_id || 0,
+          session_pin: '0000',
+          session_token: `RESTORED-${row.id}-${Date.now()}`,
+          is_active: false,
+          expires_at: row.created_at || new Date(),
+          session_number: row.session || 1,
           topic_covered: row.topic_covered,
           created_at: row.created_at || new Date(),
         }));
