@@ -6,7 +6,8 @@ vi.mock('@/db', () => ({
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: vi.fn(() => ({
-          orderBy: vi.fn().mockResolvedValue([])
+          orderBy: vi.fn().mockResolvedValue([]),
+          limit: vi.fn().mockResolvedValue([])
         }))
       }))
     })),

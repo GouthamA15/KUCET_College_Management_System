@@ -35,7 +35,8 @@ vi.mock('@/lib/rollNumber', () => ({
   getBranchFromRoll: vi.fn(() => '09')
 }));
 vi.mock('@/lib/academic-utils', () => ({
-  calculateYearAndSemesterAsync: vi.fn().mockResolvedValue({ year: 4, semester: 8 })
+  calculateYearAndSemesterAsync: vi.fn().mockResolvedValue({ year: 4, semester: 8 }),
+  getCollegeAcademicYear: vi.fn().mockResolvedValue('2025-26')
 }));
 vi.mock('@/lib/clock', () => ({
   getNow: vi.fn(() => new Date('2026-06-23T00:00:00Z'))
