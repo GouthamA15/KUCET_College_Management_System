@@ -104,11 +104,19 @@ export async function GET(_req) {
       Object.keys(row).forEach(key => {
         if (key.startsWith('current_')) {
           let val = row[key];
-          // Decrypt current values
-          if (val && (key === 'current_mobile' || key === 'current_guardian_mobile' || key === 'current_aadhaar_no')) {
-              val = decrypt(val);
+          const rawKey = key.replace('current_', '');
+          
+          // Only decrypt current values if they are being modified to avoid slow Decryption loops
+          if (val && (rawKey === 'mobile' || rawKey === 'guardian_mobile' || rawKey === 'aadhaar_no')) {
+              let newDataRef = row.new_data;
+              if (typeof newDataRef === 'string') {
+                  newDataRef = safeJsonParse(newDataRef, newDataRef);
+              }
+              if (newDataRef && typeof newDataRef === 'object' && Object.prototype.hasOwnProperty.call(newDataRef, rawKey)) {
+                  val = decrypt(val);
+              }
           }
-          currentValues[key.replace('current_', '')] = val;
+          currentValues[rawKey] = val;
         }
       });
 

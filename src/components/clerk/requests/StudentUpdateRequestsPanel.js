@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
@@ -23,10 +23,12 @@ const StudentUpdateRequestsPanel = () => {
   const requests = pendingProfileRequests || [];
   const loading = isLoadingRequests && requests.length === 0;
 
-  const filteredRequests = requests.filter(req => 
-    req.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    req.roll_no?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRequests = useMemo(() => {
+    return requests.filter(req => 
+      req.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      req.roll_no?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [requests, searchQuery]);
 
   const formatIstDateTimeUpper = (value) => {
     if (!value) return '';
@@ -50,12 +52,6 @@ const StudentUpdateRequestsPanel = () => {
       }
     }
   };
-
-  useEffect(() => {
-    if (!isContextLoading && clerk && clerk.role === 'admission' && requests.length === 0) {
-      refreshProfileRequests();
-    }
-  }, [clerk, isContextLoading, requests.length, refreshProfileRequests]);
 
   // Handle preventing scroll when drawer is open
   useEffect(() => {
@@ -117,8 +113,15 @@ const StudentUpdateRequestsPanel = () => {
     if (req.new_pfp) count++;
     if (req.new_signature) count++;
     if (req.new_data) {
-        const data = safeJsonParse(req.new_data, {});
+      let data = req.new_data;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { data = {}; }
+      }
+      if (data && typeof data === 'object') {
         count += Object.keys(data).length;
+      } else {
+        count += 1; // It's just a raw string update
+      }
     }
     return count;
   };
@@ -413,7 +416,13 @@ const StudentUpdateRequestsPanel = () => {
                       Modified Fields
                     </h4>
                     <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden divide-y divide-gray-100">
-                      {Object.entries(safeJsonParse(reviewingRequest.new_data, {})).map(([field, value]) => (
+                      {Object.entries((() => {
+                        let data = reviewingRequest.new_data;
+                        if (typeof data === 'string') {
+                          try { data = JSON.parse(data); } catch (e) { data = { request: data }; }
+                        }
+                        return data && typeof data === 'object' ? data : {};
+                      })()).map(([field, value]) => (
                         <div key={field} className="p-4 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-4 items-center">
                           <div className="space-y-1">
                             <p className="text-[10px] uppercase font-bold text-gray-500">{formatLabel(field)}</p>

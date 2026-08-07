@@ -18,19 +18,13 @@ export class StudentCertificateService {
    */
   static async validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
     try {
-      const { getResolvedCurrentAcademicYear, getBranchFromRoll } = await import('@/lib/rollNumber');
+      const { getBranchFromRoll } = await import('@/lib/rollNumber');
       const { calculateYearAndSemesterAsync, getCollegeAcademicYear } = await import('@/lib/academic-utils');
       const { parsePurpose } = await import('@/lib/certificate-utils');
 
-      const resolvedYear = rollNo && collegeInfo ? getResolvedCurrentAcademicYear(rollNo, collegeInfo, now) : null;
-      const academicYear = resolvedYear || (await getCollegeAcademicYear().catch(() => null)) || '2025-2026';
-      const branch = rollNo ? getBranchFromRoll(rollNo) : null;
-      
-      let semester = null;
-      if (rollNo) {
-        const semResult = await calculateYearAndSemesterAsync(rollNo, 0).catch(() => ({ semester: null }));
-        semester = semResult?.semester || null;
-      }
+      const academicYear = await getCollegeAcademicYear();
+      const branch = getBranchFromRoll(rollNo);
+      const { semester } = await calculateYearAndSemesterAsync(rollNo, 0);
 
       let total = 0;
       let attended = 0;
@@ -106,13 +100,11 @@ export class StudentCertificateService {
   static async validateTCEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
     try {
       const { calculateYearAndSemesterAsync, getCollegeAcademicYear } = await import('@/lib/academic-utils');
-      const { getResolvedCurrentAcademicYear } = await import('@/lib/rollNumber');
-
-      const resolvedYear = rollNo && collegeInfo ? getResolvedCurrentAcademicYear(rollNo, collegeInfo, now) : null;
-      const academicYear = resolvedYear || (await getCollegeAcademicYear().catch(() => null)) || '2025-2026';
-
+      
+      const academicYear = await getCollegeAcademicYear();
       let yearOfStudy = null;
       let semester = null;
+      
       if (rollNo) {
         const semResult = await calculateYearAndSemesterAsync(rollNo, 0).catch(() => ({ yearOfStudy: null, semester: null }));
         yearOfStudy = semResult?.yearOfStudy || null;
