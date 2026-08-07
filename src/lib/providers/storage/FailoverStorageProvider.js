@@ -10,6 +10,23 @@ export default class FailoverStorageProvider extends StorageProvider {
     this.providers = providers.filter(Boolean);
   }
 
+  /**
+   * Resolve a storage key to a publicly accessible URL.
+   * Delegates to the first provider in the chain since URL generation
+   * is deterministic and does not require failover.
+   * @param {string} storageKey - The relative storage key (e.g., kucet/students/pfp/abc.jpg)
+   * @param {Object} options - Optional transform options
+   * @returns {string}
+   */
+  getUrl(storageKey, options = {}) {
+    for (const provider of this.providers) {
+      if (typeof provider.getUrl === 'function') {
+        return provider.getUrl(storageKey, options);
+      }
+    }
+    return storageKey;
+  }
+
   async upload(fileBuffer, key, options = {}) {
     let lastError = null;
 

@@ -284,7 +284,8 @@ const AdmissionPage = () => {
 
     return (
         <>
-        <div className="min-h-screen bg-white pb-16">
+        <div className="min-h-screen bg-white md:bg-gray-50 md:py-12 md:px-8">
+            <div className="max-w-6xl mx-auto bg-white md:shadow-2xl md:rounded-2xl overflow-hidden md:border md:border-gray-200 pb-16 md:pb-0">
             
             {/* Formal Header - Full Page Width */}
             <div className="relative border-b border-gray-200 bg-white">
@@ -678,9 +679,9 @@ const AdmissionPage = () => {
                         </div>
 
                         {/* Legal Consent Checkbox */}
-                        <div className="md:col-span-2 mt-8 p-6 bg-gradient-to-br from-indigo-50 to-blue-50/50 border border-indigo-100 rounded-xl shadow-sm">
-                            <div className="flex items-start gap-3">
-                                <div className="flex items-center h-5 mt-1">
+                        <div className="md:col-span-2 mt-8 p-4 sm:p-6 bg-gradient-to-br from-indigo-50 to-blue-50/50 border border-indigo-100 rounded-xl shadow-sm">
+                            <div className="flex items-start gap-3 sm:gap-4">
+                                <div className="flex items-center h-5 mt-1 shrink-0">
                                     <input 
                                         type="checkbox" 
                                         id="legal_consent" 
@@ -723,6 +724,7 @@ const AdmissionPage = () => {
                     </div>
                 </form>
             </main>
+            </div>
         </div>
         </>
     );

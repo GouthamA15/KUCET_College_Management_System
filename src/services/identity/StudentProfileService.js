@@ -251,11 +251,13 @@ export class StudentProfileService {
         .values({ student_id: studentId, ...academicValues })
         .onDuplicateKeyUpdate({ set: academicValues });
 
-      if (pfp) {
-        await innerTx.insert(studentImages).values({ student_id: studentId, pfp }).onDuplicateKeyUpdate({ set: { pfp } });
-      }
-      if (signature) {
-        await innerTx.insert(studentSignatures).values({ student_id: studentId, signature }).onDuplicateKeyUpdate({ set: { signature } });
+      // 4. Promote temporary media assets (from admission drafts/requests) into permanent student storage
+      if (pfp || signature) {
+        const { MediaPromotionService } = await import('@/services/storage/MediaPromotionService');
+        await MediaPromotionService.promoteAdmissionMedia(
+          { studentId, pfp: pfp || null, signature: signature || null },
+          innerTx
+        );
       }
 
       return studentId;

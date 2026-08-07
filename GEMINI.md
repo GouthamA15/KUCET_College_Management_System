@@ -792,3 +792,275 @@ src/services/
 - **Floating Action Button:** Fixed bottom-right widget (`Ctrl+Shift+A` shortcut) with slide-over drawer modal.
 - **Explainability Proof Toggle:** Allows users to inspect the rules applied, data analyzed, and suggested actions behind every assistant answer.
 - **Export & Storage Controls:** Copy to clipboard, download chat log as Markdown, and clear history options.
+
+## 9. Storage Provider Architecture Recovery (Session 190)
+
+**Added:** August 7, 2026 (Session 190)
+
+### Overview
+Critical production architecture repair that restored the original storage provider contract: **Database stores ONLY storage keys, never provider-specific URLs**. The system had regressed to storing full Cloudinary URLs, versioned paths (`v1234567/kucet/...`), S3 URLs, and `[object Object].webp` corruption across multiple tables.
+
+### Original Design (Restored)
+```
+Browser ? Upload API ? Storage Provider ? returns Storage Key ? DB stores key
+                                                     ?
+                              DB key ? StorageProvider.getUrl() ? Generated URL
+```
+
+### Root Causes Fixed
+
+| File | Problem | Fix |
+|------|---------|-----|
+| `src/lib/cloudinary.js` | `uploadToCloudinary()` returned `getOptimizedUrl(result.secure_url)` — full URL | Now returns `${result.public_id}.${result.format}` — canonical storage key |
+| `src/lib/providers/storage/FailoverStorageProvider.js` | Missing `getUrl()` — all `storage.getUrl()` calls threw "not a function" | Added `getUrl()` delegating to first provider with that method |
+| `src/lib/cloudinary.js` | `deleteFromCloudinary()` only handled full URLs, failed on keys/versioned paths | Now handles storage keys, full URLs, and `v\d+/` prefixed legacy paths |
+| `src/lib/providers/storage/CloudinaryStorageProvider.js` | `getUrl()` crashed on non-string values and versioned paths | Added type guard, strips `v\d+/` version prefix from legacy DB data |
+| `src/lib/assets.js` | `getAssetUrl()` returned `[object Object]` values unchanged | Returns `''` for corrupt values; strips `v\d+/` from legacy versioned paths |
+
+### `imageHelper` Pattern Fixed (All Routes)
+
+All `imageHelper` functions in API routes now correctly resolve storage keys via `storage.getUrl()` instead of returning raw strings:
+- `src/app/api/student/signature/route.js`
+- `src/app/api/student/[rollno]/route.js`
+- `src/app/api/clerk/me/route.js`
+- `src/app/api/clerk/admission/student-requests/route.js`
+- `src/app/api/student/requests/profile/route.js`
+- `src/app/api/student/upload-photo/route.js` — also: deletes old photo before upload, validates storage key type, rollback on DB failure
+
+### Upload-Photo Route Improvements
+- Deletes old photo from storage before uploading new one (prevents orphan accumulation)
+- Validates returned storage key is a proper string before writing to DB
+- Rolls back (deletes newly uploaded file) if DB write fails
+- Removed all "Cloudinary" references from error messages (provider-agnostic)
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `scripts/migrate-storage-keys.js` | Idempotent DB migration: converts Cloudinary URLs, S3 URLs, versioned paths ? storage keys. Nullifies unrecoverable `[object Object]` values |
+| `tests/unit/storage-architecture.test.js` | **49 passing regression tests** covering all providers, migration logic, URL generation, archive system, and database key contract |
+
+### OrphanMediaService Improvements
+- Added `scanDatabaseViolations()` — scans all image columns for URL violations and `[object Object]` corruption
+- Fixed referenced media path collection to use correct schema tables (`studentImages`, `studentSignatures` — not the old `students.pfp` column)
+- Added `URL_VIOLATION_PATTERNS` constant for consistent detection across services
+
+### Storage Key Format (Enforced)
+- **Valid keys:** `kucet/students/pfp/abc.jpg`, `kucet/admission_drafts/pfp/def.png`, `archive/students/2026/CSE/pfp/ghi.jpg`
+- **Violations (detected & rejected):** `https://res.cloudinary.com/...`, `https://bucket.s3.amazonaws.com/...`, `v1778497250/kucet/...`, `[object Object].webp`
+
+### Key Invariant (Permanent Rule)
+> **The database MUST NEVER contain provider-specific URLs.** All image/file columns store relative storage keys only. URL generation happens exclusively at read-time via `StorageProvider.getUrl()`.
+
+### Running the Migration
+```bash
+# Dry run (inspect what will change — safe):
+node scripts/migrate-storage-keys.js
+
+# Verify architecture regression tests pass:
+npx vitest run tests/unit/storage-architecture.test.js
+```
+
+## 10. Media Promotion Lifecycle Repair (Session 191)
+
+**Added:** August 7, 2026 (Session 191)
+
+### Overview
+Repaired the institutional media storage lifecycle. Previously, temporary staging assets (`requests/pfp/`, `requests/signatures/`, `admission_drafts/pfp/`, `admission_drafts/signatures/`) remained in temporary folders even after approval or finalization. The system now guarantees that **upon approval or finalization, assets are physically moved into permanent student folders (`students/pfp/`, `students/signatures/`) using `StorageProvider.moveFile()` and database keys are updated atomically**.
+
+### Staging vs Permanent Storage Hierarchy
+```
+STAGING / TEMPORARY (Stays here ONLY while pending)
+  +-- kucet/requests/pfp/
+  +-- kucet/requests/signatures/
+  +-- kucet/admission_drafts/pfp/
+  +-- kucet/admission_drafts/signatures/
+                      ?
+       Approval / Finalization (MediaPromotionService)
+                      ?
+PERMANENT STUDENT ASSETS (Physical move + DB sync)
+  +-- kucet/students/pfp/
+  +-- kucet/students/signatures/
+
+PERMANENT FINANCIAL EVIDENCE (Intact — NEVER moved)
+  +-- kucet/certificates/payments/ (or kucet/requests/payments/)
+```
+
+### MediaPromotionService (`src/services/storage/MediaPromotionService.js`)
+Dedicated service enforcing the storage promotion lifecycle:
+- `promoteStudentProfile(storageKey)`: Moves temporary profile photo to `students/pfp/` using `StorageProvider.moveFile()`.
+- `promoteStudentSignature(storageKey)`: Moves temporary signature to `students/signatures/` using `StorageProvider.moveFile()`.
+- `promoteRequestMedia({ studentId, newPfp, newSignature }, tx)`: Atomically promotes request media during profile update approval inside a DB transaction.
+- `promoteAdmissionMedia({ studentId, pfp, signature }, tx)`: Atomically promotes draft media during admission finalization inside a DB transaction.
+- **Transactional Rollback Safety:** If DB update fails after physical file move, files are restored to their original temporary staging location.
+- **Idempotency:** Permanent keys (`students/pfp/...`) are ignored (no-op).
+
+### Modified API Routes & Services
+
+| File | Change |
+|------|--------|
+| `src/services/identity/StudentProfileService.js` | `upsertStudent` calls `MediaPromotionService.promoteAdmissionMedia` when creating/upserting student records from drafts |
+| `src/app/api/clerk/admission/student-requests/route.js` | Approval handler calls `MediaPromotionService.promoteRequestMedia` inside transaction and emits `REQUEST_UPDATED` SSE event |
+| `src/app/api/clerk/admission/drafts/[id]/finalize/route.js` | Finalize handler invokes `StudentService.upsertStudent` which triggers media promotion and sets draft `pfp`/`signature` to null |
+| `src/services/archive/OrphanMediaService.js` | Added `scanStagingOrphans()` method to detect leftover files in `requests/` or `admission_drafts/` after approval |
+
+### Migration & Test Suite
+
+| File | Description |
+|------|-------------|
+| `scripts/promote-legacy-media.js` | Resumable, idempotent migration script that scans `student_images`, `student_signatures`, and `student_admission_drafts` to physically move legacy temporary keys to `students/pfp/` and `students/signatures/`. |
+| `tests/unit/media-promotion-lifecycle.test.js` | **12 unit tests** covering identification, promotion, transactional rollback, provider contracts, and orphan detection. |
+
+### Running the Media Promotion Suite
+```bash
+# Run migration script (safe & idempotent):
+node scripts/promote-legacy-media.js
+
+# Run full storage & media promotion tests (61 tests total):
+npx vitest run tests/unit/storage-architecture.test.js tests/unit/media-promotion-lifecycle.test.js
+```
+
+## 11. Developer Specification: Institutional Media Architecture & Database Instructions
+
+**Added:** August 7, 2026 (Session 191)
+
+### Overview & Golden Architectural Rule
+
+> ?? **THE GOLDEN RULE:**  
+> **The database MUST NEVER store full URLs, hostnames, Cloudinary URLs, S3 URLs, or versioned prefixes.**  
+> The database stores **ONLY relative storage keys** (e.g., `kucet/students/pfp/101.jpg`).  
+> Dynamic URL generation happens **exclusively at read-time** via `storage.getUrl(key)` or `getAssetUrl(key)`.  
+> Swapping storage providers (`Local` ? `Cloudinary` ? `S3`) requires **ZERO database changes**.
+
+---
+
+### Storage Folder Hierarchy Standard
+
+| Storage Namespace | Folder Path | Purpose | Lifecycle Stage |
+|---|---|---|---|
+| **Staging** | `kucet/admission_drafts/pfp/` | Temporary draft profile photo | Temporary (Moved on finalization) |
+| **Staging** | `kucet/admission_drafts/signatures/` | Temporary draft signature | Temporary (Moved on finalization) |
+| **Staging** | `kucet/requests/pfp/` | Temporary profile request photo | Temporary (Moved on approval) |
+| **Staging** | `kucet/requests/signatures/` | Temporary profile request signature | Temporary (Moved on approval) |
+| **Staging** | `kucet/requests/proofs/` | Profile update proof document | Audit proof (Retained/Archived) |
+| **Permanent** | `kucet/students/pfp/` | Active/alumni student profile photo | Permanent |
+| **Permanent** | `kucet/students/signatures/` | Active/alumni student signature | Permanent |
+| **Permanent** | `kucet/clerks/pfp/` | Clerk / Faculty profile photo | Permanent |
+| **Permanent** | `kucet/clerks/signatures/` | Clerk / Faculty signature | Permanent |
+| **Evidence** | `kucet/certificates/payments/` | Certificate request payment screenshot | Permanent financial audit evidence |
+| **Archive** | `archive/students/YYYY/BRANCH/` | Archived student assets | Long-term cold storage |
+
+---
+
+### Step-by-Step Instructions for Developers
+
+#### 1. Uploading an Image / Asset (Write Path)
+
+When receiving a file or Base64 string from the frontend or API request:
+
+```javascript
+import { storage } from '@/lib/providers';
+
+// 1. Upload file to storage provider
+// storage.upload() returns ONLY a relative storage key string (e.g., 'kucet/students/pfp/20567T0901.jpg')
+const storageKey = await storage.upload(fileData, 'students/pfp', rollNo);
+
+// 2. Validate storage key return type
+if (!storageKey || typeof storageKey !== 'string' || storageKey.includes('[object')) {
+  throw new Error('Storage upload failed to return a valid storage key');
+}
+
+// 3. Store ONLY the storage key in the Database
+await db.insert(studentImages)
+  .values({ student_id: studentId, pfp: storageKey })
+  .onDuplicateKeyUpdate({ set: { pfp: storageKey } });
+```
+
+**Rule for Uploading:**  
+- **NEVER** save `getOptimizedUrl()`, `secure_url`, or `http://...` into the database.
+- Always store the string returned directly by `storage.upload()`.
+
+---
+
+#### 2. Fetching & Displaying Images (Read Path)
+
+##### A. In Server-Side API Routes & Services
+Use the standard `imageHelper` pattern or `storage.getUrl()`:
+
+```javascript
+import { storage } from '@/lib/providers';
+
+// Helper to resolve keys to public URLs
+const imageHelper = (val) => {
+  if (!val) return null;
+  if (typeof val === 'string' && (val.startsWith('http') || val.startsWith('data:') || val.startsWith('/api/'))) return val;
+  if (Buffer.isBuffer(val)) return `data:image/png;base64,${val.toString('base64')}`;
+  if (typeof val === 'string') return storage.getUrl(val);
+  return null;
+};
+
+// Application logic returning user data with resolved image URLs
+const studentPfpUrl = imageHelper(studentImageRow.pfp);
+```
+
+##### B. In Frontend React Components
+Import `getAssetUrl` from `@/lib/assets`:
+
+```javascript
+import { getAssetUrl } from '@/lib/assets';
+import Image from 'next/image';
+
+// In React JSX component:
+<Image 
+  src={getAssetUrl(student.pfp)} 
+  alt="Student Photo" 
+  width={120} 
+  height={120} 
+/>
+```
+
+---
+
+#### 3. Promoting Media Assets (Staging ? Permanent)
+
+When an event approves a request or finalizes a draft:
+
+```javascript
+import { MediaPromotionService } from '@/services/storage/MediaPromotionService';
+
+// Inside database transaction handle `tx`:
+const { promotedPfp, promotedSig } = await MediaPromotionService.promoteRequestMedia({
+  studentId: student.id,
+  newPfp: request.new_pfp,         // e.g. 'kucet/requests/pfp/abc.jpg'
+  newSignature: request.new_signature // e.g. 'kucet/requests/signatures/def.png'
+}, tx);
+
+// MediaPromotionService automatically:
+// 1. Calls StorageProvider.moveFile() to physically move files to students/pfp and students/signatures
+// 2. Updates student_images and student_signatures tables inside `tx`
+// 3. Restores physical files if DB transaction fails (Rollback Safety)
+```
+
+---
+
+### Summary of Image Infrastructure Commits
+
+| Session | Commit | Description |
+|---|---|---|
+| **Session 190** | `f809a60` | **Storage Architecture Recovery:** Restored strict storage key contract (`uploadToCloudinary` returns key, added `FailoverStorageProvider.getUrl()`, fixed `getAssetUrl`, added 49 unit tests in `storage-architecture.test.js`). |
+| **Session 191** | `e2a75ff` | **Media Promotion Lifecycle Repair:** Created `MediaPromotionService`, atomic file movement (`StorageProvider.moveFile()`), rollback safety, admission finalization & profile request approval promotion, `scripts/promote-legacy-media.js`, and 12 unit tests in `media-promotion-lifecycle.test.js`. |
+
+---
+
+### Operational Command Reference
+
+```bash
+# 1. Run storage key normalization migration (DB cleanup):
+node scripts/migrate-storage-keys.js
+
+# 2. Run legacy media promotion migration (Physical move + DB sync):
+node scripts/promote-legacy-media.js
+
+# 3. Execute complete storage unit test suite (61 tests total):
+npx vitest run tests/unit/storage-architecture.test.js tests/unit/media-promotion-lifecycle.test.js
+```

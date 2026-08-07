@@ -62,8 +62,19 @@ export const POST = wrapHandler({
         if (String(parsed.admissionType) !== expectedType) throw new Error('ROLL_TYPE_MISMATCH');
 
         const { getPermanentAddressFromDetails, getContactAddressFromDetails } = require('@/lib/address-utils');
+        
+        // 2. Proactively check if this roll number already exists to prevent duplicate/overwrite issues
+        const { students: studentsTable } = require('@/db/schema');
+        const existingStudent = await tx.select({ id: studentsTable.id })
+          .from(studentsTable)
+          .where(eq(studentsTable.roll_no, rollNo))
+          .limit(1);
+          
+        if (existingStudent.length > 0) {
+          throw new Error('STUDENT_EXISTS');
+        }
 
-        // 2. Map draft fields to upsert data structure
+        // 3. Map draft fields to upsert data structure
         const studentData = {
           ...draft,
           roll_no: rollNo,
@@ -94,8 +105,41 @@ export const POST = wrapHandler({
           })
           .where(eq(studentAdmissionDrafts.id, id));
 
-        return { studentId };
+        return { 
+          studentId, 
+          studentEmail: studentData.email, 
+          studentName: studentData.name, 
+          rollNo 
+        };
       });
+
+      // Send Welcome Email asynchronously
+      if (result.studentEmail) {
+        try {
+          const { sendInstitutionalEmail, getBaseUrl } = require('@/lib/email');
+          const emailHtml = `
+            <p>Dear <strong>${result.studentName}</strong>,</p>
+            <p>Congratulations! Your admission has been finalized and your KUCET student account is now institutionally active.</p>
+            <p>Your official institutional roll number has been generated: <strong>${result.rollNo}</strong>.</p>
+            <p>Your account is now ready for institutional use. You can log in and access the KUCET College Management System using your Date of Birth (YYYY-MM-DD) as the initial password.</p>
+            <p>Please log in to the portal and set a new secure password to unlock full portal features.</p>
+          `;
+          
+          sendInstitutionalEmail({
+            to: result.studentEmail,
+            subject: 'Welcome to KUCET! Your Account is Active',
+            title: 'Account Activated',
+            bodyHtml: emailHtml,
+            action: {
+              label: 'Login to Student Portal',
+              url: `${getBaseUrl()}/student`,
+              expiresIn: 'unlimited time. Please set your new password upon first login'
+            }
+          }).catch(e => logger.error(e, 'Failed to send welcome email'));
+        } catch (e) {
+          logger.error(e, 'Failed to initialize welcome email');
+        }
+      }
 
       const responseData = { success: true, studentId: result.studentId, message: 'Student successfully admitted and record created.' };
 
