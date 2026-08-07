@@ -1,3 +1,5 @@
+import { getAssetUrl } from '@/lib/assets';
+
 // Shared institutional email template generator
 // Generates both HTML and plain-text versions for transactional emails.
 
@@ -23,10 +25,9 @@ export const buildInstitutionalEmailHtml = ({
   action,
   infoRows
 }) => {
-  // Use a public Cloudinary URL for the logo so it works in emails
-  // Added f_auto,q_auto for optimization
-  const cloudName = 'djs0ry74r';
-  const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/v1772715418/kucet/public/assets/ku-logo.png`;
+  const baseUrl = getBaseUrl() || 'https://login.kucet.ac.in';
+  const assetPath = getAssetUrl('assets/ku-logo.png');
+  const logoUrl = assetPath.startsWith('http') ? assetPath : `${baseUrl.replace(/\/$/, '')}${assetPath}`;
   
   // Build structured information rows if provided
   const infoRowsHtml = Array.isArray(infoRows) && infoRows.length > 0

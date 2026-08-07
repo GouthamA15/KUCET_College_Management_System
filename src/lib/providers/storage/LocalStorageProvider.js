@@ -16,6 +16,25 @@ function cleanRelativePath(assetPath) {
   return clean;
 }
 
+export function getLocalStorageBasePath() {
+  if (process.env.LOCAL_STORAGE_PATH && fs.existsSync(process.env.LOCAL_STORAGE_PATH)) {
+    return process.env.LOCAL_STORAGE_PATH;
+  }
+  const candidatePaths = [
+    process.env.LOCAL_STORAGE_PATH,
+    '/var/www/kucet-storage/public',
+    path.join(process.cwd(), 'public')
+  ].filter(Boolean);
+
+  for (const dir of candidatePaths) {
+    if (fs.existsSync(dir)) {
+      return dir;
+    }
+  }
+
+  return process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/public';
+}
+
 export default class LocalStorageProvider extends StorageProvider {
   getUrl(assetPath) {
     if (!assetPath) return '';
@@ -66,7 +85,7 @@ export default class LocalStorageProvider extends StorageProvider {
       throw new Error(`File too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
     }
 
-    const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
+    const STORAGE_PATH = getLocalStorageBasePath();
     const cleanFolder = folder ? folder.replace(/^\/+|\/+$/g, '') : 'uploads';
     const targetDir = path.join(STORAGE_PATH, cleanFolder);
     
@@ -101,7 +120,7 @@ export default class LocalStorageProvider extends StorageProvider {
   async delete(relativePath) {
     if (!relativePath || typeof relativePath !== 'string' || relativePath.startsWith('data:')) return;
     
-    const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
+    const STORAGE_PATH = getLocalStorageBasePath();
     const cleanPath = cleanRelativePath(relativePath);
     if (!cleanPath || cleanPath.startsWith('assets/')) return;
     
