@@ -87,6 +87,95 @@ A robust, production-ready web application built with **Next.js** for managing t
 ### **D. Digital Certificate Engine**
 - **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
 
+# KUCET College Management System - Technical Documentation
+
+**Last Updated:** August 8, 2026 (Session 188)
+
+## 1. Project Overview
+A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
+
+### Core Capabilities:
+- **Departmental Management:** Multi-semester timetable orchestration and faculty workload tracking.
+- **Real-Time Orchestration:** Instant schedule and activity synchronization via Supabase Broadcast.
+- **Admissions & Records:** Multi-stage admission pipeline and comprehensive student registry.
+- **Attendance Tracking:** GPS-based, proxy-free attendance with fingerprinting and React 19 optimistic updates.
+- **Internal Marks:** Entry with validation and departmental pattern recommendations.
+- **Financial & Certificates:** Scholarship tracking, fee management, and automated digital certificate generation.
+- **Academic Data Archival & Restoration:** Production-grade long-term archival engine for historical student registries, closed semester attendance, evaluation marks, payment receipts, and media storage assets with safe zero-data-loss restoration capabilities.
+- **Enterprise Core Systems:** Centralized Domain Event Bus, Tagged Cache-Aside Redis layer, Async QStash Background Workers, PWA Offline capability, Web Push Notifications, Fine-grained RBAC, Observability & Tracing, Multi-Provider Failover, and Automated Backups with Retention Pruning.
+- **Production Deployment & Operations:** Multi-container Docker Compose packaging, zero-downtime Linux VPS deployment automation, automated rollback, disaster recovery procedures, real-time infrastructure monitoring, and full diagnostic operational health probes.
+
+## 2. Technical Stack
+- **Framework:** Next.js 16 (App Router), React 19, Tailwind CSS 4.
+- **Database:** TiDB Cloud (MySQL) with **Drizzle ORM** (Modular DDD Domain Schemas).
+- **Auth:** JWT (HTTP-only) via `jose`, Google OAuth (`next-auth`).
+- **Real-Time:** Supabase Realtime (Broadcast) & Redis Pub/Sub (`ioredis`).
+- **Security:** AES-256-GCM encryption for PII, SHA-256 blind indexing, Fine-Grained Permission RBAC.
+- **Infrastructure:** Sentry (Monitoring), Cloudinary/S3/Local (Failover Storage), Upstash (Rate Limiting/QStash Queue/Redis Cache), Docker & Docker Compose (Production packaging), PM2 (Process Manager).
+- **Tooling:** Zod (Validation), Vitest & Playwright (Unit & E2E Testing), Pino (Logging).
+
+## 3. Core Architectural Concepts
+
+### A. Database & Type Safety
+- **Drizzle ORM:** Modular domain schemas located in `src/db/schema/` (`identity.js`, `academic.js`, `registry.js`, `attendance.js`, `finance.js`, `security.js`, `operations.js`, `archive.js`, `index.js`). Barrel re-export in `src/db/schema.js` ensures 100% backwards compatibility. Uses versioned migrations (`drizzle-kit`).
+  - **Safe Database Updates (Data Loss Prevention):** NEVER use `npm run db:push` to update the database schema, as it may drop tables or columns and cause data loss. ALWAYS use the safe migration workflow:
+    1. Update domain schemas in `src/db/schema/`.
+    2. Run `npm run db:generate` to generate a `.sql` migration file in `drizzle/`.
+    3. Manually review the `.sql` file to ensure no unintended `DROP` statements exist (e.g., if renaming a column, change `DROP` + `ADD` to `RENAME COLUMN`).
+    4. Run `npm run db:migrate` to safely apply the changes.
+- **Zero-Trust Validation:** Strict Zod schema enforcement on all API boundaries via a unified `wrapHandler`.
+
+### B. Service & Provider Layer
+- **Domain-Oriented Service Layer:** Business logic organized into domain subdirectories under `src/services/`:
+  - `identity/`: `DeviceService.js`, `StudentService.js`, `StudentCertificateService.js`, `StudentProfileService.js`
+  - `academic/`: `FacultyService.js`
+  - `finance/`: `FinanceService.js`, `ScholarshipService.js`, `IdempotencyService.js`
+  - `archive/`: `ArchiveService.js`, `ArchiveMediaService.js`, `ArchiveRestoreService.js`, `OrphanMediaService.js`, `BackupService.js`, `DisasterRecoveryService.js`
+  - `security/`: `SecurityService.js`, `ValidationService.js`, `PushNotificationService.js`
+  - `shared/`: `HealthService.js`
+  - Barrel export in `src/services/index.js` and root re-exports guarantee backwards compatibility for all import paths.
+- **Provider Pattern & Failover Strategy:** Strategy pattern for Email, Storage (S3 -> Cloudinary -> Local), and Realtime providers with automated failover wrappers enabling zero downtime during provider outages.
+
+### C. Security & Robustness
+- **Integrity Guard:** SHA-256 fingerprinting for payment evidence to detect fraud/reuse.
+- **Circuit Breakers:** Fail-fast utility for external services to prevent cascading hangs.
+- **Financial Idempotency:** Registry-backed guards ensuring transactions process exactly once.
+- **Session Orchestration:** Real-time remote revocation and device-heuristic tracking.
+- **Baseline API Middleware Protection:** Middleware-level defense-in-depth role authorization enforcing access controls on `/api/admin/*` and `/api/clerk/*` routes.
+- **Safe Utilities & Robust Parsing:** Centralized `safeJsonParse()` utility preventing runtime exceptions from corrupted or malformed JSON payloads and storage keys.
+- **Dual-Mode Database Restoration:** Production backup restoration supporting native `mysql` CLI execution with automatic Drizzle SQL statement batch execution fallback.
+- **Docker Containerization:** Multi-stage production `Dockerfile` with Node 20 alpine runner, Next.js `standalone` mode, non-root user (`nextjs:nodejs`), `mysql-client` toolchain, and health monitoring endpoint (`/api/health`).
+
+### D. Time Management
+- **Authoritative Clock:** `src/lib/clock.js` (`getNow()`) ensures IST consistency and supports "Time Machine" testing.
+
+## 4. Database Schema Summary
+- **Identity:** `students`, `clerks`, `principal`, `user_sessions`, `otp_codes`.
+- **Academic:** `college_info`, `academic_calendar`, `syllabus_subjects`, `syllabus_structure`.
+- **Registry:** `student_personal_details`, `student_academic_background`, `student_admission_drafts`.
+- **Operations:** `student_attendance`, `student_marks`, `branch_timetable`, `faculty_subject_assignments`.
+- **Finance:** `scholarship_sanctions`, `student_payments`, `idempotency_keys`.
+- **Archive:** `archive_students`, `archive_student_personal_details`, `archive_student_academic_background`, `archive_student_attendance`, `archive_attendance_sessions`, `archive_student_marks`, `archive_student_payments`, `archive_operations_log`, `archive_retention_policies`.
+- **Security & Notifications:** `security_events`, `security_notifications`, `rate_limits`, `audit_logs`, `push_subscriptions`, `notification_preferences`.
+
+## 5. Specialized Modules & Features
+
+### **A. Head of Department (HOD) Console**
+- **Timetable Matrix:** Semester-aware grid (S1-S8) with "Duplicate Previous" productivity tools.
+- **Workload Tracker:** Visual bar charts comparing faculty teaching intensity institution-wide.
+- **Branch Analytics:** Condonation risk detection (75% threshold) with student-specific metrics.
+
+### **B. Proxy-Free Attendance System**
+- **Architecture:** GPS-based verification (50m radius) and secure 4-digit PINs.
+- **Fingerprinting:** IP + User-Agent Lock prevents phone sharing and proxy attempts.
+
+### **C. Real-Time Activity Bars**
+- **Pulse Logic:** Both Students and Faculty see a "Live Session" bar detecting current room/subject.
+- **Sync:** Updates from HOD timetable changes propagate instantly via Supabase Broadcast.
+
+### **D. Digital Certificate Engine**
+- **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
+
 ### **E. Academic Archive & Data Restoration Engine**
 - **Data Lifecycle Management:** Automated and manual archival of closed semester attendance, internal marks, payment transaction receipts, and graduated student profiles into optimized `archive_*` tables.
 - **Cloud Media Asset Archival:** Moves profile photos, signatures, and payment verification screenshots from operational storage paths (`uploads/`) to long-term storage namespaces (`archive/`) with multi-provider strategy support (S3/R2, Local, Cloudinary).
@@ -94,6 +183,22 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 189: Storage Provider Path Resolution Fix (August 8, 2026)**
+- **Root Cause Analysis for Local Image Serving (404 Errors):**
+  - Diagnosed asset delivery failures in the Next.js `standalone` Docker container. Identified that `process.cwd()` resolves to `/app` inside the container, causing `LocalStorageProvider` and the `assets/view` proxy to search in `/app/public` rather than the mounted host volume `/var/www/kucet-storage/public`.
+  - Identified hardcoded fallback paths referencing the incorrect `/uploads` directory instead of the `/public` directory across multiple routes.
+- **Centralized Storage Resolution:**
+  - Refactored `getLocalStorageBasePath()` in `src/lib/providers/storage/LocalStorageProvider.js` to be the single source of truth for the local storage root.
+  - Prioritized `LOCAL_STORAGE_PATH` env var with a safe fallback to `/var/www/kucet-storage/public`, eliminating the `process.cwd()` Docker trap completely.
+- **API Route & Service Refactoring:**
+  - Replaced duplicated, flawed inline path resolution logic with imports of `getLocalStorageBasePath()` across the codebase:
+    - Asset Proxy (`src/app/api/assets/view/[...path]/route.js`)
+    - Student Profile Images (`src/app/api/student/image/[rollno]/route.js`)
+    - Request Payment Screenshots (`src/app/api/student/requests/image/[request_id]/route.js`)
+    - Storage Admin Explorer (`src/app/api/admin/infrastructure/storage/route.js`)
+    - PDF Download Generator (`src/app/api/student/requests/download/[request_id]/route.js`)
+    - Orphan Media Cleanup (`src/services/archive/OrphanMediaService.js`)
 
 #### **Session 188: Autonomous & Self-Healing Deployment Infrastructure (August 8, 2026)**
 - **Critical Gap Resolved — GitHub Runner Persistence:**

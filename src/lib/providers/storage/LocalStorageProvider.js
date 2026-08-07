@@ -19,21 +19,26 @@ function cleanRelativePath(assetPath) {
 /**
  * Returns the canonical local storage root directory.
  * Priority:
- *   1. LOCAL_STORAGE_PATH env var (must be set in production .env.production)
- *   2. /var/www/kucet-storage/public  (VPS convention — always exists on the server)
- *
- * IMPORTANT: process.cwd() is intentionally NOT in this list.
- * Inside the Docker standalone container, cwd() resolves to /app, which is
- * the Next.js build output directory — not the VPS storage volume.
- * The storage volume is mounted via Docker bind-mount at the path above.
+ *   1. LOCAL_STORAGE_PATH env var (explicit configuration)
+ *   2. /app/public/uploads (Docker standalone bind-mount target)
+ *   3. process.cwd()/public/uploads (Local development fallback)
+ *   4. /var/www/kucet-storage/public (VPS host direct fallback)
  */
 export function getLocalStorageBasePath() {
-  // Preferred: explicit config from .env.production
-  const configured = process.env.LOCAL_STORAGE_PATH;
-  if (configured) return configured;
+  const candidatePaths = [
+    process.env.LOCAL_STORAGE_PATH,
+    '/app/public/uploads',
+    path.join(process.cwd(), 'public', 'uploads'),
+    '/var/www/kucet-storage/public'
+  ].filter(Boolean);
 
-  // VPS convention fallback — the bind-mount target in docker-compose.yml
-  return '/var/www/kucet-storage/public';
+  for (const dir of candidatePaths) {
+    if (fs.existsSync(dir)) {
+      return dir;
+    }
+  }
+
+  return process.env.LOCAL_STORAGE_PATH || path.join(process.cwd(), 'public', 'uploads');
 }
 
 export default class LocalStorageProvider extends StorageProvider {

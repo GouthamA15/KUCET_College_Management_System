@@ -1,36 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/api-utils';
 import logger from '@/lib/logger';
+import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import fs from 'fs';
 import path from 'path';
 
 /**
  * Resolves a relative storage key to the absolute filesystem path.
- *
- * Lookup order:
- *   1. LOCAL_STORAGE_PATH env var  (production: /var/www/kucet-storage/public)
- *   2. /var/www/kucet-storage/public  (VPS convention fallback)
- *
- * NOTE: process.cwd()/public is intentionally excluded.
- * Inside the Docker standalone container cwd() = /app, so joining it with
- * 'public' produces /app/public which is the build output, NOT the
- * storage volume mounted at /var/www/kucet-storage/public.
+ * Delegates to getLocalStorageBasePath to handle Docker and local dev logic.
  */
 export function resolveLocalFilePath(filename) {
-  const candidateBases = [
-    process.env.LOCAL_STORAGE_PATH,
-    '/var/www/kucet-storage/public',
-  ].filter(Boolean);
-
-  for (const base of candidateBases) {
-    const candidatePath = path.join(base, filename);
-    if (candidatePath.startsWith(base) && fs.existsSync(candidatePath)) {
-      return { base, filePath: candidatePath };
-    }
-  }
-
-  const defaultBase = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/public';
-  return { base: defaultBase, filePath: path.join(defaultBase, filename) };
+  const base = getLocalStorageBasePath();
+  const filePath = path.join(base, filename);
+  return { base, filePath };
 }
 
 /**
