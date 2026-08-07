@@ -568,3 +568,175 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 - **Global Horizontal Overflow Audit:** Deployed a codebase-wide layout audit targeting and stripping hardcoded \w-screen\, \min-w-screen\, and rigid desktop paddings (\p-8\, \px-10\). Applied \w-full\ and responsive spacing (\p-4 sm:p-8\) globally, entirely eliminating mobile layout breakage and horizontal scrollbars.
 - **Global Image Stability:** Systematically parsed and injected native \onError\ fallback handlers into 27 critical components utilizing \<Image>\ and \<img/>\. Broken Cloudinary assets or missing file blobs now gracefully degrade to informative 'Image Not Found' placeholders instead of shattering flexbox and grid layouts.
+
+## 7. Smart Campus Intelligence Engine (Session 188)
+
+**Added:** August 7, 2026 (Session 188)
+
+### Overview
+A fully offline, rule-based and analytics-driven intelligence layer that operates completely without AI/LLM. All insights are generated from institutional rules, statistical calculations, and configurable weighted formulas applied to existing ERP data.
+
+### Module Location
+src/intelligence/ — completely independent module integrated via interfaces only.
+
+### Architecture
+
+`
+src/intelligence/
++-- rule-engine/        # Phase 1: Rule evaluation with thresholds
+¦   +-- RuleEngine.js
+¦   +-- RuleRegistry.js
+¦   +-- ThresholdConfig.js
+¦   +-- index.js
++-- business-rules/     # Phase 2: Institutional policy decisions
+¦   +-- PolicyEngine.js
+¦   +-- PolicyRegistry.js
+¦   +-- index.js
++-- analytics/          # Phase 3: Statistical analytics engine
+¦   +-- StudentAnalytics.js
+¦   +-- FacultyAnalytics.js
+¦   +-- DepartmentAnalytics.js
+¦   +-- InstitutionAnalytics.js
+¦   +-- AnalyticsEngine.js
+¦   +-- index.js
++-- recommendation/     # Phase 4: Deterministic recommendations
+¦   +-- RecommendationEngine.js
+¦   +-- RecommendationRegistry.js
+¦   +-- index.js
++-- scoring/            # Phase 5: Weighted risk scoring
+¦   +-- ScoringEngine.js
+¦   +-- WeightConfig.js
+¦   +-- ScoreNormalizer.js
+¦   +-- index.js
++-- reports/            # Phase 7: Explainable decisions
+¦   +-- ExplainableDecision.js
+¦   +-- ReportGenerator.js
+¦   +-- index.js
++-- shared/             # Utilities and configuration
+¦   +-- IntelligenceConfig.js
+¦   +-- ConfigManager.js
+¦   +-- StatUtils.js
+¦   +-- QueryOptimizer.js
+¦   +-- BackgroundJobHelper.js
+¦   +-- index.js
++-- index.js            # Master barrel export
+`
+
+### API Endpoints
+
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| /api/intelligence/dashboard/student | GET | student | Student intelligence dashboard |
+| /api/intelligence/dashboard/faculty | GET | faculty | Faculty intelligence dashboard |
+| /api/intelligence/dashboard/hod | GET | hod | HOD department dashboard |
+| /api/intelligence/dashboard/admin | GET | admin | Institution-wide dashboard |
+| /api/intelligence/analytics/attendance | GET | admin/hod | Attendance analytics with filters |
+| /api/intelligence/analytics/marks | GET | admin/hod | Marks analytics with filters |
+| /api/intelligence/scores/student/[id] | GET | admin/hod/self | Student risk scores |
+| /api/intelligence/recommendations | GET | any | Role-aware recommendations |
+| /api/intelligence/config | GET/POST | admin | Manage intelligence config |
+| /api/intelligence/config/rules | GET/PATCH | admin | Enable/disable rules |
+| /api/intelligence/config/thresholds | GET/PUT | admin | Manage thresholds |
+| /api/intelligence/reports/student | GET | admin/hod/self | Explainable student report |
+| /api/intelligence/reports/department | GET | admin/hod | Explainable department report |
+
+### Rule Engine
+
+13 built-in institutional rules across 5 categories:
+
+| Category | Rule | Threshold | Severity |
+|---|---|---|---|
+| attendance | ATTENDANCE_WARNING | < 75% | WARNING |
+| attendance | ATTENDANCE_CRITICAL | < 65% | CRITICAL |
+| attendance | ATTENDANCE_CONDONATION | 65-74% | INFO |
+| fee | FEE_DUE_REMINDER | underpaid | INFO |
+| fee | FEE_OVERDUE | no payment this year | WARNING |
+| fee | FEE_DEFAULTER | no payment 2+ years | CRITICAL |
+| certificate | CERT_PENDING_DUES | has dues | BLOCK |
+| certificate | CERT_ELIGIBILITY | not ACTIVE | BLOCK |
+| scholarship | SCHOLARSHIP_MISSING_DOCS | hardcopy pending | WARNING |
+| scholarship | SCHOLARSHIP_EXPIRY | not released 6mo | WARNING |
+| scholarship | SCHOLARSHIP_INCOME | income check | INFO |
+| promotion | PROMOTION_ATTENDANCE | < 75% | BLOCK |
+| promotion | PROMOTION_BACKLOG | backlogs exist | WARNING |
+
+### Business Rules / Policy Engine
+
+7 institutional policies with full condition tracking:
+- EXAM_ELIGIBILITY, CONDONATION_ELIGIBILITY, SCHOLARSHIP_APPROVAL
+- CERTIFICATE_APPROVAL, STUDENT_PROMOTION, SEMESTER_COMPLETION, ARCHIVE_ELIGIBILITY
+
+Every policy returns: { status, reason, failedConditions[], passedConditions[], suggestedAction }
+
+### Analytics Engine
+
+**Student Analytics:** Attendance trend, marks trend, semester comparison, subject performance, comprehensive summary  
+**Faculty Analytics:** Submission rate, topic coverage, student performance, workload distribution  
+**Department Analytics:** Pass percentage, attendance distribution, fee collection, scholarship stats  
+**Institution Analytics:** Active students, alumni, department comparison, archive growth, institution KPIs
+
+### Risk Scoring Models
+
+| Model | Components | Range |
+|---|---|---|
+| Attendance Risk | overall_attendance (0.6), subject_min (0.4) | 0-100 (higher=riskier) |
+| Academic Risk | avg_marks (0.5), failed_subjects (0.3), trend (0.2) | 0-100 (higher=riskier) |
+| Fee Default Risk | years_unpaid (0.7), scholarship_status (0.3) | 0-100 (higher=riskier) |
+| Student Performance Index | attendance (0.3), marks (0.4), fee (0.2), engagement (0.1) | 0-100 (higher=better) |
+| Faculty Performance Index | submission (0.3), coverage (0.3), pass_rate (0.4) | 0-100 (higher=better) |
+| Department Performance Index | student (0.4), faculty (0.3), fee (0.2), scholarship (0.1) | 0-100 (higher=better) |
+
+All weights are configurable via INTELLIGENCE_SCORE_WEIGHTS in systemConfigs.
+
+### Configuration
+
+All thresholds and weights stored in systemConfigs table:
+
+| Config Key | Type | Description |
+|---|---|---|
+| INTELLIGENCE_THRESHOLDS | JSON | Attendance, marks, fee thresholds |
+| INTELLIGENCE_SCORE_WEIGHTS | JSON | Scoring model component weights |
+| INTELLIGENCE_RULE_CONFIG | JSON | Per-rule enable/disable overrides |
+| INTELLIGENCE_DASHBOARD_CONFIG | JSON | Dashboard limits and refresh intervals |
+| INTELLIGENCE_ANALYTICS_CONFIG | JSON | Date range and pagination settings |
+
+### Performance Design
+
+- **No N+1 queries**: All batch operations use Drizzle inArray() returning Map<id, data>
+- **Cache-Aside**: 5-minute TTL on all analytics, tagged with 'intelligence' for invalidation
+- **Background Jobs**: Heavy reports enqueued via QStash Queue (Phase 9 BackgroundJobHelper)
+- **Pagination**: All list endpoints use getPaginationParams() from api-utils
+- **Zero ERP Impact**: Intelligence endpoints are completely separate routes under /api/intelligence/
+
+### Explainability Contract
+
+Every intelligence output includes:
+`json
+{
+  "decision": {},
+  "explanation": {
+    "why": "string (human-readable)",
+    "rulesApplied": ["RULE_ID"],
+    "dataUsed": {},
+    "thresholdsCrossed": [],
+    "suggestedAction": "string",
+    "confidence": "HIGH|MEDIUM|LOW",
+    "generatedAt": "ISO timestamp",
+    "version": "1.0"
+  }
+}
+`
+
+### Testing
+
+Unit test coverage in 	ests/unit/intelligence/:
+- RuleEngine.test.js — rule evaluation, disabled rules, threshold overrides
+- PolicyEngine.test.js — all 7 policies, eligibility conditions
+- StatUtils.test.js — all statistical utilities
+- AnalyticsEngine.test.js — analytics structure validation
+- RecommendationEngine.test.js — all 4 actor types, explainability fields
+- ScoringEngine.test.js — scoring models, normalizer, grade/risk conversion
+- ExplainableDecision.test.js — explainability contract
+- ConfigManager.test.js — config loading, merging, cache invalidation
+- QueryOptimizer.test.js — batch loading, empty inputs
+- Integration.test.js — full pipeline test with mocked DB
