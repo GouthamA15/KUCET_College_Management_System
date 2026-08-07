@@ -81,8 +81,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
       const data = await res.json();
       if (res.ok && data.student) {
         toast.success('Login successful!', { id: toastId });
-        // Trigger a hard reload to "/" so proxy.js runs and redirects server-side
-        window.location.replace('/');
+        window.location.replace('/student');
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         setStudentError(data.error || 'Login failed');
@@ -270,7 +269,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        window.location.replace('/');
+        window.location.replace(isClerk ? '/clerk' : '/admin');
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         errorSetter(data.error || 'Login failed');

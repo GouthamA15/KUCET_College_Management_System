@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
@@ -22,10 +22,12 @@ const StudentUpdateRequestsPanel = () => {
   const requests = pendingProfileRequests || [];
   const loading = isLoadingRequests && requests.length === 0;
 
-  const filteredRequests = requests.filter(req => 
-    req.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    req.roll_no?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRequests = useMemo(() => {
+    return requests.filter(req => 
+      req.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      req.roll_no?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [requests, searchQuery]);
 
   const formatIstDateTimeUpper = (value) => {
     if (!value) return '';
@@ -49,12 +51,6 @@ const StudentUpdateRequestsPanel = () => {
       }
     }
   };
-
-  useEffect(() => {
-    if (!isContextLoading && clerk && clerk.role === 'admission' && requests.length === 0) {
-      refreshProfileRequests();
-    }
-  }, [clerk, isContextLoading, requests.length, refreshProfileRequests]);
 
   // Handle preventing scroll when drawer is open
   useEffect(() => {

@@ -280,7 +280,6 @@ export function ClerkProvider({ children }) {
   useEffect(() => {
     if (clerkData || isInitializingRef.current) return;
 
-    let cancelled = false;
     isInitializingRef.current = true;
 
     const id = setTimeout(() => {
@@ -290,22 +289,20 @@ export function ClerkProvider({ children }) {
         try {
           await refreshAllData();
         } finally {
-          if (!cancelled) {
-            setLoading(false);
-            setAreRequestsBootstrapping(false);
-            isInitializingRef.current = false;
-          }
+          setLoading(false);
+          setAreRequestsBootstrapping(false);
+          isInitializingRef.current = false;
         }
       };
       init();
     }, 0);
 
     return () => {
-      cancelled = true;
-      isInitializingRef.current = false;
       clearTimeout(id);
+      // Removed isInitializingRef.current = false; and cancelled logic
+      // to ensure state resolves even if component re-renders due to clerkData updating
     };
-  }, [refreshAllData, clerkData]);
+  }, [refreshAllData]); // Removed clerkData from deps to prevent re-triggering and cleanup during fetch
 
   useEffect(() => {
     const onResume = (e) => {
