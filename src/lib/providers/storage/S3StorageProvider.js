@@ -30,7 +30,7 @@ export default class S3StorageProvider extends StorageProvider {
     return `https://${this.bucket}.s3.amazonaws.com/${cleanPath}`;
   }
 
-  async upload(file, folder, publicId = null) {
+  async upload(file, folder, _publicId = null) {
     if (!file) return null;
 
     const { getBreaker } = await import('@/lib/utils/CircuitBreaker');
@@ -68,9 +68,8 @@ export default class S3StorageProvider extends StorageProvider {
       else if (contentType.includes('pdf')) extension = '.pdf';
       else if (contentType.includes('webp')) extension = '.webp';
 
-      const key = publicId
-        ? `${folder}/${publicId}${extension}`
-        : `${folder}/${require('crypto').randomBytes(8).toString('hex')}${extension}`;
+      const randomStr = require('crypto').randomBytes(10).toString('hex');
+      const key = `${folder}/${randomStr}${extension}`;
 
       const accessKey = process.env.S3_ACCESS_KEY_ID;
       const secretKey = process.env.S3_SECRET_ACCESS_KEY;
