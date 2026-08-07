@@ -10,6 +10,13 @@ import { eq, and, sql } from 'drizzle-orm';
 import { cacheAside } from '@/lib/cache';
 
 export class StudentAnalytics {
+  static async getAttendanceTrend(...args) { return new StudentAnalytics().getAttendanceTrend(...args); }
+  static async getMarksTrend(...args) { return new StudentAnalytics().getMarksTrend(...args); }
+  static async getSemesterComparison(...args) { return new StudentAnalytics().getSemesterComparison(...args); }
+  static async getSubjectPerformance(...args) { return new StudentAnalytics().getSubjectPerformance(...args); }
+  static async getStudentSummary(...args) { return new StudentAnalytics().getStudentSummary(...args); }
+
+
   async getAttendanceTrend(studentId, filters = {}) {
     return await cacheAside(
       `analytics:student:${studentId}:attendance_trend:${JSON.stringify(filters)}`,

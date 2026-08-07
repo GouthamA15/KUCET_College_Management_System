@@ -13,6 +13,12 @@ import {
 import { getNow } from '@/lib/clock';
 
 export class ScoringEngine {
+  static async computeStudentScores(...args) { return new ScoringEngine().computeStudentScores(...args); }
+  static async computeFacultyScore(...args) { return new ScoringEngine().computeFacultyScore(...args); }
+  static async computeDepartmentScore(...args) { return new ScoringEngine().computeDepartmentScore(...args); }
+  static async batchScoreStudents(...args) { return new ScoringEngine().batchScoreStudents(...args); }
+
+
   
   _buildBreakdown(rawComponents, normalizedComponents, weights) {
     const breakdown = {};

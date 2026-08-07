@@ -178,7 +178,20 @@ export class AssistantService {
     }
 
     // 2. Generate Intelligent Role-Aware Response
-    const responseData = await this.generateIntelligentResponse({ role, userId, user, message });
+    let responseData;
+    try {
+      responseData = await this.generateIntelligentResponse({ role, userId, user, message });
+    } catch (err) {
+      logger.error('Failed to generate intelligent assistant response', { error: err.message, stack: err.stack });
+      responseData = {
+        text: `### 🤖 Assistant Response\n\nHello! I am currently unable to process complex analytics for your query, but here is how I can assist:\n\n- You can ask about your **attendance**, **fee dues**, or **exam eligibility**.\n- Check your student portal sections for updated notifications.\n\nPlease try rephrasing your question!`,
+        explainability: {
+          why: 'Fallback triggered due to background service evaluation error',
+          suggestedAction: 'Re-submit query or refresh portal'
+        }
+      };
+    }
+
 
     // 3. Store assistant message
     const assistantMsgId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
