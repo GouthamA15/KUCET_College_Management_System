@@ -1,0 +1,1 @@
+CREATE INDEX `idx_att_student_status_date` ON `student_attendance` (`student_id`,`status`,`date`);
