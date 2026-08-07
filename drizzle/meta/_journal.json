@@ -64,6 +64,13 @@
       "when": 1786010842998,
       "tag": "0008_solid_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1786087357022,
+      "tag": "0009_tiny_sabretooth",
+      "breakpoints": true
     }
   ]
 }
