@@ -33,4 +33,5 @@ jobs:
         run: |
           rsync -av --exclude='.git' --exclude='node_modules' ./ /var/www/kucet-cms/
           cd /var/www/kucet-cms
+          docker rm -f kucet-cms-app || true
           docker compose up -d --build --no-deps app
