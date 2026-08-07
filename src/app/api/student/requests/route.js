@@ -7,7 +7,8 @@ import {
   studentRequestImages
 } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { getResolvedCurrentAcademicYear, getAdmissionTypeFromRoll } from "@/lib/rollNumber";
+import { getAdmissionTypeFromRoll } from "@/lib/rollNumber";
+import { getCollegeAcademicYear } from "@/lib/academic-utils";
 import { apiError, apiResponse, getAuthUser } from "@/lib/api-utils";
 import { getNow } from "@/lib/clock";
 import { storage } from '@/lib/providers';
@@ -91,8 +92,7 @@ export async function POST(request) {
 
     const paymentAmountNum = Number(paymentAmount) || 0;
     const now = await getNow();
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
-    const academicYear = getResolvedCurrentAcademicYear(user.roll_no, collegeRows[0], now);
+    const academicYear = await getCollegeAcademicYear();
 
     const isBonafide = certificateType === 'Bonafide Certificate';
     const isTC = certificateType === 'Transfer Certificate (TC)';

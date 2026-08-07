@@ -1,7 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
-  collegeInfo as collegeInfoTable, 
   semesters, 
   branchTimetable, 
   syllabusSubjects, 
@@ -10,7 +9,8 @@ import {
 import { eq, and, desc, like, or } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
-import { getCurrentSemester, getBranchFromRoll } from '@/lib/rollNumber';
+import { getBranchFromRoll } from '@/lib/rollNumber';
+import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 
 export async function GET(_req) {
   try {
@@ -40,10 +40,13 @@ export async function GET(_req) {
     }
 
     // Resolve context
-    const collegeRows = await db.select().from(collegeInfoTable).limit(1);
-    const collegeInfo = collegeRows[0] || null;
-    const semester = getCurrentSemester(rollNo, collegeInfo);
+    const academicSession = await calculateYearAndSemesterAsync(rollNo, user.academic_offset_years || 0);
+    const { semester, status: sessionStatus } = academicSession;
     const branch = getBranchFromRoll(rollNo);
+
+    if (sessionStatus === 'Semester Not Configured') {
+      return apiError('Academic Calendar not configured.', 400);
+    }
 
     if (!semester || !branch) {
       return apiResponse({ active: false, message: 'Context resolution failed' });

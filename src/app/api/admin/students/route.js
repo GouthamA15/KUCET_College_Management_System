@@ -1,10 +1,10 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { students, collegeInfo } from '@/db/schema';
+import { students } from '@/db/schema';
 import { eq, like, or } from 'drizzle-orm';
-import { getBranchFromRoll, getCurrentStudyingYear, branchCodes } from '@/lib/rollNumber';
+import { getBranchFromRoll, branchCodes } from '@/lib/rollNumber';
+import { calculateStudentYearAndSemester, getCurrentCalendarSession } from '@/lib/academic-utils';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { getNow } from '@/lib/clock';
 
 // Helper to get branch code from branch name
 function getBranchCodeFromName(branchName) {
@@ -33,11 +33,7 @@ export async function GET(request) {
   }
 
   try {
-    const now = await getNow();
-    // Fetch college info for academic year boundary
-    const collegeInfoRow = await db.query.collegeInfo.findFirst({
-      where: eq(collegeInfo.id, 1)
-    });
+    const session = await getCurrentCalendarSession();
 
     // Fetch all students that belong to the given branch code (regardless of entry year for now)
     const studentsFromDb = await db.select({
@@ -53,7 +49,11 @@ export async function GET(request) {
 
     const filteredStudents = studentsFromDb.filter(student => {
       const studentBranch = getBranchFromRoll(student.roll_no);
-      const studentStudyingYear = getCurrentStudyingYear(student.roll_no, collegeInfoRow, now);
+      let studentStudyingYear = null;
+      if (session) {
+        const { yearOfStudy } = calculateStudentYearAndSemester(student.roll_no, session.academicYear, session.semester);
+        studentStudyingYear = yearOfStudy;
+      }
 
       return studentBranch === branchName && String(studentStudyingYear) === studyingYear;
     });

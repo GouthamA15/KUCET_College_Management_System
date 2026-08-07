@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStudent } from '@/context/StudentContext';
-import { getBranchFromRoll, getResolvedCurrentAcademicYear, getBatchFromRoll } from '@/lib/rollNumber';
-import { calculateYearAndSemester } from '@/lib/academic-utils';
+import { getBranchFromRoll, getBatchFromRoll } from '@/lib/rollNumber';
 import ProfileHeaderCard from '@/components/student/ProfileHeaderCard';
 import ProfileStatusBar from '@/components/student/ProfileStatusBar';
 import ProfileTabs from '@/components/student/ProfileTabs';
@@ -43,8 +42,7 @@ export default function StudentProfileNew() {
 
   const branch = getBranchFromRoll(student.roll_no);
   const courseLabel = branch ? `B. Tech (${branch})` : 'B. Tech';
-  const { yearOfStudy, _semester, semesterLabel } = calculateYearAndSemester(student.roll_no, collegeInfo, student.academic_offset_years || 0);
-  const currentAcademicYearLabel = (() => { try { return getResolvedCurrentAcademicYear(student.roll_no, collegeInfo); } catch { return null; } })();
+  const { yearOfStudy, semesterLabel, academicYear: currentAcademicYearLabel } = studentData?.academic_session || {};
   const batchString = (() => { try { return getBatchFromRoll(student.roll_no); } catch { return null; } })();
 
   return (

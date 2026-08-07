@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { academicCalendar, semesters } from '@/db/schema';
-import { eq, and, sql, between } from 'drizzle-orm';
+import { eq, and, sql, between, ne } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
 export async function POST(request) {
@@ -18,12 +18,43 @@ export async function POST(request) {
 
     const startDate = new Date(start_date);
     const endDate = new Date(end_date);
-    if (startDate > endDate) return apiError('Start date cannot be after end date.', 400);
-
     const semNum = parseInt(semester);
 
+    // Validation: Start Date < End Date
+    if (startDate >= endDate) return apiError('Start date must be before end date.', 400);
+
+    // Validation: Duration constraints
+    const durationDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    if (durationDays < 120) return apiError(`Semester duration is ${durationDays} days. Minimum allowed is 120 days.`, 400);
+    if (durationDays > 220) return apiError(`Semester duration is ${durationDays} days. Maximum allowed is 220 days.`, 400);
+
+    // Validation: No overlapping semester exists for the same Academic Year
+    const existingSemesters = await db.select().from(semesters).where(
+      and(
+        eq(semesters.academic_year, academic_year),
+        ne(semesters.semester, semNum)
+      )
+    );
+
+    for (const sem of existingSemesters) {
+      const existingStart = new Date(sem.start_date);
+      const existingEnd = new Date(sem.end_date);
+      
+      // Overlap condition: startA <= endB AND endA >= startB
+      if (startDate <= existingEnd && endDate >= existingStart) {
+        return apiError(`Overlapping dates with Semester ${sem.semester} of the same academic year.`, 400);
+      }
+    }
+
     await db.transaction(async (tx) => {
-      // 0. Upsert into the semesters table
+      // STEP 2: Delete existing row in semesters matching Academic Year and Semester
+      await tx.delete(semesters)
+        .where(and(
+          eq(semesters.academic_year, academic_year),
+          eq(semesters.semester, semNum)
+        ));
+
+      // STEP 3: Insert the updated semester definition into semesters
       await tx.insert(semesters).values({
         academic_year,
         semester: semNum,
@@ -32,19 +63,18 @@ export async function POST(request) {
         weekend_pattern: weekend_days,
         created_at: new Date(),
         updated_at: new Date()
-      })
-      .onDuplicateKeyUpdate({
-        set: {
-          start_date: sql`VALUES(start_date)`,
-          end_date: sql`VALUES(end_date)`,
-          weekend_pattern: sql`VALUES(weekend_pattern)`,
-          updated_at: sql`NOW()`
-        }
       });
 
-      // 1. Generate all days as WORKING days
+      // STEP 4: Delete every generated record from academic_calendar
+      await tx.delete(academicCalendar)
+        .where(and(
+          eq(academicCalendar.academic_year, academic_year),
+          eq(academicCalendar.semester, semNum)
+        ));
+
+      // STEP 5: Generate the calendar
       const dates = [];
-      let currentDate = new Date(startDate.toISOString().slice(0,10));
+      let currentDate = new Date(startDate.toISOString().slice(0, 10));
       while (currentDate <= endDate) {
         dates.push(currentDate.toISOString().slice(0, 10));
         currentDate.setDate(currentDate.getDate() + 1);
@@ -57,11 +87,10 @@ export async function POST(request) {
           semester: semNum,
           day_type: 'WORKING'
         }));
-        // Use insertIgnore or manual batch insert since Drizzle doesn't have insertIgnore helper directly
-        await tx.insert(academicCalendar).values(values).onDuplicateKeyUpdate({ set: { id: sql`id` } });
+        await tx.insert(academicCalendar).values(values);
       }
       
-      // 2. Update weekend days to HOLIDAY
+      // Update weekend days to HOLIDAY
       if (weekend_days.length > 0) {
         const dayMap = { 'SUNDAY': 1, 'MONDAY': 2, 'TUESDAY': 3, 'WEDNESDAY': 4, 'THURSDAY': 5, 'FRIDAY': 6, 'SATURDAY': 7 };
         const mysqlDayIndexes = weekend_days.map(day => dayMap[day.toUpperCase()]).filter(d => d);
@@ -86,3 +115,4 @@ export async function POST(request) {
     return apiError('Internal Server Error', 500);
   }
 }
+

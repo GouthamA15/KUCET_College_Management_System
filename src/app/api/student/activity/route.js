@@ -2,14 +2,13 @@ import logger from '@/lib/logger';
 import { db } from '@/db';
 import { 
   students, 
-  collegeInfo as collegeInfoTable, 
   scholarshipWindows, 
   scholarshipSanctions 
 } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { toMySQLDate } from '@/lib/date';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { getCurrentAcademicYear } from '@/lib/rollNumber';
+import { getCollegeAcademicYear } from '@/lib/academic-utils';
 
 export async function GET(_request) {
   try {
@@ -34,15 +33,7 @@ export async function GET(_request) {
     const studentId = student.id;
 
     // STEP 1 — Determine current academic year for this student using helper
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
-    const collegeInfo = collegeRows[0] || null;
-
-    let currentAcademicYear = null;
-    try {
-      currentAcademicYear = getCurrentAcademicYear(studentRoll, collegeInfo) || null;
-    } catch {
-      currentAcademicYear = null;
-    }
+    const currentAcademicYear = await getCollegeAcademicYear();
 
     if (!currentAcademicYear) {
       return apiResponse({

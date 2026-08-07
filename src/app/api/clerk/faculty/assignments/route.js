@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { facultySubjectAssignments, collegeInfo as collegeInfoTable } from '@/db/schema';
 import { eq, _and, desc, asc, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { isSemesterActiveSync } from '@/lib/academic-utils';
+import { isSemesterActive, getCurrentCalendarSession } from '@/lib/academic-utils';
 
 export async function GET(_request) {
   try {
@@ -30,14 +30,18 @@ export async function GET(_request) {
     .where(eq(facultySubjectAssignments.faculty_id, user.id))
     .orderBy(desc(facultySubjectAssignments.academic_year), asc(facultySubjectAssignments.course_semester));
 
-    // Get college info for activity check
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1)).limit(1);
-    const collegeInfo = collegeRows[0] || null;
+    const session = await getCurrentCalendarSession();
 
-    const assignmentsWithActivity = assignments.map((asgn) => ({
-      ...asgn,
-      is_active: isSemesterActiveSync(asgn.course_semester, asgn.academic_year, collegeInfo)
-    }));
+    const assignmentsWithActivity = assignments.map((asgn) => {
+      let active = false;
+      if (session) {
+        active = session.academicYear === asgn.academic_year && (session.semester % 2 === asgn.course_semester % 2);
+      }
+      return {
+        ...asgn,
+        is_active: active
+      };
+    });
 
     return apiResponse({ data: assignmentsWithActivity });
   } catch (error) {

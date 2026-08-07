@@ -193,14 +193,29 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                     const totalCount = sessionRecords.length;
                     const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
                     
+                    const isHoliday = session.day_type && session.day_type !== 'WORKING';
                     const sessionKey = `${session.date}-${session.session}-${idx}`;
                     const isExpanded = expandedSession === sessionKey;
                     
+                    if (isHoliday && totalCount === 0) {
+                      return (
+                        <tr key={sessionKey} className="bg-gray-50 border-b border-gray-100">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-400">
+                            {session.date}
+                          </td>
+                          <td colSpan="5" className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-500 uppercase tracking-widest">
+                            {session.holiday_name ? `${session.day_type} - ${session.holiday_name}` : session.day_type}
+                          </td>
+                        </tr>
+                      );
+                    }
+
                     return (
                       <Fragment key={sessionKey}>
-                        <tr onClick={() => toggleSession(sessionKey)} className="hover:bg-gray-50 transition-colors cursor-pointer group">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                            {session.date}
+                        <tr onClick={() => toggleSession(sessionKey)} className={`hover:bg-gray-50 transition-colors cursor-pointer group ${isHoliday ? 'bg-red-50/30' : ''}`}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 flex flex-col">
+                            <span>{session.date}</span>
+                            {isHoliday && <span className="text-[10px] font-black text-red-600 uppercase mt-1">{session.day_type}</span>}
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-center">
                             <span className="bg-gray-100 text-gray-800 text-xs font-black px-2.5 py-1 rounded-md uppercase border border-gray-200">
@@ -312,15 +327,30 @@ export default function AttendanceHistoryViewer({ assignment, onBack }) {
                 const totalCount = sessionRecords.length;
                 const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
                 
+                const isHoliday = session.day_type && session.day_type !== 'WORKING';
                 const sessionKey = `${session.date}-${session.session}-${idx}`;
                 const isExpanded = expandedSession === sessionKey;
 
+                if (isHoliday && totalCount === 0) {
+                  return (
+                    <div key={sessionKey} className="flex flex-col bg-gray-50 border-b border-gray-100 p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-bold text-gray-400">{session.date}</span>
+                      </div>
+                      <div className="text-center py-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
+                        {session.holiday_name ? `${session.day_type} - ${session.holiday_name}` : session.day_type}
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={sessionKey} className="flex flex-col bg-white">
+                  <div key={sessionKey} className={`flex flex-col bg-white ${isHoliday ? 'bg-red-50/30' : ''}`}>
                     <div onClick={() => toggleSession(sessionKey)} className="p-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
                       <div className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-gray-900">{session.date}</span>
+                          {isHoliday && <span className="text-[10px] font-black text-red-600 uppercase">{session.day_type}</span>}
                           <span className="bg-gray-100 text-gray-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase border border-gray-200">
                             Session {session.session}
                           </span>

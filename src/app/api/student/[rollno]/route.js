@@ -15,6 +15,7 @@ import { eq, asc, _desc } from 'drizzle-orm';
 import { getBranchFromRoll, getAdmissionTypeFromRoll, getAcademicYear as computeAcademicYear } from '@/lib/rollNumber';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { decrypt } from '@/lib/encryption';
+import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 
 export async function GET(req, context) {
   // Check any valid auth
@@ -121,7 +122,10 @@ export async function GET(req, context) {
       date: f.transaction_date,
     }));
 
-    return apiResponse({ student, scholarship, fees, academics });
+    const academic_session = await calculateYearAndSemesterAsync(rollno, student.academic_offset_years || 0);
+    student.academic_session = academic_session;
+
+    return apiResponse({ student, scholarship, fees, academics, academic_session });
   } catch (error) {
     logger.error(error, 'Error fetching student profile data');
     return apiError('Failed to fetch student profile data', 500, error.message);

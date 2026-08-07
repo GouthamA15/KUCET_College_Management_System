@@ -25,13 +25,13 @@ export class StudentService {
    * Specialized validator for Bonafide Certificate eligibility
    */
   static async validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
-    const { getResolvedCurrentAcademicYear, getBranchFromRoll } = await import('@/lib/rollNumber');
-    const { calculateYearAndSemesterAsync } = await import('@/lib/academic-utils');
+    const { getBranchFromRoll } = await import('@/lib/rollNumber');
+    const { calculateYearAndSemesterAsync, getCollegeAcademicYear } = await import('@/lib/academic-utils');
     const { parsePurpose } = await import('@/lib/certificate-utils');
 
-    const academicYear = getResolvedCurrentAcademicYear(rollNo, collegeInfo, now);
+    const academicYear = await getCollegeAcademicYear();
     const branch = getBranchFromRoll(rollNo);
-    const { semester } = await calculateYearAndSemesterAsync(rollNo, collegeInfo, 0);
+    const { semester } = await calculateYearAndSemesterAsync(rollNo, 0, now);
 
     const attendanceStats = await db.select({
       total_classes: sql`COUNT(DISTINCT ${studentAttendance.id})`,
@@ -85,12 +85,11 @@ export class StudentService {
    * Specialized validator for Transfer Certificate (TC) eligibility
    */
   static async validateTCEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
-    const { calculateYearAndSemesterAsync } = await import('@/lib/academic-utils');
-    const { getResolvedCurrentAcademicYear } = await import('@/lib/rollNumber');
+    const { calculateYearAndSemesterAsync, getCollegeAcademicYear } = await import('@/lib/academic-utils');
     const { ScholarshipService } = await import('../finance/ScholarshipService');
 
-    const academicYear = getResolvedCurrentAcademicYear(rollNo, collegeInfo, now);
-    const { year, semester } = await calculateYearAndSemesterAsync(rollNo, collegeInfo, 0);
+    const academicYear = await getCollegeAcademicYear();
+    const { year, semester } = await calculateYearAndSemesterAsync(rollNo, 0, now);
 
     const financialSummary = await ScholarshipService.getScholarshipFinancialSummary(studentId, academicYear, rollNo);
     const pendingDues = financialSummary?.feeSummary?.pendingFee || 0;
