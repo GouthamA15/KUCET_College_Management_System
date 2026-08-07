@@ -1,6 +1,7 @@
 import logger from '@/lib/logger';
 import { getAuthUser, apiError, apiResponse } from '@/lib/api-utils';
 import { v2 as cloudinary } from 'cloudinary';
+import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import fs from 'fs';
 import path from 'path';
 
@@ -38,7 +39,7 @@ export async function GET(_req) {
     let files = [];
 
     if (storageType === 'local') {
-      const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
+      const STORAGE_PATH = getLocalStorageBasePath();
       if (fs.existsSync(STORAGE_PATH)) {
         const localFiles = getAllFiles(STORAGE_PATH);
         files = localFiles.map(f => {

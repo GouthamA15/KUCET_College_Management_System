@@ -5,15 +5,21 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * SECURE ASSET PROXY
- * Serves files from the private VPS storage folder (/var/www/kucet-storage)
- * Only accessible to authenticated students and staff.
+ * Resolves a relative storage key to the absolute filesystem path.
+ *
+ * Lookup order:
+ *   1. LOCAL_STORAGE_PATH env var  (production: /var/www/kucet-storage/public)
+ *   2. /var/www/kucet-storage/public  (VPS convention fallback)
+ *
+ * NOTE: process.cwd()/public is intentionally excluded.
+ * Inside the Docker standalone container cwd() = /app, so joining it with
+ * 'public' produces /app/public which is the build output, NOT the
+ * storage volume mounted at /var/www/kucet-storage/public.
  */
 export function resolveLocalFilePath(filename) {
   const candidateBases = [
     process.env.LOCAL_STORAGE_PATH,
     '/var/www/kucet-storage/public',
-    path.join(process.cwd(), 'public')
   ].filter(Boolean);
 
   for (const base of candidateBases) {
