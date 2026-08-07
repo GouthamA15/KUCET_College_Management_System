@@ -664,6 +664,138 @@ systemctl start cloudflared
 
 ---
 
+## PHASE 14: AUTONOMOUS DEPLOYMENT SETUP (ZERO-MANUAL-INTERVENTION)
+
+### What This Achieves
+
+After running the one-time setup command below, the KUCET CMS server becomes **fully autonomous**:
+
+- **GitHub push → auto-deploy**: Any push to `main` triggers the GitHub Actions runner, which runs `deploy.sh`, builds the new container, validates health, and rolls back automatically if anything fails — all without human involvement.
+- **Self-healing containers**: A cron monitor runs every 5 minutes and automatically restarts any stopped Docker container or GitHub Actions runner service.
+- **Auto-rollback on failure**: If `/api/health` fails 3 consecutive times, the monitor triggers a rollback to the last known-good deployment automatically.
+- **Boot recovery**: On every server restart, `boot-recovery.sh` runs automatically and brings up all containers before the runner accepts new jobs.
+- **Log management**: All logs rotate daily, compressed, kept for 30 days — no manual cleanup needed.
+
+---
+
+### One-Time Setup Command
+
+SSH into the server and run:
+
+```bash
+cd /var/www/kucet-cms
+sudo bash DEPLOYMENT_PACKAGE/SCRIPTS/setup-all.sh
+```
+
+This single command runs all setup steps in order and prints a final summary confirming the autonomous deployment is configured.
+
+---
+
+### What `setup-all.sh` Does Internally
+
+| Step | Script Called | Purpose |
+|------|--------------|---------|
+| 1 | *(inline)* | Creates `/var/log/kucet/` directory |
+| 2 | `setup-runner-service.sh` | Installs GitHub Actions runner as systemd service; enables docker + containerd |
+| 3 | `setup-logrotate.sh` | Installs `/etc/logrotate.d/kucet-cms` config |
+| 4 | `setup-cron.sh` | Installs all cron jobs idempotently |
+| 5 | *(inline)* | `chmod +x` on all `.sh` scripts in `SCRIPTS/` |
+| 6 | `boot-recovery.sh` | Verifies initial container/runner state |
+
+---
+
+### Individual Scripts Reference
+
+| Script | When It Runs | Purpose |
+|--------|-------------|---------|
+| `setup-all.sh` | Once, manually | Master orchestrator — runs all setup in order |
+| `setup-runner-service.sh` | Once, via setup-all | Registers GitHub runner as systemd service |
+| `setup-logrotate.sh` | Once, via setup-all | Installs logrotate config to `/etc/logrotate.d/` |
+| `setup-cron.sh` | Once, via setup-all | Installs all cron jobs idempotently |
+| `deploy.sh` | GitHub Actions CI | Full deploy: pull → migrate → build → health check → rollback |
+| `rollback.sh` | Auto (by deploy/monitor) | Reverts to a specific commit; health-checks; alerts on CRITICAL fail |
+| `health-check.sh` | After every deploy | 13-point PASS/FAIL check; supports `--json` flag |
+| `monitor.sh` | Every 5 min (cron) | Self-healing: restarts containers/runner; triggers rollback on repeated failure |
+| `boot-recovery.sh` | On reboot (cron @reboot) | Waits for Docker, starts all containers, verifies health |
+| `setup-logrotate.sh` | Once, via setup-all | Logrotate config installation |
+| `nightly-backup.sh` | Daily 02:00 (cron) | MySQL backup to local storage |
+| `offsite-backup.sh` | Daily 04:00 (cron) | Uploads backups to offsite storage |
+
+---
+
+### Verification Steps
+
+After running `setup-all.sh`, verify each component:
+
+#### 1. GitHub Actions Runner (systemd)
+```bash
+# Check service is active and enabled
+systemctl status actions.runner.*
+
+# Confirm it auto-starts on reboot
+systemctl is-enabled actions.runner.*
+```
+Expected: `active (running)` and `enabled`
+
+#### 2. Cron Jobs
+```bash
+crontab -l
+```
+Expected output should include:
+```
+*/5 * * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/monitor.sh ...
+0 2 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/nightly-backup.sh ...
+0 4 * * * /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/offsite-backup.sh ...
+@reboot /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/boot-recovery.sh ...
+```
+
+#### 3. Docker Auto-start
+```bash
+systemctl status docker
+systemctl is-enabled docker
+systemctl is-enabled containerd
+```
+Expected: `active (running)` and `enabled`
+
+#### 4. Logrotate Config
+```bash
+cat /etc/logrotate.d/kucet-cms
+logrotate -d /etc/logrotate.d/kucet-cms
+```
+
+#### 5. Boot Recovery Test
+To simulate boot recovery without rebooting:
+```bash
+sudo bash /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/boot-recovery.sh
+cat /var/log/kucet/boot-recovery.log
+```
+
+#### 6. Full Health Check
+```bash
+bash /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh
+# Or for JSON output (e.g. for monitoring integrations):
+bash /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh --json
+```
+
+---
+
+### Log File Locations
+
+| Log File | Contents |
+|----------|---------|
+| `/var/log/kucet/deploy_YYYYMMDD_HHMMSS.log` | Per-deployment log (all output) |
+| `/var/log/kucet/deployments.json` | JSON record of all deployments |
+| `/var/log/kucet/rollback_YYYYMMDD_HHMMSS.log` | Per-rollback log |
+| `/var/log/kucet/monitor.log` | Continuous monitor activity log |
+| `/var/log/kucet/boot-recovery.log` | Boot recovery log |
+| `/var/log/kucet/backup.log` | Nightly backup log |
+| `/var/log/kucet/offsite-backup.log` | Offsite backup log |
+| `/var/log/kucet/health-check.log` | Health check history |
+
+All logs are rotated daily, compressed after 1 day delay, and kept for **30 days**.
+
+---
+
 ## DEPLOYMENT HEALTH CHECKLIST
 
 Run through this checklist after every deployment:

@@ -1,38 +1,86 @@
-name: Auto Deploy to Self-Hosted Server
+name: Deploy to Production (KUCET CMS)
 
 on:
   push:
     branches:
       - main
 
+# Prevent concurrent deployments
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
-  deploy-self-hosted:
-    name: Build & Deploy on Self-Hosted Desktop
+  deploy:
+    name: Deploy to Self-Hosted VPS
     runs-on: self-hosted
+    timeout-minutes: 10
+
     steps:
+      # -----------------------------------------------------------------
+      # 1. Checkout the latest code
+      # -----------------------------------------------------------------
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Full history needed for git-based rollback
 
+      # -----------------------------------------------------------------
+      # 2. Load production environment variables from the server
+      # -----------------------------------------------------------------
       - name: Load Server Production Environment
         run: |
+          echo "Loading production environment from server ..."
           if [ -f /var/www/kucet-cms/.env.production ]; then
             cp /var/www/kucet-cms/.env.production .env
             cp /var/www/kucet-cms/.env.production .env.production
+            echo "✅ Environment loaded from /var/www/kucet-cms/.env.production"
           elif [ -f /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production ]; then
             cp /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production .env
             cp /var/www/kucet-cms/DEPLOYMENT_PACKAGE/.env.production .env.production
+            echo "✅ Environment loaded from DEPLOYMENT_PACKAGE/.env.production"
+          else
+            echo "⚠️  WARNING: .env.production not found on server — deployment may fail."
           fi
 
-      - name: Install Dependencies
-        run: npm ci --only=production || npm install
-
-      - name: Run Database Migrations
-        run: DB_HOST=127.0.0.1 npm run db:migrate
-
-      - name: Update Production Server & Restart Application Container
+      # -----------------------------------------------------------------
+      # 3. Run the main deploy script
+      # -----------------------------------------------------------------
+      - name: Run Deploy Script
+        id: deploy
         run: |
-          rsync -av --exclude='.git' --exclude='node_modules' ./ /var/www/kucet-cms/
-          cd /var/www/kucet-cms
-          docker rm -f kucet-cms-app || true
-          docker compose -p deployment_package -f DEPLOYMENT_PACKAGE/docker-compose.yml up -d --build --no-deps app
-          docker restart kucet-cms-proxy
+          chmod +x /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh
+          BRANCH=main /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh \
+            --commit "${{ github.sha }}" \
+            --branch main
+
+      # -----------------------------------------------------------------
+      # 4. On failure: run rollback explicitly (if deploy.sh hasn't already)
+      #    This step only runs if the deploy step failed.
+      # -----------------------------------------------------------------
+      - name: Emergency Rollback on Deploy Failure
+        if: failure() && steps.deploy.outcome == 'failure'
+        run: |
+          echo "⚠️  Deploy step failed — checking if rollback is needed ..."
+          # Get the previous commit (the commit before the current push)
+          PREV_COMMIT="${{ github.event.before }}"
+          if [ -n "$PREV_COMMIT" ] && [ "$PREV_COMMIT" != "0000000000000000000000000000000000000000" ]; then
+            echo "Running explicit rollback to: $PREV_COMMIT"
+            chmod +x /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh
+            /var/www/kucet-cms/DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh "$PREV_COMMIT" || \
+              echo "🚨 CRITICAL: Emergency rollback also failed! Manual intervention required."
+          else
+            echo "No valid previous commit found (first push to branch?). Skipping rollback."
+          fi
+
+      # -----------------------------------------------------------------
+      # 5. Always: upload deploy log as a GitHub Actions artifact
+      # -----------------------------------------------------------------
+      - name: Upload Deploy Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log-${{ github.sha }}
+          path: /var/log/kucet/deploy_*.log
+          retention-days: 30
+          if-no-files-found: warn

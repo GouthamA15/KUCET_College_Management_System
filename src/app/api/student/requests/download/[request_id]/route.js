@@ -16,6 +16,7 @@ import { getCollegeAcademicYear, calculateYearAndSemesterAsync } from '@/lib/aca
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
 import { _studentImages } from '@/db/schema';
+import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
@@ -158,7 +159,8 @@ export async function GET(request, context) {
                     imageBuffer = Buffer.from(arrayBuffer);
                 } else {
                     const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
-                    const fullPath = path.join(process.cwd(), 'public', cleanPath);
+                    const STORAGE_PATH = getLocalStorageBasePath();
+                    const fullPath = path.join(STORAGE_PATH, cleanPath);
                     if (!fs.existsSync(fullPath)) return null;
                     imageBuffer = fs.readFileSync(fullPath);
                 }

@@ -77,7 +77,7 @@ The self-hosted deployment of KUCET College Management System is fully operation
 
 4. **Self-Hosted Local Image Storage & Service Worker Overhaul (`RESOLVED`):**
    - *Issue:* Images on local storage proxy `/api/assets/view/` returned 401 Unauthorized for `<img>` tags, `FailoverStorageProvider` hardcoded S3 URLs, Service Worker threw Response `clone` TypeErrors, and PWA manifest icons failed on Cloudinary 404s.
-   - *Fix:* Dynamic provider reordering in `factory.js`, unblocked local asset proxy, synchronous Service Worker response cloning, local static icon resolution in `assets.js` / `manifest.js`, and 20-character randomized storage key generation across all uploads.
+   - *Fix:* Dynamic provider reordering in `factory.js`, unblocked local asset proxy, synchronous Service Worker response cloning, local static icon resolution in `assets.js` / `manifest.js`, 20-character randomized storage key generation across all uploads, and canonical storage volume alignment strictly to `/var/www/kucet-storage/public` (`7bb2caa`).
 
 ---
 
