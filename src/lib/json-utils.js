@@ -1,5 +1,3 @@
-import logger from '@/lib/logger';
-
 /**
  * Safely parses a JSON string without throwing an exception.
  *
@@ -25,14 +23,12 @@ export function safeJsonParse(value, fallback = null) {
   try {
     return JSON.parse(trimmed);
   } catch (error) {
-    if (typeof logger !== 'undefined' && logger.warn) {
-      logger.warn('safeJsonParse failed to parse JSON string:', {
-        error: error.message,
-        snippet: trimmed.slice(0, 100)
-      });
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('safeJsonParse failed to parse JSON string:', error?.message, trimmed.slice(0, 100));
     }
     return fallback;
   }
 }
 
 export default safeJsonParse;
+

@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 6, 2026 (Session 184)
+**Last Updated:** August 7, 2026 (Session 185)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -50,7 +50,10 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Circuit Breakers:** Fail-fast utility for external services to prevent cascading hangs.
 - **Financial Idempotency:** Registry-backed guards ensuring transactions process exactly once.
 - **Session Orchestration:** Real-time remote revocation and device-heuristic tracking.
-- **Docker Containerization:** Multi-stage production `Dockerfile` with Node 20 alpine runner, Next.js `standalone` mode, non-root user (`nextjs:nodejs`), and health monitoring endpoint (`/api/health`).
+- **Baseline API Middleware Protection:** Middleware-level defense-in-depth role authorization enforcing access controls on `/api/admin/*` and `/api/clerk/*` routes.
+- **Safe Utilities & Robust Parsing:** Centralized `safeJsonParse()` utility preventing runtime exceptions from corrupted or malformed JSON payloads and storage keys.
+- **Dual-Mode Database Restoration:** Production backup restoration supporting native `mysql` CLI execution with automatic Drizzle SQL statement batch execution fallback.
+- **Docker Containerization:** Multi-stage production `Dockerfile` with Node 20 alpine runner, Next.js `standalone` mode, non-root user (`nextjs:nodejs`), `mysql-client` toolchain, and health monitoring endpoint (`/api/health`).
 
 ### D. Time Management
 - **Authoritative Clock:** `src/lib/clock.js` (`getNow()`) ensures IST consistency and supports "Time Machine" testing.
@@ -88,6 +91,34 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 185: Security Hardening, System Resilience, Query Pagination & Bulk Offline Attendance Sync (`02c120f` to `6ba15f3`) (August 7, 2026)**
+- **Legacy Archive Endpoint Deprecation (`02c120f`):**
+  - Deprecated legacy data archiving route `/api/admin/infrastructure/archive-data/route.js` in favor of the newly implemented DDD Archive Management System (`/api/admin/archive`).
+  - Added HTTP `410 Gone` handlers for both GET and POST requests, guiding callers to `/api/admin/archive` and `/api/admin/archive/run`.
+  - Added `"test": "vitest run"` script alias to `package.json` for standard test execution CLI consistency.
+- **Safe JSON Parsing Utility & App-Wide Resilience (`797b01c`):**
+  - Engineered centralized `safeJsonParse(value, fallback)` helper in `src/lib/json-utils.js` with comprehensive Vitest unit coverage (`tests/unit/lib/json-utils.test.js`).
+  - Replaced un-guarded `JSON.parse` across 12 files (including `StudentUpdateRequestsPanel.js`, `AcademicsContext.js`, `ScholarshipDashboardContext.js`, `useActivityDismissal.js`, `certificate-utils.js`, `student-requests/route.js`, and `signature/route.js`).
+  - Eliminates server and UI crashes from corrupted or malformed JSON stored in `localStorage`, `sessionStorage`, or request bodies.
+- **Client Build & Module Resolution Fix:**
+  - Removed server-side `@/lib/logger` import from `src/lib/json-utils.js` and replaced with `console.warn`.
+  - Prevents Node.js-native modules (`async_hooks`, `pino`) from being bundled into client-side browser bundles, resolving Turbopack production build failure (`Module not found: Can't resolve 'async_hooks'`).
+- **Rate Limiting on Password Reset Endpoints (`271b445`):**
+  - Added tiered Upstash/Redis rate-limiting (`checkRateLimit` & `getTieredKey`) to `/api/auth/reset-password/[token]/route.js` for both GET (token validation) and POST (password reset execution).
+  - Enforced a maximum of 5 requests per 15-minute window per IP to prevent brute-force attacks on reset tokens (returns HTTP `429 Too Many Requests`).
+- **Docker Container Packaging & Fallback Database Restore Engine (`7a29670`):**
+  - Added `mysql-client` and `mariadb-client` packages to the Alpine production `Dockerfile` runner stage.
+  - Hardened database backup restoration in `/api/admin/infrastructure/backups/restore/route.js` by adding an automatic fallback to direct Drizzle SQL execution (`db.execute(sql.raw(statement))`) if system `mysql` CLI execution encounters errors.
+- **Baseline API Middleware Defense-in-Depth Security (`18221e9`):**
+  - Enhanced Next.js proxy middleware (`src/proxy.js`) to enforce baseline role checks on API routes (`/api/admin/*` requiring `adminPayload` and `/api/clerk/*` requiring `clerkPayload`), adding a robust defense-in-depth layer prior to route-level handler execution.
+- **Core Standardized Query Pagination (`2ad7f27`):**
+  - Built `getPaginationParams(params, defaultLimit, maxLimit)` helper in `src/lib/api-utils.js` (with unit tests in `tests/unit/lib/pagination-utils.test.js`) to parse `page`, `limit`, and compute `offset` from `URLSearchParams` or request options while enforcing upper limits (max limit 100).
+  - Refactored `ArchiveService.getArchiveHistory()` and `FinanceService.getAllTransactions()` to utilize standardized pagination, preventing memory and performance degradation on large SQL datasets.
+- **Bulk Offline Attendance Synchronization (`6ba15f3`):**
+  - Engineered batch endpoint `/api/clerk/faculty/attendance/bulk-sync/route.js` allowing faculty to sync multiple offline attendance sessions in a single Zod-validated transactional request.
+  - Implemented transactional validations verifying faculty/substitute permissions, active semester locks (`isSemesterActive`), and canonical assignment mapping with `onDuplicateKeyUpdate`.
+  - Refactored `FacultyAttendanceContext.js` to replace sequential HTTP POST loops with a single bulk API sync request, drastically improving offline sync performance and network efficiency.
 
 #### **Session 184: Academic Archive Management System Architecture & Implementation (`fee89aa` & `35cae93`) (August 6, 2026)**
 - **Feature Motivation & DDD Architecture:** Engineered a production-grade Academic Archive Management System to separate active operational records (current semester attendance, active marks, current students) from long-term historical archives while keeping database queries fast and lean.
