@@ -202,24 +202,28 @@ export function ClerkProvider({ children }) {
     const promise = (async () => {
       try {
         const clerk = await fetchClerk();
-        const promises = [fetchCollegeInfo()];
+        await fetchCollegeInfo();
+        
+        // Basic identity and config are loaded! Drop the global spinner immediately.
+        setLoading(false);
+
+        // Fetch heavy tables sequentially so we don't hammer the database pool 
+        // causing 30s delays or deadlocks
         if (clerk?.role === 'faculty') {
-          promises.push(fetchFacultyData());
+          await fetchFacultyData();
           if (clerk?.is_hod) {
-            // Trigger HOD data fetch in the background without blocking initial dashboard rendering
-            fetchHODData();
+            fetchHODData(); // background
           }
         }
         if (clerk?.role === 'admission') {
-          promises.push(fetchPendingProfileRequests());
-          promises.push(fetchPendingCertificateRequests('admission'));
-          promises.push(fetchAdmissionDrafts());
-          promises.push(fetchStudentHistory('my'));
+          await fetchPendingProfileRequests();
+          await fetchPendingCertificateRequests('admission');
+          await fetchAdmissionDrafts();
+          await fetchStudentHistory('my');
         }
         if (clerk?.role === 'scholarship') {
-          promises.push(fetchPendingCertificateRequests('scholarship'));
+          await fetchPendingCertificateRequests('scholarship');
         }
-        await Promise.all(promises);
         lastFetchTimeRef.current = Date.now();
       } catch (e) {
         console.error('Failed to refresh clerk data', e);
@@ -280,29 +284,30 @@ export function ClerkProvider({ children }) {
   useEffect(() => {
     if (clerkData || isInitializingRef.current) return;
 
+    let isMounted = true;
     isInitializingRef.current = true;
 
-    const id = setTimeout(() => {
-      const init = async () => {
-        if (!clerkData) setLoading(true);
-        setAreRequestsBootstrapping(true);
-        try {
-          await refreshAllData();
-        } finally {
+    const init = async () => {
+      if (!clerkData) setLoading(true);
+      setAreRequestsBootstrapping(true);
+      try {
+        await refreshAllData();
+      } finally {
+        if (isMounted) {
           setLoading(false);
           setAreRequestsBootstrapping(false);
-          isInitializingRef.current = false;
         }
-      };
-      init();
-    }, 0);
+        isInitializingRef.current = false;
+      }
+    };
+    
+    init();
 
     return () => {
-      clearTimeout(id);
-      // Removed isInitializingRef.current = false; and cancelled logic
-      // to ensure state resolves even if component re-renders due to clerkData updating
+      isMounted = false;
+      isInitializingRef.current = false;
     };
-  }, [refreshAllData]); // Removed clerkData from deps to prevent re-triggering and cleanup during fetch
+  }, [refreshAllData]);
 
   useEffect(() => {
     const onResume = (e) => {

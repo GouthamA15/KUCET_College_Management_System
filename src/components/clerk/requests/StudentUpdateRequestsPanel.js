@@ -112,8 +112,15 @@ const StudentUpdateRequestsPanel = () => {
     if (req.new_pfp) count++;
     if (req.new_signature) count++;
     if (req.new_data) {
-        const data = typeof req.new_data === 'string' ? JSON.parse(req.new_data) : req.new_data;
+      let data = req.new_data;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { data = {}; }
+      }
+      if (data && typeof data === 'object') {
         count += Object.keys(data).length;
+      } else {
+        count += 1; // It's just a raw string update
+      }
     }
     return count;
   };
@@ -408,7 +415,13 @@ const StudentUpdateRequestsPanel = () => {
                       Modified Fields
                     </h4>
                     <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden divide-y divide-gray-100">
-                      {Object.entries(typeof reviewingRequest.new_data === 'string' ? JSON.parse(reviewingRequest.new_data) : reviewingRequest.new_data).map(([field, value]) => (
+                      {Object.entries((() => {
+                        let data = reviewingRequest.new_data;
+                        if (typeof data === 'string') {
+                          try { data = JSON.parse(data); } catch (e) { data = { request: data }; }
+                        }
+                        return data && typeof data === 'object' ? data : {};
+                      })()).map(([field, value]) => (
                         <div key={field} className="p-4 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-4 items-center">
                           <div className="space-y-1">
                             <p className="text-[10px] uppercase font-bold text-gray-500">{formatLabel(field)}</p>
