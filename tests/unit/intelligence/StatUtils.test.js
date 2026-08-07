@@ -1,4 +1,4 @@
-/* eslint-env jest */
+/* global describe, test, expect, beforeEach, jest */
 import { calcPercentage, calcGrade, calcTrend, calcMovingAverage, calcStdDev, calcPercentile } from '../../../src/intelligence/shared/StatUtils';
 
 describe('StatUtils', () => {

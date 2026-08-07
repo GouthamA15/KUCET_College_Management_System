@@ -1,4 +1,4 @@
-/* eslint-env jest */
+/* global describe, test, expect, beforeEach, jest */
 import { RuleEngine } from '../../../src/intelligence/rule-engine/RuleEngine';
 
 describe('RuleEngine', () => {

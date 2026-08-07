@@ -1,4 +1,4 @@
-/* eslint-env jest */
+/* global describe, test, expect, beforeEach, jest */
 import { PolicyEngine } from '../../../src/intelligence/business-rules/PolicyEngine';
 
 describe('PolicyEngine', () => {
