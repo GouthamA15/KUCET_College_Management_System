@@ -80,7 +80,7 @@ export const buildInstitutionalEmailHtml = ({
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
                   <tr>
                     <td align="center" style="padding-bottom: 16px;">
-                      <img onError={(e) => { e.currentTarget.style.display = 'none'; }} src="${logoUrl}" alt="KUCET Logo" style="max-height:64px; display:block; margin:0 auto;" />
+                      <img src="${logoUrl}" alt="KUCET Logo" style="max-height:64px; display:block; margin:0 auto;" />
                     </td>
                   </tr>
                   <tr>

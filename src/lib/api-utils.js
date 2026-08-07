@@ -182,8 +182,16 @@ export function wrapHandler({ handler, schema, auth, audit }) {
         }
 
         // Final fallback
+        // Sanitize error message for the frontend to prevent leaking raw SQL queries
+        let displayError = error.message;
+        if (displayError && displayError.toLowerCase().includes('failed query:')) {
+          displayError = 'A database operation failed. Please try again.';
+        } else if (displayError && displayError.toLowerCase().includes('connect econnrefused')) {
+          displayError = 'Failed to connect to the database.';
+        }
+
         logger.error({ method, url, duration, ip, err: error.message, stack: error.stack }, '[API_CRASH]');
-        return apiError('An internal server error occurred', 500, process.env.NODE_ENV === 'development' ? error.message : null);
+        return apiError(displayError || 'An internal server error occurred', 500);
       }
     });
   };

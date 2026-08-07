@@ -10,6 +10,14 @@ export default class FailoverStorageProvider extends StorageProvider {
     this.providers = providers.filter(Boolean);
   }
 
+  getUrl(assetPath) {
+    if (this.providers.length > 0) {
+      // Delegate URL resolution to the primary active provider
+      return this.providers[0].getUrl(assetPath);
+    }
+    return assetPath;
+  }
+
   async upload(fileBuffer, key, options = {}) {
     let lastError = null;
 
