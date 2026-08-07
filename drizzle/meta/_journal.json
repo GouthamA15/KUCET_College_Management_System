@@ -71,6 +71,13 @@
       "when": 1786087357022,
       "tag": "0009_tiny_sabretooth",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1786089277736,
+      "tag": "0010_tan_cerebro",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 7, 2026 (Session 185)
+**Last Updated:** August 7, 2026 (Session 186)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -13,14 +13,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Internal Marks:** Entry with validation and departmental pattern recommendations.
 - **Financial & Certificates:** Scholarship tracking, fee management, and automated digital certificate generation.
 - **Academic Data Archival & Restoration:** Production-grade long-term archival engine for historical student registries, closed semester attendance, evaluation marks, payment receipts, and media storage assets with safe zero-data-loss restoration capabilities.
+- **Enterprise Core Systems:** Centralized Domain Event Bus, Tagged Cache-Aside Redis layer, Async QStash Background Workers, PWA Offline capability, Web Push Notifications, Fine-grained RBAC, Observability & Tracing, Multi-Provider Failover, and Automated Backups with Retention Pruning.
 
 ## 2. Technical Stack
 - **Framework:** Next.js 16 (App Router), React 19, Tailwind CSS 4.
 - **Database:** TiDB Cloud (MySQL) with **Drizzle ORM** (Modular DDD Domain Schemas).
 - **Auth:** JWT (HTTP-only) via `jose`, Google OAuth (`next-auth`).
 - **Real-Time:** Supabase Realtime (Broadcast) & Redis Pub/Sub (`ioredis`).
-- **Security:** AES-256-GCM encryption for PII, SHA-256 blind indexing.
-- **Infrastructure:** Sentry (Monitoring), Cloudinary/S3 (Storage), Upstash (Rate Limiting/Idempotency), Docker (Multi-stage production build).
+- **Security:** AES-256-GCM encryption for PII, SHA-256 blind indexing, Fine-Grained Permission RBAC.
+- **Infrastructure:** Sentry (Monitoring), Cloudinary/S3/Local (Failover Storage), Upstash (Rate Limiting/QStash Queue/Redis Cache), Docker (Multi-stage production build).
 - **Tooling:** Zod (Validation), Vitest & Playwright (Unit & E2E Testing), Pino (Logging).
 
 ## 3. Core Architectural Concepts
@@ -36,14 +37,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### B. Service & Provider Layer
 - **Domain-Oriented Service Layer:** Business logic organized into domain subdirectories under `src/services/`:
-  - `identity/`: `DeviceService.js`, `StudentService.js`
+  - `identity/`: `DeviceService.js`, `StudentService.js`, `StudentCertificateService.js`, `StudentProfileService.js`
   - `academic/`: `FacultyService.js`
   - `finance/`: `FinanceService.js`, `ScholarshipService.js`, `IdempotencyService.js`
-  - `archive/`: `ArchiveService.js`, `ArchiveMediaService.js`, `ArchiveRestoreService.js`
-  - `security/`: `SecurityService.js`, `ValidationService.js`
+  - `archive/`: `ArchiveService.js`, `ArchiveMediaService.js`, `ArchiveRestoreService.js`, `OrphanMediaService.js`, `BackupService.js`
+  - `security/`: `SecurityService.js`, `ValidationService.js`, `PushNotificationService.js`
   - `shared/`: `HealthService.js`
   - Barrel export in `src/services/index.js` and root re-exports guarantee backwards compatibility for all import paths.
-- **Provider Pattern:** Strategy pattern for Email, Storage, and Realtime providers, enabling vendor-agnostic infrastructure.
+- **Provider Pattern & Failover Strategy:** Strategy pattern for Email, Storage (S3 -> Cloudinary -> Local), and Realtime providers with automated failover wrappers enabling zero downtime during provider outages.
 
 ### C. Security & Robustness
 - **Integrity Guard:** SHA-256 fingerprinting for payment evidence to detect fraud/reuse.
@@ -65,6 +66,7 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Operations:** `student_attendance`, `student_marks`, `branch_timetable`, `faculty_subject_assignments`.
 - **Finance:** `scholarship_sanctions`, `student_payments`, `idempotency_keys`.
 - **Archive:** `archive_students`, `archive_student_personal_details`, `archive_student_academic_background`, `archive_student_attendance`, `archive_attendance_sessions`, `archive_student_marks`, `archive_student_payments`, `archive_operations_log`, `archive_retention_policies`.
+- **Security & Notifications:** `security_events`, `security_notifications`, `rate_limits`, `audit_logs`, `push_subscriptions`, `notification_preferences`.
 
 ## 5. Specialized Modules & Features
 
@@ -91,6 +93,43 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 186: Final Enterprise Hardening & Completion Sprint (August 7, 2026)**
+- **Domain Event Bus (`src/lib/events/EventBus.js`):**
+  - Built centralized, non-blocking asynchronous Domain Event Bus (`EventBus.publish`, `EventBus.subscribe`) with analytics metrics tracking (`getAnalytics()`).
+  - Defined standard domain events: `ATTENDANCE_SUBMITTED`, `TOPIC_UPDATED`, `MARKS_PUBLISHED`, `FEE_PAID`, `STUDENT_REGISTERED`, `ARCHIVE_COMPLETED`, `STUDENT_RESTORED`, `CERTIFICATE_ISSUED`.
+  - Registered built-in audit logging and tag-based cache invalidation subscribers. Covered by Vitest unit tests (`tests/unit/events/EventBus.test.js`).
+- **Redis Cache-Aside Layer & Tagged Invalidation (`src/lib/cache.js`):**
+  - Implemented `cacheAside(key, fetcher, { ttl, tags })` helper with in-memory fallback for local environments and Upstash Redis production mode.
+  - Built key and tag-based invalidation (`invalidateKey`, `invalidateTag`) and domain key constants (`CACHE_KEYS`) for College Config, Academic Calendar, Timetable, Department Config, Subject Structure, Fee Structures, and System Config. Covered by Vitest unit tests (`tests/unit/lib/cache.test.js`).
+- **Background Job Queue Expansion (`src/lib/queue.js` & QStash Workers):**
+  - Expanded background queue helpers (`Queue.enqueueArchiveJob`, `Queue.enqueueNotificationDispatch`, `Queue.enqueueReportGeneration`, `Queue.enqueuePdfGeneration`).
+  - Built QStash webhook worker routes: `/api/webhooks/qstash/archive-job`, `/api/webhooks/qstash/notification-dispatch`, `/api/webhooks/qstash/report-generation`, and `/api/webhooks/qstash/generate-pdf`.
+- **Progressive Web App (PWA) Support:**
+  - Authored web app manifest (`public/manifest.json`), client registration component (`src/components/PwaRegister.js`), and offline fallback route (`/offline`).
+  - Created Service Worker (`public/sw.js`) implementing Stale-While-Revalidate caching for Digital ID Card (`/student/requests/id-card`), Fee Receipts (`/student/finances`), and Weekly Timetable (`/student/academics`), while explicitly bypassing sensitive authentication and payment submit endpoints.
+- **Web Push Notifications System:**
+  - Added `push_subscriptions` and `notification_preferences` tables to `src/db/schema/security.js`. Generated migration `drizzle/0010_tan_cerebro.sql` and applied safely via `npm run db:migrate`.
+  - Built `PushNotificationService.js` (`src/services/security/PushNotificationService.js`) and REST API endpoints `/api/notifications/subscribe` and `/api/notifications/preferences`. Covered by Vitest unit tests (`tests/unit/services/PushNotificationService.test.js`).
+- **Enterprise RBAC Permission Authorization (`src/lib/rbac.js`):**
+  - Replaced legacy simple role string checks with fine-grained permission matrix (`PERMISSIONS` dictionary: `ATTENDANCE_MARK`, `ATTENDANCE_EDIT`, `MARK_ENTRY`, `MARK_APPROVE`, `FEE_VERIFY`, `FEE_EDIT`, `CERTIFICATE_APPROVE`, `ARCHIVE_RUN`, `ARCHIVE_RESTORE`, `REPORT_EXPORT`).
+  - Built evaluation helpers (`hasPermission`, `hasAnyPermission`, `hasAllPermissions`). Covered by Vitest unit tests (`tests/unit/lib/rbac.test.js`).
+- **Enterprise Observability & Performance Tracing (`src/lib/observability.js`):**
+  - Created `observability.js` integrating request ID propagation (`x-request-id`), Sentry capture fallback, slow query logging (`logSlowQuery`), performance metrics tracing (`withPerformanceTracing`), and error correlation token generation (`createErrorCorrelationId`).
+  - Updated Next.js proxy middleware (`src/proxy.js`) to generate and forward `x-request-id` headers on all incoming and outgoing requests. Covered by Vitest unit tests (`tests/unit/lib/observability.test.js`).
+- **Multi-Provider Storage Failover (`src/lib/providers/storage/FailoverStorageProvider.js`):**
+  - Implemented `FailoverStorageProvider` implementing an ordered fallback chain (S3 -> Cloudinary -> Local Disk).
+  - Updated `src/lib/providers/storage/factory.js` to return `FailoverStorageProvider` by default for zero-downtime storage operations. Covered by Vitest unit tests (`tests/unit/lib/providers/FailoverStorageProvider.test.js`).
+- **Automated Scheduled Backups & Retention Pruning (`src/services/archive/BackupService.js`):**
+  - Created `BackupService.js` supporting automated snapshot orchestration across DB, Archive, and Media assets with SHA-256 checksum verification, structural integrity checks, and retention pruning (30-day default).
+  - Built API route `/api/admin/infrastructure/backups/schedule`. Covered by Vitest unit tests (`tests/unit/services/BackupService.test.js`).
+- **Enterprise WCAG 2.1 AA Accessibility:**
+  - Integrated keyboard navigation skip link (`Skip to main content`), `main-content` landmark wrapper, and `PwaRegister` into `src/app/layout.js`.
+- **System Verification & Production Build:**
+  - ESLint checks: `npm run lint` passed with 0 errors.
+  - Vitest Unit suite: 192 unit tests passed cleanly across 25 test files (`npm test -- --run`).
+  - Playwright E2E suite: 18 E2E tests passed cleanly across all spec files (`npx playwright test`).
+  - Production Build: `npm run build` compiled successfully (0 build errors).
 
 #### **Session 185: Security Hardening, System Resilience, Query Pagination & Bulk Offline Attendance Sync (`02c120f` to `6ba15f3`) (August 7, 2026)**
 - **Legacy Archive Endpoint Deprecation (`02c120f`):**

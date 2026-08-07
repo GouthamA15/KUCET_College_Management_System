@@ -16,7 +16,7 @@ export const enqueueJob = async (endpoint, payload, options = {}) => {
 
   if (!process.env.QSTASH_TOKEN) {
     console.warn('QSTASH_TOKEN not found, skipping background job. In production, this would fire to', url);
-    return null; // Keep null for not configured state to match existing logic
+    return null;
   }
 
   const dlqUrl = `${baseUrl}/api/webhooks/qstash/dlq`;
@@ -64,6 +64,31 @@ export const Queue = {
     return await enqueueJob('/api/webhooks/qstash/generate-pdf', {
       studentId,
       certificateType,
+      requestedBy
+    });
+  },
+
+  // 4. Archive Job Queue
+  enqueueArchiveJob: async (archiveType, targetParams) => {
+    return await enqueueJob('/api/webhooks/qstash/archive-job', {
+      archiveType,
+      targetParams
+    });
+  },
+
+  // 5. Notification Dispatch Queue
+  enqueueNotificationDispatch: async (recipients, notification) => {
+    return await enqueueJob('/api/webhooks/qstash/notification-dispatch', {
+      recipients,
+      notification
+    });
+  },
+
+  // 6. Report Generation Queue
+  enqueueReportGeneration: async (reportType, filters, requestedBy) => {
+    return await enqueueJob('/api/webhooks/qstash/report-generation', {
+      reportType,
+      filters,
       requestedBy
     });
   }

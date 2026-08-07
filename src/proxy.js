@@ -99,6 +99,9 @@ export default async function proxy(request) {
 
   // We need to keep track of request headers to pass them to NextResponse.next()
   const requestHeaders = new Headers(request.headers);
+  const requestId = request.headers.get('x-request-id') || `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
+  requestHeaders.set('x-request-id', requestId);
+
   let refreshTriggered = false;
 
   // 1. Verify Tokens
@@ -112,6 +115,7 @@ export default async function proxy(request) {
       headers: requestHeaders,
     },
   });
+  response.headers.set('x-request-id', requestId);
 
   // 2. Handle Silent Refresh if expired (Only if session likely exists)
   if (!adminRes.payload && adminRes.expired && hasAdminSession) {
