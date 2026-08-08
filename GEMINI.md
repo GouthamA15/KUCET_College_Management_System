@@ -184,6 +184,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - August 2026)
 
+#### **Session 191: GitHub Actions Runner Permissions Fix (August 8, 2026)**
+- **Deployment Runner Unblocked:**
+  - Diagnosed `Operation not permitted` during `deploy.sh` execution. Identified that the GitHub Actions runner was executing as `kucet-dev`, but the `/var/www/kucet-cms` deployment directory was owned by `deployer`. 
+  - Fixed directory ownership on the host via `sudo chown -R kucet-dev:kucet-dev /var/www/kucet-cms` to grant the runner write access.
+- **Workflow Resilience Update:**
+  - Removed brittle `chmod +x` commands from `.github/workflows/deploy.yml` and explicitly executed scripts via `bash` to prevent permission-related pipeline failures.
+  - Manually started the stalled runner daemon to resume the hanging job.
+
 #### **Session 190: Storage Permission & Env Variables Fix (August 8, 2026)**
 - **Host Permission Issue Fixed:**
   - Diagnosed `EACCES: permission denied` when Next.js app running inside the container as `nextjs` (UID 1001) attempted to write to the bind-mounted host directory `/var/www/kucet-storage/public` owned by `kucet-dev` (UID 1000) with `755` permissions. Fixed by running `chmod -R 777` on the host directory.
