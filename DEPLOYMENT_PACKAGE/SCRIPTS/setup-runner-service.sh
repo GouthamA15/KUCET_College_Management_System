@@ -14,7 +14,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 KUCET_CMS_DIR="/var/www/kucet-cms"
 COMPOSE_FILE="$KUCET_CMS_DIR/DEPLOYMENT_PACKAGE/docker-compose.yml"
-RUNNER_DIR="/home/kucet-dev/actions-runner"
+RUNNER_DIR="/home/deployer/actions-runner"
 LOG_FILE="/var/log/kucet/setup-runner-service.log"
 
 # ---------------------------------------------------------------------------
@@ -84,7 +84,7 @@ log "Installing runner as systemd service via ./svc.sh install ..."
 cd "$RUNNER_DIR"
 
 # svc.sh install must be run from within the runner directory
-sudo -u kucet-dev bash svc.sh install kucet-dev 2>&1 | tee -a "$LOG_FILE" || {
+sudo -u deployer bash svc.sh install deployer 2>&1 | tee -a "$LOG_FILE" || {
   # Some runner versions do not accept a user argument — retry without it
   log "Retrying svc.sh install without user argument ..."
   bash svc.sh install 2>&1 | tee -a "$LOG_FILE"
