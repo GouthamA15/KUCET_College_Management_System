@@ -20,10 +20,11 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
   const files = fs.readdirSync(dirPath);
 
   files.forEach((file) => {
-    if (fs.statSync(dirPath + "/" + file).isDirectory()) {
-      arrayOfFiles = getAllFiles(dirPath + "/" + file, arrayOfFiles);
+    const fullPath = path.join(dirPath, file);
+    if (fs.statSync(fullPath).isDirectory()) {
+      arrayOfFiles = getAllFiles(fullPath, arrayOfFiles);
     } else {
-      arrayOfFiles.push(path.join(dirPath, "/", file));
+      arrayOfFiles.push(fullPath);
     }
   });
 

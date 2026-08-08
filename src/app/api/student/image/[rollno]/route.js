@@ -28,7 +28,8 @@ export async function GET(req, context) {
 
     const assetValue = rows[0].pfp;
     return await serveAssetResponse(assetValue, {
-      cacheControl: 'no-store, no-cache, must-revalidate, max-age=0'
+      req,
+      cacheControl: 'public, max-age=86400, must-revalidate'
     });
 
   } catch (error) {

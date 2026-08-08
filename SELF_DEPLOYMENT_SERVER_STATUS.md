@@ -83,9 +83,9 @@ The self-hosted deployment of KUCET College Management System is fully operation
    - *Issue:* Image uploads failing silently due to `EACCES: permission denied` when the container `nextjs` user tried writing to the host directory owned by `kucet-dev`. Environmental variable `LOCAL_STORAGE_PATH` pointed to the host path instead of the container path, leading to brittle hardcoded fallback logic inside `LocalStorageProvider.js`.
    - *Fix:* Applied `chmod -R 777` to `/var/www/kucet-storage/public` on the host to open write permissions for the container user. Stripped hardcoded directory fallbacks from the codebase and updated `.env.production` templates so `LOCAL_STORAGE_PATH` firmly maps to `/app/public/uploads` from the container's perspective.
 
-6. **GitHub Actions Runner Permissions & Script Execution (`RESOLVED`):**
-   - *Issue:* The runner was incorrectly installed and executing as `kucet-dev`, causing `Operation not permitted` and `Permission denied` errors trying to write to the deployment directory (`/var/www/kucet-cms`) and log directory (`/var/log/kucet`), which are strictly owned by the `deployer` user. Additionally, `setup-runner-service.sh` had incorrect `sudo` context preventing proper `deployer` service registration.
-   - *Fix:* Enforced architecture separation between developer (`kucet-dev`) and CI/CD (`deployer`). Migrated the GitHub Actions runner from `/home/kucet-dev/actions-runner` to `/home/deployer/actions-runner`. Fixed `setup-runner-service.sh` to install the service running correctly as `deployer`. Restored `deployer:deployer` ownership to `/var/www/kucet-cms` and `/var/log/kucet`. Removed brittle `chmod` commands from `deploy.yml` in favor of `bash`. The runner is now active and fully operational under the `deployer` identity.
+7. **Storage Asset Resolution & Performance Overhaul (`RESOLVED`):**
+   - *Issue:* Principal signature and seal images failing to render inside generated PDFs and UI pages, while student profile images loaded slowly across dashboard tables due to disabled browser caching (`no-store`) and static asset URL helper traps (`cleanPath.startsWith('assets/')`).
+   - *Fix:* Restricted static asset URL generation strictly to files registered in `STATIC_ASSETS`. Refactored `/api/assets/view/[...path]` and `getBase64Image` with `resolveLocalFilePath` multi-path checking, signature filename alias fallbacks, memory caching (<2MB), and ETag HTTP 304 Not Modified revalidation. Updated `/api/student/image/[rollno]` to use `public, max-age=86400, must-revalidate` caching headers.
 
 ---
 

@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
+import { getAssetUrl } from '@/lib/assets';
+
 function cleanRelativePath(assetPath) {
   if (!assetPath || typeof assetPath !== 'string') return '';
   if (assetPath.startsWith('data:')) return assetPath;
@@ -28,15 +30,7 @@ export default class LocalStorageProvider extends StorageProvider {
     if (!assetPath) return '';
     if (typeof assetPath !== 'string') return '';
     if (assetPath.startsWith('data:') || assetPath.startsWith('http://') || assetPath.startsWith('https://')) return assetPath;
-    
-    const cleanPath = cleanRelativePath(assetPath);
-    if (!cleanPath) return '';
-
-    if (cleanPath.startsWith('assets/')) {
-      return `/${cleanPath}`;
-    }
-
-    return `/api/assets/view/${cleanPath}`;
+    return getAssetUrl(assetPath);
   }
 
   async upload(file, folder, _publicId = null) {

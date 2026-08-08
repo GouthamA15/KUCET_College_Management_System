@@ -50,6 +50,7 @@ export async function GET(req, context) {
 
     const assetValue = imageRow.payment_screenshot;
     return await serveAssetResponse(assetValue, {
+      req,
       cacheControl: 'public, max-age=86400, must-revalidate'
     });
 

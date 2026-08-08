@@ -17,6 +17,7 @@ import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
 import { _studentImages } from '@/db/schema';
 import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
+import { resolveLocalFilePath } from '@/app/api/assets/view/[...path]/route';
 
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
@@ -149,20 +150,28 @@ export async function GET(request, context) {
         const formattedDob = `${dob.getDate()}-${dob.getMonth() + 1}-${dob.getFullYear()}`;
         const course = String(getBranchFromRoll(student.roll_no) || '');
 
+        const base64Cache = new Map();
+
         const getBase64Image = async (imagePath) => {
+            if (!imagePath) return null;
+            if (base64Cache.has(imagePath)) return base64Cache.get(imagePath);
+
             try {
                 let imageBuffer;
-                if (imagePath.startsWith('data:') || imagePath.startsWith('http')) {
+                if (imagePath.startsWith('data:')) {
+                    return imagePath;
+                } else if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
                     const response = await fetch(imagePath);
                     if (!response.ok) return null;
                     const arrayBuffer = await response.arrayBuffer();
                     imageBuffer = Buffer.from(arrayBuffer);
                 } else {
-                    const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
-                    const STORAGE_PATH = getLocalStorageBasePath();
-                    const fullPath = path.join(STORAGE_PATH, cleanPath);
-                    if (!fs.existsSync(fullPath)) return null;
-                    imageBuffer = fs.readFileSync(fullPath);
+                    const cleanPath = imagePath
+                        .replace('/api/assets/view/', '')
+                        .replace(/^\/+/, '');
+                    const { filePath } = resolveLocalFilePath(cleanPath);
+                    if (!fs.existsSync(filePath)) return null;
+                    imageBuffer = await fs.promises.readFile(filePath);
                 }
                 if (!imageBuffer || imageBuffer.length < 4) return null;
 
@@ -172,7 +181,9 @@ export async function GET(request, context) {
                 else if (imageBuffer.slice(0,4).toString('ascii') === 'GIF8') mimeType = 'image/gif';
                 else if (imageBuffer.slice(0,4).toString('ascii') === 'RIFF') mimeType = 'image/webp';
 
-                return `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+                const dataUrl = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+                base64Cache.set(imagePath, dataUrl);
+                return dataUrl;
             } catch (_err) {
                 return null;
             }
@@ -180,9 +191,14 @@ export async function GET(request, context) {
 
         const logoUrl = await getBase64Image(getAssetUrl('/assets/ku-logo.png'));
         const _collegeLogoUrl = await getBase64Image(getAssetUrl('/assets/ku-college-logo.png')) || logoUrl;
-        const signatureUrl = await getBase64Image(getAssetUrl('/assets/principal-sign.png'));
-        const stampUrl = await getBase64Image(getAssetUrl('/assets/ku-college-seal.png'));
-        const stampSign = await getBase64Image(getAssetUrl('/assets/principal-sign-stamp.png')) || signatureUrl;
+        const signatureUrl = await getBase64Image(getAssetUrl('principal-sign.png')) 
+            || await getBase64Image(getAssetUrl('/assets/principal-sign.png'))
+            || await getBase64Image(getAssetUrl('principal-signStamp.png'));
+        const stampUrl = await getBase64Image(getAssetUrl('ku-college-seal.png'))
+            || await getBase64Image(getAssetUrl('/assets/ku-college-seal.png'));
+        const stampSign = await getBase64Image(getAssetUrl('principal-signStamp.png')) 
+            || await getBase64Image(getAssetUrl('principal-sign-stamp.png'))
+            || signatureUrl;
 
         const formatDate = (d) => {
             if (!d) return '';

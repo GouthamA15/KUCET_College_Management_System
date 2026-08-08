@@ -63,7 +63,7 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   const cleanPath = cleanedPath.startsWith('/') ? cleanedPath.substring(1) : cleanedPath;
   const normalizedPath = `/${cleanPath}`;
 
-  if (STATIC_ASSETS.includes(normalizedPath) || cleanPath.startsWith('assets/')) {
+  if (STATIC_ASSETS.includes(normalizedPath)) {
     return normalizedPath;
   }
 

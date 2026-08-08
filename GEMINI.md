@@ -184,6 +184,20 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - August 2026)
 
+#### **Session 193: Storage Asset Resolution & Performance Overhaul (August 8, 2026)**
+- **Asset URL Resolution Fix (`src/lib/assets.js` & `src/lib/providers/storage/LocalStorageProvider.js`):**
+  - Fixed `cleanPath.startsWith('assets/')` trap where non-repo assets (such as `principal-sign.png`, `principal-signStamp.png`, `ku-college-seal.png`) were incorrectly treated as repo static files, bypassing `/api/assets/view/...` and returning HTTP 404.
+  - Restricted static asset URL generation strictly to paths registered in `STATIC_ASSETS` (files physically present in Next.js `public/` directory).
+- **PDF Download Generator Optimization (`src/app/api/student/requests/download/[request_id]/route.js`):**
+  - Fixed `getBase64Image` to strip `/api/assets/view/` prefixes before attempting disk lookup.
+  - Integrated `resolveLocalFilePath` for candidate path resolution and added filename alias fallbacks (`principal-sign.png`, `principal-signStamp.png`, `principal-sign-stamp.png`, `principal-sign-black.png`, `ku-college-seal.png`).
+  - Added in-memory Base64 caching for institutional branding images, eliminating disk I/O on repeated PDF downloads.
+- **Asset View Proxy & Server Helper Enhancements (`src/app/api/assets/view/[...path]/route.js` & `src/lib/server-assets.js`):**
+  - Added multi-path filesystem resolution with traversal security guards and signature alias fallbacks.
+  - Implemented in-memory LRU/Map caching (<2MB) and ETag HTTP 304 Not Modified revalidation.
+- **Browser Caching for Student Images (`src/app/api/student/image/[rollno]/route.js`):**
+  - Replaced `no-store` with `public, max-age=86400, must-revalidate` and added ETag revalidation to eliminate slow image loading across student and clerk UI tables.
+
 #### **Session 192: Code Modularization & Deduplication (August 8, 2026)**
 - **Server Asset Response Helper (`src/lib/server-assets.js`):**
   - Created centralized `serveAssetResponse` function to handle multi-provider (Cloudinary remote fetch, local VPS disk storage with directory-traversal security guards, and BLOB/Base64 fallbacks) asset serving.
