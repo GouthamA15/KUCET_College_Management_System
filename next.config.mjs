@@ -50,13 +50,13 @@ const nextConfig = {
       default-src 'self';
       script-src 'self' 'unsafe-eval' 'unsafe-inline';
       style-src 'self' 'unsafe-inline';
-      img-src 'self' blob: data: res.cloudinary.com *.s3.amazonaws.com *.r2.dev;
+      img-src 'self' blob: data: res.cloudinary.com *.s3.amazonaws.com *.r2.dev *.tailf6b4a7.ts.net;
       font-src 'self' data:;
       object-src 'none';
       base-uri 'self';
       form-action 'self';
       frame-ancestors 'none';
-      connect-src 'self' res.cloudinary.com *.s3.amazonaws.com *.r2.dev *.sentry.io *.supabase.co wss://*.supabase.co login.kucet.ac.in *.kucet.ac.in wss://*.kucet.ac.in${devConnectSrc};
+      connect-src 'self' res.cloudinary.com *.s3.amazonaws.com *.r2.dev *.sentry.io *.supabase.co wss://*.supabase.co login.kucet.ac.in *.kucet.ac.in wss://*.kucet.ac.in *.tailf6b4a7.ts.net wss://*.tailf6b4a7.ts.net${devConnectSrc};
     `.replace(/\s{2,}/g, ' ').trim();
 
     return [

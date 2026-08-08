@@ -25,7 +25,7 @@ export const buildInstitutionalEmailHtml = ({
   action,
   infoRows
 }) => {
-  const baseUrl = getBaseUrl() || 'https://login.kucet.ac.in';
+  const baseUrl = getBaseUrl() || 'https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net';
   const assetPath = getAssetUrl('assets/ku-logo.png');
   const logoUrl = assetPath.startsWith('http') ? assetPath : `${baseUrl.replace(/\/$/, '')}${assetPath}`;
   
