@@ -83,6 +83,10 @@ The self-hosted deployment of KUCET College Management System is fully operation
    - *Issue:* Image uploads failing silently due to `EACCES: permission denied` when the container `nextjs` user tried writing to the host directory owned by `kucet-dev`. Environmental variable `LOCAL_STORAGE_PATH` pointed to the host path instead of the container path, leading to brittle hardcoded fallback logic inside `LocalStorageProvider.js`.
    - *Fix:* Applied `chmod -R 777` to `/var/www/kucet-storage/public` on the host to open write permissions for the container user. Stripped hardcoded directory fallbacks from the codebase and updated `.env.production` templates so `LOCAL_STORAGE_PATH` firmly maps to `/app/public/uploads` from the container's perspective.
 
+6. **GitHub Actions Runner Permissions & Script Execution (`RESOLVED`):**
+   - *Issue:* The runner executing as `kucet-dev` failed with `Operation not permitted` trying to execute `chmod +x` or `git fetch` on the `/var/www/kucet-cms` deployment directory because it was owned by `deployer`. Also, the runner daemon died and wasn't successfully auto-restarting.
+   - *Fix:* Changed ownership of the deployment directory on the host (`sudo chown -R kucet-dev:kucet-dev /var/www/kucet-cms`). Refactored `deploy.yml` to remove `chmod` dependencies and explicitly call `bash` for deployment scripts. Manually re-initiated the runner daemon to unblock pending deployments.
+
 ---
 
 ## 6. Access Endpoints
