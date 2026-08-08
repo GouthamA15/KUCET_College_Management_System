@@ -16,29 +16,11 @@ function cleanRelativePath(assetPath) {
   return clean;
 }
 
-/**
- * Returns the canonical local storage root directory.
- * Priority:
- *   1. LOCAL_STORAGE_PATH env var (explicit configuration)
- *   2. /app/public/uploads (Docker standalone bind-mount target)
- *   3. process.cwd()/public/uploads (Local development fallback)
- *   4. /var/www/kucet-storage/public (VPS host direct fallback)
- */
 export function getLocalStorageBasePath() {
-  const candidatePaths = [
-    process.env.LOCAL_STORAGE_PATH,
-    '/app/public/uploads',
-    path.join(process.cwd(), 'public', 'uploads'),
-    '/var/www/kucet-storage/public'
-  ].filter(Boolean);
-
-  for (const dir of candidatePaths) {
-    if (fs.existsSync(dir)) {
-      return dir;
-    }
+  if (process.env.LOCAL_STORAGE_PATH) {
+    return process.env.LOCAL_STORAGE_PATH;
   }
-
-  return process.env.LOCAL_STORAGE_PATH || path.join(process.cwd(), 'public', 'uploads');
+  return path.join(process.cwd(), 'public', 'uploads');
 }
 
 export default class LocalStorageProvider extends StorageProvider {
