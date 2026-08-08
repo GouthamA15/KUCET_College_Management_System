@@ -184,6 +184,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - August 2026)
 
+#### **Session 190: Storage Permission & Env Variables Fix (August 8, 2026)**
+- **Host Permission Issue Fixed:**
+  - Diagnosed `EACCES: permission denied` when Next.js app running inside the container as `nextjs` (UID 1001) attempted to write to the bind-mounted host directory `/var/www/kucet-storage/public` owned by `kucet-dev` (UID 1000) with `755` permissions. Fixed by running `chmod -R 777` on the host directory.
+- **Architectural Cleanup of Env Variables:**
+  - Removed hardcoded local fallback paths (`/var/www/kucet-storage/public` and `/app/public/uploads`) inside `LocalStorageProvider.js`. It now relies explicitly on `process.env.LOCAL_STORAGE_PATH`.
+  - Updated `LOCAL_STORAGE_PATH` in `.env.production` and templates to correctly point to the path from the container's perspective (`/app/public/uploads`) instead of the host's perspective, eliminating any path resolution ambiguities.
+
 #### **Session 189: Storage Provider Path Resolution Fix (August 8, 2026)**
 - **Root Cause Analysis for Local Image Serving (404 Errors):**
   - Diagnosed asset delivery failures in the Next.js `standalone` Docker container. Identified that `process.cwd()` resolves to `/app` inside the container, causing `LocalStorageProvider` and the `assets/view` proxy to search in `/app/public` rather than the mounted host volume `/var/www/kucet-storage/public`.
