@@ -172,7 +172,7 @@ BREVO_API_KEY=your_brevo_api_key
 
 # ── Storage (Local VPS — default for Hostinger) ───────
 NEXT_PUBLIC_STORAGE_TYPE=local
-LOCAL_STORAGE_PATH=/var/www/kucet-storage/public
+LOCAL_STORAGE_PATH=/app/public/uploads
 
 # ── Redis (inside Docker) ─────────────────────────────
 REDIS_URL=redis://redis:6379

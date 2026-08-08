@@ -21,11 +21,36 @@ export default function StudentFinancesPage() {
 
   if (contextLoading && !student) {
     return (
-      <LoadingSpinner
-        label="Loading Financial Records"
-        spinnerClassName="w-8 h-8 border-2 border-slate-200 border-t-[#0b3578] rounded-full animate-spin"
-        labelClassName="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-      />
+      <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+        <header className="mb-4">
+          <h1 className="text-2xl font-semibold text-gray-800">Fee Details & Scholarships</h1>
+          <p className="text-sm text-gray-600 mt-1">Institutional tuition fee structures, government scholarship reimbursements, and payment receipts.</p>
+          <div className="md:hidden flex items-center gap-2 mt-3.5">
+             <button className="px-3 py-2 rounded-md text-sm transition-colors bg-[#0b3578] text-white">Academic Ledger</button>
+             <button className="px-3 py-2 rounded-md text-sm transition-colors bg-white border text-gray-700 cursor-not-allowed">Transactions & Receipts</button>
+          </div>
+        </header>
+
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-md p-3 sm:p-4 border border-gray-200 h-28 skeleton-shimmer"></div>
+          ))}
+        </section>
+
+        <div className="hidden md:flex items-center gap-2 mb-4">
+           <button className="px-3 py-2 rounded-md text-sm transition-colors bg-[#0b3578] text-white">Academic Ledger</button>
+           <button className="px-3 py-2 rounded-md text-sm transition-colors bg-white border text-gray-700 cursor-not-allowed">Transactions & Receipts</button>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-sm p-4 sm:p-6 shadow-sm">
+           <div className="h-8 w-1/3 skeleton-shimmer rounded mb-6"></div>
+           <div className="space-y-4">
+             {[...Array(5)].map((_, i) => (
+               <div key={i} className="h-12 skeleton-shimmer w-full rounded"></div>
+             ))}
+           </div>
+        </div>
+      </div>
     );
   }
 

@@ -8,7 +8,7 @@ import CertificateDashboard from '@/components/clerk/certificates/CertificateDas
 import ScholarshipMetricsCards from '@/components/clerk/scholarship/ScholarshipMetricsCards';
 import ScholarshipWindowCard from '@/components/clerk/scholarship/ScholarshipWindowCard';
 import toast from 'react-hot-toast';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { ClerkDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 import { smoothScrollToId } from '@/lib/scroll-utils';
 import { Search, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
@@ -79,7 +79,7 @@ function ScholarshipDashboardContent() {
 
 
   if (isClerkLoading && !clerk) {
-    return <LoadingSpinner label="Loading Dashboard" />;
+    return <ClerkDashboardSkeleton />;
   }
 
   if (!clerk) return null;
@@ -188,7 +188,7 @@ function ScholarshipDashboardContent() {
 
 export default function ScholarshipDashboard() {
   return (
-    <Suspense fallback={<LoadingSpinner label="Loading Scholarship Dashboard..." />}>
+    <Suspense fallback={<ClerkDashboardSkeleton />}>
       <ScholarshipDashboardContent />
     </Suspense>
   );

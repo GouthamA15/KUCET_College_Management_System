@@ -8,6 +8,7 @@ import { validateRollNo } from '@/lib/rollNumber';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
 import FacultyInterestsManager from '@/components/admin/FacultyInterestsManager';
 import { getNowSync } from '@/lib/clock';
+import { AdminDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 const BRANCHES = COLLEGE_CONFIG.branches;
 
@@ -25,6 +26,10 @@ export default function AdminDashboardPage() {
   const [selectedBranch, setSelectedBranch] = useState('CSE');
   const [selectedStudyingYear, setSelectedStudyingYear] = useState('1'); 
   const [activeTab, setActiveTab] = useState('stats'); // 'stats', 'faculty'
+
+  if (_contextLoading && !studentStats) {
+    return <AdminDashboardSkeleton />;
+  }
 
   const totalClerks = Array.isArray(clerks) ? clerks.length : 0;
   const activeClerks = Array.isArray(clerks) ? clerks.filter(c => c.is_active).length : 0;

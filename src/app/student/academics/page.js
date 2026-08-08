@@ -129,6 +129,36 @@ function AcademicsInner({ studentData }) {
 
   const syllabusUrl = resolveSyllabusUrl(studentData);
 
+  if (_loading) {
+    return (
+      <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+        <header className="mb-4">
+          <h1 className="text-2xl font-semibold text-gray-800">Academic Subjects and Performance</h1>
+          <p className="text-sm text-gray-600 mt-1">Overview of your current semester subjects, attendance, and internal assessment results.</p>
+        </header>
+
+        <div className="flex items-center gap-2 mb-3">
+          <button className="px-3 py-2 rounded-md text-sm transition-colors bg-[#0b3578] text-white">Subjects</button>
+          <button className="px-3 py-2 rounded-md text-sm transition-colors bg-white border text-gray-500 cursor-not-allowed">Attendance</button>
+          <button className="px-3 py-2 rounded-md text-sm transition-colors bg-white border text-gray-500 cursor-not-allowed">Internals</button>
+        </div>
+
+        <section className="border border-gray-200 rounded-md bg-white p-4">
+          <div className="mb-4">
+            <div className="h-5 skeleton-shimmer w-48 rounded mb-2"></div>
+            <div className="h-4 skeleton-shimmer w-32 rounded"></div>
+          </div>
+          <div className="space-y-3">
+             <div className="h-10 skeleton-shimmer w-full rounded"></div>
+             <div className="h-10 skeleton-shimmer w-full rounded"></div>
+             <div className="h-10 skeleton-shimmer w-full rounded"></div>
+             <div className="h-10 skeleton-shimmer w-full rounded"></div>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
       <header className="mb-4">
@@ -137,10 +167,9 @@ function AcademicsInner({ studentData }) {
       </header>
 
           <div className="flex items-center gap-2 mb-3">
-            <button onClick={() => setActiveTab('subjects')} className={`px-3 py-2 rounded-md text-sm ${activeTab === 'subjects' ? 'bg-[#0b3578] text-white' : 'bg-white border'}`}>Subjects</button>
-            <button onClick={() => setActiveTab('attendance')} className={`px-3 py-2 rounded-md text-sm ${activeTab === 'attendance' ? 'bg-[#0b3578] text-white' : 'bg-white border'}`}>Attendance</button>
-            <button onClick={() => setActiveTab('internals')} className={`px-3 py-2 rounded-md text-sm ${activeTab === 'internals' ? 'bg-[#0b3578] text-white' : 'bg-white border'}`}>Internals</button>
-            <div className="ml-auto text-xs text-gray-500"></div>
+            <button onClick={() => setActiveTab('subjects')} className={`px-3 py-2 rounded-md text-sm transition-colors ${activeTab === 'subjects' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Subjects</button>
+            <button onClick={() => setActiveTab('attendance')} className={`px-3 py-2 rounded-md text-sm transition-colors ${activeTab === 'attendance' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Attendance</button>
+            <button onClick={() => setActiveTab('internals')} className={`px-3 py-2 rounded-md text-sm transition-colors ${activeTab === 'internals' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Internals</button>
           </div>
 
           {/* Section 1: Subjects Offered */}

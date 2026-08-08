@@ -5,7 +5,7 @@ import { useStudent } from '@/context/StudentContext';
 import Link from 'next/link';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import DashboardActionCenter from '@/components/student/DashboardActionCenter';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { StudentDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 function clampNumber(value, min, max) {
   const n = Number(value);
@@ -136,7 +136,7 @@ export default function StudentHomePage() {
   // Status can be used to show a notice if calendar is missing, but for now we just fallback gracefully.
 
   if (contextLoading && !student) {
-    return <LoadingSpinner label="Loading Records" />;
+    return <StudentDashboardSkeleton />;
   }
 
   if (!student) return null;

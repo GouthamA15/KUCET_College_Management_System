@@ -11,7 +11,7 @@ import InterestStatusList from '@/components/clerk/faculty/InterestStatusList';
 import ClassList from '@/components/clerk/faculty/ClassList';
 import PersonalSchedule from '@/components/clerk/faculty/PersonalSchedule';
 import FacultyActivityBar from '@/components/clerk/faculty/FacultyActivityBar';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { ClerkDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 import { useClerk } from '@/context/ClerkContext';
 import { FacultyAttendanceProvider } from '@/context/FacultyAttendanceContext';
@@ -49,7 +49,7 @@ export default function FacultyDashboardOverview() {
   };
 
   if (loading) {
-    return <LoadingSpinner label="Loading Faculty Dashboard" />;
+    return <ClerkDashboardSkeleton />;
   }
 
   const firstName = clerk?.name?.split(' ')[0] || 'Faculty';

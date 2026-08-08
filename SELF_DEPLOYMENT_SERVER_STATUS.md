@@ -79,6 +79,10 @@ The self-hosted deployment of KUCET College Management System is fully operation
    - *Issue:* Images on local storage proxy `/api/assets/view/` returned 401 Unauthorized for `<img>` tags, `FailoverStorageProvider` hardcoded S3 URLs, Service Worker threw Response `clone` TypeErrors, and PWA manifest icons failed on Cloudinary 404s.
    - *Fix:* Dynamic provider reordering in `factory.js`, unblocked local asset proxy, synchronous Service Worker response cloning, local static icon resolution in `assets.js` / `manifest.js`, 20-character randomized storage key generation across all uploads, and canonical storage volume alignment strictly to `/var/www/kucet-storage/public` (`7bb2caa`).
 
+5. **Storage Write Permissions & Env Variables Pathing (`RESOLVED`):**
+   - *Issue:* Image uploads failing silently due to `EACCES: permission denied` when the container `nextjs` user tried writing to the host directory owned by `kucet-dev`. Environmental variable `LOCAL_STORAGE_PATH` pointed to the host path instead of the container path, leading to brittle hardcoded fallback logic inside `LocalStorageProvider.js`.
+   - *Fix:* Applied `chmod -R 777` to `/var/www/kucet-storage/public` on the host to open write permissions for the container user. Stripped hardcoded directory fallbacks from the codebase and updated `.env.production` templates so `LOCAL_STORAGE_PATH` firmly maps to `/app/public/uploads` from the container's perspective.
+
 ---
 
 ## 6. Access Endpoints

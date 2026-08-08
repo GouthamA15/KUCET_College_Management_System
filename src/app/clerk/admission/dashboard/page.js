@@ -3,7 +3,7 @@ import { Suspense, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClerk } from '@/context/ClerkContext';
 import toast from 'react-hot-toast';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { ClerkDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 function ClerkDashboardContent() {
   const router = useRouter();
@@ -38,7 +38,7 @@ function ClerkDashboardContent() {
   }, [clerk, isLoading]);
 
   if (isLoading && !clerk) {
-    return <LoadingSpinner label="Loading Dashboard" />;
+    return <ClerkDashboardSkeleton />;
   }
 
   if (!clerk) return null;
@@ -228,7 +228,7 @@ function ClerkDashboardContent() {
 
 export default function ClerkDashboard() {
   return (
-    <Suspense fallback={<LoadingSpinner label="Loading Admission Dashboard..." />}>
+    <Suspense fallback={<ClerkDashboardSkeleton />}>
       <ClerkDashboardContent />
     </Suspense>
   );

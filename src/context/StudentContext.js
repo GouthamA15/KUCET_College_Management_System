@@ -17,6 +17,7 @@ export function StudentProvider({ children }) {
   const [isLoadingAcademic, setIsLoadingAcademic] = useState(false);
   const [latestProfileRequest, setLatestProfileRequest] = useState(null);
   const [latestCertificateRequest, setLatestCertificateRequest] = useState(null);
+  const [profileDetails, setProfileDetails] = useState(null);
 
   const isInitializingRef = React.useRef(false);
 
@@ -71,6 +72,7 @@ export function StudentProvider({ children }) {
         if (sigRes.ok) {
           const sigData = await sigRes.json();
           setLatestProfileRequest(sigData.latestRequest);
+          setProfileDetails(sigData);
         }
 
         if (reqRes.ok) {
@@ -273,6 +275,7 @@ export function StudentProvider({ children }) {
       refreshAcademic: fetchAcademicPerformance,
       latestProfileRequest,
       latestCertificateRequest,
+      profileDetails,
       refreshProfile: async () => {
         const me = await fetch('/api/student/me');
         if (me.ok) {
