@@ -75,7 +75,7 @@ export default class LocalStorageProvider extends StorageProvider {
 
     const STORAGE_PATH = getLocalStorageBasePath();
     const cleanFolder = folder ? folder.replace(/^\/+|\/+$/g, '') : 'uploads';
-    const targetDir = path.join(STORAGE_PATH, cleanFolder);
+    const targetDir = path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanFolder);
     
     await fs.promises.mkdir(targetDir, { recursive: true });
 
@@ -112,7 +112,7 @@ export default class LocalStorageProvider extends StorageProvider {
     const cleanPath = cleanRelativePath(relativePath);
     if (!cleanPath || cleanPath.startsWith('assets/')) return;
     
-    const targetPath = path.join(STORAGE_PATH, cleanPath);
+    const targetPath = path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanPath);
 
     // Security: Prevent Directory Traversal
     if (!targetPath.startsWith(STORAGE_PATH)) {
@@ -135,7 +135,7 @@ export default class LocalStorageProvider extends StorageProvider {
 
     const STORAGE_PATH = getLocalStorageBasePath();
     const cleanSource = cleanRelativePath(sourcePath);
-    const absSource = path.join(STORAGE_PATH, cleanSource);
+    const absSource = path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanSource);
 
     if (!absSource.startsWith(STORAGE_PATH)) {
       return { newPath: sourcePath, sizeBytes: 0 };
@@ -145,7 +145,7 @@ export default class LocalStorageProvider extends StorageProvider {
       const stats = await fs.promises.stat(absSource);
       const filename = path.basename(cleanSource);
       const cleanFolder = targetFolder.replace(/^\/+|\/+$/g, '');
-      const targetDir = path.join(STORAGE_PATH, cleanFolder);
+      const targetDir = path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanFolder);
       await fs.promises.mkdir(targetDir, { recursive: true });
 
       const absTarget = path.join(targetDir, filename);
