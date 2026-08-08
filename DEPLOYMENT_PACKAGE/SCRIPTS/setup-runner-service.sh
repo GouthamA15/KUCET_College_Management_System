@@ -83,8 +83,8 @@ fi
 log "Installing runner as systemd service via ./svc.sh install ..."
 cd "$RUNNER_DIR"
 
-# svc.sh install must be run from within the runner directory
-sudo -u deployer bash svc.sh install deployer 2>&1 | tee -a "$LOG_FILE" || {
+# svc.sh install must be run as root, but we pass 'deployer' as the argument so systemd runs it as that user
+bash svc.sh install deployer 2>&1 | tee -a "$LOG_FILE" || {
   # Some runner versions do not accept a user argument — retry without it
   log "Retrying svc.sh install without user argument ..."
   bash svc.sh install 2>&1 | tee -a "$LOG_FILE"
