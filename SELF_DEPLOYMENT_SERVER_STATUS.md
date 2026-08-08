@@ -91,6 +91,10 @@ The self-hosted deployment of KUCET College Management System is fully operation
    - *Issue:* Latency when routing requests over Nginx proxy and Tailscale WireGuard tunnels due to per-request TCP handshakes and default TCP buffer settings.
    - *Fix:* Created `upstream nextjs_upstream` block in `nginx.conf` with `keepalive 64` and `proxy_set_header Connection ""` to keep persistent sockets open to Next.js (`:3000`), reducing backend latency from ~40ms to ~2ms. Enabled `tcp_nopush` and `tcp_nodelay` to eliminate packet buffering over WireGuard tunnels, and tuned proxy buffers (`128k`/`256k`) to stream large JSON API payloads directly from RAM.
 
+9. **Cloud Deployment & Render CSP Optimization (`RESOLVED`):**
+   - *Issue:* Images and socket connections failing on cloud hosts (such as Render `*.onrender.com`) due to CSP header exclusions and socket reconnection loops when `NEXT_PUBLIC_SOCKET_URL` was set to `localhost:4000`.
+   - *Fix:* Added `*.onrender.com` and `*.cloudinary.com` to CSP `img-src` and `connect-src` directives in `next.config.mjs`. Added remote host guard in `RealtimeListener.js` to skip `localhost:4000` socket connections on remote hosts, and stripped `uploads/` prefixes in `getAssetUrl()` for Cloudinary assets.
+
 ---
 
 ## 6. Access Endpoints

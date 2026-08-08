@@ -184,6 +184,15 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - August 2026)
 
+#### **Session 195: Cloud Deployment & Render CSP Optimization (August 8, 2026)**
+- **Render Host & Cloudinary CSP Support (`next.config.mjs`):**
+  - Added `*.onrender.com` and `*.cloudinary.com` to CSP `img-src` and `connect-src` directives.
+  - Added `*.onrender.com` to Next.js `images.remotePatterns`.
+- **Remote Host Socket Guard (`src/components/RealtimeListener.js`):**
+  - Added a smart guard in `ensureSocketConnection()`: skips attempting socket connections to `localhost:4000` when the client browser is accessing a remote host (such as Render `*.onrender.com`), eliminating console CSP retry loops.
+- **Cloudinary Asset Path Resolution (`src/lib/assets.js`):**
+  - Updated `getAssetUrl()` to strip `uploads/` prefixes when transforming relative DB asset paths into Cloudinary URLs (`https://res.cloudinary.com/...`).
+
 #### **Session 194: Network Performance & Nginx Upstream Optimization (August 8, 2026)**
 - **Nginx Keepalive & Buffer Optimization (`DEPLOYMENT_PACKAGE/nginx/nginx.conf`):**
   - Created `upstream nextjs_upstream` block with `keepalive 64` and `proxy_set_header Connection ""` to eliminate per-request TCP handshake overhead between Nginx proxy and Next.js container.
