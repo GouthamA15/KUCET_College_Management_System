@@ -84,8 +84,8 @@ The self-hosted deployment of KUCET College Management System is fully operation
    - *Fix:* Applied `chmod -R 777` to `/var/www/kucet-storage/public` on the host to open write permissions for the container user. Stripped hardcoded directory fallbacks from the codebase and updated `.env.production` templates so `LOCAL_STORAGE_PATH` firmly maps to `/app/public/uploads` from the container's perspective.
 
 6. **GitHub Actions Runner Permissions & Script Execution (`RESOLVED`):**
-   - *Issue:* The runner executing as `kucet-dev` failed with `Operation not permitted` trying to execute `chmod +x` or `git fetch` on the `/var/www/kucet-cms` deployment directory because it was owned by `deployer`. Also, the runner daemon died and wasn't successfully auto-restarting.
-   - *Fix:* Changed ownership of the deployment directory on the host (`sudo chown -R kucet-dev:kucet-dev /var/www/kucet-cms`). Refactored `deploy.yml` to remove `chmod` dependencies and explicitly call `bash` for deployment scripts. Manually re-initiated the runner daemon to unblock pending deployments.
+   - *Issue:* The runner was incorrectly installed and executing as `kucet-dev`, causing `Operation not permitted` and `Permission denied` errors trying to write to the deployment directory (`/var/www/kucet-cms`) and log directory (`/var/log/kucet`), which are strictly owned by the `deployer` user.
+   - *Fix:* Enforced architecture separation between developer (`kucet-dev`) and CI/CD (`deployer`). Updated `setup-runner-service.sh` to register and run the GitHub Action runner as `deployer`. Restored `deployer:deployer` ownership to `/var/www/kucet-cms` and `/var/log/kucet`. Removed brittle `chmod` commands from `deploy.yml` in favor of `bash`.
 
 ---
 
