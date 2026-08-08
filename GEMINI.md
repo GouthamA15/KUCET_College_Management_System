@@ -185,12 +185,13 @@ A robust, production-ready web application built with **Next.js** for managing t
 ## 6. Recent Activity Log (May - August 2026)
 
 #### **Session 191: GitHub Actions Runner Permissions Fix (August 8, 2026)**
-- **Deployment Runner Unblocked:**
-  - Diagnosed `Operation not permitted` during `deploy.sh` execution. Identified that the GitHub Actions runner was incorrectly executing as `kucet-dev`, but the `/var/www/kucet-cms` deployment directory is intentionally owned by `deployer` (the dedicated auto-deployment user).
-  - Clarified architecture: `kucet-dev` is exclusively the developer user, while `deployer` orchestrates CI/CD. The host deployment directories (`/var/www/kucet-cms` and `/var/log/kucet`) must remain owned by `deployer:deployer`, and the GitHub runner must be re-configured to run as `deployer`.
+- **Deployment Runner Unblocked & Re-Architected:**
+  - Diagnosed `Operation not permitted` during `deploy.sh` execution. Identified that the GitHub Actions runner was incorrectly installed and executing as `kucet-dev`, but the `/var/www/kucet-cms` deployment directory is intentionally owned by `deployer` (the dedicated auto-deployment user).
+  - Clarified architecture: `kucet-dev` is exclusively the developer user, while `deployer` orchestrates CI/CD. The host deployment directories (`/var/www/kucet-cms` and `/var/log/kucet`) were reverted to `deployer:deployer` ownership.
+  - Successfully migrated the runner from `/home/kucet-dev/actions-runner` to `/home/deployer/actions-runner`.
 - **Workflow Resilience Update:**
   - Removed brittle `chmod +x` commands from `.github/workflows/deploy.yml` and explicitly executed scripts via `bash` to prevent permission-related pipeline failures.
-  - Updated `setup-runner-service.sh` to enforce `deployer` ownership and paths (`/home/deployer/actions-runner`) instead of `kucet-dev`.
+  - Fixed `setup-runner-service.sh` to properly execute the underlying `svc.sh install deployer` command as `root` so that the runner service is correctly registered to run as the `deployer` user.
 
 #### **Session 190: Storage Permission & Env Variables Fix (August 8, 2026)**
 - **Host Permission Issue Fixed:**

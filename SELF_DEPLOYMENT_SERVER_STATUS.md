@@ -84,8 +84,8 @@ The self-hosted deployment of KUCET College Management System is fully operation
    - *Fix:* Applied `chmod -R 777` to `/var/www/kucet-storage/public` on the host to open write permissions for the container user. Stripped hardcoded directory fallbacks from the codebase and updated `.env.production` templates so `LOCAL_STORAGE_PATH` firmly maps to `/app/public/uploads` from the container's perspective.
 
 6. **GitHub Actions Runner Permissions & Script Execution (`RESOLVED`):**
-   - *Issue:* The runner was incorrectly installed and executing as `kucet-dev`, causing `Operation not permitted` and `Permission denied` errors trying to write to the deployment directory (`/var/www/kucet-cms`) and log directory (`/var/log/kucet`), which are strictly owned by the `deployer` user.
-   - *Fix:* Enforced architecture separation between developer (`kucet-dev`) and CI/CD (`deployer`). Updated `setup-runner-service.sh` to register and run the GitHub Action runner as `deployer`. Restored `deployer:deployer` ownership to `/var/www/kucet-cms` and `/var/log/kucet`. Removed brittle `chmod` commands from `deploy.yml` in favor of `bash`.
+   - *Issue:* The runner was incorrectly installed and executing as `kucet-dev`, causing `Operation not permitted` and `Permission denied` errors trying to write to the deployment directory (`/var/www/kucet-cms`) and log directory (`/var/log/kucet`), which are strictly owned by the `deployer` user. Additionally, `setup-runner-service.sh` had incorrect `sudo` context preventing proper `deployer` service registration.
+   - *Fix:* Enforced architecture separation between developer (`kucet-dev`) and CI/CD (`deployer`). Migrated the GitHub Actions runner from `/home/kucet-dev/actions-runner` to `/home/deployer/actions-runner`. Fixed `setup-runner-service.sh` to install the service running correctly as `deployer`. Restored `deployer:deployer` ownership to `/var/www/kucet-cms` and `/var/log/kucet`. Removed brittle `chmod` commands from `deploy.yml` in favor of `bash`. The runner is now active and fully operational under the `deployer` identity.
 
 ---
 
