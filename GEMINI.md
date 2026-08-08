@@ -184,6 +184,16 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - August 2026)
 
+#### **Session 194: Network Performance & Nginx Upstream Optimization (August 8, 2026)**
+- **Nginx Keepalive & Buffer Optimization (`DEPLOYMENT_PACKAGE/nginx/nginx.conf`):**
+  - Created `upstream nextjs_upstream` block with `keepalive 64` and `proxy_set_header Connection ""` to eliminate per-request TCP handshake overhead between Nginx proxy and Next.js container.
+  - Enabled `tcp_nopush on;` and `tcp_nodelay on;` to remove packet buffering delays over Tailscale WireGuard tunnels.
+  - Configured proxy buffer tuning (`proxy_buffer_size 128k; proxy_buffers 4 256k;`) to stream large JSON API responses (student rosters, timetables) directly from RAM.
+  - Added immutable long-term caching (`max-age=31536000, immutable`) for Next.js `/_next/static/*` chunks.
+- **Tailscale Ingress Domain Support (`next.config.mjs`, `src/lib/email.js`, `.env.production.template`):**
+  - Allowed `*.tailf6b4a7.ts.net` in CSP `connect-src` and `img-src` headers.
+  - Configured default base URL fallbacks for verification emails and production templates to active Tailscale HTTPS domain (`https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net`).
+
 #### **Session 193: Storage Asset Resolution & Performance Overhaul (August 8, 2026)**
 - **Asset URL Resolution Fix (`src/lib/assets.js` & `src/lib/providers/storage/LocalStorageProvider.js`):**
   - Fixed `cleanPath.startsWith('assets/')` trap where non-repo assets (such as `principal-sign.png`, `principal-signStamp.png`, `ku-college-seal.png`) were incorrectly treated as repo static files, bypassing `/api/assets/view/...` and returning HTTP 404.

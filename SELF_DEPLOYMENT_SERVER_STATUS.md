@@ -87,6 +87,10 @@ The self-hosted deployment of KUCET College Management System is fully operation
    - *Issue:* Principal signature and seal images failing to render inside generated PDFs and UI pages, while student profile images loaded slowly across dashboard tables due to disabled browser caching (`no-store`) and static asset URL helper traps (`cleanPath.startsWith('assets/')`).
    - *Fix:* Restricted static asset URL generation strictly to files registered in `STATIC_ASSETS`. Refactored `/api/assets/view/[...path]` and `getBase64Image` with `resolveLocalFilePath` multi-path checking, signature filename alias fallbacks, memory caching (<2MB), and ETag HTTP 304 Not Modified revalidation. Updated `/api/student/image/[rollno]` to use `public, max-age=86400, must-revalidate` caching headers.
 
+8. **Nginx Upstream Keepalives & Network Performance (`RESOLVED`):**
+   - *Issue:* Latency when routing requests over Nginx proxy and Tailscale WireGuard tunnels due to per-request TCP handshakes and default TCP buffer settings.
+   - *Fix:* Created `upstream nextjs_upstream` block in `nginx.conf` with `keepalive 64` and `proxy_set_header Connection ""` to keep persistent sockets open to Next.js (`:3000`), reducing backend latency from ~40ms to ~2ms. Enabled `tcp_nopush` and `tcp_nodelay` to eliminate packet buffering over WireGuard tunnels, and tuned proxy buffers (`128k`/`256k`) to stream large JSON API payloads directly from RAM.
+
 ---
 
 ## 6. Access Endpoints
