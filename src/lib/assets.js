@@ -96,7 +96,8 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     resourceType = 'raw';
   }
 
-  const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
+  const trimmedPath = cleanPath.replace(/^uploads\//, '');
+  const finalPath = trimmedPath.includes('kucet/') ? trimmedPath : `kucet/public/${trimmedPath}`;
   return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
 }
 

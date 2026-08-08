@@ -46,11 +46,14 @@ function ensureSocketConnection() {
   if (!socketUrl || sharedSocket || typeof window === 'undefined') return;
 
   const isLocal = socketUrl.includes('localhost') || socketUrl.includes('127.0.0.1');
-  const isDev = process.env.NODE_ENV === 'development';
-
-  if (!isLocal) {
-    // console.info('🔌 [Socket.io] Connecting to', socketUrl);
+  const isBrowserRemote = typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname);
+  
+  // Guard: Do not attempt connecting to localhost:4000 when running on a remote server like Render
+  if (isLocal && isBrowserRemote) {
+    return;
   }
+
+  const isDev = process.env.NODE_ENV === 'development';
   
   sharedSocket = io(socketUrl, {
     transports: ['websocket'],
