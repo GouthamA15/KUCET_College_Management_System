@@ -157,21 +157,39 @@ export async function GET(request, context) {
             if (base64Cache.has(imagePath)) return base64Cache.get(imagePath);
 
             try {
-                let imageBuffer;
+                let imageBuffer = null;
                 if (imagePath.startsWith('data:')) {
                     return imagePath;
                 } else if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-                    const response = await fetch(imagePath);
-                    if (!response.ok) return null;
-                    const arrayBuffer = await response.arrayBuffer();
-                    imageBuffer = Buffer.from(arrayBuffer);
+                    try {
+                        const response = await fetch(imagePath);
+                        if (response.ok) {
+                            const arrayBuffer = await response.arrayBuffer();
+                            imageBuffer = Buffer.from(arrayBuffer);
+                        }
+                    } catch (_fetchErr) {
+                        // ignore and try local fallback
+                    }
+                    if (!imageBuffer) {
+                        const cleanUrlPath = imagePath.split('/upload/')[1] || imagePath;
+                        const cleanPath = cleanUrlPath
+                            .replace(/^v\d+\//, '')
+                            .replace(/^kucet\//, '')
+                            .replace(/^public\//, '')
+                            .replace(/^\/+/, '');
+                        const { filePath, stat } = resolveLocalFilePath(cleanPath);
+                        if (stat && stat.isFile()) {
+                            imageBuffer = await fs.promises.readFile(filePath);
+                        }
+                    }
                 } else {
                     const cleanPath = imagePath
                         .replace('/api/assets/view/', '')
                         .replace(/^\/+/, '');
                     const { filePath } = resolveLocalFilePath(cleanPath);
-                    if (!fs.existsSync(filePath)) return null;
-                    imageBuffer = await fs.promises.readFile(filePath);
+                    if (fs.existsSync(filePath)) {
+                        imageBuffer = await fs.promises.readFile(filePath);
+                    }
                 }
                 if (!imageBuffer || imageBuffer.length < 4) return null;
 

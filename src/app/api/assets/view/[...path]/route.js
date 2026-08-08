@@ -35,9 +35,13 @@ export function resolveLocalFilePath(filename) {
   // 1. Direct path in local storage
   candidatePaths.push(path.resolve(base, cleanFilename));
 
-  // 2. Storage without 'assets/' prefix if present
+  // 2. Storage without 'assets/', 'kucet/', or 'uploads/' prefix if present
   if (cleanFilename.startsWith('assets/')) {
     candidatePaths.push(path.resolve(base, cleanFilename.replace(/^assets\//, '')));
+  } else if (cleanFilename.startsWith('kucet/')) {
+    candidatePaths.push(path.resolve(base, cleanFilename.replace(/^kucet\//, '')));
+  } else if (cleanFilename.startsWith('uploads/')) {
+    candidatePaths.push(path.resolve(base, cleanFilename.replace(/^uploads\//, '')));
   } else {
     candidatePaths.push(path.resolve(base, 'assets', cleanFilename));
   }

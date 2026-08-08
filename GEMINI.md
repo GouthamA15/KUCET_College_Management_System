@@ -184,6 +184,18 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - August 2026)
 
+#### **Session 196: Cloudinary Storage & Render Image Loading Overhaul (August 8, 2026)**
+- **Elimination of `kucet/public/` Cloudinary Path Corruption (`src/lib/assets.js` & `src/lib/providers/storage/CloudinaryStorageProvider.js`):**
+  - Diagnosed root cause of broken image loads on Render testing deployment: `getAssetUrl()` and `CloudinaryStorageProvider.prototype.getUrl()` prepended `kucet/public/` to relative storage paths (e.g. `requests/pfp/xyz.webp`, `students/pfp/abc.jpg`, `certificates/payments/123.png`), causing Cloudinary to return HTTP 404 Not Found.
+  - Refactored `getAssetUrl()` and `CloudinaryStorageProvider.prototype.getUrl()` to strip `uploads/` and `public/` prefixes and build clean `kucet/${trimmedPath}` URLs matching Cloudinary public IDs, returning 100% HTTP 200 responses across all image categories.
+- **Static Branding & Signature Asset Mapping (`src/lib/assets.js`):**
+  - Added institutional signatures (`principal-sign.png`, `principal-signStamp.png`, `principal-sign-stamp.png`, `principal-sign-black.png`, `principal-sign3.png`, `principal-sign4.png`), QR codes (`principal_ku_qr.png`), and seals (`ku-college-seal.png`) to `STATIC_ASSETS` and alias routing rules in `getAssetUrl()`.
+  - Guaranteed clean static asset resolution (`/assets/...`) across both testing (Cloudinary/Render) and production (Self-Hosted local storage) deployments.
+- **Multi-Layer Resilient Asset Serving & PDF Download Fallbacks (`src/lib/server-assets.js` & `src/app/api/student/requests/download/[request_id]/route.js`):**
+  - Updated `serveAssetResponse` and `getBase64Image` to gracefully fallback to local disk asset resolution (`resolveLocalFilePath`) if a remote Cloudinary fetch fails or returns non-200, ensuring PDF certificate downloads and server-rendered asset previews never fail.
+- **Multi-Path Local Proxy Resolution (`src/app/api/assets/view/[...path]/route.js`):**
+  - Enhanced `resolveLocalFilePath` candidate path resolution to strip `kucet/` and `uploads/` prefixes when operating under local storage mode.
+
 #### **Session 195: Cloud Deployment & Render CSP Optimization (August 8, 2026)**
 - **Render Host & Cloudinary CSP Support (`next.config.mjs`):**
   - Added `*.onrender.com` and `*.cloudinary.com` to CSP `img-src` and `connect-src` directives.

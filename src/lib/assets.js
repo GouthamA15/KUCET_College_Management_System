@@ -32,6 +32,14 @@ const STATIC_ASSETS = [
   '/assets/Payment QR/ku_payment_150.png',
   '/assets/Payment QR/ku_payment_200.png',
   '/assets/Payment QR/kucet-logo.png',
+  '/assets/principal-sign.png',
+  '/assets/principal-signStamp.png',
+  '/assets/principal-sign-stamp.png',
+  '/assets/principal-sign-black.png',
+  '/assets/principal-sign3.png',
+  '/assets/principal-sign4.png',
+  '/assets/principal_ku_qr.png',
+  '/assets/ku-college-seal.png',
   '/manifest.json',
   '/favicon.ico'
 ];
@@ -67,6 +75,17 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return normalizedPath;
   }
 
+  // Check signature & branding aliases (e.g., 'principal-sign.png')
+  const signatureAliases = [
+    'principal-sign.png', 'principal-signStamp.png', 'principal-sign-stamp.png', 
+    'principal-sign-black.png', 'principal-sign3.png', 'principal-sign4.png', 
+    'principal_ku_qr.png', 'ku-college-seal.png'
+  ];
+  const basename = cleanPath.split('/').pop() || '';
+  if (signatureAliases.includes(cleanPath) || signatureAliases.includes(basename)) {
+    return `/assets/${basename}`;
+  }
+
   const storageType = (
     process.env.NEXT_PUBLIC_STORAGE_TYPE || 
     process.env.STORAGE_TYPE || 
@@ -96,8 +115,8 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     resourceType = 'raw';
   }
 
-  const trimmedPath = cleanPath.replace(/^uploads\//, '');
-  const finalPath = trimmedPath.includes('kucet/') ? trimmedPath : `kucet/public/${trimmedPath}`;
+  const trimmedPath = cleanPath.replace(/^uploads\//, '').replace(/^public\//, '');
+  const finalPath = trimmedPath.startsWith('kucet/') ? trimmedPath : `kucet/${trimmedPath}`;
   return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
 }
 

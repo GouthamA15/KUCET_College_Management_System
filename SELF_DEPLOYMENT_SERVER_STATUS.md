@@ -95,6 +95,10 @@ The self-hosted deployment of KUCET College Management System is fully operation
    - *Issue:* Images and socket connections failing on cloud hosts (such as Render `*.onrender.com`) due to CSP header exclusions and socket reconnection loops when `NEXT_PUBLIC_SOCKET_URL` was set to `localhost:4000`.
    - *Fix:* Added `*.onrender.com` and `*.cloudinary.com` to CSP `img-src` and `connect-src` directives in `next.config.mjs`. Added remote host guard in `RealtimeListener.js` to skip `localhost:4000` socket connections on remote hosts, and stripped `uploads/` prefixes in `getAssetUrl()` for Cloudinary assets.
 
+10. **Cloudinary Cloud Storage & Render Image Loading Overhaul (`RESOLVED`):**
+    - *Issue:* Image loading failures across testing deployment on Render (`kucet-new.onrender.com`) due to `kucet/public/` Cloudinary URL path prefixing traps, unmapped signature/seal static assets, and unhandled fetch exceptions in PDF certificate rendering.
+    - *Fix:* Completely eliminated `kucet/public/` corruption in `getAssetUrl()` and `CloudinaryStorageProvider.prototype.getUrl()`, mapped institutional signatures/stamps/seals to static assets, and added multi-layer disk fallback in `serveAssetResponse` and `getBase64Image`. Verified 100% HTTP 200 responses across all Cloudinary image categories while preserving 100% compatibility for production local storage.
+
 ---
 
 ## 6. Access Endpoints

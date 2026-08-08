@@ -58,7 +58,32 @@ export async function serveAssetResponse(assetValue, options = {}) {
         },
       });
     } catch (err) {
-      logger.error({ err: err.message, assetValue }, '[SERVE_REMOTE_ASSET_ERROR]');
+      logger.error({ err: err.message, assetValue, resolvedUrl }, '[SERVE_REMOTE_ASSET_ERROR]');
+      
+      // Fallback: check if local disk has the asset (e.g. static/branding/signature fallback)
+      const cleanPath = (typeof assetValue === 'string' ? assetValue : '')
+        .replace(/^v\d+\//, '')
+        .replace(/^\/+/, '');
+      const { filePath, stat } = resolveLocalFilePath(cleanPath);
+      if (stat && stat.isFile()) {
+        try {
+          const fileBuffer = await fs.promises.readFile(filePath);
+          const ext = path.extname(filePath).toLowerCase();
+          const mimeTypes = {
+            '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp', '.svg': 'image/svg+xml', '.pdf': 'application/pdf'
+          };
+          return new NextResponse(fileBuffer, {
+            headers: {
+              'Content-Type': mimeTypes[ext] || 'image/jpeg',
+              'Cache-Control': cacheControl,
+            },
+          });
+        } catch (_fErr) {
+          // ignore fallback error
+        }
+      }
+
       return new NextResponse('Error fetching remote asset', { status: 502 });
     }
   } 

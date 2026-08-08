@@ -18,6 +18,7 @@ export default class CloudinaryStorageProvider extends StorageProvider {
     // 2. Handle versioned Cloudinary paths (legacy data: v1234567/kucet/...)
     let cleanPath = path.replace(/^v\d+\//, '');
     cleanPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
+    cleanPath = cleanPath.replace(/^uploads\//, '').replace(/^public\//, '');
     
     if (cleanPath.startsWith('assets/')) {
       return `/${cleanPath}`;
@@ -32,7 +33,7 @@ export default class CloudinaryStorageProvider extends StorageProvider {
       resourceType = 'raw';
     }
 
-    const finalPath = cleanPath.includes('kucet/') ? cleanPath : `kucet/public/${cleanPath}`;
+    const finalPath = cleanPath.startsWith('kucet/') ? cleanPath : `kucet/${cleanPath}`;
     return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
   }
 
