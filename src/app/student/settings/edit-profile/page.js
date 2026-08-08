@@ -12,7 +12,7 @@ import { Info, X, Camera, UploadCloud, FileText } from 'lucide-react';
 
 export default function EditProfilePage() {
   const router = useRouter();
-  const { studentData, loading: contextLoading } = useStudent();
+  const { studentData, loading: contextLoading, profileDetails, refreshProfile } = useStudent();
   
   const [formData, setFormData] = useState({
     student: {},
@@ -47,8 +47,6 @@ export default function EditProfilePage() {
   const displayedSignature = signatureDataUrl === 'REMOVE' ? null : (signatureDataUrl || getAssetUrl(currentSignature));
 
   useEffect(() => {
-    fetchProfileData();
-
     // Resize listener for Info Popover vs Bottom Sheet
     const handleResize = () => setIsMobileDevice(window.innerWidth < 768);
     handleResize();
@@ -99,6 +97,36 @@ export default function EditProfilePage() {
       setIsInitializing(false);
     }
   }
+
+  useEffect(() => {
+    if (profileDetails) {
+      // eslint-disable-next-line
+      setCurrentSignature(profileDetails.signature);
+      setCurrentPfp(profileDetails.pfp);
+      setLatestRequest(profileDetails.latestRequest);
+      setHistory(profileDetails.history || (profileDetails.latestRequest ? [profileDetails.latestRequest] : []));
+      
+      if (profileDetails.details) {
+        setFormData({
+          student: profileDetails.details.student || {},
+          personal: profileDetails.details.personal || {}
+        });
+        setOriginalData(JSON.parse(JSON.stringify(profileDetails.details)));
+      }
+
+      const hist = profileDetails.history || (profileDetails.latestRequest ? [profileDetails.latestRequest] : []);
+      if (hist.length > 0 && hist.some(h => h.status === 'pending')) {
+          setActiveTab('history');
+      } else {
+          setActiveTab('edit');
+      }
+      setIsInitializing(false);
+    } else if (!contextLoading) {
+      // Fallback if not cached somehow
+      fetchProfileData();
+    }
+     
+  }, [profileDetails, contextLoading]);
 
   const getChangedData = () => {
     if (!originalData) return null;
@@ -174,7 +202,7 @@ export default function EditProfilePage() {
         setSignatureDataUrl(null);
         setProofDataUrl(null);
         toast.success('Official update request submitted successfully.', { id: toastId });
-        await fetchProfileData(true);
+        await refreshProfile();
         setActiveTab('history');
     } catch (e) {
       toast.error(e.message || 'System error occurred.', { id: toastId });
@@ -265,8 +293,31 @@ export default function EditProfilePage() {
 
   if (isInitializing || (!studentData && contextLoading)) {
     return (
-      <div className="flex-1 flex flex-col min-h-[50vh]">
-        <LoadingSpinner label="Loading Profile Details" />
+      <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
+        <header className="mb-4">
+          <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold text-gray-800">Edit Profile</h1>
+              <div className="text-slate-400 p-1 rounded-full"><Info size={20} className="shrink-0" /></div>
+          </div>
+          <p className="text-sm text-gray-600 mt-1">Update your personal information and submit profile update requests.</p>
+        </header>
+
+        <div className="flex items-center gap-2 mb-3">
+          <button className="px-3 py-2 rounded-md text-sm transition-colors bg-[#0b3578] text-white">Edit</button>
+          <button className="px-3 py-2 rounded-md text-sm transition-colors bg-white border text-gray-500 cursor-not-allowed">History</button>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <div className="w-full md:w-[40%] lg:w-[30%] space-y-4">
+             <div className="h-64 skeleton-shimmer rounded-lg border border-gray-200"></div>
+             <div className="h-32 skeleton-shimmer rounded-lg border border-gray-200"></div>
+             <div className="h-48 skeleton-shimmer rounded-lg border border-gray-200"></div>
+          </div>
+          <div className="w-full md:w-[60%] lg:w-[70%] space-y-4">
+             <div className="h-56 skeleton-shimmer rounded-lg border border-gray-200"></div>
+             <div className="h-96 skeleton-shimmer rounded-lg border border-gray-200"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -575,7 +626,12 @@ export default function EditProfilePage() {
               {!isPending && (
                 <div className="flex justify-end gap-3 pt-2">
                   <button 
-                    onClick={() => fetchProfileData()} 
+                    onClick={() => {
+                        setFormData(JSON.parse(JSON.stringify(originalData)));
+                        setPfpDataUrl(null);
+                        setSignatureDataUrl(null);
+                        setProofDataUrl(null);
+                    }} 
                     className="px-5 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium shadow-sm"
                   >
                     Reset Changes
