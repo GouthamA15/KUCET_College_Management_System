@@ -184,6 +184,14 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ## 6. Recent Activity Log (May - August 2026)
 
+#### **Session 192: Code Modularization & Deduplication (August 8, 2026)**
+- **Server Asset Response Helper (`src/lib/server-assets.js`):**
+  - Created centralized `serveAssetResponse` function to handle multi-provider (Cloudinary remote fetch, local VPS disk storage with directory-traversal security guards, and BLOB/Base64 fallbacks) asset serving.
+  - Replaced ~125 lines of duplicate file-reading and remote-fetching logic across `src/app/api/student/image/[rollno]/route.js` and `src/app/api/student/requests/image/[request_id]/route.js`.
+  - Isolated server-only dependencies (`fs`, `path`, `logger`) into `server-assets.js` so client-side asset helpers (`src/lib/assets.js`) remain 100% lightweight and browser-safe.
+- **Centralized Auth JWT Secret Helper (`src/lib/auth-utils.js`):**
+  - Extracted `getJwtSecretKey()` utility in `auth-utils.js`, eliminating duplicate inline `TextEncoder` instantiation and fallback secret declarations across student, clerk, and admin cookie issuance functions.
+
 #### **Session 191: GitHub Actions Runner Permissions Fix (August 8, 2026)**
 - **Deployment Runner Unblocked & Re-Architected:**
   - Diagnosed `Operation not permitted` during `deploy.sh` execution. Identified that the GitHub Actions runner was incorrectly installed and executing as `kucet-dev`, but the `/var/www/kucet-cms` deployment directory is intentionally owned by `deployer` (the dedicated auto-deployment user).
