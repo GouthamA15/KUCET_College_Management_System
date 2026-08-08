@@ -56,10 +56,10 @@ export async function POST(req) {
         });
       }
 
-      // 4. Upload using Storage Provider
       let pfpStorageKey;
       try {
-        pfpStorageKey = await storage.upload(pfp, 'students/pfp', roll_no);
+        const uploadRes = await storage.upload(pfp, 'students/pfp');
+        pfpStorageKey = uploadRes?.path || uploadRes;
       } catch (uploadError) {
         logger.error("Storage upload failed:", uploadError);
         return apiError(`Upload failed: ${uploadError.message}`, 500);

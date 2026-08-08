@@ -11,15 +11,21 @@ export default function manifest() {
     theme_color: '#0b3578',
     icons: [
       {
-        src: getAssetUrl('assets/ku-logo.png', 'w_192,h_192,c_pad,b_white,f_auto,q_auto'),
+        src: getAssetUrl('/assets/ku-logo.png'),
         sizes: '192x192',
         type: 'image/png',
       },
       {
-        src: getAssetUrl('assets/ku-logo.png', 'w_512,h_512,c_pad,b_white,f_auto,q_auto'),
+        src: getAssetUrl('/assets/ku-logo.png'),
         sizes: '512x512',
         type: 'image/png',
       },
+      {
+        src: '/favicon.ico',
+        sizes: '64x64 32x32 24x24 16x16',
+        type: 'image/x-icon',
+      }
     ],
   };
 }
+

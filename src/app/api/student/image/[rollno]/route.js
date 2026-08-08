@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { getAuthUser, apiError } from '@/lib/api-utils';
 import { getAssetUrl } from '@/lib/assets';
+import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import fs from 'fs';
 import path from 'path';
 
@@ -53,7 +54,7 @@ export async function GET(req, context) {
       if (relativePath.includes('..') || relativePath.startsWith('/')) {
         return new NextResponse('Forbidden', { status: 403 });
       }
-      const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
+      const STORAGE_PATH = getLocalStorageBasePath();
       const resolvedPath = path.resolve(/*turbopackIgnore: true*/ STORAGE_PATH, relativePath);
       // Verify resolved path is within storage directory
       if (!resolvedPath.startsWith(STORAGE_PATH)) {

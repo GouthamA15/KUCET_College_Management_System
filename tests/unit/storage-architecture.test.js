@@ -113,11 +113,12 @@ describe('LocalStorageProvider', () => {
 
       const result = await provider.upload('data:image/jpeg;base64,/9j/4AAQ', 'students/pfp', 'test_roll');
       
-      // Result must be a storage key, not a URL
-      expect(typeof result).toBe('string');
-      expect(result).not.toMatch(/^https?:\/\//);
-      expect(result).toMatch(/^students\/pfp\//);
-      expect(result).not.toContain('[object Object]');
+      expect(result).toHaveProperty('path');
+      expect(result).toHaveProperty('url');
+      expect(result).toHaveProperty('provider');
+      expect(result.path).not.toMatch(/^https?:\/\//);
+      expect(result.path).toMatch(/^students\/pfp\//);
+      expect(String(result)).not.toContain('[object Object]');
     });
   });
 });

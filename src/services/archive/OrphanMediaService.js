@@ -4,6 +4,7 @@ import {
   archiveStudents, archiveStudentPersonalDetails, archiveStudentPayments,
   studentProfileRequests, studentAdmissionDrafts, bugReports, studentRequests
 } from '@/db/schema';
+import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import { getStorageProvider } from '@/lib/providers/storage/factory';
 import logger from '@/lib/logger';
 import fs from 'fs';
@@ -162,7 +163,7 @@ export class OrphanMediaService {
       const referencedPaths = await this.getReferencedMediaPaths();
       const storage = getStorageProvider();
 
-      const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
+      const STORAGE_PATH = getLocalStorageBasePath();
       const orphanPaths = [];
       let totalChecked = 0;
       let bytesFreed = 0;

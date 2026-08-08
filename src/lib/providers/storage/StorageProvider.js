@@ -1,4 +1,35 @@
 /**
+ * Standardized result object returned by StorageProvider.upload()
+ */
+export class StorageResult {
+  constructor({ path, url, filename, provider, mimeType }) {
+    this.path = path;
+    this.url = url;
+    this.filename = filename;
+    this.provider = provider;
+    this.mimeType = mimeType || 'application/octet-stream';
+  }
+
+  toString() {
+    return this.path;
+  }
+
+  valueOf() {
+    return this.path;
+  }
+
+  toJSON() {
+    return {
+      path: this.path,
+      url: this.url,
+      filename: this.filename,
+      provider: this.provider,
+      mimeType: this.mimeType,
+    };
+  }
+}
+
+/**
  * Abstract base class for Storage Providers.
  */
 export default class StorageProvider {
@@ -17,7 +48,7 @@ export default class StorageProvider {
    * @param {string|Buffer|File} file - The file to upload
    * @param {string} folder - The destination folder
    * @param {string} publicId - Optional public ID/filename
-   * @returns {Promise<string>} - The relative path of the uploaded asset
+   * @returns {Promise<StorageResult>} - Standardized storage result
    */
   async upload(file, folder, _publicId = null) {
     throw new Error('Method not implemented');
@@ -51,4 +82,5 @@ export default class StorageProvider {
     throw new Error('Method not implemented');
   }
 }
+
 

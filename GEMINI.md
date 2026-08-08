@@ -1,6 +1,95 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 7, 2026 (Session 187)
+**Last Updated:** August 8, 2026 (Session 188)
+
+## 1. Project Overview
+A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
+
+### Core Capabilities:
+- **Departmental Management:** Multi-semester timetable orchestration and faculty workload tracking.
+- **Real-Time Orchestration:** Instant schedule and activity synchronization via Supabase Broadcast.
+- **Admissions & Records:** Multi-stage admission pipeline and comprehensive student registry.
+- **Attendance Tracking:** GPS-based, proxy-free attendance with fingerprinting and React 19 optimistic updates.
+- **Internal Marks:** Entry with validation and departmental pattern recommendations.
+- **Financial & Certificates:** Scholarship tracking, fee management, and automated digital certificate generation.
+- **Academic Data Archival & Restoration:** Production-grade long-term archival engine for historical student registries, closed semester attendance, evaluation marks, payment receipts, and media storage assets with safe zero-data-loss restoration capabilities.
+- **Enterprise Core Systems:** Centralized Domain Event Bus, Tagged Cache-Aside Redis layer, Async QStash Background Workers, PWA Offline capability, Web Push Notifications, Fine-grained RBAC, Observability & Tracing, Multi-Provider Failover, and Automated Backups with Retention Pruning.
+- **Production Deployment & Operations:** Multi-container Docker Compose packaging, zero-downtime Linux VPS deployment automation, automated rollback, disaster recovery procedures, real-time infrastructure monitoring, and full diagnostic operational health probes.
+
+## 2. Technical Stack
+- **Framework:** Next.js 16 (App Router), React 19, Tailwind CSS 4.
+- **Database:** TiDB Cloud (MySQL) with **Drizzle ORM** (Modular DDD Domain Schemas).
+- **Auth:** JWT (HTTP-only) via `jose`, Google OAuth (`next-auth`).
+- **Real-Time:** Supabase Realtime (Broadcast) & Redis Pub/Sub (`ioredis`).
+- **Security:** AES-256-GCM encryption for PII, SHA-256 blind indexing, Fine-Grained Permission RBAC.
+- **Infrastructure:** Sentry (Monitoring), Cloudinary/S3/Local (Failover Storage), Upstash (Rate Limiting/QStash Queue/Redis Cache), Docker & Docker Compose (Production packaging), PM2 (Process Manager).
+- **Tooling:** Zod (Validation), Vitest & Playwright (Unit & E2E Testing), Pino (Logging).
+
+## 3. Core Architectural Concepts
+
+### A. Database & Type Safety
+- **Drizzle ORM:** Modular domain schemas located in `src/db/schema/` (`identity.js`, `academic.js`, `registry.js`, `attendance.js`, `finance.js`, `security.js`, `operations.js`, `archive.js`, `index.js`). Barrel re-export in `src/db/schema.js` ensures 100% backwards compatibility. Uses versioned migrations (`drizzle-kit`).
+  - **Safe Database Updates (Data Loss Prevention):** NEVER use `npm run db:push` to update the database schema, as it may drop tables or columns and cause data loss. ALWAYS use the safe migration workflow:
+    1. Update domain schemas in `src/db/schema/`.
+    2. Run `npm run db:generate` to generate a `.sql` migration file in `drizzle/`.
+    3. Manually review the `.sql` file to ensure no unintended `DROP` statements exist (e.g., if renaming a column, change `DROP` + `ADD` to `RENAME COLUMN`).
+    4. Run `npm run db:migrate` to safely apply the changes.
+- **Zero-Trust Validation:** Strict Zod schema enforcement on all API boundaries via a unified `wrapHandler`.
+
+### B. Service & Provider Layer
+- **Domain-Oriented Service Layer:** Business logic organized into domain subdirectories under `src/services/`:
+  - `identity/`: `DeviceService.js`, `StudentService.js`, `StudentCertificateService.js`, `StudentProfileService.js`
+  - `academic/`: `FacultyService.js`
+  - `finance/`: `FinanceService.js`, `ScholarshipService.js`, `IdempotencyService.js`
+  - `archive/`: `ArchiveService.js`, `ArchiveMediaService.js`, `ArchiveRestoreService.js`, `OrphanMediaService.js`, `BackupService.js`, `DisasterRecoveryService.js`
+  - `security/`: `SecurityService.js`, `ValidationService.js`, `PushNotificationService.js`
+  - `shared/`: `HealthService.js`
+  - Barrel export in `src/services/index.js` and root re-exports guarantee backwards compatibility for all import paths.
+- **Provider Pattern & Failover Strategy:** Strategy pattern for Email, Storage (S3 -> Cloudinary -> Local), and Realtime providers with automated failover wrappers enabling zero downtime during provider outages.
+
+### C. Security & Robustness
+- **Integrity Guard:** SHA-256 fingerprinting for payment evidence to detect fraud/reuse.
+- **Circuit Breakers:** Fail-fast utility for external services to prevent cascading hangs.
+- **Financial Idempotency:** Registry-backed guards ensuring transactions process exactly once.
+- **Session Orchestration:** Real-time remote revocation and device-heuristic tracking.
+- **Baseline API Middleware Protection:** Middleware-level defense-in-depth role authorization enforcing access controls on `/api/admin/*` and `/api/clerk/*` routes.
+- **Safe Utilities & Robust Parsing:** Centralized `safeJsonParse()` utility preventing runtime exceptions from corrupted or malformed JSON payloads and storage keys.
+- **Dual-Mode Database Restoration:** Production backup restoration supporting native `mysql` CLI execution with automatic Drizzle SQL statement batch execution fallback.
+- **Docker Containerization:** Multi-stage production `Dockerfile` with Node 20 alpine runner, Next.js `standalone` mode, non-root user (`nextjs:nodejs`), `mysql-client` toolchain, and health monitoring endpoint (`/api/health`).
+
+### D. Time Management
+- **Authoritative Clock:** `src/lib/clock.js` (`getNow()`) ensures IST consistency and supports "Time Machine" testing.
+
+## 4. Database Schema Summary
+- **Identity:** `students`, `clerks`, `principal`, `user_sessions`, `otp_codes`.
+- **Academic:** `college_info`, `academic_calendar`, `syllabus_subjects`, `syllabus_structure`.
+- **Registry:** `student_personal_details`, `student_academic_background`, `student_admission_drafts`.
+- **Operations:** `student_attendance`, `student_marks`, `branch_timetable`, `faculty_subject_assignments`.
+- **Finance:** `scholarship_sanctions`, `student_payments`, `idempotency_keys`.
+- **Archive:** `archive_students`, `archive_student_personal_details`, `archive_student_academic_background`, `archive_student_attendance`, `archive_attendance_sessions`, `archive_student_marks`, `archive_student_payments`, `archive_operations_log`, `archive_retention_policies`.
+- **Security & Notifications:** `security_events`, `security_notifications`, `rate_limits`, `audit_logs`, `push_subscriptions`, `notification_preferences`.
+
+## 5. Specialized Modules & Features
+
+### **A. Head of Department (HOD) Console**
+- **Timetable Matrix:** Semester-aware grid (S1-S8) with "Duplicate Previous" productivity tools.
+- **Workload Tracker:** Visual bar charts comparing faculty teaching intensity institution-wide.
+- **Branch Analytics:** Condonation risk detection (75% threshold) with student-specific metrics.
+
+### **B. Proxy-Free Attendance System**
+- **Architecture:** GPS-based verification (50m radius) and secure 4-digit PINs.
+- **Fingerprinting:** IP + User-Agent Lock prevents phone sharing and proxy attempts.
+
+### **C. Real-Time Activity Bars**
+- **Pulse Logic:** Both Students and Faculty see a "Live Session" bar detecting current room/subject.
+- **Sync:** Updates from HOD timetable changes propagate instantly via Supabase Broadcast.
+
+### **D. Digital Certificate Engine**
+- **Architecture:** Server-side PDF rendering using HMAC-SHA256 for tamper detection. Supports Bonafide, TC, NOC, and ID Cards.
+
+# KUCET College Management System - Technical Documentation
+
+**Last Updated:** August 8, 2026 (Session 188)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -94,6 +183,45 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 189: Storage Provider Path Resolution Fix (August 8, 2026)**
+- **Root Cause Analysis for Local Image Serving (404 Errors):**
+  - Diagnosed asset delivery failures in the Next.js `standalone` Docker container. Identified that `process.cwd()` resolves to `/app` inside the container, causing `LocalStorageProvider` and the `assets/view` proxy to search in `/app/public` rather than the mounted host volume `/var/www/kucet-storage/public`.
+  - Identified hardcoded fallback paths referencing the incorrect `/uploads` directory instead of the `/public` directory across multiple routes.
+- **Centralized Storage Resolution:**
+  - Refactored `getLocalStorageBasePath()` in `src/lib/providers/storage/LocalStorageProvider.js` to be the single source of truth for the local storage root.
+  - Prioritized `LOCAL_STORAGE_PATH` env var with a safe fallback to `/var/www/kucet-storage/public`, eliminating the `process.cwd()` Docker trap completely.
+- **API Route & Service Refactoring:**
+  - Replaced duplicated, flawed inline path resolution logic with imports of `getLocalStorageBasePath()` across the codebase:
+    - Asset Proxy (`src/app/api/assets/view/[...path]/route.js`)
+    - Student Profile Images (`src/app/api/student/image/[rollno]/route.js`)
+    - Request Payment Screenshots (`src/app/api/student/requests/image/[request_id]/route.js`)
+    - Storage Admin Explorer (`src/app/api/admin/infrastructure/storage/route.js`)
+    - PDF Download Generator (`src/app/api/student/requests/download/[request_id]/route.js`)
+    - Orphan Media Cleanup (`src/services/archive/OrphanMediaService.js`)
+
+#### **Session 188: Autonomous & Self-Healing Deployment Infrastructure (August 8, 2026)**
+- **Critical Gap Resolved â€” GitHub Runner Persistence:**
+  - Identified that the GitHub Actions self-hosted runner was started manually via `./run.sh`, dying on every server reboot and silently failing all CI/CD deployments.
+  - Created `setup-runner-service.sh` (`DEPLOYMENT_PACKAGE/SCRIPTS/setup-runner-service.sh`) that gracefully stops any running `./run.sh` process, calls the runner's built-in `./svc.sh install` to register it as a systemd unit, enables it with `systemctl enable`, and enables `docker.service` + `containerd.service` for auto-start on reboot.
+- **Production Deploy Script (`deploy.sh`):**
+  - Created `DEPLOYMENT_PACKAGE/SCRIPTS/deploy.sh` as the canonical deploy entry point called by GitHub Actions. Performs: environment load from `.env.production`, `git pull`, `DB_HOST=127.0.0.1 npm run db:migrate`, Docker build + restart of `kucet-cms-app` only (preserving DB/Redis), network alias reconnection, Nginx config validation (`nginx -t`) before reload, and post-deploy health check with automatic rollback on failure. Writes timestamped log to `/var/log/kucet/deploy_<timestamp>.log` and appends a JSON record to `/var/log/kucet/deployments.json`.
+- **Comprehensive Health Check (`health-check.sh`):**
+  - Created `DEPLOYMENT_PACKAGE/SCRIPTS/health-check.sh` performing 13-point PASS/FAIL validation: all 5 Docker container states, HTTP 200 from `/api/health`, MySQL `mysqladmin ping`, Redis `PONG`, Nginx `nginx -t` config validity, GitHub runner `systemctl is-active`, storage directory writable check, disk space (>10GB), and RAM usage. Supports `--json` flag for programmatic consumption.
+- **Full Rollback Rewrite (`rollback.sh`):**
+  - Rewrote `DEPLOYMENT_PACKAGE/SCRIPTS/rollback.sh` to be Docker-aware. Performs `git checkout TARGET_COMMIT`, rebuilds and restarts only the app container, re-runs health check, exits with code 2 on double-failure (distinguishable from normal exit 1), sends webhook notification via `BACKUP_ALERT_WEBHOOK_URL` on completion.
+- **Self-Healing Watchdog (`monitor.sh`):**
+  - Created `DEPLOYMENT_PACKAGE/SCRIPTS/monitor.sh` (cron every 5 minutes). Checks all 5 containers and restarts via `docker compose up -d <service>` if stopped. Checks GitHub runner systemd unit and restarts if inactive. Tracks `/api/health` failures in `/tmp/kucet_health_failures` counter â€” triggers `rollback.sh` to last known-good commit (from `deployments.json`) after 3 consecutive failures. Sends webhook alerts on any auto-recovery. Rotates monitor.log if >50MB.
+- **Boot Recovery Script (`boot-recovery.sh`):**
+  - Created `DEPLOYMENT_PACKAGE/SCRIPTS/boot-recovery.sh` that runs on every reboot via `@reboot` cron. Waits up to 120s for Docker daemon, runs `docker compose up -d` to bring all containers back, polls `/api/health` for 90s, verifies runner service, and logs to `/var/log/kucet/boot-recovery.log`.
+- **One-Time Setup Orchestration:**
+  - Created `setup-runner-service.sh`, `setup-logrotate.sh`, `setup-cron.sh`, and master `setup-all.sh` orchestrator. Running `sudo bash DEPLOYMENT_PACKAGE/SCRIPTS/setup-all.sh` once on the VPS configures the complete autonomous stack end-to-end.
+- **Centralized Deployment Logging (`/var/log/kucet/`):**
+  - All scripts log to `/var/log/kucet/`. Created `DEPLOYMENT_PACKAGE/CONFIGS/logrotate/kucet-cms` and `setup-logrotate.sh` installing it to `/etc/logrotate.d/kucet-cms` (daily rotation, 30-day retention, compressed, `copytruncate`).
+- **Updated GitHub Actions Workflow (`deploy.yml`):**
+  - Replaced minimal `deploy.yml` with production-grade workflow: 10-minute job timeout, `concurrency: production-deploy` lock preventing parallel deploys, calls `deploy.sh` with `--commit ${{ github.sha }}`, explicit emergency rollback step using `github.event.before` on failure, always-uploads deploy log as GitHub Actions artifact (30-day retention).
+- **Updated `DEPLOYMENT_PACKAGE/MASTER_DEPLOYMENT_GUIDE.md`:**
+  - Added Phase 14 (Autonomous Deployment Setup) documenting the one-time setup command, script inventory table, verification procedure, and boot recovery test steps.
 
 #### **Session 187: Production Deployment Automation & Operational Excellence (`38a1bb4` & `4829dbc`) (August 7, 2026)**
 - **Deployment Automation Suite (`scripts/deployment/`):**
@@ -577,48 +705,48 @@ A robust, production-ready web application built with **Next.js** for managing t
 A fully offline, rule-based and analytics-driven intelligence layer that operates completely without AI/LLM. All insights are generated from institutional rules, statistical calculations, and configurable weighted formulas applied to existing ERP data.
 
 ### Module Location
-src/intelligence/ — completely independent module integrated via interfaces only.
+src/intelligence/ ï¿½ completely independent module integrated via interfaces only.
 
 ### Architecture
 
 `
 src/intelligence/
 +-- rule-engine/        # Phase 1: Rule evaluation with thresholds
-¦   +-- RuleEngine.js
-¦   +-- RuleRegistry.js
-¦   +-- ThresholdConfig.js
-¦   +-- index.js
+ï¿½   +-- RuleEngine.js
+ï¿½   +-- RuleRegistry.js
+ï¿½   +-- ThresholdConfig.js
+ï¿½   +-- index.js
 +-- business-rules/     # Phase 2: Institutional policy decisions
-¦   +-- PolicyEngine.js
-¦   +-- PolicyRegistry.js
-¦   +-- index.js
+ï¿½   +-- PolicyEngine.js
+ï¿½   +-- PolicyRegistry.js
+ï¿½   +-- index.js
 +-- analytics/          # Phase 3: Statistical analytics engine
-¦   +-- StudentAnalytics.js
-¦   +-- FacultyAnalytics.js
-¦   +-- DepartmentAnalytics.js
-¦   +-- InstitutionAnalytics.js
-¦   +-- AnalyticsEngine.js
-¦   +-- index.js
+ï¿½   +-- StudentAnalytics.js
+ï¿½   +-- FacultyAnalytics.js
+ï¿½   +-- DepartmentAnalytics.js
+ï¿½   +-- InstitutionAnalytics.js
+ï¿½   +-- AnalyticsEngine.js
+ï¿½   +-- index.js
 +-- recommendation/     # Phase 4: Deterministic recommendations
-¦   +-- RecommendationEngine.js
-¦   +-- RecommendationRegistry.js
-¦   +-- index.js
+ï¿½   +-- RecommendationEngine.js
+ï¿½   +-- RecommendationRegistry.js
+ï¿½   +-- index.js
 +-- scoring/            # Phase 5: Weighted risk scoring
-¦   +-- ScoringEngine.js
-¦   +-- WeightConfig.js
-¦   +-- ScoreNormalizer.js
-¦   +-- index.js
+ï¿½   +-- ScoringEngine.js
+ï¿½   +-- WeightConfig.js
+ï¿½   +-- ScoreNormalizer.js
+ï¿½   +-- index.js
 +-- reports/            # Phase 7: Explainable decisions
-¦   +-- ExplainableDecision.js
-¦   +-- ReportGenerator.js
-¦   +-- index.js
+ï¿½   +-- ExplainableDecision.js
+ï¿½   +-- ReportGenerator.js
+ï¿½   +-- index.js
 +-- shared/             # Utilities and configuration
-¦   +-- IntelligenceConfig.js
-¦   +-- ConfigManager.js
-¦   +-- StatUtils.js
-¦   +-- QueryOptimizer.js
-¦   +-- BackgroundJobHelper.js
-¦   +-- index.js
+ï¿½   +-- IntelligenceConfig.js
+ï¿½   +-- ConfigManager.js
+ï¿½   +-- StatUtils.js
+ï¿½   +-- QueryOptimizer.js
+ï¿½   +-- BackgroundJobHelper.js
+ï¿½   +-- index.js
 +-- index.js            # Master barrel export
 `
 
@@ -730,16 +858,16 @@ Every intelligence output includes:
 ### Testing
 
 Unit test coverage in 	ests/unit/intelligence/:
-- RuleEngine.test.js — rule evaluation, disabled rules, threshold overrides
-- PolicyEngine.test.js — all 7 policies, eligibility conditions
-- StatUtils.test.js — all statistical utilities
-- AnalyticsEngine.test.js — analytics structure validation
-- RecommendationEngine.test.js — all 4 actor types, explainability fields
-- ScoringEngine.test.js — scoring models, normalizer, grade/risk conversion
-- ExplainableDecision.test.js — explainability contract
-- ConfigManager.test.js — config loading, merging, cache invalidation
-- QueryOptimizer.test.js — batch loading, empty inputs
-- Integration.test.js — full pipeline test with mocked DB
+- RuleEngine.test.js ï¿½ rule evaluation, disabled rules, threshold overrides
+- PolicyEngine.test.js ï¿½ all 7 policies, eligibility conditions
+- StatUtils.test.js ï¿½ all statistical utilities
+- AnalyticsEngine.test.js ï¿½ analytics structure validation
+- RecommendationEngine.test.js ï¿½ all 4 actor types, explainability fields
+- ScoringEngine.test.js ï¿½ scoring models, normalizer, grade/risk conversion
+- ExplainableDecision.test.js ï¿½ explainability contract
+- ConfigManager.test.js ï¿½ config loading, merging, cache invalidation
+- QueryOptimizer.test.js ï¿½ batch loading, empty inputs
+- Integration.test.js ï¿½ full pipeline test with mocked DB
 
 
 ## 8. Frontend AI Assistant Integration & Governance (Session 189)
@@ -811,8 +939,8 @@ Browser ? Upload API ? Storage Provider ? returns Storage Key ? DB stores key
 
 | File | Problem | Fix |
 |------|---------|-----|
-| `src/lib/cloudinary.js` | `uploadToCloudinary()` returned `getOptimizedUrl(result.secure_url)` — full URL | Now returns `${result.public_id}.${result.format}` — canonical storage key |
-| `src/lib/providers/storage/FailoverStorageProvider.js` | Missing `getUrl()` — all `storage.getUrl()` calls threw "not a function" | Added `getUrl()` delegating to first provider with that method |
+| `src/lib/cloudinary.js` | `uploadToCloudinary()` returned `getOptimizedUrl(result.secure_url)` ï¿½ full URL | Now returns `${result.public_id}.${result.format}` ï¿½ canonical storage key |
+| `src/lib/providers/storage/FailoverStorageProvider.js` | Missing `getUrl()` ï¿½ all `storage.getUrl()` calls threw "not a function" | Added `getUrl()` delegating to first provider with that method |
 | `src/lib/cloudinary.js` | `deleteFromCloudinary()` only handled full URLs, failed on keys/versioned paths | Now handles storage keys, full URLs, and `v\d+/` prefixed legacy paths |
 | `src/lib/providers/storage/CloudinaryStorageProvider.js` | `getUrl()` crashed on non-string values and versioned paths | Added type guard, strips `v\d+/` version prefix from legacy DB data |
 | `src/lib/assets.js` | `getAssetUrl()` returned `[object Object]` values unchanged | Returns `''` for corrupt values; strips `v\d+/` from legacy versioned paths |
@@ -825,7 +953,7 @@ All `imageHelper` functions in API routes now correctly resolve storage keys via
 - `src/app/api/clerk/me/route.js`
 - `src/app/api/clerk/admission/student-requests/route.js`
 - `src/app/api/student/requests/profile/route.js`
-- `src/app/api/student/upload-photo/route.js` — also: deletes old photo before upload, validates storage key type, rollback on DB failure
+- `src/app/api/student/upload-photo/route.js` ï¿½ also: deletes old photo before upload, validates storage key type, rollback on DB failure
 
 ### Upload-Photo Route Improvements
 - Deletes old photo from storage before uploading new one (prevents orphan accumulation)
@@ -841,8 +969,8 @@ All `imageHelper` functions in API routes now correctly resolve storage keys via
 | `tests/unit/storage-architecture.test.js` | **49 passing regression tests** covering all providers, migration logic, URL generation, archive system, and database key contract |
 
 ### OrphanMediaService Improvements
-- Added `scanDatabaseViolations()` — scans all image columns for URL violations and `[object Object]` corruption
-- Fixed referenced media path collection to use correct schema tables (`studentImages`, `studentSignatures` — not the old `students.pfp` column)
+- Added `scanDatabaseViolations()` ï¿½ scans all image columns for URL violations and `[object Object]` corruption
+- Fixed referenced media path collection to use correct schema tables (`studentImages`, `studentSignatures` ï¿½ not the old `students.pfp` column)
 - Added `URL_VIOLATION_PATTERNS` constant for consistent detection across services
 
 ### Storage Key Format (Enforced)
@@ -854,7 +982,7 @@ All `imageHelper` functions in API routes now correctly resolve storage keys via
 
 ### Running the Migration
 ```bash
-# Dry run (inspect what will change — safe):
+# Dry run (inspect what will change ï¿½ safe):
 node scripts/migrate-storage-keys.js
 
 # Verify architecture regression tests pass:
@@ -882,7 +1010,7 @@ PERMANENT STUDENT ASSETS (Physical move + DB sync)
   +-- kucet/students/pfp/
   +-- kucet/students/signatures/
 
-PERMANENT FINANCIAL EVIDENCE (Intact — NEVER moved)
+PERMANENT FINANCIAL EVIDENCE (Intact ï¿½ NEVER moved)
   +-- kucet/certificates/payments/ (or kucet/requests/payments/)
 ```
 
@@ -1117,3 +1245,57 @@ Replaced all risky raw `JSON.parse()` calls with `safeJsonParse()`:
 # Execute complete unit test suite (37 test files, 275 tests):
 npm run test:unit
 ```
+
+## 13. Dashboard Performance, Decryption Loop & Login Flow Optimization (Commits 24c5714 & c52422f)
+
+**Added:** August 7, 2026  
+**Contributors:** GouthamA15, P.Sannith  
+
+### Overview
+Addressed long loading times, login page freezing/visual stalling, and database connection pool contention during dashboard initialization.
+
+### Root Cause Analysis
+
+1. **Decryption Loop Bottleneck:**  
+   GET /api/clerk/admission/student-requests previously ran AES decryption (decrypt()) unconditionally across all current student columns (mobile, guardian_mobile, adhaar_no) for every request in the query result. On large data sets, this generated excessive CPU overhead and delayed API responses.
+
+2. **Login Redirect Latency & Stalling:**  
+   Upon successful authentication, LoginPanel.js redirected users to / using window.location.replace('/'), forcing a server-side redirect hop through proxy.js before reaching role-specific dashboards (/student, /clerk, /admin).
+
+3. **Database Connection Pool Exhaustion on Dashboard Load:**  
+   ClerkProvider in ClerkContext.js previously fetched all heavy role data concurrently via Promise.all(). This saturated the database connection pool, causing 30s connection timeouts and UI freezes. Additionally, clerkData in useEffect dependency arrays caused infinite fetch re-triggering.
+
+---
+
+### Key Technical Optimizations
+
+#### 1. Targeted Decryption in Request API (src/app/api/clerk/admission/student-requests/route.js)
+- Inspects 
+ew_data before decrypting.
+- AES decryption (decrypt()) is executed **only** when encrypted fields (mobile, guardian_mobile, adhaar_no) are explicitly modified in the update request.
+- Dramatically speeds up profile update request listing APIs.
+
+#### 2. Direct Role Navigation on Login (src/components/LoginPanel.js)
+- Replaced generic root redirects (/) with direct role routes (/student, /clerk, /admin).
+- Eliminates server-side proxy redirect overhead and prevents UI freezing during login.
+
+#### 3. Optimized Bootstrapping & Sequential Background Loading (src/context/ClerkContext.js)
+- Drops global loading spinner (setLoading(false)) immediately after fetching basic clerk identity and college info.
+- Fetches heavy secondary data tables (faculty data, pending profile requests, certificate requests, admission drafts, student history) sequentially in the background.
+- Removed clerkData from useEffect dependencies, resolving infinite fetch loops and preventing state cleanup cancellations.
+
+#### 4. Defensive Modification Rendering & Filtering (src/components/clerk/requests/StudentUpdateRequestsPanel.js)
+- Wrapped search filtering in useMemo to eliminate unnecessary array re-filtering on renders.
+- Added defensive parsing and fallback handling for 
+ew_data (handling both JSON object modifications and plain string updates) without throwing React render errors.
+
+---
+
+### Commits Summary
+
+| Commit | Author | Description |
+|---|---|---|
+| 24c5714 | GouthamA15 | **Performance & Login Fix:** Targeted decryption in student requests API, direct role routing in LoginPanel.js, useMemo filtering in StudentUpdateRequestsPanel.js, and ClerkContext.js infinite loop fix. |
+| c52422f | GouthamA15 | **Profile Modification & Context Optimization:** Defensive 
+ew_data parsing in request panel and sequential background table fetching in ClerkContext.js. |
+| edd223b | P.Sannith | **CI/CD Network Fix:** Configured Docker Compose project name deployment_package to prevent 502 Bad Gateway on auto-deployments. |

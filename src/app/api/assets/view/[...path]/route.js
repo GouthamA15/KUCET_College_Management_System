@@ -1,31 +1,34 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/api-utils';
 import logger from '@/lib/logger';
+import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import fs from 'fs';
 import path from 'path';
 
 /**
+ * Resolves a relative storage key to the absolute filesystem path.
+ * Delegates to getLocalStorageBasePath to handle Docker and local dev logic.
+ */
+export function resolveLocalFilePath(filename) {
+  const base = getLocalStorageBasePath();
+  const filePath = path.join(base, filename);
+  return { base, filePath };
+}
+
+/**
  * SECURE ASSET PROXY
- * Serves files from the private VPS storage folder (/var/www/kucet-storage)
- * Only accessible to authenticated students and staff.
+ * Serves files from VPS storage folders
  */
 export async function GET(request, { params }) {
   const { path: pathSegments } = await params;
-  const user = await getAuthUser(request);
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   // Join the path segments back into a string
   const filename = pathSegments.join('/');
 
-  // Define the base storage path (Defaults to VPS path, but can be overridden for local development)
-  const STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/var/www/kucet-storage/uploads';
-  const filePath = path.join(STORAGE_PATH, filename);
+  const { base, filePath } = resolveLocalFilePath(filename);
 
   // Security: Prevent Directory Traversal
-  if (!filePath.startsWith(STORAGE_PATH)) {
+  if (!filePath.startsWith(base)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -40,6 +43,7 @@ export async function GET(request, { params }) {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
       '.svg': 'image/svg+xml',
       '.pdf': 'application/pdf',
       '.mp3': 'audio/mpeg',
@@ -50,7 +54,7 @@ export async function GET(request, { params }) {
 
     const headers = {
       'Content-Type': contentType,
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'public, max-age=31536000, immutable',
     };
 
     // Prevent Stored XSS via SVG or malicious PDF by forcing download

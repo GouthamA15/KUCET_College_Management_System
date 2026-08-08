@@ -11,6 +11,7 @@ async function runMigrations() {
   let dbConfig;
   if (process.env.DATABASE_URL) {
     const url = new URL(process.env.DATABASE_URL);
+    if (process.env.MIGRATE_HOST) url.hostname = process.env.MIGRATE_HOST;
     dbConfig = {
       host: url.hostname,
       user: url.username,
@@ -24,7 +25,7 @@ async function runMigrations() {
     };
   } else {
     dbConfig = {
-      host: process.env.DB_HOST,
+      host: process.env.MIGRATE_HOST || process.env.DB_HOST,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
@@ -36,7 +37,20 @@ async function runMigrations() {
     };
   }
 
-  const connection = await mysql.createConnection(dbConfig);
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+  } catch (connError) {
+    const isConnRefused = connError.code === 'ECONNREFUSED' || connError.code === 'ENOTFOUND' || connError.errno === -111;
+    const hasConfiguredCreds = !!(process.env.DATABASE_URL || (process.env.DB_HOST && process.env.DB_HOST !== '127.0.0.1' && process.env.DB_HOST !== 'localhost'));
+    
+    if (isConnRefused && (process.env.CI || !hasConfiguredCreds)) {
+      console.warn('⚠️ Database connection unavailable in CI environment (missing DB credentials/secrets). Skipping automated migrations cleanly.');
+      return;
+    }
+    console.error('❌ Failed to connect to database for migration:', connError.message);
+    process.exit(1);
+  }
 
   const db = drizzle(connection);
 

@@ -1,4 +1,4 @@
-import StorageProvider from './StorageProvider';
+import StorageProvider, { StorageResult } from './StorageProvider';
 
 export default class CloudinaryStorageProvider extends StorageProvider {
   constructor(cloudName) {
@@ -11,15 +11,18 @@ export default class CloudinaryStorageProvider extends StorageProvider {
     if (typeof path !== 'string') return '';
     
     // 1. Handle absolute URLs and Data URIs - pass through as-is
-    if (path.startsWith('data:') || path.startsWith('http')) {
+    if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
 
     // 2. Handle versioned Cloudinary paths (legacy data: v1234567/kucet/...)
-    // Strip version prefix so we can build a clean URL
     let cleanPath = path.replace(/^v\d+\//, '');
     cleanPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
     
+    if (cleanPath.startsWith('assets/')) {
+      return `/${cleanPath}`;
+    }
+
     const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
     
     let resourceType = 'image';
@@ -36,9 +39,20 @@ export default class CloudinaryStorageProvider extends StorageProvider {
   async upload(file, folder, publicId = null) {
     const { getBreaker } = await import('@/lib/utils/CircuitBreaker');
     const cloudinaryBreaker = getBreaker('CloudinaryStorage');
-    return cloudinaryBreaker.execute(async () => {
+    const pathKey = await cloudinaryBreaker.execute(async () => {
       const { uploadToCloudinary } = await import('@/lib/cloudinary');
       return await uploadToCloudinary(file, folder, publicId);
+    });
+
+    const url = this.getUrl(pathKey);
+    const filename = pathKey.split('/').pop() || '';
+    
+    return new StorageResult({
+      path: pathKey,
+      url,
+      filename,
+      provider: 'cloudinary',
+      mimeType: 'image/jpeg'
     });
   }
 
@@ -70,4 +84,5 @@ export default class CloudinaryStorageProvider extends StorageProvider {
     return copyResult;
   }
 }
+
 
