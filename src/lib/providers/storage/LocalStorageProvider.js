@@ -2,8 +2,8 @@ import StorageProvider, { StorageResult } from './StorageProvider';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-
 import { getAssetUrl } from '@/lib/assets';
+import { isInstitutionalAssetPath } from '@/lib/institution-assets';
 
 function cleanRelativePath(assetPath) {
   if (!assetPath || typeof assetPath !== 'string') return '';
@@ -35,6 +35,10 @@ export default class LocalStorageProvider extends StorageProvider {
 
   async upload(file, folder, _publicId = null) {
     if (!file) return null;
+
+    if (isInstitutionalAssetPath(folder)) {
+      throw new Error('Public upload or modification of institutional assets is strictly prohibited.');
+    }
     
     let buffer;
     let mimeType = 'application/octet-stream';
@@ -104,7 +108,7 @@ export default class LocalStorageProvider extends StorageProvider {
     
     const STORAGE_PATH = getLocalStorageBasePath();
     const cleanPath = cleanRelativePath(relativePath);
-    if (!cleanPath || cleanPath.startsWith('assets/')) return;
+    if (!cleanPath || isInstitutionalAssetPath(cleanPath)) return;
     
     const targetPath = path.join(/* webpackIgnore: true */ /* turbopackIgnore: true */ STORAGE_PATH, cleanPath);
 

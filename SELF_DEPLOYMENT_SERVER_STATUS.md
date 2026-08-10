@@ -1,6 +1,6 @@
 # KUCET College Management System — Self-Deployment Server Status
 
-**Report Generated:** August 7, 2026 (22:49 IST)  
+**Report Generated:** August 10, 2026 (13:01 IST)  
 **Host Server:** `kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc` (Ubuntu 24.04 LTS via Tailscale)  
 **Tailscale Domain:** [`https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/`](https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net/)  
 **Deployment Directory:** `/var/www/kucet-cms`  
@@ -98,6 +98,10 @@ The self-hosted deployment of KUCET College Management System is fully operation
 10. **Cloudinary Cloud Storage & Render Image Loading Overhaul (`RESOLVED`):**
     - *Issue:* Image loading failures across testing deployment on Render (`kucet-new.onrender.com`) due to `kucet/public/` Cloudinary URL path prefixing traps, unmapped signature/seal static assets, and unhandled fetch exceptions in PDF certificate rendering.
     - *Fix:* Completely eliminated `kucet/public/` corruption in `getAssetUrl()` and `CloudinaryStorageProvider.prototype.getUrl()`, mapped institutional signatures/stamps/seals to static assets, and added multi-layer disk fallback in `serveAssetResponse` and `getBase64Image`. Verified 100% HTTP 200 responses across all Cloudinary image categories while preserving 100% compatibility for production local storage.
+
+11. **Institutional Asset Storage Redesign & Public Modification Protection (`RESOLVED`):**
+    - *Issue:* Institutional media assets (principal signatures, signature stamps, QR codes, college seal) were mixed into user-upload storage paths, creating ambiguity between Local Storage and Cloudinary deployments and risking unauthorized public upload overwrites.
+    - *Fix:* Architected `InstitutionAssetService` and `InstitutionAssetProvider` under `src/services/institution/` with canonical logical key resolution (`principal/signature`, `institution/seal`, `principal/qr`). Refactored certificate PDF generation and asset view proxies to use logical keys, updated Cloudinary routing to `kucet/institution/`, and enforced security guards (`isInstitutionalAssetPath`) in `LocalStorageProvider` and `CloudinaryStorageProvider` blocking public upload or deletion of institutional media. Passed 286 unit tests across 38 files.
 
 ---
 

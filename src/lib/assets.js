@@ -1,3 +1,4 @@
+import { resolveInstitutionalFilename } from '@/lib/institution-assets';
 
 /**
  * Utility to resolve asset URLs.
@@ -75,15 +76,19 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return normalizedPath;
   }
 
-  // Check signature & branding aliases (e.g., 'principal-sign.png')
-  const signatureAliases = [
-    'principal-sign.png', 'principal-signStamp.png', 'principal-sign-stamp.png', 
-    'principal-sign-black.png', 'principal-sign3.png', 'principal-sign4.png', 
-    'principal_ku_qr.png', 'ku-college-seal.png'
-  ];
-  const basename = cleanPath.split('/').pop() || '';
-  if (signatureAliases.includes(cleanPath) || signatureAliases.includes(basename)) {
-    return `/assets/${basename}`;
+  // Check institutional assets (e.g. 'principal/signature' or 'principal-sign.png')
+  const instFilename = resolveInstitutionalFilename(cleanPath);
+  if (instFilename) {
+    const storageType = (
+      process.env.NEXT_PUBLIC_STORAGE_TYPE || 
+      process.env.STORAGE_TYPE || 
+      'local'
+    ).toLowerCase();
+    if (storageType === 'local') {
+      return `/assets/${instFilename}`;
+    }
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
+    return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/kucet/institution/${instFilename}`;
   }
 
   const storageType = (

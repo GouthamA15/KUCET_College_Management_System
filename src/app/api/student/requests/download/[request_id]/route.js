@@ -18,6 +18,7 @@ import { decrypt } from '@/lib/encryption';
 import { _studentImages } from '@/db/schema';
 import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import { resolveLocalFilePath } from '@/app/api/assets/view/[...path]/route';
+import { InstitutionAssetService } from '@/services/institution/InstitutionAssetService';
 
 // React-PDF templates
 import BonafideCertificatePDF from '@/pdf/templates/BonafideCertificatePDF';
@@ -207,15 +208,14 @@ export async function GET(request, context) {
             }
         };
 
-        const logoUrl = await getBase64Image(getAssetUrl('/assets/ku-logo.png'));
-        const _collegeLogoUrl = await getBase64Image(getAssetUrl('/assets/ku-college-logo.png')) || logoUrl;
-        const signatureUrl = await getBase64Image(getAssetUrl('principal-sign.png')) 
-            || await getBase64Image(getAssetUrl('/assets/principal-sign.png'))
-            || await getBase64Image(getAssetUrl('principal-signStamp.png'));
-        const stampUrl = await getBase64Image(getAssetUrl('ku-college-seal.png'))
-            || await getBase64Image(getAssetUrl('/assets/ku-college-seal.png'));
-        const stampSign = await getBase64Image(getAssetUrl('principal-signStamp.png')) 
-            || await getBase64Image(getAssetUrl('principal-sign-stamp.png'))
+        const logoUrl = await InstitutionAssetService.getAssetDataUrl('institution/logo') 
+            || await getBase64Image(getAssetUrl('/assets/ku-logo.png'));
+        const _collegeLogoUrl = await InstitutionAssetService.getAssetDataUrl('institution/college-logo') 
+            || logoUrl;
+        const signatureUrl = await InstitutionAssetService.getAssetDataUrl('principal/signature') 
+            || await InstitutionAssetService.getAssetDataUrl('principal/signature-stamp');
+        const stampUrl = await InstitutionAssetService.getAssetDataUrl('institution/seal');
+        const stampSign = await InstitutionAssetService.getAssetDataUrl('principal/signature-stamp') 
             || signatureUrl;
 
         const formatDate = (d) => {

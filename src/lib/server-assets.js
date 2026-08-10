@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAssetUrl } from '@/lib/assets';
 import { resolveLocalFilePath } from '@/app/api/assets/view/[...path]/route';
+import { InstitutionAssetService } from '@/services/institution/InstitutionAssetService';
 import logger from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
@@ -23,6 +24,24 @@ export async function serveAssetResponse(assetValue, options = {}) {
 
   if (!assetValue) {
     return new NextResponse('Image not found', { status: 404 });
+  }
+
+  // Fast-path: Institutional Assets
+  const instAsset = InstitutionAssetService.resolveAsset(assetValue);
+  if (instAsset) {
+    try {
+      const buffer = await InstitutionAssetService.getAssetBuffer(instAsset.key);
+      if (buffer && buffer.length > 0) {
+        return new NextResponse(buffer, {
+          headers: {
+            'Content-Type': instAsset.mimeType || 'image/png',
+            'Cache-Control': cacheControl,
+          },
+        });
+      }
+    } catch (_instErr) {
+      // fallback to general resolver
+    }
   }
 
   const resolvedUrl = getAssetUrl(assetValue);

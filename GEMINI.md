@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 8, 2026 (Session 188)
+**Last Updated:** August 10, 2026 (Session 197)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -183,6 +183,21 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 197: Institutional Asset Storage Redesign (August 10, 2026)**
+- **Dedicated Domain-Oriented Institution Asset Module (`src/services/institution/InstitutionAssetService.js` & `src/lib/institution-assets.js`):**
+  - Architected `InstitutionAssetService` and `InstitutionAssetProvider` to centralize resolution of institutional branding media (principal signatures, signature stamps, black signatures, signature variants 3 & 4, principal/KU QR code, college seal, university logo, college engineering logo, Kakatiya Kala Thoranam emblem, NAAC badge).
+  - Defined stable logical asset key names (e.g. `principal/signature`, `principal/signature-stamp`, `principal/qr`, `institution/seal`, `institution/logo`, `institution/college-logo`) decoupled from physical filenames and user-upload directories.
+- **Multi-Environment Storage Provider Alignment (`src/lib/assets.js`, `LocalStorageProvider.js`, `CloudinaryStorageProvider.js`):**
+  - Updated `getAssetUrl()` and `CloudinaryStorageProvider.prototype.getUrl()` to route institutional assets cleanly to `assets/<filename>` in local storage mode and `kucet/institution/<filename>` in Cloudinary/S3 mode.
+  - Implemented protected upload/delete guards (`isInstitutionalAssetPath`) in `LocalStorageProvider` and `CloudinaryStorageProvider` to block unauthorized public user modifications to institutional media.
+- **Certificate PDF Generator Refactoring (`src/app/api/student/requests/download/[request_id]/route.js`):**
+  - Replaced scattered string fallback chains (`await getBase64Image(...) || await getBase64Image(...)`) with logical key calls to `InstitutionAssetService.getAssetDataUrl('principal/signature')`, `getAssetDataUrl('institution/seal')`, and `getAssetDataUrl('principal/signature-stamp')`.
+- **Fast-Path Server Asset Response & Disk Proxy (`src/lib/server-assets.js` & `src/app/api/assets/view/[...path]/route.js`):**
+  - Updated `serveAssetResponse` to fast-path institutional asset buffer delivery directly from local disk/cache.
+  - Updated `resolveLocalFilePath` candidate path resolution using canonical filename resolution.
+- **Comprehensive Unit Testing Suite (`tests/unit/services/institution-asset-service.test.js`):**
+  - Created 11 targeted unit tests covering logical key resolution, browser-safe helpers, multi-environment storage URLs, PDF base64 data URL generation, and upload security guards. All 286 vitest unit tests across 38 test files passed cleanly.
 
 #### **Session 196: Cloudinary Storage & Render Image Loading Overhaul (August 8, 2026)**
 - **Elimination of `kucet/public/` Cloudinary Path Corruption (`src/lib/assets.js` & `src/lib/providers/storage/CloudinaryStorageProvider.js`):**

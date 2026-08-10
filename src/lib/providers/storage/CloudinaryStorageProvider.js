@@ -1,4 +1,5 @@
 import StorageProvider, { StorageResult } from './StorageProvider';
+import { resolveInstitutionalFilename, isInstitutionalAssetPath } from '@/lib/institution-assets';
 
 export default class CloudinaryStorageProvider extends StorageProvider {
   constructor(cloudName) {
@@ -15,7 +16,13 @@ export default class CloudinaryStorageProvider extends StorageProvider {
       return path;
     }
 
-    // 2. Handle versioned Cloudinary paths (legacy data: v1234567/kucet/...)
+    // 2. Handle institutional canonical asset resolution
+    const instFilename = resolveInstitutionalFilename(path);
+    if (instFilename) {
+      return `https://res.cloudinary.com/${this.cloudName}/image/upload/${transformations}/kucet/institution/${instFilename}`;
+    }
+
+    // 3. Handle versioned Cloudinary paths (legacy data: v1234567/kucet/...)
     let cleanPath = path.replace(/^v\d+\//, '');
     cleanPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
     cleanPath = cleanPath.replace(/^uploads\//, '').replace(/^public\//, '');
@@ -38,6 +45,10 @@ export default class CloudinaryStorageProvider extends StorageProvider {
   }
 
   async upload(file, folder, publicId = null) {
+    if (isInstitutionalAssetPath(folder)) {
+      throw new Error('Public upload or modification of institutional assets is strictly prohibited.');
+    }
+
     const { getBreaker } = await import('@/lib/utils/CircuitBreaker');
     const cloudinaryBreaker = getBreaker('CloudinaryStorage');
     const pathKey = await cloudinaryBreaker.execute(async () => {
@@ -58,6 +69,10 @@ export default class CloudinaryStorageProvider extends StorageProvider {
   }
 
   async delete(path) {
+    if (isInstitutionalAssetPath(path)) {
+      return; // Protect institutional assets from deletion
+    }
+
     const { getBreaker } = await import('@/lib/utils/CircuitBreaker');
     const cloudinaryBreaker = getBreaker('CloudinaryStorage');
     return cloudinaryBreaker.execute(async () => {

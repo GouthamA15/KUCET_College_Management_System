@@ -10,20 +10,10 @@ const assetCache = new Map();
 const MAX_CACHE_ENTRIES = 100;
 const MAX_CACHE_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
-// Signature & Stamp filename fallback aliases
-const SIGNATURE_ALIASES = [
-  'principal-sign.png',
-  'principal-signStamp.png',
-  'principal-sign-stamp.png',
-  'principal-sign-black.png',
-  'principal-sign3.png',
-  'principal-sign4.png',
-  'principal_ku_qr.png',
-  'ku-college-seal.png'
-];
+import { resolveInstitutionalFilename } from '@/lib/institution-assets';
 
 /**
- * Resolves candidate file paths on disk using multi-path checks and aliases.
+ * Resolves candidate file paths on disk using multi-path checks and institutional asset mappings.
  */
 export function resolveLocalFilePath(filename) {
   const base = getLocalStorageBasePath();
@@ -31,6 +21,15 @@ export function resolveLocalFilePath(filename) {
   
   const cleanFilename = filename.replace(/^[\/\\]+/, '');
   const candidatePaths = [];
+
+  // Check institutional canonical filename mapping
+  const instFilename = resolveInstitutionalFilename(cleanFilename);
+  if (instFilename) {
+    candidatePaths.push(path.resolve(repoPublic, 'assets', instFilename));
+    candidatePaths.push(path.resolve(base, 'institution', instFilename));
+    candidatePaths.push(path.resolve(base, 'assets', instFilename));
+    candidatePaths.push(path.resolve(base, instFilename));
+  }
 
   // 1. Direct path in local storage
   candidatePaths.push(path.resolve(base, cleanFilename));
@@ -52,16 +51,6 @@ export function resolveLocalFilePath(filename) {
     candidatePaths.push(path.resolve(repoPublic, cleanFilename));
   } else {
     candidatePaths.push(path.resolve(repoPublic, 'assets', cleanFilename));
-  }
-
-  // 4. Check signature & stamp alias fallbacks if requesting signature assets
-  const lowerName = path.basename(cleanFilename).toLowerCase();
-  if (lowerName.includes('principal') || lowerName.includes('sign') || lowerName.includes('seal') || lowerName.includes('stamp')) {
-    for (const alias of SIGNATURE_ALIASES) {
-      candidatePaths.push(path.resolve(base, alias));
-      candidatePaths.push(path.resolve(base, 'assets', alias));
-      candidatePaths.push(path.resolve(repoPublic, 'assets', alias));
-    }
   }
 
   // Pick the first existing path that stays within valid root directories
