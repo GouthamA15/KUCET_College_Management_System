@@ -309,7 +309,11 @@ export class InstitutionAssetService {
       path.join(localBasePath, filename),
       path.join(localBasePath, 'assets', filename),
       path.join(localBasePath, 'institution', filename),
-      path.join(process.cwd(), 'public', filename)
+      path.join(localBasePath, 'certificates', filename),
+      path.join(localBasePath, 'kucet', 'certificates', filename),
+      path.join(localBasePath, 'kucet', filename),
+      path.join(process.cwd(), 'public', filename),
+      path.join(process.cwd(), 'public', 'assets', filename)
     ];
 
     for (const cand of candidatePaths) {
