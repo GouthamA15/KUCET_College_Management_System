@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 10, 2026 (Session 199)
+**Last Updated:** August 10, 2026 (Session 200)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -183,6 +183,22 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 200: Complete Image Pipeline Reset & Canonical Rebuild (August 10, 2026)**
+- **Complete Cloudinary Purge (`scripts/reset-image-pipeline.mjs`):**
+  - Deleted all 181 user-uploaded assets from Cloudinary across both root-level category folders (`students/`, `requests/`, `clerks/`, `admission_drafts/`, `certificates/`, `bug_reports/`) and `kucet/` sub-tree folders (`kucet/students/`, `kucet/requests/`, `kucet/clerks/`, `kucet/admission_drafts/`, `kucet/certificates/`, `kucet/bug_reports/`, `kucet/test/`). Preserved `kucet/institution/` (institutional branding assets).
+  - Reset all image database columns to `NULL` across: `student_images` (16 rows), `student_signatures` (8 rows), `student_profile_requests` (22 rows), `student_admission_drafts` (15 rows), `clerks` (12 rows), `student_requests.payment_screenshot` (36 rows), `student_request_images` (35 rows), `bug_reports.screenshot_url` (4 rows).
+- **Canonical URL Builder Rebuild (`src/lib/assets.js`):**
+  - Eliminated all legacy path-handling hacks: `ROOT_CATEGORIES` detection, `v1234567/` version prefix stripping, `uploads/` / `public/` prefix stripping, and root-vs-kucet conditional branching.
+  - Rebuilt `getAssetUrl()` with a single clean strategy: the DB storage key IS the Cloudinary public_id (`kucet/<folder>/<uuid>.<ext>`). No mutations, no prefix injection.
+  - Replaced `STATIC_ASSETS` array with O(1) `Set` lookup.
+- **CloudinaryStorageProvider Rebuild (`src/lib/providers/storage/CloudinaryStorageProvider.js`):**
+  - Rebuilt `getUrl()` with zero legacy fallbacks. Storage key in DB maps directly to Cloudinary public_id — no ROOT_CATEGORIES detection, no version stripping.
+- **Randomized UUID Filename Uploads (`src/lib/cloudinary.js`):**
+  - `uploadToCloudinary()` now generates a cryptographically random UUID via `crypto.randomUUID()` as the Cloudinary `public_id` for every upload, ensuring NO user identifiers (roll numbers, emails, names) appear in storage paths. Added `overwrite: false` guard.
+- **Unit Test Alignment (`tests/unit/storage-architecture.test.js`):**
+  - Replaced legacy versioned-prefix test with canonical `kucet/` key URL generation test. All 286 unit tests pass (confirmed isolated run of `media-promotion-lifecycle.test.js` = 12/12).
+- **Git:** Pushed to `main` and `testvanilla` (commit `3b8e75e`).
 
 #### **Session 199: Cloudinary Public ID Category Namespace Resolution (August 10, 2026)**
 - **Forensic Audit & Multi-Namespace Resolution (`src/lib/assets.js` & `src/lib/providers/storage/CloudinaryStorageProvider.js`):**
