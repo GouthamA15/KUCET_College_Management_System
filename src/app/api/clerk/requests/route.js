@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { studentRequests, students } from '@/db/schema';
+import { studentRequests, students, studentRequestImages } from '@/db/schema';
 import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 
@@ -57,7 +57,7 @@ export async function GET(request) {
         status: studentRequests.status,
         payment_amount: studentRequests.payment_amount,
         transaction_id: studentRequests.transaction_id,
-        payment_screenshot: studentRequests.payment_screenshot,
+        payment_screenshot: studentRequestImages.payment_screenshot,
         purpose: studentRequests.purpose,
         academic_year: studentRequests.academic_year,
         created_at: studentRequests.created_at,
@@ -72,6 +72,7 @@ export async function GET(request) {
       })
       .from(studentRequests)
       .innerJoin(students, eq(studentRequests.student_id, students.id))
+      .leftJoin(studentRequestImages, eq(studentRequests.request_id, studentRequestImages.request_id))
       .where(and(...historyConditions))
       .orderBy(desc(studentRequests.completed_at), desc(studentRequests.updated_at));
 
@@ -114,7 +115,7 @@ export async function GET(request) {
         status: studentRequests.status,
         payment_amount: studentRequests.payment_amount,
         transaction_id: studentRequests.transaction_id,
-        payment_screenshot: studentRequests.payment_screenshot,
+        payment_screenshot: studentRequestImages.payment_screenshot,
         purpose: studentRequests.purpose,
         academic_year: studentRequests.academic_year,
         created_at: studentRequests.created_at,
@@ -124,6 +125,7 @@ export async function GET(request) {
       })
       .from(studentRequests)
       .innerJoin(students, eq(studentRequests.student_id, students.id))
+      .leftJoin(studentRequestImages, eq(studentRequests.request_id, studentRequestImages.request_id))
       .where(and(...activeConditions))
       .orderBy(desc(studentRequests.created_at));
 

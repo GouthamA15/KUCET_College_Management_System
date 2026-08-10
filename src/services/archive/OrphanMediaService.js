@@ -2,7 +2,7 @@ import { db } from '@/db';
 import { 
   studentImages, studentSignatures, clerks, studentFeePayments,
   archiveStudents, archiveStudentPersonalDetails, archiveStudentPayments,
-  studentProfileRequests, studentAdmissionDrafts, bugReports, studentRequests
+  studentProfileRequests, studentAdmissionDrafts, bugReports, studentRequestImages
 } from '@/db/schema';
 import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import { getStorageProvider } from '@/lib/providers/storage/factory';
@@ -69,8 +69,8 @@ export class OrphanMediaService {
         c.signature && referenced.add(c.signature.replace(/^\/+/, ''));
       });
 
-      // 4. Payment Screenshots
-      const payments = await db.select({ path: studentRequests.payment_screenshot }).from(studentRequests);
+      // 4. Payment Screenshots (canonical source: student_request_images)
+      const payments = await db.select({ path: studentRequestImages.payment_screenshot }).from(studentRequestImages);
       payments.forEach(p => p.path && referenced.add(p.path.replace(/^\/+/, '')));
 
       // 5. Profile Requests

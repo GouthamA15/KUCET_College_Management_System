@@ -78,6 +78,13 @@
       "when": 1786089277736,
       "tag": "0010_tan_cerebro",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1786355011900,
+      "tag": "0011_curious_terrax",
+      "breakpoints": true
     }
   ]
 }

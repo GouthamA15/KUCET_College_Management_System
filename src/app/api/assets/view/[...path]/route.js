@@ -28,6 +28,9 @@ export function resolveLocalFilePath(filename) {
     candidatePaths.push(path.resolve(repoPublic, 'assets', instFilename));
     candidatePaths.push(path.resolve(base, 'institution', instFilename));
     candidatePaths.push(path.resolve(base, 'assets', instFilename));
+    candidatePaths.push(path.resolve(base, 'certificates', instFilename));
+    candidatePaths.push(path.resolve(base, 'kucet', 'certificates', instFilename));
+    candidatePaths.push(path.resolve(base, 'kucet', instFilename));
     candidatePaths.push(path.resolve(base, instFilename));
   }
 

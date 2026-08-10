@@ -53,10 +53,9 @@ export default function CustodianCertificatePDF({
 
       {/* College Seal - Optional and positioned carefully to not clash with QR */}
       {stampUrl ? (
-        <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+        <Image 
           src={stampUrl}
           style={{ position: "absolute", left: 120, bottom: 40, width: 80, height: 80 }}
-          alt="College Seal"
         />
       ) : null}
     </BaseCertificate>

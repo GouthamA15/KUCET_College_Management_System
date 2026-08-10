@@ -92,7 +92,8 @@ export async function POST(req) {
     let screenshotUrl = null;
     if (screenshot) {
       try {
-        screenshotUrl = await storage.upload(screenshot, 'bug_reports');
+        const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
+        screenshotUrl = await storage.upload(screenshot, STORAGE_FOLDERS.BUG_REPORTS);
       } catch (uploadError) {
         logger.error(uploadError, 'Error uploading bug screenshot');
         return apiError('Failed to upload screenshot', 500);

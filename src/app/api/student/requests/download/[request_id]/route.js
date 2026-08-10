@@ -114,10 +114,10 @@ export async function GET(request, context) {
         const { yearOfStudy, semester: currentSemester } = await calculateYearAndSemesterAsync(student.roll_no);
         const currentAcademicYear = await getCollegeAcademicYear();
         
-        const rollNo = student.roll_no;
+        const rollNo = student.roll_no || '';
         const isLateral = rollNo.toUpperCase().endsWith('L');
-        const admissionYearShort = parseInt(rollNo.substring(0, 2));
-        const admissionYear = 2000 + admissionYearShort;
+        const admissionYearShort = parseInt(rollNo.substring(0, 2), 10);
+        const admissionYear = Number.isNaN(admissionYearShort) ? 2024 : 2000 + admissionYearShort;
         const batchStart = isLateral ? admissionYear - 1 : admissionYear;
         const batchEnd = batchStart + 4; 
         const batchString = `${batchStart}-${batchEnd}`;
@@ -146,9 +146,15 @@ export async function GET(request, context) {
         const verificationUrl = `${baseUrl}/verify?id=${certId?.trim()}&roll=${rollNo?.trim()}`;
         const qrBase64 = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 150 });
 
-        const formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
-        const dob = new Date(student.date_of_birth);
-        const formattedDob = `${dob.getDate()}-${dob.getMonth() + 1}-${dob.getFullYear()}`;
+        const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+        
+        let formattedDob = 'N/A';
+        if (student.date_of_birth) {
+            const dob = new Date(student.date_of_birth);
+            if (!Number.isNaN(dob.getTime())) {
+                formattedDob = `${String(dob.getDate()).padStart(2, '0')}-${String(dob.getMonth() + 1).padStart(2, '0')}-${dob.getFullYear()}`;
+            }
+        }
         const course = String(getBranchFromRoll(student.roll_no) || '');
 
         const base64Cache = new Map();
@@ -197,8 +203,6 @@ export async function GET(request, context) {
                 let mimeType = 'image/png';
                 if (imageBuffer[0] === 0xFF && imageBuffer[1] === 0xD8) mimeType = 'image/jpeg';
                 else if (imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50) mimeType = 'image/png';
-                else if (imageBuffer.slice(0,4).toString('ascii') === 'GIF8') mimeType = 'image/gif';
-                else if (imageBuffer.slice(0,4).toString('ascii') === 'RIFF') mimeType = 'image/webp';
 
                 const dataUrl = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
                 base64Cache.set(imagePath, dataUrl);
@@ -292,7 +296,14 @@ export async function GET(request, context) {
         return new NextResponse(pdfBuffer, { status: 200, headers });
 
     } catch (error) {
-        logger.error("Error generating certificate:", error);
-        return apiError('An error occurred while generating the certificate.', 500, error.message);
+        const errorDetails = {
+            name: error?.name || 'Error',
+            message: error?.message || String(error),
+            stack: error?.stack || null,
+            cause: error?.cause || null,
+        };
+        logger.error({ err: error, details: errorDetails }, '[CERTIFICATE_GENERATION_EXCEPTION]');
+        console.error('[CERTIFICATE_GENERATION_EXCEPTION] Full Stack Trace:', error);
+        return apiError('An error occurred while generating the certificate.', 500, process.env.NODE_ENV === 'development' ? error.stack : error.message);
     }
 }

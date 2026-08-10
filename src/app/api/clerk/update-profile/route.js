@@ -46,14 +46,15 @@ export async function POST(req) {
       updateData.mobile_hash = hashForIndex(mobile);
     }
 
+    const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
     if (pfp && pfp.startsWith('data:image')) {
       if (currentClerk.pfp) await storage.delete(currentClerk.pfp);
-      updateData.pfp = await storage.upload(pfp, 'clerks/pfp');
+      updateData.pfp = await storage.upload(pfp, STORAGE_FOLDERS.CLERKS_PFP);
     }
 
     if (signature && signature.startsWith('data:image')) {
       if (currentClerk.signature) await storage.delete(currentClerk.signature);
-      updateData.signature = await storage.upload(signature, 'clerks/signatures');
+      updateData.signature = await storage.upload(signature, STORAGE_FOLDERS.CLERKS_SIGNATURES);
     }
 
     if (Object.keys(updateData).length === 0) {

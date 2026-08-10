@@ -116,7 +116,6 @@ export const studentRequests = mysqlTable('student_requests', {
   status: mysqlEnum('status', ['PENDING', 'APPROVED', 'REJECTED']).default('PENDING').notNull(),
   payment_amount: int('payment_amount').notNull(),
   transaction_id: varchar('transaction_id', { length: 100 }),
-  payment_screenshot: text('payment_screenshot'),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').onUpdateNow(),
   completed_at: timestamp('completed_at'),

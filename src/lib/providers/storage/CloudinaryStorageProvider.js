@@ -1,38 +1,55 @@
 import StorageProvider, { StorageResult } from './StorageProvider';
 import { resolveInstitutionalFilename, isInstitutionalAssetPath } from '@/lib/institution-assets';
 
+/**
+ * ============================================================
+ * CLOUDINARY STORAGE PROVIDER
+ * ============================================================
+ * Canonical implementation. Stores relative storage keys in DB.
+ * All uploads produce: kucet/<folder>/<uuid>.<ext>
+ * getUrl() maps storage keys to Cloudinary CDN URLs directly.
+ * ============================================================
+ */
 export default class CloudinaryStorageProvider extends StorageProvider {
   constructor(cloudName) {
     super();
     this.cloudName = cloudName;
   }
 
+  /**
+   * Converts a canonical storage key into a Cloudinary CDN URL.
+   * The storage key stored in the DB is the Cloudinary public_id + extension.
+   * No path normalization, no prefix injection — what's in the DB is used as-is.
+   *
+   * @param {string} path - Canonical storage key (e.g. 'kucet/students/pfp/abc.webp')
+   * @param {object} options
+   * @param {string} options.transformations - Cloudinary transformation string
+   * @returns {string}
+   */
   getUrl(path, { transformations = 'f_auto,q_auto' } = {}) {
-    if (!path) return '';
-    if (typeof path !== 'string') return '';
-    
-    // 1. Handle absolute URLs and Data URIs - pass through as-is
+    if (!path || typeof path !== 'string') return '';
+
+    // Pass-through: data URIs and absolute URLs
     if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
 
-    // 2. Handle institutional canonical asset resolution
+    // Resolve institutional asset logical keys
     const instFilename = resolveInstitutionalFilename(path);
     if (instFilename) {
-      return `https://res.cloudinary.com/${this.cloudName}/image/upload/${transformations}/kucet/institution/${instFilename}`;
+      return `https://res.cloudinary.com/${this.cloudName}/image/upload/${transformations}/${instFilename}`;
     }
 
-    // 3. Handle versioned Cloudinary paths (legacy data: v1234567/kucet/...)
-    let cleanPath = path.replace(/^v\d+\//, '');
-    cleanPath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
-    cleanPath = cleanPath.replace(/^uploads\//, '').replace(/^public\//, '');
-    
+    // Normalize: strip leading slash
+    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+
+    // Static assets — serve from /assets/ directly
     if (cleanPath.startsWith('assets/')) {
       return `/${cleanPath}`;
     }
 
+    // Determine resource_type from extension
     const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
-    
     let resourceType = 'image';
     if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
       resourceType = 'video';
@@ -40,10 +57,9 @@ export default class CloudinaryStorageProvider extends StorageProvider {
       resourceType = 'raw';
     }
 
-    const ROOT_CATEGORIES = ['requests/', 'students/', 'clerks/', 'admission_drafts/', 'certificates/', 'bug_reports/', 'proofs/'];
-    const isRootCategory = ROOT_CATEGORIES.some(cat => cleanPath.startsWith(cat));
-    const finalPath = (cleanPath.startsWith('kucet/') || isRootCategory) ? cleanPath : `kucet/${cleanPath}`;
-    return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
+    // Canonical: the storage key IS the Cloudinary public_id (with extension).
+    // New uploads always produce 'kucet/<folder>/<uuid>.<ext>'.
+    return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformations}/${cleanPath}`;
   }
 
   async upload(file, folder, publicId = null) {
@@ -60,17 +76,18 @@ export default class CloudinaryStorageProvider extends StorageProvider {
 
     const url = this.getUrl(pathKey);
     const filename = pathKey.split('/').pop() || '';
-    
+
     return new StorageResult({
       path: pathKey,
       url,
       filename,
       provider: 'cloudinary',
-      mimeType: 'image/jpeg'
+      mimeType: 'image/jpeg',
     });
   }
 
   async delete(path) {
+    if (!path || typeof path !== 'string') return;
     if (isInstitutionalAssetPath(path)) {
       return; // Protect institutional assets from deletion
     }
@@ -102,5 +119,3 @@ export default class CloudinaryStorageProvider extends StorageProvider {
     return copyResult;
   }
 }
-
-

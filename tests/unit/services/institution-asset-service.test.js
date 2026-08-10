@@ -60,11 +60,11 @@ describe('InstitutionAssetService & Architecture', () => {
       expect(url).toBe('/assets/principal-sign.png');
     });
 
-    it('should resolve Cloudinary institutional asset URLs via kucet/institution namespace', () => {
+    it('should resolve Cloudinary institutional asset URLs directly', () => {
       process.env.STORAGE_TYPE = 'cloudinary';
       process.env.CLOUDINARY_CLOUD_NAME = 'test_cloud';
       const url = InstitutionAssetService.getAssetUrl('institution/seal');
-      expect(url).toContain('res.cloudinary.com/test_cloud/image/upload/f_auto,q_auto/kucet/institution/ku-college-seal.png');
+      expect(url).toContain('res.cloudinary.com/test_cloud/image/upload/f_auto,q_auto/ku-college-seal.png');
     });
   });
 

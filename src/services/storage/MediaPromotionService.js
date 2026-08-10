@@ -4,6 +4,8 @@ import { studentImages, studentSignatures } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
+import { STORAGE_FOLDERS } from '@/lib/storage-config';
+
 /**
  * Patterns that indicate a file is in temporary/staging storage.
  */
@@ -63,7 +65,7 @@ export class MediaPromotionService {
     }
 
     const hasKucetPrefix = sourceKey.startsWith('kucet/');
-    const targetFolder = hasKucetPrefix ? 'kucet/students/pfp' : 'students/pfp';
+    const targetFolder = hasKucetPrefix ? `kucet/${STORAGE_FOLDERS.STUDENTS_PFP}` : STORAGE_FOLDERS.STUDENTS_PFP;
 
     try {
       const storage = getStorageProvider();
@@ -101,7 +103,7 @@ export class MediaPromotionService {
     }
 
     const hasKucetPrefix = sourceKey.startsWith('kucet/');
-    const targetFolder = hasKucetPrefix ? 'kucet/students/signatures' : 'students/signatures';
+    const targetFolder = hasKucetPrefix ? `kucet/${STORAGE_FOLDERS.STUDENTS_SIGNATURES}` : STORAGE_FOLDERS.STUDENTS_SIGNATURES;
 
     try {
       const storage = getStorageProvider();
