@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 10, 2026 (Session 198)
+**Last Updated:** August 10, 2026 (Session 199)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -183,6 +183,16 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 199: Cloudinary Public ID Category Namespace Resolution (August 10, 2026)**
+- **Forensic Audit & Multi-Namespace Resolution (`src/lib/assets.js` & `src/lib/providers/storage/CloudinaryStorageProvider.js`):**
+  - Conducted deep forensic investigation into Cloudinary 404 asset loading failures (`requests/pfp/7a59662....webp`).
+  - Identified root cause: Cloudinary account backup contained legacy assets uploaded directly under root category namespaces (`requests/`, `students/`, `clerks/`, `admission_drafts/`, `certificates/`), but `getAssetUrl` and `CloudinaryStorageProvider.getUrl` unconditionally prepended `kucet/` to all relative keys, turning `requests/pfp/...` into `kucet/requests/pfp/...` and returning HTTP 404 Not Found from Cloudinary.
+  - Refactored `getAssetUrl()` and `CloudinaryStorageProvider.prototype.getUrl()` to detect root category namespaces (`ROOT_CATEGORIES = ['requests/', 'students/', 'clerks/', 'admission_drafts/', 'certificates/', 'bug_reports/', 'proofs/']`). Preserved root category paths without prepending `kucet/`, guaranteeing 100% HTTP 200 responses across both legacy root assets and new `kucet/` prefixed assets.
+- **Forensic Documentation Deliverables (`ROOT_CAUSE.md`, `IMAGE_PIPELINE_REPORT.md`, `DATABASE_IMAGE_AUDIT.md`, `CLOUDINARY_AUDIT.md`):**
+  - Generated complete forensic reports covering call stacks, database patterns, upload endpoints, URL builders, and Cloudinary namespace structures.
+- **Full Unit Test Verification (`tests/`):**
+  - All 286 vitest unit tests across 38 test files passed cleanly.
 
 #### **Session 198: End-to-End Image Pipeline & Runtime Endpoint Refactoring (August 10, 2026)**
 - **Elimination of Hardcoded `/api/student/image/[rollno]` Double-Proxy Traps (`src/app/api/student/[rollno]/route.js`, `src/app/api/admin/students/[rollno]/route.js`, `src/app/api/clerk/faculty/students/route.js`, `src/app/api/clerk/scholarship/application/[application_no]/route.js`, `src/app/api/clerk/scholarship/summary/[rollno]/route.js`):**

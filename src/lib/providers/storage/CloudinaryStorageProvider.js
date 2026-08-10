@@ -40,7 +40,9 @@ export default class CloudinaryStorageProvider extends StorageProvider {
       resourceType = 'raw';
     }
 
-    const finalPath = cleanPath.startsWith('kucet/') ? cleanPath : `kucet/${cleanPath}`;
+    const ROOT_CATEGORIES = ['requests/', 'students/', 'clerks/', 'admission_drafts/', 'certificates/', 'bug_reports/', 'proofs/'];
+    const isRootCategory = ROOT_CATEGORIES.some(cat => cleanPath.startsWith(cat));
+    const finalPath = (cleanPath.startsWith('kucet/') || isRootCategory) ? cleanPath : `kucet/${cleanPath}`;
     return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
   }
 

@@ -121,7 +121,9 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
   }
 
   const trimmedPath = cleanPath.replace(/^uploads\//, '').replace(/^public\//, '');
-  const finalPath = trimmedPath.startsWith('kucet/') ? trimmedPath : `kucet/${trimmedPath}`;
+  const ROOT_CATEGORIES = ['requests/', 'students/', 'clerks/', 'admission_drafts/', 'certificates/', 'bug_reports/', 'proofs/'];
+  const isRootCategory = ROOT_CATEGORIES.some(cat => trimmedPath.startsWith(cat));
+  const finalPath = (trimmedPath.startsWith('kucet/') || isRootCategory) ? trimmedPath : `kucet/${trimmedPath}`;
   return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
 }
 
