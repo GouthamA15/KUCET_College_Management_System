@@ -291,37 +291,36 @@ export class InstitutionAssetService {
       return assetBufferCache.get(cacheKey);
     }
 
-    // Candidate 1: Repo public folder
-    const repoPublicPath = path.join(process.cwd(), 'public', 'assets', filename);
-    if (fs.existsSync(repoPublicPath)) {
-      try {
-        const buf = await fs.promises.readFile(repoPublicPath);
-        if (assetBufferCache.size < MAX_CACHE_ENTRIES) assetBufferCache.set(cacheKey, buf);
-        return buf;
-      } catch (_e) {
-        // continue
-      }
-    }
-
-    // Candidate 2: Local Storage folder
+    const cwd = process.cwd();
     const localBasePath = getLocalStorageBasePath();
-    const candidatePaths = [
+
+    // Candidate Local File Paths (supporting standard Next.js & Render standalone .next/standalone layouts)
+    const localCandidatePaths = [
+      path.join(cwd, 'public', 'assets', filename),
+      path.join(cwd, 'public', filename),
+      path.resolve(cwd, '..', 'public', 'assets', filename),
+      path.resolve(cwd, '..', 'public', filename),
+      path.resolve(cwd, '..', '..', 'public', 'assets', filename),
+      path.resolve(cwd, '..', '..', 'public', filename),
       path.join(localBasePath, filename),
       path.join(localBasePath, 'kucet', filename),
       path.join(localBasePath, 'assets', filename),
       path.join(localBasePath, 'institution', filename),
       path.join(localBasePath, 'certificates', filename),
-      path.join(localBasePath, 'kucet', 'certificates', filename),
-      path.join(process.cwd(), 'public', filename),
-      path.join(process.cwd(), 'public', 'assets', filename)
+      path.join(localBasePath, 'kucet', 'certificates', filename)
     ];
 
-    for (const cand of candidatePaths) {
-      if (fs.existsSync(cand)) {
+    for (const cand of localCandidatePaths) {
+      if (cand && fs.existsSync(cand)) {
         try {
-          const buf = await fs.promises.readFile(cand);
-          if (assetBufferCache.size < MAX_CACHE_ENTRIES) assetBufferCache.set(cacheKey, buf);
-          return buf;
+          const stat = fs.statSync(cand);
+          if (stat.isFile()) {
+            const buf = await fs.promises.readFile(cand);
+            if (buf && buf.length > 0) {
+              if (assetBufferCache.size < MAX_CACHE_ENTRIES) assetBufferCache.set(cacheKey, buf);
+              return buf;
+            }
+          }
         } catch (_e) {
           // continue
         }
@@ -332,8 +331,12 @@ export class InstitutionAssetService {
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
     const remoteCandidates = [
       `https://res.cloudinary.com/${cloudName}/image/upload/${filename}`,
+      `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${filename}`,
       `https://res.cloudinary.com/${cloudName}/image/upload/kucet/${filename}`,
-      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/institution/${filename}`
+      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/institution/${filename}`,
+      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/public/${filename}`,
+      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/public/assets/${filename}`,
+      `https://res.cloudinary.com/${cloudName}/image/upload/assets/${filename}`
     ];
     const remoteUrl = this.getAssetUrl(keyOrAlias);
     if (remoteUrl && (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://'))) {
@@ -348,8 +351,10 @@ export class InstitutionAssetService {
         if (res.ok) {
           const arrayBuf = await res.arrayBuffer();
           const buf = Buffer.from(arrayBuf);
-          if (assetBufferCache.size < MAX_CACHE_ENTRIES) assetBufferCache.set(cacheKey, buf);
-          return buf;
+          if (buf && buf.length > 0) {
+            if (assetBufferCache.size < MAX_CACHE_ENTRIES) assetBufferCache.set(cacheKey, buf);
+            return buf;
+          }
         }
       } catch (err) {
         logger.error({ err: err.message, keyOrAlias, remoteUrl: url }, '[INSTITUTION_ASSET_FETCH_ERROR]');
@@ -366,9 +371,14 @@ export class InstitutionAssetService {
    */
   static async getAssetDataUrl(keyOrAlias) {
     const asset = this.resolveAsset(keyOrAlias);
-    const mimeType = asset ? asset.mimeType : 'image/png';
     const buffer = await this.getAssetBuffer(keyOrAlias);
-    if (!buffer || buffer.length === 0) return null;
+    if (!buffer || buffer.length < 4) return null;
+
+    let mimeType = asset ? asset.mimeType : 'image/png';
+    // Inspect magic numbers for precise MIME determination
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8) mimeType = 'image/jpeg';
+    else if (buffer[0] === 0x89 && buffer[1] === 0x50) mimeType = 'image/png';
+
     return `data:${mimeType};base64,${buffer.toString('base64')}`;
   }
 

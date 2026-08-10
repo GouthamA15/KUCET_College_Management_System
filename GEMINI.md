@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 10, 2026 (Session 201)
+**Last Updated:** August 10, 2026 (Session 203)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -219,6 +219,22 @@ A robust, production-ready web application built with **Next.js** for managing t
   - Defines immutable `STORAGE_FOLDERS`, `UPLOAD_LIMITS`, and `CONFIDENTIAL_INSTITUTIONAL_FILES`. All upload/download operations import directory constants rather than using scattered hardcoded string literals.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 203: Forensic Investigation & Resolution of Certificate PDF Generation Failure (August 10, 2026)**
+- **Root Cause & Forensics Identification (`ROOT_CAUSE.md`):**
+  - Pinpointed exact exception causing certificate download failure (`An error occurred while generating the certificate`):
+    - **Primary Exception (`TypeError: Cannot read properties of undefined (reading 'style')`)**: Triggered in `@react-pdf/renderer` when non-standard HTML DOM event handler `onError={(e) => { e.currentTarget.style.display = 'none'; }}` executed on server-side rendering where `e.currentTarget` is `undefined`.
+    - **Secondary Path Resolution Failure**: Render PaaS Next.js standalone runner (`process.cwd()` = `.next/standalone`) failed to resolve root `public/assets/` candidate paths during local file checks when confidential signature files were absent from ephemeral disk.
+- **PDF Pipeline Audit & Compliance (`PDF_PIPELINE_AUDIT.md`):**
+  - Audited all 9 certificate templates (`Bonafide`, `Custodian`, `Study Conduct`, `Migration`, `Course Completion`, `Income Tax`, `Transfer`, `No Objection`, `ID Card`) and helper components (`CertificateHeader.js`, `SignatureBlock.js`, `QRBlock.js`, `CertificateWatermark.js`).
+  - Removed invalid HTML DOM props (`onError`, `alt`) from all React-PDF `<Image>` elements across all templates and components.
+- **Standalone Deployment Path & CDN Candidate Strategy (`RENDER_RUNTIME_AUDIT.md`):**
+  - Updated `InstitutionAssetService.getAssetBuffer()` to resolve candidate directories across parent directory levels (`../public`, `../../public`) supporting Next.js `.next/standalone` runner on Render.
+  - Expanded Cloudinary remote CDN candidate URLs to cover root, `f_auto,q_auto`, `kucet/`, `kucet/institution/`, `kucet/public/`, and `kucet/public/assets/` prefixes.
+  - Enforced binary magic number checks (`0xFF 0xD8` -> `image/jpeg`, `0x89 0x50` -> `image/png`) to guarantee strict MIME compliance for `@react-pdf/renderer` Data URLs.
+- **Enhanced Diagnostic Server Logging (`CERTIFICATE_GENERATION_FORENSIC.md`):**
+  - Refactored catch block in `/api/student/requests/download/[request_id]/route.js` to log complete error stack traces, error names, causes, request IDs, and student IDs to Pino logger and server stdout.
+  - Hardened DOB parsing, roll number branch extraction, and lateral batch bounds calculations against `null` or non-standard inputs.
 
 #### **Session 202: Canonical Folder Tree Alignment & Confidential Asset Protection (August 10, 2026)**
 - **Canonical Storage Tree Enforcement:**
