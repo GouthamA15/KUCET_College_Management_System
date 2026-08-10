@@ -7,6 +7,7 @@ import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import { canonicalizeRollNo } from '@/lib/rollNumber';
 import dynamic from 'next/dynamic';
 import LectureTopicModal from './LectureTopicModal';
+import { getAssetUrl } from '@/lib/assets';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
   ssr: false,
@@ -330,7 +331,7 @@ const AttendanceGrid = () => {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 flex-shrink-0">
                   {student.pfp ? (
-                    <img src={student.pfp} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
+                    <img src={getAssetUrl(student.pfp)} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
                   ) : (
                     student.name.charAt(0).toUpperCase()
                   )}
@@ -430,7 +431,7 @@ const AttendanceGrid = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500">
                     {student.pfp ? (
-                      <img src={student.pfp} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
+                      <img src={getAssetUrl(student.pfp)} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
                     ) : (
                       student.name.charAt(0).toUpperCase()
                     )}

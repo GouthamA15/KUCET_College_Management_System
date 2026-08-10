@@ -103,7 +103,7 @@ export async function serveAssetResponse(assetValue, options = {}) {
         }
       }
 
-      return new NextResponse('Error fetching remote asset', { status: 502 });
+      return new NextResponse('Image not found', { status: 404 });
     }
   } 
   

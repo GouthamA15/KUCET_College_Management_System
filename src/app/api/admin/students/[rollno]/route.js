@@ -4,6 +4,7 @@ import { students, studentImages, studentPersonalDetails, studentAcademicBackgro
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { decrypt } from '@/lib/encryption';
+import { getAssetUrl } from '@/lib/assets';
 
 export async function GET(request, { params }) {
   const user = await getAuthUser('admin');
@@ -51,7 +52,7 @@ export async function GET(request, { params }) {
         aadhaar_no: decrypt(personal.aadhaar_no)
       } : null,
       academic_background: academic || null,
-      pfp: has_pfp ? `/api/student/image/${student.roll_no}` : null
+      pfp: has_pfp ? getAssetUrl(has_pfp) : null
     };
 
     return apiResponse({ student: decryptedStudent });

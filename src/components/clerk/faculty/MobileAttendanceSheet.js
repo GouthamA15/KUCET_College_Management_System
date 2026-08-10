@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import FacultyAcademicCalendar from './FacultyAcademicCalendar';
 import { useFacultyAttendance } from '@/context/FacultyAttendanceContext';
 import dynamic from 'next/dynamic';
+import { getAssetUrl } from '@/lib/assets';
 
 const QRScannerPanel = dynamic(() => import('./QRScannerPanel'), {
   ssr: false,
@@ -387,7 +388,7 @@ export default function MobileAttendanceSheet({ onBack, mode }) {
                       <div className="flex justify-between items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500 flex-shrink-0">
                           {student.pfp ? (
-                            <img src={student.pfp} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
+                            <img src={getAssetUrl(student.pfp)} alt={student.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = student.name.charAt(0).toUpperCase(); }} />
                           ) : (
                             student.name.charAt(0).toUpperCase()
                           )}

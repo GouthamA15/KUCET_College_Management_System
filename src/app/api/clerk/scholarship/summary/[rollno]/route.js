@@ -11,6 +11,7 @@ import { apiError, wrapHandler } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
 import { ScholarshipService } from '@/services/ScholarshipService';
+import { getAssetUrl } from '@/lib/assets';
 
 /**
  * GET /api/clerk/scholarship/summary/[rollno]
@@ -63,7 +64,7 @@ export const GET = wrapHandler({
       course: getBranchFromRoll(student.roll_no) || student.roll_no.substring(student.roll_no.length - 4, student.roll_no.length - 2),
       email: student.email || null,
       mobile: student.mobile ? decrypt(student.mobile) : null,
-      pfp: student.pfp ? `/api/student/image/${student.roll_no}` : null,
+      pfp: student.pfp ? getAssetUrl(student.pfp) : null,
       admission_year: admissionYear,
       current_year: currentYear,
     };

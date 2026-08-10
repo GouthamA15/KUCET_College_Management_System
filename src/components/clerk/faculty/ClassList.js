@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useClerk } from '@/context/ClerkContext';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function ClassList() {
   const { facultyAssignments = [], isLoadingFaculty } = useClerk();
@@ -147,7 +148,7 @@ export default function ClassList() {
                   <td className="px-4 py-2 whitespace-nowrap">
                     <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-500">
                       {s.pfp ? (
-                        <img src={s.pfp} alt={s.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = s.name.charAt(0).toUpperCase(); }} />
+                        <img src={getAssetUrl(s.pfp)} alt={s.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = s.name.charAt(0).toUpperCase(); }} />
                       ) : (
                         s.name.charAt(0).toUpperCase()
                       )}
@@ -177,7 +178,7 @@ export default function ClassList() {
               <div key={s.id} className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm flex items-center justify-between gap-4">
                 <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-sm text-slate-600 flex-shrink-0">
                   {s.pfp ? (
-                    <img src={s.pfp} alt={s.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = s.name.charAt(0).toUpperCase(); }} />
+                    <img src={getAssetUrl(s.pfp)} alt={s.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = s.name.charAt(0).toUpperCase(); }} />
                   ) : (
                     s.name.charAt(0).toUpperCase()
                   )}

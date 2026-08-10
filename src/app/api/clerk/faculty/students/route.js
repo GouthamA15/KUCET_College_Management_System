@@ -11,6 +11,7 @@ import { eq, and, asc, sql, or, like } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
 import { branchCodes } from '@/lib/rollNumber';
 import logger from '@/lib/logger';
+import { getAssetUrl } from '@/lib/assets';
 
 export async function GET(request) {
   try {
@@ -129,7 +130,7 @@ export async function GET(request) {
 
     const formattedStudents = students.map(s => ({
       ...s,
-      pfp: s.has_pfp ? `/api/student/image/${s.roll_no}` : null
+      pfp: s.has_pfp ? getAssetUrl(s.has_pfp) : null
     }));
 
     return apiResponse({ data: formattedStudents, sessions: [] });

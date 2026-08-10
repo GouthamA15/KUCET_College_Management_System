@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 10, 2026 (Session 197)
+**Last Updated:** August 10, 2026 (Session 198)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -183,6 +183,17 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 198: End-to-End Image Pipeline & Runtime Endpoint Refactoring (August 10, 2026)**
+- **Elimination of Hardcoded `/api/student/image/[rollno]` Double-Proxy Traps (`src/app/api/student/[rollno]/route.js`, `src/app/api/admin/students/[rollno]/route.js`, `src/app/api/clerk/faculty/students/route.js`, `src/app/api/clerk/scholarship/application/[application_no]/route.js`, `src/app/api/clerk/scholarship/summary/[rollno]/route.js`):**
+  - Diagnosed root cause of `502 Bad Gateway` and `404 Not Found` image loading failures: 5 separate API endpoints hardcoded `/api/student/image/[rollno]` as `pfp` property in response payloads, forcing client components into a server-side proxy route.
+  - Refactored all 5 endpoints to resolve `pfp` using `getAssetUrl(pfp)` / `imageHelper(pfp)`, returning direct CDN URLs (`https://res.cloudinary.com/...`) in Cloudinary mode and direct disk proxy URLs (`/api/assets/view/...`) in Local mode, bypassing server-side proxy hops.
+- **Server Asset Proxy Graceful Fallback (`src/lib/server-assets.js`):**
+  - Updated `serveAssetResponse` to return HTTP 404 Not Found (`Image not found`) instead of HTTP 502 Bad Gateway when a remote Cloudinary asset fetch fails and no local disk file exists, eliminating broken-gateway alerts.
+- **Raw Relative Image URL Wrapping (`ClassList.js`, `AttendanceSheet.js`, `MobileAttendanceSheet.js`):**
+  - Wrapped `<img src={student.pfp}>` tags with `getAssetUrl(student.pfp)` to prevent client browsers from attempting relative URL resolution (`https://<domain>/235962....webp`), eliminating browser 404 errors.
+- **Full Unit Test Verification (`tests/`):**
+  - All 286 vitest unit tests across 38 test files passed cleanly.
 
 #### **Session 197: Institutional Asset Storage Redesign (August 10, 2026)**
 - **Dedicated Domain-Oriented Institution Asset Module (`src/services/institution/InstitutionAssetService.js` & `src/lib/institution-assets.js`):**

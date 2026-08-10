@@ -87,10 +87,9 @@ export async function GET(req, context) {
 
     // 2. Fetch pfp and signature separately
     const pfpRow = await db.query.studentImages.findFirst({
-      columns: { student_id: true },
       where: eq(studentImages.student_id, studentId)
     });
-    student.pfp = pfpRow ? `/api/student/image/${student.roll_no}` : null;
+    student.pfp = pfpRow ? imageHelper(pfpRow.pfp) : null;
 
     const sigRow = await db.query.studentSignatures.findFirst({
       where: eq(studentSignatures.student_id, studentId)

@@ -17,6 +17,7 @@ import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
+import { getAssetUrl } from '@/lib/assets';
 
 export async function GET(req, ctx) {
   const user = await getAuthUser('clerk');
@@ -54,7 +55,7 @@ export async function GET(req, ctx) {
       fee_reimbursement: studentsTable.fee_reimbursement,
       email: studentsTable.email,
       mobile: studentsTable.mobile,
-      has_pfp: sql`CASE WHEN ${studentImages.pfp} IS NOT NULL THEN 1 ELSE 0 END`
+      pfp: studentImages.pfp
     })
     .from(studentsTable)
     .leftJoin(studentImages, eq(studentsTable.id, studentImages.student_id))
@@ -142,7 +143,7 @@ export async function GET(req, ctx) {
         course,
         email: student.email ?? null,
         mobile: decrypt(student.mobile) ?? null,
-        pfp: student.has_pfp ? `/api/student/image/${student.roll_no}` : null,
+        pfp: student.pfp ? getAssetUrl(student.pfp) : null,
         admission_year,
         current_year,
       },
