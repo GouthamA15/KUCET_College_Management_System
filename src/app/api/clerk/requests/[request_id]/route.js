@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { studentRequests, students, clerks } from '@/db/schema';
+import { studentRequests, students, clerks, studentRequestImages } from '@/db/schema';
 import { eq, and, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser, logAudit } from '@/lib/api-utils';
 import { getNow } from '@/lib/clock';
@@ -135,7 +135,7 @@ export async function GET(request, { params }) {
             status: studentRequests.status,
             payment_amount: studentRequests.payment_amount,
             transaction_id: studentRequests.transaction_id,
-            payment_screenshot: studentRequests.payment_screenshot,
+            payment_screenshot: studentRequestImages.payment_screenshot,
             purpose: studentRequests.purpose,
             academic_year: studentRequests.academic_year,
             created_at: studentRequests.created_at,
@@ -149,6 +149,7 @@ export async function GET(request, { params }) {
         .from(studentRequests)
         .innerJoin(students, eq(studentRequests.student_id, students.id))
         .leftJoin(clerks, eq(studentRequests.action_by_clerk_id, clerks.id))
+        .leftJoin(studentRequestImages, eq(studentRequests.request_id, studentRequestImages.request_id))
         .where(eq(studentRequests.request_id, requestIdNum))
         .limit(1);
 

@@ -306,13 +306,6 @@ export async function POST(request) {
             payment_screenshot: screenshotUrl
           })
           .onDuplicateKeyUpdate({ set: { payment_screenshot: screenshotUrl } });
-        
-        await db.update(studentRequests)
-          .set({ 
-            payment_screenshot: screenshotUrl,
-            updated_at: now
-          })
-          .where(eq(studentRequests.request_id, requestId));
       }
     }
 

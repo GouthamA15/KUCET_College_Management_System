@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { studentFeePayments, studentRequests, scholarshipSanctions, students, clerks } from '@/db/schema';
+import { studentFeePayments, studentRequests, studentRequestImages, scholarshipSanctions, students, clerks } from '@/db/schema';
 import { eq, sql, desc, and, gte, lte, asc, ne } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
@@ -135,13 +135,14 @@ export class FinanceService {
             'action_by_clerk_name', ${clerks.name},
             'action_by_role', ${studentRequests.action_by_role},
             'reject_reason', ${studentRequests.reject_reason},
-            'payment_screenshot', ${studentRequests.payment_screenshot},
+            'payment_screenshot', ${studentRequestImages.payment_screenshot},
             'is_flagged', ${studentRequests.is_flagged}
           )`
         })
         .from(studentRequests)
         .leftJoin(students, eq(studentRequests.student_id, students.id))
-        .leftJoin(clerks, eq(studentRequests.action_by_clerk_id, clerks.id));
+        .leftJoin(clerks, eq(studentRequests.action_by_clerk_id, clerks.id))
+        .leftJoin(studentRequestImages, eq(studentRequests.request_id, studentRequestImages.request_id));
 
         const conditions = [];
         if (rollNo) conditions.push(eq(students.roll_no, rollNo));
