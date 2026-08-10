@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 10, 2026 (Session 203)
+**Last Updated:** August 11, 2026 (Session 204)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -219,6 +219,19 @@ A robust, production-ready web application built with **Next.js** for managing t
   - Defines immutable `STORAGE_FOLDERS`, `UPLOAD_LIMITS`, and `CONFIDENTIAL_INSTITUTIONAL_FILES`. All upload/download operations import directory constants rather than using scattered hardcoded string literals.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 204: Forensic Investigation & Resolution of Super Admin Authentication Bug (August 11, 2026)**
+- **Root Cause & Client Navigation Fix (`src/components/LoginPanel.js`):**
+  - Identified exact mechanism causing Super Admin login redirect to Student Login page: `LoginPanel.js` relied on local UI state `activePanel === 'clerk'` during login submission instead of server-returned `data.role`.
+  - Updated `handleEmployeeSubmit` to dynamically route using `getDashboardPathByRole(data.role)`, resolving `'admin'` to `/admin/dashboard`.
+- **Role Isolation & Cookie Purging (`src/lib/auth-utils.js` & `src/app/api/admin/login/route.js`):**
+  - Added `role: 'admin'` to `apiResponse` in `/api/admin/login/route.js`.
+  - Updated `issueAdminAuthCookie`, `issueClerkAuthCookie`, and `issueStudentAuthCookie` to purge companion cookies of other roles upon login (`clerk_auth`, `clerk_logged_in`, `student_auth`, `student_logged_in`, etc.), preventing cross-role session contamination.
+- **Silent Refresh Secret Standardization (`src/app/api/auth/refresh/route.js`):**
+  - Standardized JWT signing during grace period silent refresh to safely use `getJwtSecretKey()`.
+- **Automated Audit Suite & Zero Regressions (`tests/unit/api/auth/admin-login.test.js`):**
+  - Implemented unit test suite validating Super Admin login, Clerk role isolation, companion cookie cleanup, and role-to-dashboard path resolution.
+  - Verified 100% test pass rate across all 39 test files (294 tests).
 
 #### **Session 203: Forensic Investigation & Resolution of Certificate PDF Generation Failure (August 10, 2026)**
 - **Root Cause & Forensics Identification (`ROOT_CAUSE.md`):**
