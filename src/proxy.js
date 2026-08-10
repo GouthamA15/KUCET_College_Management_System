@@ -118,7 +118,9 @@ export default async function proxy(request) {
   response.headers.set('x-request-id', requestId);
 
   // 2. Handle Silent Refresh if expired (Only if session likely exists)
-  if (!adminRes.payload && adminRes.expired && hasAdminSession) {
+  // The access token might be missing entirely if the browser deleted it due to Max-Age.
+  // In that case, we still want to attempt a refresh if the companion cookie exists.
+  if (!adminRes.payload && (!adminAuth || adminRes.expired) && hasAdminSession) {
     const refreshRes = await attemptSilentRefresh('admin', request);
     if (refreshRes) {
       const allCookies = refreshRes.headers.getSetCookie();
@@ -138,7 +140,7 @@ export default async function proxy(request) {
     }
   }
 
-  if (!clerkRes.payload && clerkRes.expired && !refreshTriggered && hasClerkSession) {
+  if (!clerkRes.payload && (!clerkAuth || clerkRes.expired) && !refreshTriggered && hasClerkSession) {
     const refreshRes = await attemptSilentRefresh('clerk', request);
     if (refreshRes) {
       const allCookies = refreshRes.headers.getSetCookie();
@@ -158,7 +160,7 @@ export default async function proxy(request) {
     }
   }
 
-  if (!studentRes.payload && studentRes.expired && !refreshTriggered && hasStudentSession) {
+  if (!studentRes.payload && (!studentAuth || studentRes.expired) && !refreshTriggered && hasStudentSession) {
     const refreshRes = await attemptSilentRefresh('student', request);
     if (refreshRes) {
       const allCookies = refreshRes.headers.getSetCookie();
