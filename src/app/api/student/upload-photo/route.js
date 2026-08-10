@@ -58,7 +58,8 @@ export async function POST(req) {
 
       let pfpStorageKey;
       try {
-        const uploadRes = await storage.upload(pfp, 'students/pfp');
+        const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
+        const uploadRes = await storage.upload(pfp, STORAGE_FOLDERS.STUDENTS_PFP);
         pfpStorageKey = uploadRes?.path || uploadRes;
       } catch (uploadError) {
         logger.error("Storage upload failed:", uploadError);

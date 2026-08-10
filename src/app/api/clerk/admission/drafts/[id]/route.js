@@ -95,13 +95,14 @@ export const PUT = wrapHandler({
     }
 
     // Handle full update
+    const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
     if (body.pfp && body.pfp.startsWith('data:image')) {
       if (currentDraft?.pfp) await storage.delete(currentDraft.pfp);
-      body.pfp = await storage.upload(body.pfp, 'admission_drafts/pfp');
+      body.pfp = await storage.upload(body.pfp, STORAGE_FOLDERS.ADMISSION_DRAFTS_PFP);
     }
     if (body.signature && body.signature.startsWith('data:image')) {
       if (currentDraft?.signature) await storage.delete(currentDraft.signature);
-      body.signature = await storage.upload(body.signature, 'admission_drafts/signatures');
+      body.signature = await storage.upload(body.signature, STORAGE_FOLDERS.ADMISSION_DRAFTS_SIGNATURES);
     }
 
     const allowedFields = [

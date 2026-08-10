@@ -150,7 +150,8 @@ export async function POST(req) {
         if (encryptedData.aadhaar_no) encryptedData.aadhaar_no = encrypt(encryptedData.aadhaar_no);
     }
     
-    // Upload images to Cloudinary if provided
+    // Upload images to Cloudinary / Local storage if provided
+    const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
     let signatureUrl = null;
     let pfpUrl = null;
     let proofUrl = null;
@@ -158,13 +159,13 @@ export async function POST(req) {
     try {
       if (signature) {
         if (signature === 'REMOVE') signatureUrl = 'REMOVE';
-        else signatureUrl = await storage.upload(signature, 'requests/signatures');
+        else signatureUrl = await storage.upload(signature, STORAGE_FOLDERS.REQUESTS_SIGNATURES);
       }
       if (pfp) {
         if (pfp === 'REMOVE') pfpUrl = 'REMOVE';
-        else pfpUrl = await storage.upload(pfp, 'requests/pfp');
+        else pfpUrl = await storage.upload(pfp, STORAGE_FOLDERS.REQUESTS_PFP);
       }
-      if (proof) proofUrl = await storage.upload(proof, 'requests/proofs');
+      if (proof) proofUrl = await storage.upload(proof, STORAGE_FOLDERS.REQUESTS_PROOFS);
     } catch (uploadError) {
       if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Rollback signature failed'));
       if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Rollback pfp failed'));

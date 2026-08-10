@@ -134,13 +134,14 @@ export async function POST(req) {
         }
     }
 
-    // 4. Upload to Cloudinary
+    // 4. Upload to Cloudinary / Local Storage
+    const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
     let pfpUrl = null;
     let signatureUrl = null;
 
     if (pfp) {
       try {
-        pfpUrl = await storage.upload(pfp, 'admission_drafts/pfp');
+        pfpUrl = await storage.upload(pfp, STORAGE_FOLDERS.ADMISSION_DRAFTS_PFP);
       } catch (err) {
         logger.error(err, 'Failed to upload profile picture for admission draft');
         return apiError('Failed to upload profile picture.', 500);
@@ -148,7 +149,7 @@ export async function POST(req) {
     }
     if (signature) {
       try {
-        signatureUrl = await storage.upload(signature, 'admission_drafts/signatures');
+        signatureUrl = await storage.upload(signature, STORAGE_FOLDERS.ADMISSION_DRAFTS_SIGNATURES);
       } catch (err) {
         logger.error(err, 'Failed to upload signature for admission draft');
         if (pfpUrl) {

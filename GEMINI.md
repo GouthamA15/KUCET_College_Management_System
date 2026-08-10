@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Documentation
 
-**Last Updated:** August 10, 2026 (Session 200)
+**Last Updated:** August 10, 2026 (Session 201)
 
 ## 1. Project Overview
 A robust, production-ready web application built with **Next.js** for managing the complete academic lifecycle at KUCET. The system supports **Super Admin**, **HOD**, **Clerk/Faculty**, and **Student** roles.
@@ -182,7 +182,39 @@ A robust, production-ready web application built with **Next.js** for managing t
 - **Zero-Data-Loss Restoration:** Granular search, profile preview, and 1-click restore functionality allowing Super Admin to reactivate archived student profiles and academic logs back to operational database without manual SQL queries.
 - **Audit Log & Retention Engine:** Immutable tracking of every archival execution with storage size metrics, elapsed duration, and configurable retention policy thresholds.
 
+### **F. Unified Media Storage Architecture & Institutional Protection**
+- **Official Canonical Directory Layout:**
+  - `admission_drafts/pfp/` & `admission_drafts/signatures/` — Staging media for online admission applications.
+  - `requests/pfp/`, `requests/signatures/`, `requests/proofs/` — Temporary staging media for student profile update requests.
+  - `requests/payments/` & `certificates/payments/` — Certificate application payment receipt screenshots (`student_request_images` sidecar table).
+  - `students/pfp/` & `students/signatures/` — Permanent student profile photos and digital signatures.
+  - `clerks/pfp/` & `clerks/signatures/` — Staff/Faculty profile photos and digital signatures.
+  - `bug_reports/` — User issue screenshots.
+  - `backups/` — Compressed database and storage asset archives.
+- **Confidential Institutional Assets (Strict Non-Overwritable Resources):**
+  - Institutional branding media (`ku-college-seal.png`, `principal-sign.png`, `principal-signStamp.png`, `principal-sign-black.png`, `principal-sign3.png`, `principal-sign4.png`, `principal_ku_qr.png`, `ku-logo.png`, `ku-college-logo.png`, `kakatiya-kala-thoranam.png`, `Naac_A+.png`).
+  - **Guards:** MUST NEVER be overwritten, deleted, renamed, regenerated, or exposed through public upload APIs. Managed exclusively through `InstitutionAssetService` and protected by `isInstitutionalAssetPath()` guards in storage providers.
+- **Centralized Storage Configuration (`src/lib/storage-config.js`):**
+  - Defines immutable `STORAGE_FOLDERS`, `UPLOAD_LIMITS`, and `CONFIDENTIAL_INSTITUTIONAL_FILES`. All upload/download operations import directory constants rather than using scattered hardcoded string literals.
+- **Deployment Platform Volume Alignment:**
+  - **Self-Hosted VPS (Docker):** Host directory `/var/www/kucet-storage/public` maps to container volume path `/app/public/uploads` (`LOCAL_STORAGE_PATH=/app/public/uploads`, `NEXT_PUBLIC_STORAGE_TYPE=local`). Requires `sudo chmod -R 777 /var/www/kucet-storage/public` for non-root container runner permissions.
+  - **Cloudinary / S3:** DB storage keys represent public IDs (`kucet/<folder>/<uuid>.<ext>`). Zero legacy path hacks.
+
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 201: Storage Architecture Standardization & Centralized Configuration (August 10, 2026)**
+- **Centralized Storage Configuration Module (`src/lib/storage-config.js`):**
+  - Created single source of truth defining `STORAGE_FOLDERS`, `UPLOAD_LIMITS`, `STORAGE_NAMESPACE_PREFIX`, and `CONFIDENTIAL_INSTITUTIONAL_FILES`.
+  - Refactored all API routes (`bugs`, `clerk/admission/drafts`, `clerk/admission/students`, `clerk/update-profile`, `public/admission`, `student/requests`, `student/signature`, `student/upload-photo`) and domain services (`MediaPromotionService`) to use centralized folder constants instead of hardcoded string literals.
+- **Official Backup Structure Alignment:**
+  - Standardized storage paths across Local and Cloudinary providers matching the official backup layout (`admission_drafts/`, `certificates/payments/`, `requests/`, `students/`, `clerks/`, `bug_reports/`, `backups/`).
+  - Consolidated payment screenshot storage into `student_request_images` sidecar table and dropped redundant `student_requests.payment_screenshot` legacy column via safe migration `0011_curious_terrax.sql`.
+- **Confidential Institutional Assets Security:**
+  - Enforced permanent institutional file protections for `principal-signStamp.png`, `principal-sign.png`, `principal-sign-black.png`, `principal-sign3.png`, `principal-sign4.png`, `ku-college-seal.png`, `principal_ku_qr.png`, `ku-logo.png`, `ku-college-logo.png`, `kakatiya-kala-thoranam.png`, `Naac_A+.png`.
+  - Prevented deletion, renaming, or API overwrite access to institutional files across all storage providers.
+- **Self-Hosted VPS Storage Alignment:**
+  - Documented VPS host mount path `/var/www/kucet-storage/public` mapped to container volume path `/app/public/uploads` (`LOCAL_STORAGE_PATH=/app/public/uploads`).
+  - Added operational permission setup instructions (`sudo chmod -R 777 /var/www/kucet-storage/public`).
 
 #### **Session 200: Complete Image Pipeline Reset & Canonical Rebuild (August 10, 2026)**
 - **Complete Cloudinary Purge (`scripts/reset-image-pipeline.mjs`):**
@@ -1412,11 +1444,39 @@ ew_data (handling both JSON object modifications and plain string updates) witho
 
 ---
 
-### Commits Summary
-
-| Commit | Author | Description |
-|---|---|---|
-| 24c5714 | GouthamA15 | **Performance & Login Fix:** Targeted decryption in student requests API, direct role routing in LoginPanel.js, useMemo filtering in StudentUpdateRequestsPanel.js, and ClerkContext.js infinite loop fix. |
-| c52422f | GouthamA15 | **Profile Modification & Context Optimization:** Defensive 
-ew_data parsing in request panel and sequential background table fetching in ClerkContext.js. |
 | edd223b | P.Sannith | **CI/CD Network Fix:** Configured Docker Compose project name deployment_package to prevent 502 Bad Gateway on auto-deployments. |
+
+---
+
+## 7. Storage Engineering Lessons Learned & Best Practices
+
+1. **Avoid Hardcoded File Paths Across Codebase:**
+   - Scattered string literals (e.g. `'students/pfp'`, `'requests/signatures'`) cause brittle code and path mismatches when refactoring or migrating storage providers. Always centralize folder constants in a single configuration file (`src/lib/storage-config.js`).
+
+2. **Centralize Storage Configuration & Maintain a Single Source of Truth:**
+   - Define all directory constants, upload byte limits, and namespace keys in `src/lib/storage-config.js`. Future folder renames or additions require modifying only one file.
+
+3. **Strictly Separate System/Institutional Assets from User-Uploaded Media:**
+   - System branding files (e.g., `ku-college-seal.png`, `principal-sign.png`, `principal-signStamp.png`) represent official institutional credentials. They must never share upload directories with user-uploaded files and must never be modifiable via user upload APIs.
+
+4. **Protect Confidential Institutional Assets at the Provider Level:**
+   - Institutional assets (`principal-signStamp.png`, `principal-sign.png`, `ku-college-seal.png`, etc.) are permanent institutional resources. Storage providers (`LocalStorageProvider`, `CloudinaryStorageProvider`) must implement strict `isInstitutionalAssetPath()` guards to block unauthorized upload, deletion, or overwriting.
+
+5. **Use Helper Functions for Path Generation & Asset Resolution:**
+   - Always route asset URL generation through `getAssetUrl(path)` and institutional resolving through `InstitutionAssetService`. Never construct manual CDN or filesystem URL strings in UI components or API responses.
+
+6. **Keep Upload, Retrieval, and Deletion Logic Consistent:**
+   - All upload routines must store only relative storage keys (`kucet/<folder>/<uuid>.<ext>`) in the database. Never store full URLs, host-specific absolute filesystem paths, or versioned prefixes in database columns.
+
+7. **Ensure Storage Architecture is Platform-Independent:**
+   - The application logic must behave identically whether running on Local Disk (Docker VPS), Cloudinary, or AWS S3. Storage strategy toggles (`STORAGE_TYPE=local` vs `cloudinary` vs `s3`) should require zero code changes outside configuration environment variables.
+
+8. **Avoid Duplicate Implementations of Storage & Image Logic:**
+   - Avoid creating custom proxy routes (like legacy `/api/student/image/[rollno]`). Use direct CDN URLs in Cloudinary mode and single-proxy endpoints (`/api/assets/view/...`) in Local storage mode.
+
+9. **Validate Storage Paths & Key Integrity Before File I/O:**
+   - Sanitize all input paths to prevent path traversal attacks (`../`). Guard against `[object Object]` or `undefined` serialization artifacts before attempting filesystem or cloud storage operations.
+
+10. **Align Container Paths with Host Volume Mounts in Self-Hosted Environments:**
+    - For Docker VPS deployments, document the explicit mapping between host directories (`/var/www/kucet-storage/public`) and container volume paths (`/app/public/uploads`). Ensure file permissions (`chmod -R 777`) are set on the host directory to prevent `EACCES: permission denied` errors for non-root container runners.
+

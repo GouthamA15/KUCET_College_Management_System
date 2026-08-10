@@ -3,7 +3,6 @@ import { db } from "@/db";
 import { 
   students, 
   studentRequests, 
-  collegeInfo as collegeInfoTable,
   studentRequestImages
 } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
@@ -297,7 +296,8 @@ export async function POST(request) {
         return apiError(`File too large (${(paymentScreenshotFile.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`, 400);
       }
 
-      const screenshotUrl = await storage.upload(paymentScreenshotFile, "certificates/payments");
+      const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
+      const screenshotUrl = await storage.upload(paymentScreenshotFile, STORAGE_FOLDERS.CERTIFICATES_PAYMENTS);
       
       if (screenshotUrl) {
         await db.insert(studentRequestImages)
