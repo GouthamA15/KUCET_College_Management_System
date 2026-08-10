@@ -1,17 +1,30 @@
 import { resolveInstitutionalFilename } from '@/lib/institution-assets';
 
 /**
- * Utility to resolve asset URLs.
- * Points to Cloudinary by default to remove dependency on local 'public' folder.
- * Uses CLOUDINARY_CLOUD_NAME from environment configuration with a fallback for client-side access.
+ * ============================================================
+ * CANONICAL ASSET URL BUILDER
+ * ============================================================
+ * Single function responsible for converting a DB storage key
+ * into a browser-ready URL. Zero legacy path hacks.
+ *
+ * Database storage keys must follow the canonical format:
+ *   kucet/<category>/<subfolder>/<random-uuid>.<ext>
+ *
+ * Examples:
+ *   kucet/students/pfp/b3f96f9f4d51487fb2d69fce.webp
+ *   kucet/requests/pfp/71a9e1c8ab7d4b6d8d4e7e4a.webp
+ *   kucet/clerks/pfp/5cb17d61a06c47d1b932af38.jpg
+ *
+ * NEVER store full URLs in the database.
+ * NEVER store legacy paths (requests/, students/ without kucet/).
+ * ============================================================
  */
 
 /**
- * List of assets verified to be in the local 'public' folder.
- * These will be served via the app's Global CDN (Next.js public folder)
- * for maximum performance (<100ms load).
+ * Static assets served from the Next.js /public folder.
+ * These are never routed through storage providers.
  */
-const STATIC_ASSETS = [
+const STATIC_ASSETS = new Set([
   '/assets/ku-logo.png',
   '/assets/ku-college-logo.png',
   '/assets/Naac_A+.png',
@@ -42,76 +55,90 @@ const STATIC_ASSETS = [
   '/assets/principal_ku_qr.png',
   '/assets/ku-college-seal.png',
   '/manifest.json',
-  '/favicon.ico'
-];
+  '/favicon.ico',
+]);
 
 /**
- * Maps a local path or relative asset path to its full URL based on the storage type.
- * @param {string} path - The relative path (e.g., 'kucet/students/pfp/abc.jpg') or a local path.
- * @param {string} transformations - Cloudinary transformations (default: 'f_auto,q_auto').
- * @returns {string} - The full URL.
+ * Resolves a DB storage key or static asset path into a browser-safe URL.
+ *
+ * @param {string} path - A canonical storage key (e.g. 'kucet/students/pfp/abc.webp')
+ *                        or a static asset path (e.g. '/assets/default-avatar.svg').
+ * @param {string} [transformations='f_auto,q_auto'] - Cloudinary delivery transformations.
+ * @returns {string} The browser-ready URL, or '' if path is empty/invalid.
  */
 export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
-  if (!path) return '';
-  if (typeof path !== 'string') return '';
-  
-  // 1. Handle data URIs, absolute URLs, and local API routes
-  if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/api/')) {
+  // Guard: reject null, undefined, non-strings
+  if (!path || typeof path !== 'string') return '';
+
+  // Guard: reject serialization corruption
+  if (path.includes('[object') || path.includes('undefined')) return '';
+
+  // Pass-through: data URIs, absolute URLs, Next.js API routes
+  if (
+    path.startsWith('data:') ||
+    path.startsWith('http://') ||
+    path.startsWith('https://') ||
+    path.startsWith('/api/')
+  ) {
     return path;
   }
 
-  // 2. Handle [object Object] corruption gracefully - return empty string
-  if (path.includes('[object Object]') || path.startsWith('[object')) {
-    return '';
-  }
-
-  // 3. Handle versioned Cloudinary paths (legacy DB data: v1234567/kucet/...)
-  let cleanedPath = path.replace(/^v\d+\//, '');
-
-  // 4. Normalize path and check for static assets
-  const cleanPath = cleanedPath.startsWith('/') ? cleanedPath.substring(1) : cleanedPath;
+  // Normalize: strip leading slash for consistent matching
+  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
   const normalizedPath = `/${cleanPath}`;
 
-  if (STATIC_ASSETS.includes(normalizedPath)) {
+  // Serve static public-folder assets directly
+  if (STATIC_ASSETS.has(normalizedPath)) {
     return normalizedPath;
   }
 
-  // Check institutional assets (e.g. 'principal/signature' or 'principal-sign.png')
+  // Resolve institutional assets (e.g. 'principal/signature' logical key)
   const instFilename = resolveInstitutionalFilename(cleanPath);
   if (instFilename) {
     const storageType = (
-      process.env.NEXT_PUBLIC_STORAGE_TYPE || 
-      process.env.STORAGE_TYPE || 
+      process.env.NEXT_PUBLIC_STORAGE_TYPE ||
+      process.env.STORAGE_TYPE ||
       'local'
     ).toLowerCase();
     if (storageType === 'local') {
       return `/assets/${instFilename}`;
     }
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
+    const cloudName =
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+      process.env.CLOUDINARY_CLOUD_NAME ||
+      'djs0ry74r';
     return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/kucet/institution/${instFilename}`;
   }
 
+  // Determine storage strategy from environment
   const storageType = (
-    process.env.NEXT_PUBLIC_STORAGE_TYPE || 
-    process.env.STORAGE_TYPE || 
+    process.env.NEXT_PUBLIC_STORAGE_TYPE ||
+    process.env.STORAGE_TYPE ||
     'local'
   ).toLowerCase();
 
-  // 5. Strategy: Local storage proxy
+  // Local storage: proxy through /api/assets/view/
   if (storageType === 'local') {
     return `/api/assets/view/${cleanPath}`;
   }
 
-  // 6. Strategy: S3 / Cloudflare R2
+  // S3 / Cloudflare R2
   if (storageType === 's3' || storageType === 'r2') {
-    const s3Domain = process.env.NEXT_PUBLIC_S3_PUBLIC_DOMAIN || process.env.S3_PUBLIC_DOMAIN;
+    const s3Domain =
+      process.env.NEXT_PUBLIC_S3_PUBLIC_DOMAIN ||
+      process.env.S3_PUBLIC_DOMAIN;
     if (s3Domain) {
       return `${s3Domain.replace(/\/$/, '')}/${cleanPath}`;
     }
   }
 
-  // 7. Strategy: Cloudinary (client-safe default)
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
+  // Cloudinary: all canonical keys start with 'kucet/'
+  const cloudName =
+    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+    process.env.CLOUDINARY_CLOUD_NAME ||
+    'djs0ry74r';
+
+  // Determine Cloudinary resource_type from extension
   const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
   let resourceType = 'image';
   if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
@@ -120,12 +147,10 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     resourceType = 'raw';
   }
 
-  const trimmedPath = cleanPath.replace(/^uploads\//, '').replace(/^public\//, '');
-  const ROOT_CATEGORIES = ['requests/', 'students/', 'clerks/', 'admission_drafts/', 'certificates/', 'bug_reports/', 'proofs/'];
-  const isRootCategory = ROOT_CATEGORIES.some(cat => trimmedPath.startsWith(cat));
-  const finalPath = (trimmedPath.startsWith('kucet/') || isRootCategory) ? trimmedPath : `kucet/${trimmedPath}`;
-  return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${finalPath}`;
+  // The canonical Cloudinary public ID is the storage key itself.
+  // New uploads always produce 'kucet/<folder>/....<ext>' from uploadToCloudinary().
+  // We do NOT mutate or prefix the path — what's in the DB is the public_id.
+  return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cleanPath}`;
 }
 
 export default getAssetUrl;
-

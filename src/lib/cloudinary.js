@@ -63,11 +63,13 @@ export function getOptimizedUrl(url, transformations = '') {
 }
 
 /**
- * Uploads an image to Cloudinary
+ * Uploads an image to Cloudinary using a cryptographically random UUID filename.
+ * NEVER uses roll numbers, student IDs, emails, or original filenames.
+ *
  * @param {string|Buffer|File} file - Base64 string, Buffer, or browser File object
- * @param {string} folder - Cloudinary folder name
- * @param {string} publicId - Optional public ID
- * @returns {Promise<string>} - The relative path of the uploaded image
+ * @param {string} folder - Cloudinary folder name relative to 'kucet/' (e.g. 'students/pfp')
+ * @param {string|null} publicId - Optional override (used only internally; defaults to UUID)
+ * @returns {Promise<string>} - The canonical storage key: 'kucet/<folder>/<uuid>.<ext>'
  */
 export async function uploadToCloudinary(file, folder, publicId = null) {
   if (!file) {
@@ -75,11 +77,11 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
   }
 
   let fileToUpload = file;
-  
+
   // Handle browser File objects (from formData)
   if (file instanceof File || (typeof file === 'object' && typeof file.arrayBuffer === 'function')) {
     // SECURITY: Enforce 1MB limit
-    const MAX_SIZE = 1 * 1024 * 1024; 
+    const MAX_SIZE = 1 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum allowed is 1MB.`);
     }
@@ -102,44 +104,55 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
     fileToUpload = `data:image/jpeg;base64,${base64}`;
   }
 
+  // Generate a cryptographically random UUID as the filename.
+  // This ensures NO user identifiers (roll numbers, emails, names) appear in storage paths.
+  const randomFilename = publicId || (
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().replace(/-/g, '')
+      : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+  );
+
   const options = {
     folder: `kucet/${folder}`,
     resource_type: 'auto',
+    public_id: randomFilename,
+    unique_filename: false,
+    overwrite: false,
   };
-
-  if (publicId) {
-    options.public_id = publicId;
-  }
 
   try {
     const result = await cloudinary.uploader.upload(fileToUpload, options);
     if (!result || !result.public_id) {
       throw new Error('Cloudinary upload returned an empty response.');
     }
-    
+
     // ARCHITECTURE CONTRACT: Return ONLY the storage key, never the full URL.
-    // The storage key format is: kucet/folder/filename.ext
-    // public_id from Cloudinary is already the path without extension (e.g., kucet/students/pfp/abc)
-    // We append the extension from the format field to get the complete key.
+    // Format: kucet/<folder>/<uuid>.<ext>
     const ext = result.format ? `.${result.format}` : '';
     const storageKey = `${result.public_id}${ext}`;
-    
-    // GUARD: Ensure the storage key is a valid string - prevent [object Object] corruption
-    if (typeof storageKey !== 'string' || storageKey.includes('[object') || !storageKey.startsWith('kucet/')) {
+
+    // GUARD: Ensure the storage key is a valid string — prevent [object Object] corruption
+    if (
+      typeof storageKey !== 'string' ||
+      storageKey.includes('[object') ||
+      storageKey.includes('undefined') ||
+      !storageKey.startsWith('kucet/')
+    ) {
       throw new Error(`Cloudinary upload returned an invalid storage key: ${storageKey}`);
     }
-    
+
     return storageKey;
   } catch (error) {
     logger.error('Cloudinary Upload Error:', {
       message: error.message,
       stack: error.stack,
       folder,
-      publicId
+      publicId,
     });
     throw new Error(`Failed to upload image to cloud storage: ${error.message}`);
   }
 }
+
 
 /**
  * Deletes an image from Cloudinary given its storage key or URL.

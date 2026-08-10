@@ -142,11 +142,10 @@ describe('CloudinaryStorageProvider', () => {
       expect(url).toBe('https://res.cloudinary.com/testcloud/image/upload/f_auto,q_auto/kucet/students/pfp/abc123.jpg');
     });
 
-    it('should strip versioned prefix from legacy data', () => {
+    it('should build correct URL for kucet/ prefixed keys (canonical format after reset)', () => {
       const provider = new CloudinaryStorageProvider('testcloud');
-      const url = provider.getUrl('v1778497250/kucet/students/pfp/abc.jpg');
-      expect(url).toBe('https://res.cloudinary.com/testcloud/image/upload/f_auto,q_auto/kucet/students/pfp/abc.jpg');
-      expect(url).not.toContain('v1778497250');
+      const url = provider.getUrl('kucet/students/pfp/b3f96f9f4d51487fb2d69fce.webp');
+      expect(url).toBe('https://res.cloudinary.com/testcloud/image/upload/f_auto,q_auto/kucet/students/pfp/b3f96f9f4d51487fb2d69fce.webp');
     });
 
     it('should pass through full URLs unchanged', () => {
