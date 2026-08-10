@@ -272,7 +272,7 @@ export class InstitutionAssetService {
     // 3. Cloudinary Strategy
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
     const transformations = options.transformations || 'f_auto,q_auto';
-    return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/kucet/institution/${filename}`;
+    return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${filename}`;
   }
 
   /**
@@ -307,11 +307,11 @@ export class InstitutionAssetService {
     const localBasePath = getLocalStorageBasePath();
     const candidatePaths = [
       path.join(localBasePath, filename),
+      path.join(localBasePath, 'kucet', filename),
       path.join(localBasePath, 'assets', filename),
       path.join(localBasePath, 'institution', filename),
       path.join(localBasePath, 'certificates', filename),
       path.join(localBasePath, 'kucet', 'certificates', filename),
-      path.join(localBasePath, 'kucet', filename),
       path.join(process.cwd(), 'public', filename),
       path.join(process.cwd(), 'public', 'assets', filename)
     ];
@@ -329,10 +329,22 @@ export class InstitutionAssetService {
     }
 
     // Candidate 3: Remote Cloudinary / S3 fallback
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
+    const remoteCandidates = [
+      `https://res.cloudinary.com/${cloudName}/image/upload/${filename}`,
+      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/${filename}`,
+      `https://res.cloudinary.com/${cloudName}/image/upload/kucet/institution/${filename}`
+    ];
     const remoteUrl = this.getAssetUrl(keyOrAlias);
-    if (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://')) {
+    if (remoteUrl && (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://'))) {
+      if (!remoteCandidates.includes(remoteUrl)) {
+        remoteCandidates.unshift(remoteUrl);
+      }
+    }
+
+    for (const url of remoteCandidates) {
       try {
-        const res = await fetch(remoteUrl);
+        const res = await fetch(url);
         if (res.ok) {
           const arrayBuf = await res.arrayBuffer();
           const buf = Buffer.from(arrayBuf);
@@ -340,7 +352,7 @@ export class InstitutionAssetService {
           return buf;
         }
       } catch (err) {
-        logger.error({ err: err.message, keyOrAlias, remoteUrl }, '[INSTITUTION_ASSET_FETCH_ERROR]');
+        logger.error({ err: err.message, keyOrAlias, remoteUrl: url }, '[INSTITUTION_ASSET_FETCH_ERROR]');
       }
     }
 

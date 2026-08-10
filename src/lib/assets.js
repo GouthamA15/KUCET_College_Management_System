@@ -46,14 +46,6 @@ const STATIC_ASSETS = new Set([
   '/assets/Payment QR/ku_payment_150.png',
   '/assets/Payment QR/ku_payment_200.png',
   '/assets/Payment QR/kucet-logo.png',
-  '/assets/principal-sign.png',
-  '/assets/principal-signStamp.png',
-  '/assets/principal-sign-stamp.png',
-  '/assets/principal-sign-black.png',
-  '/assets/principal-sign3.png',
-  '/assets/principal-sign4.png',
-  '/assets/principal_ku_qr.png',
-  '/assets/ku-college-seal.png',
   '/manifest.json',
   '/favicon.ico',
 ]);
@@ -107,7 +99,7 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
       process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
       process.env.CLOUDINARY_CLOUD_NAME ||
       'djs0ry74r';
-    return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/kucet/institution/${instFilename}`;
+    return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${instFilename}`;
   }
 
   // Determine storage strategy from environment

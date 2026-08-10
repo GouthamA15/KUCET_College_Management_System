@@ -184,23 +184,51 @@ A robust, production-ready web application built with **Next.js** for managing t
 
 ### **F. Unified Media Storage Architecture & Institutional Protection**
 - **Official Canonical Directory Layout:**
-  - `admission_drafts/pfp/` & `admission_drafts/signatures/` — Staging media for online admission applications.
-  - `requests/pfp/`, `requests/signatures/`, `requests/proofs/` — Temporary staging media for student profile update requests.
-  - `requests/payments/` & `certificates/payments/` — Certificate application payment receipt screenshots (`student_request_images` sidecar table).
-  - `students/pfp/` & `students/signatures/` — Permanent student profile photos and digital signatures.
-  - `clerks/pfp/` & `clerks/signatures/` — Staff/Faculty profile photos and digital signatures.
-  - `bug_reports/` — User issue screenshots.
-  - `backups/` — Compressed database and storage asset archives.
+  ```text
+  kucet/ (or LOCAL_STORAGE_PATH)
+  ├── admission_drafts/
+  │   ├── pfp/
+  │   └── signatures/
+  ├── backups/
+  ├── certificates/
+  │   └── payments/
+  ├── requests/
+  │   ├── pfp/
+  │   ├── proofs/
+  │   └── signatures/
+  ├── ku-college-seal.png
+  ├── principal-sign-black.png
+  ├── principal-sign.png
+  ├── principal-sign3.png
+  ├── principal-sign4.png
+  └── principal-signStamp.png
+  ```
 - **Confidential Institutional Assets (Strict Non-Overwritable Resources):**
   - Institutional branding media (`ku-college-seal.png`, `principal-sign.png`, `principal-signStamp.png`, `principal-sign-black.png`, `principal-sign3.png`, `principal-sign4.png`, `principal_ku_qr.png`, `ku-logo.png`, `ku-college-logo.png`, `kakatiya-kala-thoranam.png`, `Naac_A+.png`).
-  - **Guards:** MUST NEVER be overwritten, deleted, renamed, regenerated, or exposed through public upload APIs. Managed exclusively through `InstitutionAssetService` and protected by `isInstitutionalAssetPath()` guards in storage providers.
+  - **Guards & Confidentiality:** MUST NEVER be committed into public repo `public/` directories, overwritten, deleted, renamed, or exposed through public upload APIs. Managed exclusively through `InstitutionAssetService` and protected by `isInstitutionalAssetPath()` guards in storage providers.
+- **Environment Resolution Strategy:**
+  - **Production Deployment (Self-Hosted VPS):** Institutional assets and user media are loaded directly from local server disk (`LOCAL_STORAGE_PATH` mapped to `/app/public/uploads` / `/var/www/kucet-storage/public`).
+  - **Development & Testing:** Institutional assets are resolved dynamically from Cloudinary (`https://res.cloudinary.com/...`).
+- **Confidential Asset Handling Instructions (Mandatory Rules for AI & Developers):**
+  1. **Zero Codebase Exposure**: DO NOT download or place confidential institutional files (`principal-sign.png`, `principal-signStamp.png`, `principal-sign-black.png`, `principal-sign3.png`, `principal-sign4.png`, `ku-college-seal.png`) inside the `public/` directory or any codebase folder.
+  2. **No Hardcoded Static Array Exposure**: Confidential institutional files MUST NOT be included in `STATIC_ASSETS` set in `src/lib/assets.js`.
+  3. **Strict Domain Service Resolution**: Access to institutional assets MUST always route through `InstitutionAssetService` or `/api/assets/view/` dynamic proxy.
+  4. **Multi-Candidate Buffer Fallbacks**: Server-side PDF generation (`getAssetBuffer()`) MUST check local disk candidate paths first (`LOCAL_STORAGE_PATH` on self-hosted VPS), and if absent (in local dev/test), automatically fall back to fetching candidate HTTP URLs from Cloudinary (`${filename}`, `kucet/${filename}`).
+  5. **Directory Tree Integrity**: Maintain modular directory constants from `src/lib/storage-config.js` (`STORAGE_FOLDERS`, `CONFIDENTIAL_INSTITUTIONAL_FILES`) across all API routes and services.
 - **Centralized Storage Configuration (`src/lib/storage-config.js`):**
   - Defines immutable `STORAGE_FOLDERS`, `UPLOAD_LIMITS`, and `CONFIDENTIAL_INSTITUTIONAL_FILES`. All upload/download operations import directory constants rather than using scattered hardcoded string literals.
-- **Deployment Platform Volume Alignment:**
-  - **Self-Hosted VPS (Docker):** Host directory `/var/www/kucet-storage/public` maps to container volume path `/app/public/uploads` (`LOCAL_STORAGE_PATH=/app/public/uploads`, `NEXT_PUBLIC_STORAGE_TYPE=local`). Requires `sudo chmod -R 777 /var/www/kucet-storage/public` for non-root container runner permissions.
-  - **Cloudinary / S3:** DB storage keys represent public IDs (`kucet/<folder>/<uuid>.<ext>`). Zero legacy path hacks.
 
 ## 6. Recent Activity Log (May - August 2026)
+
+#### **Session 202: Canonical Folder Tree Alignment & Confidential Asset Protection (August 10, 2026)**
+- **Canonical Storage Tree Enforcement:**
+  - Enforced official storage layout across VPS self-hosted disk (`LOCAL_STORAGE_PATH`) and Cloudinary storage provider: `admission_drafts/pfp/`, `admission_drafts/signatures/`, `backups/`, `certificates/payments/`, `requests/pfp/`, `requests/proofs/`, `requests/signatures/`, and root-level confidential files (`ku-college-seal.png`, `principal-sign-black.png`, `principal-sign.png`, `principal-sign3.png`, `principal-sign4.png`, `principal-signStamp.png`).
+- **Confidential Institutional Assets Guard & PDF Rendering Engine:**
+  - Cleaned repository `public/assets/` folder by removing confidential principal signature files. Prevented public static codebase exposure of confidential institutional media.
+  - Refactored `InstitutionAssetService.getAssetUrl()` and `getAssetBuffer()`:
+    - Production VPS self-hosted mode: Reads directly from local server disk (`LOCAL_STORAGE_PATH`/`kucet/...`).
+    - Development / Testing mode: Fetches directly from Cloudinary using multi-candidate URL fallbacks (`${filename}`, `kucet/${filename}`).
+  - Fixed PDF certificate generation so digital signatures (`signatureUrl`, `stampSign`, `stampUrl`) render cleanly in all environments.
 
 #### **Session 201: Storage Architecture Standardization & Centralized Configuration (August 10, 2026)**
 - **Centralized Storage Configuration Module (`src/lib/storage-config.js`):**

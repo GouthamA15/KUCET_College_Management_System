@@ -37,7 +37,7 @@ export default class CloudinaryStorageProvider extends StorageProvider {
     // Resolve institutional asset logical keys
     const instFilename = resolveInstitutionalFilename(path);
     if (instFilename) {
-      return `https://res.cloudinary.com/${this.cloudName}/image/upload/${transformations}/kucet/institution/${instFilename}`;
+      return `https://res.cloudinary.com/${this.cloudName}/image/upload/${transformations}/${instFilename}`;
     }
 
     // Normalize: strip leading slash
