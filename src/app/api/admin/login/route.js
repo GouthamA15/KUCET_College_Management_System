@@ -39,7 +39,7 @@ export async function POST(request) {
       return apiError('Invalid credentials', 401);
     }
 
-    const response = apiResponse({ success: true, message: 'Admin login successful' });
+    const response = apiResponse({ success: true, message: 'Admin login successful', role: 'admin' });
 
     // Clear other auth cookies
     response.cookies.delete('clerk_auth');
