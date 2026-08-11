@@ -210,12 +210,9 @@ export default async function proxy(request) {
         headers: requestHeaders,
       },
     });
-    // Copy set-cookie headers to the new response
-    oldResponse.headers.forEach((value, key) => {
-      if (key.toLowerCase() === 'set-cookie') {
-        response.headers.append(key, value);
-      }
-    });
+    // Copy set-cookie headers to the new response without merging commas
+    const setCookies = oldResponse.headers.getSetCookie();
+    setCookies.forEach(cookie => response.headers.append('set-cookie', cookie));
   }
 
   const adminPayload = adminRes.payload;
@@ -225,11 +222,8 @@ export default async function proxy(request) {
   // Helper to ensure cookies are carried over on redirects
   const withCookies = (redirectResponse) => {
     if (refreshTriggered) {
-      response.headers.forEach((value, key) => {
-        if (key.toLowerCase() === 'set-cookie') {
-          redirectResponse.headers.append(key, value);
-        }
-      });
+      const setCookies = response.headers.getSetCookie();
+      setCookies.forEach(cookie => redirectResponse.headers.append('set-cookie', cookie));
     }
     return redirectResponse;
   };

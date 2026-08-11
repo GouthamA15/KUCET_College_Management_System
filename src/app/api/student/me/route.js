@@ -8,8 +8,8 @@ import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 export const GET = wrapHandler({
   auth: 'student',
   handler: async (req, { user }) => {
-    // Fetch full profile to decrypt sensitive fields
-    const profile = await db.select({
+    // Run profile query and academic session calculation concurrently for better performance
+    const profilePromise = db.select({
       student: students,
       personal: studentPersonalDetails
     })
@@ -18,13 +18,16 @@ export const GET = wrapHandler({
     .where(eq(students.roll_no, user.roll_no))
     .limit(1);
 
+    // The JWT payload includes academic_offset_years
+    const academicSessionPromise = calculateYearAndSemesterAsync(user.roll_no, user.academic_offset_years || 0);
+
+    const [profile, academic_session] = await Promise.all([profilePromise, academicSessionPromise]);
+
     if (profile.length === 0) {
       return apiError('Profile not found', 404);
     }
 
     const { student, personal } = profile[0];
-
-    const academic_session = await calculateYearAndSemesterAsync(user.roll_no, student.academic_offset_years || 0);
 
     // Decrypt fields
     return {
