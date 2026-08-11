@@ -118,7 +118,9 @@ export default async function proxy(request) {
   response.headers.set('x-request-id', requestId);
 
   // 2. Handle Silent Refresh if expired (Only if session likely exists)
-  if (!adminRes.payload && adminRes.expired && hasAdminSession) {
+  // The access token might be missing entirely if the browser deleted it due to Max-Age.
+  // In that case, we still want to attempt a refresh if the companion cookie exists.
+  if (!adminRes.payload && (!adminAuth || adminRes.expired) && hasAdminSession) {
     const refreshRes = await attemptSilentRefresh('admin', request);
     if (refreshRes) {
       const allCookies = refreshRes.headers.getSetCookie();
@@ -135,10 +137,17 @@ export default async function proxy(request) {
         }
         refreshTriggered = true;
       }
+    } else {
+      // Refresh failed (invalid, expired, or revoked). Clear stale cookies.
+      response.cookies.delete('admin_auth');
+      response.cookies.delete('admin_logged_in');
+      response.cookies.delete('admin_refresh_token');
+      response.cookies.delete('admin_session_id');
+      refreshTriggered = true;
     }
   }
 
-  if (!clerkRes.payload && clerkRes.expired && !refreshTriggered && hasClerkSession) {
+  if (!clerkRes.payload && (!clerkAuth || clerkRes.expired) && !refreshTriggered && hasClerkSession) {
     const refreshRes = await attemptSilentRefresh('clerk', request);
     if (refreshRes) {
       const allCookies = refreshRes.headers.getSetCookie();
@@ -155,10 +164,18 @@ export default async function proxy(request) {
         }
         refreshTriggered = true;
       }
+    } else {
+      // Refresh failed. Clear stale cookies.
+      response.cookies.delete('clerk_auth');
+      response.cookies.delete('clerk_logged_in');
+      response.cookies.delete('clerk_refresh_token');
+      response.cookies.delete('clerk_role');
+      response.cookies.delete('clerk_session_id');
+      refreshTriggered = true;
     }
   }
 
-  if (!studentRes.payload && studentRes.expired && !refreshTriggered && hasStudentSession) {
+  if (!studentRes.payload && (!studentAuth || studentRes.expired) && !refreshTriggered && hasStudentSession) {
     const refreshRes = await attemptSilentRefresh('student', request);
     if (refreshRes) {
       const allCookies = refreshRes.headers.getSetCookie();
@@ -175,6 +192,13 @@ export default async function proxy(request) {
         }
         refreshTriggered = true;
       }
+    } else {
+      // Refresh failed. Clear stale cookies.
+      response.cookies.delete('student_auth');
+      response.cookies.delete('student_logged_in');
+      response.cookies.delete('student_refresh_token');
+      response.cookies.delete('student_session_id');
+      refreshTriggered = true;
     }
   }
 
@@ -198,17 +222,29 @@ export default async function proxy(request) {
   const clerkPayload = clerkRes.payload;
   const studentPayload = studentRes.payload;
 
+  // Helper to ensure cookies are carried over on redirects
+  const withCookies = (redirectResponse) => {
+    if (refreshTriggered) {
+      response.headers.forEach((value, key) => {
+        if (key.toLowerCase() === 'set-cookie') {
+          redirectResponse.headers.append(key, value);
+        }
+      });
+    }
+    return redirectResponse;
+  };
+
   // Home ("/") Logic
   if (pathname === '/') {
-    if (adminPayload) return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
+    if (adminPayload) return withCookies(NextResponse.redirect(new URL('/admin/dashboard', request.url), 303));
     if (clerkPayload) {
       const dashboard = getDashboardPathByRole(clerkPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+      return withCookies(NextResponse.redirect(new URL(dashboard, request.url), 303));
     }
     if (studentPayload) {
       // Always redirect to the main student dashboard first.
       // The client-side StudentProvider will handle routing to /profile if needed.
-      return NextResponse.redirect(new URL('/student', request.url), 303);
+      return withCookies(NextResponse.redirect(new URL('/student', request.url), 303));
     }
     return response;
   }
@@ -224,24 +260,24 @@ export default async function proxy(request) {
   // Protect UI Routes
   if (pathname.startsWith('/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
-    if (pathname === '/admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url), 303);
+    if (pathname === '/admin') return withCookies(NextResponse.redirect(new URL('/admin/dashboard', request.url), 303));
   }
   else if (pathname.startsWith('/clerk')) {
     if (!clerkPayload) return handleUnauthorized(request);
     if (pathname === '/clerk') {
       const dashboard = getDashboardPathByRole(clerkPayload.role);
-      return NextResponse.redirect(new URL(dashboard, request.url), 303);
+      return withCookies(NextResponse.redirect(new URL(dashboard, request.url), 303));
     }
     // Role checks...
-    if (pathname.startsWith('/clerk/scholarship') && clerkPayload.role !== 'scholarship') return NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303);
-    if (pathname.startsWith('/clerk/admission') && clerkPayload.role !== 'admission') return NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303);
-    if (pathname.startsWith('/clerk/faculty') && clerkPayload.role !== 'faculty') return NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303);
+    if (pathname.startsWith('/clerk/scholarship') && clerkPayload.role !== 'scholarship') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303));
+    if (pathname.startsWith('/clerk/admission') && clerkPayload.role !== 'admission') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303));
+    if (pathname.startsWith('/clerk/faculty') && clerkPayload.role !== 'faculty') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303));
   }
   else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
     const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security' || pathname === '/student/profile';
-    if (!isVerified && !allowedForUnverified) return NextResponse.redirect(new URL('/student', request.url), 303);
+    if (!isVerified && !allowedForUnverified) return withCookies(NextResponse.redirect(new URL('/student', request.url), 303));
   }
 
   return response;

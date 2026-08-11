@@ -2,12 +2,11 @@ import { apiResponse } from '@/lib/api-utils';
 
 export async function POST() {
   const response = apiResponse({ success: true, message: 'Logout successful' });
-  response.cookies.set('student_auth', '', {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'strict',
-    expires: new Date(0),
-    path: '/',
+  const cookiesToClear = [
+    'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id', 'session_id'
+  ];
+  cookiesToClear.forEach(name => {
+    response.cookies.delete(name);
   });
   return response;
 }
