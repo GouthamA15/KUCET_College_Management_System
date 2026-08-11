@@ -2,7 +2,7 @@
 
 ## Overview
 
-The KUCET CMS maintains a stateful session orchestration layer powered by `SecurityService.js` and the `user_sessions` database table. While JWT tokens enable fast stateless edge authentication, the session management system provides real-time security tracking, hardware heuristic analysis, device-level session listing, and immediate remote session revocation.
+The KUCET CMS maintains a stateful session orchestration layer powered by `SecurityService.js` and the `user_sessions` database table. While JWT tokens enable fast stateless edge authentication, the session management system provides real-time security tracking, hardware heuristic analysis, device-level session listing, immediate remote session revocation, and multi-cookie array preservation across redirects.
 
 ---
 
@@ -46,11 +46,35 @@ flowchart TD
 
 ---
 
-## Session Revocation Architecture
+## Session Revocation & Token Reuse Protection
 
 Users can view and manage their active sessions from their profile Security Center. Remote revocation operates in real time using Server-Sent Events (SSE).
 
-### 1. Single Session Revocation (`SecurityService.revokeSession`)
+### 1. Token Reuse Detection & Revocation Grace Period Invariant
+
+When an expired or revoked refresh token is presented to `/api/auth/refresh/route.js`, the system detects potential token theft and revokes all active tokens for that user.
+
+In Session 205, a critical bug was resolved where updating revoked tokens reset their `revoked_at` timestamp to `NOW()`, inadvertently restarting the 30-second grace period for subsequent stolen requests. 
+
+To enforce strict token invalidation, the revocation query explicitly targets only active tokens:
+
+```javascript
+// In src/app/api/auth/refresh/route.js
+// Revoke all ACTIVE tokens for this user as a security precaution.
+// We must explicitly use SQL to only update tokens where revoked_at IS NULL,
+// otherwise we reset the clock on previously revoked tokens and inadvertently
+// trigger the grace period for subsequent requests!
+const { sql } = await import('drizzle-orm');
+await db.update(refreshTokens)
+  .set({ revoked_at: now })
+  .where(and(
+      eq(refreshTokens.user_id, tokenRecord.user_id),
+      eq(refreshTokens.user_type, type),
+      sql`${refreshTokens.revoked_at} IS NULL`
+  ));
+```
+
+### 2. Single Session Revocation (`SecurityService.revokeSession`)
 Terminates a specific session ID:
 ```javascript
 await SecurityService.revokeSession({ userType: 'CLERK', userId: 12, sessionId: 45 });
@@ -62,7 +86,7 @@ await SecurityService.revokeSession({ userType: 'CLERK', userId: 12, sessionId: 
 4. Creates a `WARNING` security notification in `security_notifications`.
 5. Broadcasts real-time SSE event `SESSION_REVOKED` containing `sessionId`, `userId`, `userType`.
 
-### 2. Revoke All Other Sessions (`SecurityService.revokeOtherSessions`)
+### 3. Revoke All Other Sessions (`SecurityService.revokeOtherSessions`)
 Terminates all active sessions for a user **except** the current session:
 ```javascript
 await SecurityService.revokeOtherSessions({
@@ -79,6 +103,29 @@ await SecurityService.revokeOtherSessions({
 
 ---
 
+## Session 205 Cookie Array Preservation & Stale Cookie Purging
+
+To guarantee that cookie state transitions (such as token rotation or session invalidation) are correctly received by client browsers across Edge redirects, `src/proxy.js` implements a raw cookie array preservation invariant.
+
+### 1. Cookie Preservation Across 303 Redirects (`withCookies`)
+When middleware redirects an unauthenticated user or routes a user post-refresh, Next.js `NextResponse.redirect()` creates a brand-new response object that drops pre-existing headers. `src/proxy.js` uses `withCookies()` to transfer the buffered `newCookiesToSet` array:
+
+```javascript
+const withCookies = (redirectResponse) => {
+  if (refreshTriggered) {
+    newCookiesToSet.forEach(cookieStr => {
+      redirectResponse.headers.append('set-cookie', cookieStr);
+    });
+  }
+  return redirectResponse;
+};
+```
+
+### 2. Automatic Stale Cookie Invalidation
+If a silent refresh fails (due to an expired, invalid, or revoked refresh token), middleware automatically invalidates all domain cookies (`*_auth`, `*_logged_in`, `*_refresh_token`, `*_session_id`) using explicit HTTP 1970 expiration headers (`Expires=Thu, 01 Jan 1970 00:00:00 GMT`), preventing stale session state from lingering in the browser.
+
+---
+
 ## Security Guards & Revocation Protection
 
 To prevent session hijacking or invalid state transitions, `SecurityService.js` enforces strict safety guards:
@@ -90,13 +137,14 @@ If an incoming refresh request attempts to update a session that has already bee
 If the `userId` or `userType` of an incoming update request does not match the stored session record in `user_sessions`, the system logs `[SESSION_OWNERSHIP_MISMATCH]` and forces the creation of a brand new isolated session record.
 
 ### 3. Real-Time Client Synchronization
-The client browser stores a non-httpOnly companion cookie `*_session_id` (`clerk_session_id`, `admin_session_id`). Client components establish an SSE event listener to `/api/events`. When a `SESSION_REVOKED` broadcast matching the client's `session_id` is received, the client immediately clears local state and redirects to the login screen with a security alert message.
+The client browser stores a non-httpOnly companion cookie `*_session_id` (`clerk_session_id`, `admin_session_id`, `student_session_id`). Client components establish an SSE event listener to `/api/events`. When a `SESSION_REVOKED` broadcast matching the client's `session_id` is received, the client immediately clears local state and redirects to the login screen with a security alert message.
 
 ---
 
 ## Cross-References
 
-- [Authentication Architecture](./authentication.md)
+- [Authentication Architecture & Cookie Invariants](./authentication.md)
 - [Authorization System](./authorization.md)
+- [Backend Architecture](../architecture/backend.md)
 - [Student Portal Security Center](../pages/student-pages.md#security-center)
 - [Database Schema (Security Domain)](../database/schema.md#6-security-domain)

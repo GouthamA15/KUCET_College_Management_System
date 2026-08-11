@@ -8,13 +8,13 @@
 
 ## 1. Overview & Architectural Retrospective
 
-Over the course of 204 development sessions, the KUCET College Management System evolved from a standard web app into an enterprise-grade academic platform. Along the way, critical bugs, security traps, deployment failures, and storage refactorings produced invaluable architectural insights.
+Over the course of 205 development sessions, the KUCET College Management System evolved from a standard web app into an enterprise-grade academic platform. Along the way, critical bugs, security traps, deployment failures, and storage refactorings produced invaluable architectural insights.
 
-This document synthesizes those key lessons into **10 Inviolable Rules** and defensive guardrails to prevent regressions.
+This document synthesizes those key lessons into **11 Inviolable Rules** and defensive guardrails to prevent regressions.
 
 ---
 
-## 2. Ten Inviolable Rules & Defensive Guardrails
+## 2. Eleven Inviolable Rules & Defensive Guardrails
 
 ### Rule 1: Never Store Roll Numbers as Filenames
 - **The Pitfall:** Saving images as `24KUEC001.jpg` leaks PII, enables malicious file enumeration, and causes stale browser caching when a student updates their picture.
@@ -56,6 +56,10 @@ This document synthesizes those key lessons into **10 Inviolable Rules** and def
 - **The Pitfall:** Deleting legacy service functions or database columns broke existing API endpoints and frontend widgets during incremental rollouts.
 - **The Inviolable Guardrail:** Use barrel re-exports (`src/services/index.js`, `src/db/schema.js`) and snake_case schema aliases to ensure zero broken imports.
 
+### Rule 11: Never Rely on `Headers.getSetCookie()` or Comma-Joined Headers for Multi-Cookie Responses in Next.js Middleware
+- **The Pitfall:** In Next.js middleware (Edge runtime), using `response.headers.forEach()` or standard Web `Headers` methods can merge multiple `Set-Cookie` headers into a single comma-separated string (`Set-Cookie: cookieA=valA; Path=/, cookieB=valB; Path=/`). Modern browsers reject or misparse comma-joined `Set-Cookie` headers, leading to silent authentication drops where session cookies persist in browser storage while auth tokens fail to save.
+- **The Inviolable Guardrail:** ALWAYS maintain an explicit raw JavaScript array (`let newCookiesToSet = []`) when buffering multi-cookie mutations in Next.js Edge middleware (`src/proxy.js`). Append headers explicitly via `response.headers.append('set-cookie', cookieStr)` from the raw array rather than relying on `Headers` getters or header iteration functions.
+
 ---
 
 ## 3. Database Migration Safety Lessons
@@ -87,6 +91,7 @@ This document synthesizes those key lessons into **10 Inviolable Rules** and def
 - **User Enumeration Defense:** Auth routes (`/forgot-password`, `/login`) must return generic success messages (`"If an account exists..."`) regardless of whether an email or roll number exists in the database.
 - **SHA-256 OTP Persistence:** Never persist plaintext OTPs in the database. Store SHA-256 hashes and compare using `crypto.timingSafeEqual()`.
 - **Account Lockouts:** Combine IP-based rate limiting with per-account lockout keys (`login_acct:{id}`) to prevent distributed brute-force attacks.
+- **Role Isolation Cookie Purging:** On authentication as any role, purge all companion cookies belonging to other roles (`clerk_*`, `student_*`, `admin_*`) to guarantee strict domain isolation.
 
 ---
 
@@ -95,4 +100,4 @@ This document synthesizes those key lessons into **10 Inviolable Rules** and def
 - [Engineering Coding Standards](./coding-standards.md)
 - [Project Architecture Conventions](./project-conventions.md)
 - [AI Coding Agent Blueprint & Guidelines](./ai-agent-guide.md)
-- [Chronological Forensics of Resolved Incidents](../history/resolved-incidents.md)
+- [Chronological Forensics of Resolved Incidents](../history/resolved-incidents.md#1-session-205-forensic-resolution-of-cookies-remain-but-app-shows-home-screen)

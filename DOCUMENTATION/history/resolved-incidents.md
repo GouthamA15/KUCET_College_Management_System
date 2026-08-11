@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 205** | Aug 11, 2026 | Auth / Proxy | Cookie Engine (`src/proxy.js`) | Next.js Edge header comma-merging corruption of `Set-Cookie` strings | **RESOLVED** |
 | **Session 204** | Aug 11, 2026 | Auth / Routing | Super Admin Login | Client panel state mismatch in `LoginPanel.js` | **RESOLVED** |
 | **Session 203** | Aug 10, 2026 | PDF Generation | Certificate Engine | Non-DOM `onError` prop passed to `@react-pdf` | **RESOLVED** |
 | **Session 199** | Aug 10, 2026 | Cloud Storage | Cloudinary CDN | Double category prefix injection (`kucet/kucet/`) | **RESOLVED** |
@@ -21,7 +22,29 @@
 
 ## Detailed Forensics & Technical Resolutions
 
-### 1. Session 204: Forensic Resolution of Super Admin Login Redirect Bug
+### 1. Session 205: Forensic Resolution of "Cookies Remain But App Shows Home Screen"
+
+#### Incident Summary
+Users attempting to navigate the portal or stay logged in experienced an issue where their browser retained auth companion cookies (`admin_logged_in`, `clerk_logged_in`, `student_logged_in`), yet protected routes repeatedly redirected them to the home screen (`/`) or returned HTTP 401 Unauthorized errors.
+
+#### Root Cause Analysis
+Forensic investigation across Commits `3aec92c` through `8785357` revealed three interconnected root causes:
+
+1. **Next.js Edge Header Comma-Merging Corruption (`src/proxy.js`):** Next.js `NextResponse` header getters and `Headers.forEach()` standard Web API methods automatically join multi-value headers using commas. When proxy attempted to attach or copy multiple `Set-Cookie` strings (e.g. `admin_auth` JWT and `admin_logged_in`), the header getter merged them into a single comma-separated string (`Set-Cookie: admin_auth=...; Path=/, admin_logged_in=true; Path=/`). Browsers parsed this as a malformed single cookie or rejected it entirely, resulting in access tokens failing to store while companion cookies remained.
+2. **Missing Access Token Edge Case:** When `Max-Age`/`Expires` deleted the short-lived access token cookie (`admin_auth`) from the browser, `src/proxy.js` initially checked `!adminRes.payload && adminRes.expired`. Because `adminAuth` was undefined (missing rather than expired), silent refresh was bypassed, sending the user to the home screen despite valid refresh tokens in the database.
+3. **Grace Period Inadvertent Reset in Token Reuse Revocation:** In `/api/auth/refresh/route.js`, when a revoked token was re-submitted, the revocation query executed an unqualified `db.update(refreshTokens).set({ revoked_at: now })`. This updated already-revoked token records, resetting their `revoked_at` timestamp to `NOW()` and accidentally re-opening the 30-second grace window for subsequent requests.
+
+#### Resolution Steps
+- **Raw `newCookiesToSet` Array Invariant (`src/proxy.js`):** Replaced all header getters (`getSetCookie()`, `Headers.forEach()`) in proxy with a raw JS string array invariant `let newCookiesToSet = []`. All newly issued or purged cookies are pushed to `newCookiesToSet` as un-merged raw strings and appended directly via `response.headers.append('set-cookie', cookieStr)`.
+- **Redirect Cookie Forwarding (`withCookies`):** Created `withCookies()` helper inside `src/proxy.js` to ensure `newCookiesToSet` array elements are appended to 303 redirect responses.
+- **Silent Refresh Condition Fix:** Updated proxy condition to `(!adminAuth || adminRes.expired)` so missing access token cookies trigger silent refresh when companion session cookies exist.
+- **Explicit HTTP 1970 Expiration Headers:** Standardized cookie deletion across `/api/admin/logout`, `/api/auth/logout`, `/api/clerk/logout`, `/api/student/logout`, and proxy refresh failure handling by issuing explicit HTTP 1970 expiration strings (`Set-Cookie: ${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`).
+- **SQL Condition for Revocation:** Added `sql\`${refreshTokens.revoked_at} IS NULL\`` to the token revocation query in `/api/auth/refresh/route.js`.
+- **In-Memory Academic Session Caching:** Added 5-minute in-memory caching (`CACHE_TTL = 300,000ms`) in `src/lib/academic-utils.js` for `getCurrentCalendarSession()`.
+
+---
+
+### 2. Session 204: Forensic Resolution of Super Admin Login Redirect Bug
 
 #### Incident Summary
 Super Admin users logging into `/employee-login` were successfully authenticated by the server but were unexpectedly redirected to the Student Login page (`/student/login`) instead of the Super Admin Dashboard (`/admin/dashboard`).
@@ -33,20 +56,18 @@ Forensic investigation revealed two contributing flaws:
 
 #### Resolution Steps
 - Refactored `handleEmployeeSubmit` in `src/components/LoginPanel.js` to route dynamically based on server payload:
-
 ```javascript
 // Fixed Navigation Routing
 const targetDashboard = getDashboardPathByRole(data.role); 
 // Returns '/admin/dashboard' for role === 'admin'
 router.push(targetDashboard);
 ```
-
 - Updated `issueAdminAuthCookie()`, `issueClerkAuthCookie()`, and `issueStudentAuthCookie()` in `src/lib/auth-utils.js` to purge companion cookies of other roles upon login.
 - Authored unit test suite `tests/unit/api/auth/admin-login.test.js` validating Super Admin authentication, role cookie isolation, and path resolution.
 
 ---
 
-### 2. Session 203: Forensic Resolution of Certificate PDF Generation Failure
+### 3. Session 203: Forensic Resolution of Certificate PDF Generation Failure
 
 #### Incident Summary
 Students attempting to download issued digital certificates (Bonafide, Conduct, Migration, ID Cards) received a generic error alert: *"An error occurred while generating the certificate"*.
@@ -69,7 +90,7 @@ Forensic log tracing identified two stacked failures:
 
 ---
 
-### 3. Session 199: Cloudinary Public ID Category Namespace Resolution
+### 4. Session 199: Cloudinary Public ID Category Namespace Resolution
 
 #### Incident Summary
 User profile pictures and request verification documents uploaded prior to Session 198 began returning `HTTP 404 Not Found` when loaded from Cloudinary.
@@ -79,7 +100,6 @@ The Cloudinary storage account contained legacy media uploaded directly under ro
 
 #### Resolution Steps
 - Updated `src/lib/assets.js` and `CloudinaryStorageProvider.js` with a root category detector:
-
 ```javascript
 const ROOT_CATEGORIES = ['requests/', 'students/', 'clerks/', 'admission_drafts/', 'certificates/', 'bug_reports/', 'proofs/'];
 
@@ -87,12 +107,11 @@ export function isRootCategory(key) {
   return ROOT_CATEGORIES.some((cat) => key.startsWith(cat));
 }
 ```
-
 - If `isRootCategory(key)` evaluates to `true`, the URL builder preserves the root category path without injecting `kucet/`, guaranteeing 100% HTTP 200 responses across both legacy root assets and new `kucet/` prefixed assets.
 
 ---
 
-### 4. Session 196: `kucet/public/` Path Corruption
+### 5. Session 196: `kucet/public/` Path Corruption
 
 #### Incident Summary
 All user profile photos and certificate payment screenshots failed to load on the Render cloud testing environment.
@@ -106,7 +125,7 @@ All user profile photos and certificate payment screenshots failed to load on th
 
 ---
 
-### 5. Session 183: CI E2E Test Suite Fix — Strict Mode Locators
+### 6. Session 183: CI E2E Test Suite Fix — Strict Mode Locators
 
 #### Incident Summary
 12 Playwright End-to-End tests failed in the GitHub Actions CI pipeline with `Error: strict mode violation`.
@@ -120,7 +139,7 @@ Playwright locators used generic text matching (e.g., `page.locator('text=Submit
 
 ---
 
-### 6. Session 176: Auth Security Hardening — OTP Hashing & Timing Attacks
+### 7. Session 176: Auth Security Hardening — OTP Hashing & Timing Attacks
 
 #### Incident Summary
 Security audit identified critical auth vulnerabilities:
@@ -131,7 +150,6 @@ Security audit identified critical auth vulnerabilities:
 #### Resolution Steps
 - Refactored `send-otp` and `verify-otp` API routes: stored only SHA-256 hashes (`hashOtp()`) in the database; raw OTPs are emailed and never persisted.
 - Replaced string comparison with timing-safe comparison:
-
 ```javascript
 import crypto from 'crypto';
 
@@ -140,7 +158,6 @@ const isOtpValid = crypto.timingSafeEqual(
   Buffer.from(storedOtpHash)
 );
 ```
-
 - Added per-account rate limiting key (`login_student_acct:{rollno}`) allowing max 8 attempts per 30 minutes.
 
 ---

@@ -1,6 +1,6 @@
 # KUCET College Management System - Technical Index & Core Architecture
 
-**System Version:** Session 204 Production Release  
+**System Version:** Session 205 Production Release  
 **Last Updated:** August 11, 2026  
 **Status:** Stable / Production-Ready  
 **Test Suite Verification:** 39 test files (294 unit & integration tests) — 100% PASSING
@@ -19,31 +19,53 @@ For detailed technical standards, architectural decision records, incident foren
 
 ```text
 DOCUMENTATION/
+├── architecture/
+│   ├── backend.md               # Node.js 20 ESM, wrapHandler, services, Pino, 5-min academic session cache
+│   ├── database.md              # TiDB MySQL schema, Drizzle ORM, versioned migrations
+│   ├── deployment.md            # Hostinger VPS, Nginx, Docker Compose, PM2
+│   ├── frontend.md              # React 19 RSC, Tailwind 4, client state, optimistic UI
+│   ├── storage.md               # Unified StorageProvider, Cloudinary CDN, local disk fallback
+│   └── system-architecture.md   # Domain-driven architecture, system layers, events
+├── authentication/
+│   ├── authentication.md        # JWT jose auth, multi-role cookies, Session 205 raw cookie array buffering
+│   ├── authorization.md         # RBAC matrix, route protection, role boundaries
+│   └── session-management.md    # Active user_sessions table, SSE remote revocation, stale cookie purging
+├── database/
+│   ├── backup-strategy.md       # Automated DB dumps, point-in-time recovery
+│   ├── migrations.md            # Safe 4-step Drizzle migration standard (0000-0011)
+│   └── schema.md                # Identity, academic, registry, operations, finance, security schemas
+├── deployment/
+│   ├── nginx.md                 # Reverse proxy SSL termination, rate limiting, static asset caching
+│   ├── render.md                # Cloud preview environment setup
+│   ├── ssl.md                   # Let's Encrypt Certbot configuration
+│   └── vps.md                   # Hostinger Ubuntu production VPS provisioning
 ├── development/
-│   ├── coding-standards.md      # JS/TS style, React 19/Next.js 16 rules, Pino logging, Zod validation
-│   ├── project-conventions.md   # DDD domain service organization, folder layout, state scoping, API normalization
-│   ├── ui-guidelines.md         # Tailwind CSS 4 theming, mobile drawers, WCAG 2.1 AA, 100vw layout prohibition
+│   ├── ai-agent-guide.md        # AI agent mandates, verification checklist, definition of done
+│   ├── coding-standards.md      # JS/TS style, React 19/Next.js 16 rules, Edge header buffering, Pino logging
+│   ├── lessons-learned.md       # 11 Inviolable rules, defensive guardrails, post-mortem findings
 │   ├── naming-conventions.md    # Storage keys, UUID randomization, roll number parsing, institutional keys
-│   ├── lessons-learned.md       # 10 Inviolable rules, defensive guardrails, post-mortem findings
-│   └── ai-agent-guide.md        # AI agent mandates, verification checklist, definition of done
-└── history/
-    ├── migration-history.md     # Drizzle migrations (0000-0011), storage key updates, schema evolution
-    ├── architectural-decisions.md # System ADRs (Hostinger VPS, DDD Drizzle, Storage Strategy, Smart Campus)
-    ├── resolved-incidents.md    # Forensic post-mortems (Session 204, 203, 199, 196, 183, 176)
-    └── old-cloudinary-migration.md # Cloudinary storage purge, pipeline rebuild, relative key invariant
+│   ├── project-conventions.md   # DDD domain service organization, folder layout, state scoping
+│   └── ui-guidelines.md         # Tailwind CSS 4 theming, mobile drawers, WCAG 2.1 AA, 100vw layout prohibition
+├── features/                    # Admission, attendance, certificates, exams, fees, notifications, reports
+├── history/
+│   ├── architectural-decisions.md # System ADRs (Hostinger VPS, DDD Drizzle, Storage Strategy, Smart Campus)
+│   ├── migration-history.md     # Drizzle migrations (0000-0011), storage key updates, schema evolution
+│   ├── old-cloudinary-migration.md # Cloudinary storage purge, pipeline rebuild, relative key invariant
+│   └── resolved-incidents.md    # Forensic post-mortems (Session 205, 204, 203, 199, 196, 183, 176)
+├── pages/                       # Admin, clerk, faculty, HOD, student UI pages specification
+├── storage/                     # Cloudinary history, file storage, self-hosted storage, uploads
+└── troubleshooting/             # Common errors, debugging guide, known issues
 ```
 
 ### Knowledge Base Quick Links:
+- 🔐 [Authentication Architecture & Cookie Engine](./DOCUMENTATION/authentication/authentication.md)
+- 🔑 [Session Management & Remote Revocation](./DOCUMENTATION/authentication/session-management.md)
+- ⚙️ [Backend Architecture & Service Ecosystem](./DOCUMENTATION/architecture/backend.md)
 - 📘 [Engineering Coding Standards](./DOCUMENTATION/development/coding-standards.md)
-- 📐 [Project Architecture & DDD Conventions](./DOCUMENTATION/development/project-conventions.md)
-- 🎨 [UI Design System & Mobile Guidelines](./DOCUMENTATION/development/ui-guidelines.md)
-- 🏷️ [Universal Naming & Storage Key Standards](./DOCUMENTATION/development/naming-conventions.md)
 - 💡 [Comprehensive Lessons Learned & Guardrails](./DOCUMENTATION/development/lessons-learned.md)
+- 🔍 [Chronological Forensics of Resolved Incidents](./DOCUMENTATION/history/resolved-incidents.md)
 - 🤖 [AI Coding Agent Operating Blueprint](./DOCUMENTATION/development/ai-agent-guide.md)
 - 🗄️ [Database & Infrastructure Migration Log](./DOCUMENTATION/history/migration-history.md)
-- 🏛️ [Architectural Decision Records (ADRs)](./DOCUMENTATION/history/architectural-decisions.md)
-- 🔍 [Chronological Forensics of Resolved Incidents](./DOCUMENTATION/history/resolved-incidents.md)
-- ☁️ [Historical Cloudinary Migration Record](./DOCUMENTATION/history/old-cloudinary-migration.md)
 
 ---
 
@@ -54,7 +76,7 @@ DOCUMENTATION/
 | **Framework** | Next.js 16 (App Router) | React 19, Server Components, Turbopack, `standalone` runner |
 | **Styling** | Tailwind CSS 4 | Kakatiya Navy/Gold tokens, Mobile Section Drawers |
 | **Database** | TiDB Cloud (MySQL 8.0) | Drizzle ORM, Modular DDD schemas in `src/db/schema/` |
-| **Authentication** | JWT (HTTP-only) & OAuth | `jose` JWTs, Google OAuth via `next-auth`, role cookie isolation |
+| **Authentication** | JWT (HTTP-only) & OAuth | `jose` JWTs, Google OAuth via `next-auth`, raw `newCookiesToSet` array buffering |
 | **Real-Time** | Supabase Broadcast & Redis | Supabase Realtime channels (`room:pulse`), `ioredis` pub/sub |
 | **Storage** | Strategy Pattern Provider | Cloudinary, Local Disk (`/var/www/kucet-storage`), S3/R2 |
 | **Logging** | Pino Logger | Structured JSON logging via `@/lib/logger` (no bare `console.log`) |
@@ -115,12 +137,29 @@ CMS/
 │ 5. NEVER attach HTML DOM props (onError, onClick) to @react-pdf components     │
 │ 6. ALWAYS validate API inputs using Zod schemas inside `wrapHandler`           │
 │ 7. Use Pino logger (@/lib/logger) — bare `console.log` is prohibited          │
+│ 8. Buffer multi-cookie headers in Edge proxy using raw `newCookiesToSet` array │
+│ 9. High-frequency DB helpers (getCurrentCalendarSession) MUST use 5-min cache │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. Developer Quick Reference & Commands
+## 7. Session 205 Historical Development & Commit Breakdown
+
+Session 205 resolved critical cookie persistence bugs, hardened authentication boundaries, introduced high-performance academic session caching, and standardized explicit logout expiration.
+
+| Commit Hash | Topic / Area | Key Engineering Changes |
+| :--- | :--- | :--- |
+| `3aec92cd1b596ac117dda1150a776cf0ef0fe8e8` | Auth Proxy Cookie Investigation (Part 1) | Updated missing access token silent refresh condition `(!adminAuth || adminRes.expired)` in `src/proxy.js` so missing tokens trigger silent refresh when companion session cookies exist. |
+| `096f1f28370170b79296a7449d1751a7972a3c03` | Cloudinary & Storage Rebuild | Merged Cloudinary storage pipeline reset script (`scripts/reset-image-pipeline.mjs`), `src/lib/storage-config.js`, migration snapshot `0011_snapshot.json`, and PDF template non-DOM prop cleanups. |
+| `827492fc6bf474fa1ac524d97f0fb28d16a18f28` | Explicit Logout & Cookie Purging (Part 2) | Refactored logout handlers (`/api/admin/logout`, `/api/auth/logout`, `/api/clerk/logout`, `/api/student/logout`) to delete all companion cookies explicitly; added `withCookies()` redirect header forwarding in proxy; added `sql\`${refreshTokens.revoked_at} IS NULL\`` condition during token reuse revocation. |
+| `0440a5d9ebb935c853b65b6e08179f22029a7b1e` | Super Admin Login & Role Isolation | Fixed Super Admin login redirect bug; implemented multi-role cookie purging upon login in `src/lib/auth-utils.js`; payload-based routing in `LoginPanel.js`; created unit test suite `tests/unit/api/auth/admin-login.test.js`. |
+| `24f342f91edc9f1aafb02b2fb9abc80c494dd683` | Academic Session Cache & Header Parsing (Part 3) | Added 5-minute process-level in-memory caching (`CACHE_TTL = 300,000ms`) to `getCurrentCalendarSession()` in `src/lib/academic-utils.js` reducing database load; initial header getter update in `proxy.js`. |
+| `87853573a291822bde06c964cdc39aa683a8bdf8` | Final Cookie Persistence Fix (Part 4) | Final resolution of "Cookies Remain But App Shows Home Screen" by implementing raw `newCookiesToSet` string array invariant in `src/proxy.js`, bypassing Next.js header getter comma-merging bugs and attaching explicit HTTP 1970 expiration headers on logout/purge. |
+
+---
+
+## 8. Developer Quick Reference & Commands
 
 ### Development & Testing Commands:
 ```bash
@@ -148,6 +187,6 @@ npm run db:migrate
 
 ---
 
-## 8. Cross-References
+## 9. Cross-References
 
 For deep-dive technical descriptions, architectural decision rationale, or incident forensics, proceed directly to the target file in the [Master Documentation Index](#2-master-documentation-index-documentation).

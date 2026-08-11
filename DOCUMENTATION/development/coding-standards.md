@@ -77,7 +77,63 @@ export default async function StudentPage({ searchParams }) {
 
 ---
 
-## 4. Universal Naming Conventions Summary
+## 4. Edge Middleware Header Handling & Cookie Buffering Rules
+
+### A. Raw `Set-Cookie` String Array Buffering Invariant
+In Edge middleware (`src/proxy.js`), multi-cookie mutations or header copies MUST be accumulated inside a raw JavaScript string array (`let newCookiesToSet = []`) and explicitly appended via `response.headers.append('set-cookie', cookieStr)`.
+
+- **Prohibition:** NEVER iterate over `Headers` (e.g., `Headers.forEach`) or rely on header getter methods (`getSetCookie()`) to copy or forward cookie headers across middleware responses or redirects.
+- **Rationale:** Next.js / Edge header getters automatically join multi-value headers using commas (`Set-Cookie: cookieA=1, cookieB=2`), which corrupts HTTP `Set-Cookie` formatting in client browsers.
+
+```javascript
+// CORRECT Edge Cookie Buffering Strategy
+let newCookiesToSet = [];
+
+allCookies.forEach(cookieStr => {
+  response.headers.append('set-cookie', cookieStr);
+  newCookiesToSet.push(cookieStr);
+});
+
+// Appending to 303 Redirect Responses
+newCookiesToSet.forEach(cookieStr => {
+  redirectResponse.headers.append('set-cookie', cookieStr);
+});
+```
+
+### B. Explicit HTTP 1970 Cookie Expiration
+When deleting cookies on logout or invalidating stale credentials, explicitly issue expiration headers with `Expires=Thu, 01 Jan 1970 00:00:00 GMT` for all associated domain cookies (`*_auth`, `*_logged_in`, `*_refresh_token`, `*_session_id`).
+
+---
+
+## 5. High-Frequency In-Memory Caching Rules
+
+Functions invoked frequently across middleware or multiple API requests (such as `getCurrentCalendarSession()`) MUST implement process-level in-memory caching to protect database performance:
+
+1. **Explicit Time-To-Live (TTL):** Define a clear cache expiration constant (`CACHE_TTL = 1000 * 60 * 5`).
+2. **Timestamp Verification:** Check `nowTime - cacheTimestamp < CACHE_TTL` prior to executing database queries.
+3. **Graceful Fallback:** Update cache variables on query completion or nullify on error.
+
+```javascript
+let cachedSession = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
+
+export async function getCurrentCalendarSession() {
+  const nowTime = Date.now();
+  if (cachedSession && (nowTime - cacheTimestamp < CACHE_TTL)) {
+    return cachedSession;
+  }
+  
+  const session = await fetchSessionFromDatabase();
+  cachedSession = session;
+  cacheTimestamp = nowTime;
+  return cachedSession;
+}
+```
+
+---
+
+## 6. Universal Naming Conventions Summary
 
 | Category | Convention | Examples |
 | :--- | :--- | :--- |
@@ -92,7 +148,7 @@ export default async function StudentPage({ searchParams }) {
 
 ---
 
-## 5. Drizzle ORM Schema & Migration Rules
+## 7. Drizzle ORM Schema & Migration Rules
 
 ### A. Modular Schema Design
 Database schemas are modularized by domain inside `src/db/schema/`:
@@ -131,7 +187,7 @@ graph TD
 
 ---
 
-## 6. Logging Standards (Pino Logger)
+## 8. Logging Standards (Pino Logger)
 
 - **Centralized Logger:** All logging MUST use the structured Pino logger instance imported from `@/lib/logger` (or `src/lib/logger.js`).
 - **Ban on Bare `console.log`:** Plain `console.log`, `console.error`, and `console.warn` are prohibited in production server code and API routes. Use `logger.info()`, `logger.error()`, or `logger.warn()`.
@@ -155,42 +211,13 @@ try {
 
 ---
 
-## 7. Error Handling Patterns
+## 9. Error Handling Patterns
 
 ### A. Centralized API Handler Wrapper (`wrapHandler`)
-All API endpoints under `src/app/api/` should be wrapped with `wrapHandler` to standardize zero-trust Zod schema validation, authentication checks, telemetry, and error responses:
-
-```javascript
-import { wrapHandler } from '@/lib/api-utils';
-import { z } from 'zod';
-
-const requestSchema = z.object({
-  rollNo: z.string().min(5),
-  amount: z.number().positive(),
-});
-
-export const POST = wrapHandler(
-  async (req, { body, session }) => {
-    // Controller logic executed only if authentication & validation pass
-    const result = await FinanceService.recordPayment(body, session.user.id);
-    return { data: result };
-  },
-  {
-    schema: requestSchema,
-    roles: ['admin', 'clerk'],
-  }
-);
-```
+All API endpoints under `src/app/api/` should be wrapped with `wrapHandler` to standardize zero-trust Zod schema validation, authentication checks, telemetry, and error responses.
 
 ### B. Safe JSON Parsing (`safeJsonParse`)
-Never invoke raw `JSON.parse()` on untrusted input, API responses, or stored database metadata. Use `safeJsonParse()` to prevent unhandled runtime exceptions:
-
-```javascript
-import { safeJsonParse } from '@/lib/utils';
-
-// Returns fallbackValue (default {}) instead of throwing SyntaxError
-const metadata = safeJsonParse(rawString, { fallback: true });
-```
+Never invoke raw `JSON.parse()` on untrusted input, API responses, or stored database metadata. Use `safeJsonParse()` to prevent unhandled runtime exceptions.
 
 ### C. Standardized API Response Payload Format
 
@@ -216,9 +243,10 @@ const metadata = safeJsonParse(rawString, { fallback: true });
 
 ---
 
-## 8. Cross-References & Related Documentation
+## 10. Cross-References & Related Documentation
 
 - [Project Architecture Conventions](./project-conventions.md)
 - [Universal Naming Conventions](./naming-conventions.md)
 - [Comprehensive Project Lessons Learned](./lessons-learned.md)
 - [AI Coding Agent Blueprint & Guidelines](./ai-agent-guide.md)
+- [Chronological Forensics of Resolved Incidents](../history/resolved-incidents.md#1-session-205-forensic-resolution-of-cookies-remain-but-app-shows-home-screen)
