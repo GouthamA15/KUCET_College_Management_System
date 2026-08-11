@@ -1,0 +1,4 @@
+# Git Attributes Configuration for KUCET CMS
+
+# Prevent DOCUMENTATION directory from being merged into main branch
+DOCUMENTATION/** merge=ours
