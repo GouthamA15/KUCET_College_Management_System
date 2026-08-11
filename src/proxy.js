@@ -103,6 +103,7 @@ export default async function proxy(request) {
   requestHeaders.set('x-request-id', requestId);
 
   let refreshTriggered = false;
+  let newCookiesToSet = [];
 
   // 1. Verify Tokens
   let adminRes = adminAuth ? await verify(adminAuth.value, jwtSecret) : { payload: null };
@@ -127,6 +128,7 @@ export default async function proxy(request) {
       if (allCookies.length > 0) {
         allCookies.forEach(cookieStr => {
           response.headers.append('set-cookie', cookieStr);
+          newCookiesToSet.push(cookieStr);
         });
 
         const tokenCookie = allCookies.find(c => c.startsWith('admin_auth='));
@@ -139,10 +141,11 @@ export default async function proxy(request) {
       }
     } else {
       // Refresh failed (invalid, expired, or revoked). Clear stale cookies.
-      response.cookies.delete('admin_auth');
-      response.cookies.delete('admin_logged_in');
-      response.cookies.delete('admin_refresh_token');
-      response.cookies.delete('admin_session_id');
+      ['admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id'].forEach(name => {
+        const str = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        response.headers.append('set-cookie', str);
+        newCookiesToSet.push(str);
+      });
       refreshTriggered = true;
     }
   }
@@ -154,6 +157,7 @@ export default async function proxy(request) {
       if (allCookies.length > 0) {
         allCookies.forEach(cookieStr => {
           response.headers.append('set-cookie', cookieStr);
+          newCookiesToSet.push(cookieStr);
         });
 
         const tokenCookie = allCookies.find(c => c.startsWith('clerk_auth='));
@@ -166,11 +170,11 @@ export default async function proxy(request) {
       }
     } else {
       // Refresh failed. Clear stale cookies.
-      response.cookies.delete('clerk_auth');
-      response.cookies.delete('clerk_logged_in');
-      response.cookies.delete('clerk_refresh_token');
-      response.cookies.delete('clerk_role');
-      response.cookies.delete('clerk_session_id');
+      ['clerk_auth', 'clerk_logged_in', 'clerk_refresh_token', 'clerk_role', 'clerk_session_id'].forEach(name => {
+        const str = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        response.headers.append('set-cookie', str);
+        newCookiesToSet.push(str);
+      });
       refreshTriggered = true;
     }
   }
@@ -182,6 +186,7 @@ export default async function proxy(request) {
       if (allCookies.length > 0) {
         allCookies.forEach(cookieStr => {
           response.headers.append('set-cookie', cookieStr);
+          newCookiesToSet.push(cookieStr);
         });
 
         const tokenCookie = allCookies.find(c => c.startsWith('student_auth='));
@@ -194,25 +199,26 @@ export default async function proxy(request) {
       }
     } else {
       // Refresh failed. Clear stale cookies.
-      response.cookies.delete('student_auth');
-      response.cookies.delete('student_logged_in');
-      response.cookies.delete('student_refresh_token');
-      response.cookies.delete('student_session_id');
+      ['student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id'].forEach(name => {
+        const str = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        response.headers.append('set-cookie', str);
+        newCookiesToSet.push(str);
+      });
       refreshTriggered = true;
     }
   }
 
   // Re-create response if headers changed
   if (refreshTriggered) {
-    const oldResponse = response;
     response = NextResponse.next({
       request: {
         headers: requestHeaders,
       },
     });
-    // Copy set-cookie headers to the new response without merging commas
-    const setCookies = oldResponse.headers.getSetCookie();
-    setCookies.forEach(cookie => response.headers.append('set-cookie', cookie));
+    // Apply cookies directly from array, bypassing Next.js header getter crashes
+    newCookiesToSet.forEach(cookieStr => {
+      response.headers.append('set-cookie', cookieStr);
+    });
   }
 
   const adminPayload = adminRes.payload;
@@ -222,8 +228,9 @@ export default async function proxy(request) {
   // Helper to ensure cookies are carried over on redirects
   const withCookies = (redirectResponse) => {
     if (refreshTriggered) {
-      const setCookies = response.headers.getSetCookie();
-      setCookies.forEach(cookie => redirectResponse.headers.append('set-cookie', cookie));
+      newCookiesToSet.forEach(cookieStr => {
+        redirectResponse.headers.append('set-cookie', cookieStr);
+      });
     }
     return redirectResponse;
   };
