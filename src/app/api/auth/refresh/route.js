@@ -265,12 +265,17 @@ export async function POST(req) {
       }
 
       // If outside the grace period, it's a security violation (theft detection).
-      // Revoke all tokens for this user as a precaution.
+      // Revoke all active tokens for this user as a precaution.
+      // We must explicitly use SQL to only update tokens where revoked_at IS NULL,
+      // otherwise we reset the clock on the current token and inadvertently
+      // trigger the grace period for subsequent requests!
+      const { sql } = await import('drizzle-orm');
       await db.update(refreshTokens)
         .set({ revoked_at: now })
         .where(and(
             eq(refreshTokens.user_id, tokenRecord.user_id),
-            eq(refreshTokens.user_type, type)
+            eq(refreshTokens.user_type, type),
+            sql`${refreshTokens.revoked_at} IS NULL`
         ));
       logDevValues();
       return apiError('Token revoked. Please login again.', 401);

@@ -1,7 +1,13 @@
 import { apiResponse } from '@/lib/api-utils';
 
+import { NextResponse } from 'next/server';
+
 export async function GET(request) {
-  const response = apiResponse({ success: true, message: 'Logged out' });
+  const { searchParams } = new URL(request.url);
+  const revoked = searchParams.get('revoked');
+  
+  const redirectUrl = new URL(revoked === 'true' ? '/?revoked=true' : '/', request.url);
+  const response = NextResponse.redirect(redirectUrl);
   
   // Clear all potential auth cookies
   const cookiesToClear = [
@@ -15,14 +21,7 @@ export async function GET(request) {
     response.cookies.delete(name);
   });
 
-  const { searchParams } = new URL(request.url);
-  const revoked = searchParams.get('revoked');
-  
-  if (revoked === 'true') {
-    return Response.redirect(new URL('/?revoked=true', request.url));
-  }
-
-  return Response.redirect(new URL('/', request.url));
+  return response;
 }
 
 export async function POST(_request) {
