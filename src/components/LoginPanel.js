@@ -3,6 +3,7 @@
 import { useState, _useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
+import { getDashboardPathByRole } from '@/lib/path-utils';
 import { signIn } from "next-auth/react";
 import Link from 'next/link';
 
@@ -269,7 +270,12 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
 
       if (res.ok) {
         toast.success('Login successful!', { id: toastId });
-        window.location.replace(isClerk ? '/clerk' : '/admin');
+        const targetRole = data.role || (isClerk ? 'clerk' : 'admin');
+        let targetPath = getDashboardPathByRole(targetRole);
+        if (targetPath === '/') {
+          targetPath = targetRole === 'admin' ? '/admin/dashboard' : '/clerk';
+        }
+        window.location.replace(targetPath);
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
         errorSetter(data.error || 'Login failed');

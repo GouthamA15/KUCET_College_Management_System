@@ -125,6 +125,17 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
   const durationDays = rememberMe ? 30 : 14;
   const cookieMaxAge = durationDays * 24 * 60 * 60;
 
+  // Clear cookies for other roles
+  response.cookies.delete('admin_auth');
+  response.cookies.delete('admin_logged_in');
+  response.cookies.delete('admin_session_id');
+  response.cookies.delete('admin_refresh_token');
+  response.cookies.delete('clerk_auth');
+  response.cookies.delete('clerk_logged_in');
+  response.cookies.delete('clerk_role');
+  response.cookies.delete('clerk_session_id');
+  response.cookies.delete('clerk_refresh_token');
+
   const token = await new SignJWT({
     student_id: student.id || student.student_id,
     roll_no: student.roll_no,
@@ -171,6 +182,16 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false, 
   const sessionDuration = '15m';
   const durationDays = rememberMe ? 30 : 14;
   const cookieMaxAge = durationDays * 24 * 60 * 60;
+
+  // Clear cookies for other roles
+  response.cookies.delete('admin_auth');
+  response.cookies.delete('admin_logged_in');
+  response.cookies.delete('admin_session_id');
+  response.cookies.delete('admin_refresh_token');
+  response.cookies.delete('student_auth');
+  response.cookies.delete('student_logged_in');
+  response.cookies.delete('student_session_id');
+  response.cookies.delete('student_refresh_token');
 
   const token = await new SignJWT({
     id: clerk.id,
@@ -224,6 +245,17 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false, 
   const sessionDuration = '15m';
   const durationDays = rememberMe ? 30 : 14;
   const cookieMaxAge = durationDays * 24 * 60 * 60;
+
+  // Clear cookies for other roles
+  response.cookies.delete('clerk_auth');
+  response.cookies.delete('clerk_logged_in');
+  response.cookies.delete('clerk_role');
+  response.cookies.delete('clerk_session_id');
+  response.cookies.delete('clerk_refresh_token');
+  response.cookies.delete('student_auth');
+  response.cookies.delete('student_logged_in');
+  response.cookies.delete('student_session_id');
+  response.cookies.delete('student_refresh_token');
 
   const token = await new SignJWT({
     id: admin.id,

@@ -7,7 +7,8 @@ import crypto from 'crypto';
 import { 
   issueStudentAuthCookie, 
   issueClerkAuthCookie, 
-  issueAdminAuthCookie 
+  issueAdminAuthCookie,
+  getJwtSecretKey
 } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
@@ -193,7 +194,7 @@ export async function POST(req) {
 
         // Issue new access token only
         const response = apiResponse({ success: true, message: 'Token refreshed (grace period)' });
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+        const secret = typeof getJwtSecretKey === 'function' ? getJwtSecretKey() : new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long');
         const sessionDuration = '15m';
         const cookieMaxAge = (cookieStore.get(`${type}_logged_in`)?.value === 'true' ? 30 : 14) * 24 * 60 * 60;
 
