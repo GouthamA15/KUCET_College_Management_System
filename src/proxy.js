@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { getDashboardPathByRole } from '@/lib/path-utils';
+import { parseSetCookieString } from '@/lib/parse-set-cookie';
 
 async function verify(token, secret) {
   try {
@@ -19,67 +20,95 @@ async function verify(token, secret) {
 
 async function handleUnauthorized(request) {
   const { pathname } = request.nextUrl;
-  
+
   if (pathname.startsWith('/api/')) {
     return new NextResponse(
       JSON.stringify({ error: 'Unauthorized', message: 'Session expired or invalid' }),
       { status: 401, headers: { 'content-type': 'application/json' } }
     );
   }
-  
+
   return NextResponse.redirect(new URL('/', request.url), 303);
 }
 
 /**
- * Silent Refresh Helper for Middleware (Edge)
- * Calls the /api/auth/refresh internal endpoint
+ * Silent Refresh via internal fetch with an AbortController timeout.
+ * Returns an array of parsed cookie objects on success, null on failure.
+ *
+ * NOTE: In Next.js 16 with Turbopack, the middleware's internal fetch
+ * goes through the Node.js server's request handler. We set a 5-second
+ * timeout to ensure a deadlock cannot hang the browser indefinitely.
  */
 async function attemptSilentRefresh(userType, request) {
+  const controller = new AbortController();
+  // 5-second timeout: prevents deadlock from hanging the browser
+  const timer = setTimeout(() => controller.abort(), 5000);
+
   try {
-    const isDev = process.env.NODE_ENV === 'development';
-    const cookieHeader = request.headers.get('cookie');
-    // Try origin first (works in most hosts). If that fails (SSL/loopback issues),
-    // fall back to local loopback with the configured PORT. This makes silent refresh
-    // robust across dev, Render, and Vercel environments.
-    const candidates = isDev
-      ? [request.nextUrl.origin]
-      : [request.nextUrl.origin, `http://127.0.0.1:${process.env.PORT || 10000}`];
+    const baseUrl = request.nextUrl.origin;
+    const cookieHeader = request.headers.get('cookie') || '';
 
-    for (const baseUrl of candidates) {
-      try {
-        const res = await fetch(`${baseUrl}/api/auth/refresh`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cookie': cookieHeader || '',
-            'Host': request.nextUrl.host,
-          },
-          body: JSON.stringify({ type: userType }),
-        });
+    const res = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': cookieHeader,
+        'Host': request.nextUrl.host,
+        // Signal to the refresh route that this is an internal middleware call
+        'X-Internal-Middleware-Refresh': '1',
+      },
+      body: JSON.stringify({ type: userType }),
+      signal: controller.signal,
+    });
 
-        if (res.ok) return res;
+    clearTimeout(timer);
 
-        // Log non-OK responses for diagnostics in non-prod or when debugging
-        if (process.env.NODE_ENV === 'development') {
-          const text = await res.text().catch(() => '<no-body>');
-          console.error(`[EdgeRefresh][${userType}] ${baseUrl} responded ${res.status}: ${text}`);
-        }
-      } catch (err) {
-        // Try the next candidate, but log the error for debugging
-        if (process.env.NODE_ENV === 'development') {
-          console.error(`[EdgeRefreshError][${userType}] base=${baseUrl}`, err);
-        }
-        continue;
+    if (!res.ok) {
+      if (process.env.NODE_ENV === 'development') {
+        const text = await res.text().catch(() => '<no-body>');
+        console.error(`[EdgeRefresh][${userType}] ${res.status}: ${text}`);
+      }
+      return null;
+    }
+
+    // Parse the Set-Cookie headers from the refresh API response
+    const rawCookies = res.headers.getSetCookie();
+    const parsed = rawCookies
+      .map(parseSetCookieString)
+      .filter(Boolean);
+
+    return parsed.length > 0 ? parsed : null;
+
+  } catch (err) {
+    clearTimeout(timer);
+    if (process.env.NODE_ENV === 'development') {
+      if (err.name === 'AbortError') {
+        console.error(`[EdgeRefresh][${userType}] TIMEOUT - internal fetch took >5s (possible deadlock)`);
+      } else {
+        console.error(`[EdgeRefresh][${userType}] fetch error:`, err.message);
       }
     }
+    return null;
+  }
+}
 
-    return null;
-  } catch (err) {
-    // Only log real errors, suppress expected transient ones
-    if (process.env.NODE_ENV === 'development') {
-      console.error(`[EdgeRefreshError][${userType}]`, err);
-    }
-    return null;
+/**
+ * Apply an array of parsed cookie objects to a NextResponse using .cookies.set()
+ * This is the correct way in Next.js 16 to set cookies from middleware —
+ * it writes to x-middleware-set-cookie so the framework picks them up properly.
+ */
+function applyCookiesToResponse(response, parsedCookies) {
+  for (const { name, value, options } of parsedCookies) {
+    response.cookies.set(name, value, options);
+  }
+}
+
+/**
+ * Clear a set of cookies from a NextResponse (expire them).
+ */
+function clearCookiesFromResponse(response, names) {
+  for (const name of names) {
+    response.cookies.set(name, '', { path: '/', maxAge: 0 });
   }
 }
 
@@ -92,150 +121,120 @@ export default async function proxy(request) {
   const studentAuth = cookies.get('student_auth');
   const jwtSecret = process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long';
 
-  // Reduce 401 noise: Only attempt refresh if companion cookies suggest a session exists
-  const hasAdminSession = cookies.get('admin_logged_in');
-  const hasClerkSession = cookies.get('clerk_logged_in');
-  const hasStudentSession = cookies.get('student_logged_in');
+  // Only attempt refresh if companion cookies confirm a session should exist
+  const hasAdminSession = !!cookies.get('admin_logged_in');
+  const hasClerkSession = !!cookies.get('clerk_logged_in');
+  const hasStudentSession = !!cookies.get('student_logged_in');
 
-  // We need to keep track of request headers to pass them to NextResponse.next()
   const requestHeaders = new Headers(request.headers);
   const requestId = request.headers.get('x-request-id') || `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
   requestHeaders.set('x-request-id', requestId);
 
-  let refreshTriggered = false;
-  let newCookiesToSet = [];
+  // 1. Verify existing tokens
+  let adminRes = adminAuth ? await verify(adminAuth.value, jwtSecret) : { payload: null, expired: false };
+  let clerkRes = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : { payload: null, expired: false };
+  let studentRes = studentAuth ? await verify(studentAuth.value, jwtSecret) : { payload: null, expired: false };
 
-  // 1. Verify Tokens
-  let adminRes = adminAuth ? await verify(adminAuth.value, jwtSecret) : { payload: null };
-  let clerkRes = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : { payload: null };
-  let studentRes = studentAuth ? await verify(studentAuth.value, jwtSecret) : { payload: null };
-
-  // Prepare the base response (which we might replace with a redirect)
-  let response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  // Base response - we'll rebuild this after refresh if needed
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-request-id', requestId);
 
-  // 2. Handle Silent Refresh if expired (Only if session likely exists)
-  // The access token might be missing entirely if the browser deleted it due to Max-Age.
-  // In that case, we still want to attempt a refresh if the companion cookie exists.
+  let refreshTriggered = false;
+  // parsedNewCookies stores cookies from a successful refresh to carry over on redirects
+  let parsedNewCookies = [];
+
+  // 2. Silent Refresh: admin
+  // Trigger if: no valid payload AND (token is missing entirely OR it's expired) AND session marker exists
   if (!adminRes.payload && (!adminAuth || adminRes.expired) && hasAdminSession) {
-    const refreshRes = await attemptSilentRefresh('admin', request);
-    if (refreshRes) {
-      const allCookies = refreshRes.headers.getSetCookie();
-      if (allCookies.length > 0) {
-        allCookies.forEach(cookieStr => {
-          response.headers.append('set-cookie', cookieStr);
-          newCookiesToSet.push(cookieStr);
-        });
+    const refreshedCookies = await attemptSilentRefresh('admin', request);
+    if (refreshedCookies) {
+      applyCookiesToResponse(response, refreshedCookies);
+      parsedNewCookies = refreshedCookies;
 
-        const tokenCookie = allCookies.find(c => c.startsWith('admin_auth='));
-        const newToken = tokenCookie?.split(';')[0].split('=')[1];
-        if (newToken) {
-          adminRes = await verify(newToken, jwtSecret);
-          requestHeaders.set('x-admin-auth', newToken);
-        }
-        refreshTriggered = true;
+      // Extract the new auth token and verify it so the routing logic below works
+      const authCookie = refreshedCookies.find(c => c.name === 'admin_auth');
+      if (authCookie) {
+        adminRes = await verify(authCookie.value, jwtSecret);
       }
+      refreshTriggered = true;
     } else {
-      // Refresh failed (invalid, expired, or revoked). Clear stale cookies.
-      ['admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id'].forEach(name => {
-        const str = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        response.headers.append('set-cookie', str);
-        newCookiesToSet.push(str);
-      });
+      // Refresh failed — purge stale cookies so the browser doesn't get stuck
+      clearCookiesFromResponse(response, ['admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id']);
       refreshTriggered = true;
     }
   }
 
+  // 3. Silent Refresh: clerk
   if (!clerkRes.payload && (!clerkAuth || clerkRes.expired) && !refreshTriggered && hasClerkSession) {
-    const refreshRes = await attemptSilentRefresh('clerk', request);
-    if (refreshRes) {
-      const allCookies = refreshRes.headers.getSetCookie();
-      if (allCookies.length > 0) {
-        allCookies.forEach(cookieStr => {
-          response.headers.append('set-cookie', cookieStr);
-          newCookiesToSet.push(cookieStr);
-        });
+    const refreshedCookies = await attemptSilentRefresh('clerk', request);
+    if (refreshedCookies) {
+      applyCookiesToResponse(response, refreshedCookies);
+      parsedNewCookies = refreshedCookies;
 
-        const tokenCookie = allCookies.find(c => c.startsWith('clerk_auth='));
-        const newToken = tokenCookie?.split(';')[0].split('=')[1];
-        if (newToken) {
-          clerkRes = await verify(newToken, jwtSecret);
-          requestHeaders.set('x-clerk-auth', newToken);
-        }
-        refreshTriggered = true;
+      const authCookie = refreshedCookies.find(c => c.name === 'clerk_auth');
+      if (authCookie) {
+        clerkRes = await verify(authCookie.value, jwtSecret);
       }
+      refreshTriggered = true;
     } else {
-      // Refresh failed. Clear stale cookies.
-      ['clerk_auth', 'clerk_logged_in', 'clerk_refresh_token', 'clerk_role', 'clerk_session_id'].forEach(name => {
-        const str = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        response.headers.append('set-cookie', str);
-        newCookiesToSet.push(str);
-      });
+      clearCookiesFromResponse(response, ['clerk_auth', 'clerk_logged_in', 'clerk_refresh_token', 'clerk_role', 'clerk_session_id']);
       refreshTriggered = true;
     }
   }
 
+  // 4. Silent Refresh: student
   if (!studentRes.payload && (!studentAuth || studentRes.expired) && !refreshTriggered && hasStudentSession) {
-    const refreshRes = await attemptSilentRefresh('student', request);
-    if (refreshRes) {
-      const allCookies = refreshRes.headers.getSetCookie();
-      if (allCookies.length > 0) {
-        allCookies.forEach(cookieStr => {
-          response.headers.append('set-cookie', cookieStr);
-          newCookiesToSet.push(cookieStr);
-        });
+    const refreshedCookies = await attemptSilentRefresh('student', request);
+    if (refreshedCookies) {
+      applyCookiesToResponse(response, refreshedCookies);
+      parsedNewCookies = refreshedCookies;
 
-        const tokenCookie = allCookies.find(c => c.startsWith('student_auth='));
-        const newToken = tokenCookie?.split(';')[0].split('=')[1];
-        if (newToken) {
-          studentRes = await verify(newToken, jwtSecret);
-          requestHeaders.set('x-student-auth', newToken);
-        }
-        refreshTriggered = true;
+      const authCookie = refreshedCookies.find(c => c.name === 'student_auth');
+      if (authCookie) {
+        studentRes = await verify(authCookie.value, jwtSecret);
       }
+      refreshTriggered = true;
     } else {
-      // Refresh failed. Clear stale cookies.
-      ['student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id'].forEach(name => {
-        const str = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        response.headers.append('set-cookie', str);
-        newCookiesToSet.push(str);
-      });
+      clearCookiesFromResponse(response, ['student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id']);
       refreshTriggered = true;
     }
   }
 
-  // Re-create response if headers changed
+  // Rebuild the response after refresh so updated requestHeaders are applied
   if (refreshTriggered) {
-    response = NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
-    // Apply cookies directly from array, bypassing Next.js header getter crashes
-    newCookiesToSet.forEach(cookieStr => {
-      response.headers.append('set-cookie', cookieStr);
-    });
+    const oldCookies = response.cookies.getAll();
+    response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('x-request-id', requestId);
+    // Re-apply all the cookies using .cookies.set() on the new response
+    for (const cookie of oldCookies) {
+      response.cookies.set(cookie.name, cookie.value, {
+        path: cookie.path || '/',
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure,
+        sameSite: cookie.sameSite,
+        maxAge: cookie.maxAge,
+        expires: cookie.expires,
+        domain: cookie.domain,
+      });
+    }
   }
 
   const adminPayload = adminRes.payload;
   const clerkPayload = clerkRes.payload;
   const studentPayload = studentRes.payload;
 
-  // Helper to ensure cookies are carried over on redirects
+  /**
+   * Carry new cookies over onto a redirect response.
+   * Uses .cookies.set() — the only correct API in Next.js 16 middleware.
+   */
   const withCookies = (redirectResponse) => {
-    if (refreshTriggered) {
-      newCookiesToSet.forEach(cookieStr => {
-        redirectResponse.headers.append('set-cookie', cookieStr);
-      });
+    if (parsedNewCookies.length > 0) {
+      applyCookiesToResponse(redirectResponse, parsedNewCookies);
     }
     return redirectResponse;
   };
 
-  // Home ("/") Logic
+  // ─── Route: Home "/" ──────────────────────────────────────────────────────
   if (pathname === '/') {
     if (adminPayload) return withCookies(NextResponse.redirect(new URL('/admin/dashboard', request.url), 303));
     if (clerkPayload) {
@@ -243,38 +242,32 @@ export default async function proxy(request) {
       return withCookies(NextResponse.redirect(new URL(dashboard, request.url), 303));
     }
     if (studentPayload) {
-      // Always redirect to the main student dashboard first.
-      // The client-side StudentProvider will handle routing to /profile if needed.
       return withCookies(NextResponse.redirect(new URL('/student', request.url), 303));
     }
     return response;
   }
 
-  // Protect API Routes (Baseline Defense-in-Depth)
+  // ─── Protect API Routes ───────────────────────────────────────────────────
   if (pathname.startsWith('/api/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
-  }
-  else if (pathname.startsWith('/api/clerk')) {
+  } else if (pathname.startsWith('/api/clerk')) {
     if (!clerkPayload) return handleUnauthorized(request);
   }
 
-  // Protect UI Routes
+  // ─── Protect UI Routes ────────────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
     if (!adminPayload) return handleUnauthorized(request);
     if (pathname === '/admin') return withCookies(NextResponse.redirect(new URL('/admin/dashboard', request.url), 303));
-  }
-  else if (pathname.startsWith('/clerk')) {
+  } else if (pathname.startsWith('/clerk')) {
     if (!clerkPayload) return handleUnauthorized(request);
     if (pathname === '/clerk') {
       const dashboard = getDashboardPathByRole(clerkPayload.role);
       return withCookies(NextResponse.redirect(new URL(dashboard, request.url), 303));
     }
-    // Role checks...
     if (pathname.startsWith('/clerk/scholarship') && clerkPayload.role !== 'scholarship') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303));
     if (pathname.startsWith('/clerk/admission') && clerkPayload.role !== 'admission') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303));
     if (pathname.startsWith('/clerk/faculty') && clerkPayload.role !== 'faculty') return withCookies(NextResponse.redirect(new URL(getDashboardPathByRole(clerkPayload.role), request.url), 303));
-  }
-  else if (pathname.startsWith('/student')) {
+  } else if (pathname.startsWith('/student')) {
     if (!studentPayload) return handleUnauthorized(request);
     const isVerified = studentPayload.is_email_verified && studentPayload.has_password_set;
     const allowedForUnverified = pathname === '/student' || pathname === '/student/settings/security' || pathname === '/student/profile';
