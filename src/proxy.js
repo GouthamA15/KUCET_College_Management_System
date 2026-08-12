@@ -33,11 +33,12 @@ async function handleUnauthorized(request) {
 
 /**
  * Silent Refresh via internal fetch with an AbortController timeout.
- * Returns an array of parsed cookie objects on success, null on failure.
+ * Returns the raw Set-Cookie strings from the refresh API response on success,
+ * null on failure.
  *
- * NOTE: In Next.js 16 with Turbopack, the middleware's internal fetch
- * goes through the Node.js server's request handler. We set a 5-second
- * timeout to ensure a deadlock cannot hang the browser indefinitely.
+ * NOTE: In Next.js with Turbopack, the middleware's internal fetch goes through
+ * the Node.js server's request handler. We set a 5-second timeout to prevent
+ * a deadlock from hanging the browser indefinitely.
  */
 async function attemptSilentRefresh(userType, request) {
   const controller = new AbortController();
@@ -71,13 +72,15 @@ async function attemptSilentRefresh(userType, request) {
       return null;
     }
 
-    // Parse the Set-Cookie headers from the refresh API response
-    const rawCookies = res.headers.getSetCookie();
-    const parsed = rawCookies
-      .map(parseSetCookieString)
-      .filter(Boolean);
+    // Collect the raw Set-Cookie header strings from the refresh API response.
+    // INVARIANT (Session 205): We MUST keep these as raw strings and append
+    // them individually via response.headers.append('set-cookie', str).
+    // NEVER pass them through response.cookies.set() — Next.js will
+    // comma-merge multiple Set-Cookie values into a single malformed header
+    // that browsers silently drop.
+    const rawSetCookies = res.headers.getSetCookie();
 
-    return parsed.length > 0 ? parsed : null;
+    return rawSetCookies.length > 0 ? rawSetCookies : null;
 
   } catch (err) {
     clearTimeout(timer);
@@ -93,23 +96,27 @@ async function attemptSilentRefresh(userType, request) {
 }
 
 /**
- * Apply an array of parsed cookie objects to a NextResponse using .cookies.set()
- * This is the correct way in Next.js 16 to set cookies from middleware —
- * it writes to x-middleware-set-cookie so the framework picks them up properly.
+ * Apply an array of raw Set-Cookie strings to a NextResponse.
+ *
+ * INVARIANT (Session 205): Each cookie string MUST be appended individually
+ * via response.headers.append('set-cookie', str). This is the ONLY correct
+ * way to set multiple cookies from Edge middleware without Next.js
+ * comma-merging them into a single malformed header.
+ *
+ * DO NOT use response.cookies.set() for multi-cookie batches.
  */
-function applyCookiesToResponse(response, parsedCookies) {
-  for (const { name, value, options } of parsedCookies) {
-    response.cookies.set(name, value, options);
+function applyRawCookiesToResponse(response, rawCookieStrings) {
+  for (const str of rawCookieStrings) {
+    response.headers.append('set-cookie', str);
   }
 }
 
 /**
- * Clear a set of cookies from a NextResponse (expire them).
+ * Build raw Set-Cookie expiry strings to purge stale cookies.
+ * Uses HTTP 1970 expiration to immediately expire them in the browser.
  */
-function clearCookiesFromResponse(response, names) {
-  for (const name of names) {
-    response.cookies.set(name, '', { path: '/', maxAge: 0 });
-  }
+function buildPurgeCookieStrings(names) {
+  return names.map(name => `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
 }
 
 export default async function proxy(request) {
@@ -135,87 +142,86 @@ export default async function proxy(request) {
   let clerkRes = clerkAuth ? await verify(clerkAuth.value, jwtSecret) : { payload: null, expired: false };
   let studentRes = studentAuth ? await verify(studentAuth.value, jwtSecret) : { payload: null, expired: false };
 
-  // Base response - we'll rebuild this after refresh if needed
+  // Base response - built fresh, then cookies applied via raw headers.append()
   let response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-request-id', requestId);
 
   let refreshTriggered = false;
-  // parsedNewCookies stores cookies from a successful refresh to carry over on redirects
-  let parsedNewCookies = [];
+
+  // INVARIANT (Session 205): newCookiesToSet holds raw Set-Cookie strings.
+  // These are appended individually to response headers — never merged.
+  // This array is also carried forward onto redirect responses via withCookies().
+  let newCookiesToSet = [];
 
   // 2. Silent Refresh: admin
   // Trigger if: no valid payload AND (token is missing entirely OR it's expired) AND session marker exists
   if (!adminRes.payload && (!adminAuth || adminRes.expired) && hasAdminSession) {
-    const refreshedCookies = await attemptSilentRefresh('admin', request);
-    if (refreshedCookies) {
-      applyCookiesToResponse(response, refreshedCookies);
-      parsedNewCookies = refreshedCookies;
+    const rawCookies = await attemptSilentRefresh('admin', request);
+    if (rawCookies) {
+      applyRawCookiesToResponse(response, rawCookies);
+      newCookiesToSet = rawCookies;
 
       // Extract the new auth token and verify it so the routing logic below works
-      const authCookie = refreshedCookies.find(c => c.name === 'admin_auth');
-      if (authCookie) {
-        adminRes = await verify(authCookie.value, jwtSecret);
+      const authCookieStr = rawCookies.find(s => s.startsWith('admin_auth='));
+      if (authCookieStr) {
+        const parsed = parseSetCookieString(authCookieStr);
+        if (parsed) adminRes = await verify(parsed.value, jwtSecret);
       }
       refreshTriggered = true;
     } else {
       // Refresh failed — purge stale cookies so the browser doesn't get stuck
-      clearCookiesFromResponse(response, ['admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id']);
+      const purgeStrings = buildPurgeCookieStrings([
+        'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id'
+      ]);
+      applyRawCookiesToResponse(response, purgeStrings);
+      newCookiesToSet = purgeStrings;
       refreshTriggered = true;
     }
   }
 
   // 3. Silent Refresh: clerk
   if (!clerkRes.payload && (!clerkAuth || clerkRes.expired) && !refreshTriggered && hasClerkSession) {
-    const refreshedCookies = await attemptSilentRefresh('clerk', request);
-    if (refreshedCookies) {
-      applyCookiesToResponse(response, refreshedCookies);
-      parsedNewCookies = refreshedCookies;
+    const rawCookies = await attemptSilentRefresh('clerk', request);
+    if (rawCookies) {
+      applyRawCookiesToResponse(response, rawCookies);
+      newCookiesToSet = rawCookies;
 
-      const authCookie = refreshedCookies.find(c => c.name === 'clerk_auth');
-      if (authCookie) {
-        clerkRes = await verify(authCookie.value, jwtSecret);
+      const authCookieStr = rawCookies.find(s => s.startsWith('clerk_auth='));
+      if (authCookieStr) {
+        const parsed = parseSetCookieString(authCookieStr);
+        if (parsed) clerkRes = await verify(parsed.value, jwtSecret);
       }
       refreshTriggered = true;
     } else {
-      clearCookiesFromResponse(response, ['clerk_auth', 'clerk_logged_in', 'clerk_refresh_token', 'clerk_role', 'clerk_session_id']);
+      const purgeStrings = buildPurgeCookieStrings([
+        'clerk_auth', 'clerk_logged_in', 'clerk_refresh_token', 'clerk_role', 'clerk_session_id'
+      ]);
+      applyRawCookiesToResponse(response, purgeStrings);
+      newCookiesToSet = purgeStrings;
       refreshTriggered = true;
     }
   }
 
   // 4. Silent Refresh: student
   if (!studentRes.payload && (!studentAuth || studentRes.expired) && !refreshTriggered && hasStudentSession) {
-    const refreshedCookies = await attemptSilentRefresh('student', request);
-    if (refreshedCookies) {
-      applyCookiesToResponse(response, refreshedCookies);
-      parsedNewCookies = refreshedCookies;
+    const rawCookies = await attemptSilentRefresh('student', request);
+    if (rawCookies) {
+      applyRawCookiesToResponse(response, rawCookies);
+      newCookiesToSet = rawCookies;
 
-      const authCookie = refreshedCookies.find(c => c.name === 'student_auth');
-      if (authCookie) {
-        studentRes = await verify(authCookie.value, jwtSecret);
+      const authCookieStr = rawCookies.find(s => s.startsWith('student_auth='));
+      if (authCookieStr) {
+        const parsed = parseSetCookieString(authCookieStr);
+        if (parsed) studentRes = await verify(parsed.value, jwtSecret);
       }
       refreshTriggered = true;
     } else {
-      clearCookiesFromResponse(response, ['student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id']);
+      const purgeStrings = buildPurgeCookieStrings([
+        'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id'
+      ]);
+      applyRawCookiesToResponse(response, purgeStrings);
+      newCookiesToSet = purgeStrings;
       refreshTriggered = true;
-    }
-  }
-
-  // Rebuild the response after refresh so updated requestHeaders are applied
-  if (refreshTriggered) {
-    const oldCookies = response.cookies.getAll();
-    response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.headers.set('x-request-id', requestId);
-    // Re-apply all the cookies using .cookies.set() on the new response
-    for (const cookie of oldCookies) {
-      response.cookies.set(cookie.name, cookie.value, {
-        path: cookie.path || '/',
-        httpOnly: cookie.httpOnly,
-        secure: cookie.secure,
-        sameSite: cookie.sameSite,
-        maxAge: cookie.maxAge,
-        expires: cookie.expires,
-        domain: cookie.domain,
-      });
     }
   }
 
@@ -225,11 +231,13 @@ export default async function proxy(request) {
 
   /**
    * Carry new cookies over onto a redirect response.
-   * Uses .cookies.set() — the only correct API in Next.js 16 middleware.
+   *
+   * INVARIANT (Session 205): Each cookie string is appended individually via
+   * redirectResponse.headers.append('set-cookie', str) — never merged.
    */
   const withCookies = (redirectResponse) => {
-    if (parsedNewCookies.length > 0) {
-      applyCookiesToResponse(redirectResponse, parsedNewCookies);
+    if (newCookiesToSet.length > 0) {
+      applyRawCookiesToResponse(redirectResponse, newCookiesToSet);
     }
     return redirectResponse;
   };

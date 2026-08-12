@@ -67,7 +67,7 @@ export default function ProfileHeaderCard({ student }) {
   const showLoaderOverlay = isImageLoadingActive;
 
   return (
-    <div className="flex flex-col items-center md:items-start select-none relative">
+    <div className="flex flex-col items-center md:items-start select-none relative w-full overflow-hidden">
       <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative">
         {/* Avatar Circle Container */}
         <div className="relative w-40 h-40">
@@ -113,10 +113,10 @@ export default function ProfileHeaderCard({ student }) {
       </div>
 
       <div className="mt-6 text-center md:text-left w-full flex flex-col items-center md:items-start">
-        <div className="flex items-center gap-2">
-          <div className="text-3xl font-bold leading-tight truncate text-gray-800">{student?.name || '-'}</div>
-          <Link href="/student/settings/edit-profile" title="Edit Profile" className="text-blue-500 hover:text-[#0b3578] transition-colors p-1 rounded-full hover:bg-blue-50 flex-shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-start gap-2 w-full">
+          <div className="text-3xl font-bold leading-tight break-words min-w-0 text-gray-800">{student?.name || '-'}</div>
+          <Link href="/student/settings/edit-profile" title="Edit Profile" className="flex-shrink-0 mt-1.5 inline-flex items-center justify-center border border-gray-300 rounded-md p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </Link>

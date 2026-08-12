@@ -309,28 +309,30 @@ export function ClerkProvider({ children }) {
     };
   }, [refreshAllData]);
 
+  // Keep a stable ref to handleResume so the event listener effect only runs once.
+  const handleResumeRef = useRef(handleResume);
+  useEffect(() => {
+    handleResumeRef.current = handleResume;
+  }, [handleResume]);
+
   useEffect(() => {
     const onResume = (e) => {
       if (e && e.type === 'visibilitychange' && document.visibilityState !== 'visible') {
         return;
       }
-      handleResume(e);
+      handleResumeRef.current(e);
     };
 
     window.addEventListener('pageshow', onResume);
     document.addEventListener('visibilitychange', onResume);
     window.addEventListener('focus', onResume);
 
-    if (loading && !clerkData && !isInitializingRef.current) {
-      handleResume();
-    }
-
     return () => {
       window.removeEventListener('pageshow', onResume);
       document.removeEventListener('visibilitychange', onResume);
       window.removeEventListener('focus', onResume);
     };
-  }, [handleResume, loading, clerkData]);
+  }, []);  // Empty deps — register once, never re-register on state changes
 
   const handleRealtimeUpdate = useCallback((data) => {
     if (clerkData?.is_hod && data.payload.branch === clerkData.branch) {
