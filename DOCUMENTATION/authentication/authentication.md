@@ -116,12 +116,16 @@ sequenceDiagram
             Database-->>Refresh API: Return user record
             Refresh API->>Database: Revoke old token & issue new refresh token
             Refresh API-->>Proxy: 200 OK with new Set-Cookie headers
+            Proxy->>Proxy: Parse raw set-cookie via parseSetCookieString (@/lib/parse-set-cookie)
             Proxy->>Proxy: Push raw Set-Cookie strings to newCookiesToSet array
             Proxy-->>User Browser: Forward request / redirect with preserved cookies
-        else Refresh token invalid / expired / revoked
-            Refresh API-->>Proxy: 401 Unauthorized
+        else Refresh token invalid / revoked (HTTP 4xx explicit credential failure)
+            Refresh API-->>Proxy: 401 Unauthorized / 403 Forbidden
             Proxy->>Proxy: Append explicit HTTP 1970 expiration headers for all admin_* cookies
             Proxy-->>User Browser: 303 Redirect to / (or 401 JSON for /api/*)
+        else Transient Network / 5xx Error
+            Refresh API-->>Proxy: 5xx / Fetch Exception
+            Proxy->>Proxy: Preserve existing cookies, bypass purge to allow retry on next request
         end
     end
 ```

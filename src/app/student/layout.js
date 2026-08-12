@@ -16,7 +16,6 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { StudentDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 import { getPortalTitle } from '@/lib/path-utils';
 import { MOBILE_NAV_MODE } from '@/lib/college-config';
-import FloatingAssistant from '@/components/assistant/FloatingAssistant';
 
 function ActivationGuard({ children }) {
   const { studentData, loading } = useStudent();
@@ -135,7 +134,6 @@ export default function StudentLayout({ children }) {
           </div>
 
           <Footer />
-          <FloatingAssistant />
         </div>
       </ProfileActivityProvider>
     </StudentProvider>

@@ -25,18 +25,27 @@ The Student Portal (`/student/*`) is a mobile-first web interface providing stud
 ### 1. Main Student Dashboard (`/student`)
 The dashboard aggregates core academic metrics:
 - **Attendance Summary Card**: Displays overall attendance percentage with visual color coding (Green: $\ge 75\%$, Amber: $65\% - 74\%$, Red: $< 65\%$).
-- **Today's Timetable Widget**: Shows current day periods, assigned faculty, and classroom numbers.
-- **Quick Links Panel**: Fast navigation to fee payment, certificate application, and profile updating.
+- **Today's Timetable & Action Center**: Shows current day periods, PIN verification, scholarship alerts, and live classroom activity.
+- **Student Quick Links Grid (`StudentQuickLinks.js`)**: A responsive ERP service grid (4 columns desktop, 3 columns tablet, 2 columns mobile) providing direct keyboard-accessible navigation to verified portal modules:
+  - *Apply Certificate* (`/student/requests/certificates`)
+  - *Attendance & Marks* (`/student/academics`)
+  - *Class Timetable* (`/student/timetable`)
+  - *Fee Payment & Receipts* (`/student/finances`)
+  - *Academic Profile* (`/student/profile`)
+  - *Edit Profile* (`/student/settings/edit-profile`)
+  - *Security Center* (`/student/settings/security`)
+  - *ID Card Request* (`/student/requests/id-card`)
 
 ```mermaid
 flowchart TD
     A[Student Login] --> B[Dashboard /student]
-    B --> C[Attendance Gauge]
-    B --> D[Today's Classes]
-    B --> E[Fee Status Banner]
-    C -->|Click| F[/student/attendance]
-    D -->|Swipe Day| G[Timetable Swipe Component]
-    E -->|Click| H[/student/finance]
+    B --> C[Attendance Gauge & Action Center]
+    B --> D[Quick Links Grid 4x3x2 Responsive]
+    B --> E[Fee Ledger & Receipts]
+    D -->|Click| F[/student/requests/certificates]
+    D -->|Click| G[/student/academics]
+    D -->|Click| H[/student/finances]
+    D -->|Click| I[/student/timetable]
 ```
 
 ---

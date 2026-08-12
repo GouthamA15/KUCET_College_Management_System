@@ -159,7 +159,7 @@ Provides audit logging, intrusion detection alerts, and IP security.
 
 ## 7. Operations Domain
 
-Handles marks entry, timetable scheduling, faculty assignments, student requests, and AI assistant history.
+Handles marks entry, timetable scheduling, faculty assignments, student requests, and certificate verifications.
 
 - **`student_marks`**: Exam marks (`student_id`, `subject_id`, `mid1_marks`, `mid2_marks`, `assignment_marks`, `external_marks`).
 - **`branch_config`**: Departmental configurations.
@@ -167,7 +167,6 @@ Handles marks entry, timetable scheduling, faculty assignments, student requests
 - **`faculty_subject_assignments`**: Mapping between faculty (`clerks.id`) and assigned subject sections.
 - **`student_requests`**: Bonafide, Custodian, and Transfer Certificate request workflows.
 - **`certificate_verifications`**: Public QR verification records for issued certificates.
-- **`assistant_conversations` & `assistant_messages`**: Chat history for the internal AI assistant.
 
 ---
 

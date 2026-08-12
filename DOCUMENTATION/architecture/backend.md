@@ -205,8 +205,7 @@ src/services/
 ├── ScholarshipService.js         # Government RTF/MTF reimbursement eligibility engine
 ├── SecurityService.js            # Password hashing, AES encryption, session revocation
 ├── ArchiveService.js             # Soft deletion, data restoration, database snapshots
-├── InstitutionAssetService.js    # Principal signatures, official stamp asset mapping
-└── AssistantService.js           # Institutional AI assistant conversation manager
+└── InstitutionAssetService.js    # Principal signatures, official stamp asset mapping
 ```
 
 ---

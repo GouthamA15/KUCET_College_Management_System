@@ -5,6 +5,7 @@ import { useStudent } from '@/context/StudentContext';
 import Link from 'next/link';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import DashboardActionCenter from '@/components/student/DashboardActionCenter';
+import StudentQuickLinks from '@/components/student/StudentQuickLinks';
 import { StudentDashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 function clampNumber(value, min, max) {
@@ -213,10 +214,13 @@ export default function StudentHomePage() {
 
         <div className="grid grid-cols-1 lg:flex lg:flex-col lg:gap-3 lg:flex-1 lg:min-h-0">
 
-          {/* Div 1: contains Priority Actions (uses contents display on desktop) */}
+          {/* Div 1: contains Priority Actions & Quick Links */}
           <div className="order-1 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">
             <div className="lg:order-1 lg:shrink-0 lg:min-h-0 lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <DashboardActionCenter student={student} />
+            </div>
+            <div className="lg:order-2 lg:shrink-0">
+              <StudentQuickLinks />
             </div>
           </div>
 
