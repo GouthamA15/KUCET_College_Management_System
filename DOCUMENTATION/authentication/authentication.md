@@ -83,19 +83,13 @@ sequenceDiagram
 
 To balance session persistence with rapid invalidation of compromised credentials, short-lived JWT access tokens (15 minutes) are paired with long-lived refresh tokens stored in the `refresh_tokens` database table.
 
-### Session 205 Cookie Persistence Engine (`src/proxy.js`)
+### Session 205 Cookie Persistence & Client Restore Engine (`src/proxy.js` & `AuthProvider.js`)
 
-In Session 205, forensic investigation revealed that access token cookies (`admin_auth`, `clerk_auth`, `student_auth`) can be automatically expired and deleted by client browsers due to `Max-Age`/`Expires` policies while long-lived companion session cookies (`admin_logged_in`, `clerk_logged_in`, `student_logged_in`) or refresh tokens persist.
+In Session 205 (Parts 1–7), forensic investigation revealed that access token cookies (`admin_auth`, `clerk_auth`, `student_auth`) can be automatically expired and deleted by client browsers due to `Max-Age`/`Expires` policies while long-lived companion session cookies (`admin_logged_in`, `clerk_logged_in`, `student_logged_in`) or refresh tokens persist.
 
-To handle this, Edge middleware (`src/proxy.js`) evaluates whether a silent refresh is required even if the auth token cookie is missing entirely (`!adminAuth`), provided the companion session flag indicates an active session:
-
-```javascript
-// Session 205 Proxy Refresh Trigger Condition
-if (!adminRes.payload && (!adminAuth || adminRes.expired) && hasAdminSession) {
-  const refreshRes = await attemptSilentRefresh('admin', request);
-  // ...
-}
-```
+To guarantee persistent authentication across browser restarts and page refreshes, the system implements a dual-layer strategy:
+1. **Edge Middleware Validation (`src/proxy.js`)**: Evaluates role payloads and raw `Set-Cookie` header arrays (`newCookiesToSet`) using `parseSetCookieString` without header comma-merging corruption.
+2. **Client-Side Auth Restore Guard (`src/app/components/AuthProvider.js`)**: When a companion session flag (`_logged_in`) is detected while access tokens are expired or missing, `AuthProvider.js` triggers automatic silent token restoration on the client before rendering public fallbacks.
 
 ```mermaid
 sequenceDiagram
