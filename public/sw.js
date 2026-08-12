@@ -1,11 +1,13 @@
-const CACHE_NAME = 'kucet-cms-v1';
+// Bump version when SW changes to force old SW to be replaced and old caches cleared.
+const CACHE_NAME = 'kucet-cms-v2';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
-  '/',
   '/offline',
   '/favicon.ico',
   '/manifest.json'
+  // NOTE: Do NOT precache '/' — it redirects based on auth state (middleware)
+  // and caching a stale redirect would break the login flow.
 ];
 
 const BYPASS_CACHE_PATTERNS = [
@@ -56,12 +58,33 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 1. Explicitly bypass sensitive auth and payment POST requests
+  // 1. Explicitly bypass sensitive auth and payment POST requests (and all non-GET)
   if (BYPASS_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname)) || request.method !== 'GET') {
     return;
   }
 
-  // 2. Offline Priority Routes (ID Card, Fee Receipts, Timetable)
+  // 2. CRITICAL FIX: Navigation requests (HTML page loads) MUST always go to the
+  // network. The auth middleware returns different responses (redirects vs. 200) based
+  // on cookie state. Serving a stale cached navigation response causes the browser to
+  // hydrate with auth state that no longer matches the server, leading to redirect loops
+  // and ERR_FAILED after the session expires.
+  //
+  // We only fall back to cache/offline if the network request fails entirely.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        // Network is offline — serve cached version or offline fallback
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) return cachedResponse;
+        const offlineResponse = await caches.match(OFFLINE_URL);
+        if (offlineResponse) return offlineResponse;
+        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+      })
+    );
+    return;
+  }
+
+  // 3. Offline Priority Routes (ID Card, Fee Receipts, Timetable) — network-first with cache fallback
   if (OFFLINE_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname))) {
     event.respondWith(
       (async () => {
@@ -77,10 +100,6 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          if (request.mode === 'navigate') {
-            const offlineResponse = await caches.match(OFFLINE_URL);
-            if (offlineResponse) return offlineResponse;
-          }
           return new Response('Network error', { status: 503, statusText: 'Service Unavailable' });
         }
       })()
@@ -88,7 +107,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Stale-While-Revalidate for standard navigation/assets
+  // 4. Stale-While-Revalidate for static assets (JS, CSS, images, fonts)
+  // Navigation requests have already been handled above — this only covers assets.
   event.respondWith(
     (async () => {
       const cachedResponse = await caches.match(request);
@@ -103,10 +123,6 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         } catch (error) {
-          if (request.mode === 'navigate') {
-            const offlineResponse = await caches.match(OFFLINE_URL);
-            if (offlineResponse) return offlineResponse;
-          }
           return null;
         }
       })();
@@ -126,4 +142,3 @@ self.addEventListener('fetch', (event) => {
     })()
   );
 });
-

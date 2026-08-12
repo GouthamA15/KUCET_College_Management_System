@@ -186,28 +186,30 @@ export function AdminProvider({ children }) {
     };
   }, [refreshAll, adminData]);
 
+  // Keep a stable ref to handleResume so the event listener effect only runs once.
+  const handleResumeRef = useRef(handleResume);
+  useEffect(() => {
+    handleResumeRef.current = handleResume;
+  }, [handleResume]);
+
   useEffect(() => {
     const onResume = (e) => {
       if (e && e.type === 'visibilitychange' && document.visibilityState !== 'visible') {
         return;
       }
-      handleResume(e);
+      handleResumeRef.current(e);
     };
 
     window.addEventListener('pageshow', onResume);
     document.addEventListener('visibilitychange', onResume);
     window.addEventListener('focus', onResume);
 
-    if (loading && !adminData && !isInitializingRef.current) {
-      handleResume();
-    }
-
     return () => {
       window.removeEventListener('pageshow', onResume);
       document.removeEventListener('visibilitychange', onResume);
       window.removeEventListener('focus', onResume);
     };
-  }, [handleResume, loading, adminData]);
+  }, []);  // Empty deps — register once, never re-register on state changes
 
   return (
     <AdminContext.Provider value={{ 

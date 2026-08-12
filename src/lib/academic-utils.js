@@ -85,11 +85,20 @@ export async function getCollegeAcademicYear() {
   return session ? session.academicYear : null;
 }
 
+let cachedSession = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
+
 /**
  * Gets the current academic session details directly from the semesters table.
  * Returns { academicYear, semester, status, isCurrent }
  */
 export async function getCurrentCalendarSession() {
+  const nowTime = Date.now();
+  if (cachedSession && (nowTime - cacheTimestamp < CACHE_TTL)) {
+    return cachedSession;
+  }
+
   const now = await getNow();
   const dateStr = formatDate(now);
   
@@ -102,12 +111,14 @@ export async function getCurrentCalendarSession() {
     .limit(1);
 
   if (activeSemRows.length > 0) {
-    return {
+    cachedSession = {
       academicYear: activeSemRows[0].academic_year,
       semester: activeSemRows[0].semester,
       status: 'ACTIVE',
       isCurrent: true
     };
+    cacheTimestamp = nowTime;
+    return cachedSession;
   }
 
   // Priority 2: Latest completed semester
@@ -120,12 +131,14 @@ export async function getCurrentCalendarSession() {
     .limit(1);
 
   if (prevSemRows.length > 0) {
-    return {
+    cachedSession = {
       academicYear: prevSemRows[0].academic_year,
       semester: prevSemRows[0].semester,
       status: 'PREVIOUS',
       isCurrent: false
     };
+    cacheTimestamp = nowTime;
+    return cachedSession;
   }
 
   // Priority 3: Nearest upcoming semester (if before the first semester ever starts)
@@ -138,15 +151,19 @@ export async function getCurrentCalendarSession() {
     .limit(1);
 
   if (upcomingSemRows.length > 0) {
-    return {
+    cachedSession = {
       academicYear: upcomingSemRows[0].academic_year,
       semester: upcomingSemRows[0].semester,
       status: 'UPCOMING',
       isCurrent: false
     };
+    cacheTimestamp = nowTime;
+    return cachedSession;
   }
 
   // Priority 4: Not configured
+  cachedSession = null;
+  cacheTimestamp = nowTime;
   return null;
 }
 

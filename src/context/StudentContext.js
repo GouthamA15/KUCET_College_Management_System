@@ -215,28 +215,32 @@ export function StudentProvider({ children }) {
     };
   }, [refreshData, studentData]);
 
+  // Keep a stable ref to handleResume so the event listener effect only runs once.
+  // Without this pattern, the effect would re-run on every loading/studentData change,
+  // tearing down and re-registering listeners mid-refresh and potentially firing duplicate calls.
+  const handleResumeRef = useRef(handleResume);
+  useEffect(() => {
+    handleResumeRef.current = handleResume;
+  }, [handleResume]);
+
   useEffect(() => {
     const onResume = (e) => {
       if (e && e.type === 'visibilitychange' && document.visibilityState !== 'visible') {
         return;
       }
-      handleResume(e);
+      handleResumeRef.current(e);
     };
 
     window.addEventListener('pageshow', onResume);
     document.addEventListener('visibilitychange', onResume);
     window.addEventListener('focus', onResume);
 
-    if (loading && !studentData && !isInitializingRef.current) {
-      handleResume();
-    }
-
     return () => {
       window.removeEventListener('pageshow', onResume);
       document.removeEventListener('visibilitychange', onResume);
       window.removeEventListener('focus', onResume);
     };
-  }, [handleResume, loading, studentData]);
+  }, []);  // Empty deps — register once, never re-register on state changes
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
