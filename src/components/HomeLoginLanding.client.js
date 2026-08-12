@@ -22,8 +22,16 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
     return 'student';
   });
 
-  // null = still checking, false = no session (show login), true = session confirmed
   const [authStatus, setAuthStatus] = useState(null);
+  
+  // Hydration-safe state for session type
+  const [activeSessionType, setActiveSessionType] = useState(null);
+  
+  useEffect(() => {
+    // This runs only on the client after hydration, preventing server/client mismatch
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveSessionType(getSessionType());
+  }, []);
 
   const restoreAuth = useCallback(async () => {
     const sessionType = getSessionType();
@@ -57,7 +65,6 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
         }
         console.log('[AuthRestore] Success! Hard navigating to:', destination);
         
-        // Use a tiny timeout to ensure cookies are fully committed to the browser jar
         setTimeout(() => {
           window.location.href = destination;
         }, 100);
@@ -67,7 +74,6 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
       const errText = await res.text().catch(() => 'Unknown Error');
       console.error(`[AuthRestore] FAILED with status ${res.status}:`, errText);
       
-      // Flash an alert so the user can immediately see what failed without opening devtools
       if (res.status === 401 && errText.includes('Token revoked')) {
          alert('Session refresh failed: Token was revoked (likely due to a concurrent request or expired grace period). Please login again.');
       } else if (res.status >= 500) {
@@ -105,7 +111,7 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
       />
       
       {/* If authStatus is null and a session cookie exists, show the professional loader */}
-      {authStatus === null && getSessionType() ? (
+      {authStatus === null && activeSessionType ? (
         <main className="flex-1 min-h-0 bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
           {/* Decorative background glow */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-3xl pointer-events-none"></div>
