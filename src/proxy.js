@@ -33,8 +33,12 @@ async function handleUnauthorized(request) {
 
 /**
  * Silent Refresh via internal fetch with an AbortController timeout.
- * Returns the raw Set-Cookie strings from the refresh API response on success,
- * null on failure.
+ * Returns { cookies: string[], definitelyInvalid: boolean } on completion.
+ *
+ * - cookies: raw Set-Cookie strings on success, null on failure
+ * - definitelyInvalid: true ONLY when the server explicitly rejected the
+ *   credentials with a 4xx status code. false on network errors, timeouts,
+ *   or 5xx — which are transient and must NOT trigger cookie destruction.
  *
  * NOTE: In Next.js with Turbopack, the middleware's internal fetch goes through
  * the Node.js server's request handler. We set a 5-second timeout to prevent
@@ -42,7 +46,6 @@ async function handleUnauthorized(request) {
  */
 async function attemptSilentRefresh(userType, request) {
   const controller = new AbortController();
-  // 5-second timeout: prevents deadlock from hanging the browser
   const timer = setTimeout(() => controller.abort(), 5000);
 
   try {
@@ -55,7 +58,6 @@ async function attemptSilentRefresh(userType, request) {
         'Content-Type': 'application/json',
         'Cookie': cookieHeader,
         'Host': request.nextUrl.host,
-        // Signal to the refresh route that this is an internal middleware call
         'X-Internal-Middleware-Refresh': '1',
       },
       body: JSON.stringify({ type: userType }),
@@ -69,18 +71,14 @@ async function attemptSilentRefresh(userType, request) {
         const text = await res.text().catch(() => '<no-body>');
         console.error(`[EdgeRefresh][${userType}] ${res.status}: ${text}`);
       }
-      return null;
+      // Only treat 4xx as definitively invalid credentials.
+      // 5xx = server/db error — transient, do NOT destroy cookies.
+      const definitelyInvalid = res.status >= 400 && res.status < 500;
+      return { cookies: null, definitelyInvalid };
     }
 
-    // Collect the raw Set-Cookie header strings from the refresh API response.
-    // INVARIANT (Session 205): We MUST keep these as raw strings and append
-    // them individually via response.headers.append('set-cookie', str).
-    // NEVER pass them through response.cookies.set() — Next.js will
-    // comma-merge multiple Set-Cookie values into a single malformed header
-    // that browsers silently drop.
     const rawSetCookies = res.headers.getSetCookie();
-
-    return rawSetCookies.length > 0 ? rawSetCookies : null;
+    return { cookies: rawSetCookies.length > 0 ? rawSetCookies : null, definitelyInvalid: false };
 
   } catch (err) {
     clearTimeout(timer);
@@ -91,7 +89,8 @@ async function attemptSilentRefresh(userType, request) {
         console.error(`[EdgeRefresh][${userType}] fetch error:`, err.message);
       }
     }
-    return null;
+    // Network error / timeout — transient, do NOT destroy cookies.
+    return { cookies: null, definitelyInvalid: false };
   }
 }
 
@@ -154,22 +153,20 @@ export default async function proxy(request) {
   let newCookiesToSet = [];
 
   // 2. Silent Refresh: admin
-  // Trigger if: no valid payload AND (token is missing entirely OR it's expired) AND session marker exists
   if (!adminRes.payload && (!adminAuth || adminRes.expired) && hasAdminSession) {
-    const rawCookies = await attemptSilentRefresh('admin', request);
+    const { cookies: rawCookies, definitelyInvalid } = await attemptSilentRefresh('admin', request);
     if (rawCookies) {
       applyRawCookiesToResponse(response, rawCookies);
       newCookiesToSet = rawCookies;
-
-      // Extract the new auth token and verify it so the routing logic below works
       const authCookieStr = rawCookies.find(s => s.startsWith('admin_auth='));
       if (authCookieStr) {
         const parsed = parseSetCookieString(authCookieStr);
         if (parsed) adminRes = await verify(parsed.value, jwtSecret);
       }
       refreshTriggered = true;
-    } else {
-      // Refresh failed — purge stale cookies so the browser doesn't get stuck
+    } else if (definitelyInvalid) {
+      // Only purge cookies if server explicitly rejected the credentials (4xx).
+      // Do NOT purge on timeouts, network errors, or 5xx — those are transient.
       const purgeStrings = buildPurgeCookieStrings([
         'admin_auth', 'admin_logged_in', 'admin_refresh_token', 'admin_session_id'
       ]);
@@ -177,22 +174,22 @@ export default async function proxy(request) {
       newCookiesToSet = purgeStrings;
       refreshTriggered = true;
     }
+    // transient failure: leave cookies intact, let the user's next request retry
   }
 
   // 3. Silent Refresh: clerk
   if (!clerkRes.payload && (!clerkAuth || clerkRes.expired) && !refreshTriggered && hasClerkSession) {
-    const rawCookies = await attemptSilentRefresh('clerk', request);
+    const { cookies: rawCookies, definitelyInvalid } = await attemptSilentRefresh('clerk', request);
     if (rawCookies) {
       applyRawCookiesToResponse(response, rawCookies);
       newCookiesToSet = rawCookies;
-
       const authCookieStr = rawCookies.find(s => s.startsWith('clerk_auth='));
       if (authCookieStr) {
         const parsed = parseSetCookieString(authCookieStr);
         if (parsed) clerkRes = await verify(parsed.value, jwtSecret);
       }
       refreshTriggered = true;
-    } else {
+    } else if (definitelyInvalid) {
       const purgeStrings = buildPurgeCookieStrings([
         'clerk_auth', 'clerk_logged_in', 'clerk_refresh_token', 'clerk_role', 'clerk_session_id'
       ]);
@@ -203,8 +200,9 @@ export default async function proxy(request) {
   }
 
   // 4. Silent Refresh: student
+
   if (!studentRes.payload && (!studentAuth || studentRes.expired) && !refreshTriggered && hasStudentSession) {
-    const rawCookies = await attemptSilentRefresh('student', request);
+    const { cookies: rawCookies, definitelyInvalid } = await attemptSilentRefresh('student', request);
     if (rawCookies) {
       applyRawCookiesToResponse(response, rawCookies);
       newCookiesToSet = rawCookies;
@@ -215,7 +213,9 @@ export default async function proxy(request) {
         if (parsed) studentRes = await verify(parsed.value, jwtSecret);
       }
       refreshTriggered = true;
-    } else {
+    } else if (definitelyInvalid) {
+      // Only purge cookies if server explicitly rejected the credentials (4xx).
+      // Do NOT purge on timeouts, network errors, or 5xx — those are transient.
       const purgeStrings = buildPurgeCookieStrings([
         'student_auth', 'student_logged_in', 'student_refresh_token', 'student_session_id'
       ]);
@@ -223,6 +223,7 @@ export default async function proxy(request) {
       newCookiesToSet = purgeStrings;
       refreshTriggered = true;
     }
+    // transient failure: leave cookies intact, let the user's next request retry
   }
 
   const adminPayload = adminRes.payload;
