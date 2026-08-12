@@ -27,19 +27,24 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
 
   const restoreAuth = useCallback(async () => {
     const sessionType = getSessionType();
+    console.log('[AuthRestore] Detected sessionType:', sessionType);
 
     if (!sessionType) {
+      console.log('[AuthRestore] No session companion cookie found. Falling back to login.');
       setAuthStatus(false);
       return;
     }
 
     try {
+      console.log(`[AuthRestore] Attempting POST /api/auth/refresh for ${sessionType}`);
       const res = await fetch('/api/auth/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: sessionType }),
         credentials: 'include',
       });
+
+      console.log('[AuthRestore] Fetch returned status:', res.status);
 
       if (res.ok) {
         let destination = '/student';
@@ -50,12 +55,28 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
           const clerkRole = clerkRoleMatch?.[1];
           destination = getDashboardPathByRole(clerkRole) || '/clerk';
         }
-        window.location.href = destination;
+        console.log('[AuthRestore] Success! Hard navigating to:', destination);
+        
+        // Use a tiny timeout to ensure cookies are fully committed to the browser jar
+        setTimeout(() => {
+          window.location.href = destination;
+        }, 100);
         return;
       }
 
+      const errText = await res.text().catch(() => 'Unknown Error');
+      console.error(`[AuthRestore] FAILED with status ${res.status}:`, errText);
+      
+      // Flash an alert so the user can immediately see what failed without opening devtools
+      if (res.status === 401 && errText.includes('Token revoked')) {
+         alert('Session refresh failed: Token was revoked (likely due to a concurrent request or expired grace period). Please login again.');
+      } else if (res.status >= 500) {
+         alert(`Server error during session refresh (HTTP ${res.status}): ${errText}`);
+      }
+      
       setAuthStatus(false);
-    } catch {
+    } catch (err) {
+      console.error('[AuthRestore] Network or fetch error:', err);
       setAuthStatus(false);
     }
   }, []);

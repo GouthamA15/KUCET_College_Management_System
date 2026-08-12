@@ -213,13 +213,9 @@ export async function POST(req) {
             .setExpirationTime(sessionDuration)
             .sign(secret);
 
-          response.cookies.set('student_auth', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: cookieMaxAge,
-            path: '/',
-          });
+          let cookieStr = `student_auth=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${cookieMaxAge}`;
+          if (process.env.NODE_ENV === 'production') cookieStr += '; Secure';
+          response.headers.append('Set-Cookie', cookieStr);
         } else if (type === 'clerk') {
           const token = await new (await import('jose')).SignJWT({
             id: user.id,
@@ -234,13 +230,9 @@ export async function POST(req) {
             .setExpirationTime(sessionDuration)
             .sign(secret);
 
-          response.cookies.set('clerk_auth', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: cookieMaxAge,
-            path: '/',
-          });
+          let cookieStr = `clerk_auth=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${cookieMaxAge}`;
+          if (process.env.NODE_ENV === 'production') cookieStr += '; Secure';
+          response.headers.append('Set-Cookie', cookieStr);
         } else if (type === 'admin') {
           const token = await new (await import('jose')).SignJWT({
             id: user.id,
@@ -252,13 +244,9 @@ export async function POST(req) {
             .setExpirationTime(sessionDuration)
             .sign(secret);
 
-          response.cookies.set('admin_auth', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: cookieMaxAge,
-            path: '/',
-          });
+          let cookieStr = `admin_auth=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${cookieMaxAge}`;
+          if (process.env.NODE_ENV === 'production') cookieStr += '; Secure';
+          response.headers.append('Set-Cookie', cookieStr);
         }
 
         jwtGenerationReached = true;
