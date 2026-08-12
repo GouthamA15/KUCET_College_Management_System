@@ -63,7 +63,13 @@ function AuthRestoreGuard({ children }) {
           const clerkRole = clerkRoleMatch?.[1];
           destination = getDashboardPathByRole(clerkRole) || '/clerk';
         }
-        router.replace(destination);
+        
+        // CRITICAL: We MUST use window.location.href instead of router.replace() here.
+        // If the user manually navigated to /student and was bounced back to / by the middleware,
+        // the Next.js client router caches that redirect. Calling router.replace('/student') 
+        // will instantly hit the cache and bounce them back to the login page without even
+        // asking the server. A hard navigation forces the middleware to run again with the new cookies.
+        window.location.href = destination;
         return;
       }
 
