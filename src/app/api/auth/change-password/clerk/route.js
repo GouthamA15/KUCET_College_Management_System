@@ -59,7 +59,8 @@ export async function POST(req) {
     await db.update(clerks)
       .set({ 
         password_hash: hashedPassword,
-        password_changed_at: now
+        password_changed_at: now,
+        must_change_password: false
       })
       .where(eq(clerks.email, user.email));
 

@@ -58,9 +58,33 @@ export const clerks = mysqlTable('clerks', {
   last_login_at: timestamp('last_login_at'),
   last_login_ip: varchar('last_login_ip', { length: 64 }),
   password_changed_at: timestamp('password_changed_at'),
+  must_change_password: boolean('must_change_password').default(false).notNull(),
 }, (table) => ({
   emailIdx: index('idx_clerks_email').on(table.email),
   employeeIdIdx: index('idx_clerks_employee_id').on(table.employee_id),
+}));
+
+export const clerkRegistrationRequests = mysqlTable('clerk_registration_requests', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  employee_id: varchar('employee_id', { length: 255 }).notNull(),
+  department: varchar('department', { length: 100 }).notNull(),
+  designation: varchar('designation', { length: 100 }).notNull(),
+  mobile: varchar('mobile', { length: 255 }), // Encrypted
+  mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Blind Index
+  pfp: text('pfp'),
+  signature: text('signature'),
+  status: mysqlEnum('status', ['PENDING', 'APPROVED', 'REJECTED']).default('PENDING').notNull(),
+  rejection_reason: text('rejection_reason'),
+  processed_at: timestamp('processed_at'),
+  processed_by_admin_id: int('processed_by_admin_id'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').onUpdateNow(),
+}, (table) => ({
+  emailIdx: index('idx_clerk_req_email').on(table.email),
+  employeeIdIdx: index('idx_clerk_req_employee_id').on(table.employee_id),
+  statusIdx: index('idx_clerk_req_status').on(table.status),
 }));
 
 export const principal = mysqlTable('principal', {

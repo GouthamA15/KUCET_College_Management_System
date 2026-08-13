@@ -88,7 +88,12 @@ export async function POST(request) {
           ipAddress: ip
         });
 
-        const response = apiResponse({ success: true, message: 'Login successful', role: clerk.role });
+        const response = apiResponse({
+          success: true,
+          message: 'Login successful',
+          role: clerk.role,
+          mustChangePassword: !!clerk.must_change_password
+        });
         deleteCookie(response, 'admin_auth');
         deleteCookie(response, 'student_auth');
         const userAgent = request.headers.get('user-agent') || 'Unknown';

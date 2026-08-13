@@ -85,6 +85,13 @@
       "when": 1786355011900,
       "tag": "0011_curious_terrax",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1786590000000,
+      "tag": "0012_clerk_registration_requests",
+      "breakpoints": true
     }
   ]
 }
