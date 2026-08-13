@@ -157,6 +157,7 @@ Session 205 resolved critical cookie persistence bugs, hardened authentication b
 | `24f342f91edc9f1aafb02b2fb9abc80c494dd683` | Academic Session Cache & Header Parsing (Part 3) | Added 5-minute process-level in-memory caching (`CACHE_TTL = 300,000ms`) to `getCurrentCalendarSession()` in `src/lib/academic-utils.js` reducing database load; initial header getter update in `proxy.js`. |
 | `87853573a291822bde06c964cdc39aa683a8bdf8` | Final Cookie Persistence Fix (Part 4) | Final resolution of "Cookies Remain But App Shows Home Screen" by implementing raw `newCookiesToSet` string array invariant in `src/proxy.js`, bypassing Next.js header getter comma-merging bugs and attaching explicit HTTP 1970 expiration headers on logout/purge. |
 | `5ef50d98f0ae1d3490543dc1914ccd429a62ba33` | Session Restoration & Manual Login Exclusivity | Replaced manual `Headers.append` with unified `setCookie` leveraging Next.js `response.cookies.set()` to fix comma-merging, changed `SameSite` to `Lax` for refresh tokens preventing cross-site redirect blocks, completely removed Google Sign-In & `next-auth` for institutional manual exclusivity, and updated unit tests mocks. |
+| `bcf734f` | Clerk Self-Registration & Cloudinary Email Assets Fix | Created `ClerkRegistrationService`, pending request approval workflow, mandatory first-login password change, `PendingClerkRequests` admin component, and enforced Cloudinary-hosted branding assets for all email templates. |
 
 ---
 

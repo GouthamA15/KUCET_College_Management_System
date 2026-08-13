@@ -187,7 +187,29 @@ When silent refresh fails inside `src/proxy.js`, explicit HTTP 1970 expiration s
 
 ---
 
+---
 
+## Clerk Self-Registration & First-Login Password Change Workflow
+
+The system provides a defense-in-depth onboarding pipeline for institutional staff:
+
+1. **Self-Registration Submission (`POST /api/auth/clerk-register`)**:
+   - Staff click **"Register Yourself"** on the Clerk login panel.
+   - Form collects `name`, `email`, `employee_id`, `department`, `designation`, `mobile`, `pfp`, and `signature`.
+   - Input is validated against Zod zero-trust schemas, rate-limited, and checked for duplicates in `clerks` and pending `clerk_registration_requests`.
+   - On submission, a record is created in `clerk_registration_requests` with `status: 'PENDING'`. No active clerk account is created yet.
+
+2. **Administrator Review & Approval (`/api/admin/clerk-requests`)**:
+   - Super Admins view pending requests via the **"Pending Clerk Requests"** dashboard component.
+   - **Approve Action**: System generates a strong 12+ character random temporary password, creates an active `clerks` record with `must_change_password: true`, updates request status to `APPROVED`, and sends a transactional email containing login URL, username, employee ID, and temporary password.
+   - **Reject Action**: Administrator provides a rejection reason, updates request status to `REJECTED`, and sends a respectful rejection notification email.
+
+3. **Mandatory First-Login Password Change**:
+   - Upon first login using the temporary password, `/api/auth/employee-login` returns `mustChangePassword: true`.
+   - The UI enforces a mandatory **Password Reset Modal** requiring a new compliant password before allowing navigation to dashboard routes.
+   - Updating the password calls `/api/auth/change-password/clerk`, sets `must_change_password: false`, updates `password_changed_at`, and grants full access.
+
+---
 
 ## Cross-References
 
