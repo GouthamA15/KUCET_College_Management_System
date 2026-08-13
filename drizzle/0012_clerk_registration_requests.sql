@@ -5,8 +5,10 @@ CREATE TABLE `clerk_registration_requests` (
 	`name` varchar(255) NOT NULL,
 	`email` varchar(255) NOT NULL,
 	`employee_id` varchar(255) NOT NULL,
-	`department` varchar(100) NOT NULL,
-	`designation` varchar(100) NOT NULL,
+	`staff_category` varchar(50) NOT NULL DEFAULT 'FACULTY',
+	`branch` varchar(50),
+	`department` varchar(100),
+	`designation` varchar(100),
 	`mobile` varchar(255),
 	`mobile_hash` varchar(64),
 	`pfp` text,
@@ -23,3 +25,4 @@ CREATE TABLE `clerk_registration_requests` (
 CREATE INDEX `idx_clerk_req_email` ON `clerk_registration_requests` (`email`);
 CREATE INDEX `idx_clerk_req_employee_id` ON `clerk_registration_requests` (`employee_id`);
 CREATE INDEX `idx_clerk_req_status` ON `clerk_registration_requests` (`status`);
+CREATE INDEX `idx_clerk_req_category` ON `clerk_registration_requests` (`staff_category`);

@@ -35,14 +35,12 @@ describe('ClerkRegistrationService', () => {
   });
 
   describe('submitRegistrationRequest', () => {
-    it('should successfully submit a valid clerk registration request', async () => {
-      // Mock active clerks check -> empty
+    it('should successfully submit a valid Faculty registration request with branch', async () => {
       const mockSelectClerk = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue([]),
       };
-      // Mock pending requests check -> empty
       const mockSelectPending = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -58,20 +56,43 @@ describe('ClerkRegistrationService', () => {
       });
 
       const result = await ClerkRegistrationService.submitRegistrationRequest({
-        name: 'John Clerk',
-        email: 'john.clerk@kucet.ac.in',
-        employee_id: 'EMP999',
-        department: 'SCHOLARSHIP',
-        designation: 'Senior Assistant',
+        name: 'Dr. K. Ramesh',
+        email: 'ramesh@kucet.ac.in',
+        employee_id: 'FAC1024',
+        staff_category: 'FACULTY',
+        branch: 'CSE',
         mobile: '9876543210',
       });
 
       expect(result.success).toBe(true);
       expect(result.requestId).toBe(42);
-      expect(result.message).toContain('pending administrator approval');
+      expect(result.message).toContain('Faculty (CSE)');
     });
 
-    it('should throw an error if duplicate active clerk exists', async () => {
+    it('should throw an error if Faculty registration is missing branch', async () => {
+      await expect(
+        ClerkRegistrationService.submitRegistrationRequest({
+          name: 'Invalid Faculty',
+          email: 'fac@kucet.ac.in',
+          employee_id: 'FAC999',
+          staff_category: 'FACULTY',
+          branch: '',
+        })
+      ).rejects.toThrow('Faculty members must select a valid academic branch');
+    });
+
+    it('should throw an error if registration category is invalid', async () => {
+      await expect(
+        ClerkRegistrationService.submitRegistrationRequest({
+          name: 'Invalid Role',
+          email: 'invalid@kucet.ac.in',
+          employee_id: 'EMP000',
+          staff_category: 'EXAM_CELL',
+        })
+      ).rejects.toThrow('Invalid staff registration category');
+    });
+
+    it('should throw an error if duplicate active staff exists', async () => {
       const mockSelectClerk = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -82,13 +103,12 @@ describe('ClerkRegistrationService', () => {
 
       await expect(
         ClerkRegistrationService.submitRegistrationRequest({
-          name: 'Duplicate Clerk',
+          name: 'Duplicate Staff',
           email: 'dup@kucet.ac.in',
           employee_id: 'EMP999',
-          department: 'EXAMINATIONS',
-          designation: 'Clerk',
+          staff_category: 'SCHOLARSHIP_CLERK',
         })
-      ).rejects.toThrow('A clerk account with this Email or Employee ID already exists.');
+      ).rejects.toThrow('A staff account with this Email or Employee ID already exists.');
     });
 
     it('should throw an error if duplicate pending request exists', async () => {
@@ -109,25 +129,24 @@ describe('ClerkRegistrationService', () => {
 
       await expect(
         ClerkRegistrationService.submitRegistrationRequest({
-          name: 'Pending Clerk',
+          name: 'Pending Staff',
           email: 'pending@kucet.ac.in',
           employee_id: 'EMP888',
-          department: 'ACADEMIC',
-          designation: 'Clerk',
+          staff_category: 'ADMISSION_CLERK',
         })
       ).rejects.toThrow('A pending registration request with this Email or Employee ID is currently awaiting administrator review.');
     });
   });
 
   describe('approveRequest', () => {
-    it('should approve a pending registration request, create clerk account, and send welcome email', async () => {
+    it('should approve a pending registration request, create staff account, and send welcome email', async () => {
       const pendingReq = {
         id: 42,
-        name: 'John Clerk',
-        email: 'john.clerk@kucet.ac.in',
-        employee_id: 'EMP999',
-        department: 'SCHOLARSHIP',
-        designation: 'Senior Assistant',
+        name: 'Dr. K. Ramesh',
+        email: 'ramesh@kucet.ac.in',
+        employee_id: 'FAC1024',
+        staff_category: 'FACULTY',
+        branch: 'CSE',
         mobile: 'enc_9876543210',
         mobile_hash: 'hash_9876543210',
         pfp: null,
@@ -157,7 +176,7 @@ describe('ClerkRegistrationService', () => {
       expect(result.clerkId).toBe(101);
       expect(sendInstitutionalEmail).toHaveBeenCalledWith(
         expect.objectContaining({
-          to: 'john.clerk@kucet.ac.in',
+          to: 'ramesh@kucet.ac.in',
           subject: 'Account Approved - KUCET College Management System',
         })
       );
@@ -171,7 +190,8 @@ describe('ClerkRegistrationService', () => {
         name: 'Jane Reject',
         email: 'jane@kucet.ac.in',
         employee_id: 'EMP777',
-        department: 'CSE',
+        staff_category: 'ADMISSION_CLERK',
+        branch: null,
         status: 'PENDING',
       };
 

@@ -69,8 +69,10 @@ export const clerkRegistrationRequests = mysqlTable('clerk_registration_requests
   name: varchar('name', { length: 255 }).notNull(),
   email: varchar('email', { length: 255 }).notNull(),
   employee_id: varchar('employee_id', { length: 255 }).notNull(),
-  department: varchar('department', { length: 100 }).notNull(),
-  designation: varchar('designation', { length: 100 }).notNull(),
+  staff_category: varchar('staff_category', { length: 50 }).notNull().default('FACULTY'),
+  branch: varchar('branch', { length: 50 }),
+  department: varchar('department', { length: 100 }),
+  designation: varchar('designation', { length: 100 }),
   mobile: varchar('mobile', { length: 255 }), // Encrypted
   mobile_hash: varchar('mobile_hash', { length: 64 }), // Searchable Blind Index
   pfp: text('pfp'),
@@ -85,6 +87,7 @@ export const clerkRegistrationRequests = mysqlTable('clerk_registration_requests
   emailIdx: index('idx_clerk_req_email').on(table.email),
   employeeIdIdx: index('idx_clerk_req_employee_id').on(table.employee_id),
   statusIdx: index('idx_clerk_req_status').on(table.status),
+  categoryIdx: index('idx_clerk_req_category').on(table.staff_category),
 }));
 
 export const principal = mysqlTable('principal', {
