@@ -26,4 +26,11 @@ describe('Enterprise RBAC', () => {
     expect(hasAllPermissions('clerk', [PERMISSIONS.FEE_VERIFY, PERMISSIONS.FEE_EDIT])).toBe(true);
     expect(hasAllPermissions('clerk', [PERMISSIONS.FEE_VERIFY, PERMISSIONS.ARCHIVE_RUN])).toBe(false);
   });
+
+  it('should grant expected permissions for scholarship and admission clerk aliases', () => {
+    expect(hasPermission('scholarship', PERMISSIONS.FEE_VERIFY)).toBe(true);
+    expect(hasPermission('scholarship', PERMISSIONS.ATTENDANCE_MARK)).toBe(false);
+    expect(hasPermission('admission', PERMISSIONS.CERTIFICATE_APPROVE)).toBe(true);
+    expect(hasPermission('admission', PERMISSIONS.FEE_EDIT)).toBe(false);
+  });
 });
