@@ -297,7 +297,8 @@ export async function POST(request) {
       }
 
       const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
-      const screenshotUrl = await storage.upload(paymentScreenshotFile, STORAGE_FOLDERS.CERTIFICATES_PAYMENTS);
+      const res = await storage.upload(paymentScreenshotFile, STORAGE_FOLDERS.CERTIFICATES_PAYMENTS);
+      const screenshotUrl = typeof res === 'string' ? res : res?.path;
       
       if (screenshotUrl) {
         await db.insert(studentRequestImages)

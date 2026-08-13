@@ -195,13 +195,15 @@ export async function PUT(req, context) {
       // 4. Update Images
       const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
       if (updatedData.pfp) {
-        const pfpUrl = await storage.upload(updatedData.pfp, STORAGE_FOLDERS.STUDENTS_PFP);
+        const res = await storage.upload(updatedData.pfp, STORAGE_FOLDERS.STUDENTS_PFP);
+        const pfpUrl = typeof res === 'string' ? res : res?.path;
         await tx.insert(studentImages)
           .values({ student_id: studentId, pfp: pfpUrl })
           .onDuplicateKeyUpdate({ set: { pfp: pfpUrl } });
       }
       if (updatedData.signature) {
-        const sigUrl = await storage.upload(updatedData.signature, STORAGE_FOLDERS.STUDENTS_SIGNATURES);
+        const res = await storage.upload(updatedData.signature, STORAGE_FOLDERS.STUDENTS_SIGNATURES);
+        const sigUrl = typeof res === 'string' ? res : res?.path;
         await tx.insert(studentSignatures)
           .values({ student_id: studentId, signature: sigUrl })
           .onDuplicateKeyUpdate({ set: { signature: sigUrl } });
