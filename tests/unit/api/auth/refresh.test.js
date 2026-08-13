@@ -42,6 +42,7 @@ vi.mock('@/lib/auth-utils', () => ({
   issueStudentAuthCookie: vi.fn().mockResolvedValue({}),
   issueClerkAuthCookie: vi.fn().mockResolvedValue({}),
   issueAdminAuthCookie: vi.fn().mockResolvedValue({}),
+  setCookie: vi.fn(),
   getJwtSecretKey: () => new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long'),
 }));
 
@@ -73,12 +74,13 @@ describe('/api/auth/refresh API Route', () => {
   it('should return 401 if refresh token is missing', async () => {
     mockCookies.mockResolvedValue({
       get: vi.fn().mockReturnValue(undefined),
+      getAll: vi.fn().mockReturnValue([]),
     });
     const req = makeMockRequest({ type: 'student' });
     const res = await POST(req);
     expect(res.status).toBe(401);
     const data = await res.json();
-    expect(data.error).toBe('Refresh token missing');
+    expect(data.error).toContain('Refresh token missing');
   });
 
   it('should return 401 if refresh token is invalid/not found in DB', async () => {

@@ -76,7 +76,7 @@ DOCUMENTATION/
 | **Framework** | Next.js 16 (App Router) | React 19, Server Components, Turbopack, `standalone` runner |
 | **Styling** | Tailwind CSS 4 | Kakatiya Navy/Gold tokens, Mobile Section Drawers |
 | **Database** | TiDB Cloud (MySQL 8.0) | Drizzle ORM, Modular DDD schemas in `src/db/schema/` |
-| **Authentication** | JWT (HTTP-only) & OAuth | `jose` JWTs, Google OAuth via `next-auth`, raw `newCookiesToSet` array buffering |
+| **Authentication** | JWT (HTTP-only) | `jose` JWTs, unified `setCookie` helpers, raw `newCookiesToSet` array buffering |
 | **Real-Time** | Supabase Broadcast & Redis | Supabase Realtime channels (`room:pulse`), `ioredis` pub/sub |
 | **Storage** | Strategy Pattern Provider | Cloudinary, Local Disk (`/var/www/kucet-storage`), S3/R2 |
 | **Logging** | Pino Logger | Structured JSON logging via `@/lib/logger` (no bare `console.log`) |
@@ -156,6 +156,7 @@ Session 205 resolved critical cookie persistence bugs, hardened authentication b
 | `0440a5d9ebb935c853b65b6e08179f22029a7b1e` | Super Admin Login & Role Isolation | Fixed Super Admin login redirect bug; implemented multi-role cookie purging upon login in `src/lib/auth-utils.js`; payload-based routing in `LoginPanel.js`; created unit test suite `tests/unit/api/auth/admin-login.test.js`. |
 | `24f342f91edc9f1aafb02b2fb9abc80c494dd683` | Academic Session Cache & Header Parsing (Part 3) | Added 5-minute process-level in-memory caching (`CACHE_TTL = 300,000ms`) to `getCurrentCalendarSession()` in `src/lib/academic-utils.js` reducing database load; initial header getter update in `proxy.js`. |
 | `87853573a291822bde06c964cdc39aa683a8bdf8` | Final Cookie Persistence Fix (Part 4) | Final resolution of "Cookies Remain But App Shows Home Screen" by implementing raw `newCookiesToSet` string array invariant in `src/proxy.js`, bypassing Next.js header getter comma-merging bugs and attaching explicit HTTP 1970 expiration headers on logout/purge. |
+| `pending` | Session Restoration & Manual Login Exclusivity | Replaced manual `Headers.append` with unified `setCookie` leveraging Next.js `response.cookies.set()` to fix comma-merging, changed `SameSite` to `Lax` for refresh tokens preventing cross-site redirect blocks, completely removed Google Sign-In & `next-auth` for institutional manual exclusivity, and updated unit tests mocks. |
 
 ---
 

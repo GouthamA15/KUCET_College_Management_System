@@ -4,8 +4,9 @@ A production-oriented, role-based college management platform built for **Kakati
 
 The system is designed to replace fragmented manual workflows with a centralized digital ecosystem that handles admissions, academics, attendance, scholarships, certificates, departmental management, and institutional administration.
 
+📖 **Complete Documentation:** Refer to the [DOCUMENTATION/](./DOCUMENTATION/README.md) directory for architectural guidelines, system invariants, database schema details, and development manuals.
 
-
+🤖 **AI Guidelines & Architecture Knowledge Base:** Refer to [GEMINI.md](./GEMINI.md) for the AI-agent instruction index and system architecture breakdown.
 # 🎯 Vision
 
 To build a scalable institutional platform where:
@@ -24,8 +25,8 @@ This is being developed as a real-world institutional system — not a demo CRUD
 ## 🔐 Institutional Authentication \& Security
 
 * JWT authentication with secure HTTP-only cookies
-* Silent token refresh \& session rotation
-* Google OAuth login support
+* Silent token refresh & session rotation
+* Centralized multi-role session isolation & explicit HTTP 1970 cookie purging
 * AES-256-GCM encryption for sensitive student data
 * Blind indexing for Aadhaar \& mobile numbers
 * Role-based access control
@@ -190,8 +191,9 @@ Features:
 
 ## Authentication
 
-* JWT (`jose`)
-* NextAuth
+* Secure stateless JWTs (`jose`)
+* Edge Middleware Token Validation
+* Distributed Session Revocation using `user_sessions`
 
 ## Realtime \& Infrastructure
 
@@ -249,13 +251,13 @@ Features:
 
 # 📌 Current Status
 
-🟢 **Actively Developed \& Production-Oriented**
+🟢 **Actively Developed & Production-Oriented**
 
 The platform is continuously evolving with:
 
 * Institutional-grade workflows
 * Scalability-focused architecture
-* Security-first engineering
+* Security-first engineering (Recent upgrade: Comprehensive session restoration and manual-login exclusivity)
 * Real-time operational systems
 * Long-term maintainability in mind
 
