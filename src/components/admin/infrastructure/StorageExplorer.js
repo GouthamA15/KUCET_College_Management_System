@@ -249,15 +249,15 @@ export default function StorageExplorer() {
                       <tr key={f.name + i} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 sm:px-8 py-3">
                            <div className="w-10 h-10 bg-white border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center relative shadow-sm">
-                              {f.secure_url || storageType === 'local' ? (
+                              {f.name ? (
                                 <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                                  src={f.secure_url || getAssetUrl(f.name)} 
+                                  src={getAssetUrl(f.name)} 
                                   alt="Asset" 
                                   width={40} 
                                   height={40} 
                                   unoptimized
                                   className="object-cover w-full h-full cursor-zoom-in hover:scale-110 transition-transform"
-                                  onClick={() => window.open(f.secure_url || getAssetUrl(f.name), '_blank')}
+                                  onClick={() => window.open(getAssetUrl(f.name), '_blank')}
                                 />
                               ) : (
                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">BIN</span>
@@ -322,15 +322,15 @@ export default function StorageExplorer() {
                   <div key={f.name + i} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col gap-3">
                     <div className="flex gap-3 items-center">
                       <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center relative shadow-sm flex-shrink-0">
-                        {f.secure_url || storageType === 'local' ? (
+                        {f.name ? (
                           <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                            src={f.secure_url || getAssetUrl(f.name)} 
+                            src={getAssetUrl(f.name)} 
                             alt="Asset" 
                             width={48} 
                             height={48} 
                             unoptimized
                             className="object-cover w-full h-full cursor-zoom-in"
-                            onClick={() => window.open(f.secure_url || getAssetUrl(f.name), '_blank')}
+                            onClick={() => window.open(getAssetUrl(f.name), '_blank')}
                           />
                         ) : (
                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">BIN</span>

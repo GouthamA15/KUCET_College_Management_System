@@ -24,7 +24,7 @@ import { resolveInstitutionalFilename } from '@/lib/institution-assets';
  * Static assets served from the Next.js /public folder.
  * These are never routed through storage providers.
  */
-const STATIC_ASSETS = new Set([
+export const STATIC_ASSETS = new Set([
   '/assets/ku-logo.png',
   '/assets/ku-college-logo.png',
   '/assets/Naac_A+.png',
@@ -102,47 +102,9 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${instFilename}`;
   }
 
-  // Determine storage strategy from environment
-  const storageType = (
-    process.env.NEXT_PUBLIC_STORAGE_TYPE ||
-    process.env.STORAGE_TYPE ||
-    'local'
-  ).toLowerCase();
-
-  // Local storage: proxy through /api/assets/view/
-  if (storageType === 'local') {
-    return `/api/assets/view/${cleanPath}`;
-  }
-
-  // S3 / Cloudflare R2
-  if (storageType === 's3' || storageType === 'r2') {
-    const s3Domain =
-      process.env.NEXT_PUBLIC_S3_PUBLIC_DOMAIN ||
-      process.env.S3_PUBLIC_DOMAIN;
-    if (s3Domain) {
-      return `${s3Domain.replace(/\/$/, '')}/${cleanPath}`;
-    }
-  }
-
-  // Cloudinary: all canonical keys start with 'kucet/'
-  const cloudName =
-    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
-    process.env.CLOUDINARY_CLOUD_NAME ||
-    'djs0ry74r';
-
-  // Determine Cloudinary resource_type from extension
-  const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
-  let resourceType = 'image';
-  if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
-    resourceType = 'video';
-  } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
-    resourceType = 'raw';
-  }
-
-  // The canonical Cloudinary public ID is the storage key itself.
-  // New uploads always produce 'kucet/<folder>/....<ext>' from uploadToCloudinary().
-  // We do NOT mutate or prefix the path — what's in the DB is the public_id.
-  return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cleanPath}`;
+  // Secure Private Storage: All non-static asset keys are served through /api/assets/view/
+  // where session, role, and ownership authorization are enforced.
+  return `/api/assets/view/${cleanPath}`;
 }
 
 export default getAssetUrl;

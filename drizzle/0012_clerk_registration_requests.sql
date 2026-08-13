@@ -1,5 +1,4 @@
-ALTER TABLE `clerks` ADD COLUMN `must_change_password` boolean DEFAULT false NOT NULL;
-
+ALTER TABLE `clerks` ADD COLUMN `must_change_password` boolean DEFAULT false NOT NULL;--> statement-breakpoint
 CREATE TABLE `clerk_registration_requests` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`name` varchar(255) NOT NULL,
@@ -20,9 +19,9 @@ CREATE TABLE `clerk_registration_requests` (
 	`created_at` timestamp DEFAULT (now()),
 	`updated_at` timestamp ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `clerk_registration_requests_id` PRIMARY KEY(`id`)
-);
-
-CREATE INDEX `idx_clerk_req_email` ON `clerk_registration_requests` (`email`);
-CREATE INDEX `idx_clerk_req_employee_id` ON `clerk_registration_requests` (`employee_id`);
-CREATE INDEX `idx_clerk_req_status` ON `clerk_registration_requests` (`status`);
+);--> statement-breakpoint
+CREATE INDEX `idx_clerk_req_email` ON `clerk_registration_requests` (`email`);--> statement-breakpoint
+CREATE INDEX `idx_clerk_req_employee_id` ON `clerk_registration_requests` (`employee_id`);--> statement-breakpoint
+CREATE INDEX `idx_clerk_req_status` ON `clerk_registration_requests` (`status`);--> statement-breakpoint
 CREATE INDEX `idx_clerk_req_category` ON `clerk_registration_requests` (`staff_category`);
+

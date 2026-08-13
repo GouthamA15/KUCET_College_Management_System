@@ -64,11 +64,10 @@ export async function GET(_req) {
         .execute();
 
       files = result.resources.map(r => ({
-        name: r.public_id.replace(/^kucet\//, ''),
+        name: r.public_id,
         size: r.bytes,
         created_at: r.created_at,
         type: 'cloudinary',
-        secure_url: r.secure_url,
         format: r.format
       }));
     }
