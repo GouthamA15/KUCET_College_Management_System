@@ -4,7 +4,6 @@ import { useState, _useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { validateRollNo } from '@/lib/rollNumber'; // Import validateRollNo
 import { getDashboardPathByRole } from '@/lib/path-utils';
-import { signIn } from "next-auth/react";
 import Link from 'next/link';
 
 export default function LoginPanel({ activePanel, onClose, _onStudentLogin, variant = 'modal', dismissable = true }) {
@@ -540,7 +539,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                       Staff Login
                     </h2>
                     <p className={isModal ? 'text-gray-500 text-sm mt-1' : 'text-xs text-slate-600'}>
-                      Sign in with Google or password.
+                      Sign in with your email and password.
                     </p>
                   </div>
                   <div className={isModal ? 'inline-flex items-center justify-center w-12 h-12 bg-green-50 rounded' : 'inline-flex items-center justify-center w-10 h-10 bg-green-50 rounded-sm shrink-0'}>
@@ -551,35 +550,6 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                 </div>
                 
                 {mode === 'login' ? (
-                <div>
-                  <button
-                    onClick={() => {
-                      // Browser Google login
-                      const base = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '');
-                      const callbackUrl = base ? `${base}/api/auth/google-complete` : '/api/auth/google-complete';
-                      return signIn('google', { callbackUrl });
-                    }}
-                    className={isModal
-                      ? 'w-full flex items-center justify-center bg-white border border-gray-300 text-gray-700 py-2.5 rounded-md font-medium hover:bg-gray-50 transition-all duration-150 mb-4'
-                      : 'w-full flex items-center justify-center bg-white border border-gray-300 text-gray-700 py-2 rounded-sm font-medium hover:bg-gray-50 transition-all duration-150 mb-3 text-sm'}
-                  >
-                    <svg className="w-4 h-4 mr-2" viewBox="0 0 48 48" aria-hidden>
-                      <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-                      <path fill="#FF3D00" d="M6.306 14.691c-1.413 3.453-2.306 7.243-2.306 11.309C4 28.061 5.484 31.402 7.727 34.091l5.657-5.657C12.015 26.68 11.231 25.158 11.231 24s.784-2.68 2.14-3.64l-5.657-5.657z" />
-                      <path fill="#4CAF50" d="M24 48c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 40.776 26.753 42 24 42c-5.223 0-9.641-3.343-11.303-7.918l-5.657-5.657C10.237 43.945 16.598 48 24 48z" />
-                      <path fill="#1976D2" d="M43.611 20.083L43.595 20L42 20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.022 36.372 44 30.636 44 24c0-1.341-.138-2.65-.389-3.917z" />
-                    </svg>
-                    Sign in with Google
-                  </button>
-
-                  <div className={isModal ? 'relative my-4' : 'relative my-3'}>
-                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                      <div className="w-full border-t border-gray-200"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="px-2 bg-white text-gray-500">Or</span>
-                    </div>
-                  </div>
                 <form onSubmit={handleEmployeeSubmit} className={isEmbedded ? 'space-y-4' : 'space-y-5'}>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -676,7 +646,6 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                     <div className="text-red-600 text-sm mt-2 text-center">{activePanel === 'clerk' ? clerkError : adminError}</div>
                   )}
                 </form>
-                </div>
                 ) : (
                   <form onSubmit={handleForgotEmployeeSubmit} className="space-y-5">
                     <div>

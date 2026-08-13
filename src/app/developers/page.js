@@ -687,8 +687,7 @@ export default function DevelopersPage() {
               </div>
               <div className="p-4 sm:p-8 text-center">
                 <p className="text-gray-600 mb-2">Your draft has been saved.</p>
-                <p className="text-sm text-gray-500 mb-4">After logging in, visit this page again and your submission will be completed automatically.</p>
-                <p className="text-xs text-gray-400 mb-6">Developers: Sign in with <strong>Google</strong> using your registered email.</p>
+                <p className="text-sm text-gray-500 mb-6">After logging in, visit this page again and your submission will be completed automatically.</p>
                 <div className="flex gap-4">
                   <button
                     onClick={() => setIsLoginPromptOpen(false)}

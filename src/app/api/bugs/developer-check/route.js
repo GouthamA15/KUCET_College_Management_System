@@ -1,14 +1,12 @@
-import { apiResponse } from '@/lib/api-utils';
+import { apiResponse, getAuthUser } from '@/lib/api-utils';
 import { isDeveloper } from '@/lib/developers';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function GET() {
   try {
     let email = null;
-    const session = await getServerSession(authOptions);
-    if (session?.user?.email) {
-      email = session.user.email;
+    const user = await getAuthUser();
+    if (user && user.email) {
+      email = user.email;
     }
 
     return apiResponse({

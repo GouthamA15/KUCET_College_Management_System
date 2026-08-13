@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
-import { issueClerkAuthCookie, issueAdminAuthCookie } from '@/lib/auth-utils';
+import { issueClerkAuthCookie, issueAdminAuthCookie, deleteCookie } from '@/lib/auth-utils';
 import logger from '@/lib/logger';
 import { z } from 'zod';
 
@@ -58,8 +58,8 @@ export async function POST(request) {
         });
 
         const response = apiResponse({ success: true, message: 'Admin login successful', role: 'admin' });
-        response.cookies.delete('clerk_auth');
-        response.cookies.delete('student_auth');
+        deleteCookie(response, 'clerk_auth');
+        deleteCookie(response, 'student_auth');
         const userAgent = request.headers.get('user-agent') || 'Unknown';
         await issueAdminAuthCookie(response, admin, rememberMe, ip, userAgent);
         return response;
@@ -89,8 +89,8 @@ export async function POST(request) {
         });
 
         const response = apiResponse({ success: true, message: 'Login successful', role: clerk.role });
-        response.cookies.delete('admin_auth');
-        response.cookies.delete('student_auth');
+        deleteCookie(response, 'admin_auth');
+        deleteCookie(response, 'student_auth');
         const userAgent = request.headers.get('user-agent') || 'Unknown';
         await issueClerkAuthCookie(response, clerk, rememberMe, ip, userAgent);
         return response;
