@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { getAssetUrl } from '@/lib/assets';
 
-export default function PendingClerkRequests({ onRequestAction }) {
+export default function PendingClerkRequests({ onRequestAction, categoryFilter }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState(null);
@@ -14,7 +14,10 @@ export default function PendingClerkRequests({ onRequestAction }) {
 
   const fetchRequests = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/clerk-requests?status=PENDING');
+      const url = categoryFilter
+        ? `/api/admin/clerk-requests?status=PENDING&category=${categoryFilter}`
+        : '/api/admin/clerk-requests?status=PENDING';
+      const res = await fetch(url);
       const data = await res.json();
       if (data.requests) {
         setRequests(data.requests);
@@ -24,13 +27,16 @@ export default function PendingClerkRequests({ onRequestAction }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [categoryFilter]);
 
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
       try {
-        const res = await fetch('/api/admin/clerk-requests?status=PENDING');
+        const url = categoryFilter
+          ? `/api/admin/clerk-requests?status=PENDING&category=${categoryFilter}`
+          : '/api/admin/clerk-requests?status=PENDING';
+        const res = await fetch(url);
         const data = await res.json();
         if (isMounted && res.ok && data.requests) {
           setRequests(data.requests);
@@ -43,7 +49,7 @@ export default function PendingClerkRequests({ onRequestAction }) {
     };
     load();
     return () => { isMounted = false; };
-  }, []);
+  }, [categoryFilter]);
 
   const handleApprove = async (request) => {
     if (!confirm(`Are you sure you want to APPROVE ${request.name} (${request.employee_id})? This will create their clerk account and send them an email with a temporary password.`)) {

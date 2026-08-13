@@ -11,8 +11,9 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'PENDING';
+    const category = searchParams.get('category') || null;
 
-    const requests = await ClerkRegistrationService.getRequests(status);
+    const requests = await ClerkRegistrationService.getRequests(status, category);
 
     return apiResponse({
       success: true,
@@ -20,6 +21,6 @@ export async function GET(req) {
     });
   } catch (error) {
     logger.error(error, '[ADMIN_CLERK_REQUESTS_GET_ERROR]');
-    return apiError('Failed to fetch clerk registration requests', 500);
+    return apiError('Failed to fetch staff registration requests', 500);
   }
 }
