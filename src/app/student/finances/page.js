@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Info, X } from 'lucide-react';
 import { useStudent } from '@/context/StudentContext';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import FinancialSummaryTable from '@/components/student/FinancialSummaryTable';
@@ -11,6 +13,29 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 export default function StudentFinancesPage() {
   const { studentData, collegeInfo, loading: contextLoading } = useStudent();
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' or 'transactions'
+
+  // Help Icon / Bottom Sheet state
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsMobileDevice(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Prevent scroll when bottom sheet is open
+  useEffect(() => {
+    if (isBottomSheetOpen && isMobileDevice) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isBottomSheetOpen, isMobileDevice]);
 
   const student = studentData?.student || null;
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
@@ -23,7 +48,10 @@ export default function StudentFinancesPage() {
     return (
       <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
         <header className="mb-4">
-          <h1 className="text-2xl font-semibold text-gray-800">Fee Details & Scholarships</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-gray-800">Fee Details & Scholarships</h1>
+            <div className="text-slate-400 p-1 rounded-full"><Info size={20} className="shrink-0" /></div>
+          </div>
           <p className="text-sm text-gray-600 mt-1">Institutional tuition fee structures, government scholarship reimbursements, and payment receipts.</p>
           <div className="md:hidden flex items-center gap-2 mt-3.5">
              <button className="px-3 py-2 rounded-md text-sm transition-colors bg-[#0b3578] text-white">Academic Ledger</button>
@@ -105,11 +133,87 @@ export default function StudentFinancesPage() {
     </>
   );
 
+  const bottomSheet = (
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300">
+      <div className="absolute inset-0 cursor-pointer" onClick={() => setIsBottomSheetOpen(false)} />
+      <div 
+        role="dialog" 
+        aria-modal="true" 
+        aria-labelledby="help-sheet-title" 
+        className="relative bg-white w-full rounded-t-2xl shadow-2xl p-6 border-t border-slate-200 z-10 animate-slideUp max-h-[90vh] overflow-y-auto"
+      >
+        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-5" />
+        <button 
+          onClick={() => setIsBottomSheetOpen(false)}
+          className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors p-1"
+          aria-label="Close dialog"
+        >
+          <X size={20} />
+        </button>
+        <h3 id="help-sheet-title" className="text-lg font-bold text-[#0b2447] mb-3">Fee & Scholarship Information</h3>
+        <div className="text-sm text-slate-700 space-y-4 mb-6 leading-relaxed">
+          <p className="text-slate-600">
+            This page provides a comprehensive overview of your institutional fee structure, government scholarship reimbursements, and payment receipts. Please note:
+          </p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li><strong>Year-Wise Fees:</strong> Tuition fees are tracked strictly by academic year.</li>
+            <li><strong>Fee Calculation:</strong> The fee structure is determined by your course type (Self Finance or Regular / NON-Self Finance).</li>
+            <li><strong>Scholarship (Fee Reimbursement):</strong> Shows government scholarship amounts that are sanctioned to cover your tuition fees.</li>
+            <li><strong>Transactions & Receipts:</strong> Used exclusively for tracking institutional college tuition fee payments, not for regular online banking transactions.</li>
+          </ul>
+        </div>
+        <button 
+          onClick={() => setIsBottomSheetOpen(false)} 
+          className="w-full bg-[#0b3578] text-white py-3 rounded-lg font-semibold text-sm hover:bg-[#0a2d66] active:bg-[#092554] transition-colors focus:outline-none"
+        >
+          Got It
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
       {/* Page Header */}
       <header className="mb-4">
-        <h1 className="text-2xl font-semibold text-gray-800">Fee Details & Scholarships</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-gray-800">Fee Details & Scholarships</h1>
+          
+          <div 
+            className="relative inline-flex items-center"
+            onMouseEnter={() => !isMobileDevice && setIsHovered(true)}
+            onMouseLeave={() => !isMobileDevice && setIsHovered(false)}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (isMobileDevice) {
+                  setIsBottomSheetOpen(true);
+                }
+              }}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100 focus:outline-none flex items-center justify-center cursor-pointer"
+              aria-label="Help Information"
+            >
+              <Info size={20} className="shrink-0" />
+            </button>
+
+            {isHovered && !isMobileDevice && (
+              <div className="absolute left-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-xl p-4 z-50 text-left animate-slideDown">
+                <h4 className="text-sm font-bold text-[#0b2447] mb-2">Fee & Scholarship Information</h4>
+                <p className="text-xs text-slate-600 leading-relaxed mb-3">
+                  This page provides a comprehensive overview of your institutional fee structure, government scholarship reimbursements, and payment receipts. Please note:
+                </p>
+                <ul className="text-xs text-slate-600 leading-relaxed list-disc pl-4 space-y-1">
+                  <li><strong>Year-Wise Fees:</strong> Tuition fees are tracked strictly by academic year.</li>
+                  <li><strong>Fee Calculation:</strong> The fee structure is determined by your course type (Self Finance or Regular / NON-Self Finance).</li>
+                  <li><strong>Scholarship (Fee Reimbursement):</strong> Shows government scholarship amounts that are sanctioned to cover your tuition fees.</li>
+                  <li><strong>Transactions & Receipts:</strong> Used exclusively for tracking institutional college tuition fee payments, not for regular online banking transactions.</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
         <p className="text-sm text-gray-600 mt-1">Institutional tuition fee structures, government scholarship reimbursements, and payment receipts.</p>
         
         {/* Mobile View: Render tab buttons immediately after header text */}
@@ -204,6 +308,8 @@ export default function StudentFinancesPage() {
           />
         )}
       </div>
+
+      {typeof document !== 'undefined' && isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}
     </div>
   );
 }
