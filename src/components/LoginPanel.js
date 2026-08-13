@@ -54,8 +54,8 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
     name: '',
     email: '',
     employee_id: '',
-    department: 'SCHOLARSHIP',
-    designation: 'Clerk / Assistant',
+    staff_category: 'FACULTY',
+    branch: 'CSE',
     mobile: ''
   });
   const [clerkRegisterLoading, setClerkRegisterLoading] = useState(false);
@@ -92,8 +92,8 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
           name: '',
           email: '',
           employee_id: '',
-          department: 'SCHOLARSHIP',
-          designation: 'Clerk / Assistant',
+          staff_category: 'FACULTY',
+          branch: 'CSE',
           mobile: ''
         });
       } else {
@@ -764,7 +764,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                 ) : mode === 'clerk-register' ? (
                   <form onSubmit={handleClerkRegisterSubmit} className="space-y-4">
                     <div className="bg-blue-50 border border-blue-200 text-[#0b3578] p-3 rounded text-xs leading-relaxed">
-                      Fill in your institutional details to request a new Clerk / Staff account. An administrator will review and approve your registration.
+                      Select your institutional staff category to request access. Administrators review and approve all registrations.
                     </div>
 
                     <div>
@@ -792,25 +792,43 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Staff Category</label>
                         <select
-                          value={clerkRegisterForm.department}
-                          onChange={(e) => setClerkRegisterForm({ ...clerkRegisterForm, department: e.target.value })}
+                          value={clerkRegisterForm.staff_category}
+                          onChange={(e) => setClerkRegisterForm({
+                            ...clerkRegisterForm,
+                            staff_category: e.target.value,
+                            branch: e.target.value === 'FACULTY' ? (clerkRegisterForm.branch || 'CSE') : ''
+                          })}
                           className="w-full px-3 py-2 border border-gray-300 rounded text-xs bg-white focus:ring-2 focus:ring-[#0b3578]"
                           required
                         >
-                          <option value="SCHOLARSHIP">Scholarship Section</option>
-                          <option value="EXAMINATIONS">Exam Cell</option>
-                          <option value="ACADEMIC">Academic Section</option>
-                          <option value="ADMISSION">Admission Cell</option>
-                          <option value="CSE">CSE Dept</option>
-                          <option value="ECE">ECE Dept</option>
-                          <option value="EEE">EEE Dept</option>
-                          <option value="MECH">MECH Dept</option>
-                          <option value="CIVIL">CIVIL Dept</option>
+                          <option value="FACULTY">Faculty</option>
+                          <option value="SCHOLARSHIP_CLERK">Scholarship Clerk</option>
+                          <option value="ADMISSION_CLERK">Admission Clerk</option>
                         </select>
                       </div>
                     </div>
+
+                    {clerkRegisterForm.staff_category === 'FACULTY' && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Associated Academic Branch *</label>
+                        <select
+                          value={clerkRegisterForm.branch}
+                          onChange={(e) => setClerkRegisterForm({ ...clerkRegisterForm, branch: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded text-xs bg-white font-semibold text-[#0b3578] focus:ring-2 focus:ring-[#0b3578]"
+                          required
+                        >
+                          <option value="CSE">CSE (Computer Science & Engg)</option>
+                          <option value="CSD">CSD (Data Science & AI)</option>
+                          <option value="ECE">ECE (Electronics & Comm Engg)</option>
+                          <option value="EEE">EEE (Electrical & Electronics Engg)</option>
+                          <option value="MECH">MECH (Mechanical Engg)</option>
+                          <option value="CIVIL">CIVIL (Civil Engg)</option>
+                          <option value="IT">IT (Information Technology)</option>
+                        </select>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -834,18 +852,6 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                           className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-[#0b3578]"
                         />
                       </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Designation</label>
-                      <input
-                        type="text"
-                        value={clerkRegisterForm.designation}
-                        onChange={(e) => setClerkRegisterForm({ ...clerkRegisterForm, designation: e.target.value })}
-                        placeholder="e.g. Senior Assistant"
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-[#0b3578]"
-                        required
-                      />
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
