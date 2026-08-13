@@ -25,9 +25,8 @@ export const buildInstitutionalEmailHtml = ({
   action,
   infoRows
 }) => {
-  const baseUrl = getBaseUrl() || 'https://kucet-dev-hp-pro-tower-280-g9-pci-desktop-pc.tailf6b4a7.ts.net';
-  const assetPath = getAssetUrl('assets/ku-logo.png');
-  const logoUrl = assetPath.startsWith('http') ? assetPath : `${baseUrl.replace(/\/$/, '')}${assetPath}`;
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
+  const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/kucet/public/assets/ku-logo.png`;
   
   // Build structured information rows if provided
   const infoRowsHtml = Array.isArray(infoRows) && infoRows.length > 0
