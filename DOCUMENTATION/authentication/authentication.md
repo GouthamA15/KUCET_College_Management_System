@@ -187,16 +187,7 @@ When silent refresh fails inside `src/proxy.js`, explicit HTTP 1970 expiration s
 
 ---
 
-## Next-Auth Google OAuth Integration
 
-For faculty and institutional users, Next-Auth provides single sign-on (SSO) via Google OAuth.
-
-- **Config Location**: `src/app/api/auth/[...nextauth]/route.js`
-- **Domain Verification**: Restricts OAuth logins to verified institutional domains (`@kucet.ac.in`).
-- **Account Binding**: Matches the Google email with active records in the `clerks` or `principal` tables.
-- **Cookie Synchronization**: Upon successful Google authentication, Next-Auth triggers `issueClerkAuthCookie` or `issueAdminAuthCookie` to standardize session handling across password and OAuth workflows.
-
----
 
 ## Cross-References
 

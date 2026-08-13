@@ -4,25 +4,15 @@ import { bugReports } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { isDeveloper } from '@/lib/developers';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function PATCH(req, { params }) {
   try {
     let userEmail = null;
 
-    // First try app auth (student/clerk/admin cookies)
+    // Try app auth (student/clerk/admin cookies)
     const user = await getAuthUser();
     if (user && user.email) {
       userEmail = user.email.toLowerCase();
-    }
-
-    // If not found, try NextAuth session (Google login for developers)
-    if (!userEmail) {
-      const session = await getServerSession(authOptions);
-      if (session?.user?.email) {
-        userEmail = session.user.email.toLowerCase();
-      }
     }
 
     if (!userEmail) {

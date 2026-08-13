@@ -1,6 +1,5 @@
 import "./globals.css";
 import { Toaster } from 'react-hot-toast';
-import AuthProvider from "./components/AuthProvider";
 import { AssetProvider } from "@/context/AssetContext";
 import { SystemConfigProvider } from "@/context/SystemConfigContext";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
@@ -47,13 +46,11 @@ export default function RootLayout({ children }) {
         <SystemConfigProvider>
           <MaintenanceGuard>
             <AssetProvider>
-              <AuthProvider>
-                <Toaster position="top-center" reverseOrder={false} />
-                <div id="main-content" tabIndex={-1}>
-                  {children}
-                </div>
-                <CookieBanner />
-              </AuthProvider>
+              <Toaster position="top-center" reverseOrder={false} />
+              <div id="main-content" tabIndex={-1}>
+                {children}
+              </div>
+              <CookieBanner />
             </AssetProvider>
           </MaintenanceGuard>
         </SystemConfigProvider>

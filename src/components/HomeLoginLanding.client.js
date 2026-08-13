@@ -186,10 +186,6 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
                       </li>
                       <li className="flex gap-2">
                         <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                        <span>Staff: Google sign-in is supported for institutional accounts.</span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
                         <span>Do not share passwords or reset links. Always log out on shared devices.</span>
                       </li>
                     </ul>

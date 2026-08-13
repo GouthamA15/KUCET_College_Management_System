@@ -4,11 +4,22 @@ import { db } from '@/db';
 import { refreshTokens, students, clerks, principal } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 
-/**
- * Returns encoded JWT secret key from environment or fallback
- */
 export function getJwtSecretKey() {
   return new TextEncoder().encode(process.env.JWT_SECRET || 'temporary_secret_at_least_32_chars_long');
+}
+
+export function setCookie(response, name, value, options = {}) {
+  response.cookies.set(name, value, {
+    path: options.path || '/',
+    httpOnly: !!options.httpOnly,
+    sameSite: options.sameSite ? options.sameSite.toLowerCase() : 'lax',
+    maxAge: options.maxAge,
+    secure: !!options.secure || process.env.NODE_ENV === 'production',
+  });
+}
+
+export function deleteCookie(response, name) {
+  response.cookies.delete(name);
 }
 
 /**
@@ -34,13 +45,11 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
 
   const cookieName = `${userType}_refresh_token`;
   
-  // CRITICAL FIX: Next.js response.cookies.set() groups multiple cookies into one malformed comma-separated Set-Cookie header.
-  // We MUST manually append the Set-Cookie string to the headers.
-  let cookieStr = `${cookieName}=${refreshToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${durationDays * 24 * 60 * 60}`;
-  if (process.env.NODE_ENV === 'production') {
-    cookieStr += '; Secure';
-  }
-  response.headers.append('Set-Cookie', cookieStr);
+  setCookie(response, cookieName, refreshToken, {
+    httpOnly: true,
+    sameSite: 'Lax',
+    maxAge: durationDays * 24 * 60 * 60,
+  });
 
   // Register or Update session if tracking info provided (skip for students)
   if (ip && userAgent && userType !== 'student') {
@@ -95,16 +104,14 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
         }
 
         if (sessionId) {
-          response.cookies.set(sessionCookieName, sessionId.toString(), {
-            httpOnly: false, // Accessible by client for realtime revocation check
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+          setCookie(response, sessionCookieName, sessionId.toString(), {
+            httpOnly: false,
+            sameSite: 'Lax',
             maxAge: durationDays * 24 * 60 * 60,
-            path: '/',
           });
           // Clean up legacy non-role-specific cookie if present
           if (cookieStore.has('session_id')) {
-            response.cookies.delete('session_id');
+            deleteCookie(response, 'session_id');
           }
         }
       }
@@ -127,15 +134,15 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
   const cookieMaxAge = durationDays * 24 * 60 * 60;
 
   // Clear cookies for other roles
-  response.cookies.delete('admin_auth');
-  response.cookies.delete('admin_logged_in');
-  response.cookies.delete('admin_session_id');
-  response.cookies.delete('admin_refresh_token');
-  response.cookies.delete('clerk_auth');
-  response.cookies.delete('clerk_logged_in');
-  response.cookies.delete('clerk_role');
-  response.cookies.delete('clerk_session_id');
-  response.cookies.delete('clerk_refresh_token');
+  deleteCookie(response, 'admin_auth');
+  deleteCookie(response, 'admin_logged_in');
+  deleteCookie(response, 'admin_session_id');
+  deleteCookie(response, 'admin_refresh_token');
+  deleteCookie(response, 'clerk_auth');
+  deleteCookie(response, 'clerk_logged_in');
+  deleteCookie(response, 'clerk_role');
+  deleteCookie(response, 'clerk_session_id');
+  deleteCookie(response, 'clerk_refresh_token');
 
   const token = await new SignJWT({
     student_id: student.id || student.student_id,
@@ -151,14 +158,18 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
     .setExpirationTime(sessionDuration)
     .sign(secret);
 
-  let authCookieStr = `student_auth=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${cookieMaxAge}`;
-  if (process.env.NODE_ENV === 'production') authCookieStr += '; Secure';
-  response.headers.append('Set-Cookie', authCookieStr);
+  setCookie(response, 'student_auth', token, {
+    httpOnly: true,
+    sameSite: 'Strict',
+    maxAge: cookieMaxAge,
+  });
 
   // Set companion cookies for UI (Must match refresh token duration)
-  let companionCookieStr = `student_logged_in=true; Path=/; SameSite=Lax; Max-Age=${cookieMaxAge}`;
-  if (process.env.NODE_ENV === 'production') companionCookieStr += '; Secure';
-  response.headers.append('Set-Cookie', companionCookieStr);
+  setCookie(response, 'student_logged_in', 'true', {
+    httpOnly: false,
+    sameSite: 'Lax',
+    maxAge: cookieMaxAge,
+  });
 
   // Issue Refresh Token
   await issueRefreshToken(response, student.roll_no, 'student', rememberMe, ip, userAgent);
@@ -177,14 +188,14 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false, 
   const cookieMaxAge = durationDays * 24 * 60 * 60;
 
   // Clear cookies for other roles
-  response.cookies.delete('admin_auth');
-  response.cookies.delete('admin_logged_in');
-  response.cookies.delete('admin_session_id');
-  response.cookies.delete('admin_refresh_token');
-  response.cookies.delete('student_auth');
-  response.cookies.delete('student_logged_in');
-  response.cookies.delete('student_session_id');
-  response.cookies.delete('student_refresh_token');
+  deleteCookie(response, 'admin_auth');
+  deleteCookie(response, 'admin_logged_in');
+  deleteCookie(response, 'admin_session_id');
+  deleteCookie(response, 'admin_refresh_token');
+  deleteCookie(response, 'student_auth');
+  deleteCookie(response, 'student_logged_in');
+  deleteCookie(response, 'student_session_id');
+  deleteCookie(response, 'student_refresh_token');
 
   const token = await new SignJWT({
     id: clerk.id,
@@ -199,28 +210,23 @@ export async function issueClerkAuthCookie(response, clerk, rememberMe = false, 
     .setExpirationTime(sessionDuration)
     .sign(secret);
 
-  response.cookies.set('clerk_auth', token, {
+  setCookie(response, 'clerk_auth', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'Strict',
     maxAge: cookieMaxAge,
-    path: '/',
   });
 
   // Set companion cookies for UI
-  response.cookies.set('clerk_logged_in', 'true', {
+  setCookie(response, 'clerk_logged_in', 'true', {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'Lax',
     maxAge: cookieMaxAge,
-    path: '/',
   });
-  response.cookies.set('clerk_role', clerk.role || '', {
+
+  setCookie(response, 'clerk_role', clerk.role || '', {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'Lax',
     maxAge: cookieMaxAge,
-    path: '/',
   });
 
   // Issue Refresh Token
@@ -240,15 +246,15 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false, 
   const cookieMaxAge = durationDays * 24 * 60 * 60;
 
   // Clear cookies for other roles
-  response.cookies.delete('clerk_auth');
-  response.cookies.delete('clerk_logged_in');
-  response.cookies.delete('clerk_role');
-  response.cookies.delete('clerk_session_id');
-  response.cookies.delete('clerk_refresh_token');
-  response.cookies.delete('student_auth');
-  response.cookies.delete('student_logged_in');
-  response.cookies.delete('student_session_id');
-  response.cookies.delete('student_refresh_token');
+  deleteCookie(response, 'clerk_auth');
+  deleteCookie(response, 'clerk_logged_in');
+  deleteCookie(response, 'clerk_role');
+  deleteCookie(response, 'clerk_session_id');
+  deleteCookie(response, 'clerk_refresh_token');
+  deleteCookie(response, 'student_auth');
+  deleteCookie(response, 'student_logged_in');
+  deleteCookie(response, 'student_session_id');
+  deleteCookie(response, 'student_refresh_token');
 
   const token = await new SignJWT({
     id: admin.id,
@@ -260,21 +266,17 @@ export async function issueAdminAuthCookie(response, admin, rememberMe = false, 
     .setExpirationTime(sessionDuration)
     .sign(secret);
 
-  response.cookies.set('admin_auth', token, {
+  setCookie(response, 'admin_auth', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'Strict',
     maxAge: cookieMaxAge,
-    path: '/',
   });
 
   // Companion cookie
-  response.cookies.set('admin_logged_in', 'true', {
+  setCookie(response, 'admin_logged_in', 'true', {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'Lax',
     maxAge: cookieMaxAge,
-    path: '/',
   });
 
   // Issue Refresh Token
