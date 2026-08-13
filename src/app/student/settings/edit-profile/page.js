@@ -343,6 +343,9 @@ export default function EditProfilePage() {
         </button>
         <h3 id="help-sheet-title" className="text-lg font-bold text-[#0b2447] mb-3">Edit Profile Information</h3>
         <div className="text-sm text-slate-700 space-y-4 mb-6 leading-relaxed">
+          <p className="text-slate-600">
+            Submit a formal request to update your personal details or contact information. Please note the following guidelines:
+          </p>
           <ul className="list-disc pl-4 space-y-1">
             <li>Only selected information can be edited.</li>
             <li>Upload supporting documents when applicable.</li>
@@ -387,6 +390,9 @@ export default function EditProfilePage() {
               {isHovered && !isMobileDevice && (
                 <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-lg shadow-xl p-4 z-50 text-left animate-slideDown">
                   <h4 className="text-sm font-bold text-[#0b2447] mb-2">Edit Profile Information</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed mb-3">
+                    Submit a formal request to update your personal details or contact information. Please note the following guidelines:
+                  </p>
                   <ul className="text-xs text-slate-600 leading-relaxed list-disc pl-4 space-y-1">
                     <li>Only selected information can be edited.</li>
                     <li>Upload supporting documents when applicable.</li>
