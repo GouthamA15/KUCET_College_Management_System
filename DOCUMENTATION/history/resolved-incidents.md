@@ -10,6 +10,7 @@
 
 | Session | Date | Category | Affected Subsystem | Primary Root Cause Summary | Resolution Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Session 206** | Aug 14, 2026 | Security & Media | Storage & Upload Pipeline | `FailoverStorageProvider` forwarded options object as `publicId` producing `[object Object].webp`; API routes assigned `StorageResult` object directly to DB string columns | **RESOLVED** |
 | **Session 205** | Aug 11, 2026 | Auth / Proxy | Cookie Engine (`src/proxy.js`) | Next.js Edge header comma-merging corruption of `Set-Cookie` strings | **RESOLVED** |
 | **Session 204** | Aug 11, 2026 | Auth / Routing | Super Admin Login | Client panel state mismatch in `LoginPanel.js` | **RESOLVED** |
 | **Session 203** | Aug 10, 2026 | PDF Generation | Certificate Engine | Non-DOM `onError` prop passed to `@react-pdf` | **RESOLVED** |
@@ -22,7 +23,38 @@
 
 ## Detailed Forensics & Technical Resolutions
 
-### 1. Session 205: Forensic Resolution of "Cookies Remain But App Shows Home Screen"
+### 1. Session 206: Forensic Resolution of Private Storage Security & `[object Object].webp` Image Upload Bug
+
+#### Incident Summary
+Users reported two distinct media asset issues:
+1. **Public Asset Exposure**: Sensitive files (student profile photos, signatures, admission draft documents, payment proofs) were accessible via public direct URLs without authentication.
+2. **`[object Object].webp` Filename & Signature Render Failure**: Signature and photo uploads reported success in UI toast messages, but uploaded images failed to load, previews remained blank, and stored keys in database columns were corrupted with literal string `"[object Object]"` or filenames like `%5Bobject%20Object%5D.webp`.
+
+#### Root Cause Analysis
+Forensic investigation revealed two root causes across the storage architecture and API routes:
+
+1. **`FailoverStorageProvider` Options Forwarding Flaw**:
+   - `FailoverStorageProvider.upload(fileBuffer, key, options = {})` declared parameter 3 as `options = {}`.
+   - When executing `provider.upload(fileBuffer, key, options)`, it passed `options` (a JS object `{}`) as argument 3 (`publicId`) to `CloudinaryStorageProvider.upload(file, folder, publicId)`.
+   - `uploadToCloudinary` evaluated `const randomFilename = publicId || (crypto.randomUUID())`. Because `{}` (empty object) is truthy in JavaScript, `randomFilename` evaluated to `{}` instead of falling back to a random UUID string.
+   - Cloudinary SDK converted `public_id: {}` to string `"[object Object]"` and saved the file as `kucet/clerks/signatures/[object Object].webp`.
+
+2. **Database Column `StorageResult` Object Assignment**:
+   - API endpoints (`/api/clerk/update-profile`, `/api/clerk/admission/drafts/[id]`, `/api/clerk/admission/students/[rollno]`, `/api/public/admission`, `/api/student/requests`, `/api/student/signature`, `/api/bugs`) executed `updateData.signature = await storage.upload(...)`.
+   - `storage.upload(...)` returns a `StorageResult` object (`new StorageResult({ path, url, filename, provider })`).
+   - The API routes assigned the entire `StorageResult` JS object directly to database string columns (`clerks.signature`, `student_signatures.signature`, `student_admission_drafts.signature`, `student_request_images.payment_screenshot`).
+   - Drizzle/MySQL stringified the JS object into literal text `"[object Object]"` in database columns.
+   - When fetching profiles (e.g. `GET /api/clerk/me`), `imageHelper` / `getAssetUrl` received `"[object Object]"`. `getAssetUrl` guarded against `"[object"` strings and returned `""`, causing the UI to render an empty preview.
+
+#### Resolution Steps
+- **Centralized Asset Authorization Engine (`src/lib/asset-auth.js`)**: Implemented strict zero-trust authorization enforcing RBAC rules and ownership checks for all private media requests (`/api/assets/view/[...path]`).
+- **Nginx Zero-Copy Serving (`DEPLOYMENT_PACKAGE/nginx/nginx.conf`)**: Configured protected `/internal_uploads/` location block with Nginx `internal;` directive for zero-copy `X-Accel-Redirect` serving.
+- **Provider Parameter Sanitization (`FailoverStorageProvider.js` & `cloudinary.js`)**: Updated `FailoverStorageProvider.upload` to sanitize `publicId` and updated `uploadToCloudinary` to strictly enforce `typeof publicId === 'string' && !publicId.includes('[object')`, guaranteeing random UUID filename generation (`m9tzk81af3q2`).
+- **API Storage Key Extraction**: Updated all API upload endpoints (`/api/clerk/update-profile`, `/api/clerk/admission/drafts/[id]`, `/api/clerk/admission/students/[rollno]`, `/api/public/admission`, `/api/student/requests`, `/api/student/signature`, `/api/bugs`) to extract `typeof res === 'string' ? res : res?.path`, ensuring primitive storage key strings are saved in the DB.
+
+---
+
+### 2. Session 205: Forensic Resolution of "Cookies Remain But App Shows Home Screen"
 
 #### Incident Summary
 Users attempting to navigate the portal or stay logged in experienced an issue where their browser retained auth companion cookies (`admin_logged_in`, `clerk_logged_in`, `student_logged_in`), yet protected routes repeatedly redirected them to the home screen (`/`) or returned HTTP 401 Unauthorized errors.
