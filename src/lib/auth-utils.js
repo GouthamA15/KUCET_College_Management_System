@@ -33,13 +33,14 @@ async function issueRefreshToken(response, userId, userType, rememberMe = false,
   });
 
   const cookieName = `${userType}_refresh_token`;
-  response.cookies.set(cookieName, refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: durationDays * 24 * 60 * 60,
-    path: '/',
-  });
+  
+  // CRITICAL FIX: Next.js response.cookies.set() groups multiple cookies into one malformed comma-separated Set-Cookie header.
+  // We MUST manually append the Set-Cookie string to the headers.
+  let cookieStr = `${cookieName}=${refreshToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${durationDays * 24 * 60 * 60}`;
+  if (process.env.NODE_ENV === 'production') {
+    cookieStr += '; Secure';
+  }
+  response.headers.append('Set-Cookie', cookieStr);
 
   // Register or Update session if tracking info provided (skip for students)
   if (ip && userAgent && userType !== 'student') {
@@ -150,22 +151,14 @@ export async function issueStudentAuthCookie(response, student, rememberMe = fal
     .setExpirationTime(sessionDuration)
     .sign(secret);
 
-  response.cookies.set('student_auth', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: cookieMaxAge,
-    path: '/',
-  });
+  let authCookieStr = `student_auth=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${cookieMaxAge}`;
+  if (process.env.NODE_ENV === 'production') authCookieStr += '; Secure';
+  response.headers.append('Set-Cookie', authCookieStr);
 
   // Set companion cookies for UI (Must match refresh token duration)
-  response.cookies.set('student_logged_in', 'true', {
-    httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: cookieMaxAge,
-    path: '/',
-  });
+  let companionCookieStr = `student_logged_in=true; Path=/; SameSite=Lax; Max-Age=${cookieMaxAge}`;
+  if (process.env.NODE_ENV === 'production') companionCookieStr += '; Secure';
+  response.headers.append('Set-Cookie', companionCookieStr);
 
   // Issue Refresh Token
   await issueRefreshToken(response, student.roll_no, 'student', rememberMe, ip, userAgent);
