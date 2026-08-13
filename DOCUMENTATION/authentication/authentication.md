@@ -189,22 +189,33 @@ When silent refresh fails inside `src/proxy.js`, explicit HTTP 1970 expiration s
 
 ---
 
-## Clerk Self-Registration & First-Login Password Change Workflow
+## Clerk & Staff Self-Registration & First-Login Password Change Workflow
 
 The system provides a defense-in-depth onboarding pipeline for institutional staff:
 
-1. **Self-Registration Submission (`POST /api/auth/clerk-register`)**:
+1. **Simplified Staff Self-Registration (`POST /api/auth/clerk-register`)**:
    - Staff click **"Register Yourself"** on the Clerk login panel.
-   - Form collects `name`, `email`, `employee_id`, `department`, `designation`, `mobile`, `pfp`, and `signature`.
+   - Self-registration is strictly limited to 3 staff categories:
+     1. **Faculty (`FACULTY`)**: Requires selecting an **Associated Academic Branch** (`CSE`, `CSD`, `ECE`, `EEE`, `MECH`, `CIVIL`, `IT`).
+     2. **Scholarship Clerk (`SCHOLARSHIP_CLERK`)**: Financial / scholarship sanction staff.
+     3. **Admission Clerk (`ADMISSION_CLERK`)**: Student admissions & registration staff.
+   - **Designation Field Deprecation**: Free-text designation inputs have been completely removed to ensure standardized institutional records.
    - Input is validated against Zod zero-trust schemas, rate-limited, and checked for duplicates in `clerks` and pending `clerk_registration_requests`.
-   - On submission, a record is created in `clerk_registration_requests` with `status: 'PENDING'`. No active clerk account is created yet.
+   - On submission, a record is created in `clerk_registration_requests` with `status: 'PENDING'`.
 
-2. **Administrator Review & Approval (`/api/admin/clerk-requests`)**:
-   - Super Admins view pending requests via the **"Pending Clerk Requests"** dashboard component.
-   - **Approve Action**: System generates a strong 12+ character random temporary password, creates an active `clerks` record with `must_change_password: true`, updates request status to `APPROVED`, and sends a transactional email containing login URL, username, employee ID, and temporary password.
-   - **Reject Action**: Administrator provides a rejection reason, updates request status to `REJECTED`, and sends a respectful rejection notification email.
+2. **Administrator Review & Role-Scoped Approval (`/api/admin/clerk-requests`)**:
+   - Super Admins view pending requests organized into role-scoped tabs: **Academic Faculty**, **Scholarship Clerks**, and **Admission Clerks**.
+   - **Approve Action**: System generates a strong random temporary password, creates an active `clerks` record mapped to `role: 'faculty'`, `'scholarship'`, or `'admission'` with `must_change_password: true`, updates request status to `APPROVED`, and sends a transactional email containing login credentials.
+   - **Reject Action**: Administrator provides a rejection reason, updates request status to `REJECTED`, and sends a rejection notification email.
 
-3. **Mandatory First-Login Password Change**:
+3. **Faculty -> HOD Promotion Workflow**:
+   - HOD is **NOT** a self-registration option.
+   - Faculty members register as standard Faculty.
+   - Super Admin promotes an approved Faculty member to HOD via the **Staff Management Console** using **"Promote HOD"**.
+   - The system enforces a strict invariant: **Exactly one active HOD per branch**.
+   - Admin can demote an HOD back to Faculty using **"Demote HOD"** at any time.
+
+4. **Mandatory First-Login Password Change**:
    - Upon first login using the temporary password, `/api/auth/employee-login` returns `mustChangePassword: true`.
    - The UI enforces a mandatory **Password Reset Modal** requiring a new compliant password before allowing navigation to dashboard routes.
    - Updating the password calls `/api/auth/change-password/clerk`, sets `must_change_password: false`, updates `password_changed_at`, and grants full access.
