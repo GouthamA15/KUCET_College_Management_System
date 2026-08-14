@@ -179,7 +179,7 @@ export class InstitutionAssetService {
   static resolveAsset(keyOrPath) {
     if (!keyOrPath || typeof keyOrPath !== 'string') return null;
 
-    const normalized = keyOrPath.trim().replace(/^[\/\\]+/, '');
+    const normalized = keyOrPath.trim().replace(/^[/\\]+/, '');
     const cleanBasename = path.basename(normalized);
 
     // 1. Direct key match
@@ -223,7 +223,7 @@ export class InstitutionAssetService {
    */
   static isProtectedPath(targetPath) {
     if (!targetPath || typeof targetPath !== 'string') return false;
-    const clean = targetPath.toLowerCase().trim().replace(/^[\/\\]+/, '');
+    const clean = targetPath.toLowerCase().trim().replace(/^[/\\]+/, '');
 
     if (
       clean.startsWith('assets') ||

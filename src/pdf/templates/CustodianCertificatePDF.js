@@ -56,6 +56,7 @@ export default function CustodianCertificatePDF({
         <Image 
           src={stampUrl}
           style={{ position: "absolute", left: 120, bottom: 40, width: 80, height: 80 }}
+          alt="College Stamp"
         />
       ) : null}
     </BaseCertificate>

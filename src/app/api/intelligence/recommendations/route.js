@@ -26,7 +26,7 @@ export const GET = wrapHandler({ role: ['admin', 'hod', 'faculty', 'clerk', 'stu
       recommendations = await RecommendationEngine.generateForAdmin?.() || [];
       appliedRules.push('RecommendationEngine.generateForAdmin');
     }
-  } catch (error) {
+  } catch (_error) {
     recommendations = [];
   }
 

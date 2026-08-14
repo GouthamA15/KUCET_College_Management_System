@@ -56,6 +56,8 @@ export const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
 export function getRolePermissions(role) {
   if (!role) return [];
   const normalizedRole = String(role).toLowerCase();
+  if (normalizedRole === 'scholarship') return DEFAULT_ROLE_PERMISSIONS.scholarship_clerk;
+  if (normalizedRole === 'admission') return DEFAULT_ROLE_PERMISSIONS.admission_clerk;
   return DEFAULT_ROLE_PERMISSIONS[normalizedRole] || [];
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 
-export default function StudentHistoryCard({ currentClerkId }) {
+export default function StudentHistoryCard({ _currentClerkId }) {
   // State
   const [historyScope, setHistoryScope] = useState('my'); // 'my' | 'all'
   const DEFAULT_FILTERS = { actionTypes: [], dateRange: 'all' };

@@ -2,7 +2,6 @@ import { wrapHandler } from '@/lib/api-utils';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import { FacultyService } from '@/services/FacultyService';
-import { db } from '@/db';
 
 /**
  * GET /api/student/timetable

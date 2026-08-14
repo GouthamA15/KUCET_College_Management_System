@@ -104,9 +104,13 @@ export async function uploadToCloudinary(file, folder, publicId = null) {
     fileToUpload = `data:image/jpeg;base64,${base64}`;
   }
 
+  const cleanPublicId = typeof publicId === 'string' && publicId.trim() && !publicId.includes('[object') 
+    ? publicId.trim() 
+    : null;
+
   // Generate a cryptographically random UUID as the filename.
   // This ensures NO user identifiers (roll numbers, emails, names) appear in storage paths.
-  const randomFilename = publicId || (
+  const randomFilename = cleanPublicId || (
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID().replace(/-/g, '')
       : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)

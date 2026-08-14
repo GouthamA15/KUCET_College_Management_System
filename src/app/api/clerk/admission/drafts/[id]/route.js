@@ -98,11 +98,13 @@ export const PUT = wrapHandler({
     const { STORAGE_FOLDERS } = await import('@/lib/storage-config');
     if (body.pfp && body.pfp.startsWith('data:image')) {
       if (currentDraft?.pfp) await storage.delete(currentDraft.pfp);
-      body.pfp = await storage.upload(body.pfp, STORAGE_FOLDERS.ADMISSION_DRAFTS_PFP);
+      const res = await storage.upload(body.pfp, STORAGE_FOLDERS.ADMISSION_DRAFTS_PFP);
+      body.pfp = typeof res === 'string' ? res : res?.path;
     }
     if (body.signature && body.signature.startsWith('data:image')) {
       if (currentDraft?.signature) await storage.delete(currentDraft.signature);
-      body.signature = await storage.upload(body.signature, STORAGE_FOLDERS.ADMISSION_DRAFTS_SIGNATURES);
+      const res = await storage.upload(body.signature, STORAGE_FOLDERS.ADMISSION_DRAFTS_SIGNATURES);
+      body.signature = typeof res === 'string' ? res : res?.path;
     }
 
     const allowedFields = [

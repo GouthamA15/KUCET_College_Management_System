@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { 
-  studentImages, studentSignatures, clerks, studentFeePayments,
+  studentImages, studentSignatures, clerks,
   archiveStudents, archiveStudentPersonalDetails, archiveStudentPayments,
   studentProfileRequests, studentAdmissionDrafts, bugReports, studentRequestImages
 } from '@/db/schema';
@@ -28,17 +28,6 @@ const URL_VIOLATION_PATTERNS = [
 function isUrlViolation(value) {
   if (!value || typeof value !== 'string') return false;
   return URL_VIOLATION_PATTERNS.some(pattern => pattern.test(value));
-}
-
-/**
- * Checks if a value looks like a valid storage key.
- */
-function isValidStorageKey(value) {
-  if (!value || typeof value !== 'string') return false;
-  if (value.startsWith('data:')) return false;
-  if (isUrlViolation(value)) return false;
-  // Storage keys start with kucet/ or archive/ or a folder name
-  return true;
 }
 
 /**

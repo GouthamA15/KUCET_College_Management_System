@@ -6,15 +6,11 @@ import {
   studentImages,
   studentSignatures,
   scholarshipSanctions,
-  studentFeePayments,
-  collegeInfo as collegeInfoTable,
-  studentAttendance,
-  studentRequests,
-  facultySubjectAssignments
+  studentFeePayments
 } from '@/db/schema';
-import { eq, or, like, desc, and, sql } from 'drizzle-orm';
-import { encrypt, hashForIndex, decrypt } from '@/lib/encryption';
-import { getPermanentAddressFromDetails, getContactAddressFromDetails, mapAddressStringsToFields } from '@/lib/address-utils';
+import { eq, or, like, desc } from 'drizzle-orm';
+import { decrypt } from '@/lib/encryption';
+import { getPermanentAddressFromDetails, getContactAddressFromDetails } from '@/lib/address-utils';
 import { getStorageProvider } from '@/lib/providers/storage/factory';
 
 import { StudentCertificateService } from './StudentCertificateService';

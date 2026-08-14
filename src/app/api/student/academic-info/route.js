@@ -4,7 +4,6 @@ import { fetchWithSWR } from '@/lib/cache';
 import { db } from '@/db';
 import { 
   students as studentsTable,
-  collegeInfo as collegeInfoTable, 
   syllabusStructure, 
   syllabusSubjects, 
   studentMarks, 
@@ -22,9 +21,6 @@ export async function GET(_request) {
     if (!user) {
       return apiError('Unauthorized', 401);
     }
-
-    const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
-    const collegeInfo = collegeRows[0] || null;
 
     const academicSession = await calculateYearAndSemesterAsync(user.roll_no, user.academic_offset_years || 0);
     const { semester, status: sessionStatus } = academicSession;

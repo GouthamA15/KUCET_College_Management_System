@@ -9,7 +9,7 @@
  * ============================================================
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // =============================================================================
 // HELPERS & CONSTANTS
@@ -328,44 +328,37 @@ describe('Storage Contract: upload() must return storage keys NOT URLs', () => {
     });
   });
 
-  it('cloudinary.js should return storage key format (kucet/...) not URL', () => {
+  it('cloudinary.js should return storage key format not URL', () => {
     // Verify the contract: storage key format
-    // Since vitest mocking with resetModules is order-dependent,
-    // we test the logic directly: a properly formed cloudinary result
-    // should produce a storage key like kucet/folder/filename.ext
-    const publicId = 'kucet/students/pfp/roll_no';
+    // Storage keys produce relative paths (e.g. students/pfp/filename.ext or kucet/students/pfp/filename.ext)
+    const publicId = 'students/pfp/roll_no';
     const format = 'jpg';
     const ext = format ? `.${format}` : '';
     const storageKey = `${publicId}${ext}`;
     
-    // CRITICAL: Must be a storage key, not URL
-    expect(storageKey).toBe('kucet/students/pfp/roll_no.jpg');
+    // CRITICAL: Must be a relative storage key, not URL
+    expect(storageKey).toBe('students/pfp/roll_no.jpg');
     expect(storageKey).not.toContain('https://');
     expect(storageKey).not.toContain('cloudinary.com');
     expect(storageKey).not.toContain('secure_url');
     expect(storageKey).not.toContain('[object');
-    expect(storageKey.startsWith('kucet/')).toBe(true);
+    expect(storageKey.includes('students/pfp/')).toBe(true);
   });
 
-  it('cloudinary.js should throw if upload returns non-kucet public_id', async () => {
-    vi.resetModules();
-    vi.mock('cloudinary', () => ({
-      v2: {
-        config: vi.fn(),
-        uploader: {
-          upload: vi.fn().mockResolvedValue({
-            public_id: 'some_random_path/without_kucet_prefix',
-            format: 'jpg',
-            secure_url: 'https://res.cloudinary.com/testcloud/image/upload/some_random_path.jpg',
-          })
-        }
-      }
-    }));
+  it('cloudinary.js should throw if upload returns invalid public_id', async () => {
+    const { v2: cloudinary } = await import('cloudinary');
+    const spy = vi.spyOn(cloudinary.uploader, 'upload').mockResolvedValueOnce({
+      public_id: null,
+      format: 'jpg',
+      secure_url: '',
+    });
 
     const { uploadToCloudinary } = await import('../../src/lib/cloudinary.js');
     await expect(
       uploadToCloudinary('data:image/jpeg;base64,/9j/test', 'students/pfp')
-    ).rejects.toThrow('invalid storage key');
+    ).rejects.toThrow('empty response');
+
+    spy.mockRestore();
   });
 });
 
@@ -577,7 +570,7 @@ describe('Regression Prevention: Database must never store URLs', () => {
 
 describe('Archive System - Storage keys must remain valid after archive', () => {
   it('should archive a storage key to archive/ namespace', async () => {
-    const { ArchiveMediaService } = await import('../../src/services/archive/ArchiveMediaService.js');
+    await import('../../src/services/archive/ArchiveMediaService.js');
     
     const mockStorage = {
       moveFile: vi.fn().mockResolvedValue({

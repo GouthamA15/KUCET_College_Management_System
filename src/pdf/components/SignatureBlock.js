@@ -9,6 +9,7 @@ export default function SignatureBlock({ signatureUrl, label = "PRINCIPAL", imag
         <Image 
           src={signatureUrl} 
           style={imageStyle || styles.signatureImage} 
+          alt="Signature"
         />
       ) : null}
       <Text style={styles.signatureLabel}>{label}</Text>

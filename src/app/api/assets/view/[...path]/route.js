@@ -3,14 +3,14 @@ import logger from '@/lib/logger';
 import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
+import { getAuthUser } from '@/lib/api-utils';
+import { isStaticPublicAsset, isUserActive, canUserAccessAsset, normalizeAssetPath } from '@/lib/asset-auth';
+import { resolveInstitutionalFilename } from '@/lib/institution-assets';
 
 // In-memory cache for fast delivery of static/branding assets (< 2MB)
 const assetCache = new Map();
 const MAX_CACHE_ENTRIES = 100;
 const MAX_CACHE_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-
-import { resolveInstitutionalFilename } from '@/lib/institution-assets';
 
 /**
  * Resolves candidate file paths on disk using multi-path checks and institutional asset mappings.
@@ -19,7 +19,7 @@ export function resolveLocalFilePath(filename) {
   const base = getLocalStorageBasePath();
   const repoPublic = path.join(process.cwd(), 'public');
   
-  const cleanFilename = filename.replace(/^[\/\\]+/, '');
+  const cleanFilename = filename.replace(/^[/\\]+/, '');
   const candidatePaths = [];
 
   // Check institutional canonical filename mapping
@@ -76,19 +76,79 @@ export function resolveLocalFilePath(filename) {
 }
 
 /**
- * SECURE ASSET PROXY
- * Serves files from VPS storage folders with memory caching and ETag support.
+ * SECURE PRIVATE ASSET PROXY
+ * Authorizes every request before serving sensitive images.
+ * Implements role-based access control, ownership verification, ETag support, and optional Nginx X-Accel-Redirect.
  */
 export async function GET(request, { params }) {
   const { path: pathSegments } = await params;
   const filename = pathSegments.join('/');
 
+  // 1. Static Public Asset Check
+  const isStatic = isStaticPublicAsset(filename);
+
+  if (!isStatic) {
+    // 2. Authentication Check
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+      );
+    }
+
+    // 3. Active User Check
+    const active = await isUserActive(user);
+    if (!active) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403, headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+      );
+    }
+
+    // 4. Role & Ownership Verification
+    const authorized = await canUserAccessAsset(user, filename);
+    if (!authorized) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403, headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+      );
+    }
+  }
+
+  // 5. File Resolution & Security Verification
   const { base, filePath, stat: existingStat } = resolveLocalFilePath(filename);
   const repoPublic = path.join(process.cwd(), 'public');
 
-  // Security: Prevent Directory Traversal
+  // Prevent Directory Traversal
   if (!filePath.startsWith(base) && !filePath.startsWith(repoPublic)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'Forbidden' },
+      { status: 403, headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+    );
+  }
+
+  const storageType = (
+    process.env.NEXT_PUBLIC_STORAGE_TYPE ||
+    process.env.STORAGE_TYPE ||
+    'local'
+  ).toLowerCase();
+
+  // If STORAGE_TYPE=cloudinary and file is not present on local disk, redirect to Cloudinary CDN URL
+  if (storageType === 'cloudinary' && !existingStat) {
+    const cloudName =
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+      process.env.CLOUDINARY_CLOUD_NAME ||
+      'djs0ry74r';
+    const extension = filename.split('.').pop()?.toLowerCase() || '';
+    let resourceType = 'image';
+    if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
+      resourceType = 'video';
+    } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
+      resourceType = 'raw';
+    }
+    const cdnUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/f_auto,q_auto/${filename}`;
+    return NextResponse.redirect(cdnUrl, 307);
   }
 
   try {
@@ -112,10 +172,13 @@ export async function GET(request, { params }) {
       '.mp4': 'video/mp4'
     };
     const contentType = mimeTypes[extension] || 'application/octet-stream';
+    const cacheControlHeader = isStatic 
+      ? 'public, max-age=86400, must-revalidate' 
+      : 'private, max-age=3600, must-revalidate';
 
     const headers = {
       'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=86400, must-revalidate',
+      'Cache-Control': cacheControlHeader,
       'ETag': etag,
       'Last-Modified': stat.mtime.toUTCString(),
     };
@@ -132,7 +195,14 @@ export async function GET(request, { params }) {
       return new NextResponse(null, { status: 304, headers });
     }
 
-    // Check memory cache
+    // High-performance Nginx X-Accel-Redirect mode
+    if (process.env.USE_NGINX_X_ACCEL === 'true' || request.headers.get('x-nginx-accel') === 'true') {
+      const cleanRel = normalizeAssetPath(filename);
+      headers['X-Accel-Redirect'] = `/internal_uploads/${cleanRel}`;
+      return new NextResponse(null, { headers });
+    }
+
+    // Memory cache for small assets (<2MB)
     const cacheKey = `${filePath}:${stat.mtimeMs}`;
     let fileBuffer = assetCache.get(cacheKey);
 

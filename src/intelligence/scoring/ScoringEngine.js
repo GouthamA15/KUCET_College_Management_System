@@ -1,6 +1,6 @@
 import { db } from '@/db';
-import { students, studentAttendance, studentMarks, studentFeePayments, scholarshipSanctions } from '@/db/schema';
-import { eq, and, desc, sql, inArray } from 'drizzle-orm';
+import { students } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { getWeights } from './WeightConfig';
 import { 
   normalizeRange, 
@@ -36,7 +36,7 @@ export class ScoringEngine {
     return breakdown;
   }
 
-  async computeStudentScores(studentId, academicYear) {
+  async computeStudentScores(_studentId, _academicYear) {
     const computedAt = getNow().toISOString();
     
     // Simulate fetching data
@@ -138,7 +138,7 @@ export class ScoringEngine {
     };
   }
 
-  async computeFacultyScore(facultyId, academicYear) {
+  async computeFacultyScore(_facultyId, _academicYear) {
     const weights = await getWeights('FACULTY_PERF');
     const raw = { attendance_submission_rate: 90, topic_coverage: 85, student_pass_rate: 75 };
     const norm = { attendance_submission_rate: 90, topic_coverage: 85, student_pass_rate: 75 };
@@ -154,7 +154,7 @@ export class ScoringEngine {
     };
   }
 
-  async computeDepartmentScore(branch, academicYear) {
+  async computeDepartmentScore(_branch, _academicYear) {
     const weights = await getWeights('DEPT_PERF');
     const raw = { avg_student_perf: 75, faculty_perf: 80, fee_collection: 70, scholarship_coverage: 90 };
     const norm = { avg_student_perf: 75, faculty_perf: 80, fee_collection: 70, scholarship_coverage: 90 };
@@ -170,7 +170,7 @@ export class ScoringEngine {
     };
   }
 
-  async batchScoreStudents(branch, academicYear, options = {}) {
+  async batchScoreStudents(branch, academicYear, _options = {}) {
     const studentsList = await db.select().from(students).where(eq(students.branch, branch));
     const results = [];
     for (const student of studentsList) {

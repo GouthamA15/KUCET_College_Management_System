@@ -141,7 +141,8 @@ export async function POST(req) {
 
     if (pfp) {
       try {
-        pfpUrl = await storage.upload(pfp, STORAGE_FOLDERS.ADMISSION_DRAFTS_PFP);
+        const res = await storage.upload(pfp, STORAGE_FOLDERS.ADMISSION_DRAFTS_PFP);
+        pfpUrl = typeof res === 'string' ? res : res?.path;
       } catch (err) {
         logger.error(err, 'Failed to upload profile picture for admission draft');
         return apiError('Failed to upload profile picture.', 500);
@@ -149,7 +150,8 @@ export async function POST(req) {
     }
     if (signature) {
       try {
-        signatureUrl = await storage.upload(signature, STORAGE_FOLDERS.ADMISSION_DRAFTS_SIGNATURES);
+        const res = await storage.upload(signature, STORAGE_FOLDERS.ADMISSION_DRAFTS_SIGNATURES);
+        signatureUrl = typeof res === 'string' ? res : res?.path;
       } catch (err) {
         logger.error(err, 'Failed to upload signature for admission draft');
         if (pfpUrl) {

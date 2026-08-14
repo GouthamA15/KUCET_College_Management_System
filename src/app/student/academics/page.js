@@ -25,7 +25,7 @@ function deriveShortName(subjectName) {
 }
 
 export default function AcademicsPage() {
-  const { studentData, collegeInfo } = useStudent();
+  const { studentData } = useStudent();
   if (!studentData) return null;
 
   return (

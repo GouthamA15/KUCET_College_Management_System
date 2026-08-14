@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { students, otpCodes } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
 import crypto from 'crypto';
 
 // Must match the hashing used in send-update-email-otp/route.js

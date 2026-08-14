@@ -8,10 +8,9 @@ import { getBranchFromRoll } from '@/lib/rollNumber';
 import FinancialSummaryTable from '@/components/student/FinancialSummaryTable';
 import FeeTransactionHistory from '@/components/student/FeeTransactionHistory';
 import useFinancialRows from '@/components/student/useFinancialRows';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function StudentFinancesPage() {
-  const { studentData, collegeInfo, loading: contextLoading } = useStudent();
+  const { studentData, loading: contextLoading } = useStudent();
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' or 'transactions'
 
   // Help Icon / Bottom Sheet state

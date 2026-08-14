@@ -9,7 +9,7 @@ import {
   facultySubjectAssignments,
   attendanceSessions
 } from '@/db/schema';
-import { eq, and, sql, isNull, inArray, count, desc, gte, lt } from 'drizzle-orm';
+import { eq, and, sql, lt } from 'drizzle-orm';
 import { RecommendationRegistry } from './RecommendationRegistry';
 import { getNow } from '@/lib/clock';
 
@@ -319,7 +319,7 @@ export class RecommendationEngine {
     return { recommendations };
   }
 
-  async generateForAdmin(academicYear) {
+  async generateForAdmin(_academicYear) {
     const recommendations = [];
 
     // Pending approvals

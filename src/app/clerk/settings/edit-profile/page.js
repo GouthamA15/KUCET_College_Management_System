@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { getAssetUrl } from '@/lib/assets';
+import { getAssetUrl, invalidateAssetCache } from '@/lib/assets';
 
 export default function ClerkEditProfilePage() {
   const router = useRouter();
@@ -230,6 +230,8 @@ export default function ClerkEditProfilePage() {
       if (!res.ok) throw new Error(resData.error || 'Update failed');
       
       toast.success('Profile updated successfully.', { id: toastId });
+      invalidateAssetCache(originalData?.pfp);
+      invalidateAssetCache(originalData?.signature);
       setPfpDataUrl(null);
       setSignatureDataUrl(null);
       setEmailVerified(false); // Reset after save

@@ -35,16 +35,16 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
 
   const restoreAuth = useCallback(async () => {
     const sessionType = getSessionType();
-    console.log('[AuthRestore] Detected sessionType:', sessionType);
+    console.info('[AuthRestore] Detected sessionType:', sessionType);
 
     if (!sessionType) {
-      console.log('[AuthRestore] No session companion cookie found. Falling back to login.');
+      console.info('[AuthRestore] No session companion cookie found. Falling back to login.');
       setAuthStatus(false);
       return;
     }
 
     try {
-      console.log(`[AuthRestore] Attempting POST /api/auth/refresh for ${sessionType}`);
+      console.info(`[AuthRestore] Attempting POST /api/auth/refresh for ${sessionType}`);
       const res = await fetch('/api/auth/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,7 +52,7 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
         credentials: 'include',
       });
 
-      console.log('[AuthRestore] Fetch returned status:', res.status);
+      console.info('[AuthRestore] Fetch returned status:', res.status);
 
       if (res.ok) {
         let destination = '/student';
@@ -63,7 +63,7 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
           const clerkRole = clerkRoleMatch?.[1];
           destination = getDashboardPathByRole(clerkRole) || '/clerk';
         }
-        console.log('[AuthRestore] Success! Hard navigating to:', destination);
+        console.info('[AuthRestore] Success! Hard navigating to:', destination);
         
         setTimeout(() => {
           window.location.href = destination;

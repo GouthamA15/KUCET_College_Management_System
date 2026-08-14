@@ -16,7 +16,7 @@ export default function TransferCertificatePDF({
   reason,
   casteDisplay,
   category,
-  subCaste,
+  subCaste: _subCaste,
   logoUrl,
   signatureUrl,
   qrUrl,

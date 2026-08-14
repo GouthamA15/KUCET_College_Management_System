@@ -128,11 +128,11 @@ function pickSubjectVisual(subjectName, index) {
 }
 
 export default function StudentHomePage() {
-  const { studentData, collegeInfo, academicPerformance, loading: contextLoading } = useStudent();
+  const { studentData, academicPerformance, loading: contextLoading } = useStudent();
 
   const student = studentData?.student || null;
   const branch = student ? getBranchFromRoll(student.roll_no) : null;
-  const { semesterLabel, yearOfStudy, semester, academicYear, status } = student?.academic_session || { semesterLabel: '', yearOfStudy: null, semester: null, academicYear: null, status: null };
+  const { semesterLabel, yearOfStudy, semester, academicYear } = student?.academic_session || { semesterLabel: '', yearOfStudy: null, semester: null, academicYear: null, status: null };
 
   // Status can be used to show a notice if calendar is missing, but for now we just fallback gracefully.
 

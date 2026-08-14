@@ -18,6 +18,7 @@ async function runMigrations() {
       password: decodeURIComponent(url.password),
       database: url.pathname.slice(1),
       port: Number(url.port) || 3306,
+      multipleStatements: true,
       ssl: (url.searchParams.get('ssl') === 'true' || url.hostname.includes('tidbcloud.com')) ? {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true,
@@ -30,6 +31,7 @@ async function runMigrations() {
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
       port: Number(process.env.DB_PORT) || 3306,
+      multipleStatements: true,
       ssl: (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('tidbcloud.com'))) ? {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true,

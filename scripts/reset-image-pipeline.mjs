@@ -64,7 +64,7 @@ const KUCET_SUBFOLDERS_TO_DELETE = [
 // Helper: Delete all assets in a Cloudinary folder
 // ============================================================
 async function deleteCloudinaryFolder(folderPath) {
-  console.log(`\n[CLOUDINARY] Deleting assets in folder: ${folderPath}`);
+  console.info(`\n[CLOUDINARY] Deleting assets in folder: ${folderPath}`);
   let deleted = 0;
   let nextCursor = undefined;
 
@@ -83,7 +83,7 @@ async function deleteCloudinaryFolder(folderPath) {
       nextCursor = result.next_cursor;
     } catch (err) {
       if (err.error?.message?.includes('not found') || err.http_code === 404) {
-        console.log(`  [SKIP] Folder ${folderPath}/ not found on Cloudinary.`);
+        console.info(`  [SKIP] Folder ${folderPath}/ not found on Cloudinary.`);
         return 0;
       }
       throw err;
@@ -94,13 +94,13 @@ async function deleteCloudinaryFolder(folderPath) {
     const publicIds = resources.map(r => r.public_id);
     await cloudinary.api.delete_resources(publicIds, { resource_type: 'image' });
     deleted += publicIds.length;
-    console.log(`  Deleted ${publicIds.length} assets. (total: ${deleted})`);
+    console.info(`  Deleted ${publicIds.length} assets. (total: ${deleted})`);
   } while (nextCursor);
 
   // Delete the folder itself (Cloudinary API)
   try {
     await cloudinary.api.delete_folder(folderPath);
-    console.log(`  [FOLDER] Deleted folder: ${folderPath}`);
+    console.info(`  [FOLDER] Deleted folder: ${folderPath}`);
   } catch (e) {
     console.warn(`  [WARN] Could not delete empty folder ${folderPath}: ${e.message}`);
   }
@@ -112,9 +112,9 @@ async function deleteCloudinaryFolder(folderPath) {
 // PHASE 1: Cloudinary Cleanup
 // ============================================================
 async function cloudinaryCleanup() {
-  console.log('\n========================================');
-  console.log('PHASE 1: Cloudinary Cleanup');
-  console.log('========================================');
+  console.info('\n========================================');
+  console.info('PHASE 1: Cloudinary Cleanup');
+  console.info('========================================');
 
   let totalDeleted = 0;
 
@@ -126,7 +126,7 @@ async function cloudinaryCleanup() {
     totalDeleted += await deleteCloudinaryFolder(folder);
   }
 
-  console.log(`\n[CLOUDINARY] Total assets deleted: ${totalDeleted}`);
+  console.info(`\n[CLOUDINARY] Total assets deleted: ${totalDeleted}`);
   return totalDeleted;
 }
 
@@ -134,9 +134,9 @@ async function cloudinaryCleanup() {
 // PHASE 2: Database Cleanup
 // ============================================================
 async function databaseCleanup() {
-  console.log('\n========================================');
-  console.log('PHASE 2: Database Reset of Image Columns');
-  console.log('========================================');
+  console.info('\n========================================');
+  console.info('PHASE 2: Database Reset of Image Columns');
+  console.info('========================================');
 
   const conn = await mysql.createConnection({
     host: process.env.DB_HOST,
@@ -200,35 +200,35 @@ async function databaseCleanup() {
     try {
       const [result] = await conn.execute(sql);
       const affected = result.affectedRows ?? '?';
-      console.log(`  [DB] ${label}: ${affected} rows affected`);
+      console.info(`  [DB] ${label}: ${affected} rows affected`);
     } catch (err) {
       console.warn(`  [DB WARN] ${label}: ${err.message}`);
     }
   }
 
   await conn.end();
-  console.log('\n[DB] Database image columns reset complete.');
+  console.info('\n[DB] Database image columns reset complete.');
 }
 
 // ============================================================
 // MAIN
 // ============================================================
 async function main() {
-  console.log('===========================================');
-  console.log('IMAGE PIPELINE RESET SCRIPT');
-  console.log('===========================================');
-  console.log('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME || '(NOT SET)');
-  console.log('DB Host:   ', process.env.DB_HOST || '(NOT SET)');
-  console.log('');
+  console.info('===========================================');
+  console.info('IMAGE PIPELINE RESET SCRIPT');
+  console.info('===========================================');
+  console.info('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME || '(NOT SET)');
+  console.info('DB Host:   ', process.env.DB_HOST || '(NOT SET)');
+  console.info('');
 
   const cloudDeletedCount = await cloudinaryCleanup();
   await databaseCleanup();
 
-  console.log('\n===========================================');
-  console.log('RESET COMPLETE');
-  console.log(`Cloudinary assets deleted: ${cloudDeletedCount}`);
-  console.log('Database image columns cleared.');
-  console.log('===========================================');
+  console.info('\n===========================================');
+  console.info('RESET COMPLETE');
+  console.info(`Cloudinary assets deleted: ${cloudDeletedCount}`);
+  console.info('Database image columns cleared.');
+  console.info('===========================================');
 }
 
 main().catch(err => {

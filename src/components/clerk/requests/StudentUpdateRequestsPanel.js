@@ -6,11 +6,10 @@ import { useClerk } from '@/context/ClerkContext';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getAssetUrl } from '@/lib/assets';
-import { safeJsonParse } from '@/lib/json-utils';
 import { Search, Filter, ArrowUpDown, X, FileText, CheckCircle, XCircle } from 'lucide-react';
 
 const StudentUpdateRequestsPanel = () => {
-  const { clerkData: clerk, loading: isContextLoading, pendingProfileRequests, isLoadingRequests, refreshProfileRequests } = useClerk();
+  const { loading: isContextLoading, pendingProfileRequests, isLoadingRequests, refreshProfileRequests } = useClerk();
   
   const [rejectingRequest, setRejectingRequest] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -20,7 +19,7 @@ const StudentUpdateRequestsPanel = () => {
   const [reviewingRequest, setReviewingRequest] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const requests = pendingProfileRequests || [];
+  const requests = useMemo(() => pendingProfileRequests || [], [pendingProfileRequests]);
   const loading = isLoadingRequests && requests.length === 0;
 
   const filteredRequests = useMemo(() => {
@@ -115,7 +114,7 @@ const StudentUpdateRequestsPanel = () => {
     if (req.new_data) {
       let data = req.new_data;
       if (typeof data === 'string') {
-        try { data = JSON.parse(data); } catch (e) { data = {}; }
+        try { data = JSON.parse(data); } catch (_e) { data = {}; }
       }
       if (data && typeof data === 'object') {
         count += Object.keys(data).length;
@@ -419,7 +418,7 @@ const StudentUpdateRequestsPanel = () => {
                       {Object.entries((() => {
                         let data = reviewingRequest.new_data;
                         if (typeof data === 'string') {
-                          try { data = JSON.parse(data); } catch (e) { data = { request: data }; }
+                          try { data = JSON.parse(data); } catch (_e) { data = { request: data }; }
                         }
                         return data && typeof data === 'object' ? data : {};
                       })()).map(([field, value]) => (

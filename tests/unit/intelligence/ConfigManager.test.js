@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { configManager, DEFAULT_THRESHOLDS, DEFAULT_SCORE_WEIGHTS } from '@/intelligence/shared/ConfigManager';
 import { db } from '@/db';
-import { cacheAside, invalidateTag } from '@/lib/cache';
+import { invalidateTag } from '@/lib/cache';
 import { thresholdsUpdateSchema } from '@/app/api/intelligence/config/thresholds/route';
 
 vi.mock('@/db', () => {

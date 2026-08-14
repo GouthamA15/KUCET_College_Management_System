@@ -132,7 +132,7 @@ CMS/
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ 1. NEVER use `npm run db:push` (Always use db:generate -> audit -> db:migrate)│
 │ 2. NEVER use roll numbers or PII as filenames (Use crypto.randomUUID())       │
-│ 3. DB storage keys MUST be relative (e.g., kucet/requests/pfp/7a59662b.webp)  │
+│ 3. DB storage keys MUST be relative (e.g., clerks/pfp/7a59662b.webp or kucet/...) │
 │ 4. ALWAYS wrap client image sources with `getAssetUrl(key)`                    │
 │ 5. NEVER attach HTML DOM props (onError, onClick) to @react-pdf components     │
 │ 6. ALWAYS validate API inputs using Zod schemas inside `wrapHandler`           │
@@ -156,7 +156,52 @@ Session 205 resolved critical cookie persistence bugs, hardened authentication b
 | `0440a5d9ebb935c853b65b6e08179f22029a7b1e` | Super Admin Login & Role Isolation | Fixed Super Admin login redirect bug; implemented multi-role cookie purging upon login in `src/lib/auth-utils.js`; payload-based routing in `LoginPanel.js`; created unit test suite `tests/unit/api/auth/admin-login.test.js`. |
 | `24f342f91edc9f1aafb02b2fb9abc80c494dd683` | Academic Session Cache & Header Parsing (Part 3) | Added 5-minute process-level in-memory caching (`CACHE_TTL = 300,000ms`) to `getCurrentCalendarSession()` in `src/lib/academic-utils.js` reducing database load; initial header getter update in `proxy.js`. |
 | `87853573a291822bde06c964cdc39aa683a8bdf8` | Final Cookie Persistence Fix (Part 4) | Final resolution of "Cookies Remain But App Shows Home Screen" by implementing raw `newCookiesToSet` string array invariant in `src/proxy.js`, bypassing Next.js header getter comma-merging bugs and attaching explicit HTTP 1970 expiration headers on logout/purge. |
-| `pending` | Session Restoration & Manual Login Exclusivity | Replaced manual `Headers.append` with unified `setCookie` leveraging Next.js `response.cookies.set()` to fix comma-merging, changed `SameSite` to `Lax` for refresh tokens preventing cross-site redirect blocks, completely removed Google Sign-In & `next-auth` for institutional manual exclusivity, and updated unit tests mocks. |
+| `5ef50d98f0ae1d3490543dc1914ccd429a62ba33` | Session Restoration & Manual Login Exclusivity | Replaced manual `Headers.append` with unified `setCookie` leveraging Next.js `response.cookies.set()` to fix comma-merging, changed `SameSite` to `Lax` for refresh tokens preventing cross-site redirect blocks, completely removed Google Sign-In & `next-auth` for institutional manual exclusivity, and updated unit tests mocks. |
+| `bcf734f` | Clerk Self-Registration & Cloudinary Email Assets Fix | Created `ClerkRegistrationService`, pending request approval workflow, mandatory first-login password change, `PendingClerkRequests` admin component, and enforced Cloudinary-hosted branding assets for all email templates. |
+| `6794da2` | Staff Registration Workflow Simplification | Restricted self-registration to 3 staff categories (Faculty, Scholarship Clerk, Admission Clerk), enforced branch selection for Faculty, deprecated free-text designation inputs, created `staff-config.js`. |
+| `b45d87a` | Role-Isolated Admin Staff Management | Redesigned Admin Staff Management console (`/admin/manage-clerks`) into 3 distinct sections (Faculty, Scholarship, Admission) with tab-scoped pending requests, stats, and search. |
+| `7bfafe6` | Faculty Branch Association & HOD Invariant | Added branch association, HOD promotion/demotion actions, and single-HOD-per-branch invariant validation. Created migration `0012_clerk_registration_requests.sql`. |
+| `207c91f` | Staff Hierarchy & Onboarding Documentation | Created `DOCUMENTATION/features/staff-management.md` and updated `DOCUMENTATION/authentication/authentication.md` for staff onboarding workflows. |
+| `ed1e334` | RBAC Role Alias Alignment | Aligned role resolution in `src/lib/rbac.js` so `scholarship` and `admission` roles resolve identically to `scholarship_clerk` and `admission_clerk`. |
+| `7675ab3` | Dedicated Public Staff Onboarding Portal | Created dedicated public onboarding page at `/register/staff` with a 4-step workflow roadmap and link from `LoginPanel.js`. |
+| `7375d99` | Storage Explorer Repair | Resolved tree hierarchy display by updating Cloudinary search expression to `public_id:kucet* OR folder:kucet*` and adding recursive subfolder discovery. |
+| `29fcb9a` | Cloudinary URL Resolution | Implemented environment-aware Cloudinary CDN URL generation in `getAssetUrl()` and HTTP 307 redirect fallback in proxy route. |
+| `699d376` | Client-Side Image Caching Layer | Added in-memory client image cache in `getAssetUrl()` and `AssetContext.js` with selective invalidation (`invalidateAssetCache`), zero duplicate network requests, and 100% storage-provider independence. |
+
+---
+
+## 8. Cloudinary Storage Pipeline & Client Caching Architecture
+
+### 🔄 End-to-End Image Retrieval & Rendering Flow
+
+```text
+Database Column (Relative Key)
+       │ e.g. "kucet/clerks/pfp/86421a61249948f3b14a0eb834ad078d.png"
+       ▼
+getAssetUrl(path) Transformer & Client Cache
+       │
+       ├─► 1. Check In-Memory Client Cache (CLIENT_ASSET_CACHE)
+       │      ├─► HIT  ──► Return cached CDN URL immediately (0ms recalculation)
+       │      └─► MISS ──► Generate URL & store in cache memory map
+       │
+       ├─► 2. Environment Resolution
+       │      ├─► STORAGE_TYPE=cloudinary ──► "https://res.cloudinary.com/djs0ry74r/image/upload/f_auto,q_auto/kucet/..."
+       │      └─► STORAGE_TYPE=local      ──► "/api/assets/view/kucet/..."
+       │
+       ▼
+React Component Rendering (<Image src={getAssetUrl(path)} />)
+       │
+       ▼
+Browser CDN Delivery (HTTP 200 OK from Cloudinary Edge Servers)
+```
+
+### 🎯 Lessons Learned & Permanent Storage Guardrails
+
+1. **Single Source of Truth**: NEVER duplicate image URL helper functions (`buildImageUrl`, `imageUrl`, etc.). `getAssetUrl()` in `@/lib/assets` is the single canonical source of truth for converting storage keys to browser-ready URLs.
+2. **Canonical Relative Keys**: NEVER store full URLs, bucket endpoints, or Cloudinary version strings in the database. DB columns store only clean relative keys (`kucet/<folder>/<uuid>.<ext>`).
+3. **Cryptographic Random UUIDs**: Every uploaded asset receives a random UUID filename (`crypto.randomUUID()`). Roll numbers, student names, and emails MUST NEVER be used as filenames.
+4. **Selective Invalidation**: When an asset is updated or replaced, invoke `invalidateAssetCache(pathOrKey)` to purge ONLY that specific key from client memory, preserving the cache for all other UI components.
+5. **Provider Agnostic Caching**: The client caching layer operates strictly on relative paths, ensuring 100% compatibility across Local, Cloudinary, AWS S3, and Cloudflare R2 storage modes.
 
 ---
 

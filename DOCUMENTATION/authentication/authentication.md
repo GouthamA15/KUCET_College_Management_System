@@ -83,13 +83,13 @@ sequenceDiagram
 
 To balance session persistence with rapid invalidation of compromised credentials, short-lived JWT access tokens (15 minutes) are paired with long-lived refresh tokens stored in the `refresh_tokens` database table.
 
-### Session 205 Cookie Persistence & Client Restore Engine (`src/proxy.js` & `AuthProvider.js`)
+### Session 205 Cookie Persistence & Client Restore Engine (`src/proxy.js` & `HomeLoginLanding.client.js`)
 
 In Session 205 (Parts 1–7), forensic investigation revealed that access token cookies (`admin_auth`, `clerk_auth`, `student_auth`) can be automatically expired and deleted by client browsers due to `Max-Age`/`Expires` policies while long-lived companion session cookies (`admin_logged_in`, `clerk_logged_in`, `student_logged_in`) or refresh tokens persist.
 
 To guarantee persistent authentication across browser restarts and page refreshes, the system implements a dual-layer strategy:
 1. **Edge Middleware Validation (`src/proxy.js`)**: Evaluates role payloads and raw `Set-Cookie` header arrays (`newCookiesToSet`) using `parseSetCookieString` without header comma-merging corruption.
-2. **Client-Side Auth Restore Guard (`src/app/components/AuthProvider.js`)**: When a companion session flag (`_logged_in`) is detected while access tokens are expired or missing, `AuthProvider.js` triggers automatic silent token restoration on the client before rendering public fallbacks.
+2. **Client-Side Auth Restore Guard (`src/components/HomeLoginLanding.client.js` & `src/components/LoginPanel.js`)**: When a companion session flag (`_logged_in`) is detected while access tokens are expired or missing, client components trigger automatic silent token restoration via `/api/auth/refresh` before rendering public fallbacks.
 
 ```mermaid
 sequenceDiagram
@@ -187,7 +187,40 @@ When silent refresh fails inside `src/proxy.js`, explicit HTTP 1970 expiration s
 
 ---
 
+---
 
+## Clerk & Staff Self-Registration & First-Login Password Change Workflow
+
+The system provides a defense-in-depth onboarding pipeline for institutional staff:
+
+1. **Simplified Staff Self-Registration (`POST /api/auth/clerk-register`)**:
+   - Staff click **"Register Yourself"** on the Clerk login panel.
+   - Self-registration is strictly limited to 3 staff categories:
+     1. **Faculty (`FACULTY`)**: Requires selecting an **Associated Academic Branch** (`CSE`, `CSD`, `ECE`, `EEE`, `MECH`, `CIVIL`, `IT`).
+     2. **Scholarship Clerk (`SCHOLARSHIP_CLERK`)**: Financial / scholarship sanction staff.
+     3. **Admission Clerk (`ADMISSION_CLERK`)**: Student admissions & registration staff.
+   - **Designation Field Deprecation**: Free-text designation inputs have been completely removed to ensure standardized institutional records.
+   - Input is validated against Zod zero-trust schemas, rate-limited, and checked for duplicates in `clerks` and pending `clerk_registration_requests`.
+   - On submission, a record is created in `clerk_registration_requests` with `status: 'PENDING'`.
+
+2. **Administrator Review & Role-Scoped Approval (`/api/admin/clerk-requests`)**:
+   - Super Admins view pending requests organized into role-scoped tabs: **Academic Faculty**, **Scholarship Clerks**, and **Admission Clerks**.
+   - **Approve Action**: System generates a strong random temporary password, creates an active `clerks` record mapped to `role: 'faculty'`, `'scholarship'`, or `'admission'` with `must_change_password: true`, updates request status to `APPROVED`, and sends a transactional email containing login credentials.
+   - **Reject Action**: Administrator provides a rejection reason, updates request status to `REJECTED`, and sends a rejection notification email.
+
+3. **Faculty -> HOD Promotion Workflow**:
+   - HOD is **NOT** a self-registration option.
+   - Faculty members register as standard Faculty.
+   - Super Admin promotes an approved Faculty member to HOD via the **Staff Management Console** using **"Promote HOD"**.
+   - The system enforces a strict invariant: **Exactly one active HOD per branch**.
+   - Admin can demote an HOD back to Faculty using **"Demote HOD"** at any time.
+
+4. **Mandatory First-Login Password Change**:
+   - Upon first login using the temporary password, `/api/auth/employee-login` returns `mustChangePassword: true`.
+   - The UI enforces a mandatory **Password Reset Modal** requiring a new compliant password before allowing navigation to dashboard routes.
+   - Updating the password calls `/api/auth/change-password/clerk`, sets `must_change_password: false`, updates `password_changed_at`, and grants full access.
+
+---
 
 ## Cross-References
 

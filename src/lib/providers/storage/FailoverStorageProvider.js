@@ -27,12 +27,13 @@ export default class FailoverStorageProvider extends StorageProvider {
     return storageKey;
   }
 
-  async upload(fileBuffer, key, options = {}) {
+  async upload(fileBuffer, key, publicId = null) {
     let lastError = null;
+    const cleanPublicId = typeof publicId === 'string' ? publicId : null;
 
     for (const provider of this.providers) {
       try {
-        const result = await provider.upload(fileBuffer, key, options);
+        const result = await provider.upload(fileBuffer, key, cleanPublicId);
         return result;
       } catch (err) {
         lastError = err;

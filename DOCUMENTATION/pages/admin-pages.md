@@ -32,8 +32,11 @@ Provides real-time visibility into institution metrics:
 ---
 
 ### 2. Staff & Faculty Account Management (`/admin/manage-clerks`, `/admin/create-clerk`)
-- **Account Provisioning**: Admins create new staff credentials by providing name, institutional email, mobile number, role assignment (`scholarship`, `admission`, `faculty`), HOD flag (`is_hod`), and department branch.
-- **Access Control Toggles**: Instant toggle switch to activate or suspend staff access (`is_active: false`), instantly revoking all active sessions for that user.
+- **Role-Isolated 3-Tab Console**: Redesigned into distinct sections for **Academic Faculty**, **Scholarship Clerks**, and **Admission Clerks**.
+- **Tab-Scoped Pending Requests**: Super Admins review pending self-registration requests filtered by staff category directly above each directory.
+- **HOD Promotion & Demotion**: Super Admins promote approved Faculty members to Head of Department (HOD) using **"Promote HOD"** or demote them using **"Demote HOD"**. System enforces a strict **single-HOD-per-branch** invariant.
+- **Branch Filtering & Search**: Faculty management supports branch-level filtering (`CSE`, `CSD`, `ECE`, `EEE`, `MECH`, `CIVIL`, `IT`) and instant text search across employee ID, email, and name.
+- **Access Control Toggles**: Instant toggle switch to activate or suspend staff access (`is_active: false`), revoking active sessions.
 
 ---
 

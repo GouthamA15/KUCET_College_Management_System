@@ -16,7 +16,7 @@ export class StudentCertificateService {
   /**
    * Specialized validator for Bonafide Certificate eligibility
    */
-  static async validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
+  static async validateBonafideEligibility(studentId, rollNo, studentData, approvedRequests, _collegeInfo, _now) {
     try {
       const { getBranchFromRoll } = await import('@/lib/rollNumber');
       const { calculateYearAndSemesterAsync, getCollegeAcademicYear } = await import('@/lib/academic-utils');
@@ -97,7 +97,7 @@ export class StudentCertificateService {
   /**
    * Specialized validator for Transfer Certificate (TC) eligibility
    */
-  static async validateTCEligibility(studentId, rollNo, studentData, approvedRequests, collegeInfo, now) {
+  static async validateTCEligibility(studentId, rollNo, _studentData, _approvedRequests, _collegeInfo, _now) {
     try {
       const { calculateYearAndSemesterAsync, getCollegeAcademicYear } = await import('@/lib/academic-utils');
       

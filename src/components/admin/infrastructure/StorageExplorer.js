@@ -8,6 +8,7 @@ import { getAssetUrl } from '@/lib/assets';
 
 export default function StorageExplorer() {
   const [files, setFiles] = useState([]);
+  const [apiFolders, setApiFolders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [storageType, setStorageType] = useState('cloudinary');
   const [zipping, setZipping] = useState(false);
@@ -20,8 +21,9 @@ export default function StorageExplorer() {
       const res = await fetch('/api/admin/infrastructure/storage');
       const data = await res.json();
       if (res.ok) {
-        setFiles(data.files);
-        setStorageType(data.storageType);
+        setFiles(data.files || []);
+        setApiFolders(data.folders || []);
+        setStorageType(data.storageType || 'cloudinary');
       } else {
         toast.error('Failed to load storage files');
       }
@@ -74,25 +76,46 @@ export default function StorageExplorer() {
       };
     }
 
-    const folders = new Set();
+    const folderSet = new Set();
     const currentFiles = [];
 
+    // 1. Process explicit Cloudinary/Local folders from API
+    apiFolders.forEach(fPath => {
+      if (!fPath || typeof fPath !== 'string') return;
+      const clean = fPath.startsWith('/') ? fPath.substring(1) : fPath;
+      if (currentPath === '') {
+        if (clean.includes('/')) {
+          folderSet.add(clean.split('/')[0]);
+        } else if (clean) {
+          folderSet.add(clean);
+        }
+      } else if (clean.startsWith(currentPath + '/')) {
+        const relativePath = clean.substring(currentPath.length + 1);
+        if (relativePath.includes('/')) {
+          folderSet.add(relativePath.split('/')[0]);
+        } else if (relativePath) {
+          folderSet.add(relativePath);
+        }
+      }
+    });
+
+    // 2. Process file objects and group folders/files
     files.forEach(f => {
-      const name = f.name;
+      const name = f.name.startsWith('/') ? f.name.substring(1) : f.name;
       
       // If we're at root, and the path has segments
       if (currentPath === '') {
         if (name.includes('/')) {
-          folders.add(name.split('/')[0]);
+          folderSet.add(name.split('/')[0]);
         } else {
           currentFiles.push(f);
         }
       } 
-      // If we're in a folder (e.g., 'students')
+      // If we're in a folder (e.g., 'kucet' or 'kucet/students')
       else if (name.startsWith(currentPath + '/')) {
         const relativePath = name.substring(currentPath.length + 1);
         if (relativePath.includes('/')) {
-          folders.add(relativePath.split('/')[0]);
+          folderSet.add(relativePath.split('/')[0]);
         } else {
           currentFiles.push(f);
         }
@@ -102,9 +125,9 @@ export default function StorageExplorer() {
     return {
       isSearch: false,
       items: currentFiles,
-      folders: Array.from(folders).sort()
+      folders: Array.from(folderSet).sort()
     };
-  }, [files, currentPath, searchTerm]);
+  }, [files, apiFolders, currentPath, searchTerm]);
 
   const breadcrumbs = useMemo(() => {
     if (!currentPath) return [];
@@ -249,15 +272,15 @@ export default function StorageExplorer() {
                       <tr key={f.name + i} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 sm:px-8 py-3">
                            <div className="w-10 h-10 bg-white border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center relative shadow-sm">
-                              {f.secure_url || storageType === 'local' ? (
+                              {f.name ? (
                                 <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                                  src={f.secure_url || getAssetUrl(f.name)} 
+                                  src={getAssetUrl(f.name)} 
                                   alt="Asset" 
                                   width={40} 
                                   height={40} 
                                   unoptimized
                                   className="object-cover w-full h-full cursor-zoom-in hover:scale-110 transition-transform"
-                                  onClick={() => window.open(f.secure_url || getAssetUrl(f.name), '_blank')}
+                                  onClick={() => window.open(getAssetUrl(f.name), '_blank')}
                                 />
                               ) : (
                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">BIN</span>
@@ -322,15 +345,15 @@ export default function StorageExplorer() {
                   <div key={f.name + i} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col gap-3">
                     <div className="flex gap-3 items-center">
                       <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-sm overflow-hidden flex items-center justify-center relative shadow-sm flex-shrink-0">
-                        {f.secure_url || storageType === 'local' ? (
+                        {f.name ? (
                           <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-                            src={f.secure_url || getAssetUrl(f.name)} 
+                            src={getAssetUrl(f.name)} 
                             alt="Asset" 
                             width={48} 
                             height={48} 
                             unoptimized
                             className="object-cover w-full h-full cursor-zoom-in"
-                            onClick={() => window.open(f.secure_url || getAssetUrl(f.name), '_blank')}
+                            onClick={() => window.open(getAssetUrl(f.name), '_blank')}
                           />
                         ) : (
                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">BIN</span>

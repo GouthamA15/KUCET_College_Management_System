@@ -1,7 +1,7 @@
 import { db } from '@/db';
 import { 
   students, studentPersonalDetails, studentAcademicBackground,
-  studentAttendance, attendanceSessions, studentMarks, studentFeePayments,
+  studentAttendance, attendanceSessions, studentMarks,
   archiveStudents, archiveStudentPersonalDetails, archiveStudentAcademicBackground,
   archiveStudentAttendance, archiveAttendanceSessions, archiveStudentMarks, archiveStudentPayments,
   archiveOperationsLog

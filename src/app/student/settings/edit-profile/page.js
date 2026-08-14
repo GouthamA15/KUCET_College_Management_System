@@ -2,16 +2,13 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useStudent } from '@/context/StudentContext';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { getAssetUrl } from '@/lib/assets';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { createPortal } from 'react-dom';
 import { Info, X, Camera, UploadCloud, FileText } from 'lucide-react';
 
 export default function EditProfilePage() {
-  const router = useRouter();
   const { studentData, loading: contextLoading, profileDetails, refreshProfile } = useStudent();
   
   const [formData, setFormData] = useState({

@@ -2,7 +2,7 @@ import { resolveInstitutionalFilename } from '@/lib/institution-assets';
 
 /**
  * ============================================================
- * CANONICAL ASSET URL BUILDER
+ * CANONICAL ASSET URL BUILDER & CLIENT-SIDE IMAGE CACHE
  * ============================================================
  * Single function responsible for converting a DB storage key
  * into a browser-ready URL. Zero legacy path hacks.
@@ -21,10 +21,17 @@ import { resolveInstitutionalFilename } from '@/lib/institution-assets';
  */
 
 /**
+ * In-Memory Client-Side Image Cache Map
+ * Stores resolved (cacheKey -> browserUrl) mappings to eliminate
+ * redundant URL processing and prevent duplicate network fetches.
+ */
+const CLIENT_ASSET_CACHE = new Map();
+
+/**
  * Static assets served from the Next.js /public folder.
  * These are never routed through storage providers.
  */
-const STATIC_ASSETS = new Set([
+export const STATIC_ASSETS = new Set([
   '/assets/ku-logo.png',
   '/assets/ku-college-logo.png',
   '/assets/Naac_A+.png',
@@ -51,21 +58,60 @@ const STATIC_ASSETS = new Set([
 ]);
 
 /**
- * Resolves a DB storage key or static asset path into a browser-safe URL.
+ * Invalidates a specific asset or purges the entire client asset cache.
+ *
+ * @param {string} [pathOrKey] - The relative path or cache key to invalidate.
+ *                               If omitted, clears the entire client asset cache.
+ */
+export function invalidateAssetCache(pathOrKey) {
+  if (!pathOrKey) {
+    CLIENT_ASSET_CACHE.clear();
+    return;
+  }
+
+  const clean = typeof pathOrKey === 'string' ? pathOrKey.trim() : '';
+  if (!clean) return;
+
+  // Direct key deletion
+  CLIENT_ASSET_CACHE.delete(clean);
+  CLIENT_ASSET_CACHE.delete(`/${clean}`);
+
+  // Prefix matching deletion for asset path patterns
+  for (const key of CLIENT_ASSET_CACHE.keys()) {
+    if (key.includes(clean)) {
+      CLIENT_ASSET_CACHE.delete(key);
+    }
+  }
+}
+
+/**
+ * Retrieves the current memory snapshot of cached asset URLs.
+ * Useful for debugging and testing.
+ *
+ * @returns {Record<string, string>} Object containing cached key -> URL pairs.
+ */
+export function getAssetCacheSnapshot() {
+  return Object.fromEntries(CLIENT_ASSET_CACHE.entries());
+}
+
+/**
+ * Resolves a DB storage key or static asset path into a browser-safe URL,
+ * using an in-memory client cache to prevent redundant URL recalculations.
  *
  * @param {string} path - A canonical storage key (e.g. 'kucet/students/pfp/abc.webp')
  *                        or a static asset path (e.g. '/assets/default-avatar.svg').
  * @param {string} [transformations='f_auto,q_auto'] - Cloudinary delivery transformations.
+ * @param {object} [options={}] - Additional options (e.g. { bypassCache: boolean, cacheKey: string }).
  * @returns {string} The browser-ready URL, or '' if path is empty/invalid.
  */
-export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
+export function getAssetUrl(path, transformations = 'f_auto,q_auto', options = {}) {
   // Guard: reject null, undefined, non-strings
   if (!path || typeof path !== 'string') return '';
 
   // Guard: reject serialization corruption
   if (path.includes('[object') || path.includes('undefined')) return '';
 
-  // Pass-through: data URIs, absolute URLs, Next.js API routes
+  // Pass-through: data URIs, absolute URLs, Next.js API routes (never cached in memory map)
   if (
     path.startsWith('data:') ||
     path.startsWith('http://') ||
@@ -75,74 +121,72 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return path;
   }
 
-  // Normalize: strip leading slash for consistent matching
-  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-  const normalizedPath = `/${cleanPath}`;
-
-  // Serve static public-folder assets directly
-  if (STATIC_ASSETS.has(normalizedPath)) {
-    return normalizedPath;
-  }
-
-  // Resolve institutional assets (e.g. 'principal/signature' logical key)
-  const instFilename = resolveInstitutionalFilename(cleanPath);
-  if (instFilename) {
-    const storageType = (
-      process.env.NEXT_PUBLIC_STORAGE_TYPE ||
-      process.env.STORAGE_TYPE ||
-      'local'
-    ).toLowerCase();
-    if (storageType === 'local') {
-      return `/assets/${instFilename}`;
-    }
-    const cloudName =
-      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
-      process.env.CLOUDINARY_CLOUD_NAME ||
-      'djs0ry74r';
-    return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${instFilename}`;
-  }
-
-  // Determine storage strategy from environment
+  // Generate lookup cache key
   const storageType = (
     process.env.NEXT_PUBLIC_STORAGE_TYPE ||
     process.env.STORAGE_TYPE ||
     'local'
   ).toLowerCase();
 
-  // Local storage: proxy through /api/assets/view/
-  if (storageType === 'local') {
-    return `/api/assets/view/${cleanPath}`;
+  const cacheKey = options.cacheKey || `${storageType}:${path}:${transformations}`;
+
+  // Return cached URL if available and not explicitly bypassed
+  if (!options.bypassCache && CLIENT_ASSET_CACHE.has(cacheKey)) {
+    return CLIENT_ASSET_CACHE.get(cacheKey);
   }
 
-  // S3 / Cloudflare R2
-  if (storageType === 's3' || storageType === 'r2') {
-    const s3Domain =
-      process.env.NEXT_PUBLIC_S3_PUBLIC_DOMAIN ||
-      process.env.S3_PUBLIC_DOMAIN;
-    if (s3Domain) {
-      return `${s3Domain.replace(/\/$/, '')}/${cleanPath}`;
+  // Normalize: strip leading slash for consistent matching
+  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  const normalizedPath = `/${cleanPath}`;
+
+  let resolvedUrl = '';
+
+  // Serve static public-folder assets directly
+  if (STATIC_ASSETS.has(normalizedPath)) {
+    resolvedUrl = normalizedPath;
+  } else {
+    // Resolve institutional assets (e.g. 'principal/signature' logical key)
+    const instFilename = resolveInstitutionalFilename(cleanPath);
+    if (instFilename) {
+      if (storageType === 'local') {
+        resolvedUrl = `/assets/${instFilename}`;
+      } else {
+        const cloudName =
+          process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+          process.env.CLOUDINARY_CLOUD_NAME ||
+          'djs0ry74r';
+        resolvedUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${instFilename}`;
+      }
+    } else if (storageType === 'cloudinary') {
+      // Environment-Aware Storage Layer (Cloudinary Mode)
+      const cloudName =
+        process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+        process.env.CLOUDINARY_CLOUD_NAME ||
+        'djs0ry74r';
+
+      const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
+      let resourceType = 'image';
+      if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
+        resourceType = 'video';
+      } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
+        resourceType = 'raw';
+      }
+
+      resolvedUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cleanPath}`;
+    } else {
+      // Secure Private Storage (Local Mode): All non-static asset keys are served through /api/assets/view/
+      resolvedUrl = `/api/assets/view/${cleanPath}`;
     }
   }
 
-  // Cloudinary: all canonical keys start with 'kucet/'
-  const cloudName =
-    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
-    process.env.CLOUDINARY_CLOUD_NAME ||
-    'djs0ry74r';
-
-  // Determine Cloudinary resource_type from extension
-  const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
-  let resourceType = 'image';
-  if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
-    resourceType = 'video';
-  } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
-    resourceType = 'raw';
+  // Cache resolved URL in client memory
+  if (resolvedUrl) {
+    CLIENT_ASSET_CACHE.set(cacheKey, resolvedUrl);
+    // Also index under simple path for easy invalidation by path
+    CLIENT_ASSET_CACHE.set(cleanPath, resolvedUrl);
   }
 
-  // The canonical Cloudinary public ID is the storage key itself.
-  // New uploads always produce 'kucet/<folder>/....<ext>' from uploadToCloudinary().
-  // We do NOT mutate or prefix the path — what's in the DB is the public_id.
-  return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cleanPath}`;
+  return resolvedUrl;
 }
 
 export default getAssetUrl;

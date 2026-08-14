@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { configManager } from '@/intelligence/shared/ConfigManager';
 import { RULES } from '@/intelligence/rule-engine/RuleRegistry';
 
-export const GET = wrapHandler({ role: 'admin' }, async (req) => {
+export const GET = wrapHandler({ role: 'admin' }, async (_req) => {
   const ruleConfigOverrides = await configManager.getRuleConfig();
 
   const rules = RULES.map(rule => {

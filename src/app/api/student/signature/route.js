@@ -159,13 +159,22 @@ export async function POST(req) {
     try {
       if (signature) {
         if (signature === 'REMOVE') signatureUrl = 'REMOVE';
-        else signatureUrl = await storage.upload(signature, STORAGE_FOLDERS.REQUESTS_SIGNATURES);
+        else {
+          const res = await storage.upload(signature, STORAGE_FOLDERS.REQUESTS_SIGNATURES);
+          signatureUrl = typeof res === 'string' ? res : res?.path;
+        }
       }
       if (pfp) {
         if (pfp === 'REMOVE') pfpUrl = 'REMOVE';
-        else pfpUrl = await storage.upload(pfp, STORAGE_FOLDERS.REQUESTS_PFP);
+        else {
+          const res = await storage.upload(pfp, STORAGE_FOLDERS.REQUESTS_PFP);
+          pfpUrl = typeof res === 'string' ? res : res?.path;
+        }
       }
-      if (proof) proofUrl = await storage.upload(proof, STORAGE_FOLDERS.REQUESTS_PROOFS);
+      if (proof) {
+        const res = await storage.upload(proof, STORAGE_FOLDERS.REQUESTS_PROOFS);
+        proofUrl = typeof res === 'string' ? res : res?.path;
+      }
     } catch (uploadError) {
       if (signatureUrl) await storage.delete(signatureUrl).catch(e => logger.error(e, 'Rollback signature failed'));
       if (pfpUrl) await storage.delete(pfpUrl).catch(e => logger.error(e, 'Rollback pfp failed'));

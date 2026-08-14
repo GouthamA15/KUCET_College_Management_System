@@ -49,6 +49,99 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
   const [fpEmailMessage, setFpEmailMessage] = useState('');
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+  // Clerk Self-Registration States
+  const [clerkRegisterForm, setClerkRegisterForm] = useState({
+    name: '',
+    email: '',
+    employee_id: '',
+    staff_category: 'FACULTY',
+    branch: 'CSE',
+    mobile: ''
+  });
+  const [clerkRegisterLoading, setClerkRegisterLoading] = useState(false);
+  const [clerkRegisterSuccess, setClerkRegisterSuccess] = useState('');
+
+  // First Login Password Change States
+  const [firstLoginPassForm, setFirstLoginPassForm] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [firstLoginPassLoading, setFirstLoginPassLoading] = useState(false);
+  const [pendingTargetPath, setPendingTargetPath] = useState('');
+
+  const handleClerkRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setClerkRegisterLoading(true);
+    setClerkError('');
+    setClerkRegisterSuccess('');
+    const toastId = toast.loading('Submitting registration request...');
+    try {
+      const res = await fetch('/api/auth/clerk-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clerkRegisterForm),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success('Registration request submitted! Awaiting admin approval.', { id: toastId });
+        setClerkRegisterSuccess(data.message || 'Registration request submitted successfully!');
+        setClerkRegisterForm({
+          name: '',
+          email: '',
+          employee_id: '',
+          staff_category: 'FACULTY',
+          branch: 'CSE',
+          mobile: ''
+        });
+      } else {
+        toast.error(data.error || 'Registration failed', { id: toastId });
+        setClerkError(data.error || 'Registration failed');
+      }
+    } catch (_err) {
+      toast.error('Network error submitting registration', { id: toastId });
+      setClerkError('Network error submitting registration');
+    } finally {
+      setClerkRegisterLoading(false);
+    }
+  };
+
+  const handleFirstLoginPassSubmit = async (e) => {
+    e.preventDefault();
+    if (firstLoginPassForm.newPassword !== firstLoginPassForm.confirmPassword) {
+      toast.error('New password and confirm password do not match.');
+      return;
+    }
+
+    setFirstLoginPassLoading(true);
+    const toastId = toast.loading('Updating password...');
+    try {
+      const res = await fetch('/api/auth/change-password/clerk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oldPassword: firstLoginPassForm.oldPassword,
+          newPassword: firstLoginPassForm.newPassword
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success('Password updated successfully! Redirecting...', { id: toastId });
+        window.location.replace(pendingTargetPath || '/clerk');
+      } else {
+        toast.error(data.error || 'Failed to update password', { id: toastId });
+      }
+    } catch (_err) {
+      toast.error('Network error updating password', { id: toastId });
+    } finally {
+      setFirstLoginPassLoading(false);
+    }
+  };
+
   const handleStudentSubmit = async (e) => {
     e.preventDefault();
     setStudentLoading(true);
@@ -274,6 +367,15 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
         if (targetPath === '/') {
           targetPath = targetRole === 'admin' ? '/admin/dashboard' : '/clerk';
         }
+
+        if (data.mustChangePassword) {
+          setPendingTargetPath(targetPath);
+          setFirstLoginPassForm((prev) => ({ ...prev, oldPassword: formData.password }));
+          setMode('first-login-pass');
+          toast.success('Temporary password detected. Please set a new password to continue.', { id: toastId });
+          return;
+        }
+
         window.location.replace(targetPath);
       } else {
         toast.error(data.error || 'Login failed', { id: toastId });
@@ -645,7 +747,187 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                   {(activePanel === 'clerk' ? clerkError : adminError) && (
                     <div className="text-red-600 text-sm mt-2 text-center">{activePanel === 'clerk' ? clerkError : adminError}</div>
                   )}
+
+                  {activePanel === 'clerk' && (
+                    <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between text-xs">
+                      <span className="text-gray-600">New Staff Member?</span>
+                      <Link
+                        href="/register/staff"
+                        className="font-bold text-[#0b3578] hover:text-blue-800 hover:underline"
+                      >
+                        Register Yourself &rarr;
+                      </Link>
+                    </div>
+                  )}
                 </form>
+                ) : mode === 'clerk-register' ? (
+                  <form onSubmit={handleClerkRegisterSubmit} className="space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 text-[#0b3578] p-3 rounded text-xs leading-relaxed">
+                      Select your institutional staff category to request access. Administrators review and approve all registrations.
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={clerkRegisterForm.name}
+                        onChange={(e) => setClerkRegisterForm({ ...clerkRegisterForm, name: e.target.value })}
+                        placeholder="e.g. Dr. K. Ramesh"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-[#0b3578]"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Employee ID</label>
+                        <input
+                          type="text"
+                          value={clerkRegisterForm.employee_id}
+                          onChange={(e) => setClerkRegisterForm({ ...clerkRegisterForm, employee_id: e.target.value.toUpperCase() })}
+                          placeholder="EMP1024"
+                          className="w-full px-3 py-2 border border-gray-300 rounded text-xs uppercase font-mono focus:ring-2 focus:ring-[#0b3578]"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Staff Category</label>
+                        <select
+                          value={clerkRegisterForm.staff_category}
+                          onChange={(e) => setClerkRegisterForm({
+                            ...clerkRegisterForm,
+                            staff_category: e.target.value,
+                            branch: e.target.value === 'FACULTY' ? (clerkRegisterForm.branch || 'CSE') : ''
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded text-xs bg-white focus:ring-2 focus:ring-[#0b3578]"
+                          required
+                        >
+                          <option value="FACULTY">Faculty</option>
+                          <option value="SCHOLARSHIP_CLERK">Scholarship Clerk</option>
+                          <option value="ADMISSION_CLERK">Admission Clerk</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {clerkRegisterForm.staff_category === 'FACULTY' && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Associated Academic Branch *</label>
+                        <select
+                          value={clerkRegisterForm.branch}
+                          onChange={(e) => setClerkRegisterForm({ ...clerkRegisterForm, branch: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded text-xs bg-white font-semibold text-[#0b3578] focus:ring-2 focus:ring-[#0b3578]"
+                          required
+                        >
+                          <option value="CSE">CSE (Computer Science & Engg)</option>
+                          <option value="CSD">CSD (Data Science & AI)</option>
+                          <option value="ECE">ECE (Electronics & Comm Engg)</option>
+                          <option value="EEE">EEE (Electrical & Electronics Engg)</option>
+                          <option value="MECH">MECH (Mechanical Engg)</option>
+                          <option value="CIVIL">CIVIL (Civil Engg)</option>
+                          <option value="IT">IT (Information Technology)</option>
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Email Address</label>
+                        <input
+                          type="email"
+                          value={clerkRegisterForm.email}
+                          onChange={(e) => setClerkRegisterForm({ ...clerkRegisterForm, email: e.target.value })}
+                          placeholder="staff@kucet.ac.in"
+                          className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-[#0b3578]"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Mobile Number</label>
+                        <input
+                          type="tel"
+                          value={clerkRegisterForm.mobile}
+                          onChange={(e) => setClerkRegisterForm({ ...clerkRegisterForm, mobile: e.target.value })}
+                          placeholder="10-digit phone"
+                          className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-[#0b3578]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setMode('login')}
+                        className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                      >
+                        &larr; Back to Login
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={clerkRegisterLoading}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2 px-4 rounded text-xs transition-colors"
+                      >
+                        {clerkRegisterLoading ? 'Submitting...' : 'Submit Request'}
+                      </button>
+                    </div>
+
+                    {clerkRegisterSuccess && (
+                      <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3 rounded">
+                        {clerkRegisterSuccess}
+                      </div>
+                    )}
+                    {clerkError && (
+                      <div className="text-red-600 text-xs mt-1 text-center">{clerkError}</div>
+                    )}
+                  </form>
+                ) : mode === 'first-login-pass' ? (
+                  <form onSubmit={handleFirstLoginPassSubmit} className="space-y-4">
+                    <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded text-xs leading-relaxed">
+                      <strong>Security Policy Requirement:</strong> You logged in with a temporary password. You must change your password before continuing.
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Current Temporary Password</label>
+                      <input
+                        type="password"
+                        value={firstLoginPassForm.oldPassword}
+                        onChange={(e) => setFirstLoginPassForm({ ...firstLoginPassForm, oldPassword: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-[#0b3578]"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">New Password</label>
+                      <input
+                        type="password"
+                        value={firstLoginPassForm.newPassword}
+                        onChange={(e) => setFirstLoginPassForm({ ...firstLoginPassForm, newPassword: e.target.value })}
+                        placeholder="At least 8 characters (Uppercase, lowercase, digit, special char)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-[#0b3578]"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Confirm New Password</label>
+                      <input
+                        type="password"
+                        value={firstLoginPassForm.confirmPassword}
+                        onChange={(e) => setFirstLoginPassForm({ ...firstLoginPassForm, confirmPassword: e.target.value })}
+                        placeholder="Re-enter new password"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-[#0b3578]"
+                        required
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={firstLoginPassLoading}
+                      className="w-full bg-[#0b3578] hover:bg-[#0a2d66] text-white py-2.5 rounded font-semibold text-xs transition-colors"
+                    >
+                      {firstLoginPassLoading ? 'Updating Password...' : 'Update Password & Access Dashboard'}
+                    </button>
+                  </form>
                 ) : (
                   <form onSubmit={handleForgotEmployeeSubmit} className="space-y-5">
                     <div>

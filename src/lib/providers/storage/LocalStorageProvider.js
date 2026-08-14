@@ -99,7 +99,8 @@ export default class LocalStorageProvider extends StorageProvider {
       url,
       filename,
       provider: 'local',
-      mimeType
+      mimeType,
+      size: buffer.length
     });
   }
 

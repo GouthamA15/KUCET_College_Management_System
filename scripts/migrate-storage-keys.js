@@ -155,7 +155,7 @@ async function migrateTable(conn, { table, column, pk }) {
     [table]
   );
   if (tables.length === 0) {
-    console.log(`  [SKIP] Table ${table} does not exist yet`);
+    console.info(`  [SKIP] Table ${table} does not exist yet`);
     return { checked: 0, migrated: 0, nullified: 0, skipped: 0 };
   }
 
@@ -165,7 +165,7 @@ async function migrateTable(conn, { table, column, pk }) {
     [table, column]
   );
   if (cols.length === 0) {
-    console.log(`  [SKIP] Column ${table}.${column} does not exist`);
+    console.info(`  [SKIP] Column ${table}.${column} does not exist`);
     return { checked: 0, migrated: 0, nullified: 0, skipped: 0 };
   }
 
@@ -194,11 +194,11 @@ async function migrateTable(conn, { table, column, pk }) {
 
     if (normalized === null) {
       nullified++;
-      console.log(`  [NULLIFIED] ${table}.${column} for ${pk}=${row[pk]}: "${original.substring(0, 60)}..."`);
+      console.info(`  [NULLIFIED] ${table}.${column} for ${pk}=${row[pk]}: "${original.substring(0, 60)}..."`);
     } else {
       migrated++;
       if (migrated <= 5) { // Only log first 5 to avoid spam
-        console.log(`  [MIGRATED] ${table}.${column}: "${original.substring(0, 50)}" → "${normalized}"`);
+        console.info(`  [MIGRATED] ${table}.${column}: "${original.substring(0, 50)}" → "${normalized}"`);
       }
     }
   }
@@ -207,17 +207,17 @@ async function migrateTable(conn, { table, column, pk }) {
 }
 
 async function main() {
-  console.log('='.repeat(60));
-  console.log('KUCET Storage Key Migration');
-  console.log('='.repeat(60));
-  console.log('This script normalizes all image columns to storage keys.');
-  console.log('It is IDEMPOTENT - safe to run multiple times.');
-  console.log('');
+  console.info('='.repeat(60));
+  console.info('KUCET Storage Key Migration');
+  console.info('='.repeat(60));
+  console.info('This script normalizes all image columns to storage keys.');
+  console.info('It is IDEMPOTENT - safe to run multiple times.');
+  console.info('');
 
   let conn;
   try {
     conn = await createConnection(DB_CONFIG);
-    console.log('✓ Connected to database\n');
+    console.info('✓ Connected to database\n');
 
     let totalChecked = 0;
     let totalMigrated = 0;
@@ -226,19 +226,19 @@ async function main() {
     for (const colDef of IMAGE_COLUMNS) {
       process.stdout.write(`Processing ${colDef.table}.${colDef.column}... `);
       const result = await migrateTable(conn, colDef);
-      console.log(`done (checked: ${result.checked}, migrated: ${result.migrated}, nullified: ${result.nullified}, skipped: ${result.skipped})`);
+      console.info(`done (checked: ${result.checked}, migrated: ${result.migrated}, nullified: ${result.nullified}, skipped: ${result.skipped})`);
       totalChecked += result.checked;
       totalMigrated += result.migrated;
       totalNullified += result.nullified;
     }
 
-    console.log('');
-    console.log('='.repeat(60));
-    console.log('MIGRATION COMPLETE');
-    console.log(`Total rows checked:   ${totalChecked}`);
-    console.log(`Total rows migrated:  ${totalMigrated}`);
-    console.log(`Total rows nullified: ${totalNullified} (unrecoverable [object Object])`);
-    console.log('='.repeat(60));
+    console.info('');
+    console.info('='.repeat(60));
+    console.info('MIGRATION COMPLETE');
+    console.info(`Total rows checked:   ${totalChecked}`);
+    console.info(`Total rows migrated:  ${totalMigrated}`);
+    console.info(`Total rows nullified: ${totalNullified} (unrecoverable [object Object])`);
+    console.info('='.repeat(60));
 
   } catch (error) {
     console.error('Migration failed:', error.message);

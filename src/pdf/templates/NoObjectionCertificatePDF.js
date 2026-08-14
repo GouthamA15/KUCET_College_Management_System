@@ -16,7 +16,7 @@ export default function NoObjectionCertificatePDF({
   academicYear,
   casteDisplay,
   category,
-  subCaste,
+  subCaste: _subCaste,
   logoUrl,
   signatureUrl,
   qrUrl,

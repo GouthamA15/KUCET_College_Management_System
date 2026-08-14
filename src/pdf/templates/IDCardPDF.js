@@ -250,7 +250,7 @@ export default function IDCardPDF({
           {/* Logo Section */}
           <View style={styles.logoSection}>
             <View style={styles.logoWhiteCircle}>
-              {logoUrl && <Image src={logoUrl} style={styles.logoImage} />}
+              {logoUrl && <Image src={logoUrl} style={styles.logoImage} alt="College Logo" />}
             </View>
           </View>
 
@@ -272,7 +272,7 @@ export default function IDCardPDF({
           {/* Photo */}
           <View style={styles.photoBox}>
             {pfpUrl ? (
-              <Image src={pfpUrl} style={styles.studentPhoto} />
+              <Image src={pfpUrl} style={styles.studentPhoto} alt="Student Photo" />
             ) : (
               <View style={{ backgroundColor: "#eee", flex: 1 }} />
             )}
@@ -303,12 +303,12 @@ export default function IDCardPDF({
 
           {/* QR Code */}
           <View style={styles.qrBox}>
-            {qrUrl && <Image src={qrUrl} style={{ width: "100%", height: "100%" }} />}
+            {qrUrl && <Image src={qrUrl} style={{ width: "100%", height: "100%" }} alt="QR Code" />}
           </View>
 
           {/* Signature Area */}
           <View style={styles.signatureArea}>
-            {signatureUrl && <Image src={signatureUrl} style={styles.principalSignImg} />}
+            {signatureUrl && <Image src={signatureUrl} style={styles.principalSignImg} alt="Principal Signature" />}
             <Text style={styles.principalNameGreen}>T.M. Reddy</Text>
             <Text style={styles.principalLabel}>Principal</Text>
           </View>
