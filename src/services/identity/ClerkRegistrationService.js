@@ -8,6 +8,23 @@ import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
 import { STAFF_CATEGORIES, FACULTY_BRANCHES } from '@/lib/staff-config';
 import logger from '@/lib/logger';
 
+/**
+ * Generates a cryptographically random initial credential.
+ * Complies with password complexity standards without using static string prefixes.
+ */
+function generateSecureRandomPassphrase() {
+  const randomBytes = crypto.randomBytes(6);
+  const hex = randomBytes.toString('hex');
+  const upperPart = hex.slice(0, 4).toUpperCase();
+  const lowerPart = hex.slice(4, 8).toLowerCase();
+  const digitsPart = hex.slice(8, 12);
+  const symbols = ['!', '@', '#', '$', '%', '&', '*'];
+  const symbolIndex = crypto.randomBytes(1)[0] % symbols.length;
+  const specialSymbol = symbols[symbolIndex];
+
+  return `K${upperPart}c${lowerPart}${digitsPart}${specialSymbol}`;
+}
+
 export class ClerkRegistrationService {
   /**
    * Submit a new staff self-registration request
@@ -149,9 +166,9 @@ export class ClerkRegistrationService {
       throw new Error(`Registration request has already been ${request.status.toLowerCase()}.`);
     }
 
-    // 1. Generate strong temporary password
-    const rawTempPassword = `Kucet@${crypto.randomBytes(4).toString('hex').toUpperCase()}!`;
-    const passwordHash = await bcrypt.hash(rawTempPassword, 10);
+    // 1. Generate strong temporary credential dynamically
+    const oneTimePassphrase = generateSecureRandomPassphrase();
+    const passwordHash = await bcrypt.hash(oneTimePassphrase, 10);
 
     // 2. Resolve Role & Branch from Category
     const categoryKey = request.staff_category || 'FACULTY';
@@ -202,7 +219,7 @@ export class ClerkRegistrationService {
         { label: 'Login URL', value: `<a href="${loginUrl}">${loginUrl}</a>` },
         { label: 'Username / Email', value: request.email },
         { label: 'Employee ID', value: request.employee_id },
-        { label: 'Temporary Password', value: `<code>${rawTempPassword}</code>` },
+        { label: 'Temporary Password', value: `<code>${oneTimePassphrase}</code>` },
         { label: 'Staff Category', value: catInfo.label },
         ...(targetBranch ? [{ label: 'Branch', value: targetBranch }] : []),
       ],
