@@ -84,14 +84,15 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return normalizedPath;
   }
 
+  const storageType = (
+    process.env.NEXT_PUBLIC_STORAGE_TYPE ||
+    process.env.STORAGE_TYPE ||
+    'local'
+  ).toLowerCase();
+
   // Resolve institutional assets (e.g. 'principal/signature' logical key)
   const instFilename = resolveInstitutionalFilename(cleanPath);
   if (instFilename) {
-    const storageType = (
-      process.env.NEXT_PUBLIC_STORAGE_TYPE ||
-      process.env.STORAGE_TYPE ||
-      'local'
-    ).toLowerCase();
     if (storageType === 'local') {
       return `/assets/${instFilename}`;
     }
@@ -102,8 +103,26 @@ export function getAssetUrl(path, transformations = 'f_auto,q_auto') {
     return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations}/${instFilename}`;
   }
 
-  // Secure Private Storage: All non-static asset keys are served through /api/assets/view/
-  // where session, role, and ownership authorization are enforced.
+  // Environment-Aware Storage Layer:
+  // If STORAGE_TYPE=cloudinary, generate the Cloudinary CDN delivery URL dynamically.
+  if (storageType === 'cloudinary') {
+    const cloudName =
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+      process.env.CLOUDINARY_CLOUD_NAME ||
+      'djs0ry74r';
+
+    const extension = cleanPath.split('.').pop()?.toLowerCase() || '';
+    let resourceType = 'image';
+    if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
+      resourceType = 'video';
+    } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
+      resourceType = 'raw';
+    }
+
+    return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${transformations}/${cleanPath}`;
+  }
+
+  // Secure Private Storage (Local Mode): All non-static asset keys are served through /api/assets/view/
   return `/api/assets/view/${cleanPath}`;
 }
 

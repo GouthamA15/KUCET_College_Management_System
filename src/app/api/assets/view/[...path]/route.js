@@ -128,6 +128,29 @@ export async function GET(request, { params }) {
     );
   }
 
+  const storageType = (
+    process.env.NEXT_PUBLIC_STORAGE_TYPE ||
+    process.env.STORAGE_TYPE ||
+    'local'
+  ).toLowerCase();
+
+  // If STORAGE_TYPE=cloudinary and file is not present on local disk, redirect to Cloudinary CDN URL
+  if (storageType === 'cloudinary' && !existingStat) {
+    const cloudName =
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+      process.env.CLOUDINARY_CLOUD_NAME ||
+      'djs0ry74r';
+    const extension = filename.split('.').pop()?.toLowerCase() || '';
+    let resourceType = 'image';
+    if (['mp3', 'wav', 'ogg', 'mp4', 'webm', 'mov', 'm4a'].includes(extension)) {
+      resourceType = 'video';
+    } else if (['pdf', 'docx', 'xlsx', 'csv'].includes(extension)) {
+      resourceType = 'raw';
+    }
+    const cdnUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/f_auto,q_auto/${filename}`;
+    return NextResponse.redirect(cdnUrl, 307);
+  }
+
   try {
     const stat = existingStat || await fs.promises.stat(filePath);
     if (!stat.isFile()) {
