@@ -1,11 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useCallback } from 'react';
-import { getAssetUrl } from '@/lib/assets';
+import React, { createContext, useContext, useEffect, useCallback, useState } from 'react';
+import { getAssetUrl, invalidateAssetCache, getAssetCacheSnapshot } from '@/lib/assets';
 
 const AssetContext = createContext();
 
-// Manifest of assets to pre-cache for instant loading
+// Manifest of static branding assets to pre-cache for instant loading
 const ASSET_MANIFEST = [
   // Logos and Icons
   '/assets/ku-logo.png',
@@ -35,20 +35,15 @@ const ASSET_MANIFEST = [
 ];
 
 export function AssetProvider({ children }) {
+  const [cacheVersion, setCacheVersion] = useState(0);
+
   const preCacheAssets = useCallback(async () => {
-    // We just fetch the assets once so the browser stores them in its native HTTP cache.
-    // This avoids issues with Next.js <Image onError={(e) => { e.currentTarget.style.display = 'none'; }} /> components and blob URLs,
-    // while still achieving the goal of fetching once and storing locally.
-    
     const fetchPromises = ASSET_MANIFEST.map(async (path) => {
       try {
         const url = getAssetUrl(path);
-        // Using 'no-cache' ensures we make a request, but the browser will
-        // still cache the response according to Cloudinary's cache headers.
-        // Actually, just a standard fetch will populate the browser's memory/disk cache.
         await fetch(url, { mode: 'no-cors' }); 
       } catch (err) {
-        console.warn(`Asset pre-cache error for ${path}:`, err.message);
+        // Silent error for optional pre-cache
       }
     });
 
@@ -59,13 +54,40 @@ export function AssetProvider({ children }) {
     preCacheAssets();
   }, [preCacheAssets]);
 
-  // Always return the actual URL, relying on the browser cache for instant loads
-  const getAsset = useCallback((path) => {
-    return getAssetUrl(path);
+  /**
+   * Resolves and returns a cached asset URL.
+   */
+  const getAsset = useCallback((path, transformations = 'f_auto,q_auto', options = {}) => {
+    return getAssetUrl(path, transformations, options);
+  }, []);
+
+  /**
+   * Selectively invalidates a specific asset key in the client cache.
+   * Forces re-resolution on subsequent reads.
+   */
+  const invalidateAsset = useCallback((pathOrKey) => {
+    invalidateAssetCache(pathOrKey);
+    setCacheVersion((v) => v + 1);
+  }, []);
+
+  /**
+   * Clears the complete client asset memory cache.
+   */
+  const clearCache = useCallback(() => {
+    invalidateAssetCache();
+    setCacheVersion((v) => v + 1);
   }, []);
 
   return (
-    <AssetContext.Provider value={{ getAsset }}>
+    <AssetContext.Provider
+      value={{
+        getAsset,
+        invalidateAsset,
+        clearCache,
+        cacheSnapshot: getAssetCacheSnapshot(),
+        cacheVersion,
+      }}
+    >
       {children}
     </AssetContext.Provider>
   );

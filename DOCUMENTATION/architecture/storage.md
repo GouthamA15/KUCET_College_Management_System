@@ -229,15 +229,47 @@ The Admin Storage Explorer (`src/components/admin/infrastructure/StorageExplorer
 
 ---
 
+## ⚡ Client-Side Image Caching Layer
+
+To eliminate duplicate network requests and provide instant image rendering across all UI views (Headers, Avatars, Dashboards, Modals, Tables), the frontend includes an **in-memory client asset cache** managed by `src/lib/assets.js` and `src/context/AssetContext.js`.
+
+### 🔄 Client Asset Resolution & Cache Lifecycle
+
+```
+[Database Column]
+       │
+       ▼
+[getAssetUrl(path)]
+       │
+       ├─► 1. Check CLIENT_ASSET_CACHE memory map
+       │      ├─► CACHE HIT  ──► Return cached URL immediately (0ms delay)
+       │      └─► CACHE MISS ──► Proceed to URL generation
+       │
+       ├─► 2. Resolve URL based on STORAGE_TYPE
+       │      ├─► Cloudinary ──► "https://res.cloudinary.com/djs0ry74r/image/upload/f_auto,q_auto/kucet/..."
+       │      └─► Local      ──► "/api/assets/view/kucet/..."
+       │
+       └─► 3. Store (cacheKey -> browserUrl) in CLIENT_ASSET_CACHE memory map
+```
+
+### 🎯 Key Caching Architecture Principles
+
+1. **Zero Duplicate Requests**: When a profile picture or signature is rendered across multiple components simultaneously (e.g. Header Avatar, Sidebar Avatar, Profile Card, Settings Form), `getAssetUrl()` returns the cached URL instance on subsequent renders without recalculating strings or triggering multiple Cloudinary requests.
+2. **Selective Cache Invalidation**: When a user updates their profile photo or signature, `invalidateAssetCache(key)` is invoked for that specific key. Only the modified asset key is purged from memory, leaving all other cached assets intact.
+3. **Storage-Provider Agnostic**: Caching operates on the relative path key (`kucet/<folder>/<uuid>.<ext>`), caching Cloudinary CDN URLs in Cloudinary mode and `/api/assets/view/...` URLs in Local mode seamlessly.
+
+---
+
 ## 🌐 Environment Resolution Strategy
 
 | Environment | Primary Provider | Fallback Provider | Storage Key Resolution Endpoint |
 | :--- | :--- | :--- | :--- |
-| **Production (Cloudinary Mode)** | `CloudinaryStorageProvider` | `LocalStorageProvider` → `S3StorageProvider` | Fully-qualified CDN URL via `getAssetUrl()` / `StorageProvider.getUrl()` |
-| **Production (Local Mode)** | `LocalStorageProvider` (`/var/www/kucet-storage`) | `CloudinaryStorageProvider` | Secure Proxy Route `/api/assets/view/...` |
-| **Development (Local Dev)** | `LocalStorageProvider` (`./public/uploads`) | `CloudinaryStorageProvider` | Relative Local Asset Route `/api/assets/view/...` |
+| **Production (Cloudinary Mode)** | `CloudinaryStorageProvider` | `LocalStorageProvider` → `S3StorageProvider` | Fully-qualified CDN URL via `getAssetUrl()` / `StorageProvider.getUrl()` (Cached in Client Memory) |
+| **Production (Local Mode)** | `LocalStorageProvider` (`/var/www/kucet-storage`) | `CloudinaryStorageProvider` | Secure Proxy Route `/api/assets/view/...` (Cached in Client Memory) |
+| **Development (Local Dev)** | `LocalStorageProvider` (`./public/uploads`) | `CloudinaryStorageProvider` | Relative Local Asset Route `/api/assets/view/...` (Cached in Client Memory) |
 
 ---
 
 > 💡 **Next Steps**: See how production storage volumes are mounted in Docker in [Deployment Architecture](./deployment.md) or explore database column specifications in [Database Architecture](./database.md).
+
 

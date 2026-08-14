@@ -8,7 +8,7 @@ import { db } from '@/db/index';
 import { clerks } from '@/db/schema/identity';
 import { getAssetUrl } from '@/lib/assets';
 import { getStorageProvider } from '@/lib/providers/storage/factory';
-import { logger } from '@/lib/logger';
+import logger from '@/lib/logger';
 import { eq } from 'drizzle-orm';
 
 cloudinary.config({

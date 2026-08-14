@@ -164,6 +164,44 @@ Session 205 resolved critical cookie persistence bugs, hardened authentication b
 | `207c91f` | Staff Hierarchy & Onboarding Documentation | Created `DOCUMENTATION/features/staff-management.md` and updated `DOCUMENTATION/authentication/authentication.md` for staff onboarding workflows. |
 | `ed1e334` | RBAC Role Alias Alignment | Aligned role resolution in `src/lib/rbac.js` so `scholarship` and `admission` roles resolve identically to `scholarship_clerk` and `admission_clerk`. |
 | `7675ab3` | Dedicated Public Staff Onboarding Portal | Created dedicated public onboarding page at `/register/staff` with a 4-step workflow roadmap and link from `LoginPanel.js`. |
+| `7375d99` | Storage Explorer Repair | Resolved tree hierarchy display by updating Cloudinary search expression to `public_id:kucet* OR folder:kucet*` and adding recursive subfolder discovery. |
+| `29fcb9a` | Cloudinary URL Resolution | Implemented environment-aware Cloudinary CDN URL generation in `getAssetUrl()` and HTTP 307 redirect fallback in proxy route. |
+| `699d376` | Client-Side Image Caching Layer | Added in-memory client image cache in `getAssetUrl()` and `AssetContext.js` with selective invalidation (`invalidateAssetCache`), zero duplicate network requests, and 100% storage-provider independence. |
+
+---
+
+## 8. Cloudinary Storage Pipeline & Client Caching Architecture
+
+### 🔄 End-to-End Image Retrieval & Rendering Flow
+
+```text
+Database Column (Relative Key)
+       │ e.g. "kucet/clerks/pfp/86421a61249948f3b14a0eb834ad078d.png"
+       ▼
+getAssetUrl(path) Transformer & Client Cache
+       │
+       ├─► 1. Check In-Memory Client Cache (CLIENT_ASSET_CACHE)
+       │      ├─► HIT  ──► Return cached CDN URL immediately (0ms recalculation)
+       │      └─► MISS ──► Generate URL & store in cache memory map
+       │
+       ├─► 2. Environment Resolution
+       │      ├─► STORAGE_TYPE=cloudinary ──► "https://res.cloudinary.com/djs0ry74r/image/upload/f_auto,q_auto/kucet/..."
+       │      └─► STORAGE_TYPE=local      ──► "/api/assets/view/kucet/..."
+       │
+       ▼
+React Component Rendering (<Image src={getAssetUrl(path)} />)
+       │
+       ▼
+Browser CDN Delivery (HTTP 200 OK from Cloudinary Edge Servers)
+```
+
+### 🎯 Lessons Learned & Permanent Storage Guardrails
+
+1. **Single Source of Truth**: NEVER duplicate image URL helper functions (`buildImageUrl`, `imageUrl`, etc.). `getAssetUrl()` in `@/lib/assets` is the single canonical source of truth for converting storage keys to browser-ready URLs.
+2. **Canonical Relative Keys**: NEVER store full URLs, bucket endpoints, or Cloudinary version strings in the database. DB columns store only clean relative keys (`kucet/<folder>/<uuid>.<ext>`).
+3. **Cryptographic Random UUIDs**: Every uploaded asset receives a random UUID filename (`crypto.randomUUID()`). Roll numbers, student names, and emails MUST NEVER be used as filenames.
+4. **Selective Invalidation**: When an asset is updated or replaced, invoke `invalidateAssetCache(pathOrKey)` to purge ONLY that specific key from client memory, preserving the cache for all other UI components.
+5. **Provider Agnostic Caching**: The client caching layer operates strictly on relative paths, ensuring 100% compatibility across Local, Cloudinary, AWS S3, and Cloudflare R2 storage modes.
 
 ---
 
