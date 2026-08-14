@@ -146,9 +146,9 @@ export default function StudentHomePage() {
     <div className="-mx-4 lg:-mx-8 -mt-4 bg-slate-50 lg:h-full lg:min-h-0 lg:overflow-hidden">
       <div className="max-w-7xl mx-auto lg:h-full lg:min-h-0 px-4 lg:px-8 py-4 lg:py-3 animate-fadeIn antialiased text-slate-700 flex flex-col gap-4 lg:gap-3">
 
-        {/* Header: text-only on mobile, card on desktop */}
-        <header className="relative shrink-0 lg:h-auto lg:px-6 lg:py-5 lg:flex lg:items-center lg:overflow-hidden lg:rounded-sm lg:border lg:border-slate-200/80 lg:bg-[#0b3578] lg:shadow-inner">
-          <div className="absolute inset-0 hidden lg:block overflow-hidden pointer-events-none">
+        {/* Header: unified card design on both mobile and desktop */}
+        <header className="relative shrink-0 h-auto p-5 lg:px-6 lg:py-5 flex items-center overflow-hidden rounded-xl lg:rounded-sm border border-slate-200/80 bg-[#0b3578] shadow-inner">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
             {/* Elegant deep gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#0b3578] via-[#0f3d8a] to-[#1d57b8]" />
             
@@ -173,25 +173,25 @@ export default function StudentHomePage() {
             <div className="absolute right-[3%] bottom-[30%] w-10 h-10 rounded-full bg-white/5 backdrop-blur-[1px] border border-white/10 shadow-[0_8px_32px_0_rgba(255,255,255,0.03)]" />
           </div>
           <div className="relative w-full p-0 lg:p-0">
-            {/* Mobile Welcome Layout - Unchanged */}
+            {/* Mobile Welcome Layout */}
             <div className="lg:hidden flex flex-col justify-between gap-2.5">
-              <div className="space-y-1 text-left">
-                <h1 className="text-2xl font-bold tracking-tight text-[#0b3578] leading-tight">
+              <div className="space-y-1 text-left text-white">
+                <h1 className="text-2xl font-bold tracking-tight text-white leading-tight select-none">
                   Welcome, {student.name.split(' ')[0]}
                 </h1>
 
                 <div className="flex flex-wrap items-center justify-start gap-2 pt-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-[#0b3578]/5 text-[#0b3578] border border-[#0b3578]/10 px-1.5 py-0.5 rounded-full">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-white/10 text-white border border-white/20 px-1.5 py-0.5 rounded-full">
                     {student.roll_no}
                   </span>
-                  <span className="text-slate-300 inline">•</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                  <span className="text-blue-200/50 inline">•</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-100/90">
                     {branch} • {semesterLabel}
                   </span>
                   {academicYear ? (
                     <>
-                      <span className="text-slate-300 inline">•</span>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{academicYear}</span>
+                      <span className="text-blue-200/50 inline">•</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-100/90">{academicYear}</span>
                     </>
                   ) : null}
                 </div>
