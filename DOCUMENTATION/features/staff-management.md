@@ -64,7 +64,20 @@ The KUCET College Management System enforces a strict 3-category staff self-regi
 
 ---
 
-## 5. Centralized Configuration (`src/lib/staff-config.js`)
+## 5. Secure Onboarding & Credential Generation Workflow
+
+To prevent static credential leakage and enforce zero-trust security:
+
+1. **Admin Approval**: Super Admin reviews and approves a pending staff registration request (`approveRequest()`).
+2. **Cryptographic Passphrase Generation**: The system generates a cryptographically random, high-entropy initial passphrase using `crypto.randomBytes(6)` formatted dynamically (`generateSecureRandomPassphrase()`). Source code contains **NO hardcoded default passwords**, static prefixes (such as `Kucet@`, `Welcome@`, or `Admin123`), or predictable constants.
+3. **Bcrypt Password Hashing**: The initial passphrase is immediately hashed using `bcrypt` (`saltRounds = 10`) before database storage (`password_hash`). Raw passphrases are never stored or logged.
+4. **Institutional Welcome Email**: The single-use temporary passphrase is emailed directly to the approved staff member's institutional email address.
+5. **Mandatory First-Login Reset**: The account is flagged with `must_change_password = true`.
+6. **First-Login Enforcement**: Upon initial login, the staff member is redirected to `/clerk/settings/security` (or password change prompt) and forced to set a new password. Once updated, `must_change_password` is set to `false`.
+
+---
+
+## 6. Centralized Configuration (`src/lib/staff-config.js`)
 
 ```javascript
 export const STAFF_CATEGORIES = {
