@@ -10,15 +10,10 @@
  * ============================================================
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { MediaPromotionService } from '../../src/services/storage/MediaPromotionService.js';
 
 describe('MediaPromotionService - Temporary vs Permanent Identification', () => {
-  let MediaPromotionService;
-
-  beforeEach(async () => {
-    vi.resetModules();
-    MediaPromotionService = (await import('../../src/services/storage/MediaPromotionService.js')).MediaPromotionService;
-  });
 
   it('should correctly identify temporary PFP keys', () => {
     expect(MediaPromotionService.isTemporaryPfp('kucet/requests/pfp/abc.jpg')).toBe(true);

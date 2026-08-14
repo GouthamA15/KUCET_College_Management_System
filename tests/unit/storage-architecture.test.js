@@ -9,7 +9,7 @@
  * ============================================================
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // =============================================================================
 // HELPERS & CONSTANTS
@@ -348,24 +348,19 @@ describe('Storage Contract: upload() must return storage keys NOT URLs', () => {
   });
 
   it('cloudinary.js should throw if upload returns non-kucet public_id', async () => {
-    vi.resetModules();
-    vi.mock('cloudinary', () => ({
-      v2: {
-        config: vi.fn(),
-        uploader: {
-          upload: vi.fn().mockResolvedValue({
-            public_id: 'some_random_path/without_kucet_prefix',
-            format: 'jpg',
-            secure_url: 'https://res.cloudinary.com/testcloud/image/upload/some_random_path.jpg',
-          })
-        }
-      }
-    }));
+    const { v2: cloudinary } = await import('cloudinary');
+    const spy = vi.spyOn(cloudinary.uploader, 'upload').mockResolvedValueOnce({
+      public_id: 'some_random_path/without_kucet_prefix',
+      format: 'jpg',
+      secure_url: 'https://res.cloudinary.com/testcloud/image/upload/some_random_path.jpg',
+    });
 
     const { uploadToCloudinary } = await import('../../src/lib/cloudinary.js');
     await expect(
       uploadToCloudinary('data:image/jpeg;base64,/9j/test', 'students/pfp')
     ).rejects.toThrow('invalid storage key');
+
+    spy.mockRestore();
   });
 });
 
