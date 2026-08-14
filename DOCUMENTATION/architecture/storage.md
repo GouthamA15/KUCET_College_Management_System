@@ -199,14 +199,45 @@ To maintain absolute environment independence and prevent database lock-in, the 
 
 ---
 
+## 🔬 Cloudinary Version Handling & Metadata Investigation
+
+### Detailed Technical Findings
+
+| Investigation Question | Technical Finding | Architectural Implication |
+| :--- | :--- | :--- |
+| **Where does Cloudinary generate the version?** | Server-side Unix timestamp generated during asset upload/update. | Unique timestamp generated automatically per upload. |
+| **Is it available in the upload response & SDK?** | Yes (`result.version`, `r.version`). Supported in `cloudinary.url()`. | Available in API responses if explicitly requested. |
+| **Is it required for image retrieval?** | **NO.** Cloudinary CDN endpoints resolve assets by `public_id` + `format` directly. Tested: HTTP 200 returned both with and without version segment. | Delivery URLs work cleanly as `https://res.cloudinary.com/<cloud>/<type>/upload/<transforms>/<public_id>.<ext>`. |
+| **Is it only used for browser cache invalidation?** | Yes, strictly for cache busting when an asset is updated *in place* under the same `public_id`. | Irrelevant in KUCET CMS because every upload receives an immutable cryptographically random UUID key per Rule 2 & 3. |
+| **Can URLs be generated correctly without storing version?** | Yes. Omitting the version segment causes Cloudinary CDN to automatically resolve and serve the latest active version. | DB schemas remain pure, storing relative keys (`kucet/clerks/pfp/<uuid>.webp`). |
+
+### Architecture Rationale & Storage Metadata Decision
+
+- **Immutable UUID Storage Keys**: Per System Invariants, every upload generates a unique UUID filename (e.g., `kucet/students/pfp/7a59662b.webp`). Updating a photo creates a brand-new file key, rendering cache invalidation automatic.
+- **Provider Agnostic Schema**: Storing clean relative keys without Cloudinary version strings or vendor prefixes keeps database tables 100% storage-provider independent, enabling effortless switching between `STORAGE_TYPE=cloudinary` and `STORAGE_TYPE=local` without database migrations.
+- **Dynamic Delivery URL Construction**: `getAssetUrl(path)` and `StorageProvider.getUrl(path)` construct optimized CDN delivery URLs dynamically based on active `STORAGE_TYPE`.
+
+---
+
+## 📁 Storage Explorer Directory Hierarchy Architecture
+
+The Admin Storage Explorer (`src/components/admin/infrastructure/StorageExplorer.js`) displays a dynamic, navigable folder tree representing the active storage provider structure:
+
+1. **Cloudinary Subfolder Discovery**: The API (`/api/admin/infrastructure/storage`) uses Cloudinary Search API (`public_id:kucet* OR folder:kucet*`) to query all assets across all nested folder depths, alongside recursive Admin API subfolder calls (`cloudinary.api.sub_folders`) to retrieve explicit folder hierarchy nodes.
+2. **Local Directory Scanning**: In `STORAGE_TYPE=local` mode, local storage directory paths (`public/uploads`) are recursively scanned for directories and files.
+3. **Dynamic View Grouping**: `StorageExplorer` combines explicit server-provided folder nodes with file-derived relative paths to render breadcrumb navigation and structured folder views (`kucet/` → `students/` → `pfp/` → `file.webp`).
+
+---
+
 ## 🌐 Environment Resolution Strategy
 
 | Environment | Primary Provider | Fallback Provider | Storage Key Resolution Endpoint |
 | :--- | :--- | :--- | :--- |
-| **Production (Hostinger VPS)** | AWS S3 / Cloudflare R2 | Cloudinary → Local VPS Disk (`/var/www/kucet-storage`) | Fully-qualified CDN URL via `getAssetUrl()` |
-| **Staging / QA** | Cloudinary | Local Disk | Cloudinary Staging Folder URL |
-| **Development (Local Dev)** | Local Storage Provider (`./public/uploads`) | Cloudinary Sandbox | Relative Local Asset Route `/api/assets/view/...` |
+| **Production (Cloudinary Mode)** | `CloudinaryStorageProvider` | `LocalStorageProvider` → `S3StorageProvider` | Fully-qualified CDN URL via `getAssetUrl()` / `StorageProvider.getUrl()` |
+| **Production (Local Mode)** | `LocalStorageProvider` (`/var/www/kucet-storage`) | `CloudinaryStorageProvider` | Secure Proxy Route `/api/assets/view/...` |
+| **Development (Local Dev)** | `LocalStorageProvider` (`./public/uploads`) | `CloudinaryStorageProvider` | Relative Local Asset Route `/api/assets/view/...` |
 
 ---
 
 > 💡 **Next Steps**: See how production storage volumes are mounted in Docker in [Deployment Architecture](./deployment.md) or explore database column specifications in [Database Architecture](./database.md).
+
