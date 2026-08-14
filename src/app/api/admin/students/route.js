@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
 import { students } from '@/db/schema';
-import { eq, like, or } from 'drizzle-orm';
+import { like, or } from 'drizzle-orm';
 import { getBranchFromRoll, branchCodes } from '@/lib/rollNumber';
 import { calculateStudentYearAndSemester, getCurrentCalendarSession } from '@/lib/academic-utils';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';

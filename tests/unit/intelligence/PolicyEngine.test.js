@@ -1,4 +1,4 @@
-/* global describe, test, expect, beforeEach, jest */
+/* global describe, test, expect, beforeEach */
 import { PolicyEngine } from '../../../src/intelligence/business-rules/PolicyEngine';
 
 describe('PolicyEngine', () => {

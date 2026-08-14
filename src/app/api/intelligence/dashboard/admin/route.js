@@ -3,7 +3,7 @@ import { cacheAside } from '@/lib/cache';
 import { InstitutionAnalytics } from '@/intelligence/analytics/InstitutionAnalytics';
 import { RecommendationEngine } from '@/intelligence/recommendation/RecommendationEngine';
 
-export const GET = wrapHandler({ role: 'admin' }, async (req, ctx) => {
+export const GET = wrapHandler({ role: 'admin' }, async (_req, _ctx) => {
   const academicYear = '2025-26';
   const cacheKey = `dashboard:admin:${academicYear}`;
 

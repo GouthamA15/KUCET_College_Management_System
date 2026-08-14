@@ -17,7 +17,7 @@ import useProfileActivity from '@/hooks/student/useProfileActivity';
 import Loading from './loading';
 
 export default function StudentProfileNew() {
-  const { studentData, collegeInfo, loading: contextLoading, refreshData } = useStudent();
+  const { studentData, loading: contextLoading, refreshData } = useStudent();
   const [activeTab, setActiveTab] = useState('personal');
 
   const activity = useProfileActivity();

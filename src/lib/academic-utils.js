@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { semesters } from '@/db/schema';
-import { eq, and, sql, desc, asc } from 'drizzle-orm';
+import { sql, desc, asc } from 'drizzle-orm';
 import { getNow } from './clock';
 import { getEntryYearFromRoll, getAdmissionTypeFromRoll } from './rollNumber';
 

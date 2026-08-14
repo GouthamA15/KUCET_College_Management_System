@@ -37,7 +37,7 @@ export class InstitutionAnalytics {
     );
   }
 
-  async getDepartmentComparison(academicYear) {
+  async getDepartmentComparison(_academicYear) {
     return [];
   }
 
@@ -45,7 +45,7 @@ export class InstitutionAnalytics {
     return [];
   }
 
-  async getInstitutionSummary(academicYear) {
+  async getInstitutionSummary(_academicYear) {
     return {
       activeStudents: await this.getActiveStudentCount(),
       alumni: await this.getAlumniCount()

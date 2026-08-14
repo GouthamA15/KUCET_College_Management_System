@@ -35,7 +35,7 @@ export function getNow() {
         partValues.minute,
         partValues.second
       );
-    } catch (e) {
+    } catch (_e) {
       // Safe fallback: math-based UTC to IST shift (UTC+5:30)
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
       return new Date(utc + (3600000 * 5.5));

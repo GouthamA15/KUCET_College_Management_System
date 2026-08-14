@@ -1,9 +1,9 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { facultySubjectAssignments, collegeInfo as collegeInfoTable } from '@/db/schema';
+import { facultySubjectAssignments } from '@/db/schema';
 import { eq, _and, desc, asc, _sql } from 'drizzle-orm';
 import { apiResponse, apiError, getAuthUser } from '@/lib/api-utils';
-import { isSemesterActive, getCurrentCalendarSession } from '@/lib/academic-utils';
+import { getCurrentCalendarSession } from '@/lib/academic-utils';
 
 export async function GET(_request) {
   try {

@@ -572,7 +572,7 @@ describe('Regression Prevention: Database must never store URLs', () => {
 
 describe('Archive System - Storage keys must remain valid after archive', () => {
   it('should archive a storage key to archive/ namespace', async () => {
-    const { ArchiveMediaService } = await import('../../src/services/archive/ArchiveMediaService.js');
+    await import('../../src/services/archive/ArchiveMediaService.js');
     
     const mockStorage = {
       moveFile: vi.fn().mockResolvedValue({

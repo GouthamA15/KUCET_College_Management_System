@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { InstitutionAssetService, INSTITUTION_ASSET_REGISTRY } from '../../../src/services/institution/InstitutionAssetService.js';
+import { InstitutionAssetService } from '../../../src/services/institution/InstitutionAssetService.js';
 import { INSTITUTION_ASSET_KEYS, resolveInstitutionalFilename, isInstitutionalAssetPath } from '../../../src/lib/institution-assets.js';
 import LocalStorageProvider from '../../../src/lib/providers/storage/LocalStorageProvider.js';
 import CloudinaryStorageProvider from '../../../src/lib/providers/storage/CloudinaryStorageProvider.js';

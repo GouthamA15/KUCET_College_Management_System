@@ -1,5 +1,3 @@
-import { getAssetUrl } from '@/lib/assets';
-
 // Shared institutional email template generator
 // Generates both HTML and plain-text versions for transactional emails.
 

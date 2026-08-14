@@ -1,4 +1,4 @@
-/* global describe, test, expect, beforeEach, jest */
+/* global describe, test, expect */
 import { calcPercentage, calcGrade, calcTrend, calcMovingAverage, calcStdDev, calcPercentile } from '../../../src/intelligence/shared/StatUtils';
 
 describe('StatUtils', () => {

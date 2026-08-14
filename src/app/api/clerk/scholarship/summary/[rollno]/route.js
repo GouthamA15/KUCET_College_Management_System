@@ -1,14 +1,12 @@
 import { db } from '@/db';
 import { 
   students as studentsTable, 
-  studentImages, 
-  collegeInfo as collegeInfoTable 
+  studentImages 
 } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAcademicYear, getBranchFromRoll } from '@/lib/rollNumber';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { apiError, wrapHandler } from '@/lib/api-utils';
-import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
 import { ScholarshipService } from '@/services/ScholarshipService';
 import { getAssetUrl } from '@/lib/assets';
@@ -23,8 +21,6 @@ export const GET = wrapHandler({
     const { rollno } = await context.params;
     const url = new URL(req.url);
     let year = url.searchParams.get('year');
-
-    const now = await getNow();
 
     // 1. Fetch student core info
     const studentRows = await db.select({

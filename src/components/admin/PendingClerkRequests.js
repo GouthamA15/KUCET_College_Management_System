@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
 import { getAssetUrl } from '@/lib/assets';
 
 export default function PendingClerkRequests({ onRequestAction, categoryFilter }) {
@@ -186,11 +187,13 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
           >
             <div className="flex items-start gap-4">
               {req.pfp ? (
-                <img
+                <Image
                   src={getAssetUrl(req.pfp)}
-                  alt={req.name}
+                  alt={req.name || 'Staff PFP'}
+                  width={56}
+                  height={56}
                   className="w-14 h-14 rounded-full object-cover border border-slate-300 shrink-0"
-                  onError={(e) => { e.target.style.display = 'none'; }}
+                  unoptimized
                 />
               ) : (
                 <div className="w-14 h-14 rounded-full bg-blue-100 text-[#0b3578] flex items-center justify-center font-bold text-xl shrink-0 border border-blue-200">

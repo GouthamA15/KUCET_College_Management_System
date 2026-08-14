@@ -70,7 +70,6 @@ export async function POST(req) {
     sessionCookieId = sessionCookieVal ? parseInt(sessionCookieVal, 10) : null;
 
     const refreshToken = cookieStore.get(refreshCookieName)?.value;
-    let refreshTokenPresent = !!refreshToken;
 
     if (!refreshToken) {
       logDevValues();

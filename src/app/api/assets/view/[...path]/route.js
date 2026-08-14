@@ -19,7 +19,7 @@ export function resolveLocalFilePath(filename) {
   const base = getLocalStorageBasePath();
   const repoPublic = path.join(process.cwd(), 'public');
   
-  const cleanFilename = filename.replace(/^[\/\\]+/, '');
+  const cleanFilename = filename.replace(/^[/\\]+/, '');
   const candidatePaths = [];
 
   // Check institutional canonical filename mapping

@@ -12,7 +12,7 @@ export const GET = wrapHandler({ role: ['faculty', 'clerk'] }, async (req, ctx) 
 
   const data = await cacheAside(cacheKey, async () => {
     const summary = await FacultyAnalytics.getFacultySummary?.(facultyId, academicYear).catch(() => ({}));
-    const scores = await ScoringEngine.computeFacultyScore?.(facultyId, academicYear).catch(() => ({}));
+    await ScoringEngine.computeFacultyScore?.(facultyId, academicYear).catch(() => ({}));
     const recommendations = await RecommendationEngine.generateForFaculty?.(facultyId).catch(() => []);
 
     return {

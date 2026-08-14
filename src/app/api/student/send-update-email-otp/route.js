@@ -5,7 +5,7 @@ import { eq, and, ne } from 'drizzle-orm';
 import { sendInstitutionalEmail } from '@/lib/email';
 import crypto from 'crypto';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req) {
   try {

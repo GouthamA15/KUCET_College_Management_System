@@ -42,7 +42,7 @@ export function AssetProvider({ children }) {
       try {
         const url = getAssetUrl(path);
         await fetch(url, { mode: 'no-cors' }); 
-      } catch (err) {
+      } catch (_err) {
         // Silent error for optional pre-cache
       }
     });

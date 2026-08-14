@@ -5,18 +5,16 @@ import React from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { students, studentPersonalDetails, studentRequests, collegeInfo as collegeInfoTable } from '@/db/schema';
+import { students, studentPersonalDetails, studentRequests } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { apiError, getAuthUser } from '@/lib/api-utils';
 import { getAssetUrl } from '@/lib/assets';
-import path from 'path';
 import fs from 'fs';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { getCollegeAcademicYear, calculateYearAndSemesterAsync } from '@/lib/academic-utils';
 import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
 import { _studentImages } from '@/db/schema';
-import { getLocalStorageBasePath } from '@/lib/providers/storage/LocalStorageProvider';
 import { resolveLocalFilePath } from '@/app/api/assets/view/[...path]/route';
 import { InstitutionAssetService } from '@/services/institution/InstitutionAssetService';
 
@@ -106,10 +104,6 @@ export async function GET(request, context) {
         
         const { getPermanentAddressFromDetails } = require('@/lib/address-utils');
         const _address = getPermanentAddressFromDetails(student) || 'N/A';
-
-        // Fetch college info
-        const collegeRows = await db.select().from(collegeInfoTable).where(eq(collegeInfoTable.id, 1));
-        const collegeInfo = collegeRows[0] || { /* empty */ };
 
         const { yearOfStudy, semester: currentSemester } = await calculateYearAndSemesterAsync(student.roll_no);
         const currentAcademicYear = await getCollegeAcademicYear();

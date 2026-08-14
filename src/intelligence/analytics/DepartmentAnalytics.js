@@ -1,13 +1,3 @@
-import { db } from '@/db';
-import { 
-  students, 
-  studentMarks, 
-  studentAttendance, 
-  studentFeePayments, 
-  scholarshipSanctions,
-  facultySubjectAssignments
-} from '@/db/schema';
-import { eq, sql } from 'drizzle-orm';
 import { cacheAside } from '@/lib/cache';
 
 export class DepartmentAnalytics {

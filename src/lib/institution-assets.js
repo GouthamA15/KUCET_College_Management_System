@@ -96,8 +96,8 @@ export const INSTITUTIONAL_ASSETS_MAP = {
 export function resolveInstitutionalFilename(keyOrPath) {
   if (!keyOrPath || typeof keyOrPath !== 'string') return null;
 
-  const normalized = keyOrPath.trim().replace(/^[\/\\]+/, '');
-  const basename = normalized.split(/[\/\\]/).pop();
+  const normalized = keyOrPath.trim().replace(/^[/\\]+/, '');
+  const basename = normalized.split(/[/\\]/).pop();
 
   if (INSTITUTIONAL_ASSETS_MAP[normalized]) {
     return INSTITUTIONAL_ASSETS_MAP[normalized].filename;
@@ -124,7 +124,7 @@ export function resolveInstitutionalFilename(keyOrPath) {
  */
 export function isInstitutionalAssetPath(pathOrFolder) {
   if (!pathOrFolder || typeof pathOrFolder !== 'string') return false;
-  const clean = pathOrFolder.toLowerCase().trim().replace(/^[\/\\]+/, '');
+  const clean = pathOrFolder.toLowerCase().trim().replace(/^[/\\]+/, '');
   if (
     clean.startsWith('assets') ||
     clean.startsWith('institution') ||

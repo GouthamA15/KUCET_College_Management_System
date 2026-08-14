@@ -42,17 +42,17 @@ function isTemporarySig(val) {
 }
 
 async function main() {
-  console.log('='.repeat(60));
-  console.log('KUCET Media Promotion Lifecycle Migration');
-  console.log('='.repeat(60));
-  console.log('Promoting temporary staging assets to permanent student paths...');
-  console.log('IDEMPOTENT & RESUMABLE — Safe to execute multiple times.\n');
+  console.info('='.repeat(60));
+  console.info('KUCET Media Promotion Lifecycle Migration');
+  console.info('='.repeat(60));
+  console.info('Promoting temporary staging assets to permanent student paths...');
+  console.info('IDEMPOTENT & RESUMABLE — Safe to execute multiple times.\n');
 
   let conn;
   try {
     conn = await createConnection(DB_CONFIG);
     const storage = getStorageProvider();
-    console.log('✓ Connected to database\n');
+    console.info('✓ Connected to database\n');
 
     let totalChecked = 0;
     let totalPromoted = 0;
@@ -78,7 +78,7 @@ async function main() {
           await conn.execute('UPDATE student_images SET pfp = ? WHERE student_id = ?', [newKey, row.student_id]);
           pfpPromoted++;
           totalPromoted++;
-          console.log(`\n  [PROMOTED PFP] student_id=${row.student_id}: "${currentKey}" → "${newKey}"`);
+          console.info(`\n  [PROMOTED PFP] student_id=${row.student_id}: "${currentKey}" → "${newKey}"`);
         } catch (err) {
           totalFailed++;
           console.error(`\n  [PROMOTION FAILED] student_id=${row.student_id}: ${err.message}`);
@@ -87,7 +87,7 @@ async function main() {
         totalSkipped++;
       }
     }
-    console.log(`done (${pfpRows.length} checked, ${pfpPromoted} promoted)`);
+    console.info(`done (${pfpRows.length} checked, ${pfpPromoted} promoted)`);
 
     // 2. Promote student_signatures
     process.stdout.write('2. Checking student_signatures... ');
@@ -108,7 +108,7 @@ async function main() {
           await conn.execute('UPDATE student_signatures SET signature = ? WHERE student_id = ?', [newKey, row.student_id]);
           sigPromoted++;
           totalPromoted++;
-          console.log(`\n  [PROMOTED SIG] student_id=${row.student_id}: "${currentKey}" → "${newKey}"`);
+          console.info(`\n  [PROMOTED SIG] student_id=${row.student_id}: "${currentKey}" → "${newKey}"`);
         } catch (err) {
           totalFailed++;
           console.error(`\n  [PROMOTION FAILED] student_id=${row.student_id}: ${err.message}`);
@@ -117,22 +117,22 @@ async function main() {
         totalSkipped++;
       }
     }
-    console.log(`done (${sigRows.length} checked, ${sigPromoted} promoted)`);
+    console.info(`done (${sigRows.length} checked, ${sigPromoted} promoted)`);
 
     // 3. Clean up finalized student_admission_drafts temporary references
     process.stdout.write('3. Cleaning finalized admission drafts... ');
     const [draftResult] = await conn.execute(
       `UPDATE student_admission_drafts SET pfp = NULL, signature = NULL WHERE status = 'FINALIZED' AND (pfp IS NOT NULL OR signature IS NOT NULL)`
     );
-    console.log(`done (${draftResult.affectedRows} finalized drafts cleaned)`);
+    console.info(`done (${draftResult.affectedRows} finalized drafts cleaned)`);
 
-    console.log('\n' + '='.repeat(60));
-    console.log('MEDIA PROMOTION MIGRATION COMPLETE');
-    console.log(`Total Records Checked:  ${totalChecked}`);
-    console.log(`Total Assets Promoted:  ${totalPromoted}`);
-    console.log(`Total Already Permanent: ${totalSkipped}`);
-    console.log(`Total Failures:         ${totalFailed}`);
-    console.log('='.repeat(60));
+    console.info('\n' + '='.repeat(60));
+    console.info('MEDIA PROMOTION MIGRATION COMPLETE');
+    console.info(`Total Records Checked:  ${totalChecked}`);
+    console.info(`Total Assets Promoted:  ${totalPromoted}`);
+    console.info(`Total Already Permanent: ${totalSkipped}`);
+    console.info(`Total Failures:         ${totalFailed}`);
+    console.info('='.repeat(60));
 
   } catch (error) {
     console.error('Migration failed:', error.message);

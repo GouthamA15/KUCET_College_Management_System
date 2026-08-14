@@ -4,7 +4,7 @@ import {
   facultySubjectAssignments, 
   studentMarks 
 } from '@/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { cacheAside } from '@/lib/cache';
 
 export class FacultyAnalytics {

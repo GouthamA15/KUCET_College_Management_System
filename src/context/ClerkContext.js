@@ -307,7 +307,7 @@ export function ClerkProvider({ children }) {
       isMounted = false;
       isInitializingRef.current = false;
     };
-  }, [refreshAllData]);
+  }, [clerkData, refreshAllData]);
 
   // Keep a stable ref to handleResume so the event listener effect only runs once.
   const handleResumeRef = useRef(handleResume);

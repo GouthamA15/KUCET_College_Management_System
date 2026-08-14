@@ -17,7 +17,7 @@ export default function BonafideCertificatePDF({
   attendancePercentage,
   casteDisplay,
   category,
-  subCaste,
+  subCaste: _subCaste,
   logoUrl,
   signatureUrl,
   qrUrl,

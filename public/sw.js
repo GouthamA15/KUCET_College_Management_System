@@ -95,7 +95,7 @@ self.addEventListener('fetch', (event) => {
             await cache.put(request, networkResponse.clone());
           }
           return networkResponse;
-        } catch (error) {
+        } catch (_error) {
           const cachedResponse = await caches.match(request);
           if (cachedResponse) {
             return cachedResponse;
@@ -122,7 +122,7 @@ self.addEventListener('fetch', (event) => {
             await cache.put(request, responseForCache);
           }
           return networkResponse;
-        } catch (error) {
+        } catch (_error) {
           return null;
         }
       })();

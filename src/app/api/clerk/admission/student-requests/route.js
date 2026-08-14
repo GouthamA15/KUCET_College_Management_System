@@ -186,7 +186,7 @@ export async function PUT(req) {
       await db.transaction(async (tx) => {
         // 1 & 2. Promote PFP & Signature via MediaPromotionService
         const { MediaPromotionService } = await import('@/services/storage/MediaPromotionService');
-        const { promotedPfp, promotedSig } = await MediaPromotionService.promoteRequestMedia({
+        await MediaPromotionService.promoteRequestMedia({
           studentId: student_id,
           newPfp: new_pfp || null,
           newSignature: new_signature || null

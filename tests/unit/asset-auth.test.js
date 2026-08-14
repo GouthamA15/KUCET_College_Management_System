@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { 
   normalizeAssetPath, 
   isStaticPublicAsset, 
@@ -10,27 +10,27 @@ vi.mock('@/db', () => ({
   db: {
     query: {
       principal: {
-        findFirst: vi.fn().mockImplementation(async ({ where }) => {
+        findFirst: vi.fn().mockImplementation(async ({ where: _where }) => {
           return { id: 1 };
         })
       },
       clerks: {
-        findFirst: vi.fn().mockImplementation(async ({ where }) => {
+        findFirst: vi.fn().mockImplementation(async ({ where: _where }) => {
           return { id: 10, is_active: true };
         })
       },
       students: {
-        findFirst: vi.fn().mockImplementation(async ({ where }) => {
+        findFirst: vi.fn().mockImplementation(async ({ where: _where }) => {
           return { id: 100, roll_no: '21051A0501', pfp: 'kucet/students/pfp/stu100_photo.webp' };
         })
       },
       studentImages: {
-        findFirst: vi.fn().mockImplementation(async ({ where }) => {
+        findFirst: vi.fn().mockImplementation(async ({ where: _where }) => {
           return { student_id: 100, pfp: 'kucet/students/pfp/stu100_photo.webp' };
         })
       },
       studentSignatures: {
-        findFirst: vi.fn().mockImplementation(async ({ where }) => {
+        findFirst: vi.fn().mockImplementation(async ({ where: _where }) => {
           return { student_id: 100, signature: 'kucet/students/signatures/stu100_sig.png' };
         })
       },

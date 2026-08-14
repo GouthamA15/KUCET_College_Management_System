@@ -2,7 +2,7 @@ import { wrapHandler, apiResponse } from '@/lib/api-utils';
 import { z } from 'zod';
 import { configManager } from '@/intelligence/shared/ConfigManager';
 
-export const GET = wrapHandler({ role: 'admin' }, async (req) => {
+export const GET = wrapHandler({ role: 'admin' }, async (_req) => {
   const [
     thresholds,
     scoreWeights,

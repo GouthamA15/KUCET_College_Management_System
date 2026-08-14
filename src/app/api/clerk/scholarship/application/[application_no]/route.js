@@ -6,7 +6,7 @@ import {
   scholarshipSanctions, 
   studentFeePayments 
 } from '@/db/schema';
-import { eq, and, asc, sql, _or, _like } from 'drizzle-orm';
+import { eq, and, asc, _or, _like } from 'drizzle-orm';
 import { 
   getBranchFromRoll, 
   getAcademicYear,
@@ -15,7 +15,6 @@ import {
 } from '@/lib/rollNumber';
 import { getCollegeAcademicYear } from '@/lib/academic-utils';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
-import { getNow } from '@/lib/clock';
 import { decrypt } from '@/lib/encryption';
 import { getAssetUrl } from '@/lib/assets';
 
@@ -65,7 +64,6 @@ export async function GET(req, ctx) {
     if (studentRows.length === 0) return apiError('Student not found', 404);
     const student = studentRows[0];
 
-    const now = await getNow();
     const course = getBranchFromRoll(student.roll_no);
     const admission_year = getAcademicYear(student.roll_no);
     const current_year = await getCollegeAcademicYear();

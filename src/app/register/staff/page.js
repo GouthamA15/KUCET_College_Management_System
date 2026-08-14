@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { COLLEGE_CONFIG } from '@/lib/college-config';
-import { STAFF_CATEGORIES, FACULTY_BRANCHES } from '@/lib/staff-config';
+import { FACULTY_BRANCHES } from '@/lib/staff-config';
 
 export default function StaffRegistrationPage() {
   const [form, setForm] = useState({
