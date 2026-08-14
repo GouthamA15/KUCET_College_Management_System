@@ -132,7 +132,7 @@ CMS/
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ 1. NEVER use `npm run db:push` (Always use db:generate -> audit -> db:migrate)│
 │ 2. NEVER use roll numbers or PII as filenames (Use crypto.randomUUID())       │
-│ 3. DB storage keys MUST be relative (e.g., kucet/requests/pfp/7a59662b.webp)  │
+│ 3. DB storage keys MUST be relative (e.g., clerks/pfp/7a59662b.webp or kucet/...) │
 │ 4. ALWAYS wrap client image sources with `getAssetUrl(key)`                    │
 │ 5. NEVER attach HTML DOM props (onError, onClick) to @react-pdf components     │
 │ 6. ALWAYS validate API inputs using Zod schemas inside `wrapHandler`           │

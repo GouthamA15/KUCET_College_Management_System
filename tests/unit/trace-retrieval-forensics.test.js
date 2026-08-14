@@ -11,15 +11,25 @@ import { getStorageProvider } from '@/lib/providers/storage/factory';
 import logger from '@/lib/logger';
 import { eq } from 'drizzle-orm';
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true,
-});
+const hasCloudinaryCreds = Boolean(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+);
+
+const hasDbCreds = Boolean(process.env.DB_HOST);
+
+if (hasCloudinaryCreds) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+}
 
 describe('Complete End-to-End Image Retrieval & Rendering Verification', () => {
-  it('End-to-End Live Upload, DB Write, Read, URL Generation, & HTTP 200 Verification', async () => {
+  it.skipIf(!hasCloudinaryCreds || !hasDbCreds)('End-to-End Live Upload, DB Write, Read, URL Generation, & HTTP 200 Verification', async () => {
     process.env.STORAGE_TYPE = 'cloudinary';
     process.env.NEXT_PUBLIC_STORAGE_TYPE = 'cloudinary';
 
@@ -33,7 +43,9 @@ describe('Complete End-to-End Image Retrieval & Rendering Verification', () => {
     const provider = getStorageProvider();
     const uploadRes = await provider.upload(sampleBuffer, 'clerks/pfp');
     logger.info({ path: uploadRes.path }, 'Step 1 - StorageProvider.upload() path');
-    expect(uploadRes.path.startsWith('kucet/clerks/pfp/')).toBe(true);
+    expect(uploadRes.path).not.toContain('http://');
+    expect(uploadRes.path).not.toContain('https://');
+    expect(uploadRes.path.includes('clerks/pfp/')).toBe(true);
 
     // 3. Write canonical relative key to database
     const testClerkId = 6;

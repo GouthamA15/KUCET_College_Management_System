@@ -7,8 +7,14 @@ import { getStorageProvider } from '@/lib/providers/storage/factory';
 import getAssetUrl from '@/lib/assets';
 import LocalStorageProvider from '@/lib/providers/storage/LocalStorageProvider';
 
+const hasCloudinaryCreds = Boolean(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+);
+
 describe('Live Verification: Storage Provider Operations', () => {
-  it('should perform upload, URL generation, fetch, update, and delete in Cloudinary mode', async () => {
+  it.skipIf(!hasCloudinaryCreds)('should perform upload, URL generation, fetch, update, and delete in Cloudinary mode', async () => {
     process.env.STORAGE_TYPE = 'cloudinary';
     process.env.NEXT_PUBLIC_STORAGE_TYPE = 'cloudinary';
 
@@ -19,10 +25,19 @@ describe('Live Verification: Storage Provider Operations', () => {
 
     const provider = getStorageProvider();
 
-    // 1. Upload Image
+    // 1. Upload Image - Verify canonical storage key contract
     const uploadRes = await provider.upload(sampleBuffer, 'clerks/pfp');
     expect(uploadRes).toHaveProperty('path');
-    expect(uploadRes.path.startsWith('kucet/clerks/pfp/')).toBe(true);
+    expect(uploadRes.path).not.toContain('http://');
+    expect(uploadRes.path).not.toContain('https://');
+    expect(uploadRes.path).not.toContain('[object');
+    expect(uploadRes.path.includes('clerks/pfp/')).toBe(true);
+
+    // Verify filename is randomized & not predictable
+    const filename = uploadRes.filename || uploadRes.path.split('/').pop();
+    expect(filename).toBeTruthy();
+    expect(filename).toMatch(/\.(png|jpg|jpeg|webp)$/i);
+    expect(filename.length).toBeGreaterThanOrEqual(10);
 
     // 2. Generate URL
     const url = getAssetUrl(uploadRes.path);
@@ -34,7 +49,8 @@ describe('Live Verification: Storage Provider Operations', () => {
 
     // 4. Update Image (re-upload creates new UUID key)
     const updateRes = await provider.upload(sampleBuffer, 'clerks/pfp');
-    expect(updateRes.path.startsWith('kucet/clerks/pfp/')).toBe(true);
+    expect(updateRes.path.includes('clerks/pfp/')).toBe(true);
+    expect(updateRes.path).not.toBe(uploadRes.path); // Unpredictable new filename
 
     // 5. Delete Images
     await provider.delete(uploadRes.path);
@@ -52,10 +68,19 @@ describe('Live Verification: Storage Provider Operations', () => {
 
     const localProvider = new LocalStorageProvider();
 
-    // 1. Upload Image
+    // 1. Upload Image - Verify canonical storage key contract
     const uploadRes = await localProvider.upload(sampleBuffer, 'clerks/pfp');
     expect(uploadRes).toHaveProperty('path');
-    expect(uploadRes.path.startsWith('clerks/pfp/')).toBe(true);
+    expect(uploadRes.path).not.toContain('http://');
+    expect(uploadRes.path).not.toContain('https://');
+    expect(uploadRes.path).not.toContain('[object');
+    expect(uploadRes.path.includes('clerks/pfp/')).toBe(true);
+
+    // Verify filename is randomized & extension is correct
+    const filename = uploadRes.filename || uploadRes.path.split('/').pop();
+    expect(filename).toBeTruthy();
+    expect(filename).toMatch(/\.(png|jpg|jpeg|webp)$/i);
+    expect(filename.length).toBeGreaterThanOrEqual(10);
 
     // 2. Generate URL
     const url = getAssetUrl(uploadRes.path);

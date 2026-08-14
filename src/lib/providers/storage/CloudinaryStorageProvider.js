@@ -77,12 +77,15 @@ export default class CloudinaryStorageProvider extends StorageProvider {
     const url = this.getUrl(pathKey);
     const filename = pathKey.split('/').pop() || '';
 
+    const fileSize = typeof file === 'string' ? file.length : (file?.size || 0);
+
     return new StorageResult({
       path: pathKey,
       url,
       filename,
       provider: 'cloudinary',
       mimeType: 'image/jpeg',
+      size: fileSize,
     });
   }
 

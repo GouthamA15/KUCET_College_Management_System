@@ -2,12 +2,16 @@
  * Standardized result object returned by StorageProvider.upload()
  */
 export class StorageResult {
-  constructor({ path, url, filename, provider, mimeType }) {
+  constructor({ path, url, filename, provider, mimeType, size = 0, version = null }) {
     this.path = path;
     this.url = url;
     this.filename = filename;
     this.provider = provider;
     this.mimeType = mimeType || 'application/octet-stream';
+    this.size = size;
+    if (version !== null && version !== undefined) {
+      this.version = version;
+    }
   }
 
   toString() {
@@ -19,13 +23,18 @@ export class StorageResult {
   }
 
   toJSON() {
-    return {
+    const res = {
       path: this.path,
       url: this.url,
       filename: this.filename,
       provider: this.provider,
       mimeType: this.mimeType,
+      size: this.size,
     };
+    if (this.version !== null && this.version !== undefined) {
+      res.version = this.version;
+    }
+    return res;
   }
 }
 
