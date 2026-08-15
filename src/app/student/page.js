@@ -212,7 +212,7 @@ export default function StudentHomePage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:flex lg:flex-col lg:gap-3 lg:flex-1 lg:min-h-0">
+        <div className="grid grid-cols-1 gap-4 lg:flex lg:flex-col lg:gap-3 lg:flex-1 lg:min-h-0">
 
           {/* Div 1: contains Priority Actions & Quick Links */}
           <div className="order-1 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">
@@ -228,8 +228,8 @@ export default function StudentHomePage() {
           <div className="order-2 lg:order-none lg:contents flex flex-col gap-4 lg:gap-3 lg:min-h-0">
             <div className="lg:order-2 lg:flex lg:flex-col lg:flex-1 lg:min-h-0">
               {/* Course Records - compact + internally scrollable */}
-              <section className="lg:flex lg:flex-col lg:min-h-0 rounded-sm overflow-hidden border border-[#0b3578] lg:border-slate-200 bg-white lg:flex-1">
-                <div className="bg-[#0b3578]/5 lg:bg-slate-50 px-4 py-2.5 lg:py-2 border-b border-[#0b3578] lg:border-slate-200 flex items-center justify-between shrink-0">
+              <section className="lg:flex lg:flex-col lg:min-h-0 rounded-sm overflow-hidden border border-blue-200 lg:border-slate-200 bg-white lg:flex-1">
+                <div className="bg-[#0b3578]/5 lg:bg-slate-50 px-4 py-2.5 lg:py-2 border-b border-blue-200 lg:border-slate-200 flex items-center justify-between shrink-0">
                   <h2 className="text-[10px] font-bold text-[#0b3578] lg:text-slate-500 uppercase tracking-[0.20em]">Academic Records</h2>
                   <Link href="/student/academics" className="text-[9px] font-bold text-[#2563EB] hover:text-blue-700 uppercase tracking-widest">Full Progress</Link>
                 </div>

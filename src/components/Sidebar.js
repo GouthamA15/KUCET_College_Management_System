@@ -310,6 +310,20 @@ function SidebarInner({
     }
   };
 
+  const toggleSidebarByAreaClick = (event) => {
+    if (event?.target && event.target.closest('a, button')) {
+      return;
+    }
+
+    const next = !isExpanded;
+    setIsExpanded(next);
+    try {
+      localStorage.setItem('kucet_sidebar_pinned', String(next));
+    } catch (_e) {
+      // ignore
+    }
+  };
+
   const expanded = isExpanded;
   const [desktopExpanded, setDesktopExpanded] = useState({});
   const [mobileExpanded, setMobileExpanded] = useState({});
@@ -334,7 +348,8 @@ function SidebarInner({
         'overflow-hidden',
         'border-r border-slate-200/70',
         'bg-linear-to-b from-blue-200/70 via-white to-blue-200/70',
-        'shadow-sm backdrop-blur-md'
+        'shadow-sm backdrop-blur-md',
+        !expanded && 'cursor-pointer'
       )}
       style={{
         top: 'var(--app-fixed-header-offset, 112px)',
@@ -342,6 +357,7 @@ function SidebarInner({
         height: 'calc(100vh - var(--app-fixed-header-offset, 112px))',
         transition: 'width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)',
       }}
+      onClick={toggleSidebarByAreaClick}
     >
       {/* subtle depth overlay */}
       <div className="pointer-events-none absolute inset-0">
