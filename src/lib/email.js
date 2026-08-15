@@ -16,6 +16,32 @@ export const getBaseUrl = () => {
   return envUrl || '';
 };
 
+/**
+ * Resolves the public, email-safe absolute HTTPS URL for the institutional College logo.
+ * 
+ * Strategy:
+ * 1. The College logo (`ku-college-logo.png`) is a static application asset in `/public/assets/`.
+ * 2. Next.js serves static assets directly at `/assets/ku-college-logo.png`.
+ * 3. In production or publicly-accessible environments (NEXT_PUBLIC_BASE_URL with HTTPS and not localhost/internal),
+ *    the logo URL is `<NEXT_PUBLIC_BASE_URL>/assets/ku-college-logo.png`.
+ * 4. In local development (localhost, 127.0.0.1, private IP, or Tailscale), external email clients (e.g. Gmail)
+ *    cannot resolve local/private URLs, so we safely fall back to the institutional production domain (`https://login.kucet.in/assets/ku-college-logo.png`).
+ */
+export const getEmailLogoUrl = () => {
+  const envUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  
+  if (envUrl && typeof envUrl === 'string') {
+    const trimmed = envUrl.trim().replace(/\/+$/, '');
+    const isLocalOrPrivate = /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0|::1|.*\.ts\.net)(:\d+)?/i.test(trimmed);
+    if (!isLocalOrPrivate && trimmed.startsWith('https://')) {
+      return `${trimmed}/assets/ku-college-logo.png`;
+    }
+  }
+
+  // Canonical production fallback for external email clients receiving emails dispatched from dev/staging
+  return 'https://login.kucet.in/assets/ku-college-logo.png';
+};
+
 // Build the unified institutional HTML template
 export const buildInstitutionalEmailHtml = ({
   title,
@@ -23,8 +49,7 @@ export const buildInstitutionalEmailHtml = ({
   action,
   infoRows
 }) => {
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME || 'djs0ry74r';
-  const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/kucet/public/assets/ku-logo.png`;
+  const logoUrl = getEmailLogoUrl();
   
   // Build structured information rows if provided
   const infoRowsHtml = Array.isArray(infoRows) && infoRows.length > 0
