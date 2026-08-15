@@ -311,7 +311,10 @@ function SidebarInner({
   };
 
   const toggleSidebarByAreaClick = (event) => {
-    if (event?.target && event.target.closest('a, button')) {
+    if (!event) return;
+
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest('a, button')) {
       return;
     }
 
