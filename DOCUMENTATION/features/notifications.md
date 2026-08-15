@@ -81,36 +81,33 @@ export class PushNotificationService {
 
 ## 3. Transactional Institutional Email Engine (`src/lib/email.js`)
 
-Transactional emails (onboarding credentials, fee payment receipts, request approvals, security login alerts) are dispatched via `sendInstitutionalEmail()`.
+Transactional emails (onboarding credentials, fee payment receipts, request approvals, password resets, security login alerts) are dispatched via `sendInstitutionalEmail()`.
+
+### Institutional Branding & Asset Delivery Strategy
+
+1. **Static Application Logo (`public/assets/ku-college-logo.png`)**:
+   - The official college logo is a static asset included with the application build.
+   - Next.js serves static assets directly at `/assets/ku-college-logo.png`.
+   - In production or publicly reachable deployments (`NEXT_PUBLIC_BASE_URL` with HTTPS and not a local/private host), the logo URL is generated dynamically as `${NEXT_PUBLIC_BASE_URL}/assets/ku-college-logo.png`.
+   - In local development or private test environments (`localhost`, `127.0.0.1`, `*.ts.net`), the helper safely resolves to the canonical production URL `https://login.kucet.in/assets/ku-college-logo.png` so email clients (such as Gmail or Outlook) never receive broken localhost links.
+
+2. **Distinction: Static Assets vs Uploaded Media**:
+   - **Static Assets** (`public/assets/*`): Stored in repo, served directly by Next.js web server. Never uploaded or routed through dynamic storage providers.
+   - **User-Uploaded Media** (`kucet/students/*`, `kucet/clerks/*`, `kucet/requests/*`): Stored in configured `StorageProvider` (Cloudinary or local disk) using cryptographic UUIDs and resolved through `getAssetUrl()`.
 
 ```javascript
 // Source: src/lib/email.js
-export async function sendInstitutionalEmail({ to, subject, title, bodyHtml, action }) {
-  const htmlTemplate = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0;">
-      <div style="background-color: #0b3578; color: white; padding: 20px; text-align: center;">
-        <h1 style="margin: 0; font-size: 18px;">Kakatiya University College of Engineering & Technology</h1>
-      </div>
-      <div style="padding: 20px; color: #333333;">
-        <h2 style="color: #0b3578; font-size: 16px;">${title}</h2>
-        <div>${bodyHtml}</div>
-        ${action ? `<div style="margin-top: 25px; text-align: center;">
-          <a href="${action.url}" style="background-color: #0b3578; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; font-weight: bold;">${action.label}</a>
-        </div>` : ''}
-      </div>
-      <div style="background-color: #f5f5f5; padding: 12px; text-align: center; font-size: 11px; color: #666666;">
-        Vidyaranyapuri, Warangal — 506009, Telangana
-      </div>
-    </div>
-  `;
-
-  return await mailTransporter.sendMail({
-    from: process.env.EMAIL_FROM || '"KUCET CMS" <noreply@kucet.ac.in>',
-    to,
-    subject,
-    html: htmlTemplate
-  });
-}
+export const getEmailLogoUrl = () => {
+  const envUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  if (envUrl && typeof envUrl === 'string') {
+    const trimmed = envUrl.trim().replace(/\/+$/, '');
+    const isLocalOrPrivate = /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0|::1|.*\.ts\.net)(:\d+)?/i.test(trimmed);
+    if (!isLocalOrPrivate && trimmed.startsWith('https://')) {
+      return `${trimmed}/assets/ku-college-logo.png`;
+    }
+  }
+  return 'https://login.kucet.in/assets/ku-college-logo.png';
+};
 ```
 
 ---

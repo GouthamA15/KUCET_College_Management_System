@@ -1,9 +1,9 @@
 # KUCET College Management System - Technical Index & Core Architecture
 
 **System Version:** Session 205 Production Release  
-**Last Updated:** August 11, 2026  
+**Last Updated:** August 15, 2026  
 **Status:** Stable / Production-Ready  
-**Test Suite Verification:** 39 test files (294 unit & integration tests) — 100% PASSING
+**Test Suite Verification:** 44 test files (325 unit & integration tests) — 100% PASSING
 
 ---
 
@@ -165,8 +165,9 @@ Session 205 resolved critical cookie persistence bugs, hardened authentication b
 | `ed1e334` | RBAC Role Alias Alignment | Aligned role resolution in `src/lib/rbac.js` so `scholarship` and `admission` roles resolve identically to `scholarship_clerk` and `admission_clerk`. |
 | `7675ab3` | Dedicated Public Staff Onboarding Portal | Created dedicated public onboarding page at `/register/staff` with a 4-step workflow roadmap and link from `LoginPanel.js`. |
 | `7375d99` | Storage Explorer Repair | Resolved tree hierarchy display by updating Cloudinary search expression to `public_id:kucet* OR folder:kucet*` and adding recursive subfolder discovery. |
-| `29fcb9a` | Cloudinary URL Resolution | Implemented environment-aware Cloudinary CDN URL generation in `getAssetUrl()` and HTTP 307 redirect fallback in proxy route. |
 | `699d376` | Client-Side Image Caching Layer | Added in-memory client image cache in `getAssetUrl()` and `AssetContext.js` with selective invalidation (`invalidateAssetCache`), zero duplicate network requests, and 100% storage-provider independence. |
+| `8547ad2` | Scratch & Trace Markdown File Cleanup | Removed 6 obsolete root markdown debugging and operational trace files (`IMAGE_PIPELINE_TRACE.md`, `IMAGE_RENDER_FORENSICS.md`, `OPERATIONAL_RUNBOOK.md`, `ROOT_CAUSE.md`, `SELF_DEPLOYMENT_SERVER_STATUS.md`, `STORAGE_ARCHITECTURE_RECOMMENDATION.md`). |
+| `fe02e1c` | Institutional Email Logo Delivery Pipeline | Fixed College Logo resolution in transactional email templates (`getEmailLogoUrl()` in `src/lib/email.js`) to serve `public/assets/ku-college-logo.png` via environment-aware public HTTPS base URL with canonical fallback, preserving distinction between static build assets and dynamic user storage. |
 
 ---
 
