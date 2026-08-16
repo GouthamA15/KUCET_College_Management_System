@@ -109,8 +109,8 @@ export async function POST(req) {
       used_at: null
     });
 
-    const baseUrl = getBaseUrl();
-    const resetLink = `${baseUrl}/reset-password/${token}`;
+    const baseUrl = getBaseUrl() || req.headers.get('origin') || 'http://localhost:3000';
+    const resetLink = `${baseUrl.replace(/\/$/, '')}/reset-password/${token}`;
 
     const subject = 'KUCET Password Reset Request';
     const title = 'Password Reset Request';
@@ -130,7 +130,7 @@ ${resetLink}
 
 If you did not initiate this request, please ignore this email or contact the administration immediately.`;
 
-    await sendInstitutionalEmail({
+    const emailResult = await sendInstitutionalEmail({
       to: student.email,
       subject,
       title,
@@ -143,10 +143,22 @@ If you did not initiate this request, please ignore this email or contact the ad
       }
     });
 
+    if (!emailResult || emailResult.success === false) {
+      logger.error('FORGOT PASSWORD EMAIL DELIVERY FAILED', {
+        rollno,
+        email: student.email,
+        result: emailResult || { success: false, message: 'No email result returned' }
+      });
+      return apiResponse({
+        message: 'We could not send a reset link right now. Please try again in a few minutes.'
+      }, 500);
+    }
+
     return GENERIC_OK;
   } catch (error) {
     logger.error('FORGOT PASSWORD ERROR:', error);
-    // SECURITY: Always return generic 200 — never leak internals via 500
-    return apiResponse({ message: 'If an account with this roll number exists, a password reset link has been sent.' });
+    return apiResponse({
+      message: 'We could not send a reset link right now. Please try again in a few minutes.'
+    }, 500);
   }
 }

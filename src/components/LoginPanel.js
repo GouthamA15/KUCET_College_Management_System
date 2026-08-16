@@ -238,6 +238,53 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
   }, []);
 
 
+  const applyForgotRollno = useCallback((value) => {
+    const v = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    setFpRollno(v);
+
+    if (!v) {
+      setFpRollnoValid(false);
+      setFpRollnoError('');
+      return;
+    }
+
+    if (v.length !== MAX_ROLL) {
+      setFpRollnoValid(false);
+      setFpRollnoError(`Roll Number must be exactly ${MAX_ROLL} characters long.`);
+      return;
+    }
+
+    const { isValid } = validateRollNo(v);
+    setFpRollnoValid(isValid);
+    setFpRollnoError(isValid ? '' : 'Invalid Roll Number format.');
+  }, [MAX_ROLL]);
+
+  const openForgotPasswordForStudent = useCallback(() => {
+    if (activeRole !== 'student') return;
+
+    const value = String(studentForm.rollNumber || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    setFpRollno(value);
+
+    if (!value) {
+      setFpRollnoValid(false);
+      setFpRollnoError('');
+      setMode('forgot-password');
+      return;
+    }
+
+    if (value.length !== MAX_ROLL) {
+      setFpRollnoValid(false);
+      setFpRollnoError(`Roll Number must be exactly ${MAX_ROLL} characters long.`);
+      setMode('forgot-password');
+      return;
+    }
+
+    const { isValid } = validateRollNo(value);
+    setFpRollnoValid(isValid);
+    setFpRollnoError(isValid ? '' : 'Invalid Roll Number format.');
+    setMode('forgot-password');
+  }, [activeRole, MAX_ROLL, studentForm.rollNumber]);
+
   const handleForgotStudentSubmit = async (e) => {
     e.preventDefault();
     // Enforce client-side roll number validation: 10-11 alphanumeric characters
@@ -252,47 +299,46 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
     setFpIsLoading(true);
     setFpDisplayMessage('');
 
+    const parseJsonResponse = async (response) => {
+      const text = await response.text();
+      if (!text) return {};
+
+      try {
+        return JSON.parse(text);
+      } catch (_error) {
+        return { message: 'Unable to process your request. Please try again.' };
+      }
+    };
+
     try {
       // First, check eligibility explicitly (GET)
       setFpIsCheckingStatus(true);
-      const statusData = await checkStudentStatus(rn);
+      const statusResponse = await fetch(`/api/auth/forgot-password/student?rollno=${encodeURIComponent(rn)}`);
+      const statusData = await parseJsonResponse(statusResponse);
 
-      // statusData is a structured result: { ok, status, data, error }
-      if (statusData.error === 'network') {
-        toast.error('Unable to verify student status');
-        setFpDisplayMessage('Unable to verify student status.');
+      if (!statusResponse.ok) {
+        const statusMessage = statusData?.error || statusData?.message || 'Unable to verify student status.';
+        toast.error(statusMessage);
+        setFpDisplayMessage(statusMessage);
         return;
       }
 
-      if (!statusData.ok) {
-        // Handle expected business case: student not found
-        const isNotFound = statusData.status === 404 || (statusData.data && typeof statusData.data.error === 'string' && /not\s*found/i.test(statusData.data.error));
-        if (isNotFound) {
-          // Single, specific toaster for this scenario
-          toast.error('Student Not Found');
-          setFpDisplayMessage('Student Not Found');
-        } else {
-          // Other failures: show a single local toaster
-          toast.error(statusData.data?.error || 'Unable to verify student status');
-          setFpDisplayMessage(statusData.data?.error || 'Unable to verify student status');
-        }
-        return;
-      }
-
-      if (statusData.data && statusData.data.is_email_verified && statusData.data.has_password_set) {
+      if (statusData && statusData.is_email_verified && statusData.has_password_set) {
         // Eligible: send reset link (POST)
         const response = await fetch('/api/auth/forgot-password/student', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ rollno: rn }),
         });
-        const data = await response.json();
+        const data = await parseJsonResponse(response);
+        const serverMessage = data?.message || data?.error || 'Unable to process your request. Please try again.';
+
         if (response.ok) {
-          toast.success(data.message);
-          setFpDisplayMessage(data.message);
+          toast.success(serverMessage);
+          setFpDisplayMessage(serverMessage);
         } else {
-          toast.error(data.error || 'An error occurred');
-          setFpDisplayMessage(data.error || 'An error occurred');
+          toast.error(serverMessage);
+          setFpDisplayMessage(serverMessage);
         }
       } else {
         // Not eligible: show helper message (DOB login info)
@@ -302,8 +348,8 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
         );
       }
     } catch (_error) {
-      toast.error('An error occurred');
-      setFpDisplayMessage('An error occurred');
+      toast.error('Unable to process your request. Please try again.');
+      setFpDisplayMessage('Unable to process your request. Please try again.');
     } finally {
       setFpIsLoading(false);
       setFpIsCheckingStatus(false);
@@ -528,7 +574,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                         </div>
                         <button
                           type="button"
-                          onClick={() => { if (activeRole === 'student') { setMode('forgot-password'); setFpRollno(studentForm.rollNumber ?? ''); } }}
+                          onClick={openForgotPasswordForStudent}
                           className="text-xs text-blue-600 hover:text-blue-800"
                         >
                           Forgot Password?
@@ -555,22 +601,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                       <input
                         type="text"
                         value={fpRollno ?? ''}
-                        onChange={(e) => {
-                          const v = String(e.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                          setFpRollno(v);
-                          if (v.length === MAX_ROLL) {
-                            const { isValid } = validateRollNo(v);
-                            setFpRollnoValid(isValid);
-                            if (!isValid) {
-                              setFpRollnoError('Invalid Roll Number format.');
-                            } else {
-                              setFpRollnoError('');
-                            }
-                          } else {
-                            setFpRollnoValid(false);
-                            setFpRollnoError(`Roll Number must be exactly ${MAX_ROLL} characters long.`);
-                          }
-                        }}
+                        onChange={(e) => applyForgotRollno(e.target.value)}
                         placeholder="Enter your Roll Number"
                         className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#0b3578] focus:border-transparent transition-all duration-150 text-gray-800 placeholder-gray-400 text-sm"
                         required

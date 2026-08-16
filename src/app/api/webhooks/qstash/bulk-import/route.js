@@ -105,4 +105,4 @@ async function handler(req) {
 }
 
 // Verify QStash Signature to ensure only Upstash can call this
-export const POST = process.env.QSTASH_TOKEN ? verifySignatureAppRouter(handler) : handler;
+export const POST = (process.env.QSTASH_TOKEN && process.env.QSTASH_CURRENT_SIGNING_KEY) ? verifySignatureAppRouter(handler) : handler;

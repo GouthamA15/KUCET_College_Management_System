@@ -132,6 +132,21 @@ export async function POST(request) {
       console.warn('[SSE] Broadcast failed:', sseErr);
     }
 
+    // DOMAIN EVENT: Trigger background cache invalidation & audit logs
+    try {
+      const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+      for (const item of attendance_data) {
+        EventBus.publish(DOMAIN_EVENTS.ATTENDANCE_SUBMITTED, {
+          student_id: item.student_id,
+          assignment_id: targetAssignmentId,
+          date,
+          session
+        });
+      }
+    } catch (ebErr) {
+      logger.warn({ err: ebErr }, '[EventBus] Attendance publish failed');
+    }
+
     return apiResponse({ message: 'Attendance updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {

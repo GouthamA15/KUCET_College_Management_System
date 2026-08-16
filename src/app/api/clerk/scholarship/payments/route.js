@@ -136,6 +136,19 @@ export async function POST(req) {
         return insertResult.insertId;
     });
 
+    // DOMAIN EVENT: Trigger background cache invalidation & audit logs
+    try {
+      const { EventBus, DOMAIN_EVENTS } = await import('@/lib/events/EventBus');
+      EventBus.publish(DOMAIN_EVENTS.FEE_PAID, {
+        student_id: student.id,
+        roll_no: student.roll_no,
+        amount,
+        academic_year
+      });
+    } catch (ebErr) {
+      logger.warn({ err: ebErr }, '[EventBus] Fee paid publish failed');
+    }
+
     const responseData = {
       id: resultId,
       student_id: student.id,

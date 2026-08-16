@@ -15,7 +15,7 @@ export const NAV_MENU_CONFIG = {
       ]
     },
 
-    { label: 'SECURITY', children: [
+    { label: 'SETTINGS', children: [
         { label: 'Edit Profile', route: '/student/settings/edit-profile' },
         { label: 'Security & Privacy', route: '/student/settings/security' }
       ]

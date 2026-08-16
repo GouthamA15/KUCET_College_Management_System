@@ -7,6 +7,8 @@ import { getSyllabusUrl } from '@/lib/getSyllabusUrl';
 import { getBranchFromRoll } from '@/lib/rollNumber';
 import { AcademicsProvider, useAcademicsCache } from '@/context/AcademicsContext';
 import toast from 'react-hot-toast';
+import { Info, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 // Utility: derive subject metadata (kept isolated for future DB migration)
 function getSubjectMeta(_subjectName) {
@@ -44,6 +46,29 @@ function AcademicsInner({ studentData }) {
   const [activeTab, setActiveTab] = useState('subjects');
   const [currentSem, setCurrentSem] = useState(null);
   const [currentYear, setCurrentYear] = useState(null);
+
+  // Help Icon / Bottom Sheet state
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsMobileDevice(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Prevent scroll when bottom sheet is open
+  useEffect(() => {
+    if (isBottomSheetOpen && isMobileDevice) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isBottomSheetOpen, isMobileDevice]);
 
   const { cache, saveCache, isReload } = useAcademicsCache() || { /* empty */ };
   
@@ -133,7 +158,10 @@ function AcademicsInner({ studentData }) {
     return (
       <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
         <header className="mb-4">
-          <h1 className="text-2xl font-semibold text-gray-800">Academic Subjects and Performance</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-gray-800">Academic Subjects and Performance</h1>
+            <div className="text-slate-400 p-1 rounded-full"><Info size={20} className="shrink-0" /></div>
+          </div>
           <p className="text-sm text-gray-600 mt-1">Overview of your current semester subjects, attendance, and internal assessment results.</p>
         </header>
 
@@ -159,10 +187,84 @@ function AcademicsInner({ studentData }) {
     );
   }
 
+  const bottomSheet = (
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300">
+      <div className="absolute inset-0 cursor-pointer" onClick={() => setIsBottomSheetOpen(false)} />
+      <div 
+        role="dialog" 
+        aria-modal="true" 
+        aria-labelledby="help-sheet-title" 
+        className="relative bg-white w-full rounded-t-2xl shadow-2xl p-6 border-t border-slate-200 z-10 animate-slideUp max-h-[90vh] overflow-y-auto"
+      >
+        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-5" />
+        <button 
+          onClick={() => setIsBottomSheetOpen(false)}
+          className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors p-1"
+          aria-label="Close dialog"
+        >
+          <X size={20} />
+        </button>
+        <h3 id="help-sheet-title" className="text-lg font-bold text-[#0b2447] mb-3">Academics Information</h3>
+        <div className="text-sm text-slate-700 space-y-4 mb-6 leading-relaxed">
+          <p className="text-slate-600">
+            This module provides a comprehensive overview of your current academic status. Please note the following:
+          </p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li><strong>Subjects:</strong> Displays your current semester curriculum, credits, and assigned faculty.</li>
+            <li><strong>Attendance:</strong> Tracks your attendance percentage based on conducted vs. attended classes.</li>
+            <li><strong>Internals:</strong> Shows mid-term and assignment marks for theory subjects, and evaluation marks for lab subjects.</li>
+          </ul>
+        </div>
+        <button 
+          onClick={() => setIsBottomSheetOpen(false)} 
+          className="w-full bg-[#0b3578] text-white py-3 rounded-lg font-semibold text-sm hover:bg-[#0a2d66] active:bg-[#092554] transition-colors focus:outline-none"
+        >
+          Got It
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-sm">
       <header className="mb-4">
-        <h1 className="text-2xl font-semibold text-gray-800">Academic Subjects and Performance</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-gray-800">Academic Subjects and Performance</h1>
+          
+          <div 
+            className="relative inline-flex items-center"
+            onMouseEnter={() => !isMobileDevice && setIsHovered(true)}
+            onMouseLeave={() => !isMobileDevice && setIsHovered(false)}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (isMobileDevice) {
+                  setIsBottomSheetOpen(true);
+                }
+              }}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100 focus:outline-none flex items-center justify-center cursor-pointer"
+              aria-label="Help Information"
+            >
+              <Info size={20} className="shrink-0" />
+            </button>
+
+            {isHovered && !isMobileDevice && (
+              <div className="absolute left-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-xl p-4 z-50 text-left animate-slideDown">
+                <h4 className="text-sm font-bold text-[#0b2447] mb-2">Academics Information</h4>
+                <p className="text-xs text-slate-600 leading-relaxed mb-3">
+                  This module provides a comprehensive overview of your current academic status. Please note the following:
+                </p>
+                <ul className="text-xs text-slate-600 leading-relaxed list-disc pl-4 space-y-1">
+                  <li><strong>Subjects:</strong> Displays your current semester curriculum, credits, and assigned faculty.</li>
+                  <li><strong>Attendance:</strong> Tracks your attendance percentage based on conducted vs. attended classes.</li>
+                  <li><strong>Internals:</strong> Shows mid-term and assignment marks for theory subjects, and evaluation marks for lab subjects.</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
         <p className="text-sm text-gray-600 mt-1">Overview of your current semester subjects, attendance, and internal assessment results.</p>
       </header>
 
@@ -170,6 +272,12 @@ function AcademicsInner({ studentData }) {
             <button onClick={() => setActiveTab('subjects')} className={`px-3 py-2 rounded-md text-sm transition-colors ${activeTab === 'subjects' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Subjects</button>
             <button onClick={() => setActiveTab('attendance')} className={`px-3 py-2 rounded-md text-sm transition-colors ${activeTab === 'attendance' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Attendance</button>
             <button onClick={() => setActiveTab('internals')} className={`px-3 py-2 rounded-md text-sm transition-colors ${activeTab === 'internals' ? 'bg-[#0b3578] text-white' : 'bg-white border hover:bg-gray-50'}`}>Internals</button>
+          </div>
+
+          {/* Construction Warning Bar */}
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm font-medium flex items-start gap-2 shadow-sm mb-4">
+            <Info className="w-5 h-5 shrink-0 mt-0.5" />
+            <span>The Academics module and its core features (Subjects curriculum, Attendance tracking, and Internal marks recording) are currently in the construction stage. Data shown may be for testing purposes and not final.</span>
           </div>
 
           {/* Section 1: Subjects Offered */}
@@ -467,6 +575,8 @@ function AcademicsInner({ studentData }) {
                 );
               })()}            </section>
           )}
+          
+          {typeof document !== 'undefined' && isBottomSheetOpen && isMobileDevice && createPortal(bottomSheet, document.body)}
         </div>
   );
 }

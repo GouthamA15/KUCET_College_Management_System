@@ -63,6 +63,7 @@ const QUICK_LINKS = [
     ),
     badgeBg: 'bg-slate-100 group-hover:bg-slate-200',
     badgeBorder: 'border-slate-200',
+    mobileHide: true,
   },
   {
     title: 'Edit Profile',
@@ -75,6 +76,7 @@ const QUICK_LINKS = [
     ),
     badgeBg: 'bg-purple-50 group-hover:bg-purple-100',
     badgeBorder: 'border-purple-100',
+    mobileHide: true,
   },
   {
     title: 'Security Center',
@@ -87,6 +89,7 @@ const QUICK_LINKS = [
     ),
     badgeBg: 'bg-rose-50 group-hover:bg-rose-100',
     badgeBorder: 'border-rose-100',
+    mobileHide: true,
   },
   {
     title: 'ID Card Request',
@@ -99,22 +102,20 @@ const QUICK_LINKS = [
     ),
     badgeBg: 'bg-sky-50 group-hover:bg-sky-100',
     badgeBorder: 'border-sky-100',
+    mobileHide: true,
   },
 ];
 
 export default function StudentQuickLinks() {
   return (
     <section className="rounded-sm border border-slate-200 bg-white overflow-hidden shadow-xs">
-      <div className="bg-[#0b3578]/5 px-4 py-2.5 lg:py-3 border-b border-slate-200 flex items-center justify-between">
+      <div className="bg-[#0b3578]/5 px-4 py-2.5 lg:py-3 border-b border-slate-200 flex items-center justify-start">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-[#0b3578]" aria-hidden="true" />
           <h2 className="text-xs font-bold text-[#0b3578] uppercase tracking-[0.18em]">
             Student Quick Services
           </h2>
         </div>
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
-          Direct Navigation
-        </span>
       </div>
 
       <div className="p-3 sm:p-4">
@@ -124,7 +125,7 @@ export default function StudentQuickLinks() {
             <Link
               key={link.route}
               href={link.route}
-              className="group relative flex flex-col justify-between p-3 sm:p-3.5 bg-slate-50/70 hover:bg-white border border-slate-200/90 hover:border-[#0b3578]/40 rounded-md transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#0b3578] focus:ring-offset-1"
+              className={`${link.mobileHide ? 'hidden sm:flex' : 'flex'} group relative flex-col justify-between p-3 sm:p-3.5 bg-slate-50/70 hover:bg-white border border-slate-200/90 hover:border-[#0b3578]/40 rounded-md transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#0b3578] focus:ring-offset-1`}
               aria-label={`${link.title}: ${link.description}`}
             >
               <div className="flex items-start justify-between gap-2 mb-2">

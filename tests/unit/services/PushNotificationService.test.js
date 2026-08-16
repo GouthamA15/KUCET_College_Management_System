@@ -49,4 +49,13 @@ describe('PushNotificationService', () => {
     expect(res.success).toBe(true);
     expect(res.categories).toEqual(categories);
   });
+
+  it('should gracefully handle sendToRecipients when VAPID is not configured', async () => {
+    delete process.env.VAPID_PUBLIC_KEY;
+    delete process.env.VAPID_PRIVATE_KEY;
+    const res = await PushNotificationService.sendToRecipients(['218W1A0501'], { title: 'Test', body: 'Test' });
+    expect(res.success).toBe(true);
+    expect(res.sentCount).toBe(0);
+    expect(res.reason).toContain('VAPID');
+  });
 });

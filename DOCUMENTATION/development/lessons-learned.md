@@ -1,6 +1,6 @@
 # KUCET CMS - Comprehensive Project Lessons Learned
 
-**Last Updated:** August 11, 2026  
+**Last Updated:** August 16, 2026  
 **Status:** Mandatory Engineering Reference  
 **Scope:** Architectural Post-Mortems, Production Lessons, and Defensive Guardrails.
 
@@ -8,17 +8,17 @@
 
 ## 1. Overview & Architectural Retrospective
 
-Over the course of 205 development sessions, the KUCET College Management System evolved from a standard web app into an enterprise-grade academic platform. Along the way, critical bugs, security traps, deployment failures, and storage refactorings produced invaluable architectural insights.
+Over the course of 206 development sessions, the KUCET College Management System evolved from a standard web app into an enterprise-grade academic platform. Along the way, critical bugs, security traps, deployment failures, and storage refactorings produced invaluable architectural insights.
 
-This document synthesizes those key lessons into **11 Inviolable Rules** and defensive guardrails to prevent regressions.
+This document synthesizes those key lessons into **12 Inviolable Rules** and defensive guardrails to prevent regressions.
 
 ---
 
-## 2. Eleven Inviolable Rules & Defensive Guardrails
+## 2. Twelve Inviolable Rules & Defensive Guardrails
 
 ### Rule 1: Never Store Roll Numbers as Filenames
 - **The Pitfall:** Saving images as `24KUEC001.jpg` leaks PII, enables malicious file enumeration, and causes stale browser caching when a student updates their picture.
-- **The Inviolable Guardrail:** ALWAYS generate cryptographically random UUIDs (`crypto.randomUUID()`) for file storage keys (`requests/pfp/7a59662b-8a4e.webp`).
+- **The Inviolable Guardrail:** ALWAYS generate cryptographically random UUIDs (`crypto.randomUUID()`) for file storage keys (`kucet/requests/pfp/7a59662b-8a4e.webp`).
 
 ### Rule 2: Randomize Uploaded Filenames
 - **The Pitfall:** Relying on user-provided original filenames (`my_photo.jpg`) leads to directory collisions, unsafe character injection, and unhandled file overwrite bugs.
@@ -60,6 +60,10 @@ This document synthesizes those key lessons into **11 Inviolable Rules** and def
 - **The Pitfall:** In Next.js middleware (Edge runtime), using `response.headers.forEach()` or standard Web `Headers` methods can merge multiple `Set-Cookie` headers into a single comma-separated string (`Set-Cookie: cookieA=valA; Path=/, cookieB=valB; Path=/`). Modern browsers reject or misparse comma-joined `Set-Cookie` headers, leading to silent authentication drops where session cookies persist in browser storage while auth tokens fail to save.
 - **The Inviolable Guardrail:** ALWAYS maintain an explicit raw JavaScript array (`let newCookiesToSet = []`) when buffering multi-cookie mutations in Next.js Edge middleware (`src/proxy.js`). Append headers explicitly via `response.headers.append('set-cookie', cookieStr)` from the raw array rather than relying on `Headers` getters or header iteration functions.
 
+### Rule 12: Always Cryptographically Sign and Verify Asynchronous Webhooks
+- **The Pitfall:** Exposing public background webhook endpoints (e.g., `/api/webhooks/qstash/*`) without cryptographic signature verification allows unauthenticated external actors to trigger unauthorized batch operations, send spam notifications, or manipulate system tasks.
+- **The Inviolable Guardrail:** ALWAYS wrap QStash webhook route handlers with `verifySignatureAppRouter()` and maintain synchronized `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` credentials.
+
 ---
 
 ## 3. Database Migration Safety Lessons
@@ -95,9 +99,22 @@ This document synthesizes those key lessons into **11 Inviolable Rules** and def
 
 ---
 
-## 6. Cross-References & Related Documentation
+## 6. Incident Summary Matrix
+
+| Incident Tag | Root Cause | Engineering Fix Applied |
+| :--- | :--- | :--- |
+| **Session 205 Cookie Drop** | Next.js Edge proxy header comma-merging | Implemented raw `newCookiesToSet` array buffering in `src/proxy.js`. |
+| **Session 204 DB Throttling** | High-frequency academic session queries | Added 5-minute in-memory cache to `getCurrentCalendarSession()`. |
+| **Session 200 Storage Collision** | Mixed SDK calls and raw filenames | Enforced UUID v4 names and relative keys (`kucet/...`). |
+| **Session 206 Webhook Vulnerability** | Unprotected asynchronous webhook endpoints | Added `verifySignatureAppRouter` across all 7 QStash routes. |
+
+---
+
+## 7. Cross-References & Related Documentation
 
 - [Engineering Coding Standards](./coding-standards.md)
 - [Project Architecture Conventions](./project-conventions.md)
 - [AI Coding Agent Blueprint & Guidelines](./ai-agent-guide.md)
 - [Chronological Forensics of Resolved Incidents](../history/resolved-incidents.md#1-session-205-forensic-resolution-of-cookies-remain-but-app-shows-home-screen)
+
+> 💡 **Next Steps**: Review the complete incident post-mortems in [Resolved Incidents History](../history/resolved-incidents.md).
