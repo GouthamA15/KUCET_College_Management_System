@@ -3,7 +3,7 @@ import logger from './logger.js';
 
 const envSchema = z.object({
   // Node Environment
-  NODE_ENV: z.enum(['development', 'testing', 'production']).default('development'),
+  NODE_ENV: z.enum(['development', 'test', 'testing', 'production']).default('production'),
 
   // Database
   DB_HOST: z.string().min(1, "DB_HOST is required"),
@@ -21,8 +21,6 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET should be at least 32 characters for security"),
   CERTIFICATE_SECRET: z.string().min(1, "CERTIFICATE_SECRET is required"),
   ENCRYPTION_KEY: z.string().length(64, "ENCRYPTION_KEY must be a 64-character hex string"),
-  GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
-  GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
 
   // Cloudinary
   CLOUDINARY_CLOUD_NAME: z.string().optional(),

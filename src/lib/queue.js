@@ -11,11 +11,12 @@ const qstashBreaker = getBreaker('QStash');
 
 // Generic enqueue method
 export const enqueueJob = async (endpoint, payload, options = {}) => {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const url = `${baseUrl}${endpoint}`;
+  const rawBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = rawBaseUrl.replace(/\/+$/, '');
+  const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
   if (!process.env.QSTASH_TOKEN) {
-    console.warn('QSTASH_TOKEN not found, skipping background job. In production, this would fire to', url);
+    logger.warn({ url }, 'QSTASH_TOKEN not found, skipping background job dispatch');
     return null;
   }
 

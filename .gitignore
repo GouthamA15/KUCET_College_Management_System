@@ -64,3 +64,6 @@ node_modules/
 .env.test.render
 thingstodoafterdeployment.txt
 .env.production
+
+# Sentry Config File
+.env.sentry-build-plugin

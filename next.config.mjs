@@ -98,17 +98,16 @@ const nextConfig = {
   },
 };
 
-const configWithSentry = withSentryConfig(nextConfig, {
-  silent: true,
-  org: "kucet-cms",
-  project: "kucet-cms-nextjs",
-}, {
+export default withSentryConfig(withPWA(nextConfig), {
+  org: "kucet-jv",
+  project: "kucet-cms",
+  silent: !process.env.CI,
   widenClientFileUpload: true,
-  transpileClientSDK: true,
   tunnelRoute: "/monitoring",
-  hideSourceMaps: true,
-  disableLogger: true,
-  automaticVercelMonitors: true,
+  webpack: {
+    automaticVercelMonitors: true,
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
 });
-
-export default withPWA(configWithSentry);

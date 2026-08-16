@@ -1,7 +1,8 @@
+import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { NextResponse } from 'next/server';
 import logger from '@/lib/logger';
 
-export async function POST(req) {
+async function handler(req) {
   try {
     const body = await req.json();
     const { studentId, certificateType, requestedBy } = body;
@@ -19,3 +20,5 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const POST = (process.env.QSTASH_TOKEN && process.env.QSTASH_CURRENT_SIGNING_KEY) ? verifySignatureAppRouter(handler) : handler;
