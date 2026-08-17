@@ -22,25 +22,28 @@ export async function DELETE(req, context) {
       return apiError('Staff not found', 404);
     }
 
-    const [result] = await db.update(staffAccounts).set({ account_status: 'INACTIVE' }).where(eq(staffAccounts.id, idNum));
+    const [result] = await db.delete(staffAccounts).where(eq(staffAccounts.id, idNum));
 
     if (result.affectedRows === 0) {
-      return apiError('Failed to deactivate staff', 500);
+      return apiError('Failed to delete staff account', 500);
     }
 
     // Audit Log
     await logAudit(req, {
       userId: user.id,
       userType: 'admin',
-      action: 'DELETE_CLERK',
+      action: 'HARD_DELETE_CLERK',
       targetId: idNum,
       targetType: 'staff_accounts',
       before: clerkBefore
     });
 
-    return apiResponse({ message: 'Staff deactivated successfully' });
+    return apiResponse({ message: 'Staff account permanently deleted' });
   } catch (error) {
     logger.error('Error deleting staff:', error);
+    if (error && error.code === 'ER_ROW_IS_REFERENCED_2') {
+      return apiError('Cannot delete this staff member because they have associated records (e.g., student imports, audits). Please deactivate the account instead.', 409);
+    }
     return apiError('Internal Server Error', 500);
   }
 }

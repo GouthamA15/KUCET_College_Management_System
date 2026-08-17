@@ -171,7 +171,7 @@ test.describe('Student Fee Payment E2E Flow', () => {
     });
 
     // Intercept payment submission endpoint if called
-    await page.route('/api/clerk/scholarship/payments', async (route) => {
+    await page.route('/api/staff/scholarship/payments', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -251,7 +251,7 @@ test.describe('Student Fee Payment E2E Flow', () => {
 
   test('should reject duplicate payment reference submission gracefully', async ({ page }) => {
     // Intercept duplicate payment verification API
-    await page.route('/api/clerk/scholarship/payments', async (route) => {
+    await page.route('/api/staff/scholarship/payments', async (route) => {
       await route.fulfill({
         status: 409,
         contentType: 'application/json',

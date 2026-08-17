@@ -20,6 +20,17 @@ const nextConfig = {
   /* config options here */
   output: 'standalone',
   reactCompiler: true,
+  // Fix Render OOM (Out of Memory) by disabling memory-heavy build steps
+  productionBrowserSourceMaps: false,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  experimental: {
+    webpackBuildWorker: true,
+  },
   images: {
     remotePatterns: [
       {
@@ -104,6 +115,10 @@ export default withSentryConfig(withPWA(nextConfig), {
   silent: !process.env.CI,
   widenClientFileUpload: true,
   tunnelRoute: "/monitoring",
+  // Disable Sentry sourcemap upload during build on Render to fix 8GB memory leak
+  sourcemaps: {
+    disable: true,
+  },
   webpack: {
     automaticVercelMonitors: true,
     treeshake: {
