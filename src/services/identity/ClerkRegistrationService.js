@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { clerks, clerkRegistrationRequests } from '@/db/schema';
+import { clerks, staffRegistrationRequests } from '@/db/schema';
 import { eq, or, and } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
@@ -72,14 +72,14 @@ export class ClerkRegistrationService {
     }
 
     // 4. Duplicate check in pending registration requests
-    const existingPending = await db.select({ id: clerkRegistrationRequests.id })
-      .from(clerkRegistrationRequests)
+    const existingPending = await db.select({ id: staffRegistrationRequests.id })
+      .from(staffRegistrationRequests)
       .where(and(
         or(
-          eq(clerkRegistrationRequests.email, cleanEmail),
-          eq(clerkRegistrationRequests.employee_id, cleanEmpId)
+          eq(staffRegistrationRequests.email, cleanEmail),
+          eq(staffRegistrationRequests.employee_id, cleanEmpId)
         ),
-        eq(clerkRegistrationRequests.status, 'PENDING')
+        eq(staffRegistrationRequests.status, 'PENDING')
       ))
       .limit(1);
 
@@ -101,7 +101,7 @@ export class ClerkRegistrationService {
     const catInfo = STAFF_CATEGORIES[category];
 
     // 6. Insert registration request
-    const [result] = await db.insert(clerkRegistrationRequests).values({
+    const [result] = await db.insert(staffRegistrationRequests).values({
       name: name.trim(),
       email: cleanEmail,
       employee_id: cleanEmpId,
@@ -133,18 +133,18 @@ export class ClerkRegistrationService {
   static async getRequests(status = 'PENDING', staffCategory = null) {
     const conditions = [];
     if (status) {
-      conditions.push(eq(clerkRegistrationRequests.status, status));
+      conditions.push(eq(staffRegistrationRequests.status, status));
     }
     if (staffCategory) {
-      conditions.push(eq(clerkRegistrationRequests.staff_category, staffCategory.toUpperCase()));
+      conditions.push(eq(staffRegistrationRequests.staff_category, staffCategory.toUpperCase()));
     }
 
-    let query = db.select().from(clerkRegistrationRequests);
+    let query = db.select().from(staffRegistrationRequests);
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
     }
 
-    const requests = await query.orderBy(clerkRegistrationRequests.created_at);
+    const requests = await query.orderBy(staffRegistrationRequests.created_at);
     return requests;
   }
 
@@ -153,8 +153,8 @@ export class ClerkRegistrationService {
    */
   static async approveRequest(requestId, adminId) {
     const reqs = await db.select()
-      .from(clerkRegistrationRequests)
-      .where(eq(clerkRegistrationRequests.id, requestId))
+      .from(staffRegistrationRequests)
+      .where(eq(staffRegistrationRequests.id, requestId))
       .limit(1);
 
     if (reqs.length === 0) {
@@ -196,13 +196,13 @@ export class ClerkRegistrationService {
     const newClerkId = clerkResult.insertId;
 
     // 4. Update request status
-    await db.update(clerkRegistrationRequests)
+    await db.update(staffRegistrationRequests)
       .set({
         status: 'APPROVED',
         processed_at: new Date(),
         processed_by_admin_id: adminId,
       })
-      .where(eq(clerkRegistrationRequests.id, requestId));
+      .where(eq(staffRegistrationRequests.id, requestId));
 
     // 5. Send approval email with credentials
     const baseUrl = getBaseUrl();
@@ -245,8 +245,8 @@ export class ClerkRegistrationService {
    */
   static async rejectRequest(requestId, adminId, reason = '') {
     const reqs = await db.select()
-      .from(clerkRegistrationRequests)
-      .where(eq(clerkRegistrationRequests.id, requestId))
+      .from(staffRegistrationRequests)
+      .where(eq(staffRegistrationRequests.id, requestId))
       .limit(1);
 
     if (reqs.length === 0) {
@@ -262,14 +262,14 @@ export class ClerkRegistrationService {
     const catInfo = STAFF_CATEGORIES[request.staff_category] || STAFF_CATEGORIES.FACULTY;
 
     // 1. Update request status
-    await db.update(clerkRegistrationRequests)
+    await db.update(staffRegistrationRequests)
       .set({
         status: 'REJECTED',
         rejection_reason: rejectionReason,
         processed_at: new Date(),
         processed_by_admin_id: adminId,
       })
-      .where(eq(clerkRegistrationRequests.id, requestId));
+      .where(eq(staffRegistrationRequests.id, requestId));
 
     // 2. Send rejection email
     const emailSent = await sendInstitutionalEmail({

@@ -783,7 +783,7 @@ export default function LoginPanel({ activePanel, onClose, _onStudentLogin, vari
                     <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between text-xs">
                       <span className="text-gray-600">New Staff Member?</span>
                       <Link
-                        href="/register/staff"
+                        href="/staff-registration"
                         className="font-bold text-[#0b3578] hover:text-blue-800 hover:underline"
                       >
                         Register Yourself &rarr;

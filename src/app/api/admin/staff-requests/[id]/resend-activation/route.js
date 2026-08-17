@@ -1,0 +1,98 @@
+import { db } from '@/db';
+import { staffRegistrationRequests, staffAccounts, staffAccountActivationTokens, auditLogs } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { wrapHandler } from '@/lib/api-utils';
+import crypto from 'crypto';
+import { sendInstitutionalEmail } from '@/lib/email';
+import logger from '@/lib/logger';
+
+export const POST = wrapHandler({
+  auth: 'admin',
+  handler: async (req, { user, context }) => {
+    const idUrl = req.nextUrl.pathname.split('/');
+    const idStr = idUrl[idUrl.length - 2];
+    const requestId = parseInt(idStr, 10);
+
+    if (isNaN(requestId)) {
+      return { error: 'Invalid request ID', status: 400 };
+    }
+
+    const adminId = user?.id || user?.adminId || 1;
+
+    const result = await db.transaction(async (tx) => {
+      // Find request
+      const [request] = await tx
+        .select()
+        .from(staffRegistrationRequests)
+        .where(eq(staffRegistrationRequests.id, requestId));
+
+      if (!request) throw new Error('Request not found');
+      if (request.status !== 'APPROVED') throw new Error('Request is not approved');
+
+      // Find staff account
+      const [account] = await tx
+        .select()
+        .from(staffAccounts)
+        .where(eq(staffAccounts.email, request.email));
+
+      if (!account) throw new Error('Staff account not found');
+      if (account.account_status !== 'PENDING_ACTIVATION') throw new Error('Account is already active or suspended');
+
+      // Generate new token
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 48);
+
+      await tx.insert(staffAccountActivationTokens).values({
+        staff_id: account.id,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+      });
+
+      await tx.insert(auditLogs).values({
+        user_id: adminId.toString(),
+        user_type: 'admin',
+        action: 'RESEND_ACTIVATION_EMAIL',
+        entity_type: 'staff_accounts',
+        entity_id: account.id.toString(),
+        metadata: { requestId: request.id },
+        ip_address: context?.ip || '127.0.0.1'
+      });
+
+      return {
+        email: account.email,
+        name: account.name,
+        employeeId: account.employee_id,
+        rawToken
+      };
+    });
+
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const activationLink = `${baseUrl}/register/staff/activate?token=${result.rawToken}`;
+
+    const emailHtml = `
+      <h2>Welcome to KUCET, ${result.name}</h2>
+      <p>Your staff registration has been approved.</p>
+      <p><strong>Employee ID:</strong> ${result.employeeId}</p>
+      <p>Please activate your account and set up your password within the next 48 hours by clicking the link below:</p>
+      <p><a href="${activationLink}" style="padding: 10px 20px; background-color: #0b3578; color: #ffffff; text-decoration: none; border-radius: 5px;">Activate Account</a></p>
+    `;
+
+    try {
+      await sendInstitutionalEmail({
+        to: result.email,
+        subject: 'KUCET Staff Account Activation (Resend)',
+        html: emailHtml,
+        text: `Welcome to KUCET, ${result.name}.\n\nYour Employee ID is: ${result.employeeId}.\n\nActivate your account here: ${activationLink}\n\nThis link expires in 48 hours.`
+      });
+      logger.info({ email: result.email }, '[STAFF_APPROVAL] Resent activation email successfully');
+    } catch (err) {
+      logger.error({ email: result.email, err }, '[STAFF_APPROVAL] Failed to resend activation email');
+      return { success: true, message: 'Token generated, but email failed to send.' };
+    }
+
+    return { success: true, message: 'Activation email resent successfully.' };
+  }
+});

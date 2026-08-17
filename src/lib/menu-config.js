@@ -77,6 +77,7 @@ export const NAV_MENU_CONFIG = {
     { label: 'PAYMENTS', route: '/admin/payments' },
     { label: 'MANAGE CLERKS', route: '/admin/manage-clerks' },
     { label: 'CREATE CLERK', route: '/admin/create-clerk' },
+    { label: 'STAFF REQUESTS', route: '/admin/staff-requests' },
     { label: 'INFRASTRUCTURE', children: [
         { label: 'System Configuration', route: '/admin/infrastructure?tab=config' },
         { label: 'Database Sovereignty', route: '/admin/infrastructure?tab=backups' },
