@@ -8,7 +8,7 @@ import {
   staffAccountActivationTokens,
   auditLogs
 } from '@/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { wrapHandler } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { sendInstitutionalEmail, getBaseUrl } from '@/lib/email';
@@ -92,7 +92,7 @@ export const POST = wrapHandler({
           affiliations = typeof request.academic_affiliations === 'string' 
             ? JSON.parse(request.academic_affiliations) 
             : request.academic_affiliations;
-        } catch (e) {
+        } catch {
           throw new Error('Invalid academic affiliations JSON format');
         }
 

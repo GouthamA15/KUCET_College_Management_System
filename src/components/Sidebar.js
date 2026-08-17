@@ -4,7 +4,7 @@ import React, { useContext, useEffect, useMemo, useState, Suspense } from 'react
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { NAV_MENU_CONFIG } from '@/lib/menu-config';
-import { ClerkContext } from '@/context/ClerkContext';
+import { StaffContext } from '@/context/StaffContext';
 import { StudentContext } from '@/context/StudentContext';
 import { logoutByRole } from '@/lib/logout';
 import { getPortalTitle } from '@/lib/path-utils';
@@ -162,13 +162,13 @@ function buildMenuItems({ effectiveRole, studentData, clerkData }) {
     enhancedMenu.splice(1, 0, { 
       label: 'HOD DASHBOARD', 
       children: [
-        { label: 'Faculty Load', route: '/clerk/hod/dashboard?tab=workload' },
-        { label: 'Edit Timetable', route: '/clerk/hod/dashboard?tab=timetable' },
-        { label: 'Assignment Registry', route: '/clerk/hod/dashboard?tab=allocation' },
-        { label: 'Branch Syllabus', route: '/clerk/hod/dashboard?tab=syllabus' },
-        { label: 'Data Analytics', route: '/clerk/hod/dashboard?tab=analytics' },
-        { label: 'Department Config', route: '/clerk/hod/dashboard?tab=config' },
-        { label: 'Faculty Interests', route: '/clerk/hod/dashboard?tab=interests' }
+        { label: 'Faculty Load', route: '/staff/hod/dashboard?tab=workload' },
+        { label: 'Edit Timetable', route: '/staff/hod/dashboard?tab=timetable' },
+        { label: 'Assignment Registry', route: '/staff/hod/dashboard?tab=allocation' },
+        { label: 'Branch Syllabus', route: '/staff/hod/dashboard?tab=syllabus' },
+        { label: 'Data Analytics', route: '/staff/hod/dashboard?tab=analytics' },
+        { label: 'Department Config', route: '/staff/hod/dashboard?tab=config' },
+        { label: 'Faculty Interests', route: '/staff/hod/dashboard?tab=interests' }
       ]
     });
     return enhancedMenu;
@@ -239,7 +239,7 @@ async function performAction({ action, effectiveRole, onLogout, router, setActiv
       return;
     }
     if (String(effectiveRole).startsWith('clerk')) {
-      router.push('/clerk/settings/security');
+      router.push('/staff/settings/security');
       return;
     }
     router.push('/settings/security');
@@ -270,7 +270,7 @@ function SidebarInner({
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const clerkContext = useContext(ClerkContext);
+  const clerkContext = useContext(StaffContext);
   const studentContext = useContext(StudentContext);
   const clerkData = clerkContext?.clerkData;
   const studentData = studentContext?.studentData;

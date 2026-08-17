@@ -98,7 +98,7 @@ export const facultySubstitutions = mysqlTable('faculty_substitutions', {
   substitute_faculty_id: int('substitute_faculty_id').notNull(),
   substitution_date: date('substitution_date').notNull(),
   created_at: timestamp('created_at').defaultNow(),
-  created_by_clerk_id: int('created_by_clerk_id'),
+  created_by_staff_id: int('created_by_staff_id'),
 }, (table) => ({
   lookupIdx: index('idx_subst_lookup').on(table.original_assignment_id, table.substitution_date),
   substituteIdx: index('idx_subst_faculty').on(table.substitute_faculty_id),
@@ -121,7 +121,7 @@ export const studentRequests = mysqlTable('student_requests', {
   completed_at: timestamp('completed_at'),
   reject_reason: text('reject_reason'),
   generated_attendance: varchar('generated_attendance', { length: 10 }),
-  action_by_clerk_id: int('action_by_clerk_id'),
+  action_by_staff_id: int('action_by_staff_id'),
   action_by_role: varchar('action_by_role', { length: 50 }),
   is_flagged: boolean('is_flagged').default(false),
   flag_details: json('flag_details'),

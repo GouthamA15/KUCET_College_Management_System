@@ -10,7 +10,8 @@ vi.mock('@/db', () => ({
     select: vi.fn(),
     query: {
       principal: { findFirst: vi.fn() },
-      clerks: { findFirst: vi.fn() },
+      staffAccounts: { findFirst: vi.fn() },
+      staffAccountRoles: { findMany: vi.fn() },
       refreshTokens: { findFirst: vi.fn() },
     },
     insert: vi.fn().mockReturnValue({
@@ -22,7 +23,7 @@ vi.mock('@/db', () => ({
 vi.mock('@/lib/logger', () => ({
   default: {
     info: vi.fn(),
-    error: vi.fn(),
+    error: vi.fn((err, msg) => console.error('LOGGER ERROR:', err, msg)),
     warn: vi.fn(),
   },
 }));
@@ -69,16 +70,16 @@ describe('Admin Authentication & Routing Audit', () => {
       expect(getDashboardPathByRole('admin')).toBe('/admin/dashboard');
     });
 
-    it('should map admission clerk role to /clerk/admission/dashboard', () => {
-      expect(getDashboardPathByRole('admission')).toBe('/clerk/admission/dashboard');
+    it('should map admission clerk role to /staff/admission/dashboard', () => {
+      expect(getDashboardPathByRole('admission')).toBe('/staff/admission/dashboard');
     });
 
-    it('should map scholarship clerk role to /clerk/scholarship/dashboard', () => {
-      expect(getDashboardPathByRole('scholarship')).toBe('/clerk/scholarship/dashboard');
+    it('should map scholarship clerk role to /staff/scholarship/dashboard', () => {
+      expect(getDashboardPathByRole('scholarship')).toBe('/staff/scholarship/dashboard');
     });
 
-    it('should map faculty role to /clerk/faculty/dashboard', () => {
-      expect(getDashboardPathByRole('faculty')).toBe('/clerk/faculty/dashboard');
+    it('should map faculty role to /staff/faculty/dashboard', () => {
+      expect(getDashboardPathByRole('faculty')).toBe('/staff/faculty/dashboard');
     });
 
     it('should fallback unknown roles to /', () => {
@@ -131,11 +132,11 @@ describe('Admin Authentication & Routing Audit', () => {
     it('should successfully authenticate Clerk and return specific clerk role', async () => {
       const hashedPassword = await bcrypt.hash('ClerkPassword123!', 10);
       const clerkRecord = {
-        id: 5,
+        id: 10,
         email: 'admission@kucet.ac.in',
-        password_hash: hashedPassword,
         role: 'admission',
-        is_active: true,
+        password_hash: hashedPassword,
+        account_status: 'ACTIVE',
         is_hod: false,
         branch: 'CSE',
       };
@@ -149,7 +150,7 @@ describe('Admin Authentication & Routing Audit', () => {
         }),
       });
 
-      // 2. Clerk select returns clerkRecord
+      // 2. Staff query returns clerkRecord
       db.select.mockReturnValueOnce({
         from: vi.fn().mockReturnValueOnce({
           where: vi.fn().mockReturnValueOnce({
@@ -157,8 +158,17 @@ describe('Admin Authentication & Routing Audit', () => {
           }),
         }),
       });
-
-      db.query.clerks.findFirst.mockResolvedValueOnce(clerkRecord);
+      // 3. Role query returns admission
+      db.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnValueOnce({
+          innerJoin: vi.fn().mockReturnValueOnce({
+            where: vi.fn().mockReturnValueOnce({
+              limit: vi.fn().mockResolvedValueOnce([{ role_code: 'ADMISSION_CLERK' }])
+            })
+          }),
+        }),
+      });
+      // staffAccountRoles findMany not used by the route, remove
 
       const req = makeMockRequest({
         email: 'admission@kucet.ac.in',
@@ -167,6 +177,9 @@ describe('Admin Authentication & Routing Audit', () => {
       });
 
       const res = await employeeLoginPOST(req);
+      if (res.status === 500) {
+        console.info(await res.clone().json());
+      }
       expect(res.status).toBe(200);
 
       const body = await res.json();
@@ -174,8 +187,8 @@ describe('Admin Authentication & Routing Audit', () => {
       expect(body.role).toBe('admission');
 
       const cookies = res.headers.getSetCookie();
-      const clerkAuthCookie = cookies.find((c) => c.startsWith('clerk_auth='));
-      expect(clerkAuthCookie).toBeDefined();
+      const staffAuthCookie = cookies.find((c) => c.startsWith('staff_auth='));
+      expect(staffAuthCookie).toBeDefined();
     });
   });
 
@@ -205,6 +218,9 @@ describe('Admin Authentication & Routing Audit', () => {
       });
 
       const res = await adminLoginPOST(req);
+      if (res.status === 500) {
+        console.info(await res.clone().json());
+      }
       expect(res.status).toBe(200);
 
       const body = await res.json();

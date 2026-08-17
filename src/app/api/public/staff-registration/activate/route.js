@@ -22,7 +22,7 @@ export const POST = wrapHandler({
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    const result = await db.transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       // Find token
       const [tokenRecord] = await tx
         .select()

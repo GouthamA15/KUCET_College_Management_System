@@ -1,12 +1,12 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { refreshTokens, students, clerks, principal, userSessions } from '@/db/schema';
+import { refreshTokens, students, staffAccounts, principal, userSessions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import crypto from 'crypto';
 import { 
   issueStudentAuthCookie, 
-  issueClerkAuthCookie, 
+  issueStaffAuthCookie, 
   issueAdminAuthCookie,
   setCookie,
   getJwtSecretKey
@@ -51,10 +51,10 @@ export async function POST(req) {
   };
 
   try {
-    const { type } = await req.json(); // 'student', 'clerk', or 'admin'
+    const { type } = await req.json(); // 'student', 'staff', or 'admin'
     userType = type;
 
-    if (!['student', 'clerk', 'admin'].includes(type)) {
+    if (!['student', 'staff', 'admin'].includes(type)) {
       logDevValues();
       return apiError('Invalid user type', 400);
     }
@@ -96,7 +96,7 @@ export async function POST(req) {
     userId = tokenRecord.user_id;
     expiresAt = tokenRecord.expires_at;
 
-    // Task 5: Verify Session Lookup (always load user_sessions.id == student_session_id / clerk_session_id / admin_session_id cookie)
+    // Task 5: Verify Session Lookup (always load user_sessions.id == student_session_id / staff_session_id / admin_session_id cookie)
     let sessionRecord = null;
     if (type !== 'student' && sessionCookieId) {
       sessionRecord = await db.query.userSessions.findFirst({
@@ -151,10 +151,38 @@ export async function POST(req) {
         let user = null;
         if (type === 'student') {
           user = await db.query.students.findFirst({ where: eq(students.roll_no, tokenRecord.user_id) });
-        } else if (type === 'clerk') {
-          user = await db.query.clerks.findFirst({ where: eq(clerks.email, tokenRecord.user_id) });
+        } else if (type === 'staff') {
+          user = await db.query.staffAccounts.findFirst({ where: eq(staffAccounts.id, parseInt(tokenRecord.user_id)) });
+          if (user) {
+            const { staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments } = await import('@/db/schema');
+            const roleRecords = await db.select({ role_code: staffRoles.role_code })
+              .from(staffAccountRoles)
+              .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+              .where(eq(staffAccountRoles.staff_account_id, user.id))
+              .limit(1);
+            let resolvedRole = 'faculty';
+            if (roleRecords.length > 0) {
+                const rCode = roleRecords[0].role_code;
+                if (rCode === 'ADMISSION_CLERK') resolvedRole = 'admission';
+                else if (rCode === 'SCHOLARSHIP_CLERK') resolvedRole = 'scholarship';
+            }
+            user.role = resolvedRole;
+            user.is_hod = false;
+            user.branch = null;
+            if (resolvedRole === 'faculty') {
+                const affil = await db.select({ branch_code: academicDepartments.department_code, is_hod: staffAcademicAffiliations.is_hod })
+                    .from(staffAcademicAffiliations)
+                    .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+                    .where(eq(staffAcademicAffiliations.staff_account_id, user.id))
+                    .limit(1);
+                if (affil.length > 0) {
+                    user.is_hod = affil[0].is_hod;
+                    user.branch = affil[0].branch_code;
+                }
+            }
+          }
         } else if (type === 'admin') {
-          user = await db.query.principal.findFirst({ where: eq(principal.email, tokenRecord.user_id) });
+          user = await db.query.principal.findFirst({ where: eq(principal.id, parseInt(tokenRecord.user_id)) });
         }
 
         if (!user) {
@@ -162,7 +190,7 @@ export async function POST(req) {
           return apiError('User not found', 401);
         }
 
-        if (type === 'clerk' && !user.is_active) {
+        if (type === 'staff' && user.account_status !== 'ACTIVE') {
           logDevValues();
           return apiError('User not found or inactive', 401);
         }
@@ -171,20 +199,20 @@ export async function POST(req) {
         if (type === 'student') {
           ownershipValidationResult = (tokenRecord.user_id === user.roll_no);
         } else {
-          ownershipValidationResult = (tokenRecord.user_id === user.email);
+          ownershipValidationResult = (parseInt(tokenRecord.user_id) === user.id);
         }
 
         // Task 6: Role validation (cookie role -> db role -> JWT role -> refresh token owner)
         let cookieRole = null;
         if (type === 'student') {
           cookieRole = 'student';
-        } else if (type === 'clerk') {
-          cookieRole = cookieStore.get('clerk_role')?.value;
+        } else if (type === 'staff') {
+          cookieRole = cookieStore.get('staff_role')?.value || user.role; // Use user.role from DB if cookie is missing
         } else if (type === 'admin') {
           cookieRole = 'admin';
         }
 
-        const dbRole = type === 'clerk' ? user.role : type;
+        const dbRole = type === 'staff' ? user.role : type;
         const jwtRole = jwtPayload?.role;
         roleValidationResult = (cookieRole === dbRole && (!jwtRole || jwtRole === dbRole));
 
@@ -219,10 +247,9 @@ export async function POST(req) {
             sameSite: 'Strict',
             maxAge: cookieMaxAge
           });
-        } else if (type === 'clerk') {
+        } else if (type === 'staff') {
           const token = await new (await import('jose')).SignJWT({
             id: user.id,
-            clerkId: user.id,
             email: user.email,
             role: user.role,
             is_hod: !!user.is_hod,
@@ -233,7 +260,7 @@ export async function POST(req) {
             .setExpirationTime(sessionDuration)
             .sign(secret);
 
-          setCookie(response, 'clerk_auth', token, {
+          setCookie(response, 'staff_auth', token, {
             httpOnly: true,
             sameSite: 'Strict',
             maxAge: cookieMaxAge
@@ -287,10 +314,38 @@ export async function POST(req) {
     let user = null;
     if (type === 'student') {
       user = await db.query.students.findFirst({ where: eq(students.roll_no, tokenRecord.user_id) });
-    } else if (type === 'clerk') {
-      user = await db.query.clerks.findFirst({ where: eq(clerks.email, tokenRecord.user_id) });
+    } else if (type === 'staff') {
+      user = await db.query.staffAccounts.findFirst({ where: eq(staffAccounts.id, parseInt(tokenRecord.user_id)) });
+      if (user) {
+        const { staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments } = await import('@/db/schema');
+        const roleRecords = await db.select({ role_code: staffRoles.role_code })
+          .from(staffAccountRoles)
+          .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+          .where(eq(staffAccountRoles.staff_account_id, user.id))
+          .limit(1);
+        let resolvedRole = 'faculty';
+        if (roleRecords.length > 0) {
+            const rCode = roleRecords[0].role_code;
+            if (rCode === 'ADMISSION_CLERK') resolvedRole = 'admission';
+            else if (rCode === 'SCHOLARSHIP_CLERK') resolvedRole = 'scholarship';
+        }
+        user.role = resolvedRole;
+        user.is_hod = false;
+        user.branch = null;
+        if (resolvedRole === 'faculty') {
+            const affil = await db.select({ branch_code: academicDepartments.department_code, is_hod: staffAcademicAffiliations.is_hod })
+                .from(staffAcademicAffiliations)
+                .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+                .where(eq(staffAcademicAffiliations.staff_account_id, user.id))
+                .limit(1);
+            if (affil.length > 0) {
+                user.is_hod = affil[0].is_hod;
+                user.branch = affil[0].branch_code;
+            }
+        }
+      }
     } else if (type === 'admin') {
-      user = await db.query.principal.findFirst({ where: eq(principal.email, tokenRecord.user_id) });
+      user = await db.query.principal.findFirst({ where: eq(principal.id, parseInt(tokenRecord.user_id)) });
     }
 
     if (!user) {
@@ -298,7 +353,7 @@ export async function POST(req) {
       return apiError('User not found', 401);
     }
 
-    if (type === 'clerk' && !user.is_active) {
+    if (type === 'staff' && user.account_status !== 'ACTIVE') {
       logDevValues();
       return apiError('User not found or inactive', 401);
     }
@@ -307,20 +362,20 @@ export async function POST(req) {
     if (type === 'student') {
       ownershipValidationResult = (tokenRecord.user_id === user.roll_no);
     } else {
-      ownershipValidationResult = (tokenRecord.user_id === user.email);
+      ownershipValidationResult = (parseInt(tokenRecord.user_id) === user.id);
     }
 
     // Task 6: Role validation (cookie role -> db role -> JWT role -> refresh token owner)
     let cookieRole = null;
     if (type === 'student') {
       cookieRole = 'student';
-    } else if (type === 'clerk') {
-      cookieRole = cookieStore.get('clerk_role')?.value;
+    } else if (type === 'staff') {
+      cookieRole = cookieStore.get('staff_role')?.value || user.role;
     } else if (type === 'admin') {
       cookieRole = 'admin';
     }
 
-    const dbRole = type === 'clerk' ? user.role : type;
+    const dbRole = type === 'staff' ? user.role : type;
     const jwtRole = jwtPayload?.role;
     roleValidationResult = (cookieRole === dbRole && (!jwtRole || jwtRole === dbRole));
 
@@ -344,8 +399,8 @@ export async function POST(req) {
 
     if (type === 'student') {
       await issueStudentAuthCookie(response, user, true, ip, userAgent);
-    } else if (type === 'clerk') {
-      await issueClerkAuthCookie(response, user, true, ip, userAgent);
+    } else if (type === 'staff') {
+      await issueStaffAuthCookie(response, user, true, ip, userAgent);
     } else if (type === 'admin') {
       await issueAdminAuthCookie(response, user, true, ip, userAgent);
     }

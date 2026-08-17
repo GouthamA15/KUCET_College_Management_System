@@ -5,7 +5,7 @@ import {
 
 export const securityEvents = mysqlTable('security_events', {
   id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
-  user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']).notNull(),
+  user_type: mysqlEnum('user_type', ['STUDENT', 'STAFF', 'ADMIN', 'SYSTEM']).notNull(),
   user_id: bigint('user_id', { mode: 'number', unsigned: true }),
   event_type: varchar('event_type', { length: 50 }),
   ip_address: varchar('ip_address', { length: 64 }),
@@ -18,7 +18,7 @@ export const securityEvents = mysqlTable('security_events', {
 
 export const securityNotifications = mysqlTable('security_notifications', {
   id: bigint('id', { mode: 'number' }).autoincrement().primaryKey().notNull(),
-  user_type: mysqlEnum('user_type', ['STUDENT', 'CLERK', 'FACULTY', 'HOD', 'ADMIN']).notNull(),
+  user_type: mysqlEnum('user_type', ['STUDENT', 'STAFF', 'ADMIN', 'SYSTEM']).notNull(),
   user_id: bigint('user_id', { mode: 'number', unsigned: true }),
   title: varchar('title', { length: 255 }),
   message: text('message'),
@@ -42,7 +42,7 @@ export const rateLimits = mysqlTable('rate_limits', {
 export const auditLogs = mysqlTable('audit_logs', {
   id: int('id').autoincrement().primaryKey().notNull(),
   user_id: int('user_id'), // ID of the Admin or Clerk
-  user_type: mysqlEnum('user_type', ['admin', 'clerk', 'student', 'system']).notNull(),
+  user_type: mysqlEnum('user_type', ['STUDENT', 'STAFF', 'ADMIN', 'SYSTEM']).notNull(),
   action: varchar('action', { length: 100 }).notNull(), // e.g., 'UPDATE_MARKS', 'APPROVE_CERTIFICATE'
   target_id: varchar('target_id', { length: 255 }), // ID of the entity being modified
   target_type: varchar('target_type', { length: 100 }), // e.g., 'student', 'marks', 'certificate'

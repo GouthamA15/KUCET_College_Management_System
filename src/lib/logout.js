@@ -74,7 +74,7 @@ async function logoutAndRedirect({
  * Preserves existing behavior:
  * - Student: tries optional `onLogout()` first; if it succeeds, returns early.
  * - Student default: POST /api/student/logout, clear storage, redirect.
- * - Clerk/faculty: POST /api/clerk/logout then redirect.
+ * - Clerk/faculty: POST /api/staff/logout then redirect.
  * - Admin: POST /api/admin/logout then redirect.
  * - Fallback: POST /api/auth/logout then redirect.
  */
@@ -104,7 +104,7 @@ export async function logoutByRole({ role = 'guest', onLogout, redirect = '/' } 
   }
 
   if (role === 'clerk' || role === 'clerkAdmission' || role === 'clerkScholarship' || role === 'faculty') {
-    await logoutAndRedirect({ endpoint: '/api/clerk/logout', redirect });
+    await logoutAndRedirect({ endpoint: '/api/staff/logout', redirect });
     return;
   }
 
@@ -117,8 +117,8 @@ export async function logoutByRole({ role = 'guest', onLogout, redirect = '/' } 
  */
 export function logoutScholarshipDashboard({ redirect = '/' } = {}) {
   void logoutAndRedirect({
-    cookies: ['clerk_auth', 'clerk_logged_in'],
-    sessionStorageKeys: ['clerk_authenticated'],
+    cookies: ['staff_auth', 'staff_logged_in'],
+    sessionStorageKeys: ['staff_authenticated'],
     redirect,
   });
 }

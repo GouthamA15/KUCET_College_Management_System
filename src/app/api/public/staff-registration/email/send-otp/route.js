@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { otpCodes, clerks, clerkRegistrationRequests, staffRegistrationRequests } from '@/db/schema';
-import { eq, or, and } from 'drizzle-orm';
+import { otpCodes } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { sendInstitutionalEmail } from '@/lib/email';
-import crypto from 'crypto';
 
 export async function POST(req) {
   try {

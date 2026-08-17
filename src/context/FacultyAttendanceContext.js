@@ -56,7 +56,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     }
     setLoading(true);
     try {
-      const url = `/api/clerk/faculty/students?assignment_id=${assignment.id}&base=1`;
+      const url = `/api/staff/faculty/students?assignment_id=${assignment.id}&base=1`;
       const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch students');
@@ -79,7 +79,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
   const fetchActiveSession = useCallback(async () => {
     if (!assignment?.id) return;
     try {
-      const res = await fetch(`/api/clerk/faculty/attendance/session?assignment_id=${assignment.id}`);
+      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}`);
       const json = await res.json();
       if (res.ok && json.active) {
         setActiveSession(json.session);
@@ -108,7 +108,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
     if (dateToUse) setStatusLoading(true);
     try {
-      let url = `/api/clerk/faculty/attendance/status?assignment_id=${assignment.id}`;
+      let url = `/api/staff/faculty/attendance/status?assignment_id=${assignment.id}`;
       if (dateToUse) url += `&date=${encodeURIComponent(dateToUse)}&session=${encodeURIComponent(sessionToUse)}`;
       
       const res = await fetch(url);
@@ -164,7 +164,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
       setSubmitting(true);
 
-      const res = await fetch('/api/clerk/faculty/attendance/bulk-sync', {
+      const res = await fetch('/api/staff/faculty/attendance/bulk-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ records: toSync }),
@@ -226,7 +226,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
 
       toast.loading('Creating secure session...', { id: 'session-loading' });
 
-      const res = await fetch('/api/clerk/faculty/attendance/session', {
+      const res = await fetch('/api/staff/faculty/attendance/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -265,7 +265,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     if (!assignment?.id) return;
     try {
       setSubmitting(true);
-      const res = await fetch(`/api/clerk/faculty/attendance/session?assignment_id=${assignment.id}`, {
+      const res = await fetch(`/api/staff/faculty/attendance/session?assignment_id=${assignment.id}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -383,7 +383,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
         return next;
       });
 
-      const res = await fetch('/api/clerk/faculty/attendance', {
+      const res = await fetch('/api/staff/faculty/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -459,7 +459,7 @@ export function FacultyAttendanceProvider({ assignment, children }) {
     setSubmitting(true);
     try {
       const res = await fetch(
-        `/api/clerk/faculty/attendance?assignment_id=${assignment.id}&date=${selectedDate}&session=${selectedSession}`,
+        `/api/staff/faculty/attendance?assignment_id=${assignment.id}&date=${selectedDate}&session=${selectedSession}`,
         {
           method: 'DELETE',
         },

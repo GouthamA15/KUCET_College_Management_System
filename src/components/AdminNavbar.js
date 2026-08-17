@@ -28,10 +28,6 @@ export default function AdminNavbar() {
                 Manage Clerks
                 <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-white scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
               </Link>
-              <Link href="/admin/create-clerk" className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
-                Create Clerk
-                <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-white scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
-              </Link>
               <button onClick={handleLogout} className="text-white px-3 py-2 text-sm tracking-wide uppercase relative group">
                 Logout
                 <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-white scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
@@ -57,7 +53,6 @@ export default function AdminNavbar() {
           <div className="px-4 pt-2 pb-3">
             <Link href="/admin/dashboard" className="block px-3 py-2 text-white">Dashboard</Link>
             <Link href="/admin/manage-clerks" className="block px-3 py-2 text-white">Manage Clerks</Link>
-            <Link href="/admin/create-clerk" className="block px-3 py-2 text-white">Create Clerk</Link>
             <button onClick={() => { setMobileMenuOpen(false); handleLogout(); }} className="w-full text-left px-3 py-2 text-white">Logout</button>
           </div>
         </div>

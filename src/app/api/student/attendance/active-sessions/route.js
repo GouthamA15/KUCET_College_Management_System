@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { 
   facultySubjectAssignments, 
   attendanceSessions, 
-  clerks, 
+  staffAccounts, 
   attendanceSessionLogs 
 } from '@/db/schema';
 import { eq, and, inArray, isNull, _sql, gt } from 'drizzle-orm';
@@ -60,11 +60,11 @@ export async function GET(request) {
       attendance_date: attendanceSessions.attendance_date,
       subject_name: facultySubjectAssignments.subject_name,
       subject_code: facultySubjectAssignments.subject_code,
-      faculty_name: clerks.name
+      faculty_name: staffAccounts.name
     })
     .from(attendanceSessions)
     .innerJoin(facultySubjectAssignments, eq(attendanceSessions.assignment_id, facultySubjectAssignments.id))
-    .innerJoin(clerks, eq(attendanceSessions.faculty_id, clerks.id))
+    .innerJoin(staffAccounts, eq(attendanceSessions.faculty_id, staffAccounts.id))
     .leftJoin(attendanceSessionLogs, and(
       eq(attendanceSessions.id, attendanceSessionLogs.session_id),
       eq(attendanceSessionLogs.student_id, user.student_id),

@@ -9,7 +9,7 @@ export async function PATCH(req, { params }) {
   try {
     let userEmail = null;
 
-    // Try app auth (student/clerk/admin cookies)
+    // Try app auth (student/staff/admin cookies)
     const user = await getAuthUser();
     if (user && user.email) {
       userEmail = user.email.toLowerCase();

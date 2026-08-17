@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { staffRegistrationRequests, clerks, academicDepartments, academicPrograms } from '@/db/schema';
+import { staffRegistrationRequests, staffAccounts, academicDepartments, academicPrograms } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { wrapHandler, apiResponse, apiError } from '@/lib/api-utils';
 import { hashForIndex } from '@/lib/encryption';
@@ -30,7 +30,7 @@ const handler = async (req, { data }) => {
     if (payload.verifiedEmail !== email.trim().toLowerCase() || payload.purpose !== 'staff_registration_email') {
       return apiError('Email verification failed or mismatched email.', 400);
     }
-  } catch (error) {
+  } catch (_error) {
     return apiError('Invalid or expired email verification token. Please verify your email again.', 400);
   }
 
@@ -84,9 +84,9 @@ const handler = async (req, { data }) => {
   // Duplicate protection check
   const mobileHash = hashForIndex(mobile);
   
-  // Check existing active staff (clerks table)
-  const existingStaff = await db.select({ id: clerks.id }).from(clerks)
-    .where(eq(clerks.email, email))
+  // Check existing active staff (staffAccounts table)
+  const existingStaff = await db.select({ id: staffAccounts.id }).from(staffAccounts)
+    .where(eq(staffAccounts.email, email))
     .limit(1)
     .execute();
     

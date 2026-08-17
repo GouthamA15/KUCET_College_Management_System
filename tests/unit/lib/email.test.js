@@ -61,9 +61,9 @@ describe('Institutional Email Pipeline & Logo Delivery', () => {
       expect(getBaseUrl()).toBe('https://login.kucet.in');
     });
 
-    it('should return empty string when NEXT_PUBLIC_BASE_URL is not set', () => {
+    it('should return localhost fallback when NEXT_PUBLIC_BASE_URL is not set', () => {
       delete process.env.NEXT_PUBLIC_BASE_URL;
-      expect(getBaseUrl()).toBe('');
+      expect(getBaseUrl()).toBe('http://localhost:3000');
     });
   });
 

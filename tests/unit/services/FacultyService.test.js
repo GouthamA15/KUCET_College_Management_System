@@ -19,6 +19,9 @@ describe('FacultyService', () => {
     it('should return the latest academic year from the semesters table', async () => {
       const mockChain = {
         from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue([{ academic_year: '2022-23' }]),
       };
@@ -32,6 +35,9 @@ describe('FacultyService', () => {
     it('should return a default year if no semesters are found', async () => {
       const mockChain = {
         from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue([]),
       };
@@ -46,6 +52,10 @@ describe('FacultyService', () => {
     it('should fetch faculty load metrics', async () => {
       const mockFacultyChain = {
         from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
         where: vi.fn().mockResolvedValue([
           { id: 1, name: 'Faculty A', email: 'a@test.com', home_branch: 'CSE' },
           { id: 2, name: 'Faculty B', email: 'b@test.com', home_branch: 'CSE' },
@@ -54,6 +64,9 @@ describe('FacultyService', () => {
       };
       const mockScheduledChain = {
         from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         groupBy: vi.fn().mockResolvedValue([
           { faculty_id: 1, count: 10 },
@@ -64,6 +77,8 @@ describe('FacultyService', () => {
       const mockConductedChain = {
         from: vi.fn().mockReturnThis(),
         innerJoin: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         groupBy: vi.fn().mockResolvedValue([
           { faculty_id: 1, count: 5 }
@@ -71,6 +86,9 @@ describe('FacultyService', () => {
       };
       const mockSubjectsChain = {
         from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         groupBy: vi.fn().mockResolvedValue([
           { faculty_id: 1, subjects: 'Math' }
@@ -126,12 +144,17 @@ describe('FacultyService', () => {
       // Setup mock for getCurrentAcademicYear call inside getBranchTimetable
       const mockYearChain = {
         from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue([{ academic_year: '2025-26' }]),
       };
       
       const mockTimetableChain = {
         from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
         leftJoin: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockResolvedValue([{ id: 1, day_of_week: 'MON' }]),
@@ -148,6 +171,8 @@ describe('FacultyService', () => {
     it('should fetch branch timetable with section and academicYear provided', async () => {
       const mockTimetableChain = {
         from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
         leftJoin: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockResolvedValue([{ id: 1, day_of_week: 'TUE' }]),

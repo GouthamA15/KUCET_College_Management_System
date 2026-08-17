@@ -8,7 +8,7 @@ import {
   syllabusSubjects, 
   studentMarks, 
   facultySubjectAssignments, 
-  clerks, 
+  staffAccounts, 
   studentAttendance 
 } from '@/db/schema';
 import { eq, and, min, sql, _countDistinct, _or } from 'drizzle-orm';
@@ -64,7 +64,7 @@ export async function GET(_request) {
           subject_type: syllabusSubjects.subject_type,
           assignment_id: canonicalAssignments.canonical_id,
           mid_max: sql`MAX(${facultySubjectAssignments.mid_max})`,
-          faculty_name: sql`GROUP_CONCAT(DISTINCT ${clerks.name} SEPARATOR ' & ')`,
+          faculty_name: sql`GROUP_CONCAT(DISTINCT ${staffAccounts.name} SEPARATOR ' & ')`,
           
           // Marks
           mid1_marks: studentMarks.mid1_marks,
@@ -98,7 +98,7 @@ export async function GET(_request) {
           eq(facultySubjectAssignments.course_semester, syllabusStructure.semester),
           eq(facultySubjectAssignments.academic_year, academicYear)
         ))
-        .leftJoin(clerks, eq(facultySubjectAssignments.faculty_id, clerks.id))
+        .leftJoin(staffAccounts, eq(facultySubjectAssignments.faculty_id, staffAccounts.id))
         .leftJoin(studentAttendance, and(
           eq(studentAttendance.student_id, studentId),
           eq(studentAttendance.assignment_id, facultySubjectAssignments.id)

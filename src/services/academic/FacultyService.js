@@ -2,7 +2,11 @@ import { fetchWithSWR } from '@/lib/cache';
 import { db } from '@/db';
 import { 
   semesters, 
-  clerks, 
+  staffAccounts,
+  staffRoles,
+  staffAccountRoles,
+  staffAcademicAffiliations,
+  academicDepartments,
   branchTimetable,
   studentMarks,
   syllabusSubjects,
@@ -37,13 +41,17 @@ export class FacultyService {
 
     const [facultyList, scheduledRows, conductedRows, subjectsRows] = await Promise.all([
       db.select({
-        id: clerks.id,
-        name: clerks.name,
-        email: clerks.email,
-        home_branch: clerks.branch
+        id: staffAccounts.id,
+        name: staffAccounts.name,
+        email: staffAccounts.email,
+        home_branch: academicDepartments.department_code
       })
-      .from(clerks)
-      .where(eq(clerks.role, 'faculty')),
+      .from(staffAccounts)
+      .innerJoin(staffAccountRoles, eq(staffAccountRoles.staff_account_id, staffAccounts.id))
+      .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+      .leftJoin(staffAcademicAffiliations, eq(staffAcademicAffiliations.staff_account_id, staffAccounts.id))
+      .leftJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+      .where(eq(staffRoles.role_code, 'FACULTY')),
 
       db.select({
         faculty_id: branchTimetable.faculty_id,
@@ -117,7 +125,6 @@ export class FacultyService {
         eq(studentMarks.version, originalVersion)
       ));
     
-    // For MySQL2, Drizzle returns a ResultSetHeader in an array or as the first element
     const header = Array.isArray(res) ? res[0] : res;
     return (header?.affectedRows || 0) > 0;
   }
@@ -173,12 +180,12 @@ export class FacultyService {
         academic_year: branchTimetable.academic_year,
         room_no: branchTimetable.room_no,
         version: branchTimetable.version,
-        faculty_name: sql`COALESCE(CASE WHEN ${clerks.is_active} = false THEN CONCAT('[Unassigned - Formerly ', ${clerks.name}, ']') ELSE ${clerks.name} END, '[Unassigned]')`,
+        faculty_name: sql`COALESCE(CASE WHEN ${staffAccounts.account_status} != 'ACTIVE' THEN CONCAT('[Unassigned - Formerly ', ${staffAccounts.name}, ']') ELSE ${staffAccounts.name} END, '[Unassigned]')`,
         subject_name: syllabusSubjects.subject_name,
         display_name: sql`COALESCE(${syllabusSubjects.subject_name}, ${branchTimetable.subject_code})`
       })
       .from(branchTimetable)
-      .leftJoin(clerks, eq(branchTimetable.faculty_id, clerks.id))
+      .leftJoin(staffAccounts, eq(branchTimetable.faculty_id, staffAccounts.id))
       .leftJoin(syllabusSubjects, eq(branchTimetable.subject_code, syllabusSubjects.subject_code))
       .where(and(...whereClause))
       .orderBy(

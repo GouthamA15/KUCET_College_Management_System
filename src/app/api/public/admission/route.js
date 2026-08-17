@@ -1,6 +1,6 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { studentAdmissionDrafts, students, clerks, studentPersonalDetails } from '@/db/schema';
+import { studentAdmissionDrafts, students, staffAccounts, studentPersonalDetails } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { apiError, apiResponse } from '@/lib/api-utils';
 import { toMySQLDate } from '@/lib/date';
@@ -104,9 +104,9 @@ export async function POST(req) {
     if (email) {
         const emailInDraft = await db.query.studentAdmissionDrafts.findFirst({ where: eq(studentAdmissionDrafts.email, email) });
         const emailInStudent = await db.query.students.findFirst({ where: eq(students.email, email) });
-        const emailInClerk = await db.query.clerks.findFirst({ where: eq(clerks.email, email) });
+        const emailInStaff = await db.query.staffAccounts.findFirst({ where: eq(staffAccounts.email, email) });
         
-        if (emailInDraft || emailInStudent || emailInClerk) {
+        if (emailInDraft || emailInStudent || emailInStaff) {
             // ─── FIX #9: Generic message — was "email is already registered" which allows email enumeration ───
             return apiError('Please check your details and try again.', 409);
         }

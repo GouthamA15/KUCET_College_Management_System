@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { studentFeePayments, studentRequests, studentRequestImages, scholarshipSanctions, students, clerks } from '@/db/schema';
+import { studentFeePayments, studentRequests, studentRequestImages, scholarshipSanctions, students, staffAccounts } from '@/db/schema';
 import { eq, sql, desc, and, gte, lte, asc, ne } from 'drizzle-orm';
 import logger from '@/lib/logger';
 
@@ -131,8 +131,8 @@ export class FinanceService {
             'generated_cert_id', ${studentRequests.generated_certificate_id},
             'academic_year', ${studentRequests.academic_year},
             'completed_at', ${studentRequests.completed_at},
-            'action_by_clerk_id', ${studentRequests.action_by_clerk_id},
-            'action_by_clerk_name', ${clerks.name},
+            'action_by_staff_id', ${studentRequests.action_by_staff_id},
+            'action_by_clerk_name', ${staffAccounts.name},
             'action_by_role', ${studentRequests.action_by_role},
             'reject_reason', ${studentRequests.reject_reason},
             'payment_screenshot', ${studentRequestImages.payment_screenshot},
@@ -141,7 +141,7 @@ export class FinanceService {
         })
         .from(studentRequests)
         .leftJoin(students, eq(studentRequests.student_id, students.id))
-        .leftJoin(clerks, eq(studentRequests.action_by_clerk_id, clerks.id))
+        .leftJoin(staffAccounts, eq(studentRequests.action_by_staff_id, staffAccounts.id))
         .leftJoin(studentRequestImages, eq(studentRequests.request_id, studentRequestImages.request_id));
 
         const conditions = [];

@@ -42,7 +42,7 @@ export async function POST(request) {
     const response = apiResponse({ success: true, message: 'Admin login successful', role: 'admin' });
 
     // Clear other auth cookies
-    response.cookies.delete('clerk_auth');
+    response.cookies.delete('staff_auth');
     response.cookies.delete('student_auth');
 
     // Log Security Event & Update Last Login

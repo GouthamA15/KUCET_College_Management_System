@@ -4,7 +4,7 @@ import {
   securityNotifications, 
   userSessions,
   students,
-  clerks,
+  staffAccounts,
   principal
 } from '@/db/schema';
 import { eq, and, ne, sql, desc } from 'drizzle-orm';
@@ -40,7 +40,7 @@ export class SecurityService {
         }
       }
       await db.insert(securityEvents).values({
-        user_type: userType.toUpperCase(),
+        user_type: upperType,
         user_id: userId,
         event_type: eventType,
         ip_address: ipAddress,
@@ -78,9 +78,9 @@ export class SecurityService {
         });
         userEmail = user?.email;
         userName = user?.name;
-      } else if (['CLERK', 'FACULTY', 'HOD'].includes(userType.toUpperCase())) {
-        const user = await db.query.clerks.findFirst({
-          where: eq(clerks.id, userId),
+      } else if (userType.toUpperCase() === 'STAFF') {
+        const user = await db.query.staffAccounts.findFirst({
+          where: eq(staffAccounts.id, userId),
           columns: { email: true, name: true }
         });
         userEmail = user?.email;
@@ -145,7 +145,7 @@ export class SecurityService {
         ],
         action: {
           label: 'Visit Security Center',
-          url: `${getBaseUrl()}/${userType.toLowerCase()}/settings/security`
+          url: `${getBaseUrl()}/${userType.toUpperCase()}/settings/security`
         }
       });
     } catch (err) {
@@ -174,8 +174,8 @@ export class SecurityService {
       let result;
       if (upperType === 'STUDENT') {
         [result] = await db.update(students).set(updatePayload).where(eq(students.id, userId));
-      } else if (['CLERK', 'FACULTY', 'HOD'].includes(upperType)) {
-        [result] = await db.update(clerks).set(updatePayload).where(eq(clerks.id, userId));
+      } else if (upperType === 'STAFF') {
+        [result] = await db.update(staffAccounts).set(updatePayload).where(eq(staffAccounts.id, userId));
       } else if (upperType === 'ADMIN') {
         [result] = await db.update(principal).set(updatePayload).where(eq(principal.id, userId));
       }
@@ -260,7 +260,7 @@ export class SecurityService {
   /**
    * Revoke a specific session.
    * @param {Object} options
-   * @param {string} options.userType - User role (STUDENT, CLERK, ADMIN, etc.)
+   * @param {string} options.userType - User role (STUDENT, STAFF, ADMIN, etc.)
    * @param {number} options.userId  - User's primary key
    * @param {number} options.sessionId - Session ID to revoke
    */
@@ -493,6 +493,7 @@ export class SecurityService {
       return result.insertId;
     } catch (err) {
       logger.error(err, '[SESSION_REGISTRATION_FAILED]');
+      throw new Error('Failed to register user session');
     }
   }
 

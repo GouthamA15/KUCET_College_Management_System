@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { clerks, staffRegistrationRequests } from '@/db/schema';
+import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, staffRegistrationRequests } from '@/db/schema';
 import { eq, or, and } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
@@ -59,11 +59,11 @@ export class ClerkRegistrationService {
     }
 
     // 3. Duplicate check in active clerks
-    const existingClerk = await db.select({ id: clerks.id })
-      .from(clerks)
+    const existingClerk = await db.select({ id: staffAccounts.id })
+      .from(staffAccounts)
       .where(or(
-        eq(clerks.email, cleanEmail),
-        eq(clerks.employee_id, cleanEmpId)
+        eq(staffAccounts.email, cleanEmail),
+        eq(staffAccounts.employee_id, cleanEmpId)
       ))
       .limit(1);
 
@@ -177,21 +177,50 @@ export class ClerkRegistrationService {
     const targetBranch = request.branch || null;
 
     // 3. Create active clerk/staff account
-    const [clerkResult] = await db.insert(clerks).values({
+    
+    let roleRows = await db.select({ id: staffRoles.id }).from(staffRoles).where(eq(staffRoles.role_code, targetRole)).limit(1);
+    let roleId = null;
+    if (roleRows.length > 0) roleId = roleRows[0].id;
+    else {
+      const [rRes] = await db.insert(staffRoles).values({ role_code: targetRole, role_name: targetRole });
+      roleId = rRes.insertId;
+    }
+
+    const [clerkResult] = await db.insert(staffAccounts).values({
       name: request.name,
       email: request.email,
       employee_id: request.employee_id,
       password_hash: passwordHash,
-      role: targetRole,
-      branch: targetBranch,
-      is_hod: false, // HOD is assigned later by admin
-      mobile: request.mobile,
+      staff_category: categoryKey,
+      designation: catInfo.label,
       mobile_hash: request.mobile_hash,
       pfp: request.pfp,
       signature: request.signature,
-      is_active: true,
-      must_change_password: true,
+      account_status: 'PENDING_ACTIVATION',
     });
+    
+    const newStaffId = clerkResult.insertId;
+
+    await db.insert(staffAccountRoles).values({
+      staff_account_id: newStaffId,
+      role_id: roleId
+    });
+
+    if (targetBranch) {
+      let deptRows = await db.select({ id: academicDepartments.id }).from(academicDepartments).where(eq(academicDepartments.department_code, targetBranch)).limit(1);
+      let deptId = null;
+      if (deptRows.length > 0) deptId = deptRows[0].id;
+      else {
+         const [dRes] = await db.insert(academicDepartments).values({ code: targetBranch, name: targetBranch });
+         deptId = dRes.insertId;
+      }
+      await db.insert(staffAcademicAffiliations).values({
+        staff_account_id: newStaffId,
+        department_id: deptId,
+        is_hod: false
+      });
+    }
+    // Dummy newClerkId assignment to avoid ReferenceError because I redefined it above
 
     const newClerkId = clerkResult.insertId;
 
@@ -307,8 +336,8 @@ export class ClerkRegistrationService {
     }
 
     const clerkRows = await db.select()
-      .from(clerks)
-      .where(eq(clerks.id, clerkId))
+      .from(staffAccounts)
+      .where(eq(staffAccounts.id, clerkId))
       .limit(1);
 
     if (clerkRows.length === 0) {
@@ -322,13 +351,12 @@ export class ClerkRegistrationService {
     }
 
     const newHash = await bcrypt.hash(newPassword, 10);
-    await db.update(clerks)
+    await db.update(staffAccounts)
       .set({
         password_hash: newHash,
-        must_change_password: false,
-        password_changed_at: new Date(),
+        account_status: 'ACTIVE'
       })
-      .where(eq(clerks.id, clerkId));
+      .where(eq(staffAccounts.id, clerkId));
 
     logger.info({ clerkId }, '[CLERK_REGISTRATION] Password changed successfully');
 

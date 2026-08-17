@@ -1,17 +1,17 @@
 import { db } from '@/db';
-import { clerks, principal } from '@/db/schema';
+import { staffAccounts, staffAccountRoles, staffRoles, staffAcademicAffiliations, academicDepartments, principal } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { apiResponse, apiError } from '@/lib/api-utils';
 import { checkRateLimit, getTieredKey } from '@/lib/rate-limit';
-import { issueClerkAuthCookie, issueAdminAuthCookie, deleteCookie } from '@/lib/auth-utils';
+import { issueStaffAuthCookie, issueAdminAuthCookie, deleteCookie } from '@/lib/auth-utils';
 import logger from '@/lib/logger';
 import { z } from 'zod';
 
 export async function POST(request) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous';
-    const rateCheck = await checkRateLimit(getTieredKey(request, 'login_employee'), 5, 900); // 5 attempts per 15 min
+    const rateCheck = await checkRateLimit(getTieredKey(request, 'login_employee'), 5, 900);
     
     if (!rateCheck.success) {
       return apiError('Too many login attempts. Please try again later.', 429);
@@ -19,7 +19,6 @@ export async function POST(request) {
 
     const json = await request.json();
 
-    // --- ZERO TRUST VALIDATION ---
     const loginSchema = z.object({
       email: z.string().trim().min(1, "Email is required").toLowerCase(),
       password: z.string().min(1, "Password is required"),
@@ -29,11 +28,9 @@ export async function POST(request) {
     const validatedData = loginSchema.parse(json);
     const { email, password, rememberMe } = validatedData;
 
-    // ─── FIX #8: Per-account lockout (8 attempts / 30 min per email) ───
-    // Prevents distributed brute-force attacks that bypass shared IP rate limits.
-    const accountLock = await checkRateLimit(`login_employee_acct:${email}`, 8, 1800); // 8 per 30 min
+    const accountLock = await checkRateLimit(`login_employee_acct:${email}`, 8, 1800);
     if (!accountLock.success) {
-      return apiError('Account temporarily locked due to too many failed attempts. Please try again in 30 minutes.', 429);
+      return apiError('Account temporarily locked due to too many failed attempts.', 429);
     }
 
     // 1. Try Admin (Principal) Table First
@@ -47,7 +44,6 @@ export async function POST(request) {
       const isValidPassword = await bcrypt.compare(password, admin.password_hash);
 
       if (isValidPassword) {
-        // Log Security Event & Update Last Login
         const SecurityService = (await import('@/services/SecurityService')).default;
         await SecurityService.updateLastLogin('ADMIN', admin.id, ip);
         await SecurityService.logSecurityEvent({
@@ -58,7 +54,7 @@ export async function POST(request) {
         });
 
         const response = apiResponse({ success: true, message: 'Admin login successful', role: 'admin' });
-        deleteCookie(response, 'clerk_auth');
+        deleteCookie(response, 'staff_auth');
         deleteCookie(response, 'student_auth');
         const userAgent = request.headers.get('user-agent') || 'Unknown';
         await issueAdminAuthCookie(response, admin, rememberMe, ip, userAgent);
@@ -66,24 +62,63 @@ export async function POST(request) {
       }
     }
 
-    // 2. Try Clerks (Faculty/Staff) Table
-    const clerkRows = await db.select().from(clerks).where(eq(clerks.email, email)).limit(1);
+    // 2. Try Staff Accounts Table
+    const staffRows = await db.select({
+      id: staffAccounts.id,
+      name: staffAccounts.name,
+      email: staffAccounts.email,
+      employee_id: staffAccounts.employee_id,
+      password_hash: staffAccounts.password_hash,
+      staff_category: staffAccounts.staff_category,
+      designation: staffAccounts.designation,
+      pfp: staffAccounts.pfp,
+      account_status: staffAccounts.account_status
+    }).from(staffAccounts).where(eq(staffAccounts.email, email)).limit(1);
 
-    if (clerkRows.length > 0) {
-      const clerk = clerkRows[0];
-      const passwordMatch = await bcrypt.compare(password, clerk.password_hash);
+    if (staffRows.length > 0) {
+      const staff = staffRows[0];
+      const passwordMatch = await bcrypt.compare(password, staff.password_hash);
 
       if (passwordMatch) {
-        if (!clerk.is_active) {
-          return apiError('Your account has been deactivated. Please contact the administrator.', 403);
+        if (staff.account_status !== 'ACTIVE') {
+          return apiError('Your account is not active. Please contact the administrator.', 403);
         }
 
-        // Log Security Event & Update Last Login
+        // Fetch Role
+        const roleRecords = await db.select({ role_code: staffRoles.role_code })
+          .from(staffAccountRoles)
+          .innerJoin(staffRoles, eq(staffAccountRoles.role_id, staffRoles.id))
+          .where(eq(staffAccountRoles.staff_account_id, staff.id))
+          .limit(1);
+          
+        let resolvedRole = 'faculty';
+        if (roleRecords.length > 0) {
+            const rCode = roleRecords[0].role_code;
+            if (rCode === 'ADMISSION_CLERK') resolvedRole = 'admission';
+            else if (rCode === 'SCHOLARSHIP_CLERK') resolvedRole = 'scholarship';
+            else resolvedRole = 'faculty';
+        }
+
+        // Fetch HOD & Branch
+        let isHod = false;
+        let branch = null;
+        if (resolvedRole === 'faculty') {
+            const affil = await db.select({ branch_code: academicDepartments.department_code, is_hod: staffAcademicAffiliations.is_hod })
+                .from(staffAcademicAffiliations)
+                .innerJoin(academicDepartments, eq(staffAcademicAffiliations.department_id, academicDepartments.id))
+                .where(eq(staffAcademicAffiliations.staff_account_id, staff.id))
+                .limit(1);
+            if (affil.length > 0) {
+              branch = affil[0].branch_code;
+              isHod = affil[0].is_hod;
+            }
+        }
+
         const SecurityService = (await import('@/services/SecurityService')).default;
-        await SecurityService.updateLastLogin('CLERK', clerk.id, ip);
+        await SecurityService.updateLastLogin('staff', staff.id, ip);
         await SecurityService.logSecurityEvent({
-          userType: 'CLERK',
-          userId: clerk.id,
+          userType: 'staff',
+          userId: staff.id,
           eventType: 'LOGIN_SUCCESS',
           ipAddress: ip
         });
@@ -91,18 +126,25 @@ export async function POST(request) {
         const response = apiResponse({
           success: true,
           message: 'Login successful',
-          role: clerk.role,
-          mustChangePassword: !!clerk.must_change_password
+          role: resolvedRole,
+          mustChangePassword: !!staff.must_change_password
         });
         deleteCookie(response, 'admin_auth');
         deleteCookie(response, 'student_auth');
         const userAgent = request.headers.get('user-agent') || 'Unknown';
-        await issueClerkAuthCookie(response, clerk, rememberMe, ip, userAgent);
+        
+        const adaptedStaff = {
+           id: staff.id,
+           email: staff.email,
+           role: resolvedRole,
+           is_hod: isHod,
+           branch: branch
+        };
+        await issueStaffAuthCookie(response, adaptedStaff, rememberMe, ip, userAgent);
         return response;
       }
     }
 
-    // 3. Fail
     logger.warn({ email }, '[Employee Login Failed] Invalid credentials');
     return apiError('Invalid credentials', 401);
 

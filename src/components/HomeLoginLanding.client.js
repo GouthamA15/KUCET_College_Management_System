@@ -11,7 +11,7 @@ function getSessionType() {
   if (typeof document === 'undefined') return null;
   const cookies = document.cookie;
   if (cookies.includes('admin_logged_in=')) return 'admin';
-  if (cookies.includes('clerk_logged_in=')) return 'clerk';
+  if (cookies.includes('staff_logged_in=')) return 'staff';
   if (cookies.includes('student_logged_in=')) return 'student';
   return null;
 }
@@ -58,10 +58,10 @@ export default function HomeLoginLanding({ serverError, initialPanel }) {
         let destination = '/student';
         if (sessionType === 'admin') {
           destination = '/admin/dashboard';
-        } else if (sessionType === 'clerk') {
-          const clerkRoleMatch = document.cookie.match(/clerk_role=([^;]+)/);
+        } else if (sessionType === 'staff') {
+          const clerkRoleMatch = document.cookie.match(/staff_role=([^;]+)/);
           const clerkRole = clerkRoleMatch?.[1];
-          destination = getDashboardPathByRole(clerkRole) || '/clerk';
+          destination = getDashboardPathByRole(clerkRole) || '/staff';
         }
         console.info('[AuthRestore] Success! Hard navigating to:', destination);
         

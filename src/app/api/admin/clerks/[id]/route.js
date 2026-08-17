@@ -1,7 +1,7 @@
 import logger from '@/lib/logger';
 import { db } from '@/db';
-import { clerks } from '@/db/schema';
-import { eq, and, ne, _sql } from 'drizzle-orm';
+import { staffAccounts, staffAcademicAffiliations, academicDepartments } from '@/db/schema';
+import { eq, and, ne } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
 import { clerkSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
@@ -14,18 +14,18 @@ export async function DELETE(req, context) {
     const params = await context.params;
     const idNum = parseInt(params.id);
 
-    const clerkBefore = await db.query.clerks.findFirst({
-      where: eq(clerks.id, idNum)
+    const clerkBefore = await db.query.staffAccounts.findFirst({
+      where: eq(staffAccounts.id, idNum)
     });
 
     if (!clerkBefore) {
-      return apiError('Clerk not found', 404);
+      return apiError('Staff not found', 404);
     }
 
-    const [result] = await db.update(clerks).set({ is_active: false }).where(eq(clerks.id, idNum));
+    const [result] = await db.update(staffAccounts).set({ account_status: 'INACTIVE' }).where(eq(staffAccounts.id, idNum));
 
     if (result.affectedRows === 0) {
-      return apiError('Failed to delete clerk', 500);
+      return apiError('Failed to deactivate staff', 500);
     }
 
     // Audit Log
@@ -34,13 +34,13 @@ export async function DELETE(req, context) {
       userType: 'admin',
       action: 'DELETE_CLERK',
       targetId: idNum,
-      targetType: 'clerk',
+      targetType: 'staff_accounts',
       before: clerkBefore
     });
 
-    return apiResponse({ message: 'Clerk deleted successfully' });
+    return apiResponse({ message: 'Staff deactivated successfully' });
   } catch (error) {
-    logger.error('Error deleting clerk:', error);
+    logger.error('Error deleting staff:', error);
     return apiError('Internal Server Error', 500);
   }
 }
@@ -63,50 +63,77 @@ export async function PUT(req, context) {
     const validatedData = updateSchema.parse(json);
     const { name, email, employee_id, role, is_hod, branch, is_active } = validatedData;
 
-    const clerkBefore = await db.query.clerks.findFirst({
-      where: eq(clerks.id, idNum)
+    const clerkBefore = await db.query.staffAccounts.findFirst({
+      where: eq(staffAccounts.id, idNum)
     });
 
     if (!clerkBefore) {
-      return apiError('Clerk not found', 404);
+      return apiError('Staff not found', 404);
     }
 
-    // STRICT VALIDATION: Only one HOD per branch
-    if (is_hod && branch && is_active !== false) {
-      const existingHOD = await db.select({ id: clerks.id, name: clerks.name })
-        .from(clerks)
-        .where(and(
-          eq(clerks.branch, branch),
-          eq(clerks.is_hod, true),
-          eq(clerks.is_active, true),
-          ne(clerks.id, idNum)
-        ))
-        .limit(1);
-
-      if (existingHOD.length > 0) {
-        return apiError(
-          `Conflict: ${existingHOD[0].name} is already the HOD for ${branch}. Please demote them first.`,
-          400
-        );
+    await db.transaction(async (tx) => {
+      // 1. Update Staff Accounts
+      const updatePayload = {};
+      if (name !== undefined) updatePayload.name = name;
+      if (email !== undefined) updatePayload.email = email.toLowerCase();
+      if (employee_id !== undefined) updatePayload.employee_id = employee_id;
+      if (is_active !== undefined) updatePayload.account_status = is_active ? 'ACTIVE' : 'INACTIVE';
+      
+      if (Object.keys(updatePayload).length > 0) {
+        await tx.update(staffAccounts).set(updatePayload).where(eq(staffAccounts.id, idNum));
       }
-    }
 
-    const updatePayload = { /* empty */ };
-    if (name !== undefined) updatePayload.name = name;
-    if (email !== undefined) updatePayload.email = email.toLowerCase();
-    if (employee_id !== undefined) updatePayload.employee_id = employee_id;
-    if (role !== undefined) updatePayload.role = role;
-    if (is_hod !== undefined) updatePayload.is_hod = !!is_hod;
-    if (branch !== undefined) updatePayload.branch = branch || null;
-    if (is_active !== undefined) updatePayload.is_active = !!is_active;
+      // 2. Handle Branch and HOD Updates (for Faculty)
+      // Only do this if branch or is_hod is explicitly passed
+      if (is_hod !== undefined || branch !== undefined) {
+        let deptId = null;
+        if (branch) {
+          const dept = await tx.query.academicDepartments.findFirst({ where: eq(academicDepartments.code, branch) });
+          if (dept) deptId = dept.id;
+        }
 
-    const [result] = await db.update(clerks)
-      .set(updatePayload)
-      .where(eq(clerks.id, idNum));
+        // STRICT VALIDATION: Only one HOD per branch
+        if (is_hod && deptId) {
+          const existingHODRows = await tx.select({ id: staffAccounts.id, name: staffAccounts.name })
+            .from(staffAcademicAffiliations)
+            .innerJoin(staffAccounts, eq(staffAcademicAffiliations.staff_account_id, staffAccounts.id))
+            .where(and(
+              eq(staffAcademicAffiliations.department_id, deptId),
+              eq(staffAcademicAffiliations.is_hod, true),
+              eq(staffAccounts.account_status, 'ACTIVE'),
+              ne(staffAccounts.id, idNum)
+            ))
+            .limit(1);
 
-    if (result.affectedRows === 0) {
-      return apiError('Failed to update clerk', 500);
-    }
+          if (existingHODRows.length > 0) {
+            throw new Error(`Conflict: ${existingHODRows[0].name} is already the HOD for ${branch}. Please demote them first.`);
+          }
+        }
+
+        // Check if affiliation exists
+        const existingAffil = await tx.query.staffAcademicAffiliations.findFirst({
+          where: eq(staffAcademicAffiliations.staff_account_id, idNum)
+        });
+
+        if (existingAffil) {
+           const affilPayload = {};
+           if (is_hod !== undefined) affilPayload.is_hod = !!is_hod;
+           if (deptId !== null) affilPayload.department_id = deptId;
+           
+           if (Object.keys(affilPayload).length > 0) {
+             await tx.update(staffAcademicAffiliations)
+               .set(affilPayload)
+               .where(eq(staffAcademicAffiliations.id, existingAffil.id));
+           }
+        } else if (deptId !== null) {
+           await tx.insert(staffAcademicAffiliations).values({
+             staff_account_id: idNum,
+             department_id: deptId,
+             is_hod: !!is_hod
+           });
+        }
+      }
+    });
 
     // Audit Log
     await logAudit(req, {
@@ -114,17 +141,20 @@ export async function PUT(req, context) {
       userType: 'admin',
       action: 'UPDATE_CLERK',
       targetId: idNum,
-      targetType: 'clerk',
+      targetType: 'staff_accounts',
       before: clerkBefore,
-      after: updatePayload
+      after: { name, email, employee_id, role, is_hod, branch, is_active }
     });
 
-    return apiResponse({ message: 'Clerk updated successfully' });
+    return apiResponse({ message: 'Staff updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return apiError(error.errors?.[0]?.message || 'Invalid input data', 400);
     }
-    logger.error('Error updating clerk:', error);
+    if (error.message && error.message.startsWith('Conflict:')) {
+      return apiError(error.message, 400);
+    }
+    logger.error('Error updating staff:', error);
     if (error && error.code === 'ER_DUP_ENTRY') {
       return apiError('Email or Employee ID already exists', 409);
     }
