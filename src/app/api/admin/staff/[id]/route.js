@@ -3,7 +3,7 @@ import { db } from '@/db';
 import { staffAccounts, staffAcademicAffiliations, academicDepartments } from '@/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser, logAudit } from '@/lib/api-utils';
-import { clerkSchema } from '@/lib/validations/staff';
+import { staffSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
 
 export async function DELETE(req, context) {
@@ -14,11 +14,11 @@ export async function DELETE(req, context) {
     const params = await context.params;
     const idNum = parseInt(params.id);
 
-    const clerkBefore = await db.query.staffAccounts.findFirst({
+    const staffBefore = await db.query.staffAccounts.findFirst({
       where: eq(staffAccounts.id, idNum)
     });
 
-    if (!clerkBefore) {
+    if (!staffBefore) {
       return apiError('Staff not found', 404);
     }
 
@@ -32,10 +32,10 @@ export async function DELETE(req, context) {
     await logAudit(req, {
       userId: user.id,
       userType: 'admin',
-      action: 'HARD_DELETE_CLERK',
+      action: 'HARD_DELETE_STAFF',
       targetId: idNum,
       targetType: 'staff_accounts',
-      before: clerkBefore
+      before: staffBefore
     });
 
     return apiResponse({ message: 'Staff account permanently deleted' });
@@ -58,7 +58,7 @@ export async function PUT(req, context) {
     const json = await req.json();
 
     // Validate with Zod
-    const updateSchema = clerkSchema.extend({
+    const updateSchema = staffSchema.extend({
       is_active: z.boolean().default(true),
       employee_id: z.string().trim().min(1).max(50)
     }).partial();
@@ -66,11 +66,11 @@ export async function PUT(req, context) {
     const validatedData = updateSchema.parse(json);
     const { name, email, employee_id, role, is_hod, branch, is_active } = validatedData;
 
-    const clerkBefore = await db.query.staffAccounts.findFirst({
+    const staffBefore = await db.query.staffAccounts.findFirst({
       where: eq(staffAccounts.id, idNum)
     });
 
-    if (!clerkBefore) {
+    if (!staffBefore) {
       return apiError('Staff not found', 404);
     }
 
@@ -145,7 +145,7 @@ export async function PUT(req, context) {
       action: 'UPDATE_CLERK',
       targetId: idNum,
       targetType: 'staff_accounts',
-      before: clerkBefore,
+      before: staffBefore,
       after: { name, email, employee_id, role, is_hod, branch, is_active }
     });
 
@@ -164,3 +164,4 @@ export async function PUT(req, context) {
     return apiError('Internal Server Error', 500);
   }
 }
+

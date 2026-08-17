@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { getAssetUrl } from '@/lib/assets';
 
-export default function PendingClerkRequests({ onRequestAction, categoryFilter }) {
+export default function PendingStaffRequests({ onRequestAction, categoryFilter }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState(null);
@@ -16,8 +16,8 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
   const fetchRequests = useCallback(async () => {
     try {
       const url = categoryFilter
-        ? `/api/admin/clerk-requests?status=PENDING&category=${categoryFilter}`
-        : '/api/admin/clerk-requests?status=PENDING';
+        ? `/api/admin/staff-requests?status=PENDING&category=${categoryFilter}`
+        : '/api/admin/staff-requests?status=PENDING';
       const res = await fetch(url);
       const data = await res.json();
       if (data.requests) {
@@ -35,8 +35,8 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
     const load = async () => {
       try {
         const url = categoryFilter
-          ? `/api/admin/clerk-requests?status=PENDING&category=${categoryFilter}`
-          : '/api/admin/clerk-requests?status=PENDING';
+          ? `/api/admin/staff-requests?status=PENDING&category=${categoryFilter}`
+          : '/api/admin/staff-requests?status=PENDING';
         const res = await fetch(url);
         const data = await res.json();
         if (isMounted && res.ok && data.requests) {
@@ -53,7 +53,7 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
   }, [categoryFilter]);
 
   const handleApprove = async (request) => {
-    if (!confirm(`Are you sure you want to APPROVE ${request.name} (${request.employee_id})? This will create their clerk account and send them an email with a temporary password.`)) {
+    if (!confirm(`Are you sure you want to APPROVE ${request.name} (${request.employee_id})? This will create their staff account and send them an email with a temporary password.`)) {
       return;
     }
 
@@ -61,7 +61,7 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
     const toastId = toast.loading(`Approving ${request.name}...`);
 
     try {
-      const res = await fetch(`/api/admin/clerk-requests/${request.id}/approve`, {
+      const res = await fetch(`/api/admin/staff-requests/${request.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -69,7 +69,7 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
       const data = await res.json();
 
       if (res.ok) {
-        toast.success(data.message || 'Clerk registration approved successfully!', { id: toastId });
+        toast.success(data.message || 'Staff registration approved successfully!', { id: toastId });
         fetchRequests();
         if (onRequestAction) onRequestAction();
       } else {
@@ -95,7 +95,7 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
     const toastId = toast.loading(`Rejecting ${rejectingReq.name}...`);
 
     try {
-      const res = await fetch(`/api/admin/clerk-requests/${rejectingReq.id}/reject`, {
+      const res = await fetch(`/api/admin/staff-requests/${rejectingReq.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: rejectionReason }),
@@ -104,7 +104,7 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
       const data = await res.json();
 
       if (res.ok) {
-        toast.success(data.message || 'Clerk registration request rejected.', { id: toastId });
+        toast.success(data.message || 'Staff registration request rejected.', { id: toastId });
         setRejectingReq(null);
         fetchRequests();
         if (onRequestAction) onRequestAction();
@@ -123,7 +123,7 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
       <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-xs mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-[#0b3578] uppercase tracking-wide">
-            Pending Clerk Registration Requests
+            Pending Staff Registration Requests
           </h2>
         </div>
         <div className="py-8 text-center text-sm text-slate-500 animate-pulse">
@@ -139,7 +139,7 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-[#0b3578] uppercase tracking-wide">
-              Pending Clerk Registration Requests
+              Pending Staff Registration Requests
             </h2>
             <span className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-slate-200">
               0 Pending
@@ -153,7 +153,7 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
           </button>
         </div>
         <p className="text-slate-500 text-sm italic py-4">
-          No pending self-registration requests. Newly submitted clerk requests will appear here for review.
+          No pending self-registration requests. Newly submitted staff requests will appear here for review.
         </p>
       </div>
     );
@@ -165,7 +165,7 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
         <div className="flex items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-amber-500 animate-ping" />
           <h2 className="text-lg font-bold text-[#0b3578] uppercase tracking-wide">
-            Pending Clerk Registration Requests
+            Pending Staff Registration Requests
           </h2>
           <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full border border-amber-300">
             {requests.length} Action Needed
@@ -291,3 +291,6 @@ export default function PendingClerkRequests({ onRequestAction, categoryFilter }
     </div>
   );
 }
+
+
+

@@ -75,7 +75,7 @@ export const NAV_MENU_CONFIG = {
   superAdmin: [
     { label: 'DASHBOARD', route: '/admin/dashboard' },
     { label: 'PAYMENTS', route: '/admin/payments' },
-    { label: 'MANAGE CLERKS', route: '/admin/manage-clerks' },
+    { label: 'MANAGE STAFF', route: '/admin/manage-staff' },
     { label: 'STAFF REQUESTS', route: '/admin/staff-requests' },
     { label: 'INFRASTRUCTURE', children: [
         { label: 'System Configuration', route: '/admin/infrastructure?tab=config' },
@@ -88,3 +88,4 @@ export const NAV_MENU_CONFIG = {
     { label: 'VERIFICATIONS', route: '/admin/verifications' }
   ]
 };
+

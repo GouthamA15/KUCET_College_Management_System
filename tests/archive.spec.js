@@ -37,7 +37,7 @@ test.describe('Admin Academic Archive Management System E2E Flow', () => {
       });
     });
 
-    await page.route('/api/admin/clerks', async (route) => {
+    await page.route('/api/admin/staff', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
     });
 

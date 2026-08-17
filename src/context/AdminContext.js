@@ -11,7 +11,7 @@ export function AdminProvider({ children }) {
 
   const [adminData, setAdminData] = useState(null);
   const [collegeInfo, setCollegeInfo] = useState(null);
-  const [clerks, setClerks] = useState([]);
+  const [staffList, setStaffList] = useState([]);
   const [studentStats, setStudentStats] = useState(null);
   const [facultyInterests, setFacultyInterests] = useState([]);
   const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
@@ -30,17 +30,17 @@ export function AdminProvider({ children }) {
     }
   }, []);
 
-  const fetchClerks = useCallback(async () => {
+  const fetchStaff = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/clerks');
+      const res = await fetch('/api/admin/staff');
       if (res.ok) {
         const json = await res.json();
         const payload = json?.data ?? json ?? [];
-        setClerks(payload);
+        setStaffList(payload);
         return payload;
       }
     } catch (e) {
-      console.error('Failed to fetch clerks', e);
+      console.error('Failed to fetch staff', e);
     }
     return [];
   }, []);
@@ -102,7 +102,7 @@ export function AdminProvider({ children }) {
         if (!adminData) setLoading(true);
         await Promise.all([
           fetchAdminMe(),
-          fetchClerks(),
+          fetchStaff(),
           fetchStudentStats(),
           fetchCollegeInfo(),
           fetchFacultyInterests()
@@ -118,7 +118,7 @@ export function AdminProvider({ children }) {
 
     activePromiseRef.current = promise;
     return promise;
-  }, [fetchAdminMe, fetchClerks, fetchStudentStats, fetchCollegeInfo, fetchFacultyInterests, adminData]);
+  }, [fetchAdminMe, fetchStaff, fetchStudentStats, fetchCollegeInfo, fetchFacultyInterests, adminData]);
 
   const handleResume = useCallback(async (event) => {
     const now = Date.now();
@@ -215,12 +215,12 @@ export function AdminProvider({ children }) {
     <AdminContext.Provider value={{ 
       adminData, 
       collegeInfo,
-      clerks, 
+      staffList, 
       studentStats, 
       loading, 
       error, 
       refreshAll,
-      refreshClerks: fetchClerks,
+      refreshStaff: fetchStaff,
       refreshStudentStats: fetchStudentStats,
       facultyInterests,
       isLoadingFaculty,

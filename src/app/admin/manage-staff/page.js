@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useAdmin } from '@/context/AdminContext';
 import toast from 'react-hot-toast';
-import PendingClerkRequests from '@/components/admin/PendingClerkRequests';
+
 import { FACULTY_BRANCHES } from '@/lib/staff-config';
 import { 
   Users, CheckCircle2, XCircle, Search, 
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export default function ManageStaffPage() {
-  const { clerks, loading, refreshClerks } = useAdmin();
+  const { staffList, loading, refreshStaff } = useAdmin();
   const [activeTab, setActiveTab] = useState('faculty'); // 'faculty' | 'scholarship' | 'admission'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('ALL');
@@ -21,59 +21,54 @@ export default function ManageStaffPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
 
-  // Map active tab to staff category for pending requests
-  const categoryFilterMap = {
-    faculty: 'FACULTY',
-    scholarship: 'SCHOLARSHIP_CLERK',
-    admission: 'ADMISSION_CLERK',
-  };
 
-  // Filter clerks based on active tab, search query, and branch filter
-  const filteredClerks = useMemo(() => {
-    return clerks.filter((clerk) => {
+
+  // Filter staffList based on active tab, search query, and branch filter
+  const filteredStaffList = useMemo(() => {
+    return staffList.filter((staffMember) => {
       // Role match
-      const roleMatch = clerk.role === activeTab;
+      const roleMatch = staffMember.role === activeTab;
       if (!roleMatch) return false;
 
       // Branch filter (for faculty)
       if (activeTab === 'faculty' && selectedBranch !== 'ALL') {
-        if (clerk.branch !== selectedBranch) return false;
+        if (staffMember.branch !== selectedBranch) return false;
       }
 
       // Search query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const nameMatch = clerk.name?.toLowerCase().includes(q);
-        const emailMatch = clerk.email?.toLowerCase().includes(q);
-        const empIdMatch = clerk.employee_id?.toLowerCase().includes(q);
-        const branchMatch = clerk.branch?.toLowerCase().includes(q);
+        const nameMatch = staffMember.name?.toLowerCase().includes(q);
+        const emailMatch = staffMember.email?.toLowerCase().includes(q);
+        const empIdMatch = staffMember.employee_id?.toLowerCase().includes(q);
+        const branchMatch = staffMember.branch?.toLowerCase().includes(q);
         if (!nameMatch && !emailMatch && !empIdMatch && !branchMatch) return false;
       }
 
       return true;
     });
-  }, [clerks, activeTab, selectedBranch, searchQuery]);
+  }, [staffList, activeTab, selectedBranch, searchQuery]);
 
   // Tab Stats Summary
   const stats = useMemo(() => {
-    const facultyClerks = clerks.filter(c => c.role === 'faculty');
-    const scholarshipClerks = clerks.filter(c => c.role === 'scholarship');
-    const admissionClerks = clerks.filter(c => c.role === 'admission');
+    const facultystaffList = staffList.filter(c => c.role === 'faculty');
+    const scholarshipstaffList = staffList.filter(c => c.role === 'scholarship');
+    const admissionstaffList = staffList.filter(c => c.role === 'admission');
     
     return {
-      total: facultyClerks.length + scholarshipClerks.length + admissionClerks.length,
-      active: clerks.filter(c => c.is_active).length,
-      inactive: clerks.filter(c => !c.is_active).length,
-      facultyTotal: facultyClerks.length,
-      scholarshipTotal: scholarshipClerks.length,
-      admissionTotal: admissionClerks.length,
-      hodCount: facultyClerks.filter(c => c.is_hod).length
+      total: facultystaffList.length + scholarshipstaffList.length + admissionstaffList.length,
+      active: staffList.filter(c => c.is_active).length,
+      inactive: staffList.filter(c => !c.is_active).length,
+      facultyTotal: facultystaffList.length,
+      scholarshipTotal: scholarshipstaffList.length,
+      admissionTotal: admissionstaffList.length,
+      hodCount: facultystaffList.filter(c => c.is_hod).length
     };
-  }, [clerks]);
+  }, [staffList]);
 
-  const openDetails = (clerk) => {
-    setSelectedStaff(clerk);
-    setEditedStaff({ ...clerk });
+  const openDetails = (staffMember) => {
+    setSelectedStaff(staffMember);
+    setEditedStaff({ ...staffMember });
   };
 
   const handleChange = (e) => {
@@ -96,7 +91,7 @@ export default function ManageStaffPage() {
     setProcessing(true);
     const toastId = toast.loading('Saving changes...');
     try {
-      const res = await fetch(`/api/admin/clerks/${selectedStaff.id}`, {
+      const res = await fetch(`/api/admin/staff/${selectedStaff.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editedStaff),
@@ -110,7 +105,7 @@ export default function ManageStaffPage() {
       toast.success('Staff record updated successfully!', { id: toastId });
       setSelectedStaff(null);
       setEditedStaff({});
-      refreshClerks();
+      refreshStaff();
     } catch (error) {
       toast.error(error.message, { id: toastId });
     } finally {
@@ -123,7 +118,7 @@ export default function ManageStaffPage() {
     setProcessing(true);
     const toastId = toast.loading('Deleting staff account...');
     try {
-      const res = await fetch(`/api/admin/clerks/${selectedStaff.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/staff/${selectedStaff.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Failed to delete staff account');
@@ -132,7 +127,7 @@ export default function ManageStaffPage() {
       toast.success('Staff account permanently deleted!', { id: toastId });
       setIsDeleteModalOpen(false);
       setSelectedStaff(null);
-      refreshClerks();
+      refreshStaff();
     } catch (error) {
       toast.error(error.message, { id: toastId });
       setIsDeleteModalOpen(false);
@@ -176,10 +171,7 @@ export default function ManageStaffPage() {
         </div>
       </div>
 
-      <PendingClerkRequests
-        onRequestAction={refreshClerks}
-        categoryFilter={categoryFilterMap[activeTab]}
-      />
+
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[500px]">
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50">
@@ -258,36 +250,36 @@ export default function ManageStaffPage() {
             <tbody className="bg-white divide-y divide-slate-200">
               {loading ? (
                 <tr><td colSpan={activeTab === 'faculty' ? "5" : "4"} className="px-6 py-8 text-center text-slate-500">Loading staff directory...</td></tr>
-              ) : filteredClerks.length === 0 ? (
+              ) : filteredStaffList.length === 0 ? (
                 <tr><td colSpan={activeTab === 'faculty' ? "5" : "4"} className="px-6 py-8 text-center text-slate-500">No active staff members found matching criteria.</td></tr>
               ) : (
-                filteredClerks.map((clerk) => (
+                filteredStaffList.map((staffMember) => (
                   <tr 
-                    key={clerk.id} 
-                    onClick={() => openDetails(clerk)}
+                    key={staffMember.id} 
+                    onClick={() => openDetails(staffMember)}
                     className="hover:bg-slate-50 transition-colors cursor-pointer"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-[#0b3578] font-bold">
-                          {clerk.name.charAt(0)}
+                          {staffMember.name.charAt(0)}
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-slate-900">{clerk.name}</div>
-                          <div className="text-sm text-slate-500">{clerk.email}</div>
+                          <div className="text-sm font-medium text-slate-900">{staffMember.name}</div>
+                          <div className="text-sm text-slate-500">{staffMember.email}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-slate-900 font-mono bg-slate-100 px-2 py-1 rounded border border-slate-200">{clerk.employee_id}</span>
+                      <span className="text-sm text-slate-900 font-mono bg-slate-100 px-2 py-1 rounded border border-slate-200">{staffMember.employee_id}</span>
                     </td>
                     {activeTab === 'faculty' && (
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <span className="font-bold text-[#0b3578] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px]">
-                            {clerk.branch || 'Unassigned'}
+                            {staffMember.branch || 'Unassigned'}
                           </span>
-                          {clerk.is_hod && (
+                          {staffMember.is_hod && (
                             <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs">
                               👑 HOD
                             </span>
@@ -296,7 +288,7 @@ export default function ManageStaffPage() {
                       </td>
                     )}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {clerk.is_active ? (
+                      {staffMember.is_active ? (
                         <span className="inline-flex items-center text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
                           <UserCheck className="w-3 h-3 mr-1" /> Active
                         </span>
@@ -308,7 +300,7 @@ export default function ManageStaffPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
-                        onClick={(e) => { e.stopPropagation(); openDetails(clerk); }}
+                        onClick={(e) => { e.stopPropagation(); openDetails(staffMember); }}
                         className="text-[#0b3578] hover:text-blue-900 font-medium cursor-pointer"
                       >
                         Manage
@@ -518,3 +510,6 @@ export default function ManageStaffPage() {
     </div>
   );
 }
+
+
+

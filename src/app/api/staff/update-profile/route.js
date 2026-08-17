@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { apiError, apiResponse, getAuthUser } from '@/lib/api-utils';
 import { storage } from '@/lib/providers';
 import { encrypt, hashForIndex } from '@/lib/encryption';
-import { clerkSchema } from '@/lib/validations/staff';
+import { staffSchema } from '@/lib/validations/staff';
 import { z } from 'zod';
 
 export async function POST(req) {
@@ -16,7 +16,7 @@ export async function POST(req) {
     const json = await req.json();
 
     // Validate with Zod
-    const updateSchema = clerkSchema.pick({
+    const updateSchema = staffSchema.pick({
       name: true,
       email: true,
       mobile: true
@@ -76,3 +76,4 @@ export async function POST(req) {
     return apiError('Internal Server Error', 500, error.message);
   }
 }
+

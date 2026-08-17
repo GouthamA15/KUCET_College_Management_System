@@ -43,7 +43,7 @@ export async function GET() {
 
     return apiResponse({ data: formattedData });
   } catch (error) {
-    logger.error('Error fetching clerks:', error);
+    logger.error('Error fetching staff:', error);
     return apiError('Internal Server Error', 500);
   }
 }
